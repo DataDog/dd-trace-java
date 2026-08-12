@@ -2,6 +2,7 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 
+import datadog.communication.EvpProxy;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -99,7 +100,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private int spansWritten;
 
   public LLMObsSpanMapper() {
-    this(5 << 20);
+    this(EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES);
   }
 
   private LLMObsSpanMapper(int size) {
