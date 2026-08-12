@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -14,11 +13,8 @@ import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.communication.BackendApiFactory;
-import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer.HandlerApi;
 import datadog.trace.api.Config;
@@ -61,8 +57,6 @@ import org.tabletest.junit.TableTest;
 class ExposureWriterTests {
 
   private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
-  private static final String DIRECT_EXPOSURES_ENDPOINT = "/api/v2/exposures";
-  private static final String API_KEY = "test-api-key";
   private static final double TIMEOUT_SECONDS = 5;
 
   private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
@@ -81,11 +75,7 @@ class ExposureWriterTests {
         JavaTestHttpServer.httpServer(
             s ->
                 s.handlers(
-                    h -> {
-                      h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                      h.prefix(
-                          DIRECT_EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                    }));
+                    h -> h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter))));
     sharedCommunicationObjects = sharedCommunicationObjects(true);
   }
 
@@ -136,43 +126,6 @@ class ExposureWriterTests {
             for (ExposuresRequest request : requests) {
               assertContext(request.context, service, env, version);
             }
-            assertExposures(allExposures(), exposures);
-          });
-    }
-  }
-
-  @Test
-  void testAgentlessExposureEventWritesDirectlyWithApiKey() throws Exception {
-    Config config = mockConfig("test-service");
-    when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
-    when(config.getApiKey()).thenReturn(API_KEY);
-    BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    IntakeApi directApi =
-        new IntakeApi(
-            HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
-            API_KEY,
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            new OkHttpClient.Builder().build(),
-            false);
-    when(backendApiFactory.createDirectIntakeApi(datadog.trace.api.intake.Intake.EVENT_PLATFORM))
-        .thenReturn(directApi);
-    ExposureBackendApiFactory exposureBackendApiFactory =
-        new ExposureBackendApiFactory(config, backendApiFactory);
-    List<ExposureEvent> exposures = buildExposures(5);
-
-    try (ExposureWriterImpl writer =
-        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, exposureBackendApiFactory, config)) {
-      writer.init();
-      for (ExposureEvent exposure : exposures) {
-        writer.accept(exposure);
-      }
-
-      poll.eventually(
-          () -> {
-            assertEquals(DIRECT_EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
-            assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
-            assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
             assertExposures(allExposures(), exposures);
           });
     }

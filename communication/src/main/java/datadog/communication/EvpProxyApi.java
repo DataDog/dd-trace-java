@@ -95,8 +95,7 @@ public class EvpProxyApi implements BackendApi {
 
         return responseParser.apply(responseBodyStream);
       } else {
-        throw new HttpResponseException(
-            response.code(),
+        throw new IOException(
             "Request to "
                 + uri
                 + " returned error response "

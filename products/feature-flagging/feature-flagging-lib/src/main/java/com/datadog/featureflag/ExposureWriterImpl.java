@@ -10,11 +10,13 @@ import com.squareup.moshi.Moshi;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
+import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.ExposuresRequest;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,15 +47,6 @@ public class ExposureWriterImpl implements ExposureWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
-    this(capacity, flushInterval, timeUnit, new ExposureBackendApiFactory(config, sco), config);
-  }
-
-  ExposureWriterImpl(
-      final int capacity,
-      final long flushInterval,
-      final TimeUnit timeUnit,
-      final ExposureBackendApiFactory backendApiFactory,
-      final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final Map<String, String> context = new HashMap<>(4);
     context.put("service", config.getServiceName() == null ? "unknown" : config.getServiceName());
@@ -65,7 +58,12 @@ public class ExposureWriterImpl implements ExposureWriter {
     }
     final ExposureSerializingHandler serializer =
         new ExposureSerializingHandler(
-            backendApiFactory, queue, flushInterval, timeUnit, context, this::close);
+            new BackendApiFactory(config, sco),
+            queue,
+            flushInterval,
+            timeUnit,
+            context,
+            this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EXPOSURE_PROCESSOR, serializer);
   }
 
@@ -104,7 +102,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private long lastTicks;
 
     private final JsonAdapter<ExposuresRequest> jsonAdapter;
-    private final ExposureBackendApiFactory backendApiFactory;
+    private final BackendApiFactory backendApiFactory;
     private BackendApi evp;
 
     private final Map<String, String> context;
@@ -114,7 +112,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final Runnable errorCallback;
 
     public ExposureSerializingHandler(
-        final ExposureBackendApiFactory backendApiFactory,
+        final BackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -136,7 +134,7 @@ public class ExposureWriterImpl implements ExposureWriter {
 
     @Override
     public void run() {
-      evp = backendApiFactory.create();
+      evp = backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM);
       if (evp == null) {
         errorCallback.run();
         throw new IllegalArgumentException("EVP Proxy not available");
