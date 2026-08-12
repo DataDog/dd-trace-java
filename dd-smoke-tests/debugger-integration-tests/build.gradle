@@ -11,7 +11,7 @@ description = 'Debugger Integration Tests.'
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.5'
-  implementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp3.testing.get()
+  implementation libs.okhttp3.mockwebserver
 
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-java-agent:agent-debugger')

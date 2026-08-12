@@ -29,11 +29,7 @@ dependencies {
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-  testImplementation(
-    group = "com.squareup.okhttp3",
-    name = "mockwebserver",
-    version = libs.versions.okhttp3.testing.get()
-  )
+  testImplementation(libs.okhttp3.mockwebserver)
 }
 
 extra["minimumBranchCoverage"] = 0.5

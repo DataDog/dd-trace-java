@@ -61,5 +61,5 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp3.testing.get()}")
+  testImplementation(libs.okhttp3.mockwebserver)
 }

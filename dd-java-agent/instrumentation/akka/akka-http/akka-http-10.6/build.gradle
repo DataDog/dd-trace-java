@@ -58,7 +58,6 @@ dependencies {
   main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
   main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.9.0'
 
-  //testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: libs.versions.okhttp3.testing.get()
   testImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.9.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.6.0'

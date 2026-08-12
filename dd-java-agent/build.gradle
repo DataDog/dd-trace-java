@@ -408,7 +408,7 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp3.testing.get()
+  testImplementation libs.okhttp3.mockwebserver
   testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging

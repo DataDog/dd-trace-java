@@ -34,8 +34,8 @@ dependencies {
   // ssrf
   implementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
   implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
-  implementation group: 'com.squareup.okhttp', name: 'okhttp', version: libs.versions.okhttp2.testing.get()
-  implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: libs.versions.okhttp3.testing.get()
+  implementation libs.okhttp2.minimum
+  implementation libs.okhttp3.minimum
 
   testImplementation project(':dd-smoke-tests:appsec')
 }

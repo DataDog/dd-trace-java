@@ -11,16 +11,15 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-def baseVersion = '3.0.0'
 def latestVersion = '3.+'
 
 dependencies {
-  compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: baseVersion)
+  compileOnly libs.okhttp3.minimum
 
   testImplementation(group: 'com.squareup.okhttp3', name: 'okhttp') {
     version {
-      strictly "[${baseVersion},4)"
-      prefer baseVersion
+      strictly "[${libs.versions.okhttp3.minimum.get()},4)"
+      prefer libs.versions.okhttp3.minimum.get()
     }
   }
   testImplementation('com.squareup.okio:okio') {
