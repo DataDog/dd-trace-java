@@ -39,22 +39,22 @@ fi
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 # Check gh is installed
 echo "- Checking gh is installed"
-gh --version 1>/dev/null 2>&1 || { echo "gh is not installed"; exit 1; }
+gh --version 1>/dev/null 2>&1 || { echo "  gh is not installed"; exit 1; }
 # Check jq is installed
 echo "- Checking jq is installed"
-jq --version 1>/dev/null 2>&1 || { echo "jq is not installed"; exit 1; }
+jq --version 1>/dev/null 2>&1 || { echo "  jq is not installed"; exit 1; }
 # Check there is no local changes
 echo "- Checking there is no local changes"
-git diff --exit-code || { echo "There are local changes"; exit 1; }
+git diff --exit-code || { echo "  There are local changes"; exit 1; }
 # Check remote branch exists
 echo "- Checking remote release branch exists"
-git fetch --quiet
-git show-ref --verify --quiet "refs/remotes/origin/$PATCH_RELEASE_BRANCH" 1>/dev/null 2>&1 || { echo "Branch $PATCH_RELEASE_BRANCH does not exist"; exit 1; }
+git fetch --quiet origin
+git show-ref --verify --quiet "refs/remotes/origin/$PATCH_RELEASE_BRANCH" 1>/dev/null 2>&1 || { echo "  Branch $PATCH_RELEASE_BRANCH does not exist"; exit 1; }
 # Check PR exists
 echo "- Checking PR exists"
 PR_COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid')
 if [ -z "$PR_COMMITS" ]; then
-    echo "PR $PR_NUMBER does not exist"
+    echo "  PR $PR_NUMBER does not exist"
     exit 1
 fi
 # Check all individual commits are still present
@@ -62,8 +62,8 @@ USE_MERGE_COMMIT=0
 echo "- Checking all individual commits are still present"
 for PR_COMMIT in $PR_COMMITS; do
     if ! git cat-file -e "$PR_COMMIT"; then
-        echo "Commit $PR_COMMIT from PR $PR_NUMBER is no longer present in the repository."
-        echo "This can happen when PR is squashed and remote branch is removed afterwards, original commits can be garbage collected."
+        echo "  Commit $PR_COMMIT from PR $PR_NUMBER is no longer present in the repository."
+        echo "  This can happen when PR is squashed and remote branch is removed afterwards, original commits can be garbage collected."
         USE_MERGE_COMMIT=1
         break
     fi
@@ -74,9 +74,9 @@ if [ $USE_MERGE_COMMIT -eq 0 ]; then
     for PR_COMMIT in $PR_COMMITS; do
         PARENT_COUNT=$(git rev-list --parents -n 1 "$PR_COMMIT" 2>/dev/null | wc -w)
         if [ "$PARENT_COUNT" -gt 2 ]; then
-            echo "PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
-            echo "Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
-            echo "PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
+            echo "  PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
+            echo "  Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
+            echo "  PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
             USE_MERGE_COMMIT=1
             break
         fi
@@ -84,12 +84,12 @@ if [ $USE_MERGE_COMMIT -eq 0 ]; then
 fi
 # Ask to use merge commit rather than individual commits
 if [ $USE_MERGE_COMMIT -eq 1 ]; then
-    echo -n "Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
+    echo -n "  Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
     read -r ANSWER
     if [ "$ANSWER" == "y" ]; then
         PR_COMMITS=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
     else
-        echo "Aborting. Please back-port the PR manually then."
+        echo "  Aborting. Please back-port the PR manually then."
         exit 1
     fi
 fi
@@ -100,13 +100,11 @@ PR_LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(
 #
 # Backport PR to patch release branch.
 #
-# Checkout release branch
-git checkout "$PATCH_RELEASE_BRANCH"
-# Ensure the branch is up-to-date
-git pull
+# Start backporting
+echo "- Backporting PR $PR_NUMBER to $PATCH_RELEASE_BRANCH"
 # Create a new branch for the backport
 BRANCH_NAME="$USER/backport-pr-$PR_NUMBER"
-git checkout -b "$BRANCH_NAME"
+git checkout -b "$BRANCH_NAME" "origin/$PATCH_RELEASE_BRANCH"
 # Cherry-pick PR commits
 for PR_COMMIT in $PR_COMMITS; do
     git cherry-pick -x "$PR_COMMIT"
@@ -114,15 +112,16 @@ done
 # Push the branch
 git push -u origin "$BRANCH_NAME" --no-verify
 # Create a PR
-gh pr create --base "$PATCH_RELEASE_BRANCH" \
+PR_URL=$(gh pr create --base "$PATCH_RELEASE_BRANCH" \
     --head "$BRANCH_NAME" \
     --title "🍒 $PR_NUMBER - $PR_TITLE" \
     --body "Backport #$PR_NUMBER to $PATCH_RELEASE_BRANCH" \
-    --label "$PR_LABELS"
+    --label "$PR_LABELS")
+echo "  Backport completed: $PR_URL"
 
 #
 # Clean up.
 #
 # Restore current branch
-echo "- Restoring original state"
+echo "- Restoring original working copy state"
 git checkout "$CURRENT_BRANCH"
