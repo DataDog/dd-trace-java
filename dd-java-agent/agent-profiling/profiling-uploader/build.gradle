@@ -30,7 +30,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation libs.okhttp
+  implementation libs.okhttp.datadog
   implementation libs.lz4
   implementation libs.aircompressor
 
@@ -39,6 +39,5 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.jackson.databind
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp3.testing.get()
 }
-

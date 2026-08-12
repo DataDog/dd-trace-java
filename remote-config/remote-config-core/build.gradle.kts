@@ -25,7 +25,7 @@ dependencies {
   api(project(":remote-config:remote-config-api"))
 
   implementation(libs.slf4j)
-  implementation(libs.okhttp)
+  implementation(libs.okhttp.datadog)
   implementation(libs.moshi)
   implementation(libs.bundles.cafe.crypto)
 

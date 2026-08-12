@@ -408,12 +408,12 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp3.testing.get()
   testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging
   testImplementation libs.guava
-  testImplementation libs.okhttp
+  testImplementation libs.okhttp.datadog
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar

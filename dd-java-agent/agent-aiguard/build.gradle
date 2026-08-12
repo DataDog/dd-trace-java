@@ -15,7 +15,7 @@ java {
 dependencies {
   api libs.slf4j
   implementation libs.moshi
-  implementation libs.okhttp
+  implementation libs.okhttp.datadog
 
   api project(':dd-trace-api')
   api project(':utils:version-utils')
