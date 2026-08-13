@@ -725,7 +725,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   }
 
   private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
-    if (captureExpressions == null || !logStatus.isSampled() || !logStatus.getCondition()) {
+    if (captureExpressions == null || !logStatus.shouldSend()) {
       return;
     }
     for (CaptureExpression captureExpression : captureExpressions) {
