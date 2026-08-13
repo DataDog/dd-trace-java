@@ -15,6 +15,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -33,14 +34,23 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new HttpResponseException(statusCode, "rejected"));
     final RecordingBackendApi direct = new RecordingBackendApi();
+    final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, direct, "flag evaluation");
+        new AgentlessFeatureFlagBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return direct;
+            },
+            "flag evaluation");
     final RequestBody firstBody = requestBody("first");
     final RequestBody secondBody = requestBody("second");
 
+    assertEquals(0, directApiCreations.get());
     api.post("flagevaluation", firstBody, stream -> null, null, false);
     api.post("flagevaluation", secondBody, stream -> null, null, false);
 
+    assertEquals(1, directApiCreations.get());
     assertEquals(1, local.calls);
     assertEquals(2, direct.calls);
     assertSame(firstBody, local.requestBodies.get(0));
@@ -56,7 +66,7 @@ class AgentlessFeatureFlagBackendApiTest {
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, direct, eventType);
+        new AgentlessFeatureFlagBackendApi(local, () -> direct, eventType);
 
     api.post(route, requestBody(eventType), stream -> null, null, false);
 
@@ -70,7 +80,7 @@ class AgentlessFeatureFlagBackendApiTest {
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, direct, "exposure");
+        new AgentlessFeatureFlagBackendApi(local, () -> direct, "exposure");
 
     api.post("exposures", requestBody("first"), stream -> null, null, false);
     direct.failure = new IOException("direct intake failed");
@@ -98,11 +108,43 @@ class AgentlessFeatureFlagBackendApiTest {
     assertNoDirectReplay(new SocketException("connection reset"));
   }
 
+  @Test
+  void doesNotRetryDirectApiCreationWhenFallbackIsUnavailable() {
+    final RecordingBackendApi local =
+        new RecordingBackendApi(new HttpResponseException(404, "rejected"));
+    final AtomicInteger directApiCreations = new AtomicInteger();
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return null;
+            },
+            "exposure");
+
+    assertThrows(
+        HttpResponseException.class,
+        () -> api.post("exposures", requestBody("first"), stream -> null, null, false));
+    assertThrows(
+        HttpResponseException.class,
+        () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
+
+    assertEquals(2, local.calls);
+    assertEquals(1, directApiCreations.get());
+  }
+
   private static void assertNoDirectReplay(final IOException failure) {
     final RecordingBackendApi local = new RecordingBackendApi(failure);
     final RecordingBackendApi direct = new RecordingBackendApi();
+    final AtomicInteger directApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, direct, "flag evaluation");
+        new AgentlessFeatureFlagBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return direct;
+            },
+            "flag evaluation");
 
     assertThrows(
         IOException.class,
@@ -110,6 +152,7 @@ class AgentlessFeatureFlagBackendApiTest {
 
     assertEquals(1, local.calls);
     assertEquals(0, direct.calls);
+    assertEquals(0, directApiCreations.get());
   }
 
   private static RequestBody requestBody(final String value) {

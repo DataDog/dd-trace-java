@@ -7,6 +7,7 @@ import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
 import org.slf4j.Logger;
@@ -19,14 +20,17 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
   private final BackendApi localApi;
-  private final BackendApi directApi;
+  private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
   private volatile BackendApi activeApi;
+  private volatile boolean directApiCreationAttempted;
 
   AgentlessFeatureFlagBackendApi(
-      final BackendApi localApi, final BackendApi directApi, final String eventType) {
+      final BackendApi localApi,
+      final Supplier<BackendApi> directApiSupplier,
+      final String eventType) {
     this.localApi = localApi;
-    this.directApi = directApi;
+    this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
     this.activeApi = localApi;
   }
@@ -48,13 +52,39 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
         throw exception;
       }
 
-      if (activeApi == localApi) {
+      final BackendApi directApi = getOrCreateDirectApi();
+      if (directApi == null) {
+        throw exception;
+      }
+      return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
+    }
+  }
+
+  @Nullable
+  private BackendApi getOrCreateDirectApi() {
+    final BackendApi selectedApi = activeApi;
+    if (selectedApi != localApi) {
+      return selectedApi;
+    }
+
+    synchronized (this) {
+      final BackendApi currentApi = activeApi;
+      if (currentApi != localApi) {
+        return currentApi;
+      }
+      if (directApiCreationAttempted) {
+        return null;
+      }
+
+      final BackendApi directApi = directApiSupplier.get();
+      if (directApi != null) {
         LOGGER.debug(
             "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
             eventType);
         activeApi = directApi;
       }
-      return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
+      directApiCreationAttempted = true;
+      return directApi;
     }
   }
 

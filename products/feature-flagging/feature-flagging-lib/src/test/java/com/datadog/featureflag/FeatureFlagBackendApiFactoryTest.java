@@ -60,6 +60,7 @@ class FeatureFlagBackendApiFactoryTest {
             .create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -117,7 +118,7 @@ class FeatureFlagBackendApiFactoryTest {
   }
 
   @Test
-  void agentlessKeepsLocalRouteWhenDirectUrlIsInvalid() {
+  void agentlessDoesNotValidateDirectUrlWhileLocalRouteIsAvailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi localApi = mock(BackendApi.class);
@@ -129,7 +130,22 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
             .create();
 
-    assertSame(localApi, selected);
+    assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
+  }
+
+  @Test
+  void agentlessDisablesDeliveryWhenDirectUrlIsInvalidAndLocalRouteIsUnavailable() {
+    final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+        .thenThrow(new IllegalArgumentException("invalid URL"));
+
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
+            .create();
+
+    assertNull(selected);
   }
 
   private static Config config(final String source, final String apiKey) {

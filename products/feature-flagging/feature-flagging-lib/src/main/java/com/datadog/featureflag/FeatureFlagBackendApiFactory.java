@@ -57,13 +57,14 @@ final class FeatureFlagBackendApiFactory {
       return localApi;
     }
 
-    final BackendApi directApi = createDirectApi();
-    if (localApi != null && directApi != null) {
-      return new AgentlessFeatureFlagBackendApi(localApi, directApi, eventType);
-    }
     if (localApi != null) {
+      if (hasDirectCredentials()) {
+        return new AgentlessFeatureFlagBackendApi(localApi, this::createDirectApi, eventType);
+      }
       return localApi;
     }
+
+    final BackendApi directApi = createDirectApi();
     if (directApi != null) {
       return directApi;
     }
@@ -74,10 +75,14 @@ final class FeatureFlagBackendApiFactory {
     return null;
   }
 
+  private boolean hasDirectCredentials() {
+    final String apiKey = config.getApiKey();
+    return apiKey != null && !apiKey.isEmpty();
+  }
+
   @Nullable
   private BackendApi createDirectApi() {
-    final String apiKey = config.getApiKey();
-    if (apiKey == null || apiKey.isEmpty()) {
+    if (!hasDirectCredentials()) {
       return null;
     }
     try {
