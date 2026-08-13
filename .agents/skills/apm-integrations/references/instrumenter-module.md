@@ -20,6 +20,7 @@
     - **JAX-WS**: `jakarta.xml.ws:jakarta.xml.ws-api`
     - **Servlet**: `jakarta.servlet:jakarta.servlet-api`
   - **DO NOT classify interface-only API JARs as not_applicable.** They ARE instrumentable via `implementsInterface()`.
+  - **Database-client design rules (see the toolkit `categories/database.md`, force-read at target-selection):** derive `db.instance`/keyspace from the operation not the connection default; prefer a tracing wrapper of long-lived client objects over per-`execute` advice; gate DBM metadata collection behind the DBM-enabled flag; and (R-DB-3) populate connection metadata eagerly at `Driver.connect` into a `Connection`-keyed context store rather than lazily on first query.
 - Add `classLoaderMatcher()` if a sentinel class identifies the framework on the classpath
 - Declare **all** helper class names in `helperClassNames()`:
   - Include inner classes (`Foo$Bar`), anonymous classes (`Foo$1`), and enum synthetic classes — for enums, each constant with an anonymous body generates its own synthetic class (`MyEnum$1`, `MyEnum$2`, …), each must be listed individually
