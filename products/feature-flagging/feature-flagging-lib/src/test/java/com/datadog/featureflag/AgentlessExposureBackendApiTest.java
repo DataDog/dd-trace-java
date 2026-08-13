@@ -67,6 +67,23 @@ class AgentlessExposureBackendApiTest {
     assertEquals(1, direct.calls);
   }
 
+  @Test
+  void doesNotReturnToLocalRouteAfterSwitchingToDirectIntake() throws Exception {
+    final RecordingBackendApi local =
+        new RecordingBackendApi(new ConnectException("connection refused"));
+    final RecordingBackendApi direct = new RecordingBackendApi();
+    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, () -> direct);
+
+    api.post("exposures", requestBody("first"), stream -> null, null, false);
+    direct.failure = new IOException("direct intake failed");
+
+    assertThrows(
+        IOException.class,
+        () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
+    assertEquals(1, local.calls);
+    assertEquals(2, direct.calls);
+  }
+
   @ParameterizedTest
   @ValueSource(ints = {429, 500})
   void doesNotReplayAmbiguousHttpFailure(final int statusCode) {
@@ -133,7 +150,7 @@ class AgentlessExposureBackendApiTest {
   }
 
   private static final class RecordingBackendApi implements BackendApi {
-    private final IOException failure;
+    private IOException failure;
     private final List<RequestBody> requestBodies = new ArrayList<>();
     private int calls;
 
