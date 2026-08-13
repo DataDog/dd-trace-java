@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
+import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.EvpProxy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -13,6 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
@@ -23,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +111,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
-    this(capacity, flushInterval, timeUnit, new BackendApiFactory(config, sco), config);
+    this(
+        capacity,
+        flushInterval,
+        timeUnit,
+        new FeatureFlagBackendApiFactory(config, sco, "flag evaluation", false),
+        config);
   }
 
   /** Package-private constructor allowing a BackendApiFactory to be injected for tests. */
@@ -118,10 +126,33 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final TimeUnit timeUnit,
       final BackendApiFactory backendApiFactory,
       final Config config) {
+    this(
+        capacity,
+        flushInterval,
+        timeUnit,
+        () -> backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        config);
+  }
+
+  FlagEvaluationWriterImpl(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final FeatureFlagBackendApiFactory backendApiFactory,
+      final Config config) {
+    this(capacity, flushInterval, timeUnit, backendApiFactory::create, config);
+  }
+
+  private FlagEvaluationWriterImpl(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final Supplier<BackendApi> backendApiSupplier,
+      final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     this.serializer =
         new FlagEvaluationSerializingHandler(
-            backendApiFactory,
+            backendApiSupplier,
             queue,
             flushInterval,
             timeUnit,
@@ -318,7 +349,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback) {
       this(
-          backendApiFactory,
+          () -> backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, false),
           queue,
           flushInterval,
           timeUnit,
@@ -339,10 +370,53 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
+      this(
+          () -> backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, false),
+          queue,
+          flushInterval,
+          timeUnit,
+          context,
+          droppedQueueOverflow,
+          contextTruncatedCounts,
+          errorCallback,
+          payloadSizeLimitBytes);
+    }
+
+    FlagEvaluationSerializingHandler(
+        final Supplier<BackendApi> backendApiSupplier,
+        final MessagePassingBlockingQueue<FlagEvalEvent> queue,
+        final long flushInterval,
+        final TimeUnit timeUnit,
+        final Map<String, String> context,
+        final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
+        final Runnable errorCallback) {
+      this(
+          backendApiSupplier,
+          queue,
+          flushInterval,
+          timeUnit,
+          context,
+          droppedQueueOverflow,
+          contextTruncatedCounts,
+          errorCallback,
+          FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    }
+
+    FlagEvaluationSerializingHandler(
+        final Supplier<BackendApi> backendApiSupplier,
+        final MessagePassingBlockingQueue<FlagEvalEvent> queue,
+        final long flushInterval,
+        final TimeUnit timeUnit,
+        final Map<String, String> context,
+        final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
+        final Runnable errorCallback,
+        final int payloadSizeLimitBytes) {
       this.queue = queue;
       this.evpPublisher =
           new FeatureFlagEvpPublisher<>(
-              backendApiFactory, FlagEvaluationPayloads.FlagEvaluationsRequest.class, false);
+              backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
       this.contextTruncatedCounts = contextTruncatedCounts;

@@ -12,18 +12,22 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends exposures through a local EVP proxy, with a safe direct intake fallback. */
-final class AgentlessExposureBackendApi implements BackendApi {
+/** Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback. */
+final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessExposureBackendApi.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
   private final BackendApi localApi;
   private final BackendApi directApi;
+  private final String eventType;
   private volatile BackendApi activeApi;
 
-  AgentlessExposureBackendApi(final BackendApi localApi, final BackendApi directApi) {
+  AgentlessFeatureFlagBackendApi(
+      final BackendApi localApi, final BackendApi directApi, final String eventType) {
     this.localApi = localApi;
     this.directApi = directApi;
+    this.eventType = eventType;
     this.activeApi = localApi;
   }
 
@@ -46,7 +50,8 @@ final class AgentlessExposureBackendApi implements BackendApi {
 
       if (activeApi == localApi) {
         LOGGER.debug(
-            "Switching Feature Flagging exposure delivery from the local EVP proxy to direct intake");
+            "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
+            eventType);
         activeApi = directApi;
       }
       return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);

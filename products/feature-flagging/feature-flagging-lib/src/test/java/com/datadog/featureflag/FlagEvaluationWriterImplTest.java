@@ -11,6 +11,7 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCaptureJ
 import static com.datadog.featureflag.FlagEvaluationTestSupport.metricSum;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.repeat;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.simpleEvent;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,13 +32,18 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
+import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
+import datadog.trace.test.util.PollingConditions;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collection;
@@ -46,6 +52,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
@@ -53,6 +61,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FlagEvaluationWriterImplTest {
+
+  private static final String DIRECT_FLAG_EVALUATION_ENDPOINT = "/api/v2/flagevaluation";
+  private static final String API_KEY = "test-api-key";
+  private static final double TIMEOUT_SECONDS = 5;
 
   @BeforeEach
   void clearCoreMetricsBefore() {
@@ -648,6 +660,53 @@ class FlagEvaluationWriterImplTest {
     writer.enqueue(simpleEvent("sco-flag", "on"));
     assertNotNull(writer.pollQueuedEventForTest());
     writer.close();
+  }
+
+  @Test
+  void agentlessWritesFlagEvaluationsDirectlyWhenLocalProxyIsUnavailable() throws Exception {
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.prefix(
+                            DIRECT_FLAG_EVALUATION_ENDPOINT,
+                            api -> api.getResponse().status(200).send("OK"))))) {
+      final Config config = cfg();
+      when(config.getFeatureFlaggingConfigurationSource())
+          .thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
+      when(config.getApiKey()).thenReturn(API_KEY);
+      final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+      final IntakeApi directApi =
+          new IntakeApi(
+              HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
+              API_KEY,
+              "123",
+              HttpRetryPolicy.Factory.NEVER_RETRY,
+              new OkHttpClient.Builder().build(),
+              false);
+      when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+          .thenReturn(directApi);
+      final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
+          new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false);
+      final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
+
+      try (FlagEvaluationWriterImpl writer =
+          new FlagEvaluationWriterImpl(
+              16, 1, TimeUnit.MILLISECONDS, featureFlagBackendApiFactory, config)) {
+        writer.startForTest();
+        writer.enqueue(simpleEvent("direct-flag", "on"));
+
+        poll.eventually(
+            () -> {
+              assertNotNull(server.getLastRequest());
+              assertEquals(DIRECT_FLAG_EVALUATION_ENDPOINT, server.getLastRequest().getPath());
+              assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
+              assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
+              assertTrue(server.getLastRequest().getBody().length > 0);
+            });
+      }
+    }
   }
 
   @Test

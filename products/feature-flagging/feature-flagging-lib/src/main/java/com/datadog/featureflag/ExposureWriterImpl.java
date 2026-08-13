@@ -41,14 +41,19 @@ public class ExposureWriterImpl implements ExposureWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
-    this(capacity, flushInterval, timeUnit, new ExposureBackendApiFactory(config, sco), config);
+    this(
+        capacity,
+        flushInterval,
+        timeUnit,
+        new FeatureFlagBackendApiFactory(config, sco, "exposure", true),
+        config);
   }
 
   ExposureWriterImpl(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final ExposureBackendApiFactory backendApiFactory,
+      final FeatureFlagBackendApiFactory backendApiFactory,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final ExposureSerializingHandler serializer =
@@ -104,7 +109,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final Runnable errorCallback;
 
     ExposureSerializingHandler(
-        final ExposureBackendApiFactory backendApiFactory,
+        final FeatureFlagBackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,

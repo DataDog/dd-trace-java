@@ -155,10 +155,11 @@ class ExposureWriterTests {
             HttpRetryPolicy.Factory.NEVER_RETRY,
             new OkHttpClient.Builder().build(),
             false);
-    when(backendApiFactory.createDirectIntakeApi(datadog.trace.api.intake.Intake.EVENT_PLATFORM))
+    when(backendApiFactory.createDirectIntakeApi(
+            datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
         .thenReturn(directApi);
-    ExposureBackendApiFactory exposureBackendApiFactory =
-        new ExposureBackendApiFactory(config, backendApiFactory);
+    FeatureFlagBackendApiFactory exposureBackendApiFactory =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true);
     List<ExposureEvent> exposures = buildExposures(5);
 
     try (ExposureWriterImpl writer =
