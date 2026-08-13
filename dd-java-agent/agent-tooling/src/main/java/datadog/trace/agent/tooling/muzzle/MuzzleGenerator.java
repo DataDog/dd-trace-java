@@ -9,9 +9,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,8 +78,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       throw new RuntimeException(e);
     }
 
-    File sourceRoot =
-        sourceRootFor(moduleDefinition, Thread.currentThread().getContextClassLoader());
+    File sourceRoot = sourceRootFor(module);
 
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
 
@@ -297,25 +296,20 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /**
-   * The subproject's compiled-output root, derived from the module's {@code .class} location on the
-   * build class loader. It resolves into the raw-classes folder.
+   * The subproject's compiled-output root, taken from the loaded module's code source (the
+   * classpath entry it was loaded from, i.e. the raw-classes folder).
    */
-  private static File sourceRootFor(TypeDescription moduleDefinition, ClassLoader loader) {
-    String resourcePath = moduleDefinition.getInternalName() + ".class";
-    URL url = loader.getResource(resourcePath);
-    if (url == null || !"file".equals(url.getProtocol())) {
+  private static File sourceRootFor(InstrumenterModule module) {
+    CodeSource codeSource = module.getClass().getProtectionDomain().getCodeSource();
+    if (codeSource == null || codeSource.getLocation() == null) {
       throw new IllegalStateException(
-          "Cannot locate compiled output for " + moduleDefinition.getName() + " (url=" + url + ")");
+          "Cannot locate compiled output for " + module.getClass().getName());
     }
     try {
-      File root = new File(url.toURI());
-      // Go up one level per path segment (packages + the class file) to reach classpath root.
-      for (int i = 0; i < resourcePath.split("/").length; i++) {
-        root = root.getParentFile();
-      }
-      return root;
+      return new File(codeSource.getLocation().toURI());
     } catch (URISyntaxException e) {
-      throw new IllegalStateException("Cannot resolve compiled output for " + url, e);
+      throw new IllegalStateException(
+          "Cannot resolve compiled output for " + codeSource.getLocation(), e);
     }
   }
 
