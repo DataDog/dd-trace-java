@@ -60,6 +60,7 @@ public final class LLMObsMetricCollector
   private final BlockingQueue<LLMObsMetric> metricsQueue;
   private final DDCache<String, String> integrationTagCache;
   private final DDCache<String, String> spanKindTagCache;
+
   /**
    * Counter per tag combination, aggregated in-process and flushed once per metrics interval by
    * {@link #prepareMetrics()}. Counting here rather than enqueuing one entry per span is what keeps
