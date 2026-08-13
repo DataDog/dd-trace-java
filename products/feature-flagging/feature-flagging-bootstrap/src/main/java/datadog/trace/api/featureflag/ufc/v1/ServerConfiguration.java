@@ -1,5 +1,6 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
+import java.util.Collections;
 import java.util.Map;
 
 public class ServerConfiguration {
@@ -13,6 +14,10 @@ public class ServerConfiguration {
   public final Boolean observeFullEvaluationData;
   public final Environment environment;
   public final Map<String, Flag> flags;
+
+  // Flags that could not be parsed or validated. The key is the flag key; the value is the error
+  // type (e.g. "invalid_semver_comparand"). Set during configuration preprocessing, not from JSON.
+  public transient Map<String, String> invalidFlags = Collections.emptyMap();
 
   public ServerConfiguration(
       final String createdAt,
