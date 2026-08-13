@@ -68,7 +68,7 @@ class MuzzleGeneratorTest {
     // count as this subproject's own helpers.
     File sourceDir = classesRootOf(MuzzleGeneratorFixtures.class);
     File targetDir = Files.createTempDirectory("muzzle-generator-test").toFile();
-    MuzzleGenerator generator = new MuzzleGenerator(sourceDir, targetDir);
+    MuzzleGenerator generator = new MuzzleGenerator(targetDir);
 
     ClassLoader loader = MuzzleGeneratorTest.class.getClassLoader();
     Map<String, Reference> crawled =
@@ -80,7 +80,8 @@ class MuzzleGeneratorTest {
     // computeInjectedHelpers resolves classes via the context class-loader.
     Thread.currentThread().setContextClassLoader(loader);
     try {
-      return Arrays.asList(generator.computeInjectedHelpers(module, references, adviceClasses));
+      return Arrays.asList(
+          generator.computeInjectedHelpers(module, references, adviceClasses, sourceDir));
     } finally {
       Thread.currentThread().setContextClassLoader(previous);
     }

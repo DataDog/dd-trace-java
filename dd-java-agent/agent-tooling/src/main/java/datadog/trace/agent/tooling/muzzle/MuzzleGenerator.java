@@ -8,6 +8,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -34,12 +36,9 @@ import net.bytebuddy.pool.TypePool;
 
 /** Generates a 'Muzzle' side-class for each {@link InstrumenterModule}. */
 public class MuzzleGenerator implements AsmVisitorWrapper {
-  private final File sourceDir;
-
   private final File targetDir;
 
-  public MuzzleGenerator(File sourceDir, File targetDir) {
-    this.sourceDir = sourceDir;
+  public MuzzleGenerator(File targetDir) {
     this.targetDir = targetDir;
   }
 
@@ -77,6 +76,9 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       throw new RuntimeException(e);
     }
 
+    File sourceRoot =
+        sourceRootFor(moduleDefinition, Thread.currentThread().getContextClassLoader());
+
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
 
     // Collect the muzzle references from every advice the module defines.
@@ -91,7 +93,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    String[] orderedHelpers = computeInjectedHelpers(module, allReferences, adviceClasses);
+    String[] orderedHelpers =
+        computeInjectedHelpers(module, allReferences, adviceClasses, sourceRoot);
 
     File muzzleClass = new File(targetDir, moduleDefinition.getInternalName() + "$Muzzle.class");
     try {
@@ -250,7 +253,10 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   /** Resolves the ordered set of helper classes to inject for a module. */
   String[] computeInjectedHelpers(
-      InstrumenterModule module, List<Reference> allReferences, Set<String> adviceClasses) {
+      InstrumenterModule module,
+      List<Reference> allReferences,
+      Set<String> adviceClasses,
+      File sourceRoot) {
     // A module that declares its own helper list uses it directly.
     Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
     if (!manualHelpers.isEmpty()) {
@@ -258,7 +264,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     }
 
     // Otherwise infer them
-    HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
+    HelperClassPredicate helperPredicate =
+        new HelperClassPredicate(name -> isOwnOutput(sourceRoot, name));
     Set<String> helpers = new LinkedHashSet<>();
     for (Reference reference : allReferences) {
       if (!adviceClasses.contains(reference.className)
@@ -267,8 +274,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
     for (String helper : new ArrayList<>(helpers)) {
-      if (isOwnOutput(helper)) {
-        addNestedClasses(helper, helpers);
+      if (isOwnOutput(sourceRoot, helper)) {
+        addNestedClasses(sourceRoot, helper, helpers);
       }
     }
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -283,14 +290,38 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     return injectableHelpers.toArray(new String[0]);
   }
 
+  /**
+   * The subproject's compiled-output root, derived from the module's {@code .class} location on the
+   * build class loader. It resolves into the raw-classes folder.
+   */
+  private static File sourceRootFor(TypeDescription moduleDefinition, ClassLoader loader) {
+    String resourcePath = moduleDefinition.getInternalName() + ".class";
+    URL url = loader.getResource(resourcePath);
+    if (url == null || !"file".equals(url.getProtocol())) {
+      throw new IllegalStateException(
+          "Cannot locate compiled output for " + moduleDefinition.getName() + " (url=" + url + ")");
+    }
+    try {
+      File root = new File(url.toURI());
+      // Go up one level per path segment (packages + the class file) to reach classpath root.
+      for (int i = 0; i < resourcePath.split("/").length; i++) {
+        root = root.getParentFile();
+      }
+      return root;
+    } catch (URISyntaxException e) {
+      throw new IllegalStateException("Cannot resolve compiled output for " + url, e);
+    }
+  }
+
   /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
-  private boolean isOwnOutput(String className) {
-    return new File(sourceDir, className.replace('.', '/') + ".class").isFile();
+  private static boolean isOwnOutput(File sourceRoot, String className) {
+    return new File(sourceRoot, className.replace('.', '/') + ".class").isFile();
   }
 
   /** Adds the nested classes ({@code Foo$Bar}, {@code Foo$1}, ...) of an ownOutput helper. */
-  private void addNestedClasses(String className, Set<String> helperClasses) {
-    File classFile = new File(sourceDir, className.replace('.', '/') + ".class");
+  private static void addNestedClasses(
+      File sourceRoot, String className, Set<String> helperClasses) {
+    File classFile = new File(sourceRoot, className.replace('.', '/') + ".class");
     File dir = classFile.getParentFile();
     if (dir == null || !dir.isDirectory()) {
       return;
