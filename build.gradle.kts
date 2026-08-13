@@ -12,7 +12,7 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("com.github.spotbugs") version "6.5.10"
   id("de.thetaphi.forbiddenapis") version "3.10"
@@ -43,10 +43,10 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
-    greclipse()
+    greclipse(libs.versions.greclipse.get())
   }
   groovy {
-    greclipse()
+    greclipse(libs.versions.greclipse.get())
   }
   kotlinGradle {
     ktlint(libs.versions.ktlint.get())

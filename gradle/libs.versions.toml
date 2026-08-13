@@ -11,8 +11,10 @@ spotbugs_annotations = "4.10.3"
 
 # Source code formatters
 google-java-format = "1.36.1"
+greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
+spotless = "8.9.0"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
@@ -200,3 +202,4 @@ spock = ["spock-core", "objenesis"]
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
