@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -36,9 +37,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
   // internal tags to be prefixed
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input";
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
+  private static final String INPUT_PROMPT = LLMOBS_TAG_PREFIX + "input_prompt";
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
+  private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
+      LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
+  private static final String INSTRUMENTATION_METHOD_ANNOTATED = "annotated";
+  private static final String DEFAULT_PROMPT_NAME = "unnamed-prompt";
+  private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
+  private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
@@ -52,6 +60,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private final AgentSpan span;
   private final String spanKind;
+  private final String mlApp;
   private final ContextScope scope;
   private final boolean hasSessionId;
 
@@ -90,6 +99,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
+    this.mlApp = mlApp;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
     // Resolve effective parent_id and session_id from the LLMObs context, both gated on
     // trace-id consistency. A stale context from a different trace (e.g. async boundary
@@ -235,6 +245,84 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
+  public void annotatePrompt(LLMObs.Prompt prompt) {
+    if (finished || prompt == null) {
+      return;
+    }
+    if (!Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
+      LOGGER.warn(
+          "dropping prompt on non-LLM span kind, annotating prompts is only supported for LLM span kinds");
+      return;
+    }
+
+    Map<String, Object> annotatedPrompt = new LinkedHashMap<>();
+    Object currentPrompt = span.getTag(INPUT_PROMPT);
+    if (currentPrompt instanceof Map) {
+      annotatedPrompt.putAll(copyStringKeyedMap((Map<?, ?>) currentPrompt));
+    }
+    if (prompt.getId() != null && !prompt.getId().isEmpty()) {
+      annotatedPrompt.put("id", prompt.getId());
+    }
+    if (!annotatedPrompt.containsKey("id")) {
+      annotatedPrompt.put("id", mlApp + "_" + DEFAULT_PROMPT_NAME);
+    }
+    putIfPresent(annotatedPrompt, "version", prompt.getVersion());
+    putIfPresent(annotatedPrompt, "variables", prompt.getVariables());
+    if (prompt.getTemplate() != null) {
+      annotatedPrompt.remove("chat_template");
+      annotatedPrompt.put("template", prompt.getTemplate());
+    } else if (prompt.getChatTemplate() != null && !prompt.getChatTemplate().isEmpty()) {
+      annotatedPrompt.remove("template");
+      annotatedPrompt.put("chat_template", toChatTemplate(prompt.getChatTemplate()));
+    }
+    putIfPresent(annotatedPrompt, "tags", prompt.getTags());
+    annotatedPrompt.put(
+        CONTEXT_VARIABLE_KEYS,
+        prompt.getContextVariables() == null
+            ? Collections.singletonList("context")
+            : prompt.getContextVariables());
+    annotatedPrompt.put(
+        QUERY_VARIABLE_KEYS,
+        prompt.getQueryVariables() == null
+            ? Collections.singletonList("question")
+            : prompt.getQueryVariables());
+
+    span.setTag(INPUT_PROMPT, annotatedPrompt);
+    span.setTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD, INSTRUMENTATION_METHOD_ANNOTATED);
+  }
+
+  private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
+    Map<String, Object> copy = new LinkedHashMap<>();
+    for (Map.Entry<?, ?> entry : source.entrySet()) {
+      if (entry.getKey() instanceof String) {
+        copy.put((String) entry.getKey(), entry.getValue());
+      }
+    }
+    return copy;
+  }
+
+  private static void putIfPresent(Map<String, Object> prompt, String key, Object value) {
+    if (value != null) {
+      prompt.put(key, value);
+    }
+  }
+
+  private static List<Map<String, String>> toChatTemplate(List<LLMObs.LLMMessage> messages) {
+    List<Map<String, String>> chatTemplate = new ArrayList<>(messages.size());
+    for (LLMObs.LLMMessage message : messages) {
+      if (message == null || message.getRole() == null || message.getContent() == null) {
+        LOGGER.warn("prompt chat template messages must define both role and content; skipping");
+        continue;
+      }
+      Map<String, String> templateMessage = new LinkedHashMap<>();
+      templateMessage.put("role", message.getRole());
+      templateMessage.put("content", message.getContent());
+      chatTemplate.add(templateMessage);
+    }
+    return chatTemplate;
+  }
+
+  @Override
   public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {
     if (finished || toolDefinitions == null || toolDefinitions.isEmpty()) {
       return;
@@ -269,7 +357,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     if (value instanceof Map) {
-      ((Map) value).putAll(metadata);
+      Map<String, Object> mergedMetadata = copyStringKeyedMap((Map<?, ?>) value);
+      mergedMetadata.putAll(metadata);
+      span.setTag(METADATA, mergedMetadata);
     } else {
       LOGGER.debug(
           "unexpected instance type for metadata {}, overwriting for now",

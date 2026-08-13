@@ -1,4 +1,6 @@
 muzzle {
+  extraRepository("confluent-releases", "https://packages.confluent.io/maven/")
+
   pass {
     group = "org.apache.kafka"
     module = "kafka-clients"
