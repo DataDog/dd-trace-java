@@ -83,8 +83,15 @@ class JsonApiUfcResponseParserTest {
             wrap(
                 configWithFlags(
                     booleanFlag("no-allocations", ""),
+                    booleanFlag(
+                        "no-splits", ",\"allocations\":[{\"key\":\"no-splits\",\"rules\":[]}]"),
+                    booleanFlag(
+                        "null-split",
+                        ",\"allocations\":[{\"key\":\"null-split\",\"rules\":[],\"splits\":[null]}]"),
                     booleanFlag("no-rules", allocation("no-rules", "")),
                     booleanFlag("no-conditions", allocation("no-conditions", "[{}]")),
+                    booleanFlag(
+                        "no-operator", allocation("no-operator", "[{\"conditions\":[{}]}]")),
                     booleanFlag(
                         "non-semver",
                         allocation(
@@ -109,8 +116,11 @@ class JsonApiUfcResponseParserTest {
 
     assertNotNull(configuration);
     assertTrue(configuration.flags.containsKey("no-allocations"));
+    assertTrue(configuration.flags.containsKey("no-splits"));
+    assertTrue(configuration.flags.containsKey("null-split"));
     assertTrue(configuration.flags.containsKey("no-rules"));
     assertTrue(configuration.flags.containsKey("no-conditions"));
+    assertTrue(configuration.flags.containsKey("no-operator"));
     assertTrue(configuration.flags.containsKey("non-semver"));
     assertTrue(configuration.flags.containsKey("valid-semver"));
     assertFalse(configuration.flags.containsKey("invalid-semver"));
@@ -131,6 +141,23 @@ class JsonApiUfcResponseParserTest {
             .conditions
             .get(0)
             .semverComparand);
+  }
+
+  @Test
+  void dropsFlagWithMissingSplitShards() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "missing-shards",
+                        ",\"allocations\":[{\"key\":\"missing-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\"}]}]"),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("missing-shards"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("missing-shards"));
   }
 
   @Test
