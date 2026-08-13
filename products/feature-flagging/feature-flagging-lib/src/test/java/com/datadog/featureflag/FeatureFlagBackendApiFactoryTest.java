@@ -34,6 +34,19 @@ class FeatureFlagBackendApiFactoryTest {
   }
 
   @Test
+  void remoteConfigDisablesDeliveryWhenLocalEvpProxyIsUnavailable() {
+    final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true).create();
+
+    assertNull(selected);
+    verify(backendApiFactory).createEvpProxyApi(Intake.EVENT_PLATFORM, true);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
+  }
+
+  @Test
   void agentlessPrefersLocalEvpProxyWithDirectFallback() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
@@ -89,6 +102,18 @@ class FeatureFlagBackendApiFactoryTest {
             .create();
 
     assertNull(selected);
+  }
+
+  @Test
+  void agentlessDisablesDeliveryWhenApiKeyIsEmpty() {
+    final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "");
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true).create();
+
+    assertNull(selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
   }
 
   @Test

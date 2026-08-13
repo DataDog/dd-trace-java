@@ -15,11 +15,14 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class AgentlessFeatureFlagBackendApiTest {
@@ -45,18 +48,38 @@ class AgentlessFeatureFlagBackendApiTest {
     assertSame(secondBody, direct.requestBodies.get(1));
   }
 
-  @Test
-  void fallsBackAfterConnectionRefusal() throws Exception {
+  @ParameterizedTest
+  @MethodSource("featureFlagRoutes")
+  void fallsBackAfterConnectionRefusal(final String route, final String eventType)
+      throws Exception {
     final RecordingBackendApi local =
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, direct, "flag evaluation");
+        new AgentlessFeatureFlagBackendApi(local, direct, eventType);
 
-    api.post("flagevaluation", requestBody("evaluation"), stream -> null, null, false);
+    api.post(route, requestBody(eventType), stream -> null, null, false);
 
     assertEquals(1, local.calls);
     assertEquals(1, direct.calls);
+  }
+
+  @Test
+  void doesNotReturnToLocalRouteAfterSwitchingToDirectIntake() throws Exception {
+    final RecordingBackendApi local =
+        new RecordingBackendApi(new ConnectException("connection refused"));
+    final RecordingBackendApi direct = new RecordingBackendApi();
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(local, direct, "exposure");
+
+    api.post("exposures", requestBody("first"), stream -> null, null, false);
+    direct.failure = new IOException("direct intake failed");
+
+    assertThrows(
+        IOException.class,
+        () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
+    assertEquals(1, local.calls);
+    assertEquals(2, direct.calls);
   }
 
   @ParameterizedTest
@@ -93,8 +116,13 @@ class AgentlessFeatureFlagBackendApiTest {
     return RequestBody.create(MediaType.parse("application/json"), value);
   }
 
+  private static Stream<Arguments> featureFlagRoutes() {
+    return Stream.of(
+        Arguments.of("exposures", "exposure"), Arguments.of("flagevaluation", "flag evaluation"));
+  }
+
   private static final class RecordingBackendApi implements BackendApi {
-    private final IOException failure;
+    private IOException failure;
     private final List<RequestBody> requestBodies = new ArrayList<>();
     private int calls;
 
