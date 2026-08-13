@@ -20,12 +20,12 @@ public class EvpProxyApi implements BackendApi {
   private static final Logger log = LoggerFactory.getLogger(EvpProxyApi.class);
 
   private static final String API_VERSION = "v2";
-  private static final String X_DATADOG_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
   private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
   private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
+  private static final String IDENTITY_ENCODING = "identity";
 
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
@@ -62,7 +62,7 @@ public class EvpProxyApi implements BackendApi {
     Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, subdomain)
+            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
@@ -74,11 +74,21 @@ public class EvpProxyApi implements BackendApi {
       requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
+    // OkHttp's BridgeInterceptor adds a transparent Accept-Encoding: gzip when the caller does not
+    // set one. Set the header explicitly on both paths so responseCompression=false actually
+    // suppresses gzip negotiation on the wire.
     if (responseCompression) {
       requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
+    } else {
+      requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, IDENTITY_ENCODING);
     }
 
     final Request request = requestBuilder.post(requestBody).build();
+    log.debug(
+        "Posting EVP request to {} with responseCompression={} requestCompression={}",
+        url,
+        responseCompression,
+        requestCompression);
 
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {

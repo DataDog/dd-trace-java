@@ -24,11 +24,15 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake) {
+    return createBackendApi(intake, true);
+  }
+
+  public @Nullable BackendApi createBackendApi(Intake intake, boolean responseCompression) {
     if (intake.isAgentlessEnabled(config)) {
-      return createDirectIntakeApi(intake);
+      return createDirectIntakeApi(intake, responseCompression);
     }
 
-    BackendApi backendApi = createEvpProxyApi(intake);
+    BackendApi backendApi = createEvpProxyApi(intake, responseCompression);
     if (backendApi == null) {
       log.warn(
           "Cannot create backend API client since agentless mode is disabled, "
@@ -39,6 +43,11 @@ public class BackendApiFactory {
 
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(Intake intake) {
+    return createDirectIntakeApi(intake, true);
+  }
+
+  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
     HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
@@ -52,28 +61,39 @@ public class BackendApiFactory {
         traceId,
         retryPolicyFactory(),
         sharedCommunicationObjects.getIntakeHttpClient(),
-        true);
+        responseCompression);
   }
 
   /** Creates an API client that sends data through a compatible local EVP proxy. */
   public @Nullable BackendApi createEvpProxyApi(Intake intake) {
+    return createEvpProxyApi(intake, true);
+  }
+
+  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  public @Nullable BackendApi createEvpProxyApi(Intake intake, boolean responseCompression) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
-    if (featuresDiscovery.supportsEvpProxy()) {
-      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-      String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
-      HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
-      String subdomain = intake.getUrlPrefix();
-      return new EvpProxyApi(
-          traceId,
-          evpProxyUrl,
-          subdomain,
-          retryPolicyFactory(),
-          sharedCommunicationObjects.agentHttpClient,
-          true);
+    if (!featuresDiscovery.supportsEvpProxy()) {
+      return null;
     }
-    return null;
+    String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
+
+    String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
+    log.debug(
+        "Creating EVP proxy client for {} using endpoint {} with responseCompression={}",
+        intake,
+        evpProxyEndpoint,
+        responseCompression);
+    HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
+    String subdomain = intake.getUrlPrefix();
+    return new EvpProxyApi(
+        traceId,
+        evpProxyUrl,
+        subdomain,
+        retryPolicyFactory(),
+        sharedCommunicationObjects.agentHttpClient,
+        responseCompression);
   }
 
   private static HttpRetryPolicy.Factory retryPolicyFactory() {

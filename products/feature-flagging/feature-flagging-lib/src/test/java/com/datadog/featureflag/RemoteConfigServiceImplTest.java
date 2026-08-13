@@ -243,6 +243,35 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void lenientBooleanAdapterFactoryOnlyCreatesAdapterForUnannotatedBoxedBoolean() {
+    final Moshi moshi = moshi();
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.LenientBooleanAdapter);
+    // Primitive boolean keeps Moshi's strict adapter so mandatory fields still reject bad values.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            boolean.class, emptySet(), moshi));
+    // A qualified Boolean belongs to whichever adapter declared the qualifier, not to this one.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void lenientBooleanAdapterIsReadOnly() {
+    final UniversalFlagConfigParser.LenientBooleanAdapter adapter =
+        new UniversalFlagConfigParser.LenientBooleanAdapter();
+
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), true));
+  }
+
+  @Test
   void allowsNullFlagMap() throws Exception {
     final ServerConfiguration config =
         deserialize(
