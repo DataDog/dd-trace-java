@@ -43,6 +43,7 @@ class ExposureBackendApiFactoryTest {
     final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
 
     assertInstanceOf(AgentlessExposureBackendApi.class, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
   }
 
   @Test
@@ -81,7 +82,7 @@ class ExposureBackendApiFactoryTest {
   }
 
   @Test
-  void agentlessKeepsLocalRouteWhenDirectUrlIsInvalid() {
+  void agentlessDoesNotValidateDirectUrlWhileLocalRouteIsAvailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi localApi = mock(BackendApi.class);
@@ -91,7 +92,20 @@ class ExposureBackendApiFactoryTest {
 
     final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
 
-    assertSame(localApi, selected);
+    assertInstanceOf(AgentlessExposureBackendApi.class, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+  }
+
+  @Test
+  void agentlessDisablesDeliveryWhenDirectUrlIsInvalidAndLocalRouteIsUnavailable() {
+    final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM))
+        .thenThrow(new IllegalArgumentException("invalid URL"));
+
+    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+
+    assertNull(selected);
   }
 
   private static Config config(final String source, final String apiKey) {

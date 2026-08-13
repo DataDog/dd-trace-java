@@ -15,6 +15,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
@@ -30,13 +31,22 @@ class AgentlessExposureBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new HttpResponseException(statusCode, "rejected"));
     final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, direct);
+    final AtomicInteger directApiCreations = new AtomicInteger();
+    final AgentlessExposureBackendApi api =
+        new AgentlessExposureBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return direct;
+            });
     final RequestBody firstBody = requestBody("first");
     final RequestBody secondBody = requestBody("second");
 
+    assertEquals(0, directApiCreations.get());
     api.post("exposures", firstBody, stream -> null, null, false);
     api.post("exposures", secondBody, stream -> null, null, false);
 
+    assertEquals(1, directApiCreations.get());
     assertEquals(1, local.calls);
     assertEquals(2, direct.calls);
     assertSame(firstBody, local.requestBodies.get(0));
@@ -49,7 +59,7 @@ class AgentlessExposureBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, direct);
+    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, () -> direct);
 
     api.post("exposures", requestBody("exposure"), stream -> null, null, false);
 
@@ -73,10 +83,41 @@ class AgentlessExposureBackendApiTest {
     assertNoDirectReplay(new SocketException("connection reset"));
   }
 
+  @Test
+  void doesNotRetryDirectApiCreationWhenFallbackIsUnavailable() {
+    final RecordingBackendApi local =
+        new RecordingBackendApi(new HttpResponseException(404, "rejected"));
+    final AtomicInteger directApiCreations = new AtomicInteger();
+    final AgentlessExposureBackendApi api =
+        new AgentlessExposureBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return null;
+            });
+
+    assertThrows(
+        HttpResponseException.class,
+        () -> api.post("exposures", requestBody("first"), stream -> null, null, false));
+    assertThrows(
+        HttpResponseException.class,
+        () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
+
+    assertEquals(2, local.calls);
+    assertEquals(1, directApiCreations.get());
+  }
+
   private static void assertNoDirectReplay(final IOException failure) {
     final RecordingBackendApi local = new RecordingBackendApi(failure);
     final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, direct);
+    final AtomicInteger directApiCreations = new AtomicInteger();
+    final AgentlessExposureBackendApi api =
+        new AgentlessExposureBackendApi(
+            local,
+            () -> {
+              directApiCreations.incrementAndGet();
+              return direct;
+            });
 
     assertThrows(
         IOException.class,
@@ -84,6 +125,7 @@ class AgentlessExposureBackendApiTest {
 
     assertEquals(1, local.calls);
     assertEquals(0, direct.calls);
+    assertEquals(0, directApiCreations.get());
   }
 
   private static RequestBody requestBody(final String value) {
