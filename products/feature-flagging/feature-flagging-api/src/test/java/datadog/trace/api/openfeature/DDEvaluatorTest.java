@@ -995,13 +995,29 @@ public class DDEvaluatorTest {
       throw new JsonDataException(
           "Regex conformance fixture did not contain cases: " + fixtureFile);
     }
+    if (!"datadog.ffe.targeting-regex-conformance/v1".equals(fixture.schema)
+        || fixture.schemaVersion != 1
+        || !"targeting-regex-v1".equals(fixture.contractVersion)) {
+      throw new JsonDataException(
+          "Unsupported regex conformance fixture: "
+              + fixture.schema
+              + " v"
+              + fixture.schemaVersion
+              + " contract="
+              + fixture.contractVersion);
+    }
+    if (fixture.cases.size() != 75
+        || fixture.cases.stream().map(testCase -> testCase.id).distinct().count() != 75) {
+      throw new JsonDataException(
+          "Regex conformance fixture must contain 75 cases with unique IDs");
+    }
 
     final List<RegexConformanceCase> result =
         fixture.cases.stream()
             // Null common expectations are represented by per-engine results in the fixture.
             .filter(testCase -> testCase.expectedCompile != null || testCase.expectedMatch != null)
             .collect(Collectors.toList());
-    assertThat(result.size(), greaterThan(0));
+    assertThat(result.size(), equalTo(66));
     return result;
   }
 
@@ -1090,6 +1106,9 @@ public class DDEvaluatorTest {
   }
 
   private static final class RegexConformanceFixture {
+    String schema;
+    int schemaVersion;
+    String contractVersion;
     List<RegexConformanceCase> cases;
   }
 
