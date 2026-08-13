@@ -857,10 +857,8 @@ public class DDEvaluatorTest {
       compiled = false;
     }
 
-    if (testCase.expectedCompile != null) {
-      assertThat(testCase.id + " compile", compiled, equalTo(testCase.expectedCompile));
-    }
-    if (testCase.expectedMatch != null) {
+    if ("accepted".equals(testCase.contract)) {
+      assertThat(testCase.id + " compile", compiled, equalTo(true));
       assertThat(testCase.id + " match", matched, equalTo(testCase.expectedMatch));
     }
   }
@@ -997,7 +995,7 @@ public class DDEvaluatorTest {
     }
     if (!"datadog.ffe.targeting-regex-conformance/v1".equals(fixture.schema)
         || fixture.schemaVersion != 1
-        || !"targeting-regex-v1".equals(fixture.contractVersion)) {
+        || !"targeting-regex-v2".equals(fixture.contractVersion)) {
       throw new JsonDataException(
           "Unsupported regex conformance fixture: "
               + fixture.schema
@@ -1012,13 +1010,13 @@ public class DDEvaluatorTest {
           "Regex conformance fixture must contain 75 cases with unique IDs");
     }
 
-    final List<RegexConformanceCase> result =
-        fixture.cases.stream()
-            // Null common expectations are represented by per-engine results in the fixture.
-            .filter(testCase -> testCase.expectedCompile != null || testCase.expectedMatch != null)
-            .collect(Collectors.toList());
-    assertThat(result.size(), equalTo(66));
-    return result;
+    assertThat(
+        fixture.cases.stream().filter(testCase -> "accepted".equals(testCase.contract)).count(),
+        equalTo(30L));
+    assertThat(
+        fixture.cases.stream().filter(testCase -> "rejected".equals(testCase.contract)).count(),
+        equalTo(45L));
+    return fixture.cases;
   }
 
   private static Path fixtureRoot() {
@@ -1113,6 +1111,7 @@ public class DDEvaluatorTest {
   }
 
   private static final class RegexConformanceCase {
+    String contract;
     Boolean expectedCompile;
     Boolean expectedMatch;
     String id;
