@@ -13,7 +13,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -104,6 +106,10 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       throw new RuntimeException(e);
     }
 
+    // Generate helperClassNames() only when neither the module nor a parent declares one
+    if (module.helperClassNames().length > 0) {
+      return classVisitor;
+    }
     // Write the resolved helpers into the module's helperClassNames() so agent reads them directly.
     return new HelperClassNamesWriter(classVisitor, orderedHelpers);
   }
@@ -258,9 +264,9 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       Set<String> adviceClasses,
       File sourceRoot) {
     // A module that declares its own helper list uses it directly.
-    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
-    if (!manualHelpers.isEmpty()) {
-      return manualHelpers.toArray(new String[0]);
+    String[] declaredHelpers = module.helperClassNames();
+    if (declaredHelpers.length > 0) {
+      return declaredHelpers;
     }
 
     // Otherwise infer them
@@ -333,6 +339,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     if (siblings == null) {
       return;
     }
+    Arrays.sort(siblings, Comparator.comparing(File::getName));
     for (File sibling : siblings) {
       String fileName = sibling.getName();
       if (fileName.startsWith(prefix) && fileName.endsWith(".class")) {
