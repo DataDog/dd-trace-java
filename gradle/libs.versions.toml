@@ -47,7 +47,7 @@ jmh = "1.37"
 
 # Profiling
 jmc = "9.1.1"
-jafar = "0.21.7"
+jafar = "0.26.2"
 
 # Web & Network
 jnr-unixsocket = "0.38.25"
@@ -133,7 +133,6 @@ jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = 
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 jmc-flightrecorder-writer = { module = "org.openjdk.jmc:flightrecorder.writer", version.ref = "jmc" }
 jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
-jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }

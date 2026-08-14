@@ -78,9 +78,6 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   manifest {
     attributes["Main-Class"] = "com.datadog.profiling.otel.JfrToOtlpConverterCLI"
   }
-  // Minimize the jar by only including classes that are actually used
-  minimize()
-
   // Exclude SLF4J service provider files to avoid warnings
   exclude("META-INF/services/org.slf4j.spi.SLF4JServiceProvider")
 }
@@ -107,12 +104,8 @@ tasks.register<Exec>("buildProfcheck") {
 
   // Check if Docker is available
   doFirst {
-    try {
-      project.exec {
-        commandLine("docker", "info")
-        isIgnoreExitValue = false
-      }
-    } catch (e: Exception) {
+    val process = ProcessBuilder("docker", "info").redirectErrorStream(true).start()
+    if (process.waitFor() != 0) {
       throw org.gradle.api.GradleException("Docker is not available. Profcheck validation requires Docker to be running.")
     }
   }
@@ -123,20 +116,24 @@ tasks.named<Test>("test") {
   // Build profcheck image if Docker is available (for ProfcheckValidationTest)
   doFirst {
     val dockerAvailable = try {
-      project.exec {
-        commandLine("docker", "info")
-        isIgnoreExitValue = false
-      }
-      true
+      val process = ProcessBuilder("docker", "info").redirectErrorStream(true).start()
+      process.waitFor() == 0
     } catch (e: Exception) {
       false
     }
 
     if (dockerAvailable) {
       logger.lifecycle("Building profcheck Docker image for validation tests...")
-      project.exec {
-        commandLine("docker", "build", "-f", "$rootDir/docker/Dockerfile.profcheck", "-t", "profcheck:latest", rootDir.toString())
-      }
+      val buildProcess = ProcessBuilder(
+        "docker",
+        "build",
+        "-f",
+        "$rootDir/docker/Dockerfile.profcheck",
+        "-t",
+        "profcheck:latest",
+        rootDir.toString()
+      ).redirectErrorStream(true).start()
+      buildProcess.waitFor()
     } else {
       logger.warn("Docker not available, skipping profcheck image build. Tests tagged with 'docker' will be skipped.")
     }
