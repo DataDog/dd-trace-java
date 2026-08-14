@@ -17,8 +17,6 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_COMPRESSION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_COMPRESSION_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL;
@@ -73,10 +71,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final int terminationTimeout;
-  private final JfrToOtlpConverter converter;
 
   // Configuration (read from ConfigProvider)
-  private final boolean enabled;
   private final boolean includeOriginalPayload;
   private final String otlpUrl;
   private final String resolvedOtlpUrl;
@@ -102,8 +98,6 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     this.terminationTimeout = terminationTimeout;
 
     // Read OTLP configuration from ConfigProvider
-    this.enabled =
-        configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT);
     this.includeOriginalPayload =
         configProvider.getBoolean(
             PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD,
@@ -114,10 +108,6 @@ public final class OtlpProfileUploader implements RecordingDataListener {
             PROFILING_OTLP_COMPRESSION_ENABLED, PROFILING_OTLP_COMPRESSION_ENABLED_DEFAULT);
 
     Duration uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
-
-    // Create converter and configure it
-    this.converter = new JfrToOtlpConverter();
-    this.converter.setIncludeOriginalPayload(includeOriginalPayload);
 
     // Create OkHttp client with custom dispatcher
     this.okHttpExecutorService =
@@ -164,16 +154,11 @@ public final class OtlpProfileUploader implements RecordingDataListener {
             config.getProfilingProxyPassword(),
             uploadTimeout.toMillis());
 
-    log.debug("OTLP profile uploader initialized: enabled={}, url={}", enabled, parsedUrl);
+    log.debug("OTLP profile uploader initialized: url={}", parsedUrl);
   }
 
   @Override
   public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
-    if (!enabled) {
-      data.release();
-      return;
-    }
-
     upload(type, data, handleSynchronously, null);
   }
 
@@ -200,6 +185,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         uploadAsync(request, data, onCompletion);
       }
     } catch (Exception e) {
+      // Conversion or request creation failed. Release this uploader's reference (the caller
+      // still holds the base reference and will release it via the downstream listener).
+      // The exception is intentionally not rethrown so that JFR upload continues independently.
       log.error("Failed to upload OTLP profile", e);
       data.release();
       if (onCompletion != null) {
@@ -216,8 +204,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
    * @throws IOException if conversion fails
    */
   private byte[] convertToOtlp(RecordingData data) throws IOException {
-    // Reset converter for reuse
-    converter.reset();
+    // Create a fresh converter per call — JfrToOtlpConverter is not thread-safe
+    JfrToOtlpConverter converter = new JfrToOtlpConverter();
+    converter.setIncludeOriginalPayload(includeOriginalPayload);
 
     // Prefer file-based parsing if available (more efficient)
     Path jfrFile = data.getPath();
@@ -382,5 +371,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       Thread.currentThread().interrupt();
       okHttpExecutorService.shutdownNow();
     }
+    // Evict idle connections from the connection pool
+    client.connectionPool().evictAll();
   }
 }

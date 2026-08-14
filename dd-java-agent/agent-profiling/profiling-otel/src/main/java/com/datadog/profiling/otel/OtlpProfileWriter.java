@@ -47,7 +47,7 @@ public final class OtlpProfileWriter {
    * @throws IOException if reading or converting fails
    */
   public String writeJson(RecordingData data) throws IOException {
-    // JSON encoding will be implemented in Phase 5
-    throw new UnsupportedOperationException("JSON output not yet implemented");
+    byte[] json = converter.addRecording(data).convert(JfrToOtlpConverter.Kind.JSON);
+    return new String(json, java.nio.charset.StandardCharsets.UTF_8);
   }
 }

@@ -34,7 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Converts JFR recordings to OTLP profiles format.
@@ -87,6 +87,7 @@ public final class JfrToOtlpConverter {
     }
 
     int get(long key) {
+      if (key == EMPTY) key = EMPTY + 1; // perturb to avoid sentinel collision
       int slot = (int) (mix(key) & mask);
       while (keys[slot] != EMPTY) {
         if (keys[slot] == key) return values[slot];
@@ -96,6 +97,7 @@ public final class JfrToOtlpConverter {
     }
 
     void put(long key, int value) {
+      if (key == EMPTY) key = EMPTY + 1; // perturb to avoid sentinel collision
       if (size * 2 >= keys.length) rehash();
       int slot = (int) (mix(key) & mask);
       while (keys[slot] != EMPTY && keys[slot] != key) {
@@ -187,6 +189,17 @@ public final class JfrToOtlpConverter {
   private int[] wallAttrIndices;
   private int[] lockAttrIndices;
 
+  // Alloc sample field availability: null = not yet probed, true = size/weight fields exist.
+  private Boolean allocHasSizeWeight;
+
+  // Cached attribute indices per alloc class name, avoiding per-sample int[] allocation.
+  private final java.util.Map<String, int[]> allocAttrCache = new java.util.HashMap<>();
+
+  // Cached chunk identity hash to avoid per-event native call to System.identityHashCode.
+  // Updated when the chunk reference changes between events.
+  private Object lastChunk;
+  private int chunkIdentityHash;
+
   // Sample collectors by profile type
   private final List<SampleData> cpuSamples = new ArrayList<>();
   private final List<SampleData> wallSamples = new ArrayList<>();
@@ -195,7 +208,7 @@ public final class JfrToOtlpConverter {
 
   private final Set<PathEntry> pathEntries = new HashSet<>();
   private final ProtobufEncoder protoEncoder = new ProtobufEncoder(64 * 1024);
-  private final ParsingContext parsingContext = new ParsingContextImpl();
+  private ParsingContext parsingContext = new ParsingContextImpl();
 
   // Profile metadata
   private long startTimeNanos;
@@ -242,7 +255,7 @@ public final class JfrToOtlpConverter {
   /**
    * Adds a JFR recording to the conversion.
    *
-   * <p>Uses the file path directly if available (via {@link RecordingData#getFile()}), avoiding an
+   * <p>Uses the file path directly if available (via {@link RecordingData#getPath()}), avoiding an
    * unnecessary stream copy. Falls back to stream-based processing otherwise.
    *
    * @param recordingData the recording data to add
@@ -366,6 +379,11 @@ public final class JfrToOtlpConverter {
     cpuAttrIndices = null;
     wallAttrIndices = null;
     lockAttrIndices = null;
+    allocHasSizeWeight = null;
+    allocAttrCache.clear();
+    lastChunk = null;
+    chunkIdentityHash = 0;
+    parsingContext = new ParsingContextImpl();
     cpuSamples.clear();
     wallSamples.clear();
     allocSamples.clear();
@@ -475,20 +493,32 @@ public final class JfrToOtlpConverter {
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
-    // Try to get size and weight fields (new format)
-    // Fall back to allocationSize if not available (backwards compatibility)
+    // Probe size/weight field availability once per conversion session, then reuse the result
+    // to avoid per-sample exception overhead (exception construction allocates stack traces).
     long size;
     float weight;
-    try {
+    if (allocHasSizeWeight == null) {
+      try {
+        size = event.size();
+        weight = event.weight();
+        if (size == 0 && weight == 0) {
+          size = event.allocationSize();
+          weight = 1;
+        }
+        allocHasSizeWeight = Boolean.TRUE;
+      } catch (Exception e) {
+        size = event.allocationSize();
+        weight = 1;
+        allocHasSizeWeight = Boolean.FALSE;
+      }
+    } else if (allocHasSizeWeight) {
       size = event.size();
       weight = event.weight();
       if (size == 0 && weight == 0) {
-        // Fields exist but are zero - fall back to allocationSize
         size = event.allocationSize();
         weight = 1;
       }
-    } catch (Exception e) {
-      // Fields don't exist in JFR event - use allocationSize
+    } else {
       size = event.allocationSize();
       weight = 1;
     }
@@ -506,11 +536,17 @@ public final class JfrToOtlpConverter {
 
     int[] attributeIndices;
     if (className != null && !className.isEmpty()) {
-      int keyIndex = stringTable.intern("alloc.class");
-      int classAttrIndex = attributeTable.internString(keyIndex, className, 0);
-      attributeIndices = new int[] {sampleTypeIndex, classAttrIndex};
+      // Cache the attribute indices array per class name to avoid per-sample allocation.
+      attributeIndices = allocAttrCache.get(className);
+      if (attributeIndices == null) {
+        int keyIndex = stringTable.intern("alloc.class");
+        int classAttrIndex = attributeTable.internString(keyIndex, className, 0);
+        attributeIndices = new int[] {sampleTypeIndex, classAttrIndex};
+        allocAttrCache.put(className, attributeIndices);
+      }
     } else {
-      attributeIndices = new int[] {sampleTypeIndex};
+      // No class name: use the sample-type-only array, cached on a sentinel key.
+      attributeIndices = allocAttrCache.computeIfAbsent("", k -> new int[] {sampleTypeIndex});
     }
 
     allocSamples.add(
@@ -543,6 +579,15 @@ public final class JfrToOtlpConverter {
     lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, lockAttrIndices));
   }
 
+  private int getChunkIdentityHash(Control ctl) {
+    Object chunk = ctl.chunkInfo();
+    if (chunk != lastChunk) {
+      lastChunk = chunk;
+      chunkIdentityHash = System.identityHashCode(chunk);
+    }
+    return chunkIdentityHash;
+  }
+
   private JfrStackTrace safeGetStackTrace(java.util.function.Supplier<JfrStackTrace> supplier) {
     try {
       return supplier.get();
@@ -555,9 +600,10 @@ public final class JfrToOtlpConverter {
       java.util.function.Supplier<JfrStackTrace> stackTraceSupplier,
       long stackTraceId,
       Control ctl) {
-    // Create cache key from stackTraceId + chunk identity
-    // Using System.identityHashCode for chunk since ChunkInfo doesn't override hashCode
-    long cacheKey = stackTraceId ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32);
+    // Create cache key from stackTraceId + chunk identity.
+    // Chunk identity hash is cached to avoid per-event native call to System.identityHashCode.
+    int chunkHash = getChunkIdentityHash(ctl);
+    long cacheKey = stackTraceId ^ ((long) chunkHash << 32);
 
     // Check cache first - avoid resolving stack trace if cached
     int cachedIndex = stackTraceCache.get(cacheKey);
@@ -603,10 +649,8 @@ public final class JfrToOtlpConverter {
 
     // Cache key mirrors the stackTraceCache pattern: tag methodId with chunk identity
     // so per-chunk CP indices don't collide across chunks.
-    long cacheKey =
-        methodId
-            ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32)
-            ^ (lineNumber * 1000003L);
+    int chunkHash = getChunkIdentityHash(ctl);
+    long cacheKey = methodId ^ ((long) chunkHash << 32) ^ (lineNumber * 1000003L);
     int cached = frameCache.get(cacheKey);
     if (cached != -1) {
       return cached;
@@ -805,17 +849,17 @@ public final class JfrToOtlpConverter {
     // Field 1: stack_index
     encoder.writeVarintField(OtlpProtoFields.Sample.STACK_INDEX, sample.stackIndex);
 
-    // Field 2: attribute_indices (packed repeated int32 - proto3 default)
+    // Field 2: values (packed)
+    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, sample.value);
+
+    // Field 3: attribute_indices (packed repeated int32 - proto3 default)
     if (sample.attributeIndices.length > 0) {
       encoder.writePackedVarintField(
           OtlpProtoFields.Sample.ATTRIBUTE_INDICES, sample.attributeIndices);
     }
 
-    // Field 3: link_index
+    // Field 4: link_index
     encoder.writeVarintField(OtlpProtoFields.Sample.LINK_INDEX, sample.linkIndex);
-
-    // Field 4: values (packed)
-    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, sample.value);
 
     // Field 5: timestamps_unix_nano (packed)
     if (sample.timestampNanos > 0) {
@@ -876,12 +920,11 @@ public final class JfrToOtlpConverter {
   private void encodeLocation(ProtobufEncoder encoder, int index) {
     LocationTable.LocationEntry entry = locationTable.get(index);
 
-    // Field 1: mapping_index
-    // Note: Always write, even for index 0 sentinel (value 0) to ensure non-empty message
+    // Field 1: mapping_index (zero values are skipped by writeVarintField; the index 0
+    // sentinel is an empty message, which is valid per proto3)
     encoder.writeVarintField(OtlpProtoFields.Location.MAPPING_INDEX, entry.mappingIndex);
 
     // Field 2: address
-    // Note: For index 0 sentinel, this will be 0 but writeVarintField writes 0 values
     encoder.writeVarintField(OtlpProtoFields.Location.ADDRESS, entry.address);
 
     // Field 3: lines (repeated)
@@ -954,10 +997,11 @@ public final class JfrToOtlpConverter {
   }
 
   private byte[] generateProfileId() {
-    UUID uuid = UUID.randomUUID();
+    // Use ThreadLocalRandom instead of UUID.randomUUID (which uses SecureRandom and can block
+    // on entropy). Profile IDs are not security-sensitive.
+    long msb = ThreadLocalRandom.current().nextLong();
+    long lsb = ThreadLocalRandom.current().nextLong();
     byte[] bytes = new byte[16];
-    long msb = uuid.getMostSignificantBits();
-    long lsb = uuid.getLeastSignificantBits();
     for (int i = 0; i < 8; i++) {
       bytes[i] = (byte) ((msb >> (56 - i * 8)) & 0xFF);
       bytes[i + 8] = (byte) ((lsb >> (56 - i * 8)) & 0xFF);

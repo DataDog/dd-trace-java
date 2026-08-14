@@ -29,6 +29,7 @@ public final class LinkTable {
     }
 
     int get(long k1, long k2) {
+      if (k1 == EMPTY) k1 = EMPTY + 1; // perturb to avoid sentinel collision
       int slot = (int) (mix(k1 ^ k2) & mask);
       while (keys1[slot] != EMPTY) {
         if (keys1[slot] == k1 && keys2[slot] == k2) return values[slot];
@@ -38,6 +39,7 @@ public final class LinkTable {
     }
 
     void put(long k1, long k2, int value) {
+      if (k1 == EMPTY) k1 = EMPTY + 1; // perturb to avoid sentinel collision
       if (size * 2 >= mask) resize();
       int slot = (int) (mix(k1 ^ k2) & mask);
       while (keys1[slot] != EMPTY) {
@@ -137,8 +139,9 @@ public final class LinkTable {
   }
 
   /**
-   * Interns a link from 64-bit span and trace IDs. The trace ID is placed in the lower 64 bits of
-   * the 128-bit OTLP trace ID.
+   * Interns a link from 64-bit span and trace IDs. The trace ID is placed in the lower 64 bits
+   * (bytes 8-15) of the 16-byte OTLP trace ID, following the OTLP convention for 64-bit trace IDs
+   * (right-aligned, upper 64 bits zero).
    *
    * @param traceIdLow lower 64 bits of trace ID
    * @param spanId 64-bit span ID

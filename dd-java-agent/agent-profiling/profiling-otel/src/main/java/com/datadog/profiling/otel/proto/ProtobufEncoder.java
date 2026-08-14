@@ -3,7 +3,6 @@ package com.datadog.profiling.otel.proto;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
@@ -93,8 +92,72 @@ public final class ProtobufEncoder {
       writeVarint(0);
       return;
     }
-    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-    writeBytes(bytes);
+    // Encode UTF-8 directly into the buffer, avoiding the intermediate byte[] allocation
+    // from String.getBytes(StandardCharsets.UTF_8).
+    int length = utf8Length(value);
+    writeVarint(length);
+    if (size + length > buf.length) resize(length);
+    encodeUtf8(value);
+  }
+
+  private static int utf8Length(String s) {
+    int len = 0;
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c < 0x80) {
+        len++;
+      } else if (c < 0x800) {
+        len += 2;
+      } else if (Character.isHighSurrogate(c)
+          && i + 1 < s.length()
+          && Character.isLowSurrogate(s.charAt(i + 1))) {
+        len += 4;
+        i++; // skip the low surrogate
+      } else {
+        // Lone surrogate (replaced with U+FFFD = 3 bytes) or BMP char (3 bytes)
+        len += 3;
+      }
+    }
+    return len;
+  }
+
+  private void encodeUtf8(String s) {
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c < 0x80) {
+        buf[size++] = (byte) c;
+      } else if (c < 0x800) {
+        buf[size++] = (byte) (0xC0 | (c >> 6));
+        buf[size++] = (byte) (0x80 | (c & 0x3F));
+      } else if (Character.isSurrogate(c)) {
+        // Surrogate pair: combine with next char to form a 4-byte UTF-8 sequence
+        if (Character.isHighSurrogate(c) && i + 1 < s.length()) {
+          char c2 = s.charAt(++i);
+          if (Character.isLowSurrogate(c2)) {
+            int cp = Character.toCodePoint(c, c2);
+            buf[size++] = (byte) (0xF0 | (cp >> 18));
+            buf[size++] = (byte) (0x80 | ((cp >> 12) & 0x3F));
+            buf[size++] = (byte) (0x80 | ((cp >> 6) & 0x3F));
+            buf[size++] = (byte) (0x80 | (cp & 0x3F));
+          } else {
+            // Malformed: lone high surrogate, replace with U+FFFD
+            buf[size++] = (byte) 0xEF;
+            buf[size++] = (byte) 0xBF;
+            buf[size++] = (byte) 0xBD;
+            i--; // re-process c2
+          }
+        } else {
+          // Lone low surrogate, replace with U+FFFD
+          buf[size++] = (byte) 0xEF;
+          buf[size++] = (byte) 0xBF;
+          buf[size++] = (byte) 0xBD;
+        }
+      } else {
+        buf[size++] = (byte) (0xE0 | (c >> 12));
+        buf[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+        buf[size++] = (byte) (0x80 | (c & 0x3F));
+      }
+    }
   }
 
   /**

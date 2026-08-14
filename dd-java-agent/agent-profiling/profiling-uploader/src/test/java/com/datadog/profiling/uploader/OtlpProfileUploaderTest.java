@@ -26,13 +26,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import datadog.logging.IOLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.relocate.api.IOLogger;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -150,7 +150,7 @@ public class OtlpProfileUploaderTest {
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));
     when(recordingData.getKind()).thenReturn(ProfilingSnapshot.Kind.PERIODIC);
-    when(recordingData.getFile()).thenReturn(null); // Force stream-based conversion
+    when(recordingData.getPath()).thenReturn(null); // Force stream-based conversion
     return recordingData;
   }
 
