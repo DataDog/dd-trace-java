@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -32,6 +33,11 @@ import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.PollingConditions;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -76,6 +82,59 @@ class FeatureFlaggingSystemTest {
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
     assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
+  @WithConfig(
+      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://127.0.0.1:1")
+  void agentlessActivationDuringEarlyWriterInitializationIsNotLost() throws Exception {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final ExposureWriter exposureWriter = mock(ExposureWriter.class);
+    final CountDownLatch writerInitializationStarted = new CountDownLatch(1);
+    final CountDownLatch activationAttempted = new CountDownLatch(1);
+    final CountDownLatch finishWriterInitialization = new CountDownLatch(1);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    doAnswer(
+            ignored -> {
+              writerInitializationStarted.countDown();
+              assertTrue(finishWriterInitialization.await(5, TimeUnit.SECONDS));
+              return null;
+            })
+        .when(exposureWriter)
+        .init();
+
+    try {
+      final Future<?> start =
+          executor.submit(
+              () ->
+                  FeatureFlaggingSystem.start(
+                      sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> exposureWriter));
+
+      assertTrue(writerInitializationStarted.await(5, TimeUnit.SECONDS));
+      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+
+      final Future<?> activation =
+          executor.submit(
+              () -> {
+                activationAttempted.countDown();
+                FeatureFlaggingGateway.activate();
+              });
+      assertTrue(activationAttempted.await(5, TimeUnit.SECONDS));
+
+      finishWriterInitialization.countDown();
+      start.get(5, TimeUnit.SECONDS);
+
+      new PollingConditions(TIMEOUT_SECONDS)
+          .eventually(() -> assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation()));
+      verify(exposureWriter).init();
+      activation.cancel(true);
+    } finally {
+      finishWriterInitialization.countDown();
+      executor.shutdownNow();
+    }
   }
 
   @Test
