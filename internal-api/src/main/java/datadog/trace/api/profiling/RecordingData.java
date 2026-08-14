@@ -28,8 +28,10 @@ public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant end;
   protected final Kind kind;
 
-  // Reference counting for multiple listeners
-  private final AtomicInteger refCount = new AtomicInteger(0); // Start at 0
+  // Reference counting for multiple listeners. Starts at 1 (the base reference owned by the
+  // first listener in the chain). Additional listeners call retain() before use and release()
+  // when done. doRelease() fires when the count reaches 0.
+  private final AtomicInteger refCount = new AtomicInteger(1);
   private volatile boolean released = false;
 
   public RecordingData(final Instant start, final Instant end, Kind kind) {
@@ -46,12 +48,12 @@ public abstract class RecordingData implements ProfilingSnapshot {
   public abstract RecordingInputStream getStream() throws IOException;
 
   /**
-   * Increment reference count. Must be called once for each handler that will process this
-   * RecordingData.
+   * Increment reference count. Must be called once for each *additional* handler that will process
+   * this RecordingData beyond the base reference.
    *
-   * <p>The reference count starts at 0, so every handler must call {@code retain()} before
-   * processing and {@code release()} when done. When the last handler calls {@code release()}, the
-   * reference count reaches 0 and resources are cleaned up.
+   * <p>The reference count starts at 1, representing the base reference that the primary listener
+   * releases via {@code release()}. Each additional handler must call {@code retain()} before
+   * processing and {@code release()} when done.
    *
    * @return this instance for chaining
    * @throws IllegalStateException if the recording has already been released
@@ -68,9 +70,9 @@ public abstract class RecordingData implements ProfilingSnapshot {
   /**
    * Releases the resources associated with the recording, for example the underlying file.
    *
-   * <p>This method uses reference counting to support multiple handlers. Each call to {@link
-   * #retain()} must be matched with a call to {@code release()}. The actual resource cleanup via
-   * {@link #doRelease()} happens when the reference count reaches zero.
+   * <p>This method uses reference counting to support multiple handlers. The base reference count
+   * is 1; each call to {@link #retain()} must be matched with a call to {@code release()}. The
+   * actual resource cleanup via {@link #doRelease()} happens when the reference count reaches zero.
    *
    * <p>Forgetting to release this when done streaming will lead to one or more of the following:
    *

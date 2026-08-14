@@ -183,12 +183,12 @@ public class ProfilingAgent {
           RecordingDataListener downstream = listener;
           listener =
               (type, data, sync) -> {
-                data.retain(); // downstream listener gets original refcount slot
+                data.retain(); // OTLP uploader gets an extra reference
                 try {
                   otlp.upload(type, data, sync, null);
                 } catch (Exception e) {
-                  data.release();
-                  throw e;
+                  log.warn(SEND_TELEMETRY, "OTLP upload failed, JFR upload will continue", e);
+                  data.release(); // undo retain; downstream releases the base reference
                 }
                 downstream.onNewData(type, data, sync);
               };
