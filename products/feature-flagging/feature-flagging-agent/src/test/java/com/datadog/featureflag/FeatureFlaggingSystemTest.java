@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -135,6 +136,38 @@ class FeatureFlaggingSystemTest {
       finishWriterInitialization.countDown();
       executor.shutdownNow();
     }
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
+  void agentlessExposureWriterInitializationFailureCleansUpAndAllowsRetry() {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final ExposureWriter failedWriter = mock(ExposureWriter.class);
+    final IllegalStateException initializationFailure =
+        new IllegalStateException("writer initialization failed");
+    doThrow(initializationFailure).when(failedWriter).init();
+
+    final IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                FeatureFlaggingSystem.start(
+                    sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> failedWriter));
+
+    assertSame(initializationFailure, thrown);
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+    assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+    verify(failedWriter).close();
+
+    final ExposureWriter retryWriter = mock(ExposureWriter.class);
+    FeatureFlaggingSystem.start(
+        sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> retryWriter);
+
+    assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
+    verify(retryWriter).init();
   }
 
   @Test
