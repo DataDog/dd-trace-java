@@ -33,14 +33,13 @@ import datadog.trace.civisibility.config.api.dto.response.TestManagementTestsRes
 import datadog.trace.util.RandomUtils;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
-import okhttp3.Call;
-import okhttp3.Response;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.Okio;
@@ -351,9 +350,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   /**
-   * Listener that emits per-request telemetry metrics and accumulates total request duration
-   * across all retry attempts. By measuring each OkHttp call individually, this excludes retry
-   * backoff sleeps from total_request_ms, ensuring it represents the sum of actual request times.
+   * Listener that emits per-request telemetry metrics and accumulates total request duration across
+   * all retry attempts. By measuring each OkHttp call individually, this excludes retry backoff
+   * sleeps from total_request_ms, ensuring it represents the sum of actual request times.
    */
   private static class AccumulatingTelemetryListener extends OkHttpUtils.CustomListener {
     private final TelemetryListener delegate;
