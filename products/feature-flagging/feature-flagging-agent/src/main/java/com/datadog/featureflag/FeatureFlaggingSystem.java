@@ -34,10 +34,6 @@ public class FeatureFlaggingSystem {
     start(sco, ExposureWriterImpl::new);
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   static synchronized void start(
       final SharedCommunicationObjects sco, final ExposureWriterFactory exposureWriterFactory) {
     if (STARTED) {
