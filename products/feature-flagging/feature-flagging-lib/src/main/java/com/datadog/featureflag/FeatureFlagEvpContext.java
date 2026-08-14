@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,10 +8,8 @@ final class FeatureFlagEvpContext {
 
   private FeatureFlagEvpContext() {}
 
-  private static final String SOURCE_NAME = "dd-trace-java";
-
   static Map<String, String> from(final Config config) {
-    final Map<String, String> context = new HashMap<>(6);
+    final Map<String, String> context = new HashMap<>(4);
     context.put("service", config.getServiceName() == null ? "unknown" : config.getServiceName());
     if (config.getEnv() != null) {
       context.put("env", config.getEnv());
@@ -20,10 +17,10 @@ final class FeatureFlagEvpContext {
     if (config.getVersion() != null) {
       context.put("version", config.getVersion());
     }
-    // SDK identity — populates the `source.name` / `source.version` facets on both the
-    // `flag_evaluations` and `exposures` EVP streams (this map is shared by both writers).
-    context.put("source.name", SOURCE_NAME);
-    context.put("source.version", TracerVersion.TRACER_VERSION);
+    // SDK identity (source.name / source.version) is emitted per-event at the top level
+    // (sibling of flag/variant/targeting_key), matching the flagevaluation track schema in
+    // logs-backend. Putting it in the batch context would map it to context.source.*, which is
+    // not a declared facet and causes the indexer to drop the event.
     return context;
   }
 }
