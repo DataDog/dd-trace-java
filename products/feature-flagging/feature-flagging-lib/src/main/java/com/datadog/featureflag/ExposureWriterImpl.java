@@ -45,7 +45,7 @@ public class ExposureWriterImpl implements ExposureWriter {
         capacity,
         flushInterval,
         timeUnit,
-        new FeatureFlagBackendApiFactory(config, sco, "exposure", true),
+        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.EXPOSURE),
         config);
   }
 

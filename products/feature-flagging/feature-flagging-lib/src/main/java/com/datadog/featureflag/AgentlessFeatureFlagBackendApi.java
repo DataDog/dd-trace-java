@@ -19,20 +19,20 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
-  private final BackendApi localApi;
+  private final BackendApi proxyApi;
   private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
   private volatile BackendApi activeApi;
   private volatile boolean directApiCreationAttempted;
 
   AgentlessFeatureFlagBackendApi(
-      final BackendApi localApi,
+      final BackendApi proxyApi,
       final Supplier<BackendApi> directApiSupplier,
       final String eventType) {
-    this.localApi = localApi;
+    this.proxyApi = proxyApi;
     this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
-    this.activeApi = localApi;
+    this.activeApi = proxyApi;
   }
 
   @Override
@@ -48,7 +48,7 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       return selectedApi.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (selectedApi != localApi || !isDefinitiveRejection(exception)) {
+      if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
         throw exception;
       }
 
@@ -63,13 +63,13 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
   @Nullable
   private BackendApi getOrCreateDirectApi() {
     final BackendApi selectedApi = activeApi;
-    if (selectedApi != localApi) {
+    if (selectedApi != proxyApi) {
       return selectedApi;
     }
 
     synchronized (this) {
       final BackendApi currentApi = activeApi;
-      if (currentApi != localApi) {
+      if (currentApi != proxyApi) {
         return currentApi;
       }
       if (directApiCreationAttempted) {

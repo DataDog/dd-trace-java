@@ -159,7 +159,7 @@ class ExposureWriterTests {
             datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
         .thenReturn(directApi);
     FeatureFlagBackendApiFactory exposureBackendApiFactory =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true);
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
     List<ExposureEvent> exposures = buildExposures(5);
 
     try (ExposureWriterImpl writer =

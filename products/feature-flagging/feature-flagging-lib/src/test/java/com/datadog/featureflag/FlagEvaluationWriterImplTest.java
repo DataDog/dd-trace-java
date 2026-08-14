@@ -688,7 +688,8 @@ class FlagEvaluationWriterImplTest {
       when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
           .thenReturn(directApi);
       final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
-          new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false);
+          new FeatureFlagBackendApiFactory(
+              config, backendApiFactory, FeatureFlagEventType.FLAG_EVALUATION);
       final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
 
       try (FlagEvaluationWriterImpl writer =

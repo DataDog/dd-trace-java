@@ -115,7 +115,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         capacity,
         flushInterval,
         timeUnit,
-        new FeatureFlagBackendApiFactory(config, sco, "flag evaluation", false),
+        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.FLAG_EVALUATION),
         config);
   }
 
@@ -130,7 +130,10 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         capacity,
         flushInterval,
         timeUnit,
-        () -> backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        () ->
+            backendApiFactory.createBackendApi(
+                Intake.EVENT_PLATFORM,
+                FeatureFlagEventType.FLAG_EVALUATION.responseCompressionEnabled()),
         config);
   }
 

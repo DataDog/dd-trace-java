@@ -18,50 +18,44 @@ final class FeatureFlagBackendApiFactory {
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
-  private final String eventType;
-  private final boolean responseCompression;
+  private final FeatureFlagEventType eventType;
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final SharedCommunicationObjects sharedCommunicationObjects,
-      final String eventType,
-      final boolean responseCompression) {
-    this(
-        config,
-        new BackendApiFactory(config, sharedCommunicationObjects),
-        eventType,
-        responseCompression);
+      final FeatureFlagEventType eventType) {
+    this(config, new BackendApiFactory(config, sharedCommunicationObjects), eventType);
   }
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final BackendApiFactory backendApiFactory,
-      final String eventType,
-      final boolean responseCompression) {
+      final FeatureFlagEventType eventType) {
     this.config = config;
     this.backendApiFactory = backendApiFactory;
     this.eventType = eventType;
-    this.responseCompression = responseCompression;
   }
 
   @Nullable
   BackendApi create() {
-    final BackendApi localApi =
-        backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, responseCompression);
+    final BackendApi proxyApi =
+        backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
     if (!CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
-      if (localApi == null) {
+      if (proxyApi == null) {
         LOGGER.warn(
             "Feature Flagging {} delivery is disabled because the local Agent does not support the EVP proxy",
-            eventType);
+            eventType.logName());
       }
-      return localApi;
+      return proxyApi;
     }
 
-    if (localApi != null) {
+    if (proxyApi != null) {
       if (hasDirectCredentials()) {
-        return new AgentlessFeatureFlagBackendApi(localApi, this::createDirectApi, eventType);
+        return new AgentlessFeatureFlagBackendApi(
+            proxyApi, this::createDirectApi, eventType.logName());
       }
-      return localApi;
+      return proxyApi;
     }
 
     final BackendApi directApi = createDirectApi();
@@ -71,7 +65,7 @@ final class FeatureFlagBackendApiFactory {
 
     LOGGER.warn(
         "Feature Flagging {} delivery is disabled because no compatible local EVP proxy or direct intake credentials are available",
-        eventType);
+        eventType.logName());
     return null;
   }
 
@@ -86,9 +80,11 @@ final class FeatureFlagBackendApiFactory {
       return null;
     }
     try {
-      return backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, responseCompression);
+      return backendApiFactory.createDirectIntakeApi(
+          Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
     } catch (final IllegalArgumentException exception) {
-      LOGGER.debug("Cannot configure direct Feature Flagging {} delivery", eventType, exception);
+      LOGGER.debug(
+          "Cannot configure direct Feature Flagging {} delivery", eventType.logName(), exception);
       return null;
     }
   }

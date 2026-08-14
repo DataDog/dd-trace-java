@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
+import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -22,14 +24,13 @@ class FeatureFlagBackendApiFactoryTest {
   void remoteConfigUsesOnlyLocalEvpProxy() {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(localApi);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertSame(localApi, selected);
+    assertSame(proxyApi, selected);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
@@ -39,7 +40,7 @@ class FeatureFlagBackendApiFactoryTest {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true).create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
     verify(backendApiFactory).createEvpProxyApi(Intake.EVENT_PLATFORM, true);
@@ -56,8 +57,7 @@ class FeatureFlagBackendApiFactoryTest {
         .thenReturn(mock(BackendApi.class));
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
@@ -72,8 +72,7 @@ class FeatureFlagBackendApiFactoryTest {
         .thenReturn(directApi);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(directApi, selected);
   }
@@ -82,14 +81,13 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessUsesLocalEvpProxyWhenApiKeyIsUnavailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, null);
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(localApi);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertSame(localApi, selected);
+    assertSame(proxyApi, selected);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
@@ -99,8 +97,7 @@ class FeatureFlagBackendApiFactoryTest {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertNull(selected);
   }
@@ -111,7 +108,7 @@ class FeatureFlagBackendApiFactoryTest {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "exposure", true).create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
@@ -121,14 +118,13 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessDoesNotValidateDirectUrlWhileLocalRouteIsAvailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(localApi);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
@@ -142,8 +138,7 @@ class FeatureFlagBackendApiFactoryTest {
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, "flag evaluation", false)
-            .create();
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertNull(selected);
   }
