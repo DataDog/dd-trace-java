@@ -14,6 +14,11 @@ import org.slf4j.LoggerFactory;
 
 public class FeatureFlaggingSystem {
 
+  @FunctionalInterface
+  interface ExposureWriterFactory {
+    ExposureWriter create(SharedCommunicationObjects sco, Config config);
+  }
+
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
@@ -25,11 +30,16 @@ public class FeatureFlaggingSystem {
 
   private FeatureFlaggingSystem() {}
 
+  public static void start(final SharedCommunicationObjects sco) {
+    start(sco, ExposureWriterImpl::new);
+  }
+
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =
           "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
-  public static synchronized void start(final SharedCommunicationObjects sco) {
+  static synchronized void start(
+      final SharedCommunicationObjects sco, final ExposureWriterFactory exposureWriterFactory) {
     if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
       return;
@@ -44,16 +54,16 @@ public class FeatureFlaggingSystem {
     }
 
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
-      try {
-        initializeExposureWriter(sco, config);
-      } catch (final RuntimeException | Error e) {
-        STARTED = false;
-        throw e;
-      }
       final FeatureFlaggingGateway.ActivationListener activationListener =
           () -> activateAgentless(sco, config);
       ACTIVATION_LISTENER = activationListener;
       FeatureFlaggingGateway.addActivationListener(activationListener);
+      try {
+        initializeExposureWriter(sco, config, exposureWriterFactory);
+      } catch (final RuntimeException | Error e) {
+        stop();
+        throw e;
+      }
       LOGGER.debug("Feature Flagging system awaiting application provider activation");
       return;
     }
@@ -134,8 +144,10 @@ public class FeatureFlaggingSystem {
   }
 
   private static void initializeExposureWriter(
-      final SharedCommunicationObjects sco, final Config config) {
-    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final ExposureWriterFactory exposureWriterFactory) {
+    final ExposureWriter exposureWriter = exposureWriterFactory.create(sco, config);
     try {
       exposureWriter.init();
       EXPOSURE_WRITER = exposureWriter;
