@@ -53,6 +53,7 @@ public class EvalProcessingWorker implements AutoCloseable {
 
     Headers headers;
     HttpUrl submissionUrl;
+    OkHttpClient httpClient;
     if (isAgentless) {
       submissionUrl =
           HttpUrl.get(
@@ -63,6 +64,13 @@ public class EvalProcessingWorker implements AutoCloseable {
                   + "/"
                   + EVAL_METRIC_API_PATH);
       headers = Headers.of(DD_API_KEY_HEADER_NAME, config.getApiKey());
+      // The shared intake client is cleartext-only once the flag is enabled for another backend
+      // intake, and OkHttp then rejects our HTTPS submissions, so keep a client of our own rather
+      // than share one that cannot reach the eval intake.
+      httpClient =
+          config.isForceClearTextHttpForIntakeClient()
+              ? OkHttpUtils.buildHttpClient(submissionUrl, sco.httpClientTimeout)
+              : sco.getIntakeHttpClient();
     } else {
       submissionUrl =
           HttpUrl.get(
@@ -70,10 +78,14 @@ public class EvalProcessingWorker implements AutoCloseable {
                   + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
                   + EVAL_METRIC_API_PATH);
       headers = Headers.of(EVP_SUBDOMAIN_HEADER_NAME, EVAL_METRIC_API_DOMAIN);
+      // For a UDS or named pipe Agent, `agentUrl` is only a placeholder and the socket transport
+      // lives on the shared client, so a client of our own would never reach the Agent.
+      httpClient = sco.agentHttpClient;
     }
 
     EvalSerializingHandler serializingHandler =
-        new EvalSerializingHandler(queue, flushInterval, timeUnit, submissionUrl, headers);
+        new EvalSerializingHandler(
+            queue, flushInterval, timeUnit, submissionUrl, headers, httpClient);
     this.serializerThread = newAgentThread(LLMOBS_EVALS_PROCESSOR, serializingHandler);
   }
 
@@ -116,12 +128,13 @@ public class EvalProcessingWorker implements AutoCloseable {
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,
-        final Headers headers) {
+        final Headers headers,
+        final OkHttpClient httpClient) {
       this.queue = queue;
       this.moshi = new Moshi.Builder().add(LLMObsEval.class, new LLMObsEval.Adapter()).build();
 
       this.evalJsonAdapter = moshi.adapter(LLMObsEval.Request.class);
-      this.httpClient = new OkHttpClient();
+      this.httpClient = httpClient;
       this.submissionUrl = submissionUrl;
       this.headers = headers;
 
