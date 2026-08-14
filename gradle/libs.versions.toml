@@ -50,7 +50,7 @@ jmh = "1.37"
 
 # Profiling
 jmc = "9.1.1"
-jafar = "0.21.7"
+jafar = "0.26.2"
 jol = "0.17"
 
 # Web & Network
@@ -138,7 +138,6 @@ jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
 jmc-flightrecorder-writer = { module = "org.openjdk.jmc:flightrecorder.writer", version.ref = "jmc" }
 jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
-jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
