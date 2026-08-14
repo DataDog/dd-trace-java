@@ -1,6 +1,8 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
+import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -39,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -151,10 +154,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map<String, Object> event =
         mapOf("requestContext", mapOf("httpMethod", "GET", "requestId", "abc123"));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST, triggerType);
+    assertEquals(LambdaTriggerType.API_GATEWAY_V1_REST, triggerType);
   }
 
   @Test
@@ -165,10 +167,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
             mapOf(
                 "http", mapOf("method", "POST", "path", "/api"), "domainName", "api.example.com"));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_HTTP, triggerType);
+    assertEquals(LambdaTriggerType.API_GATEWAY_V2_HTTP, triggerType);
   }
 
   @Test
@@ -182,10 +183,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
                 "domainName",
                 "xyz123.lambda-url.us-east-1.on.aws"));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL, triggerType);
+    assertEquals(LambdaTriggerType.LAMBDA_URL, triggerType);
   }
 
   @Test
@@ -199,10 +199,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
             "requestContext",
             mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.ALB, triggerType);
+    assertEquals(LambdaTriggerType.ALB, triggerType);
   }
 
   @Test
@@ -218,10 +217,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
             "requestContext",
             mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.ALB_MULTI_VALUE, triggerType);
+    assertEquals(LambdaTriggerType.ALB_MULTI_VALUE, triggerType);
   }
 
   @Test
@@ -229,10 +227,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map<String, Object> event =
         mapOf("requestContext", mapOf("connectionId", "conn-123", "routeKey", "$connect"));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
+    assertEquals(LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
   }
 
   @Test
@@ -240,30 +237,27 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map<String, Object> event =
         mapOf("requestContext", mapOf("connectionId", "conn-456", "eventType", "CONNECT"));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
+    assertEquals(LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
   }
 
   @Test
   void detectsUnknownTriggerTypeForUnrecognizedEvents() {
     Map<String, Object> event = mapOf("someUnknownField", "value");
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.UNKNOWN, triggerType);
+    assertEquals(LambdaTriggerType.UNKNOWN, triggerType);
   }
 
   @Test
   void detectsUnknownTriggerTypeForEmptyRequestContext() {
     Map<String, Object> event = mapOf("requestContext", mapOf());
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.UNKNOWN, triggerType);
+    assertEquals(LambdaTriggerType.UNKNOWN, triggerType);
   }
 
   @Test
@@ -271,10 +265,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map<String, Object> event =
         mapOf("requestContext", mapOf("http", mapOf("method", "GET", "path", "/ambiguous")));
 
-    LambdaAppSecHandler.LambdaTriggerType triggerType =
-        LambdaAppSecHandler.detectTriggerType(event);
+    LambdaTriggerType triggerType = detectTriggerType(event);
 
-    assertEquals(LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL, triggerType);
+    assertEquals(LambdaTriggerType.LAMBDA_URL, triggerType);
   }
 
   // ============================================================================
@@ -531,7 +524,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void nullJsonEventReturnsEmpty() {
-    // MAP_ADAPTER.fromJson("null") returns null, triggering LambdaEventData.EMPTY path
+    // MAP_ADAPTER.fromJson("null") returns null, triggering LambdaRequestData.EMPTY path
     ByteArrayInputStream event = createInputStream("null");
 
     setupMockCallbacks(new Callbacks());
@@ -1545,7 +1538,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataSkipsNonApiGwResponseWhenTriggerTypeIsUnknown() {
-    LambdaAppSecHandler.setCurrentTriggerType(LambdaAppSecHandler.LambdaTriggerType.UNKNOWN);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.UNKNOWN);
     ByteArrayOutputStream result = createOutputStream("{\"result\": \"hello\"}");
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
@@ -1560,7 +1553,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataAppliesFallbackForHttpTriggerWithPlainJsonResponse() {
-    LambdaAppSecHandler.setCurrentTriggerType(LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.LAMBDA_URL);
     ByteArrayOutputStream result = createOutputStream("{\"result\": \"hello\"}");
     Integer[] capturedStatus = {null};
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -1585,8 +1578,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void processResponseDataKeepsParsedHeadersAndBodyWhenStatusCodeIsZero() {
     // A response that has statusCode:0 with explicit headers/body should use the parsed data,
     // not discard it in favour of the plain-response fallback.
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result =
         createOutputStream(
             "{\"statusCode\": 0, \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"hello\"}");
@@ -1609,8 +1601,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataAppliesFallbackForHttpTriggerWithNonJsonStringResponse() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     // JSON-encoded string (as returned by a RequestHandler<I, String>)
     ByteArrayOutputStream result = createOutputStream("\"Hello World!\"");
     Integer[] capturedStatus = {null};
@@ -1631,8 +1622,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataWebSocketWithStatusCodeFiresResponseStarted() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET);
     // $connect handler returning a proper statusCode — should be treated like any API-GW response
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
     Integer[] capturedStatus = {null};
@@ -1647,8 +1637,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataWebSocketWithoutStatusCodeUsesFallbackWithNoStatus() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET);
     // Message-route handler returning arbitrary data — no statusCode, fallback path
     ByteArrayOutputStream result = createOutputStream("{\"message\": \"hello\"}");
     Integer[] capturedStatus = {null};
@@ -1681,8 +1670,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataExtractsStatusCodeCorrectly() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200, \"body\": \"ok\"}");
     Integer[] capturedStatus = {null};
     AgentSpan span =
@@ -1693,8 +1681,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataExtractsStatusCodeAsIntegerFromDouble() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result =
         createOutputStream("{\"statusCode\": 404.0, \"body\": \"not found\"}");
     Integer[] capturedStatus = {null};
@@ -1729,8 +1716,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataForwardsAllResponseHeaders() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"application/json\", \"x-custom\": \"val\", \"content-length\": \"42\", \"set-cookie\": \"a=1\"}}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1746,8 +1732,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataLowercasesHeaderKeys() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"Content-Type\": \"text/html\", \"CONTENT-LENGTH\": \"10\"}}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1760,8 +1745,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataMergesMultiValueHeadersWithSingleValueHeaders() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/html\"}, \"multiValueHeaders\": {\"content-encoding\": [\"gzip\", \"br\"]}}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1774,8 +1758,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataHandlesEmptyHeaders() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
@@ -1792,8 +1775,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataParsesJsonBody() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"application/json\"}, \"body\": \"{\\\"key\\\": \\\"value\\\"}\"}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1806,8 +1788,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataHandlesNonJsonBodyAsRawString() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"plain text\"}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1820,8 +1801,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataHandlesBase64EncodedBody() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String originalBody = "{\"decoded\": \"content\"}";
     String base64Body =
         Base64.getEncoder().encodeToString(originalBody.getBytes(StandardCharsets.UTF_8));
@@ -1860,8 +1840,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataAttemptsJsonParseWhenNoContentType() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result =
         createOutputStream("{\"statusCode\": 200, \"body\": \"{\\\"a\\\": 1}\"}");
     Object[] capturedBody = {null};
@@ -1873,8 +1852,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataFallsBackToRawStringWhenJsonParseFails() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     ByteArrayOutputStream result =
         createOutputStream("{\"statusCode\": 200, \"body\": \"not json {\"}");
     Object[] capturedBody = {null};
@@ -1887,8 +1865,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataFiresEventsInCorrectOrder() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"application/json\"}, \"body\": \"{\\\"k\\\": \\\"v\\\"}\"}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1927,8 +1904,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processResponseDataParsesBodyAsJsonForJavascriptContentType() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"application/javascript\"}, \"body\": \"{\\\"key\\\": \\\"val\\\"}\"}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1941,8 +1917,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataSkipsMultiValueHeadersEntryWithNonListValue() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/html\"}, \"multiValueHeaders\": {\"x-scalar\": \"not-a-list\", \"x-valid\": [\"v1\", \"v2\"]}}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -1956,8 +1931,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataMultiValueHeadersOverrideSingleValueHeaders() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json =
         "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/html\"}, \"multiValueHeaders\": {\"content-type\": [\"application/json\", \"charset=utf-8\"]}}";
     ByteArrayOutputStream result = createOutputStream(json);
@@ -2017,8 +1991,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataSkipsResponseStartedWhenCallbackIsNull() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json = "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"}}";
     ByteArrayOutputStream result = createOutputStream(json);
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -2032,8 +2005,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataSkipsResponseHeaderWhenCallbackIsNull() {
-    LambdaAppSecHandler.setCurrentTriggerType(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     String json = "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"}}";
     ByteArrayOutputStream result = createOutputStream(json);
     Integer[] capturedStatus = {null};
@@ -2052,17 +2024,17 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractResponseDataReturnsNullForMalformedJson() {
-    assertNull(LambdaAppSecHandler.extractResponseData("{bad json"));
+    assertNull(parseResponse("{bad json"));
   }
 
   @Test
   void extractResponseDataReturnsNullForNullJsonParseResult() {
-    assertNull(LambdaAppSecHandler.extractResponseData("null"));
+    assertNull(parseResponse("null"));
   }
 
   @Test
   void extractResponseDataReturnsNullForEmptyString() {
-    assertNull(LambdaAppSecHandler.extractResponseData(""));
+    assertNull(parseResponse(""));
   }
 
   // ============================================================================
