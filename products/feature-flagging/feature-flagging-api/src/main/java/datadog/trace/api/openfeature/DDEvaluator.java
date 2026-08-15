@@ -44,7 +44,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
@@ -109,6 +108,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
   // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
+
+  // MessageDigest is mutable. One instance per evaluation thread avoids shared mutation and the
+  // provider lookup and digest allocation on every shard evaluation.
+  private static final ThreadLocal<MessageDigest> MD5 =
+      ThreadLocal.withInitial(
+          () -> {
+            try {
+              return MessageDigest.getInstance("MD5");
+            } catch (final NoSuchAlgorithmException e) {
+              throw new IllegalStateException("MD5 algorithm not available", e);
+            }
+          });
 
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
@@ -361,9 +372,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
     switch (condition.operator) {
       case MATCHES:
-        return matchesRegex(attributeValue, condition.value);
+        return matchesRegex(attributeValue, condition);
       case NOT_MATCHES:
-        return !matchesRegex(attributeValue, condition.value);
+        return !matchesRegex(attributeValue, condition);
       case ONE_OF:
         return isOneOf(attributeValue, condition.value);
       case NOT_ONE_OF:
@@ -393,21 +404,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
+  private static boolean matchesRegex(
+      final Object attributeValue, final ConditionConfiguration condition) {
     // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
     // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(normalizeRegex(String.valueOf(conditionValue)));
-    return pattern.matcher(String.valueOf(attributeValue)).find();
-  }
-
-  private static String normalizeRegex(final String regex) {
-    return regex
-        .replace("[:alnum:]", "\\p{Alnum}")
-        .replace("[:alpha:]", "\\p{Alpha}")
-        .replace("[:digit:]", "\\p{Digit}")
-        .replace("[:lower:]", "\\p{Lower}")
-        .replace("[:upper:]", "\\p{Upper}")
-        .replace("[:space:]", "\\p{Space}");
+    return condition.regexPattern().matcher(String.valueOf(attributeValue)).find();
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
@@ -461,7 +462,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final int assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+    final int assignedShard = getShard(shard, targetingKey);
     for (final ShardRange range : shard.ranges) {
       if (assignedShard >= range.start && assignedShard < range.end) {
         return true;
@@ -470,30 +471,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return false;
   }
 
-  private static int getShard(final String salt, final String targetingKey, final int totalShards) {
-    final String hashKey = salt + "-" + targetingKey;
-    final String md5Hash = getMD5Hash(hashKey);
-    final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
-    final long intFromHash = Long.parseLong(first8Chars, 16);
-    return (int) (intFromHash % totalShards);
-  }
-
-  private static String getMD5Hash(final String input) {
-    try {
-      final MessageDigest md = MessageDigest.getInstance("MD5");
-      final byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
-      final StringBuilder hexString = new StringBuilder();
-      for (byte b : hashBytes) {
-        final String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("MD5 algorithm not available", e);
-    }
+  static int getShard(final Shard shard, final String targetingKey) {
+    final MessageDigest digest = MD5.get();
+    digest.reset();
+    shard.updateDigest(digest);
+    final byte[] hash = digest.digest(targetingKey.getBytes(StandardCharsets.UTF_8));
+    final long firstFourBytes =
+        ((hash[0] & 0xffL) << 24)
+            | ((hash[1] & 0xffL) << 16)
+            | ((hash[2] & 0xffL) << 8)
+            | (hash[3] & 0xffL);
+    return (int) (firstFourBytes % shard.totalShards);
   }
 
   private static <T> ProviderEvaluation<T> resolveVariant(

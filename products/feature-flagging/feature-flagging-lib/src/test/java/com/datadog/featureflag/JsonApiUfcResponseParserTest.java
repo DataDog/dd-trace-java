@@ -98,6 +98,11 @@ class JsonApiUfcResponseParserTest {
                             "non-semver",
                             "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"MATCHES\",\"value\":\"1\"}]}]")),
                     booleanFlag(
+                        "invalid-regex",
+                        allocation(
+                            "invalid-regex",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"MATCHES\",\"value\":\"[\"}]}]")),
+                    booleanFlag(
                         "valid-semver",
                         allocation(
                             "valid-semver",
@@ -122,6 +127,7 @@ class JsonApiUfcResponseParserTest {
     assertTrue(configuration.flags.containsKey("no-conditions"));
     assertTrue(configuration.flags.containsKey("no-operator"));
     assertTrue(configuration.flags.containsKey("non-semver"));
+    assertTrue(configuration.flags.containsKey("invalid-regex"));
     assertTrue(configuration.flags.containsKey("valid-semver"));
     assertFalse(configuration.flags.containsKey("invalid-semver"));
     assertFalse(configuration.flags.containsKey("non-string-semver"));
@@ -129,6 +135,29 @@ class JsonApiUfcResponseParserTest {
     assertEquals(2, configuration.invalidFlags.size());
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("non-string-semver"));
+
+    assertTrue(
+        configuration
+            .flags
+            .get("non-semver")
+            .allocations
+            .get(0)
+            .rules
+            .get(0)
+            .conditions
+            .get(0)
+            .hasCachedRegexPattern());
+    assertFalse(
+        configuration
+            .flags
+            .get("invalid-regex")
+            .allocations
+            .get(0)
+            .rules
+            .get(0)
+            .conditions
+            .get(0)
+            .hasCachedRegexPattern());
 
     assertNotNull(
         configuration
@@ -158,6 +187,20 @@ class JsonApiUfcResponseParserTest {
     assertFalse(configuration.flags.containsKey("missing-shards"));
     assertTrue(configuration.flags.containsKey("valid-sibling"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("missing-shards"));
+  }
+
+  @Test
+  void preprocessesValidShardData() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "valid-shard",
+                        ",\"allocations\":[{\"key\":\"valid-shard\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test-salt\",\"ranges\":[],\"totalShards\":10000}]}]}]"))));
+
+    assertNotNull(configuration);
+    assertTrue(configuration.flags.containsKey("valid-shard"));
   }
 
   @Test
