@@ -86,16 +86,12 @@ final class ProviderRuntime {
   private static final class SharedRuntime {
     private final RuntimeConfiguration configuration;
     private final ConfigurationStore store = new ConfigurationStore();
-    private final ConfigurationSource source;
+    private ConfigurationSource source;
     private int references;
     private boolean started;
 
     private SharedRuntime(final RuntimeConfiguration configuration) {
       this.configuration = configuration;
-      source =
-          configuration.source == RuntimeConfiguration.Source.CDN
-              ? new CdnConfigurationSource(configuration.http, store)
-              : RawBridgeAccess.remoteConfigurationSource(store);
     }
 
     private void start() {
@@ -104,11 +100,18 @@ final class ProviderRuntime {
       }
       started = true;
       RawBridgeAccess.activateIfPresent();
+      source =
+          configuration.source == RuntimeConfiguration.Source.CDN
+              ? new CdnConfigurationSource(configuration.http, store)
+              : RawBridgeAccess.remoteConfigurationSource(store);
       source.start();
     }
 
     private void close() {
-      source.close();
+      if (source != null) {
+        source.close();
+        source = null;
+      }
       store.clear();
       started = false;
     }

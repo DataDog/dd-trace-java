@@ -4,20 +4,19 @@ import datadog.openfeature.internal.core.ApplyResult;
 import datadog.openfeature.internal.core.ConfigurationSink;
 import datadog.openfeature.internal.core.ConfigurationSource;
 import datadog.openfeature.internal.core.SourceStatus;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
-import java.util.zip.GZIPInputStream;
 
 /** Java 11 HTTP client source for CDN-backed UFC delivery. */
 public final class CdnConfigurationSource implements ConfigurationSource {
@@ -52,8 +50,7 @@ public final class CdnConfigurationSource implements ConfigurationSource {
     this(
         options,
         sink,
-        new Java11Transport(
-            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()),
+        new LazyTransport(),
         Executors.newSingleThreadScheduledExecutor(
             runnable -> {
               final Thread thread = new Thread(runnable, "dd-openfeature-cdn-poller");
@@ -89,16 +86,11 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       status = SourceStatus.STARTING;
     }
 
-    pollOnce();
-
     synchronized (lifecycleLock) {
       if (!closed) {
         scheduledPoll =
             executor.scheduleWithFixedDelay(
-                this::pollOnceSafely,
-                options.pollInterval.toMillis(),
-                options.pollInterval.toMillis(),
-                TimeUnit.MILLISECONDS);
+                this::pollOnceSafely, 0, options.pollInterval.toMillis(), TimeUnit.MILLISECONDS);
       }
     }
   }
@@ -177,6 +169,8 @@ public final class CdnConfigurationSource implements ConfigurationSource {
         if (!retryable(response.status) || attempt == MAX_ATTEMPTS) {
           return false;
         }
+      } catch (final UfcResponseBodyReader.ResponseTooLargeException e) {
+        return false;
       } catch (final IOException e) {
         if (attempt == MAX_ATTEMPTS || closed) {
           return false;
@@ -240,19 +234,32 @@ public final class CdnConfigurationSource implements ConfigurationSource {
   }
 
   static final class Java11Transport implements Transport {
-    private final HttpClient client;
+    private final ExecutorService executor;
     private final AtomicReference<CompletableFuture<?>> active = new AtomicReference<>();
     private final AtomicBoolean cancelled = new AtomicBoolean();
+    private volatile HttpClient client;
 
-    Java11Transport(final HttpClient client) {
-      this.client = client;
+    Java11Transport() {
+      executor =
+          Executors.newSingleThreadExecutor(
+              runnable -> {
+                final Thread thread = new Thread(runnable, "dd-openfeature-cdn-http");
+                thread.setDaemon(true);
+                return thread;
+              });
+      client =
+          HttpClient.newBuilder()
+              .executor(executor)
+              .followRedirects(HttpClient.Redirect.NORMAL)
+              .build();
     }
 
     @Override
     public TransportResponse fetch(
         final HttpConfigurationOptions options, final Map<String, String> headers)
         throws IOException {
-      if (cancelled.get()) {
+      final HttpClient currentClient = client;
+      if (cancelled.get() || currentClient == null) {
         throw new InterruptedIOException("Feature Flagging HTTP source is closed");
       }
       final HttpRequest.Builder request =
@@ -267,8 +274,19 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       }
       headers.forEach(request::header);
 
-      final CompletableFuture<java.net.http.HttpResponse<byte[]>> future =
-          client.sendAsync(request.build(), BodyHandlers.ofByteArray());
+      final CompletableFuture<java.net.http.HttpResponse<byte[]>> future;
+      try {
+        future =
+            currentClient.sendAsync(request.build(), UfcResponseBodyReader.boundedBodyHandler());
+      } catch (final RejectedExecutionException e) {
+        if (cancelled.get()) {
+          final InterruptedIOException closed =
+              new InterruptedIOException("Feature Flagging HTTP source is closed");
+          closed.initCause(e);
+          throw closed;
+        }
+        throw e;
+      }
       active.set(future);
       if (cancelled.get()) {
         future.cancel(true);
@@ -278,7 +296,7 @@ public final class CdnConfigurationSource implements ConfigurationSource {
         return new TransportResponse(
             response.statusCode(),
             response.headers().firstValue("ETag").orElse(null),
-            decodeBody(
+            UfcResponseBodyReader.decode(
                 response.body(), response.headers().firstValue("Content-Encoding").orElse(null)));
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -286,7 +304,7 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       } catch (final CancellationException e) {
         throw new InterruptedIOException("Feature Flagging HTTP request cancelled");
       } catch (final ExecutionException e) {
-        final Throwable cause = e.getCause();
+        final Throwable cause = unwrapCompletionFailure(e.getCause());
         if (cause instanceof CancellationException) {
           throw new InterruptedIOException("Feature Flagging HTTP request cancelled");
         }
@@ -299,30 +317,65 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       }
     }
 
-    private static byte[] decodeBody(final byte[] body, final String contentEncoding)
-        throws IOException {
-      if (body == null
-          || contentEncoding == null
-          || !"gzip".equalsIgnoreCase(contentEncoding.trim())) {
-        return body;
+    static Throwable unwrapCompletionFailure(final Throwable failure) {
+      Throwable current = failure;
+      while (current instanceof java.util.concurrent.CompletionException
+          && current.getCause() != null) {
+        current = current.getCause();
       }
-      try (GZIPInputStream input = new GZIPInputStream(new ByteArrayInputStream(body));
-          ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-        final byte[] buffer = new byte[8192];
-        int read;
-        while ((read = input.read(buffer)) != -1) {
-          output.write(buffer, 0, read);
-        }
-        return output.toByteArray();
-      }
+      return current;
     }
 
     @Override
     public void cancel() {
       cancelled.set(true);
+      client = null;
       final CompletableFuture<?> future = active.get();
       if (future != null) {
         future.cancel(true);
+      }
+      executor.shutdownNow();
+    }
+
+    boolean isTerminated() {
+      return executor.isTerminated();
+    }
+  }
+
+  static final class LazyTransport implements Transport {
+    private Java11Transport delegate;
+    private boolean cancelled;
+
+    @Override
+    public TransportResponse fetch(
+        final HttpConfigurationOptions options, final Map<String, String> headers)
+        throws IOException {
+      final Java11Transport current;
+      synchronized (this) {
+        if (cancelled) {
+          throw new InterruptedIOException("Feature Flagging HTTP source is closed");
+        }
+        if (delegate == null) {
+          delegate = new Java11Transport();
+        }
+        current = delegate;
+      }
+      return current.fetch(options, headers);
+    }
+
+    @Override
+    public void cancel() {
+      final Java11Transport current;
+      synchronized (this) {
+        if (cancelled) {
+          return;
+        }
+        cancelled = true;
+        current = delegate;
+        delegate = null;
+      }
+      if (current != null) {
+        current.cancel();
       }
     }
   }

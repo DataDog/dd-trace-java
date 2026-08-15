@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpServer;
 import datadog.openfeature.internal.core.ConfigurationStore;
 import datadog.openfeature.internal.core.SourceStatus;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -86,6 +89,7 @@ class CdnConfigurationSourceTest {
 
     source.start();
     source.start();
+    await(() -> source.status() == SourceStatus.READY);
     assertEquals(SourceStatus.READY, source.status());
     assertEquals(1, transport.requestHeaders.size());
 
@@ -98,6 +102,60 @@ class CdnConfigurationSourceTest {
   }
 
   @Test
+  void startReturnsWhileInitialRequestIsInFlight() throws Exception {
+    final BlockingTransport transport = new BlockingTransport();
+    final CdnConfigurationSource source = source(new ConfigurationStore(), transport, millis -> {});
+
+    final long started = System.nanoTime();
+    source.start();
+    final long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+
+    assertTrue(transport.entered.await(1, TimeUnit.SECONDS));
+    assertTrue(elapsedMillis < 100, "Start took " + elapsedMillis + " milliseconds");
+    source.close();
+  }
+
+  @Test
+  void createsProductionThreadsOnStartAndStopsThemOnClose() throws Exception {
+    final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/config",
+        exchange -> {
+          final byte[] response = UFC.getBytes(UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          exchange.getResponseBody().write(response);
+          exchange.close();
+        });
+    server.start();
+    final int pollerBaseline = threadCount("dd-openfeature-cdn-poller");
+    final int httpBaseline = threadCount("dd-openfeature-cdn-http");
+    final ConfigurationStore store = new ConfigurationStore();
+    final HttpConfigurationOptions options =
+        HttpConfigurationOptions.builder()
+            .endpoint(URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/config"))
+            .pollInterval(Duration.ofHours(1))
+            .requestTimeout(Duration.ofSeconds(1))
+            .build();
+    final CdnConfigurationSource source = new CdnConfigurationSource(options, store);
+
+    try {
+      assertEquals(pollerBaseline, threadCount("dd-openfeature-cdn-poller"));
+      assertEquals(httpBaseline, threadCount("dd-openfeature-cdn-http"));
+
+      source.start();
+      await(store::hasConfiguration);
+      awaitThreadCount("dd-openfeature-cdn-poller", pollerBaseline + 1);
+      awaitThreadCount("dd-openfeature-cdn-http", httpBaseline + 1);
+    } finally {
+      source.close();
+      server.stop(0);
+    }
+
+    awaitThreadCount("dd-openfeature-cdn-poller", pollerBaseline);
+    awaitThreadCount("dd-openfeature-cdn-http", httpBaseline);
+  }
+
+  @Test
   void doesNotRetryPermanentFailures() {
     final QueueTransport transport = new QueueTransport();
     transport.responses.add(response(401, null, null));
@@ -105,6 +163,20 @@ class CdnConfigurationSourceTest {
 
     assertFalse(source.pollOnce());
     assertEquals(1, transport.requestHeaders.size());
+  }
+
+  @Test
+  void doesNotRetryResponsesAboveTheByteLimit() {
+    final QueueTransport transport = new QueueTransport();
+    transport.failures.add(
+        new UfcResponseBodyReader.ResponseTooLargeException(
+            "encoded", UfcResponseBodyReader.MAX_COMPRESSED_BYTES));
+    final List<Long> delays = new ArrayList<>();
+    final CdnConfigurationSource source = source(new ConfigurationStore(), transport, delays::add);
+
+    assertFalse(source.pollOnce());
+    assertEquals(1, transport.requestHeaders.size());
+    assertTrue(delays.isEmpty());
   }
 
   @Test
@@ -135,10 +207,37 @@ class CdnConfigurationSourceTest {
         status, etag, body == null ? null : body.getBytes(UTF_8));
   }
 
+  private static void await(final java.util.function.BooleanSupplier condition) {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+    while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
+      Thread.yield();
+    }
+    assertTrue(condition.getAsBoolean());
+  }
+
+  private static void awaitThreadCount(final String name, final int expected)
+      throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+    while (threadCount(name) != expected && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+    assertEquals(expected, threadCount(name));
+  }
+
+  private static int threadCount(final String name) {
+    int count = 0;
+    for (final Thread thread : Thread.getAllStackTraces().keySet()) {
+      if (thread.isAlive() && name.equals(thread.getName())) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   private static class QueueTransport implements CdnConfigurationSource.Transport {
     final Queue<CdnConfigurationSource.TransportResponse> responses = new ArrayDeque<>();
     final Queue<IOException> failures = new ArrayDeque<>();
-    final List<Map<String, String>> requestHeaders = new ArrayList<>();
+    final List<Map<String, String>> requestHeaders = new CopyOnWriteArrayList<>();
     final AtomicBoolean cancelled = new AtomicBoolean();
 
     @Override

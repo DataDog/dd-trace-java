@@ -38,7 +38,7 @@ public final class ProviderOnlyChildMain {
                   .cdnBaseUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/config")
                   .pollInterval(Duration.ofMillis(50))
                   .requestTimeout(Duration.ofSeconds(1))
-                  .initTimeout(1, TimeUnit.SECONDS));
+                  .initTimeout(5, TimeUnit.SECONDS));
       final int beforeActivation = requests.get();
       provider.initialize(new MutableContext("child"));
       final String value =

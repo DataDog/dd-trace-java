@@ -23,6 +23,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -160,6 +161,51 @@ class ProviderTest {
       Thread.sleep(150);
       assertEquals(stoppedAt, requests.get());
     } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void providerInitializationDeadlineIncludesTheInitialRequest() throws Exception {
+    final CountDownLatch requestStarted = new CountDownLatch(1);
+    final CountDownLatch releaseRequest = new CountDownLatch(1);
+    final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/config",
+        exchange -> {
+          requestStarted.countDown();
+          try {
+            releaseRequest.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            exchange.sendResponseHeaders(304, -1);
+          } catch (final InterruptedException error) {
+            Thread.currentThread().interrupt();
+          } finally {
+            exchange.close();
+          }
+        });
+    server.start();
+    try {
+      first =
+          new Provider(
+              new Provider.Options()
+                  .cdnBaseUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/config")
+                  .requestTimeout(Duration.ofSeconds(5))
+                  .initTimeout(100, MILLISECONDS));
+
+      final long started = System.nanoTime();
+      assertThrows(
+          ProviderNotReadyError.class, () -> first.initialize(new MutableContext("subject")));
+      final long elapsedMillis =
+          java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+
+      assertTrue(requestStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
+      assertTrue(elapsedMillis < 500, "Initialization took " + elapsedMillis + " milliseconds");
+    } finally {
+      releaseRequest.countDown();
+      if (first != null) {
+        first.shutdown();
+        first = null;
+      }
       server.stop(0);
     }
   }

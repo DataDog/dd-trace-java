@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -47,6 +48,16 @@ class DDEvaluatorTest {
     assertTrue(evaluator.initialize(1, SECONDS, new MutableContext("subject")));
     assertTrue(evaluator.hasConfiguration());
     assertTrue(changed.get());
+  }
+
+  @Test
+  void initializationTimeoutIncludesRuntimeActivation() {
+    assertEquals(
+        MILLISECONDS.toNanos(60),
+        DDEvaluator.remainingTimeoutNanos(100, MILLISECONDS, MILLISECONDS.toNanos(40)));
+    assertEquals(
+        0, DDEvaluator.remainingTimeoutNanos(100, MILLISECONDS, MILLISECONDS.toNanos(150)));
+    assertEquals(0, DDEvaluator.remainingTimeoutNanos(-1, MILLISECONDS, 0));
   }
 
   @Test
@@ -116,6 +127,21 @@ class DDEvaluatorTest {
   }
 
   @Test
+  void readsOnlyAttributesRequiredByTargetingRules() throws Exception {
+    FeatureFlaggingRawBridge.dispatchConfiguration(TARGETED_UFC.getBytes(UTF_8));
+    evaluator =
+        new DDEvaluator(() -> {}, new Provider.Options().configurationSource("remote_config"));
+    evaluator.initialize(1, SECONDS, new MutableContext("subject"));
+    final MutableContext context = new MutableContext("subject").add("country", "US");
+
+    final ProviderEvaluation<String> result =
+        evaluator.evaluate(String.class, "message", "default", context);
+
+    assertEquals("hello", result.getValue());
+    assertEquals("TARGETING_MATCH", result.getReason());
+  }
+
+  @Test
   void mapsSupportedValues() {
     assertEquals("42", DDEvaluator.mapValue(String.class, 42));
     assertEquals(42, DDEvaluator.mapValue(Integer.class, "42"));
@@ -153,4 +179,14 @@ class DDEvaluatorTest {
           + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"hello\"}},"
           + "\"allocations\":[{\"key\":\"allocation\",\"rules\":[],\"splits\":["
           + "{\"variationKey\":\"on\",\"shards\":[],\"serialId\":7}],\"doLog\":false}]}}}";
+
+  private static final String TARGETED_UFC =
+      "{\"format\":\"SERVER\",\"environment\":{\"name\":\"test\"},\"flags\":{"
+          + "\"message\":{\"key\":\"message\",\"enabled\":true,\"variationType\":\"STRING\","
+          + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"hello\"}},"
+          + "\"allocations\":[{\"key\":\"allocation\",\"rules\":[{\"conditions\":["
+          + "{\"operator\":\"ONE_OF\",\"attribute\":\"id\",\"value\":[\"subject\"]},"
+          + "{\"operator\":\"ONE_OF\",\"attribute\":\"country\",\"value\":[\"US\"]}]}],"
+          + "\"splits\":[{\"variationKey\":\"on\",\"shards\":[],\"serialId\":7}],"
+          + "\"doLog\":false}]}}}";
 }
