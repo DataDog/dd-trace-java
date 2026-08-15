@@ -15,8 +15,8 @@ import org.slf4j.LoggerFactory;
 public class FeatureFlaggingSystem {
 
   @FunctionalInterface
-  interface ExposureWriterFactory {
-    ExposureWriter create(SharedCommunicationObjects sco, Config config);
+  interface SystemInitializer {
+    void initialize(SharedCommunicationObjects sco, Config config);
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
@@ -31,11 +31,11 @@ public class FeatureFlaggingSystem {
   private FeatureFlaggingSystem() {}
 
   public static void start(final SharedCommunicationObjects sco) {
-    start(sco, ExposureWriterImpl::new);
+    start(sco, FeatureFlaggingSystem::initializeSystem);
   }
 
   static synchronized void start(
-      final SharedCommunicationObjects sco, final ExposureWriterFactory exposureWriterFactory) {
+      final SharedCommunicationObjects sco, final SystemInitializer systemInitializer) {
     if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
       return;
@@ -51,39 +51,37 @@ public class FeatureFlaggingSystem {
 
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
       final FeatureFlaggingGateway.ActivationListener activationListener =
-          () -> activateAgentless(sco, config);
+          () -> activateAgentless(sco, config, systemInitializer);
       ACTIVATION_LISTENER = activationListener;
       FeatureFlaggingGateway.addActivationListener(activationListener);
-      try {
-        initializeExposureWriter(sco, config, exposureWriterFactory);
-      } catch (final RuntimeException | Error e) {
-        stop();
-        throw e;
-      }
       LOGGER.debug("Feature Flagging system awaiting application provider activation");
       return;
     }
 
-    initializeOrRollBack(sco, config);
+    initializeOrRollBack(sco, config, systemInitializer);
   }
 
   private static synchronized void activateAgentless(
-      final SharedCommunicationObjects sco, final Config config) {
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final SystemInitializer systemInitializer) {
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
     if (!STARTED || activationListener == null) {
       return;
     }
     ACTIVATION_LISTENER = null;
     FeatureFlaggingGateway.removeActivationListener(activationListener);
-    initializeOrRollBack(sco, config);
+    initializeOrRollBack(sco, config, systemInitializer);
   }
 
   // Any failure leaves the subsystem fully stopped: stop() releases whatever initializeSystem
   // managed to publish before it threw, so a later start() begins from a clean state.
   private static void initializeOrRollBack(
-      final SharedCommunicationObjects sco, final Config config) {
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final SystemInitializer systemInitializer) {
     try {
-      initializeSystem(sco, config);
+      systemInitializer.initialize(sco, config);
     } catch (final RuntimeException | Error e) {
       stop();
       throw e;
@@ -96,19 +94,8 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
       return;
     }
-    ExposureWriter exposureWriter = EXPOSURE_WRITER;
-    if (exposureWriter instanceof ExposureWriterImpl
-        && !((ExposureWriterImpl) exposureWriter).isSerializerThreadAlive()) {
-      closeQuietly(exposureWriter);
-      EXPOSURE_WRITER = null;
-      exposureWriter = null;
-    }
-    if (exposureWriter == null) {
-      final ExposureWriter newExposureWriter = new ExposureWriterImpl(sco, config);
-      initialize(configService, newExposureWriter);
-    } else {
-      initializeConfigurationSource(configService, exposureWriter);
-    }
+    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+    initialize(configService, exposureWriter);
 
     final boolean evalCountsEnabled =
         config
@@ -137,36 +124,6 @@ public class FeatureFlaggingSystem {
     SPAN_ENRICHMENT_WRITER.init();
 
     LOGGER.debug("Feature Flagging system started");
-  }
-
-  private static void initializeExposureWriter(
-      final SharedCommunicationObjects sco,
-      final Config config,
-      final ExposureWriterFactory exposureWriterFactory) {
-    final ExposureWriter exposureWriter = exposureWriterFactory.create(sco, config);
-    try {
-      exposureWriter.init();
-      EXPOSURE_WRITER = exposureWriter;
-    } catch (final RuntimeException | Error e) {
-      exposureWriter.close();
-      throw e;
-    }
-  }
-
-  private static void initializeConfigurationSource(
-      final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
-    try {
-      configService.init();
-      CONFIG_SERVICE = configService;
-    } catch (final RuntimeException | Error e) {
-      EXPOSURE_WRITER = null;
-      try {
-        exposureWriter.close();
-      } finally {
-        configService.close();
-      }
-      throw e;
-    }
   }
 
   static void initialize(
@@ -239,12 +196,6 @@ public class FeatureFlaggingSystem {
 
   static boolean isExposureWriterStarted() {
     return EXPOSURE_WRITER != null;
-  }
-
-  static boolean isExposureWriterRunning() {
-    final ExposureWriter exposureWriter = EXPOSURE_WRITER;
-    return exposureWriter instanceof ExposureWriterImpl
-        && ((ExposureWriterImpl) exposureWriter).isSerializerThreadAlive();
   }
 
   static boolean isConfigurationSourceStarted() {
