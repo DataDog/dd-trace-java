@@ -40,15 +40,15 @@ import org.slf4j.LoggerFactory;
  * string identity). Context pruning: deterministic (sort before cut), <=256 fields, string values
  * <=256 chars; the pruned attributes are what gets aggregated and serialized. Caps:
  * globalCap=131072, perFlagCap=10000, degradedCap=32768. Eval-time: min/max of
- * firstEvalMs/lastEvalMs across events in the same bucket. Runtime default: absent variant means
- * runtimeDefaultUsed=true. Flush interval: 10 seconds. Queue: bounded MessagePassingBlockingQueue
- * (capacity 2^16), non-blocking offer; on overflow the event is dropped and the
- * droppedQueueOverflow counter is incremented and surfaced on flush. Enqueue: lock-free. Producers
- * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
- * against each other. Shutdown: close() drains the queue and performs a final flush before the
- * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
- * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
- * so shutdown loss is observable rather than silent.
+ * firstEvalMs/lastEvalMs across events in the same bucket. Retained aggregation memory is limited
+ * to 64 MiB. Runtime default: absent variant means runtimeDefaultUsed=true. Flush interval: 10
+ * seconds. Queue: bounded MessagePassingBlockingQueue (capacity 2^12), non-blocking offer; on
+ * overflow the event is dropped and the droppedQueueOverflow counter is incremented and surfaced on
+ * flush. Enqueue: lock-free. Producers contend only on the MPSC queue, never on a monitor, so
+ * evaluation threads do not serialize against each other. Shutdown: close() drains the queue and
+ * performs a final flush before the worker thread exits. Because enqueue is lock-free, a producer
+ * can still offer during shutdown; close() sweeps the queue once the worker has been joined,
+ * counting any remainder as a closed drop so shutdown loss is observable rather than silent.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
@@ -65,8 +65,10 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
   static final String DROP_REASON_CLOSED = "closed";
   static final String DROP_REASON_DEGRADED_CAP = "degraded_cap";
+  static final String DROP_REASON_BYTE_BUDGET = "byte_budget";
   static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
   static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
+  static final String DEGRADED_REASON_BYTE_BUDGET = "byte_budget";
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
   private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
@@ -449,6 +451,22 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
                 + " (best-effort telemetry)",
             dgDrops);
       }
+      final long byteBudgetDrops = aggregator.droppedByteBudget.getAndSet(0);
+      countMetric(FLAG_EVALUATION_DROPPED_METRIC, byteBudgetDrops, DROP_REASON_BYTE_BUDGET);
+      if (byteBudgetDrops > 0) {
+        LOGGER.warn(
+            "flag evaluation aggregation byte budget full - dropped {} evaluation(s)"
+                + " (best-effort telemetry)",
+            byteBudgetDrops);
+      }
+      countMetric(
+          FLAG_EVALUATION_DEGRADED_METRIC,
+          aggregator.degradedCardinalityCap.getAndSet(0),
+          DEGRADED_REASON_CARDINALITY_CAP);
+      countMetric(
+          FLAG_EVALUATION_DEGRADED_METRIC,
+          aggregator.degradedByteBudget.getAndSet(0),
+          DEGRADED_REASON_BYTE_BUDGET);
 
       // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
       for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
@@ -462,10 +480,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         return;
       }
       try {
-        countMetric(
-            FLAG_EVALUATION_DEGRADED_METRIC,
-            aggregator.degradedEvaluationCount(),
-            DEGRADED_REASON_CARDINALITY_CAP);
         final List<FlagEvaluationPayloads.FlagEvaluationEvent> events = buildEventList();
         if (events.isEmpty()) {
           return;
