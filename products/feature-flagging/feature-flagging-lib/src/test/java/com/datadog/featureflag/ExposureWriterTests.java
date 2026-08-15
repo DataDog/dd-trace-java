@@ -165,6 +165,38 @@ class ExposureWriterTests {
   }
 
   @Test
+  void testAdmissionCacheRecordsOnlyQueuedExposures() {
+    final Config config = mockConfig("test-service");
+    final ExposureEvent accepted = buildExposure();
+    final ExposureEvent rejected = buildExposure();
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      assertTrue(shouldCapture(writer, accepted));
+      writer.accept(accepted);
+      assertFalse(shouldCapture(writer, accepted));
+
+      writer.accept(rejected);
+      assertTrue(shouldCapture(writer, rejected));
+    }
+  }
+
+  @Test
+  void testCloseClearsAdmissionCache() {
+    final Config config = mockConfig("test-service");
+    final ExposureEvent exposure = buildExposure();
+    final ExposureWriterImpl writer =
+        new ExposureWriterImpl(1, 100, MILLISECONDS, sharedCommunicationObjects, config);
+    writer.accept(exposure);
+
+    writer.close();
+    writer.accept(buildExposure());
+
+    assertFalse(shouldCapture(writer, exposure));
+    assertEquals(1, writer.queueSize());
+  }
+
+  @Test
   void testHighLoadScenario() throws Exception {
     Config config = mockConfig("test-service");
     int exposuresPerThread = 100;
@@ -430,5 +462,10 @@ class ExposureWriterTests {
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
         new Subject("Subject_" + id, attributes));
+  }
+
+  private static boolean shouldCapture(final ExposureWriterImpl writer, final ExposureEvent event) {
+    return writer.shouldCapture(
+        event.flag.key, event.subject.id, event.variant.key, event.allocation.key);
   }
 }
