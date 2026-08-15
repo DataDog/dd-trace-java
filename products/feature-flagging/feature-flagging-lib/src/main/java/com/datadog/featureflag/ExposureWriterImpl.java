@@ -8,16 +8,20 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.EvpProxy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,10 +31,24 @@ public class ExposureWriterImpl implements ExposureWriter {
   private static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
+  static final int MAX_BATCH_EVENTS = 1_000;
+  static final int EXPOSURE_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
+  static final String EXPOSURE_DROPPED_METRIC = "exposures.events.dropped";
+  static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
+  static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
+  static final String DROP_REASON_SERIALIZATION = "serialization";
+  static final String DROP_REASON_DELIVERY_FAILURE = "delivery_failure";
   private static final String EXPOSURES_ROUTE = "exposures";
+  private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
 
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
+  private final AtomicLong droppedQueueOverflow = new AtomicLong();
+  private final ExposureSerializingHandler serializer;
   private final Thread serializerThread;
+
+  private static void countDropped(final long value, final String reason) {
+    CORE_METRICS.count(EXPOSURE_DROPPED_METRIC, value, "reason:" + reason);
+  }
 
   public ExposureWriterImpl(final SharedCommunicationObjects sco, final Config config) {
     this(DEFAULT_CAPACITY, DEFAULT_FLUSH_INTERVAL_IN_SECONDS, SECONDS, sco, config);
@@ -43,13 +61,14 @@ public class ExposureWriterImpl implements ExposureWriter {
       final SharedCommunicationObjects sco,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
-    final ExposureSerializingHandler serializer =
+    this.serializer =
         new ExposureSerializingHandler(
             new BackendApiFactory(config, sco),
             queue,
             flushInterval,
             timeUnit,
             FeatureFlagEvpContext.from(config),
+            droppedQueueOverflow,
             this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EXPOSURE_PROCESSOR, serializer);
   }
@@ -70,7 +89,9 @@ public class ExposureWriterImpl implements ExposureWriter {
 
   @Override
   public void accept(final ExposureEvent event) {
-    queue.offer(event);
+    if (!queue.offer(event)) {
+      droppedQueueOverflow.incrementAndGet();
+    }
   }
 
   @VisibleForTesting
@@ -83,6 +104,16 @@ public class ExposureWriterImpl implements ExposureWriter {
     return queue.size();
   }
 
+  @VisibleForTesting
+  long droppedQueueOverflow() {
+    return droppedQueueOverflow.get();
+  }
+
+  @VisibleForTesting
+  void flushForTest() {
+    serializer.flushIfNecessary();
+  }
+
   private static class ExposureSerializingHandler implements Runnable {
     private final MessagePassingBlockingQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;
@@ -92,7 +123,8 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final Map<String, String> context;
     private final ExposureCache cache;
 
-    private final List<ExposureEvent> buffer = new ArrayList<>();
+    private final List<ExposureEvent> buffer = new ArrayList<>(MAX_BATCH_EVENTS);
+    private final AtomicLong droppedQueueOverflow;
     private final Runnable errorCallback;
 
     public ExposureSerializingHandler(
@@ -101,11 +133,15 @@ public class ExposureWriterImpl implements ExposureWriter {
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
+        final AtomicLong droppedQueueOverflow,
         final Runnable errorCallback) {
       this.queue = queue;
       this.cache = new LRUExposureCache(queue.capacity());
-      this.evpPublisher = new FeatureFlagEvpPublisher<>(backendApiFactory, ExposuresRequest.class);
+      this.evpPublisher =
+          new FeatureFlagEvpPublisher<>(
+              backendApiFactory, ExposuresRequest.class, true, HttpRetryPolicy.Factory.NEVER_RETRY);
       this.context = context;
+      this.droppedQueueOverflow = droppedQueueOverflow;
 
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -144,7 +180,8 @@ public class ExposureWriterImpl implements ExposureWriter {
     }
 
     private void consumeBatch() {
-      queue.drain(this::addToBuffer, queue.size());
+      final int remainingCapacity = MAX_BATCH_EVENTS - buffer.size();
+      queue.drain(this::addToBuffer, Math.min(queue.size(), remainingCapacity));
     }
 
     /** Adds an element to the buffer taking care of duplicated exposures thanks to the LRU cache */
@@ -157,32 +194,61 @@ public class ExposureWriterImpl implements ExposureWriter {
     }
 
     protected void flushIfNecessary() {
+      reportQueueDrops();
       if (buffer.isEmpty()) {
         return;
       }
       if (shouldFlush()) {
-        final byte[] payload;
+        final ExposurePayloads.EncodingResult result;
         try {
-          final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
-          payload = evpPublisher.serialize(exposures);
-        } catch (RuntimeException e) {
-          LOGGER.error(EXCLUDE_TELEMETRY, "Could not serialize exposures; dropping batch", e);
-          this.buffer.clear();
-          return;
+          result =
+              ExposurePayloads.writePayloads(
+                  buffer, context, EXPOSURE_PAYLOAD_SIZE_LIMIT_BYTES, this::submitPayload);
+        } finally {
+          buffer.clear();
         }
-        try {
-          evpPublisher.post(EXPOSURES_ROUTE, payload);
-          this.buffer.clear();
-        } catch (Exception e) {
-          LOGGER.debug("Could not submit exposures", e);
+        if (result.droppedSerialization > 0) {
+          countDropped(result.droppedSerialization, DROP_REASON_SERIALIZATION);
+          LOGGER.error(
+              EXCLUDE_TELEMETRY,
+              "Could not serialize {} exposure event(s); dropping events",
+              result.droppedSerialization);
         }
+        if (result.droppedPayloadLimit > 0) {
+          countDropped(result.droppedPayloadLimit, DROP_REASON_PAYLOAD_LIMIT);
+          LOGGER.warn(
+              "Exposure payload limit dropped {} event(s) (best-effort telemetry)",
+              result.droppedPayloadLimit);
+        }
+      }
+    }
+
+    private void submitPayload(final ExposurePayloads.EncodedPayload payload) {
+      try {
+        evpPublisher.post(EXPOSURES_ROUTE, payload.body);
+      } catch (Exception e) {
+        countDropped(payload.eventCount, DROP_REASON_DELIVERY_FAILURE);
+        LOGGER.debug("Could not submit exposures; dropping attempted batch", e);
+      }
+    }
+
+    private void reportQueueDrops() {
+      final long dropped = droppedQueueOverflow.getAndSet(0);
+      if (dropped > 0) {
+        countDropped(dropped, DROP_REASON_QUEUE_OVERFLOW);
+        LOGGER.warn(
+            "Exposure queue full - dropped {} event(s) under backpressure"
+                + " (best-effort telemetry)",
+            dropped);
       }
     }
 
     private boolean shouldFlush() {
       long nanoTime = System.nanoTime();
       long ticks = nanoTime - lastTicks;
-      if (ticks > ticksRequiredToFlush || queue.size() >= FLUSH_THRESHOLD) {
+      if (ticks > ticksRequiredToFlush
+          || buffer.size() >= MAX_BATCH_EVENTS
+          || queue.size() >= FLUSH_THRESHOLD) {
         lastTicks = nanoTime;
         return true;
       }

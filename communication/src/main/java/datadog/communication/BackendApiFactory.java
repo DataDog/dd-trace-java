@@ -28,7 +28,13 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake, boolean responseCompression) {
-    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
+    return createBackendApi(
+        intake, responseCompression, new HttpRetryPolicy.Factory(5, 100, 2.0, true));
+  }
+
+  /** Creates a backend API with the retry policy required by the calling product. */
+  public @Nullable BackendApi createBackendApi(
+      Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
 
     if (intake.isAgentlessEnabled(config)) {
       HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));

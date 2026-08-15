@@ -4,9 +4,11 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.intake.Intake;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.function.Supplier;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 
@@ -14,8 +16,7 @@ final class FeatureFlagEvpPublisher<T> {
 
   private static final MediaType JSON = MediaType.parse("application/json");
 
-  private final BackendApiFactory backendApiFactory;
-  private final boolean responseCompression;
+  private final Supplier<BackendApi> backendApiSupplier;
   private final JsonAdapter<T> jsonAdapter;
   private BackendApi evp;
 
@@ -27,14 +28,32 @@ final class FeatureFlagEvpPublisher<T> {
       final BackendApiFactory backendApiFactory,
       final Class<T> requestType,
       final boolean responseCompression) {
-    this.backendApiFactory = backendApiFactory;
-    this.responseCompression = responseCompression;
+    this(
+        () -> backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, responseCompression),
+        requestType);
+  }
+
+  FeatureFlagEvpPublisher(
+      final BackendApiFactory backendApiFactory,
+      final Class<T> requestType,
+      final boolean responseCompression,
+      final HttpRetryPolicy.Factory retryPolicyFactory) {
+    this(
+        () ->
+            backendApiFactory.createBackendApi(
+                Intake.EVENT_PLATFORM, responseCompression, retryPolicyFactory),
+        requestType);
+  }
+
+  FeatureFlagEvpPublisher(
+      final Supplier<BackendApi> backendApiSupplier, final Class<T> requestType) {
+    this.backendApiSupplier = backendApiSupplier;
     this.jsonAdapter = new Moshi.Builder().build().adapter(requestType);
   }
 
   boolean start() {
     if (evp == null) {
-      evp = backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, responseCompression);
+      evp = backendApiSupplier.get();
     }
     return evp != null;
   }
