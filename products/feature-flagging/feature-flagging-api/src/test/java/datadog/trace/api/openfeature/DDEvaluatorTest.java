@@ -95,6 +95,17 @@ public class DDEvaluatorTest {
     }
   }
 
+  @Test
+  public void testInitializationTimeoutIncludesActivationTime() {
+    assertThat(
+        DDEvaluator.remainingTimeoutNanos(100, MILLISECONDS, MILLISECONDS.toNanos(40)),
+        equalTo(MILLISECONDS.toNanos(60)));
+    assertThat(
+        DDEvaluator.remainingTimeoutNanos(100, MILLISECONDS, MILLISECONDS.toNanos(150)),
+        equalTo(0L));
+    assertThat(DDEvaluator.remainingTimeoutNanos(-1, MILLISECONDS, 0), equalTo(0L));
+  }
+
   private static Arguments[] valueMappingTestCases() {
     return new Arguments[] {
       // String mappings
