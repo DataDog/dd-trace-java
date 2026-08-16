@@ -9,7 +9,7 @@ description = 'SpringBoot Tomcat Smoke Tests.'
 
 def serverName = 'tomcat'
 def serverModule = 'tomcat-9'
-def serverVersion = '9.0.117'
+def serverVersion = '9.0.120'
 def serverExtension = 'zip'
 
 repositories {
