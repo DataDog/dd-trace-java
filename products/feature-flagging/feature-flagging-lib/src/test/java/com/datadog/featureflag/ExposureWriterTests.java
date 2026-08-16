@@ -67,6 +67,7 @@ class ExposureWriterTests {
   private Queue<ExposuresRequest> requests;
   private Set<String> failed;
   private AtomicInteger exposureAttempts;
+  private AtomicInteger attemptedExposureEvents;
   private AtomicInteger largestAttemptBytes;
   private AtomicInteger largestAttemptEvents;
   private JavaTestHttpServer server;
@@ -78,6 +79,7 @@ class ExposureWriterTests {
     requests = new ConcurrentLinkedQueue<>();
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     exposureAttempts = new AtomicInteger();
+    attemptedExposureEvents = new AtomicInteger();
     largestAttemptBytes = new AtomicInteger();
     largestAttemptEvents = new AtomicInteger();
     JsonAdapter<ExposuresRequest> adapter =
@@ -105,6 +107,7 @@ class ExposureWriterTests {
             Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
     exposureAttempts.incrementAndGet();
+    attemptedExposureEvents.addAndGet(exposuresRequest.exposures.size());
     largestAttemptBytes.accumulateAndGet(api.getRequest().getBody().length, Math::max);
     largestAttemptEvents.accumulateAndGet(exposuresRequest.exposures.size(), Math::max);
     if ("reject-forever".equals(serviceName)) {
@@ -323,14 +326,15 @@ class ExposureWriterTests {
         for (ExposureEvent exposure : buildExposures(eventsPerRound)) {
           writer.accept(exposure);
         }
-        final int expectedAttempts = round;
-        poll.eventually(() -> assertTrue(exposureAttempts.get() >= expectedAttempts));
+        final int expectedEvents = round * eventsPerRound;
+        poll.eventually(() -> assertEquals(expectedEvents, attemptedExposureEvents.get()));
       }
 
       final int attemptsAfterLastBatch = exposureAttempts.get();
       MILLISECONDS.sleep(100);
       assertEquals(attemptsAfterLastBatch, exposureAttempts.get());
-      assertTrue(largestAttemptEvents.get() <= eventsPerRound * 2);
+      assertEquals(rounds * eventsPerRound, attemptedExposureEvents.get());
+      assertTrue(largestAttemptEvents.get() <= eventsPerRound);
     }
   }
 
