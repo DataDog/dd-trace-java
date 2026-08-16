@@ -8,8 +8,9 @@ repositories {
       url project.rootProject.property("mavenRepositoryProxy")
       allowInsecureProtocol = true
     }
+  } else {
+    mavenCentral()
   }
-  mavenCentral()
   // add maven central repository for snapshot dependencies
   maven {
     content {
