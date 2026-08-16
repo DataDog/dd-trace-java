@@ -34,6 +34,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
@@ -101,6 +102,7 @@ class FlagEvaluationWriterImplTest {
     writer.close();
     writer.close();
     writer.start();
+    writer.startForTest();
 
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
   }
@@ -128,6 +130,164 @@ class FlagEvaluationWriterImplTest {
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+  }
+
+  @Test
+  void queueByteBudgetDropsBeforeCountCapacityAndReportsSeparateReason() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
+    final FlagEvalEvent event = simpleEvent("byte-budget-flag", "on");
+    final long eventBytes = FlagEvalEventMemoryEstimator.retainedBytes(event);
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg(), eventBytes);
+
+    writer.enqueue(event);
+    writer.enqueue(event);
+
+    assertEquals(eventBytes, writer.queuedRetainedBytes());
+    assertEquals(1, writer.droppedQueueByteBudget());
+    assertEquals(0, writer.droppedQueueOverflow());
+    assertNotNull(writer.pollQueuedEventForTest());
+    assertEquals(0, writer.queuedRetainedBytes());
+    assertNull(writer.pollQueuedEventForTest());
+
+    writer.flushForTest();
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        1,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_BYTE_BUDGET));
+  }
+
+  @Test
+  void concurrentByteAdmissionNeverExceedsTheBudget() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
+    final FlagEvalEvent event = simpleEvent("concurrent-byte-budget-flag", "on");
+    final long eventBytes = FlagEvalEventMemoryEstimator.retainedBytes(event);
+    final int admittedEvents = 64;
+    final long budget = eventBytes * admittedEvents;
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            1 << 12, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg(), budget);
+    final int producers = 16;
+    final int offersPerProducer = 100;
+    final java.util.concurrent.ExecutorService executor =
+        java.util.concurrent.Executors.newFixedThreadPool(producers);
+    final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+    final AtomicLong admitted = new AtomicLong();
+
+    for (int producer = 0; producer < producers; producer++) {
+      executor.submit(
+          () -> {
+            start.await();
+            for (int offer = 0; offer < offersPerProducer; offer++) {
+              writer.enqueue(event);
+            }
+            return null;
+          });
+    }
+    start.countDown();
+    executor.shutdown();
+    assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+
+    assertEquals(budget, writer.queuedRetainedBytes());
+    assertEquals(producers * offersPerProducer - admittedEvents, writer.droppedQueueByteBudget());
+    int drained = 0;
+    while (writer.pollQueuedEventForTest() != null) {
+      drained++;
+    }
+    assertEquals(admittedEvents, drained);
+    assertEquals(0, writer.queuedRetainedBytes());
+  }
+
+  @Test
+  void concurrentByteReservationsKeepExactAccounting() throws Exception {
+    final int producers = 64;
+    final int reservationsPerProducer = 10_000;
+    final long totalReservations = (long) producers * reservationsPerProducer;
+    final FlagEvaluationWriterImpl.QueueByteBudget budget =
+        new FlagEvaluationWriterImpl.QueueByteBudget(totalReservations);
+    final java.util.concurrent.ExecutorService executor =
+        java.util.concurrent.Executors.newFixedThreadPool(producers);
+    final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+    final AtomicLong admitted = new AtomicLong();
+
+    for (int producer = 0; producer < producers; producer++) {
+      executor.submit(
+          () -> {
+            start.await();
+            for (int reservation = 0; reservation < reservationsPerProducer; reservation++) {
+              if (budget.reserve(1)) {
+                admitted.incrementAndGet();
+              }
+            }
+            return null;
+          });
+    }
+    start.countDown();
+    executor.shutdown();
+    assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+
+    assertEquals(totalReservations, admitted.get());
+    assertEquals(totalReservations, budget.retainedBytes());
+    budget.release(totalReservations);
+    assertEquals(0, budget.retainedBytes());
+  }
+
+  @Test
+  void byteReleasePublishesFullBatchesAndFlushesPartialBatches() {
+    final FlagEvaluationWriterImpl.QueueByteBudget budget =
+        new FlagEvaluationWriterImpl.QueueByteBudget(100_000);
+
+    assertTrue(budget.reserve(70_000));
+    budget.release(70_000);
+    assertEquals(0, budget.retainedBytes());
+
+    assertTrue(budget.reserve(10));
+    budget.release(10);
+    assertEquals(0, budget.retainedBytes());
+    budget.flushReleases();
+    assertEquals(0, budget.retainedBytes());
+  }
+
+  @Test
+  void concurrentProducerCancellationsKeepExactAccounting() throws Exception {
+    final int producers = 16;
+    final int reservationsPerProducer = 10_000;
+    final long totalReservations = (long) producers * reservationsPerProducer;
+    final FlagEvaluationWriterImpl.QueueByteBudget budget =
+        new FlagEvaluationWriterImpl.QueueByteBudget(totalReservations);
+    final java.util.concurrent.ExecutorService executor =
+        java.util.concurrent.Executors.newFixedThreadPool(producers);
+    final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+    final AtomicLong admitted = new AtomicLong();
+
+    for (int producer = 0; producer < producers; producer++) {
+      executor.submit(
+          () -> {
+            start.await();
+            for (int reservation = 0; reservation < reservationsPerProducer; reservation++) {
+              if (budget.reserve(1)) {
+                admitted.incrementAndGet();
+                budget.cancel(1);
+              }
+            }
+            return null;
+          });
+    }
+    start.countDown();
+    executor.shutdown();
+    assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+
+    assertEquals(totalReservations, admitted.get());
+    assertEquals(0, budget.retainedBytes());
   }
 
   @Test
@@ -199,6 +359,7 @@ class FlagEvaluationWriterImplTest {
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+    assertEquals(0, writer.queuedRetainedBytes());
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -259,11 +420,14 @@ class FlagEvaluationWriterImplTest {
     final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
         new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
             mock(BackendApiFactory.class),
-            Queues.mpscBlockingConsumerArrayQueue(16),
+            Queues.<FlagEvaluationWriterImpl.QueuedEvent>mpscBlockingConsumerArrayQueue(16),
+            new FlagEvaluationWriterImpl.QueueByteBudget(
+                FlagEvaluationWriterImpl.DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
             Long.MAX_VALUE,
             TimeUnit.NANOSECONDS,
             context(),
             queueDrops,
+            new AtomicLong(0),
             new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {});
 
@@ -273,12 +437,34 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
+  void flushIfNecessaryDoesNotReturnEarlyWhenOnlyQueueByteDropsArePending() {
+    final AtomicLong queueByteDrops = new AtomicLong(1);
+    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
+        new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
+            mock(BackendApiFactory.class),
+            Queues.<FlagEvaluationWriterImpl.QueuedEvent>mpscBlockingConsumerArrayQueue(16),
+            new FlagEvaluationWriterImpl.QueueByteBudget(
+                FlagEvaluationWriterImpl.DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            context(),
+            new AtomicLong(0),
+            queueByteDrops,
+            new java.util.concurrent.ConcurrentHashMap<>(),
+            () -> {});
+
+    handler.flushIfNecessary();
+
+    assertEquals(1, queueByteDrops.get());
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void workerHandlesEmptyPolls() throws Exception {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final MessagePassingBlockingQueue<FlagEvalEvent> queue =
+    final MessagePassingBlockingQueue<FlagEvaluationWriterImpl.QueuedEvent> queue =
         mock(MessagePassingBlockingQueue.class);
     when(queue.poll(100, TimeUnit.MILLISECONDS))
         .thenAnswer(
@@ -290,9 +476,12 @@ class FlagEvaluationWriterImplTest {
         new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
             factory,
             queue,
+            new FlagEvaluationWriterImpl.QueueByteBudget(
+                FlagEvaluationWriterImpl.DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
             Long.MAX_VALUE,
             TimeUnit.NANOSECONDS,
             context(),
+            new AtomicLong(0),
             new AtomicLong(0),
             new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {});

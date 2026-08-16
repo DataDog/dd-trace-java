@@ -138,6 +138,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // consulted by the aggregator, so skip the bounded copy entirely — the copy cost only
       // applies under consent-on.
       final Map<String, Object> attrs;
+      final long estimatedContextRetainedBytes;
       if (observeFullEvaluationData && ctx != null && ctx.getCtx() != null) {
         // Bounded copy of the caller's mutable context (see DDEvaluator.copyPrunedContext for
         // every retained-size cap). Runs inline because the event is consumed asynchronously
@@ -147,8 +148,10 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           w.countContextTruncated(copy.truncatedReason);
         }
         attrs = copy.attrs;
+        estimatedContextRetainedBytes = copy.estimatedRetainedBytes;
       } else {
         attrs = Collections.emptyMap();
+        estimatedContextRetainedBytes = 0;
       }
 
       w.enqueue(
@@ -160,7 +163,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               errorMessage,
               evalTimeMs,
               observeFullEvaluationData,
-              attrs));
+              attrs,
+              estimatedContextRetainedBytes));
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

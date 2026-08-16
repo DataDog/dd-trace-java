@@ -26,6 +26,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -790,6 +791,9 @@ public class DDEvaluatorTest {
 
     assertThat(result.attrs, hasEntry("region", "us-east-1"));
     assertThat(result.truncatedReason, equalTo(null));
+    assertThat(
+        result.estimatedRetainedBytes,
+        equalTo(FlagEvalEventMemoryEstimator.retainedContextBytes(result.attrs)));
   }
 
   @Test

@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import java.util.HashMap;
 import java.util.Map;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -57,6 +58,7 @@ public class FlagEvaluationHotPathBenchmark {
   public String profile;
 
   private Map<String, Object> attrs;
+  private long estimatedContextRetainedBytes;
   private String[] flagKeys;
   private String[] targetingKeys;
   private int cursor;
@@ -71,6 +73,7 @@ public class FlagEvaluationHotPathBenchmark {
     for (int i = 0; i < p.numFields; i++) {
       attrs.put("field" + i, "value");
     }
+    estimatedContextRetainedBytes = FlagEvalEventMemoryEstimator.retainedContextBytes(attrs);
     flagKeys = keys("bench-flag-", p.numFlags);
     targetingKeys = keys("bench-user-", p.numUsers);
     cursor = 0;
@@ -121,7 +124,8 @@ public class FlagEvaluationHotPathBenchmark {
         null,
         1_700_000_000_000L + i,
         true,
-        attrs);
+        attrs,
+        estimatedContextRetainedBytes);
   }
 
   private static String[] keys(final String prefix, final int count) {

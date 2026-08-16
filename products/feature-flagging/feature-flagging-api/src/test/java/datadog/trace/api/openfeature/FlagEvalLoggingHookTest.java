@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
@@ -568,6 +569,9 @@ class FlagEvalLoggingHookTest {
     assertEquals(42, attrs.get("score"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertFalse(attrs.containsKey("targetingKey"));
+    assertEquals(
+        FlagEvalEventMemoryEstimator.retainedContextBytes(attrs),
+        captured.get().estimatedContextRetainedBytes);
     assertTrue(
         attrs.values().stream().noneMatch(Value.class::isInstance),
         "context attrs must contain converted scalar values, not OpenFeature Value wrappers");
