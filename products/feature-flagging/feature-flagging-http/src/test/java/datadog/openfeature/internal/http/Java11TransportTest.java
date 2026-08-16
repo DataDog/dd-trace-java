@@ -242,7 +242,12 @@ class Java11TransportTest {
         "/config",
         exchange -> {
           exchange.sendResponseHeaders(200, UfcResponseBodyReader.MAX_COMPRESSED_BYTES + 1L);
-          exchange.close();
+          try (OutputStream output = exchange.getResponseBody()) {
+            // Flush the response headers before the bounded subscriber cancels the body.
+            output.write(0);
+          } catch (final IOException ignored) {
+            // The bounded subscriber rejects the declared length before it reads the body.
+          }
         });
     server.start();
     final CdnConfigurationSource.Java11Transport transport = newTransport();
@@ -252,7 +257,7 @@ class Java11TransportTest {
             IOException.class,
             () -> transport.fetch(options(Duration.ofSeconds(1), false), Map.of()));
 
-    assertTrue(error.getMessage().contains("exceeds"), error.toString());
+    assertTrue(error instanceof UfcResponseBodyReader.ResponseTooLargeException, error.toString());
   }
 
   @Test

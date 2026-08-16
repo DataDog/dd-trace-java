@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,43 @@ class FeatureFlaggingRawBridgeTest {
     } finally {
       FeatureFlaggingRawBridge.removeConfigurationListener(listener);
     }
+  }
+
+  @Test
+  void ignoresUnknownListenerRemoval() {
+    final AtomicInteger firstDeliveries = new AtomicInteger();
+    final AtomicInteger secondDeliveries = new AtomicInteger();
+    final FeatureFlaggingRawBridge.ConfigurationListener first =
+        content -> firstDeliveries.incrementAndGet();
+    final FeatureFlaggingRawBridge.ConfigurationListener second =
+        content -> secondDeliveries.incrementAndGet();
+    final FeatureFlaggingRawBridge.ConfigurationListener unknown = content -> {};
+    FeatureFlaggingRawBridge.addConfigurationListener(first);
+    FeatureFlaggingRawBridge.addConfigurationListener(second);
+    try {
+      FeatureFlaggingRawBridge.removeConfigurationListener(unknown);
+      FeatureFlaggingRawBridge.removeConfigurationListener(second);
+      FeatureFlaggingRawBridge.dispatchConfiguration("current".getBytes(UTF_8));
+
+      assertEquals(1, firstDeliveries.get());
+      assertEquals(0, secondDeliveries.get());
+    } finally {
+      FeatureFlaggingRawBridge.removeConfigurationListener(first);
+      FeatureFlaggingRawBridge.removeConfigurationListener(second);
+    }
+  }
+
+  @Test
+  void ignoresStaleRegistrationDelivery() {
+    final List<String> received = new ArrayList<>();
+    final FeatureFlaggingRawBridge.ListenerRegistration registration =
+        new FeatureFlaggingRawBridge.ListenerRegistration(
+            content -> received.add(new String(content, UTF_8)));
+
+    registration.deliver(2, "new".getBytes(UTF_8));
+    registration.deliver(1, "stale".getBytes(UTF_8));
+
+    assertEquals(Collections.singletonList("new"), received);
   }
 
   @Test

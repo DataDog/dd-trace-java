@@ -115,15 +115,15 @@ public final class FeatureFlaggingRawBridge {
     FeatureFlaggingGateway.dispatch(SpanEnrichmentEvent.runtimeDefault(flagKey, value));
   }
 
-  private static final class ListenerRegistration {
+  static final class ListenerRegistration {
     private final ConfigurationListener listener;
     private long deliveredVersion = Long.MIN_VALUE;
 
-    private ListenerRegistration(final ConfigurationListener listener) {
+    ListenerRegistration(final ConfigurationListener listener) {
       this.listener = listener;
     }
 
-    private synchronized void deliver(final long version, final byte[] content) {
+    synchronized void deliver(final long version, final byte[] content) {
       if (version <= deliveredVersion) {
         return;
       }
