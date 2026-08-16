@@ -54,11 +54,8 @@ public final class FlagEvalEvent {
    */
   public final boolean observeFullEvaluationData;
 
-  /**
-   * Estimated retained bytes for {@link #attrs}. A negative value means the writer must estimate
-   * the map as a compatibility fallback.
-   */
-  public final long estimatedContextRetainedBytes;
+  /** Estimated retained bytes for this complete event while it waits in the queue. */
+  public final long estimatedRetainedBytes;
 
   /** Convenience constructor; consent defaults to the privacy-preserving false. */
   public FlagEvalEvent(
@@ -140,6 +137,7 @@ public final class FlagEvalEvent {
     this.evalTimeMs = evalTimeMs;
     this.observeFullEvaluationData = observeFullEvaluationData;
     this.attrs = attrs != null ? attrs : Collections.emptyMap();
-    this.estimatedContextRetainedBytes = estimatedContextRetainedBytes;
+    this.estimatedRetainedBytes =
+        FlagEvalEventMemoryEstimator.estimateRetainedBytes(this, estimatedContextRetainedBytes);
   }
 }

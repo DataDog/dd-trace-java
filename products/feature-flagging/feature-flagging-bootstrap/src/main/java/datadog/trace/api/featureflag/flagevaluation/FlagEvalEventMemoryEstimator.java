@@ -19,6 +19,11 @@ public final class FlagEvalEventMemoryEstimator {
   private FlagEvalEventMemoryEstimator() {}
 
   public static long retainedBytes(final FlagEvalEvent event) {
+    return event.estimatedRetainedBytes;
+  }
+
+  static long estimateRetainedBytes(
+      final FlagEvalEvent event, final long estimatedContextRetainedBytes) {
     long bytes = EVENT_AND_QUEUE_ENTRY_BYTES;
     bytes = add(bytes, stringBytes(event.flagKey));
     bytes = add(bytes, stringBytes(event.variant));
@@ -26,9 +31,9 @@ public final class FlagEvalEventMemoryEstimator {
     bytes = add(bytes, stringBytes(event.targetingKey));
     bytes = add(bytes, stringBytes(event.errorMessage));
     final long contextBytes =
-        event.estimatedContextRetainedBytes < 0
+        estimatedContextRetainedBytes < 0
             ? retainedContextBytes(event.attrs)
-            : event.estimatedContextRetainedBytes;
+            : estimatedContextRetainedBytes;
     return add(bytes, contextBytes);
   }
 

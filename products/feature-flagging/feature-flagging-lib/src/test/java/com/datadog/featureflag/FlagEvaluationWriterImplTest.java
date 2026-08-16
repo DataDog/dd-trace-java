@@ -420,7 +420,7 @@ class FlagEvaluationWriterImplTest {
     final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
         new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
             mock(BackendApiFactory.class),
-            Queues.<FlagEvaluationWriterImpl.QueuedEvent>mpscBlockingConsumerArrayQueue(16),
+            Queues.<FlagEvalEvent>mpscBlockingConsumerArrayQueue(16),
             new FlagEvaluationWriterImpl.QueueByteBudget(
                 FlagEvaluationWriterImpl.DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
             Long.MAX_VALUE,
@@ -442,7 +442,7 @@ class FlagEvaluationWriterImplTest {
     final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
         new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
             mock(BackendApiFactory.class),
-            Queues.<FlagEvaluationWriterImpl.QueuedEvent>mpscBlockingConsumerArrayQueue(16),
+            Queues.<FlagEvalEvent>mpscBlockingConsumerArrayQueue(16),
             new FlagEvaluationWriterImpl.QueueByteBudget(
                 FlagEvaluationWriterImpl.DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
             Long.MAX_VALUE,
@@ -464,7 +464,7 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final MessagePassingBlockingQueue<FlagEvaluationWriterImpl.QueuedEvent> queue =
+    final MessagePassingBlockingQueue<FlagEvalEvent> queue =
         mock(MessagePassingBlockingQueue.class);
     when(queue.poll(100, TimeUnit.MILLISECONDS))
         .thenAnswer(

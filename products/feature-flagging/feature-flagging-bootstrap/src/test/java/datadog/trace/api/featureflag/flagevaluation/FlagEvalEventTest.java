@@ -26,8 +26,7 @@ class FlagEvalEventTest {
     assertNull(event.errorMessage);
     assertEquals(123L, event.evalTimeMs);
     assertSame(attrs, event.attrs);
-    assertEquals(
-        FlagEvalEventMemoryEstimator.UNKNOWN_RETAINED_BYTES, event.estimatedContextRetainedBytes);
+    assertTrue(event.estimatedRetainedBytes > 0);
   }
 
   @Test
@@ -55,13 +54,14 @@ class FlagEvalEventTest {
   }
 
   @Test
-  void storesPrecomputedContextRetainedBytes() {
+  void precomputedContextBytesMatchFallbackEstimate() {
     final Map<String, Object> attrs = Collections.singletonMap("tier", "gold");
     final long retainedBytes = FlagEvalEventMemoryEstimator.retainedContextBytes(attrs);
 
     final FlagEvalEvent event =
         new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs, retainedBytes);
+    final FlagEvalEvent fallback = new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs);
 
-    assertEquals(retainedBytes, event.estimatedContextRetainedBytes);
+    assertEquals(fallback.estimatedRetainedBytes, event.estimatedRetainedBytes);
   }
 }

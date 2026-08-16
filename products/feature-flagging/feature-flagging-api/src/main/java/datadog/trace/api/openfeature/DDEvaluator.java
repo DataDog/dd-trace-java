@@ -873,7 +873,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
     final HashMap<String, Object> out = new HashMap<>();
     final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-    final CopyState state = new CopyState();
+    final CopyState state = new CopyState(FlagEvalEventMemoryEstimator.contextMapRetainedBytes());
     for (final String key : keys) {
       if (out.size() >= MAX_CONTEXT_FIELDS) {
         state.reasonMask |= REASON_MAX_CONTEXT_FIELDS;
@@ -886,7 +886,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
     final Map<String, Object> attrs = out.isEmpty() ? Collections.emptyMap() : out;
     return new CopyResult(
-        attrs, state.estimatedRetainedBytes, truncationReasonTag(state.reasonMask));
+        attrs,
+        out.isEmpty() ? 0 : state.estimatedRetainedBytes,
+        truncationReasonTag(state.reasonMask));
   }
 
   private static void copyPrunedValue(
@@ -975,9 +977,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private static void putPrunedValue(
       final Map<String, Object> out, final String key, final Object value, final CopyState state) {
-    if (out.isEmpty()) {
-      state.estimatedRetainedBytes += FlagEvalEventMemoryEstimator.contextMapRetainedBytes();
-    }
     state.estimatedRetainedBytes +=
         FlagEvalEventMemoryEstimator.contextEntryRetainedBytes(key, value);
     out.put(key, value);
@@ -986,6 +985,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final class CopyState {
     private int reasonMask;
     private long estimatedRetainedBytes;
+
+    private CopyState(final long estimatedRetainedBytes) {
+      this.estimatedRetainedBytes = estimatedRetainedBytes;
+    }
   }
 
   @FunctionalInterface
