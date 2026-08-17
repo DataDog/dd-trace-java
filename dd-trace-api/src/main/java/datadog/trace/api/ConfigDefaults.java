@@ -133,7 +133,7 @@ public final class ConfigDefaults {
   public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
   // Provisional — the OTLP profiles proto is still in v1development; update when stabilized
-  static final String DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT = "v1/profiles";
+  public static final String DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT = "v1/profiles";
   public static final String DEFAULT_OTLP_GRPC_PROFILES_ENDPOINT =
       "opentelemetry.proto.collector.profiles.v1.ProfilesService/Export";
   public static final int DEFAULT_OTLP_PROFILES_TIMEOUT = 30_000; // ms

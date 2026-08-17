@@ -7,6 +7,7 @@ import datadog.communication.otlp.OtlpGrpcSender;
 import datadog.communication.otlp.OtlpHttpSender;
 import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,12 @@ final class OtlpProfilesSenderFactory {
 
   private OtlpProfilesSenderFactory() {}
 
+  /**
+   * Builds the sender for {@code config}'s OTLP profiles protocol, or {@code null} if the protocol
+   * is unsupported. Callers must null-check the result, as {@code OtlpMetricsService} does for the
+   * equivalent {@code OtlpMetricsSenderFactory.create()} call.
+   */
+  @Nullable
   static OtlpSender create(Config config) {
     switch (config.getOtlpProfilesProtocol()) {
       case GRPC:

@@ -18,10 +18,10 @@ package com.datadog.profiling.uploader;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT;
 
-import com.datadog.communication.otlp.OtlpPayload;
-import com.datadog.communication.otlp.OtlpResponse;
-import com.datadog.communication.otlp.OtlpSender;
 import com.datadog.profiling.otel.JfrToOtlpConverter;
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
@@ -131,6 +131,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
   private void sendAndRelease(OtlpPayload payload, RecordingData data, Runnable onCompletion) {
     try {
+      if (sender == null) {
+        log.warn("OTLP profile upload skipped: no sender available for configured protocol");
+        return;
+      }
       OtlpTelemetry.getInstance().onProfilesExportAttempt();
       OtlpResponse response = sender.send(payload);
       OtlpTelemetry.getInstance().onProfilesExportComplete(response.success());
@@ -186,6 +190,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       Thread.currentThread().interrupt();
       executor.shutdownNow();
     }
-    sender.shutdown();
+    if (sender != null) {
+      sender.shutdown();
+    }
   }
 }
