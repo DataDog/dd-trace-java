@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -16,6 +17,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
@@ -25,6 +28,8 @@ import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
+import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.ProviderEvent;
@@ -67,6 +72,8 @@ public class ProviderTest {
     executor.shutdownNow();
     OpenFeatureAPI.getInstance().shutdown();
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @Test
@@ -326,26 +333,103 @@ public class ProviderTest {
   }
 
   @Test
-  public void testGetProviderHooksReturnsFlagEvalHook() {
+  public void testGetProviderHooksReturnsFlagEvalMetricsHook() {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
     List<Hook> hooks = provider.getProviderHooks();
-    assertThat(hooks.size(), equalTo(1));
-    assertThat(hooks.get(0) instanceof FlagEvalHook, equalTo(true));
+    // Two hooks: OTel FlagEvalMetricsHook (index 0) + FlagEvalLoggingHook (index 1)
+    assertThat(hooks.size(), equalTo(2));
+    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+    assertThat(hooks.get(1) instanceof FlagEvalLoggingHook, equalTo(true));
   }
 
   @Test
-  public void testShutdownCleansUpMetrics() throws Exception {
-    Evaluator evaluator = mock(Evaluator.class);
+  public void testGetProviderHooksSkipsFlagEvalLoggingHookOnLinkageFailure() {
+    Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class)) {
+          @Override
+          Hook buildFlagEvalLoggingHook() {
+            throw new NoClassDefFoundError("old bootstrap");
+          }
+        };
+
+    List<Hook> hooks = provider.getProviderHooks();
+
+    assertThat(hooks.size(), equalTo(1));
+    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+  }
+
+  @Test
+  public void testClientEvaluationRoutesThroughFlagEvalLoggingHook() throws Exception {
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    FeatureFlaggingGateway.setFlagEvalWriter(capturingWriter(captured));
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
+    when(evaluator.evaluate(eq(String.class), eq("logged-flag"), eq("default"), any()))
+        .thenReturn(
+            ProviderEvaluation.<String>builder()
+                .value("value")
+                .reason("STATIC")
+                .variant("variant-1")
+                .flagMetadata(
+                    ImmutableMetadata.builder()
+                        .addString("allocationKey", "allocation-1")
+                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+                        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+                        .build())
+                .build());
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+
+    final FlagEvaluationDetails<String> details =
+        api.getClient().getStringDetails("logged-flag", "default", context);
+
+    assertThat(details.getValue(), equalTo("value"));
+    final FlagEvalEvent event = captured.get();
+    assertThat(event.flagKey, equalTo("logged-flag"));
+    assertThat(event.variant, equalTo("variant-1"));
+    assertThat(event.allocationKey, equalTo("allocation-1"));
+    assertThat(event.targetingKey, equalTo("user-1"));
+    assertThat(event.evalTimeMs, equalTo(1_700_000_000_000L));
+    assertThat(event.attrs.get("region"), equalTo("us-east-1"));
+  }
+
+  @Test
+  public void testGetProviderHooksReturnsFlagEvalMetricsHookWithAndWithoutSpanEnrichment() {
+    final Evaluator evaluator = mock(Evaluator.class);
+    final Provider providerWithoutSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.FALSE);
+    final Provider providerWithSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.TRUE);
+
+    assertHasFlagEvalMetricsHook(providerWithoutSpanEnrichment);
+    assertHasFlagEvalMetricsHook(providerWithSpanEnrichment);
+  }
+
+  @Test
+  public void testShutdownCleansUpEvaluator() throws Exception {
+    final Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
-    Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+    final Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator, Boolean.FALSE);
+
     provider.initialize(null);
     provider.shutdown();
+
     verify(evaluator).shutdown();
-    // After shutdown, getProviderHooks still returns a list (hook is still present but metrics is
-    // shut down)
-    assertThat(provider.getProviderHooks().size(), equalTo(1));
+    // After shutdown, getProviderHooks still returns a list with both OTel + logging hooks
+    assertThat(provider.getProviderHooks().size(), equalTo(2));
+  }
+
+  private static void assertHasFlagEvalMetricsHook(final Provider provider) {
+    assertTrue(
+        provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
+        "flag evaluation metrics hook should be registered");
   }
 
   public interface EvaluateMethod<E> {
@@ -393,5 +477,31 @@ public class ProviderTest {
     stateField.setAccessible(true);
     final AtomicReference<?> state = (AtomicReference<?>) stateField.get(provider);
     return state.get().toString();
+  }
+
+  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
+    return new FlagEvaluationWriter() {
+      @Override
+      public void enqueue(final FlagEvalEvent event) {
+        ref.set(event);
+      }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
+      public void countContextTruncated(final String reason) {}
+
+      @Override
+      public void start() {}
+
+      @Override
+      public void close() {}
+    };
   }
 }
