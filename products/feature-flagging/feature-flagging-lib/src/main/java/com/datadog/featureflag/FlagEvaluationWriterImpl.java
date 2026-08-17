@@ -42,19 +42,18 @@ import org.slf4j.LoggerFactory;
  * globalCap=131072, perFlagCap=10000, degradedCap=32768. Eval-time: min/max of
  * firstEvalMs/lastEvalMs across events in the same bucket. Runtime default: absent variant means
  * runtimeDefaultUsed=true. Flush interval: 10 seconds. Queue: bounded MessagePassingBlockingQueue
- * (capacity 2^16), non-blocking offer; on overflow the event is dropped and the
- * droppedQueueOverflow counter is incremented and surfaced on flush. Enqueue: lock-free. Producers
- * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
- * against each other. Shutdown: close() drains the queue and performs a final flush before the
- * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
- * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
- * so shutdown loss is observable rather than silent.
+ * (capacity 4096) with a 16 MiB estimated retained-byte budget. Enqueue uses non-blocking count and
+ * byte admission. Shutdown drains the queue and performs a final flush before the worker exits.
+ * Because enqueue is lock-free, a producer can still offer during shutdown; close() sweeps the
+ * queue once the worker has been joined. The sweep releases byte reservations and reports closed
+ * drops.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
 
   static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
+  static final long DEFAULT_QUEUE_RETAINED_BYTE_BUDGET = 16L << 20;
   static final int FLUSH_INTERVAL_SECONDS = 10;
 
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
@@ -63,6 +62,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String FLAG_EVALUATION_SPLITS_METRIC = "flagevaluation.payload.splits";
   static final String FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC = "flagevaluation.context.truncated";
   static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
+  static final String DROP_REASON_QUEUE_BYTE_BUDGET = "queue_byte_budget";
   static final String DROP_REASON_CLOSED = "closed";
   static final String DROP_REASON_DEGRADED_CAP = "degraded_cap";
   static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
@@ -72,6 +72,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
+  private final QueueByteBudget queueByteBudget;
   private final FlagEvaluationSerializingHandler serializer;
   private final Thread serializerThread;
   private final Object lifecycleLock = new Object();
@@ -89,6 +90,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    * tried to enqueue (backpressure). Incremented on the hook thread, surfaced on flush.
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
+
+  private final AtomicLong droppedQueueByteBudget = new AtomicLong(0);
 
   /**
    * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
@@ -118,15 +121,34 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final TimeUnit timeUnit,
       final BackendApiFactory backendApiFactory,
       final Config config) {
+    this(
+        capacity,
+        flushInterval,
+        timeUnit,
+        backendApiFactory,
+        config,
+        DEFAULT_QUEUE_RETAINED_BYTE_BUDGET);
+  }
+
+  FlagEvaluationWriterImpl(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final BackendApiFactory backendApiFactory,
+      final Config config,
+      final long queueRetainedByteBudget) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
+    this.queueByteBudget = new QueueByteBudget(queueRetainedByteBudget);
     this.serializer =
         new FlagEvaluationSerializingHandler(
             backendApiFactory,
             queue,
+            queueByteBudget,
             flushInterval,
             timeUnit,
             FeatureFlagEvpContext.from(config),
             droppedQueueOverflow,
+            droppedQueueByteBudget,
             contextTruncatedCounts,
             this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
@@ -170,13 +192,13 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
       FeatureFlaggingGateway.setFlagEvalWriter(null);
       workerRunning = this.serializerThread.isAlive();
-      if (workerRunning) {
-        // Ask the worker to drain the queue and final-flush, then interrupt to wake it from poll().
-        serializer.requestShutdown();
-        this.serializerThread.interrupt();
-      }
+    }
+    if (workerRunning) {
+      serializer.requestShutdown();
+      this.serializerThread.interrupt();
     }
     if (Thread.currentThread() == this.serializerThread) {
+      sweepAndCountResidualEvents();
       return;
     }
     if (workerRunning) {
@@ -203,9 +225,21 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    */
   private void sweepAndCountResidualEvents() {
     long residual = 0;
-    while (queue.poll() != null) {
-      residual++;
+    while (true) {
+      FlagEvalEvent queued;
+      while ((queued = queue.poll()) != null) {
+        queueByteBudget.release(queued.estimatedRetainedBytes);
+        residual++;
+      }
+      // A producer reserves bytes before its final closed check. A nonzero value with an empty
+      // queue therefore identifies a producer that can still cancel or complete an offer. A
+      // producer that reserves after this zero check observes closed and cannot offer.
+      if (queueByteBudget.retainedBytes() == 0) {
+        break;
+      }
+      Thread.yield();
     }
+    queueByteBudget.flushReleases();
     countMetric(FLAG_EVALUATION_DROPPED_METRIC, residual, DROP_REASON_CLOSED);
   }
 
@@ -214,24 +248,27 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     if (event == null) {
       return;
     }
+    // Reserve before the closed check. The reservation is also the shutdown admission token: a
+    // producer can offer only while its reservation remains visible to close().
+    final long retainedBytes = event.estimatedRetainedBytes;
+    if (!queueByteBudget.reserve(retainedBytes)) {
+      if (isClosedOrEnqueueDisabled()) {
+        countClosedDrop();
+      } else {
+        droppedQueueByteBudget.incrementAndGet();
+      }
+      return;
+    }
     if (isClosedOrEnqueueDisabled()) {
+      queueByteBudget.cancel(retainedBytes);
       countClosedDrop();
       return;
     }
-    // Deliberately lock-free: the hand-off queue is MPSC by design, so serializing producers on a
-    // monitor here would negate that and turn every evaluation in every application thread into
-    // contention on one lock. A producer that passed the check above can still offer after close()
-    // has started; that residue is accounted for by the worker's bounded post-drain passes and by
-    // close()'s post-join sweep, so shutdown loss stays observable.
-    //
-    // Safe publication of the event (including the context snapshot built by the hook) comes from
-    // the queue's own offer/poll ordering, not from any monitor held here.
-    //
-    // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
-    // surfaced on the next flush. The hook's pre-queue guard (see FlagEvalLoggingHook) samples the
-    // queue depth before doing any context-copy work, so a saturated queue costs an
-    // AtomicInteger.get(); the offer here still races with the worker and can legitimately fail.
+    // Deliberately lock-free: the hand-off queue is MPSC by design, so application threads do not
+    // serialize on a monitor. The queue's offer/poll ordering safely publishes the event and its
+    // context snapshot. The count capacity stays as a secondary, non-blocking bound.
     if (!queue.offer(event)) {
+      queueByteBudget.cancel(retainedBytes);
       droppedQueueOverflow.incrementAndGet();
     }
   }
@@ -274,9 +311,22 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     return droppedQueueOverflow.get();
   }
 
+  long droppedQueueByteBudget() {
+    return droppedQueueByteBudget.get();
+  }
+
+  long queuedRetainedBytes() {
+    return queueByteBudget.retainedBytes();
+  }
+
   /** Test seam: returns one queued event without starting the worker. */
   FlagEvalEvent pollQueuedEventForTest() {
-    return queue.poll();
+    final FlagEvalEvent queued = queue.poll();
+    if (queued == null) {
+      return null;
+    }
+    queueByteBudget.release(queued.estimatedRetainedBytes);
+    return queued;
   }
 
   /** Test seam: flushes serializer state without starting the worker. */
@@ -288,6 +338,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   static class FlagEvaluationSerializingHandler implements Runnable {
     private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
+    private final QueueByteBudget queueByteBudget;
     private final long ticksRequiredToFlush;
 
     @SuppressFBWarnings(
@@ -299,6 +350,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
+    private final AtomicLong droppedQueueByteBudget;
     private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final Runnable errorCallback;
     private final int payloadSizeLimitBytes;
@@ -311,19 +363,23 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     FlagEvaluationSerializingHandler(
         final BackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<FlagEvalEvent> queue,
+        final QueueByteBudget queueByteBudget,
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final AtomicLong droppedQueueByteBudget,
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback) {
       this(
           backendApiFactory,
           queue,
+          queueByteBudget,
           flushInterval,
           timeUnit,
           context,
           droppedQueueOverflow,
+          droppedQueueByteBudget,
           contextTruncatedCounts,
           errorCallback,
           FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
@@ -332,19 +388,23 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     FlagEvaluationSerializingHandler(
         final BackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<FlagEvalEvent> queue,
+        final QueueByteBudget queueByteBudget,
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final AtomicLong droppedQueueByteBudget,
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
+      this.queueByteBudget = queueByteBudget;
       this.evpPublisher =
           new FeatureFlagEvpPublisher<>(
               backendApiFactory, FlagEvaluationPayloads.FlagEvaluationsRequest.class, false);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
+      this.droppedQueueByteBudget = droppedQueueByteBudget;
       this.contextTruncatedCounts = contextTruncatedCounts;
       this.payloadSizeLimitBytes = payloadSizeLimitBytes;
       this.lastTicks = System.nanoTime();
@@ -395,19 +455,24 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     private void runDutyCycle() throws InterruptedException {
       final Thread thread = Thread.currentThread();
       while (!thread.isInterrupted() && !shutdownRequested.get()) {
-        final FlagEvalEvent event = queue.poll(100, TimeUnit.MILLISECONDS);
-        if (event != null) {
-          aggregateEvent(event);
+        final FlagEvalEvent queued = queue.poll(100, TimeUnit.MILLISECONDS);
+        if (queued != null) {
+          queueByteBudget.release(queued.estimatedRetainedBytes);
+          aggregateEvent(queued);
+        } else {
+          queueByteBudget.flushReleases();
         }
         flushIfNecessary();
       }
     }
 
     void drainAndFlush() {
-      FlagEvalEvent event;
-      while ((event = queue.poll()) != null) {
-        aggregateEvent(event);
+      FlagEvalEvent queued;
+      while ((queued = queue.poll()) != null) {
+        queueByteBudget.release(queued.estimatedRetainedBytes);
+        aggregateEvent(queued);
       }
+      queueByteBudget.flushReleases();
       flush();
     }
 
@@ -440,6 +505,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             "flag evaluation queue full - dropped {} evaluation(s) under backpressure"
                 + " (best-effort telemetry)",
             qDrops);
+      }
+      final long byteDrops = droppedQueueByteBudget.getAndSet(0);
+      countMetric(FLAG_EVALUATION_DROPPED_METRIC, byteDrops, DROP_REASON_QUEUE_BYTE_BUDGET);
+      if (byteDrops > 0) {
+        LOGGER.warn(
+            "flag evaluation queue byte budget full - dropped {} evaluation(s)"
+                + " (best-effort telemetry)",
+            byteDrops);
       }
       final long dgDrops = aggregator.droppedDegradedOverflow.getAndSet(0);
       countMetric(FLAG_EVALUATION_DROPPED_METRIC, dgDrops, DROP_REASON_DEGRADED_CAP);
@@ -524,7 +597,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
 
     private boolean shouldFlush() {
-      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
+      if (aggregator.isEmpty()
+          && droppedQueueOverflow.get() == 0
+          && droppedQueueByteBudget.get() == 0) {
         return false;
       }
       final long nanoTime = System.nanoTime();
@@ -556,9 +631,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       super(
           factory,
           Queues.mpscBlockingConsumerArrayQueue(DEFAULT_CAPACITY),
+          new QueueByteBudget(DEFAULT_QUEUE_RETAINED_BYTE_BUDGET),
           Long.MAX_VALUE, // effectively never auto-flush
           TimeUnit.NANOSECONDS,
           context,
+          new AtomicLong(0),
           new AtomicLong(0),
           new ConcurrentHashMap<>(),
           () -> {},
@@ -627,5 +704,62 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final Map<String, String> context,
       final int payloadSizeLimitBytes) {
     return new SerializingHandlerForTest(factory, context, payloadSizeLimitBytes);
+  }
+
+  static final class QueueByteBudget {
+    private static final long RELEASE_BATCH_BYTES = 64L << 10;
+
+    private final long limitBytes;
+    private final AtomicLong availableBytes;
+
+    // Only the queue's single consumer updates this field. Batching prevents a cache-line handoff
+    // between the application producer and worker threads for every event. Admission remains
+    // conservative until a batch is published.
+    @SuppressFBWarnings(
+        value = {"AT_NONATOMIC_64BIT_PRIMITIVE", "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE"},
+        justification = "Only the queue's single consumer reads or writes this field")
+    private long pendingReleasedBytes;
+
+    QueueByteBudget(final long limitBytes) {
+      this.limitBytes = Math.max(0, limitBytes);
+      this.availableBytes = new AtomicLong(this.limitBytes);
+    }
+
+    boolean reserve(final long bytes) {
+      long available;
+      do {
+        available = availableBytes.get();
+        if (bytes > available) {
+          return false;
+        }
+      } while (!availableBytes.compareAndSet(available, available - bytes));
+      return true;
+    }
+
+    void release(final long bytes) {
+      pendingReleasedBytes += bytes;
+      if (pendingReleasedBytes >= RELEASE_BATCH_BYTES) {
+        flushReleases();
+      }
+    }
+
+    void cancel(final long bytes) {
+      // A producer calls this method when the queue rejects an event after byte reservation.
+      // Publish the cancellation directly because pendingReleasedBytes is consumer-confined.
+      availableBytes.addAndGet(bytes);
+    }
+
+    void flushReleases() {
+      final long pending = pendingReleasedBytes;
+      if (pending == 0) {
+        return;
+      }
+      pendingReleasedBytes = 0;
+      availableBytes.addAndGet(pending);
+    }
+
+    long retainedBytes() {
+      return limitBytes - availableBytes.get() - pendingReleasedBytes;
+    }
   }
 }

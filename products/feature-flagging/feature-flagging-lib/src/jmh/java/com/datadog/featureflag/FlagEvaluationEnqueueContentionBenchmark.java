@@ -7,6 +7,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +65,7 @@ public class FlagEvaluationEnqueueContentionBenchmark {
   private static final int NUM_FIELDS = 10;
 
   private Map<String, Object> attrs;
+  private long estimatedContextRetainedBytes;
   private String[] flagKeys;
   private String[] targetingKeys;
   private FlagEvaluationWriterImpl writer;
@@ -84,6 +86,7 @@ public class FlagEvaluationEnqueueContentionBenchmark {
     for (int i = 0; i < NUM_FIELDS; i++) {
       attrs.put("field" + i, "value");
     }
+    estimatedContextRetainedBytes = FlagEvalEventMemoryEstimator.retainedContextBytes(attrs);
     flagKeys = keys("bench-flag-", NUM_FLAGS);
     targetingKeys = keys("bench-user-", NUM_USERS);
 
@@ -177,7 +180,9 @@ public class FlagEvaluationEnqueueContentionBenchmark {
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
-        attrs);
+        true,
+        attrs,
+        estimatedContextRetainedBytes);
   }
 
   private static String[] keys(final String prefix, final int count) {

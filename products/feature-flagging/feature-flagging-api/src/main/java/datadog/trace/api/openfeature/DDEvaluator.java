@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEventMemoryEstimator;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -826,11 +827,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final class CopyResult {
     final Map<String, Object> attrs;
 
+    /** Conservative retained-byte estimate for attrs, calculated during the bounded copy. */
+    final long estimatedRetainedBytes;
+
     /** Non-null when at least one cap fired; ready to use as the "reason:..." tag value. */
     final String truncatedReason;
 
-    CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
+    CopyResult(
+        final Map<String, Object> attrs,
+        final long estimatedRetainedBytes,
+        final String truncatedReason) {
       this.attrs = attrs;
+      this.estimatedRetainedBytes = estimatedRetainedBytes;
       this.truncatedReason = truncatedReason;
     }
   }
@@ -857,27 +865,30 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    */
   static CopyResult copyPrunedContext(final EvaluationContext context) {
     if (context == null) {
-      return new CopyResult(Collections.emptyMap(), null);
+      return new CopyResult(Collections.emptyMap(), 0, null);
     }
     final Set<String> keys = context.keySet();
     if (keys.isEmpty()) {
-      return new CopyResult(Collections.emptyMap(), null);
+      return new CopyResult(Collections.emptyMap(), 0, null);
     }
     final HashMap<String, Object> out = new HashMap<>();
     final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-    final int[] reasonMask = {0};
+    final CopyState state = new CopyState(FlagEvalEventMemoryEstimator.contextMapRetainedBytes());
     for (final String key : keys) {
       if (out.size() >= MAX_CONTEXT_FIELDS) {
-        reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+        state.reasonMask |= REASON_MAX_CONTEXT_FIELDS;
         break;
       }
       if (EvaluationContext.TARGETING_KEY.equals(key)) {
         continue;
       }
-      copyPrunedValue(out, key, context.getValue(key), seen, 0, reasonMask);
+      copyPrunedValue(out, key, context.getValue(key), seen, 0, state);
     }
     final Map<String, Object> attrs = out.isEmpty() ? Collections.emptyMap() : out;
-    return new CopyResult(attrs, truncationReasonTag(reasonMask[0]));
+    return new CopyResult(
+        attrs,
+        out.isEmpty() ? 0 : state.estimatedRetainedBytes,
+        truncationReasonTag(state.reasonMask));
   }
 
   private static void copyPrunedValue(
@@ -886,52 +897,52 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Value value,
       final Set<Object> seen,
       final int depth,
-      final int[] reasonMask) {
+      final CopyState state) {
     if (out.size() >= MAX_CONTEXT_FIELDS) {
-      reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+      state.reasonMask |= REASON_MAX_CONTEXT_FIELDS;
       return;
     }
     if (key.length() > MAX_KEY_LENGTH) {
-      reasonMask[0] |= REASON_MAX_KEY_LENGTH;
+      state.reasonMask |= REASON_MAX_KEY_LENGTH;
       return;
     }
     if (value == null || value.isNull()) {
-      out.put(key, null);
+      putPrunedValue(out, key, null, state);
       return;
     }
     if (value.isString()) {
       final String s = value.asString();
       if (s.length() > MAX_VALUE_LENGTH) {
-        reasonMask[0] |= REASON_MAX_VALUE_LENGTH;
+        state.reasonMask |= REASON_MAX_VALUE_LENGTH;
         return;
       }
-      out.put(key, s);
+      putPrunedValue(out, key, s, state);
       return;
     }
     if (value.isBoolean() || value.isNumber() || value.isInstant()) {
-      out.put(key, convertValue(value));
+      putPrunedValue(out, key, convertValue(value), state);
       return;
     }
     if (value.isList()) {
       final List<Value> list = value.asList();
       if (depth >= MAX_SNAPSHOT_DEPTH) {
-        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
+        state.reasonMask |= REASON_MAX_SNAPSHOT_DEPTH;
         return;
       }
       if (!seen.add(list)) {
-        reasonMask[0] |= REASON_CYCLE;
+        state.reasonMask |= REASON_CYCLE;
         return;
       }
       if (list.size() > MAX_LIST_ELEMENTS) {
-        reasonMask[0] |= REASON_MAX_LIST_ELEMENTS;
+        state.reasonMask |= REASON_MAX_LIST_ELEMENTS;
       }
       final int limit = Math.min(list.size(), MAX_LIST_ELEMENTS);
       for (int i = 0; i < limit; i++) {
         if (out.size() >= MAX_CONTEXT_FIELDS) {
-          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+          state.reasonMask |= REASON_MAX_CONTEXT_FIELDS;
           break;
         }
-        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1, reasonMask);
+        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1, state);
       }
       seen.remove(list);
       return;
@@ -939,28 +950,44 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     if (value.isStructure()) {
       final Structure structure = value.asStructure();
       if (depth >= MAX_SNAPSHOT_DEPTH) {
-        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
+        state.reasonMask |= REASON_MAX_SNAPSHOT_DEPTH;
         return;
       }
       if (!seen.add(structure)) {
-        reasonMask[0] |= REASON_CYCLE;
+        state.reasonMask |= REASON_CYCLE;
         return;
       }
       int walked = 0;
       for (final String property : structure.keySet()) {
         if (walked >= MAX_STRUCTURE_PROPERTIES) {
-          reasonMask[0] |= REASON_MAX_STRUCTURE_PROPERTIES;
+          state.reasonMask |= REASON_MAX_STRUCTURE_PROPERTIES;
           break;
         }
         if (out.size() >= MAX_CONTEXT_FIELDS) {
-          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+          state.reasonMask |= REASON_MAX_CONTEXT_FIELDS;
           break;
         }
         walked++;
         copyPrunedValue(
-            out, key + "." + property, structure.getValue(property), seen, depth + 1, reasonMask);
+            out, key + "." + property, structure.getValue(property), seen, depth + 1, state);
       }
       seen.remove(structure);
+    }
+  }
+
+  private static void putPrunedValue(
+      final Map<String, Object> out, final String key, final Object value, final CopyState state) {
+    state.estimatedRetainedBytes +=
+        FlagEvalEventMemoryEstimator.contextEntryRetainedBytes(key, value);
+    out.put(key, value);
+  }
+
+  private static final class CopyState {
+    private int reasonMask;
+    private long estimatedRetainedBytes;
+
+    private CopyState(final long estimatedRetainedBytes) {
+      this.estimatedRetainedBytes = estimatedRetainedBytes;
     }
   }
 

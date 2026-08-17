@@ -568,6 +568,17 @@ class FlagEvalLoggingHookTest {
     assertEquals(42, attrs.get("score"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertFalse(attrs.containsKey("targetingKey"));
+    final FlagEvalEvent fallbackEstimate =
+        new FlagEvalEvent(
+            captured.get().flagKey,
+            captured.get().variant,
+            captured.get().allocationKey,
+            captured.get().targetingKey,
+            captured.get().errorMessage,
+            captured.get().evalTimeMs,
+            captured.get().observeFullEvaluationData,
+            attrs);
+    assertEquals(fallbackEstimate.estimatedRetainedBytes, captured.get().estimatedRetainedBytes);
     assertTrue(
         attrs.values().stream().noneMatch(Value.class::isInstance),
         "context attrs must contain converted scalar values, not OpenFeature Value wrappers");

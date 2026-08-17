@@ -54,6 +54,9 @@ public final class FlagEvalEvent {
    */
   public final boolean observeFullEvaluationData;
 
+  /** Estimated retained bytes for this complete event while it waits in the queue. */
+  public final long estimatedRetainedBytes;
+
   /** Convenience constructor; consent defaults to the privacy-preserving false. */
   public FlagEvalEvent(
       final String flagKey,
@@ -62,7 +65,16 @@ public final class FlagEvalEvent {
       final String targetingKey,
       final long evalTimeMs,
       final Map<String, Object> attrs) {
-    this(flagKey, variant, allocationKey, targetingKey, null, evalTimeMs, false, attrs);
+    this(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        null,
+        evalTimeMs,
+        false,
+        attrs,
+        FlagEvalEventMemoryEstimator.UNKNOWN_RETAINED_BYTES);
   }
 
   /** Convenience constructor; consent defaults to the privacy-preserving false. */
@@ -74,7 +86,16 @@ public final class FlagEvalEvent {
       final String errorMessage,
       final long evalTimeMs,
       final Map<String, Object> attrs) {
-    this(flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, false, attrs);
+    this(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        errorMessage,
+        evalTimeMs,
+        false,
+        attrs,
+        FlagEvalEventMemoryEstimator.UNKNOWN_RETAINED_BYTES);
   }
 
   public FlagEvalEvent(
@@ -86,6 +107,28 @@ public final class FlagEvalEvent {
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
       final Map<String, Object> attrs) {
+    this(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        errorMessage,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs,
+        FlagEvalEventMemoryEstimator.UNKNOWN_RETAINED_BYTES);
+  }
+
+  public FlagEvalEvent(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs,
+      final long estimatedContextRetainedBytes) {
     this.flagKey = flagKey;
     this.variant = variant;
     this.allocationKey = allocationKey;
@@ -94,5 +137,7 @@ public final class FlagEvalEvent {
     this.evalTimeMs = evalTimeMs;
     this.observeFullEvaluationData = observeFullEvaluationData;
     this.attrs = attrs != null ? attrs : Collections.emptyMap();
+    this.estimatedRetainedBytes =
+        FlagEvalEventMemoryEstimator.estimateRetainedBytes(this, estimatedContextRetainedBytes);
   }
 }
