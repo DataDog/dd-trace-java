@@ -34,6 +34,7 @@ _Trigger:_ When creating or updating a pull request, or when new commits are pus
 
 _Actions:_
 
+* Clean up the tool labels (`Bits AI`, `campaigner-automated-change`) by removing them from both the pull request and the repository.
 * Detect AI-generated pull requests then apply the `tag: ai generated` label.
 * Check the pull request did not introduce unexpected labels.
 
@@ -160,6 +161,14 @@ _Recovery:_ Manually trigger the action on the desired branch.
 _Trigger:_ Every week or manually.
 
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
+
+_Recovery:_ Manually trigger the action again.
+
+### update-apm-sdks-benchmarks-reference [🔗](update-apm-sdks-benchmarks-reference.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR pinning our `apm-sdks-benchmarks` CI includes and runtime clones to the latest commit on the `apm-sdks-benchmarks` GitHub `main` branch.
 
 _Recovery:_ Manually trigger the action again.
 
