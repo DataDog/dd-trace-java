@@ -9,8 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -21,6 +24,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
@@ -37,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -322,8 +327,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertInstanceOf(TagContext.class, result);
     assertEquals("POST", capturedMethod[0]);
     assertEquals("/api/users/123", capturedPath[0]);
-    assertEquals("application/json", capturedHeaders.get("Content-Type"));
-    assertEquals("Bearer token123", capturedHeaders.get("Authorization"));
+    // The event capitalises these; the parser lowercases header names on the way in, as AppSec
+    // itself does in AppSecRequestContext.addRequestHeader
+    assertEquals("application/json", capturedHeaders.get("content-type"));
+    assertEquals("Bearer token123", capturedHeaders.get("authorization"));
     assertEquals("192.168.1.100", capturedSourceIp[0]);
     assertEquals(0, capturedSourcePort[0]);
     assertNotNull(capturedPathParams[0]);
@@ -2038,8 +2045,247 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   // ============================================================================
+  // HTTP span tags
+  // ============================================================================
+
+  @Test
+  void appliesHttpTagsForRestApiEvent() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\":"
+                    + " \"GET\", \"queryStringParameters\": {\"q\": \"hello\"}, \"headers\":"
+                    + " {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.1\","
+                    + " \"X-Forwarded-Proto\": \"https\", \"X-Forwarded-Port\": \"443\"},"
+                    + " \"requestContext\": {\"httpMethod\": \"GET\", \"domainName\":"
+                    + " \"api.example.com\"}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("GET", tags.get(Tags.HTTP_METHOD));
+    assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
+    assertEquals("q=hello", tags.get(DDTags.HTTP_QUERY));
+    assertEquals("curl/8.1", tags.get(Tags.HTTP_USER_AGENT));
+    assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
+    assertEquals("api.example.com", tags.get(Tags.HTTP_HOSTNAME));
+  }
+
+  @Test
+  void appliesHttpTagsWithForwardedSchemeAndPort() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"domainName\":"
+                    + " \"api.example.com\", \"routeKey\": \"POST /orders\", \"http\":"
+                    + " {\"method\": \"POST\", \"path\": \"/orders\"}}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("POST", tags.get(Tags.HTTP_METHOD));
+    assertEquals("http://api.example.com:8080/orders", tags.get(Tags.HTTP_URL));
+    assertEquals("/orders", tags.get(Tags.HTTP_ROUTE));
+    assertNull(tags.get(DDTags.HTTP_QUERY));
+  }
+
+  @Test
+  void omitsDefaultPortForForwardedHttpScheme() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com\", \"x-forwarded-proto\": \"http\"}, \"requestContext\":"
+                    + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+
+    // No x-forwarded-port: the default must follow the scheme, or ":443" leaks into the URL
+    assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void normalisesForwardedSchemeCasing() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com\", \"x-forwarded-proto\": \"HTTP\"}, \"requestContext\":"
+                    + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+
+    // Lowercased before use, or the port default and URIUtils.buildURL both miss and ":443" leaks
+    assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void fallsBackToHttpsForUnrecognisedForwardedScheme() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com\", \"x-forwarded-proto\": \"https, http\"},"
+                    + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+
+    // Lambda comma-joins duplicate request headers, so a client-supplied X-Forwarded-Proto arrives
+    // appended to the real one: taken verbatim it would yield "https, http://lb.example.com/alb"
+    assertEquals("https://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void appliesHttpTagsWithDefaultPortSuppressed() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \"80\"}, \"requestContext\": {\"domainName\":"
+                    + " \"api.example.com\", \"http\": {\"method\": \"GET\", \"path\": \"/\"}}}"));
+
+    assertEquals("http://api.example.com/", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void hostnameTagPrefersForwardedHostOverUrlHost() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-host\":"
+                    + " \"public.example.com\"}, \"requestContext\": {\"domainName\":"
+                    + " \"api.example.com\", \"http\": {\"method\": \"GET\", \"path\":"
+                    + " \"/orders\"}}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("https://api.example.com/orders", tags.get(Tags.HTTP_URL));
+    assertEquals("public.example.com", tags.get(Tags.HTTP_HOSTNAME));
+  }
+
+  @Test
+  void resolvesHeadersRegardlessOfEventCasing() {
+    setupMockCallbacks(new Callbacks());
+    // API Gateway v1 capitalises header names where v2 and ALB send them lowercase
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
+                    + " \"headers\": {\"Host\": \"api.example.com\", \"User-Agent\":"
+                    + " \"curl/8.1\", \"X-Forwarded-Proto\": \"http\", \"X-Forwarded-Host\":"
+                    + " \"public.example.com\"}, \"requestContext\": {\"httpMethod\": \"GET\"}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("http://api.example.com/users/42", tags.get(Tags.HTTP_URL));
+    assertEquals("curl/8.1", tags.get(Tags.HTTP_USER_AGENT));
+    assertEquals("public.example.com", tags.get(Tags.HTTP_HOSTNAME));
+  }
+
+  @Test
+  void omitsMethodTagForWebSocketEvent() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"requestContext\": {\"connectionId\": \"c1\", \"eventType\": \"MESSAGE\","
+                    + " \"routeKey\": \"sendMessage\", \"domainName\": \"ws.example.com\"}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertNull(tags.get(Tags.HTTP_METHOD));
+    assertEquals("sendMessage", tags.get(Tags.HTTP_ROUTE));
+    assertEquals("https://ws.example.com/sendMessage", tags.get(Tags.HTTP_URL));
+  }
+
+  @Test
+  void omitsRouteTagForAlbEvent() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb-123.eu-west-1.elb.amazonaws.com\", \"user-agent\": \"alb-agent\"},"
+                    + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertNull(tags.get(Tags.HTTP_ROUTE));
+    assertEquals("GET", tags.get(Tags.HTTP_METHOD));
+    assertEquals("https://lb-123.eu-west-1.elb.amazonaws.com/alb", tags.get(Tags.HTTP_URL));
+    assertEquals("alb-agent", tags.get(Tags.HTTP_USER_AGENT));
+  }
+
+  @Test
+  void appliesNoHttpTagsForNonHttpEvent() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream("{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hi\"}]}"));
+
+    assertTrue(tagsOf(context).isEmpty());
+  }
+
+  @Test
+  void mergeContextsCopiesHttpTagsIntoExtensionContext() {
+    TagContext appSecContext = new TagContext();
+    appSecContext.putTag(Tags.HTTP_URL, "https://api.example.com/users/42");
+    appSecContext.putTag(Tags.HTTP_ROUTE, "/users/{id}");
+    TagContext extensionContext = new TagContext();
+
+    AgentSpanContext merged = LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
+
+    assertSame(extensionContext, merged);
+    Map<String, Object> tags = tagsOf(merged);
+    assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
+    assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
+  }
+
+  @Test
+  void processResponseDataSetsHttpStatusCode() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    AgentSpan span = setupMockResponseCallbacks(null, null, null, null);
+    LambdaAppSecHandler.processResponseData(
+        span, createOutputStream("{\"statusCode\": 201, \"body\": \"created\"}"));
+
+    verify(span).setHttpStatusCode(201);
+    verify(span).setError(false, ErrorPriorities.HTTP_SERVER_DECORATOR);
+  }
+
+  @Test
+  void processResponseDataFlagsServerErrorStatusAsError() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    AgentSpan span = setupMockResponseCallbacks(null, null, null, null);
+    LambdaAppSecHandler.processResponseData(
+        span, createOutputStream("{\"statusCode\": 500, \"body\": \"boom\"}"));
+
+    verify(span).setHttpStatusCode(500);
+    verify(span).setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR);
+  }
+
+  @Test
+  void processResponseDataDoesNotFlagClientErrorStatusAsError() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    AgentSpan span = setupMockResponseCallbacks(null, null, null, null);
+    LambdaAppSecHandler.processResponseData(
+        span, createOutputStream("{\"statusCode\": 404, \"body\": \"nope\"}"));
+
+    verify(span).setHttpStatusCode(404);
+    verify(span).setError(false, ErrorPriorities.HTTP_SERVER_DECORATOR);
+  }
+
+  @Test
+  void processResponseDataLeavesHttpStatusCodeUnsetForNonApiGwResponse() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.LAMBDA_URL);
+    AgentSpan span = setupMockResponseCallbacks(null, null, null, null);
+    LambdaAppSecHandler.processResponseData(span, createOutputStream("{\"result\": \"hello\"}"));
+
+    verify(span, never()).setHttpStatusCode(anyInt());
+    verify(span, never()).setError(anyBoolean(), anyByte());
+  }
+
+  // ============================================================================
   // Helper Methods
   // ============================================================================
+
+  private static Map<String, Object> tagsOf(AgentSpanContext context) {
+    assertInstanceOf(TagContext.class, context);
+    return new HashMap<>(((TagContext) context).getTags());
+  }
 
   private static ByteArrayInputStream createInputStream(String json) {
     return new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));

@@ -3,12 +3,16 @@ package datadog.trace.lambda;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.lambda.LambdaEventParser.MAX_EVENT_SIZE;
 import static datadog.trace.lambda.LambdaEventParser.buildFullPath;
+import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
 import static datadog.trace.lambda.LambdaEventParser.parseJsonValue;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 
 import datadog.logging.RatelimitedLogger;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -23,9 +27,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
@@ -42,8 +48,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handles AppSec processing for AWS Lambda invocations. Extracts Lambda event data and invokes
- * AppSec gateway callbacks.
+ * Handles AppSec processing for AWS Lambda invocations: invokes the AppSec gateway callbacks for
+ * the event and the handler response, and derives the HTTP span tags from the event. Payload
+ * parsing is delegated to {@link LambdaEventParser}.
  */
 public class LambdaAppSecHandler {
 
@@ -55,12 +62,13 @@ public class LambdaAppSecHandler {
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
 
   /**
-   * Process AppSec request data at the start of a Lambda invocation. Extract event data and invokes
-   * all relevant AppSec gateway callbacks.
+   * Processes AppSec request data at the start of a Lambda invocation: invokes all relevant AppSec
+   * gateway callbacks on the parsed event, and, for recognised HTTP triggers, applies the HTTP tags
+   * to the returned context so they land on the invocation span at creation.
    *
    * @param event the Lambda event object
-   * @return AgentSpanContext containing AppSec data, or null if AppSec is disabled or processing
-   *     fails
+   * @return a {@link TagContext} carrying the AppSec request context and the HTTP tags, or null if
+   *     AppSec is disabled, the event is not a parseable payload, or processing fails
    */
   public static AgentSpanContext processRequestStart(Object event) {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
@@ -83,7 +91,16 @@ public class LambdaAppSecHandler {
         return null;
       }
       CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
-      return processAppSecRequestData(eventData);
+      // Reconstruct the full path with query string: Lambda events expose them separately
+      String fullPath =
+          eventData.path == null ? null : buildFullPath(eventData.path, eventData.queryParameters);
+      LambdaURIDataAdapter uriAdapter =
+          new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
+      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
+      if (context instanceof TagContext && eventData.triggerType.isHttp()) {
+        applyHttpTags((TagContext) context, eventData, uriAdapter);
+      }
+      return context;
     } catch (Exception e) {
       log.debug("Failed to process AppSec request data", e);
       return null;
@@ -91,7 +108,8 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Invokes the requestEnded gateway callback to add AppSec data to the span.
+   * Invokes the requestEnded gateway callback to add AppSec data to the span, propagates the
+   * sampling decision of trace-tagging rules, and clears the per-invocation state.
    *
    * @param span the current span
    */
@@ -129,8 +147,9 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Process response data through WAF before the request context is closed. Extracts status code,
-   * headers, and body from the Lambda response and fires the corresponding gateway events.
+   * Processes response data through the WAF before the request context is closed: fires the
+   * response gateway events with the status code, headers and body parsed from the Lambda response,
+   * and sets {@code http.status_code} on the span. Only applies to recognised HTTP triggers.
    *
    * @param span the current span
    * @param result the Lambda handler result (expected to be a ByteArrayOutputStream)
@@ -182,6 +201,17 @@ public class LambdaAppSecHandler {
         // else: responseData has explicit headers/body fields — keep them, just skip
         // responseStarted
         // (statusCode remains 0, so the responseStarted guard below will not fire).
+      }
+
+      // The only HTTP tag set on the exit path: the status does not exist at span creation.
+      // setHttpStatusCode, not setTag, so the value serialises as a string per the span spec.
+      // The error flag follows the status as in HttpServerDecorator.doOnResponseStatus and in the
+      // Lambda Extension, which sets error=1 on a 5xx handler response: without it the span would
+      // show a 500 with error:0 in deployments where no extension is in the path.
+      if (responseData.statusCode > 0) {
+        span.setHttpStatusCode(responseData.statusCode);
+        boolean isError = Config.get().getHttpServerErrorStatuses().get(responseData.statusCode);
+        span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
 
       RequestContext requestContext = span.getRequestContext();
@@ -237,11 +267,13 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Merge AppSec context data into extension context.
+   * Merges the AppSec request context data and the HTTP tags into the context returned by the
+   * Lambda Extension, which is the one that survives and seeds the invocation span.
    *
-   * @param extensionContext context from extension
-   * @param appSecContext context containing AppSec data
-   * @return merged context
+   * @param extensionContext context from the extension, may be null when no extension is in the
+   *     path
+   * @param appSecContext context returned by {@link #processRequestStart(Object)}, may be null
+   * @return the surviving context: the extension one when both are present
    */
   public static AgentSpanContext mergeContexts(
       AgentSpanContext extensionContext, AgentSpanContext appSecContext) {
@@ -261,6 +293,15 @@ public class LambdaAppSecHandler {
         if (appSecData != null) {
           merged.withRequestContextDataAppSec(appSecData);
         }
+        // The extension context is the one that survives, so the HTTP tags applied to the AppSec
+        // context have to be carried over: CoreTracer copies them onto the span at creation.
+        // The AppSec-derived values win on a key collision. No collision is reachable today: the
+        // extension context only carries tags for headers mapped through
+        // DD_TRACE_REQUEST_HEADER_TAGS
+        // (ContextInterpreter.handleTags), and those would have to be mapped onto an http.* key.
+        for (TagMap.EntryReader tag : extracted.getTags()) {
+          merged.putTag(tag.tag(), tag.stringValue());
+        }
         return merged;
       }
 
@@ -271,7 +312,70 @@ public class LambdaAppSecHandler {
     return extensionContext;
   }
 
-  private static AgentSpanContext processAppSecRequestData(LambdaRequestData eventData) {
+  /**
+   * Writes the HTTP tags derived from the Lambda event onto the context that will seed the
+   * invocation span. Transcribed from {@code HttpServerDecorator.doOnRequest}, minus the parts that
+   * do not apply here: no {@code http.fragment} (never transmitted to a server), no client IP tags,
+   * no {@code span.kind} and no resource name change — in particular, {@code
+   * HttpResourceDecorator.withRoute} must not be used, as it would overwrite the {@code
+   * dd-tracer-serverless-span} placeholder resource the Lambda Extension matches on.
+   *
+   * <p>Pure tag writing: the gateway callbacks are fired by {@link #processAppSecRequestData}, so
+   * firing them here would hand the WAF the same URI twice.
+   */
+  static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
+    // WebSocket events carry a synthetic "WEBSOCKET" method that must stay inside the AppSec path.
+    // A $connect event does come from a real HTTP GET upgrade request, which is why it has headers
+    // and a query string, but the payload carries no method to report and none is fabricated here.
+    // Consequence: HttpEndpointPostProcessor returns early without http.method, so WebSocket spans
+    // stay out of http.endpoint aggregation even though they do get an http.route.
+    if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
+      ctx.putTag(Tags.HTTP_METHOD, req.method);
+    }
+
+    if (req.host != null) {
+      // Without the query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it to
+      // http.url, so appending it here too would duplicate it — and appending it unobfuscated would
+      // put credentials matched by the obfuscation regex straight into http.url.
+      // For WebSocket the path is the routeKey, as the payload has no path at all; that yields
+      // https://host/$connect, which is what the Lambda Extension reports for those events too.
+      ctx.putTag(
+          Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
+    }
+
+    // rawQuery() is the same string as query(): nothing in the Lambda path is percent-decoded, so
+    // the isHttpServerRawQueryString distinction the decorator makes is a no-op here.
+    String query = url.rawQuery();
+    if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
+      ctx.putTag(DDTags.HTTP_QUERY, query);
+    }
+
+    String userAgent = findHeader(req.headers, "user-agent");
+    if (userAgent != null) {
+      ctx.putTag(Tags.HTTP_USER_AGENT, userAgent);
+    }
+
+    if (req.route != null) {
+      ctx.putTag(Tags.HTTP_ROUTE, req.route);
+    }
+
+    // Deliberately a different host from the one in http.url, as in the decorator
+    String forwardedHost = findHeader(req.headers, "x-forwarded-host");
+    String hostname = forwardedHost != null ? forwardedHost : req.host;
+    if (hostname != null) {
+      ctx.putTag(Tags.HTTP_HOSTNAME, hostname);
+    }
+  }
+
+  /**
+   * Fires the request-phase gateway callbacks against a {@link TemporaryRequestContext}, since the
+   * span does not exist yet, and returns the context carrying the resulting AppSec request context.
+   *
+   * @return the context to hand back to the tracer, or null if AppSec registered no {@code
+   *     requestStarted} callback
+   */
+  private static AgentSpanContext processAppSecRequestData(
+      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter) {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -298,9 +402,6 @@ public class LambdaAppSecHandler {
                     .getCallbackProvider(RequestContextSlot.APPSEC)
                     .getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
-          // Reconstruct full path with query string for AppSec analysis
-          String fullPath = buildFullPath(eventData.path, eventData.queryParameters);
-          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath, eventData.headers);
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
           log.debug("requestMethodUriRaw callback is null");
