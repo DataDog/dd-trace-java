@@ -410,13 +410,11 @@ public final class KnownTags {
   private static final int[] KEYOF_HASHES;
   private static final String[] KEYOF_KEYS;
   private static final long[] KEYOF_IDS;
-
   static {
     StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYOF_NAMES);
     long[] ids = new long[data.names.length];
     for (int j = 0; j < KEYOF_NAMES.length; j++) {
-      ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, KEYOF_NAMES[j])] =
-          KEYOF_VALUES[j];
+      ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, KEYOF_NAMES[j])] = KEYOF_VALUES[j];
     }
     KEYOF_HASHES = data.hashes;
     KEYOF_KEYS = data.names;
