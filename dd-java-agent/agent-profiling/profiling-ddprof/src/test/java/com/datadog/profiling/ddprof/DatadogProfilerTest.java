@@ -152,6 +152,23 @@ class DatadogProfilerTest {
     return profiler.cmdStartProfiling(targetFile);
   }
 
+  @Test
+  void testStartCmdEnableReferenceChainCollection() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    String cmd = profiler.cmdStartProfiling(Paths.get("/tmp/target.jfr"));
+
+    assertTrue(cmd.contains(",referencechains=true"), cmd);
+    assertTrue(cmd.contains(",generations=true"), cmd);
+    assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?[lL].*"), cmd);
+  }
+
   @ParameterizedTest
   @MethodSource("wallContextFilterModes")
   void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled)

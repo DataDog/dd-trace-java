@@ -37,6 +37,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
@@ -474,6 +476,13 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED,
         PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT);
+  }
+
+  public static boolean isReferenceChainCollectionEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED,
+        PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED_DEFAULT);
   }
 
   private static String normalizeKey(String key) {

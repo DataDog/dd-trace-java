@@ -16,7 +16,7 @@ scalafmt = "3.11.5"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.49.0"
+ddprof = "1.49.0-jb_reference-chains-SNAPSHOT"
 dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 

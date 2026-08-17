@@ -197,4 +197,21 @@ class DatadogProfilerConfigTest {
         JavaVirtualMachine.isJavaVersionAtLeast(11) && DatadogProfilerConfig.isJmethodIDSafe();
     assertEquals(expectedDefault, DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
   }
+
+  @Test
+  void referenceChainCollectionIsDisabledByDefault() {
+    assertFalse(
+        DatadogProfilerConfig.isReferenceChainCollectionEnabled(
+            ConfigProvider.withPropertiesOverride(new Properties())));
+  }
+
+  @Test
+  void referenceChainCollectionCanBeEnabled() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED, "true");
+
+    assertTrue(
+        DatadogProfilerConfig.isReferenceChainCollectionEnabled(
+            ConfigProvider.withPropertiesOverride(props)));
+  }
 }

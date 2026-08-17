@@ -20,6 +20,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEn
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isNativeMemoryProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isReferenceChainCollectionEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
@@ -403,7 +404,9 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
-    cmd.append(",generations=").append(isTrackingGenerations(configProvider));
+    boolean referenceChainsEnabled = isReferenceChainCollectionEnabled(configProvider);
+    cmd.append(",generations=")
+        .append(referenceChainsEnabled || isTrackingGenerations(configProvider));
     if (omitLineNumbers(configProvider)) {
       cmd.append(",linenumbers=f");
     }
@@ -452,14 +455,16 @@ public final class DatadogProfiler {
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
-    if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
-      // allocation profiling or live heap profiling is enabled
+    if (profilingModes.contains(ALLOCATION)
+        || profilingModes.contains(MEMLEAK)
+        || referenceChainsEnabled) {
+      // Allocation profiling, live heap profiling, or reference chain collection is enabled.
       cmd.append(",memory=").append(getAllocationInterval(configProvider)).append('b');
       cmd.append(':');
       if (profilingModes.contains(ALLOCATION)) {
         cmd.append('a');
       }
-      if (profilingModes.contains(MEMLEAK)) {
+      if (profilingModes.contains(MEMLEAK) || referenceChainsEnabled) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
         cmd.append(':')
             .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
@@ -468,6 +473,9 @@ public final class DatadogProfiler {
     if (profilingModes.contains(NATIVEMEM)) {
       // native memory (malloc) profiling is enabled
       cmd.append(",nativemem=").append(getNativeMemoryInterval(configProvider));
+    }
+    if (referenceChainsEnabled) {
+      cmd.append(",referencechains=true");
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);

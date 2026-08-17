@@ -40,6 +40,10 @@ public final class ProfilingConfig {
       "profiling.experimental.ddprof.jmethodid_optim.enabled";
   public static final boolean PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT = false;
 
+  public static final String PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED =
+      "profiling.experimental.ddprof.referencechains.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_REFERENCE_CHAINS_ENABLED_DEFAULT = false;
+
   /**
    * @deprecated Use {@link #PROFILING_DEBUG_UPLOAD_COMPRESSION} instead. This will be removed in a
    *     future release.
