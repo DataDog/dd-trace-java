@@ -76,6 +76,7 @@ tasks.named('forkedTest', Test) {
 dependencies {
   api project(':dd-trace-api')
   api project(':communication')
+  api project(':communication:otlp-exporter')
   api project(':internal-api')
   api project(':products:metrics:metrics-agent')
   // Note: dd-trace-core should NOT depend on metrics-lib directly

@@ -1,4 +1,4 @@
-package datadog.trace.core.otlp.common;
+package datadog.communication.otlp;
 
 import java.io.IOException;
 import javax.annotation.Nonnull;

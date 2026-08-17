@@ -212,9 +212,9 @@ class WriterFactoryTest extends DDJavaSpecification {
 
   @TableTest({
     "scenario     | protocol      | compression | endpoint                               | expectedSenderClass                           | expectedUrl                                                                             | expectedGzip",
-    "http no gzip | HTTP_PROTOBUF | NONE        | 'http://otel-collector:4318/v1/traces' | datadog.trace.core.otlp.common.OtlpHttpSender | 'http://otel-collector:4318/v1/traces'                                                  | false       ",
-    "http gzip    | HTTP_PROTOBUF | GZIP        | 'http://otel-collector:4318/v1/traces' | datadog.trace.core.otlp.common.OtlpHttpSender | 'http://otel-collector:4318/v1/traces'                                                  | true        ",
-    "grpc no gzip | GRPC          | NONE        | 'http://otel-collector:4317'           | datadog.trace.core.otlp.common.OtlpGrpcSender | 'http://otel-collector:4317/opentelemetry.proto.collector.trace.v1.TraceService/Export' | false       "
+    "http no gzip | HTTP_PROTOBUF | NONE        | 'http://otel-collector:4318/v1/traces' | datadog.communication.otlp.OtlpHttpSender | 'http://otel-collector:4318/v1/traces'                                                  | false       ",
+    "http gzip    | HTTP_PROTOBUF | GZIP        | 'http://otel-collector:4318/v1/traces' | datadog.communication.otlp.OtlpHttpSender | 'http://otel-collector:4318/v1/traces'                                                  | true        ",
+    "grpc no gzip | GRPC          | NONE        | 'http://otel-collector:4317'           | datadog.communication.otlp.OtlpGrpcSender | 'http://otel-collector:4317/opentelemetry.proto.collector.trace.v1.TraceService/Export' | false       "
   })
   void testWriterCreationForOtlpWriter(
       OtlpConfig.Protocol protocol,
