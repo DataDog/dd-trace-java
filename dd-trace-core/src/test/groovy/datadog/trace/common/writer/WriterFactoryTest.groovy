@@ -13,8 +13,8 @@ import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.otlp.common.OtlpGrpcSender
-import datadog.trace.core.otlp.common.OtlpHttpSender
+import datadog.communication.otlp.OtlpGrpcSender
+import datadog.communication.otlp.OtlpHttpSender
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
 import java.util.stream.Collectors

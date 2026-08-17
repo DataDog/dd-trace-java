@@ -1,4 +1,4 @@
-package datadog.trace.core.otlp.common;
+package datadog.communication.otlp;
 
 import static datadog.communication.http.OkHttpUtils.buildHttp2Client;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
@@ -6,7 +6,6 @@ import static datadog.communication.http.OkHttpUtils.isPlainHttp;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.config.OtlpConfig.Compression;
-import datadog.trace.common.writer.RemoteApi;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
@@ -53,7 +52,7 @@ public final class OtlpGrpcSender implements OtlpSender {
   }
 
   @Override
-  public RemoteApi.Response send(OtlpPayload payload) {
+  public OtlpResponse send(OtlpPayload payload) {
     return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
   }
 

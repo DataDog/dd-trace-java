@@ -113,6 +113,7 @@ include(
 
 include(
   ":communication",
+  ":communication:otlp-exporter",
   ":components:annotations",
   ":components:context",
   ":components:environment",

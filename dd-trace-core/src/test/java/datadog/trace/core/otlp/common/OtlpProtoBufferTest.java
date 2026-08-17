@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.serialization.GrowableBuffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
