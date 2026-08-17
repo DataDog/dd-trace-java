@@ -43,15 +43,6 @@ jmh {
 
 // OTLP validation tests removed - use profcheck validation instead (see validateOtlp task below)
 
-repositories {
-  maven {
-    url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-    mavenContent {
-      snapshotsOnly()
-    }
-  }
-}
-
 configure<datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension> {
   minJavaVersion = JavaVersion.VERSION_17
 }
