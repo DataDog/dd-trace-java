@@ -17,6 +17,8 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT_DEFAULT;
 
 import com.datadog.communication.otlp.OtlpPayload;
 import com.datadog.communication.otlp.OtlpResponse;
@@ -57,6 +59,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final ExecutorService executor;
   private final int terminationTimeout;
   private final boolean includeOriginalPayload;
+  private final boolean lightweight;
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, TERMINATION_TIMEOUT_SEC);
@@ -70,6 +73,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         configProvider.getBoolean(
             PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD,
             PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT);
+    this.lightweight =
+        configProvider.getBoolean(PROFILING_OTLP_LIGHTWEIGHT, PROFILING_OTLP_LIGHTWEIGHT_DEFAULT);
     this.executor =
         new ThreadPoolExecutor(
             0,
@@ -151,24 +156,44 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   }
 
   private byte[] convertToOtlp(RecordingData data) throws IOException {
-    // Create a fresh converter per call — JfrToOtlpConverter is not thread-safe
+    // Lightweight mode: skip JFR parsing, just embed raw JFR as original_payload blob
+    if (lightweight) {
+      return convertLightweight(data);
+    }
+
+    // Full conversion mode: parse JFR, build dictionary tables, encode OTLP samples
     JfrToOtlpConverter converter = new JfrToOtlpConverter();
     converter.setIncludeOriginalPayload(includeOriginalPayload);
 
-    // Prefer file-based parsing if available (more efficient)
     Path jfrFile = data.getPath();
     if (jfrFile != null) {
       converter.addFile(jfrFile, data.getStart(), data.getEnd());
       return converter.convert(JfrToOtlpConverter.Kind.PROTO);
     }
 
-    // Fallback: save stream to temp file in managed temp directory
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
     try {
       Files.copy(data.getStream(), temp);
       converter.addFile(temp, data.getStart(), data.getEnd());
       return converter.convert(JfrToOtlpConverter.Kind.PROTO);
+    } finally {
+      Files.deleteIfExists(temp);
+    }
+  }
+
+  private byte[] convertLightweight(RecordingData data) throws IOException {
+    Path jfrFile = data.getPath();
+    if (jfrFile != null) {
+      return LightweightOtlpEncoder.encode(jfrFile, data.getStart(), data.getEnd());
+    }
+
+    // Fallback: save stream to temp file, then encode
+    Path tempDir = TempLocationManager.getInstance().getTempDir();
+    Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
+    try {
+      Files.copy(data.getStream(), temp);
+      return LightweightOtlpEncoder.encode(temp, data.getStart(), data.getEnd());
     } finally {
       Files.deleteIfExists(temp);
     }

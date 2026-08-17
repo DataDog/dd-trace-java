@@ -6,6 +6,12 @@ plugins {
 ext {
 }
 
+// Profiling requires Java 11+ (JFR). Set compat to 11.
+java {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+
 minimumBranchCoverage = 0.80
 
 excludedClassesCoverage += [
