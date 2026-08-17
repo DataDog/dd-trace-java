@@ -503,6 +503,29 @@ class TagMapReadThroughTest {
   }
 
   @Test
+  void observationallyEmptyIntermediateParentIsDroppedNotAttached() {
+    // A frozen mid level with no local entries whose every inherited key is tombstoned is
+    // observationally empty even though a local (grandparent) level still holds entries.
+    // createFromParent must drop it (exact isEmpty), so the leaf stays consistent: isEmpty() must
+    // agree with size()/lookup/iteration.
+    TagMap grandparent = TagMap.create();
+    grandparent.set("a", "gp-a");
+    grandparent.freeze();
+
+    TagMap mid = TagMap.createFromParent(grandparent);
+    mid.remove("a"); // tombstone the only inherited key -> mid is observationally empty
+    mid.freeze();
+    assertTrue(mid.isEmpty());
+
+    TagMap leaf = TagMap.createFromParent(mid);
+    assertEquals(0, leaf.size());
+    assertTrue(leaf.isEmpty(), "isEmpty() must agree with size()==0");
+    assertNull(leaf.getString("a"));
+    assertTrue(collect(leaf).isEmpty());
+    assertFalse(leaf.iterator().hasNext());
+  }
+
+  @Test
   void chainReadThroughMatchesEquivalentFlatMap() {
     TagMap leaf = threeLevelLeaf();
 

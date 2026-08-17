@@ -96,7 +96,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
       }
-      if (parent.isDefinitelyEmpty()) {
+      // Exact, not isDefinitelyEmpty(): a multi-level parent can be observationally empty while a
+      // local level still holds entries (all of them tombstoned by a nearer level). Dropping such a
+      // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
+      // contributes at least one visible entry.
+      if (parent.isEmpty()) {
         parent = null;
       }
     }
