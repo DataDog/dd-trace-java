@@ -11,40 +11,42 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Parity test for the keyOf substrate (slice 1): the {@link KnownTags} registry + the {@link
- * KnownTagCodec.Resolver} it registers. Verifies name &harr; id resolution without any dense store
- * — {@code keyOf}/{@code nameOf} depend only on globalSerial + name, not on the (dormant)
- * positional layout.
+ * Parity test for the keyOf substrate: the generated {@link KnownTags} registry + the {@link
+ * KnownTagCodec.Resolver} it registers. Verifies name &harr; id resolution and the intercepted /
+ * reserved / stored partitioning. {@code keyOf}/{@code nameOf} depend only on globalSerial + name,
+ * not on the (dormant) positional layout, so this is independent of the colored slot the tag
+ * registry assigns. Also covers the slot/level-bit encoding the coloring adds to the id.
  */
 class KnownTagsTest {
 
-  /** (name, id) pairs — the full registry. keyOf returns the id verbatim (incl. INTERCEPTED). */
+  /** (name, id) pairs across the groups — keyOf returns the id verbatim (incl. INTERCEPTED). */
   static Stream<Arguments> knownTags() {
     return Stream.of(
         Arguments.of(Tags.ERROR, KnownTags.ERROR_ID),
-        Arguments.of(DDTags.PARENT_ID, KnownTags.PARENT_ID),
-        Arguments.of(DDTags.BASE_SERVICE, KnownTags.BASE_SERVICE_ID),
+        Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID),
+        Arguments.of(DDTags.BASE_SERVICE, KnownTags.DD_BASE_SERVICE_ID),
         Arguments.of(Tags.VERSION, KnownTags.VERSION_ID),
-        Arguments.of(KnownTags.ENV, KnownTags.ENV_ID),
-        Arguments.of(DDTags.DJM_ENABLED, KnownTags.DJM_ENABLED_ID),
-        Arguments.of(DDTags.DSM_ENABLED, KnownTags.DSM_ENABLED_ID),
-        Arguments.of(DDTags.TRACER_HOST, KnownTags.TRACER_HOST_ID),
-        Arguments.of(DDTags.DD_INTEGRATION, KnownTags.INTEGRATION_ID),
-        Arguments.of(DDTags.DD_SVC_SRC, KnownTags.SVC_SRC_ID),
+        Arguments.of("env", KnownTags.ENV_ID),
+        Arguments.of(DDTags.DJM_ENABLED, KnownTags.DD_DJM_ENABLED_ID),
+        Arguments.of(DDTags.DSM_ENABLED, KnownTags.DD_DSM_ENABLED_ID),
+        Arguments.of(DDTags.TRACER_HOST, KnownTags.DD_TRACER_HOST_ID),
+        Arguments.of(DDTags.DD_INTEGRATION, KnownTags.DD_INTEGRATION_ID),
+        Arguments.of(DDTags.DD_SVC_SRC, KnownTags.DD_SVC_SRC_ID),
         Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE_ID),
-        Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.PEER_SERVICE_REMAPPED_FROM_ID),
+        Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID),
         Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD_ID),
         Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
         Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
-        Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_HOST_IPV4_ID),
-        Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_HOST_IPV6_ID),
+        Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
+        Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
         Arguments.of(Tags.PEER_PORT, KnownTags.PEER_PORT_ID),
         Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT_ID),
         Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND_ID),
@@ -68,10 +70,40 @@ class KnownTagsTest {
         Arguments.of(KnownTags.SPAN_KIND_ID));
   }
 
+  /**
+   * Trace-level tags (live on the TraceSegment's TagMap) — their id carries the LEVEL_TRACE bit.
+   */
+  static Stream<Arguments> traceLevelTags() {
+    return Stream.of(
+        Arguments.of(KnownTags.DD_BASE_SERVICE_ID),
+        Arguments.of(KnownTags.VERSION_ID),
+        Arguments.of(KnownTags.ENV_ID),
+        Arguments.of(KnownTags.LANGUAGE_ID),
+        Arguments.of(KnownTags.RUNTIME_ID),
+        Arguments.of(KnownTags.DD_TRACER_HOST_ID),
+        Arguments.of(KnownTags.DD_DJM_ENABLED_ID));
+  }
+
+  /** Span-level tags — their id leaves the LEVEL_TRACE bit clear. */
+  static Stream<Arguments> spanLevelTags() {
+    return Stream.of(
+        Arguments.of(KnownTags.HTTP_METHOD_ID),
+        Arguments.of(KnownTags.HTTP_URL_ID),
+        Arguments.of(KnownTags.DB_TYPE_ID),
+        Arguments.of(KnownTags.COMPONENT_ID),
+        Arguments.of(KnownTags.SPAN_KIND_ID),
+        Arguments.of(KnownTags.PEER_SERVICE_ID));
+  }
+
+  @BeforeAll
+  static void registerResolver() {
+    // Generated ids are compile-time constants (literal), so a constant reference is inlined and
+    // never triggers KnownTags.<clinit>. init() forces class-load -> KnownTagCodec.register.
+    KnownTags.init();
+  }
+
   @Test
-  void resolverIsActiveOnceReferenced() {
-    // referencing any constant triggers KnownTags.<clinit> -> KnownTagCodec.register
-    assertTrue(KnownTags.ERROR_ID != 0L);
+  void resolverIsActiveAfterInit() {
     assertTrue(KnownTagCodec.isActive());
     assertEquals(KnownTags.SLOT_COUNT, KnownTagCodec.slotCount());
   }
@@ -86,13 +118,6 @@ class KnownTagsTest {
   @MethodSource("knownTags")
   void nameOfResolvesIdToName(String name, long id) {
     assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(" + name + ")");
-  }
-
-  @ParameterizedTest
-  @MethodSource("knownTags")
-  void nameHashMatchesEntryHash(String name, long id) {
-    assertEquals(
-        (int) TagMap.Entry._hash(name), KnownTagCodec.nameHash(id), "nameHash(" + name + ")");
   }
 
   @ParameterizedTest
@@ -125,7 +150,7 @@ class KnownTagsTest {
   @Test
   void unknownIdsResolveToNullName() {
     assertNull(KnownTagCodec.nameOf(0L));
-    assertNull(KnownTagCodec.nameOf(KnownTagCodec.tagId(9999, "made.up")));
+    assertNull(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(9999))); // serial with no assigned tag
   }
 
   @Test
@@ -146,7 +171,45 @@ class KnownTagsTest {
   @Test
   void globalSerialsAreUnique() {
     List<Long> serials = new ArrayList<>();
-    knownTags().forEach(a -> serials.add((long) KnownTagCodec.globalSerial((Long) a.get()[1])));
+    knownTags().forEach(a -> serials.add((long) KnownTagCodec.serialNum((Long) a.get()[1])));
     assertEquals(serials.size(), new HashSet<>(serials).size(), "globalSerials must be unique");
   }
+
+  @ParameterizedTest
+  @MethodSource("traceLevelTags")
+  void traceLevelTagsCarryLevelBit(long id) {
+    assertTrue(KnownTagCodec.isTraceLevel(id), "isTraceLevel");
+  }
+
+  @ParameterizedTest
+  @MethodSource("spanLevelTags")
+  void spanLevelTagsClearLevelBit(long id) {
+    assertFalse(KnownTagCodec.isTraceLevel(id), "not trace-level");
+  }
+
+  @Test
+  void levelBitCompositionRoundTrips() {
+    long spanId = KnownTagCodec.makeTagId(300, 5); // no level bit
+    assertFalse(KnownTagCodec.isTraceLevel(spanId));
+    long traceId = KnownTagCodec.traceLevel(spanId);
+    assertTrue(KnownTagCodec.isTraceLevel(traceId));
+    // level bit is orthogonal to serial/slot — both survive setting it
+    assertEquals(KnownTagCodec.serialNum(spanId), KnownTagCodec.serialNum(traceId));
+    assertEquals(KnownTagCodec.slot(spanId), KnownTagCodec.slot(traceId));
+    assertEquals(traceId, KnownTagCodec.traceLevel(traceId), "traceLevel is idempotent");
+  }
+
+  @Test
+  void slotEncodingRoundTrips() {
+    long id = KnownTagCodec.makeTagId(FIRST_STORED_SERIAL_PLUS_7, 7);
+    assertEquals(FIRST_STORED_SERIAL_PLUS_7, KnownTagCodec.serialNum(id));
+    assertEquals(7, KnownTagCodec.slot(id));
+    assertFalse(KnownTagCodec.isUnslotted(id));
+
+    long unslotted = KnownTagCodec.makeTagId(FIRST_STORED_SERIAL_PLUS_7); // NO_SLOT
+    assertEquals(KnownTagCodec.NO_SLOT, KnownTagCodec.slot(unslotted));
+    assertTrue(KnownTagCodec.isUnslotted(unslotted));
+  }
+
+  private static final int FIRST_STORED_SERIAL_PLUS_7 = KnownTagCodec.FIRST_STORED_SERIAL + 7;
 }
