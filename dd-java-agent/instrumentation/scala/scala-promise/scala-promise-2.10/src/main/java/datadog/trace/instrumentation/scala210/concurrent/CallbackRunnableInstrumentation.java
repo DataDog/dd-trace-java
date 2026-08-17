@@ -44,7 +44,7 @@ public final class CallbackRunnableInstrumentation
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> ContextScope before(@Advice.This CallbackRunnable<T> task) {
-      return PromiseHelper.runActivateSpan(
+      return PromiseHelper.runWithContext(
           InstrumentationContext.get(CallbackRunnable.class, State.class).get(task));
     }
 
@@ -64,7 +64,7 @@ public final class CallbackRunnableInstrumentation
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
         state =
-            PromiseHelper.executeCaptureSpan(
+            PromiseHelper.executeCaptureContext(
                 InstrumentationContext.get(Try.class, Context.class),
                 resolved,
                 contextStore,

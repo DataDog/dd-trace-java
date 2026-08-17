@@ -78,6 +78,7 @@
 /dd-java-agent/instrumentation/snakeyaml-1.33/                  @DataDog/asm-java
 /dd-java-agent/instrumentation/velocity-1.5/                    @DataDog/asm-java
 /dd-java-agent/instrumentation/freemarker/                      @DataDog/asm-java
+/dd-java-agent/instrumentation/beanshell-2.0/                   @DataDog/asm-java
 /dd-java-agent/instrumentation/datadog/asm/                     @DataDog/asm-java
 /dd-smoke-tests/apm-tracing-disabled/                           @DataDog/asm-java
 /dd-smoke-tests/appsec/                                         @DataDog/asm-java
