@@ -22,6 +22,7 @@ excludedClassesCoverage += [
 dependencies {
   implementation libs.slf4j
   implementation project(':communication')
+  implementation project(':communication:otlp-exporter')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:logging-utils')

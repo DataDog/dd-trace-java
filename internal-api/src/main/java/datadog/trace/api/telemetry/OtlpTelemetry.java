@@ -24,6 +24,9 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   private final String[] metricsTags = tagsFor(Config.get().getOtlpMetricsProtocol());
   private final String[] logsTags = tagsFor(Config.get().getOtlpLogsProtocol());
 
+  private final String[] profilesTags = tagsFor(Config.get().getOtlpProfilesProtocol());
+  private final ExportCounters profilesExport = new ExportCounters("profiles");
+
   private final ExportCounters tracesExport = new ExportCounters("traces");
   private final ExportCounters metricsExport = new ExportCounters("metrics");
   private final LongAdder logRecords = new LongAdder();
@@ -44,8 +47,16 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     metricsExport.attempts.increment();
   }
 
+  public void onProfilesExportAttempt() {
+    profilesExport.attempts.increment();
+  }
+
   public void onMetricsExportComplete(boolean success) {
     metricsExport.complete(success);
+  }
+
+  public void onProfilesExportComplete(boolean success) {
+    profilesExport.complete(success);
   }
 
   public void onLogRecordsSubmitted(long count) {
@@ -64,6 +75,7 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   public void prepareMetrics() {
     tracesExport.stageInto(telemetryQueue, tracesTags);
     metricsExport.stageInto(telemetryQueue, metricsTags);
+    profilesExport.stageInto(telemetryQueue, profilesTags);
     long logRecordCount = logRecords.sumThenReset();
     if (logRecordCount > 0) {
       telemetryQueue.offer(new OtlpMetric("otel.log_records", logRecordCount, logsTags));
