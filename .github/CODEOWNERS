@@ -2,8 +2,35 @@
 # https://help.github.com/en/articles/about-code-owners
 
 # Default owners, overridden by file/directory specific owners below
-* @DataDog/apm-java
+* @DataDog/apm-lang-platform-java
 
+# Shared tooling
+/.agents/                     @DataDog/dd-trace-java
+/.claude/                     @DataDog/dd-trace-java
+/.githooks/                   @DataDog/dd-trace-java
+/.mvn/                        @DataDog/dd-trace-java
+/dd-java-agent/               @DataDog/dd-trace-java
+/dd-smoke-tests/              @DataDog/dd-trace-java
+/docs/                        @DataDog/dd-trace-java
+/gradle/                      @DataDog/dd-trace-java
+/tooling/                     @DataDog/dd-trace-java
+/gradle.lockfile              @DataDog/dd-trace-java
+/gradle.properties            @DataDog/dd-trace-java
+/gradlew                      @DataDog/dd-trace-java
+/gradlew.bat                  @DataDog/dd-trace-java
+/mvnw                         @DataDog/dd-trace-java
+/mvnw.cmd                     @DataDog/dd-trace-java
+/settings-gradle.lockfile     @DataDog/dd-trace-java
+/settings.gradle.kts          @DataDog/dd-trace-java
+/static-analysis.datadog.yml  @DataDog/dd-trace-java
+
+# Shared modules
+/communication/     @DataDog/dd-trace-java
+/dd-trace-api/      @DataDog/dd-trace-java
+/dd-trace-core/     @DataDog/dd-trace-java
+/internal-api/      @DataDog/dd-trace-java
+/products/metrics/  @DataDog/dd-trace-java
+/utils/             @DataDog/dd-trace-java
 
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
@@ -33,30 +60,31 @@
 /dd-smoke-tests/sample-trace                                    @DataDog/apm-sdk-capabilities-java
 /dd-smoke-tests/tracer-flare                                    @DataDog/apm-sdk-capabilities-java
 /dd-trace-core/src/main/java/datadog/trace/core/baggage         @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/test/groovy/datadog/trace/core/baggage       @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/test/*/datadog/trace/core/baggage            @DataDog/apm-sdk-capabilities-java
 /dd-trace-core/src/main/java/datadog/trace/core/propagation     @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/test/groovy/datadog/trace/core/propagation   @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/test/*/datadog/trace/core/propagation        @DataDog/apm-sdk-capabilities-java
 /dd-trace-core/src/main/java/datadog/trace/core/scopemanager    @DataDog/apm-sdk-capabilities-java
-/dd-trace-core/src/test/groovy/datadog/trace/core/scopemanager  @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/test/*/datadog/trace/core/scopemanager       @DataDog/apm-sdk-capabilities-java
 /dd-trace-ot/                                                   @DataDog/apm-sdk-capabilities-java
 /internal-api/src/main/java/datadog/trace/bootstrap             @DataDog/apm-sdk-capabilities-java
-/internal-api/src/test/groovy/datadog/trace/bootstrap           @DataDog/apm-sdk-capabilities-java
+/internal-api/src/test/*/datadog/trace/bootstrap                @DataDog/apm-sdk-capabilities-java
 /internal-api/src/main/java/datadog/trace/api/sampling          @DataDog/apm-sdk-capabilities-java
-/internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-capabilities-java
+/internal-api/src/test/*/datadog/trace/api/sampling             @DataDog/apm-sdk-capabilities-java
 
 # @DataDog/apm-serverless
 /dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
 /dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
 /dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
 /dd-trace-core/src/main/java/datadog/trace/lambda/                      @DataDog/apm-serverless
-/dd-trace-core/src/test/groovy/datadog/trace/lambda/                    @DataDog/apm-serverless
+/dd-trace-core/src/test/*/datadog/trace/lambda/                         @DataDog/apm-serverless
 /utils/container-utils/                                                 @DataDog/apm-serverless
 **/InferredProxy*.java                                                  @DataDog/apm-serverless
 **/InferredProxy*.groovy                                                @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
 /.github/                               @DataDog/apm-lang-platform-java
-/benchmark/                             @DataDog/apm-lang-platform-java
+/build-logic/                           @DataDog/apm-lang-platform-java
+/buildSrc/                              @DataDog/apm-lang-platform-java
 /components/                            @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/java/    @DataDog/apm-lang-platform-java
 /dd-smoke-tests/concurrent/             @DataDog/apm-lang-platform-java
@@ -65,10 +93,18 @@
 /remote-config/                         @DataDog/apm-lang-platform-java
 /telemetry/                             @DataDog/apm-lang-platform-java
 /test-published-dependencies/           @DataDog/apm-lang-platform-java
+/build.gradle.kts                       @DataDog/apm-lang-platform-java
+/gradle/java_no_deps.gradle             @DataDog/apm-lang-platform-java
+/gradle/wrapper/                        @DataDog/apm-lang-platform-java
 /repository.datadog.yaml                @DataDog/apm-lang-platform-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
+/buildSrc/src/main/kotlin/datadog/gradle/plugin/sca/            @DataDog/asm-java
+/buildSrc/src/main/kotlin/datadog/gradle/sca/                   @DataDog/asm-java
+/buildSrc/src/test/kotlin/datadog/gradle/plugin/sca/            @DataDog/asm-java
+/buildSrc/src/test/kotlin/datadog/gradle/sca/                   @DataDog/asm-java
+/buildSrc/src/test/resources/sca/                               @DataDog/asm-java
 /dd-java-agent/agent-aiguard/                                   @DataDog/asm-java
 /dd-java-agent/agent-iast/                                      @DataDog/asm-java
 /dd-java-agent/appsec/appsec-test-fixtures/                     @DataDog/asm-java
@@ -134,17 +170,16 @@
 /dd-smoke-tests/debugger-integration-tests/                     @DataDog/debugger-java
 /internal-api/src/main/java/datadog/trace/api/debugger/         @DataDog/debugger-java
 
-
 # @DataDog/data-observability
 /dd-java-agent/instrumentation/spark/           @DataDog/data-observability
 
 # @DataDog/data-streams-monitoring
 /dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/datastreams @DataDog/data-streams-monitoring
 /dd-trace-core/src/main/java/datadog/trace/core/datastreams                                 @DataDog/data-streams-monitoring
-/dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                               @DataDog/data-streams-monitoring
+/dd-trace-core/src/test/*/datadog/trace/core/datastreams                                    @DataDog/data-streams-monitoring
 /internal-api/src/main/java/datadog/trace/api/datastreams                                   @DataDog/data-streams-monitoring
 /dd-smoke-tests/datastreams/                                                                @DataDog/data-streams-monitoring
-/internal-api/src/test/groovy/datadog/trace/api/datastreams                                 @DataDog/data-streams-monitoring
+/internal-api/src/test/*/datadog/trace/api/datastreams                                      @DataDog/data-streams-monitoring
 **/datastreams/                                                                             @DataDog/data-streams-monitoring
 **/DataStreams*                                                                             @DataDog/data-streams-monitoring
 **/dsmTest/**                                                                               @DataDog/data-streams-monitoring
@@ -170,6 +205,7 @@
 /products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java
+/dd-java-agent/ddprof-lib/                                                                  @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
 /dd-java-agent/instrumentation/datadog/profiling/                                           @DataDog/profiling-java
@@ -187,15 +223,15 @@
 /dd-trace-api/src/main/java/datadog/trace/api/llmobs/ @DataDog/ml-observability
 /dd-java-agent/agent-llmobs/                          @DataDog/ml-observability
 /dd-trace-core/src/main/java/datadog/trace/llmobs/    @DataDog/ml-observability
-/dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
+/dd-trace-core/src/test/*/datadog/trace/llmobs/       @DataDog/ml-observability
 
 # @DataDog/database-monitoring
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/dbm/   @DataDog/database-monitoring @DataDog/apm-idm-java
-/dd-java-agent/agent-bootstrap/src/test/groovy/datadog/trace/bootstrap/instrumentation/dbm/ @DataDog/database-monitoring @DataDog/apm-idm-java
+/dd-java-agent/agent-bootstrap/src/test/*/datadog/trace/bootstrap/instrumentation/dbm/      @DataDog/database-monitoring @DataDog/apm-idm-java
 
 # @DataDog/rum
 /internal-api/src/main/java/datadog/trace/api/rum/   @DataDog/rum
-/internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/rum
+/internal-api/src/test/*/datadog/trace/api/rum/      @DataDog/rum
 /dd-smoke-tests/rum/                                 @DataDog/rum
 /telemetry/src/main/java/datadog/telemetry/rum/      @DataDog/rum
-/telemetry/src/test/groovy/datadog/telemetry/rum/    @DataDog/rum
+/telemetry/src/test/*/datadog/telemetry/rum/         @DataDog/rum
