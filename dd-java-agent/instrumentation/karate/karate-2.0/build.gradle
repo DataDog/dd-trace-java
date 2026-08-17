@@ -1,0 +1,52 @@
+plugins {
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+// Karate 2.x is compiled with Java 21 (uses virtual threads for parallelism)
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_21)
+}
+
+muzzle {
+  pass {
+    group = 'io.karatelabs'
+    module = 'karate-core'
+    versions = '[2.0.0,)'
+    javaVersion = '21'
+  }
+}
+
+["compileMain_java21Java", "compileTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 21, JavaVersion.VERSION_21)
+  }
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 21)
+}
+
+dependencies {
+  main_java21CompileOnly group: 'io.karatelabs', name: 'karate-core', version: '2.0.9'
+
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
+
+  testImplementation(group: 'io.karatelabs', name: 'karate-core', version: '2.0.9') {
+    // excluding logback to avoid conflicts with libs.bundles.test.logging
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
+  }
+}
+
+// Using recommended Karate project layout where Karate feature files sit in same /test/java folders as their java counterparts
+sourceSets {
+  test {
+    resources {
+      srcDir file('src/test/java')
+      exclude '**/*.java'
+    }
+  }
+}

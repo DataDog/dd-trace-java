@@ -1,7 +1,7 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
-  id 'me.champeau.jmh'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -71,5 +71,10 @@ tasks.withType(Test).configureEach {
     it,
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    )
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_11,
+    ['--add-opens', 'jdk.jfr/jdk.jfr.events=ALL-UNNAMED'] // for JfrEventHolderInitForkedTest
     )
 }

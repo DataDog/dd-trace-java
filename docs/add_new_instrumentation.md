@@ -306,17 +306,14 @@ public static class GoogleHttpClientAdvice {
             @Advice.Local("inherited") boolean inheritedScope,
             @Advice.Return final HttpResponse response,
             @Advice.Thrown final Throwable throwable) {
-        try {
-            AgentSpan span = scope.span();
-            DECORATE.onError(span, throwable);
-            DECORATE.onResponse(span, response);
-            DECORATE.beforeFinish(span);
-            span.finish();
-        } finally {
-            if (!inheritedScope) {
-                scope.close();
-            }
+        AgentSpan span = scope.span();
+        DECORATE.onError(span, throwable);
+        DECORATE.onResponse(span, response);
+        DECORATE.beforeFinish(span);
+        if (!inheritedScope) {
+            scope.close();
         }
+        span.finish();
     }
 }
 ```
@@ -342,7 +339,7 @@ public static class ContextTrackingAdvice {
         parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
         scope.close();
     }

@@ -197,6 +197,10 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       Snapshot snapshot, StackTraceElement[] innerTrace, int currentIdx) {
     String className = snapshot.getProbe().getLocation().getType();
     String methodName = snapshot.getProbe().getLocation().getMethod();
+    if (innerTrace.length == 0) {
+      LOGGER.debug("innerTrace is empty");
+      return false;
+    }
     if (currentIdx < 0 || currentIdx >= innerTrace.length) {
       LOGGER.warn(
           "currentIdx={} out of bounds of innerTrace array length={}",

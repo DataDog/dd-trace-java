@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -25,7 +24,6 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.TestSnapshotListener;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -57,7 +55,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
 
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
@@ -134,13 +135,8 @@ public class DebuggerTransformerTest {
     DebuggerContext.initProbeResolver(null);
   }
 
-  private static void assumeNotJdk27() {
-    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
-  }
-
   @Test
   public void testDump() {
-    assumeNotJdk27();
     Config config = createConfig();
     Path initialTmpDir = DebuggerTransformer.DUMP_PATH;
     DebuggerTransformer.DUMP_PATH = Paths.get("/tmp/debugger");
@@ -178,7 +174,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void testMultiProbes() {
-    assumeNotJdk27();
     doTestMultiProbes(
         Class::getName,
         new ProbeTestInfo(ArrayList.class, "add"),
@@ -187,7 +182,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void testMultiProbesSimpleName() {
-    assumeNotJdk27();
     doTestMultiProbes(
         Class::getSimpleName,
         new ProbeTestInfo(ArrayList.class, "add"),
@@ -282,7 +276,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void classBeingRedefinedNull() {
-    assumeNotJdk27();
     Config config = createConfig();
     LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId("", 0).build();
     Configuration configuration =
@@ -315,7 +308,6 @@ public class DebuggerTransformerTest {
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9: Flaky")
   public void classGenerationFailed() {
-    assumeNotJdk27();
     Config config = createConfig();
     final String CLASS_NAME = ArrayList.class.getTypeName();
     final String METHOD_NAME = "add";
@@ -361,7 +353,7 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
     assertTrue(
         strCaptor
             .getAllValues()
@@ -369,7 +361,7 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
     assertTrue(
         strCaptor
             .getAllValues()
@@ -377,12 +369,11 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
   }
 
   @Test
   public void ordering() {
-    assumeNotJdk27();
     Config config = createConfig();
     List<ProbeDefinition> invocationOrder = new ArrayList<>();
     MetricProbe metricProbe = createMock(MetricProbe.class, invocationOrder, "metric");
@@ -455,11 +446,19 @@ public class DebuggerTransformerTest {
     @Override
     public InstrumentationResult.Status instrument(
         MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
-      methodInfo
-          .getMethodNode()
-          .instructions
-          .insert(
-              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
+      // Build a single TABLESWITCH with enough case entries (4 bytes each) to push the
+      // method's bytecode past the 65535-byte limit, while keeping the ASM tree
+      // instruction *count* tiny so that dataflow analysis (computeFrames) stays cheap
+      // and succeeds; the failure should only manifest when ASM serializes the method.
+      LabelNode target = new LabelNode();
+      int high = 20_000;
+      LabelNode[] labels = new LabelNode[high + 1];
+      Arrays.fill(labels, target);
+      InsnList list = new InsnList();
+      list.add(new InsnNode(Opcodes.ICONST_0));
+      list.add(new TableSwitchInsnNode(0, high, target, labels));
+      list.add(target);
+      methodInfo.getMethodNode().instructions.insert(list);
       return InstrumentationResult.Status.INSTALLED;
     }
 

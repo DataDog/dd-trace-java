@@ -5,6 +5,11 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/publish.gradle")
 
+configure<datadog.gradle.plugin.jardiff.JardiffExtension> {
+  // jar is not cacheable, and may differ
+  ignoreHashCheck = true
+}
+
 extra["minimumBranchCoverage"] = 0.8
 
 // These are tested outside of this module since this module mainly just defines 'API'

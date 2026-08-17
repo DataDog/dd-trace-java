@@ -24,6 +24,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark32')
+addTestSuiteForDir('test_spark4', 'test')
 
 testJvmConstraints {
   // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
@@ -53,6 +54,10 @@ dependencies {
   test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
 
+  test_spark4Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "4.0.0"
+  test_spark4Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "4.0.0"
+  test_spark4Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "4.0.0"
+
   // FIXME: Currently not working on Spark 4.0.0 preview releases.
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '3.+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '3.+'
@@ -61,4 +66,51 @@ dependencies {
 
 tasks.named("test", Test) {
   dependsOn "test_spark32"
+  dependsOn "test_spark4"
+}
+
+tasks.named("test_spark4", Test) {
+  testJvmConstraints {
+    // Override the module-wide maxJavaVersion = 11 cap (set above for the Spark 3.2 test JVM
+    // constraints) since Spark 4.0.0 requires JDK 17+.
+    minJavaVersion = JavaVersion.VERSION_17
+    // Hadoop's UserGroupInformation calls javax.security.auth.Subject.getSubject(), which
+    // throws UnsupportedOperationException once the SecurityManager is fully removed in JDK 24+
+    // (JEP 486).
+    maxJavaVersion = JavaVersion.VERSION_23
+  }
+
+  // Spark itself only opens these modules when launched through its own scripts
+  // (org.apache.spark.launcher.JavaModuleOptions); since this suite starts a SparkSession
+  // directly in-process, mirror that same list so Spark's own reflective access (Kryo shuffle
+  // serializers, Tungsten unsafe memory, Hadoop UGI, etc.) doesn't fail under JDK 16+ module encapsulation.
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    [
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens=java.base/java.io=ALL-UNNAMED",
+      "--add-opens=java.base/java.net=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+      "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+      "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+      "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED"
+    ]
+    )
+}
+
+// Spark 4.0.0 transitively pulls a newer protobuf-java that's binary-incompatible with the
+// pre-generated com.datadoghq.sketch.ddsketch.proto.DDSketch classes used by the test fixtures.
+['test_spark4CompileClasspath', 'test_spark4RuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.protobuf:protobuf-java:3.14.0'
+  }
 }

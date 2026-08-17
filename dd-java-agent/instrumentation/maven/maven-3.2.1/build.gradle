@@ -26,8 +26,9 @@ dependencies {
 
   // Maven 4 requires Java 17: https://datadoghq.atlassian.net/browse/AIDM-159
   latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '3.+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '2.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-apache', version: '2.+'
+  latestDepTestRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: '1.3.+'
   latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
   // Fix issue "No implementation for RepositorySystem was bound while locating DefaultProjectBuildingHelper"
   // See: https://issues.apache.org/jira/browse/MNG-6561
@@ -40,4 +41,9 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.sisu', name: 'org.eclipse.sisu.inject', version: '0.9.0.M2'
   latestDepTestImplementation group: 'org.codehaus.plexus', name: 'plexus-xml', version: '4.0.1'
   latestDepTestImplementation group: 'org.eclipse.sisu', name: 'org.eclipse.sisu.plexus', version: '0.9.0.M2'
+}
+
+// latestDepTest inherits the Resolver 1.x HTTP transport from testImplementation.
+configurations.latestDepTestImplementation {
+  exclude group: 'org.apache.maven.resolver', module: 'maven-resolver-transport-http'
 }

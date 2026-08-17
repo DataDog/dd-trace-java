@@ -131,7 +131,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
       scope.close();
     }
@@ -151,7 +151,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
       final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
 
       final Context context = DECORATE.startSpan(req, parentContext);
       serverScope = context.attach();
@@ -165,7 +165,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
       serverScope.close();
     }

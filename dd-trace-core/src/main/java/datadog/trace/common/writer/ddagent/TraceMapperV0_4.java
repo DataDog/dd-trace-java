@@ -359,7 +359,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
+          i == 0);
       if (!metaStruct.isEmpty()) {
         /* 13 */
         metaStructWriter.withWritable(writable).write(metaStruct);

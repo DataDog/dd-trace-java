@@ -7,7 +7,7 @@ import datadog.metrics.impl.DDSketchHistograms;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;

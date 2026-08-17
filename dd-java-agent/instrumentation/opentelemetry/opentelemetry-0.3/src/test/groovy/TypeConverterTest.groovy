@@ -9,7 +9,6 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentelemetry.TypeConverter
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
 
@@ -37,12 +36,6 @@ class TypeConverterTest extends InstrumentationSpecification {
     def noopContext = noopSpanContext()
     expect:
     typeConverter.toSpanContext(noopContext) is typeConverter.toSpanContext(noopContext)
-  }
-
-  def "should avoid the noop scope wrapper allocation"() {
-    def noopScope = noopScope()
-    expect:
-    typeConverter.toScope(noopScope) is typeConverter.toScope(noopScope)
   }
 
   def createTestSpanContext() {

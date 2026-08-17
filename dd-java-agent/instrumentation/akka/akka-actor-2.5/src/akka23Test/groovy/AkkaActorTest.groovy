@@ -1,10 +1,12 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 class AkkaActorTest extends InstrumentationSpecification {
   @Shared
+  @AutoCleanup
   def akkaTester = new AkkaActors()
 
   def "akka actor send #name #iterations"() {
@@ -84,7 +86,7 @@ class AkkaActorTest extends InstrumentationSpecification {
   }
 }
 
-class AkkaActorContextSwapTest extends AkkaActorTest {
+class AkkaActorContextSwapForkedTest extends AkkaActorTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

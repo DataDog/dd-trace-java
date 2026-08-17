@@ -75,7 +75,7 @@ public class RecordsAdvice {
     if (!(throwable instanceof WakeupException)) {
       span.addThrowable(throwable);
     }
-    span.finish();
     scope.close();
+    span.finish();
   }
 }

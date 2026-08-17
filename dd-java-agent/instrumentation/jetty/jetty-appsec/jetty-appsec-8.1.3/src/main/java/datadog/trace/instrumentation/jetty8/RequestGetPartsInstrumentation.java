@@ -137,7 +137,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
           && CallDepthThreadLocalMap.getCallDepth(Part.class) == 0;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<?> parts,
@@ -178,7 +178,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
           && multiPartInputStream == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Part part,

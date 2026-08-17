@@ -55,8 +55,102 @@ When a boundary type exposes multiple overloads of the subscribe / invoke method
 
 **Reference:** dd-trace-java's `rxjava-2.0` module hooks the single-argument `subscribe(...)` method (matcher: `named("subscribe").and(takesArguments(1))`) with the argument typed as the base callback interface (e.g. `Observer` for `Observable`, `Subscriber` for `Flowable`). Read the module source to see the exact matcher — pattern-match on this rather than copying overload names.
 
+## Library-native context maps — the `*ContextBridge` pattern
+
+Some Reactive-Streams libraries expose their own request-scoped context map that users write to explicitly — Reactor's `reactor.util.context.Context` (immutable per-subscription map) is the canonical example; users pass a span via `.contextWrite(ctx -> ctx.put("dd.span", span))`.
+
+When a library has a first-class context-map concept like this, the observer/subscriber wrapping pattern documented above is **not sufficient by itself** — it only handles the "capture the currently-active trace context at subscribe time" case. It does NOT handle the case where a user has placed a span in the library's own context map and expects that span to propagate through the operator chain.
+
+**A context-tracking module for such a library MUST include a `*ContextBridge`-style helper** that:
+
+1. Reads a well-known key (Datadog convention: `"dd.span"`) from the library-native context.
+2. Adapts the retrieved object (which implements `WithAgentSpan` or is an `AgentSpan`) into a `datadog.context.Context`.
+3. Stores that context in the toolkit-native `ContextStore`. For Reactor specifically, master keys **both** `Publisher` (via `HandoffContext`, for the explicit `dd.span` bridge — read by the blocking/subscribe advices before a subscriber may exist) **and** `Subscriber` (via `Context`, for the wrapping pattern) — these are complementary, not alternatives. Read the target library's own context-propagation surface before assuming Reactor's keying scheme transfers directly; a library with a different context/lifecycle shape (e.g. one that carries context via a thread-local element rather than a per-subscription map) needs its own keying, not a forced `Publisher`/`Subscriber` pair.
+4. Activates the stored context at the right lifecycle boundaries: on subscribe, on signal delivery, on blocking, and on internal subscriber handoff (e.g. Reactor's fused-operator path).
+
+**Reference:** `dd-java-agent/instrumentation/reactor-core-3.1/` — master has `ReactorContextBridge.java` plus four supporting instrumentations that hook the specific lifecycle points: `BlockingPublisherInstrumentation` (for `.block()` / `.blockFirst()` / `.blockLast()` on the calling thread), `ContextWritingSubscriberInstrumentation` (for `.contextWrite(...)` subscribers at subscribe time), `CorePublisherInstrumentation` (for the base publisher interface handing off to downstream subscribers), and `OptimizableOperatorInstrumentation` (for Reactor's internal fused-operator optimization path). Regenerating this module without preserving these classes silently breaks downstream libraries — Spring WebFlux, Spring Kafka reactive `@KafkaListener suspend fun`, resilience4j-reactor, reactor-netty — that rely on the `dd.span` propagation path.
+
+**How to detect the pattern in an unfamiliar library:** search the library's public API for a `Context` type with `put`/`get`/`hasKey` methods that user code can write to (as opposed to a Datadog-internal context). If such a type exists, the library has a native context map and needs a `*ContextBridge` helper. If the library instead carries context via a thread-local mechanism (e.g. Kotlin coroutines' `ThreadContextElement`) or a per-request object already used for span ownership elsewhere in the codebase (e.g. Vert.x web's `RoutingContext`), follow that library's existing pattern instead of introducing a `ContextStore`-backed bridge — read the sibling instrumentation module for that library first.
+
+**Editing an existing reactive module:** account for every `*Instrumentation.java` class already present, including the `*ContextBridge` helper — don't drop it in favor of the subscriber-wrapping pattern alone. A dropped bridge silently breaks any sibling module that depends on it (see `instrumenter-module.md`).
+
+## Wrap placement and context-store lifecycle — memory considerations
+
+Context-tracking instrumentations allocate two kinds of long-lived state that add up on hot reactive paths:
+
+- **Wrapper instances** — one `TracingObserver`/`TracingSubscriber`/etc. per subscribe call.
+- **Context-store entries** — one `ContextStore.put(subscriber, context)` per subscribe call, held until the subscription completes/cancels.
+
+Place both at the narrowest scope that preserves correctness:
+
+- **Wrap only at chain boundaries** — subscribe, `.contextWrite(...)`, `.block()` — not at every internal operator. Operator-level wrapping causes N-fold allocations for an N-operator chain and does not add propagation coverage that boundary wrapping doesn't already provide.
+- **Prefer subscriber-lifecycle context stores when the store's only purpose is the wrapping pattern** — the store should drop entries when the subscription completes or cancels. `ContextStore` implementations in dd-trace-java use field injection on the key instance when possible (the common fast path), or a weak-map fallback when field injection is unavailable. Prefer a key with a bounded lifetime — the subscriber (scoped to one subscription) — over the publisher (which may be shared and long-lived across many subscriptions), **unless the library-native context map requires a publisher-keyed store for its own reasons** (e.g. Reactor's `Publisher → HandoffContext` bridge is read before a subscriber exists — see "Library-native context maps" above; that store is not a candidate for this optimization).
+- **Avoid double-wrapping** — when a downstream operator already carries the context via the library-native context map (e.g., Reactor's `Context` flows through the whole operator chain by construction), do not add a per-operator wrap on top.
+
+**Why this matters:** a 10-operator Reactor chain with per-operator wrapping allocates 10× the wrappers of a boundary-only implementation, and every allocation must be reclaimed when the subscription completes. In steady-state reactive services, that's the difference between context-tracking being invisible in profiling and being a measurable overhead.
+
 ## When NOT to write a context-tracking instrumentation
 
 If the library DOES perform I/O — sends HTTP requests, runs DB queries, makes RPC calls, talks to a broker, reads/writes a cache — write a **span-creating instrumentation** (`InstrumenterModule.Tracing`) instead. Context-tracking is only for libraries that coordinate work; the moment there's actual I/O to observe, you want spans around it.
 
 Hybrid libraries that BOTH coordinate work AND perform I/O usually get one span-creating instrumentation for the I/O path and (optionally) one context-tracking instrumentation for the coordination path. `lettuce-5.0` is an example: there is a span-creating instrumentation for Redis commands and a separate context-tracking instrumentation for the async command queue.
+
+## Preserving cancellation on `CompletableFuture` / `CompletionStage` returns
+
+When advice attaches a completion callback to a `CompletableFuture` returned from an async client, do NOT reassign the return with `future = future.whenComplete(...)`. `whenComplete` produces a **dependent stage**; cancelling that stage does not cancel the original request. The caller's `future.cancel(true)` then only cancels the dependent stage and leaves the underlying I/O running.
+
+The correct pattern attaches the callback for side-effects only, without reassigning the return — so `@Advice.Return` does NOT need `readOnly = false`. It also declares `onThrowable = Throwable.class` so the exit runs even when the instrumented method throws before returning its future (otherwise ByteBuddy skips exit advice on thrown paths and any span/scope started on enter leaks). And per the "no lambdas in advice methods" rule in `advice-class.md`, the completion callback must be a named helper class, not a lambda — lambdas compile to synthetic classes that muzzle does not helper-inject and ByteBuddy cannot resolve at the instrumentation site.
+
+```java
+// WRONG — three issues in one:
+//   (a) reassigning `future = ...` severs cancellation from the caller
+//   (b) unnecessary readOnly = false
+//   (c) lambda body compiles to a synthetic class that isn't helper-injected
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return(readOnly = false) CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span) {
+  future = future.whenComplete((result, error) -> finishSpan(span, result, error));
+}
+
+// CORRECT — attach a named callback for its side-effect; keep the return read-only;
+// run on both normal and throwable exit so the caller-thrown case still cleans up.
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Return CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span,
+                        @Advice.Thrown Throwable thrown) {
+  if (thrown != null) {
+    // The instrumented method threw before returning a future — no future to attach to.
+    // Finish the span here directly.
+    ClientCompletionCallback.finishOnThrow(span, thrown);
+    return;
+  }
+  if (future != null) {
+    future.whenComplete(new ClientCompletionCallback(span));
+  }
+}
+```
+
+where `ClientCompletionCallback` is a named `BiConsumer<Response, Throwable>` in a separate helper file listed in `helperClassNames()`:
+
+```java
+public final class ClientCompletionCallback implements BiConsumer<Response, Throwable> {
+  private final AgentSpan span;
+
+  public ClientCompletionCallback(AgentSpan span) {
+    this.span = span;
+  }
+
+  @Override
+  public void accept(Response result, Throwable error) {
+    // finish the span with the observed outcome
+  }
+
+  public static void finishOnThrow(AgentSpan span, Throwable thrown) {
+    // handle the enter-but-no-future case
+  }
+}
+```
+
+Only add `readOnly = false` if you have a documented reason to substitute the return value. If your goal is just to observe completion, the read-only + named-callback pattern is safer (preserves cancellation), obeys the no-lambdas-in-advice rule, and handles the thrown-before-return case.
+
+If the wrapper genuinely needs to return a different `CompletionStage` (rare), forward `cancel(...)` to the original future explicitly.

@@ -58,7 +58,7 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
   }
 
   public static class JobEndAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.This final JobPool self,
         @Advice.Argument(value = 0) ProcessContext processContext,

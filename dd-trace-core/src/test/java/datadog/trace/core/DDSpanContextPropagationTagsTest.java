@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
+import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.tabletest.junit.TableTest;
