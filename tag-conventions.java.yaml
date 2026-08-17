@@ -1,0 +1,36 @@
+# dd-trace-java overlay — impl hints + special-tag registry.
+# Consumed alongside the language-agnostic tag-conventions.yaml. Keyed by tag name
+# (these are tag-intrinsic, not per-type). Only exceptions are listed.
+# ---------------------------------------------------------------------------
+# NOTE: the id coordinate (group-decl / field-decl) is NOT here — the generator assigns it from the
+# declaration groups; the dense-vs-bucket split derives from the domain `required` level.
+
+# Tags whose set-path is handled by the Java TagInterceptor (side-effecting, but still stored).
+# Generated ids carry the intercepted flag (bit 63).
+intercepted:
+  - span.kind
+  - http.method
+  - http.url
+  - servlet.context
+  - db.statement
+  - peer.service
+
+# Reserved / special keys: accepted by the public setTag(...) API but ROUTED to a span field or a
+# trace directive instead of tag storage. Reserved-tier ids (serial < FIRST_STORED_SERIAL, no slot).
+# "Reserved" names the shared mechanism (the tracer reserves the key and handles it); the two kinds
+# split on whether a value exists: structural has one (in a span/trace field), directive has none.
+# The generated id->handler dispatch table is the data-driven replacement for the imperative
+# TagInterceptor chain.
+#   kind: structural  -> sets a span/trace field (`field:` names it)
+#   kind: directive   -> triggers sampling/trace behavior
+reserved:
+  - { tag: error,            kind: structural, field: error }
+  - { tag: service,          kind: structural, field: service,  aliases: [service.name] }
+  - { tag: resource.name,    kind: structural, field: resource }
+  - { tag: span.type,        kind: structural, field: type }
+  - { tag: origin,           kind: structural, field: origin }        # trace-level field
+  - { tag: sampling.priority,     kind: directive }
+  - { tag: manual.keep,           kind: directive }
+  - { tag: manual.drop,           kind: directive }
+  - { tag: measured,              kind: directive }
+  - { tag: analytics.sample_rate, kind: directive }   # legacy
