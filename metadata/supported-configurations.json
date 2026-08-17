@@ -713,6 +713,14 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_GRADLE_SOURCESETS": [
       {
         "version": "A",
@@ -1572,6 +1580,14 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3225,6 +3241,22 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "524288",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -4110,6 +4142,14 @@
         "version": "A",
         "type": "decimal",
         "default": "10.0",
+        "aliases": []
+      }
+    ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -5023,6 +5063,14 @@
         "type": "array",
         "default": "[\"user.id\", \"session.id\", \"account.id\"]",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_BEANSHELL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
       }
     ],
     "DD_TRACE_CAFFEINE_ENABLED": [
