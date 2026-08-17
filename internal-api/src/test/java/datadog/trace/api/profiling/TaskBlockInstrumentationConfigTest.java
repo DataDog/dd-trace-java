@@ -83,7 +83,7 @@ class TaskBlockInstrumentationConfigTest {
   void asyncAliasesRemainSupported() {
     Properties properties = new Properties();
     properties.setProperty("profiling.async.wall.enabled", "true");
-    properties.setProperty("profiling.async.wall.precheck", "true");
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_PRECHECK, "true");
     properties.setProperty("profiling.async.wall.context.filter", "false");
 
     assertTrue(

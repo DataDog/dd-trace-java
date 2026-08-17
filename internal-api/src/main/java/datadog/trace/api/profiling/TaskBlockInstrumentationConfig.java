@@ -18,10 +18,8 @@ public final class TaskBlockInstrumentationConfig {
   private TaskBlockInstrumentationConfig() {}
 
   public static boolean isWallPrecheckEnabled(final ConfigProvider configProvider) {
-    return getDdprofBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_WALL_PRECHECK,
-        PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
+    return configProvider.getBoolean(
+        PROFILING_DATADOG_PROFILER_WALL_PRECHECK, PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
   }
 
   /** Returns whether the effective wall-clock configuration samples all threads. */
