@@ -1052,6 +1052,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private Object[] knownValues;
   private int knownCount;
 
+  /**
+   * Single-tier presence filter over the dense store — the fast path that lets a definitely-absent
+   * known tag append in O(1) instead of paying the {@link #knownIndexOf} scan (the common per-build
+   * insert). Each tag's id carries a globally stable {@code slot} from graph coloring (see {@link
+   * KnownTagCodec}); a tag is present ONLY IF its slot bit is set in {@link #knownOccupancy}. A
+   * clear bit ⟹ definitely absent ⟹ skip the scan.
+   *
+   * <p>Because co-occurring tags always get distinct slots (they form a clique in the coloring),
+   * slotCount is bounded by the largest clique (≤ 64) and every present tag of a well-formed map
+   * has its own bit — so one {@code long} is the whole filter, collapsing the earlier two-tier
+   * (group mask + field bloom) design to a single word. Disjoint occupancy across two maps ({@code
+   * (a.knownOccupancy & b.knownOccupancy) == 0}) proves nothing shadows across them, which the
+   * read-through shadow check exploits (see {@link #parentDenseVisible}).
+   *
+   * <p>Superset semantics: bits are set on every add and NEVER cleared on remove (a stale bit only
+   * costs a scan, never a wrong answer), so correctness never depends on the slot→bit collision
+   * rate — only the fast-path hit rate does. Unslotted stored tags ({@link KnownTagCodec#NO_SLOT})
+   * all fold onto one shared bit ({@code slot & 63}); the scan stays authoritative for them.
+   */
+  private long knownOccupancy;
+
+  /**
+   * Whether this map holds any trace-level known tag ({@link KnownTagCodec#isTraceLevel}). Trace
+   * and span tags reuse the same slots, so {@link #knownOccupancy} can't tell the two levels apart;
+   * this flag can. A span map leaves it {@code false}, which lets {@link #parentDenseVisible} skip
+   * the shadow check when enumerating a trace-level ancestor entry — a map with no trace-level tags
+   * cannot shadow one. Superset semantics like the occupancy mask: set on add, never cleared on
+   * remove (a stale {@code true} only costs a scan, never a wrong answer).
+   */
+  private boolean knownTraceLevel;
+
   private static final int KNOWN_INIT_CAP =
       12; // generous per-type max stopgap; exact per-type sizing comes with the tag registry
 
@@ -1393,26 +1424,53 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * Presence bit for {@code tagId}: {@code 1L << slot}. Colored slots are &lt; 64; unslotted stored
+   * tags ({@link KnownTagCodec#NO_SLOT}) fold onto one shared bit via {@code slot & 63} — crude for
+   * them, but the scan stays authoritative.
+   */
+  private static long knownSlotBit(long tagId) {
+    return 1L << (KnownTagCodec.slot(tagId) & 63);
+  }
+
+  /**
+   * Whether {@code tagId} MAY be present in the dense store (its slot bit is set), vs DEFINITELY
+   * absent (the bit is clear ⟹ skip the scan).
+   */
+  private boolean knownMaybePresent(long tagId) {
+    return (this.knownOccupancy & knownSlotBit(tagId)) != 0;
+  }
+
+  /**
    * Stores a known tag's value densely (no {@link Entry} alloc). Overwrites in place when present
    * (returning the prior value materialized as an Entry, per the {@code Map} contract — usually
-   * discarded by {@code set}); otherwise appends, growing x2 as needed.
+   * discarded by {@code set}); otherwise appends, growing x2 as needed. The occupancy presence
+   * filter skips the {@link #knownIndexOf} scan when the tag is definitely absent (the common
+   * per-build case), so an append is O(1) instead of O(n).
    */
   private Entry putKnownValue(long tagId, Object value) {
-    int i = this.knownIndexOf(tagId);
-    if (i >= 0) {
-      Object prior = this.knownValues[i];
-      this.knownValues[i] = value;
-      return materializeKnown(tagId, prior);
+    long slotBit = knownSlotBit(tagId);
+    // maybe present only if the slot bit is set; a clear bit ⟹ definitely absent ⟹ append
+    if ((this.knownOccupancy & slotBit) != 0) {
+      int i = this.knownIndexOf(tagId);
+      if (i >= 0) {
+        Object prior = this.knownValues[i];
+        this.knownValues[i] = value;
+        return materializeKnown(tagId, prior);
+      }
+      // filter false positive (slot collision) -> fall through to append
     }
     this.ensureKnownCapacity();
-    int slot = this.knownCount++;
-    this.knownIds[slot] = tagId;
-    this.knownValues[slot] = value;
+    int idx = this.knownCount++;
+    this.knownIds[idx] = tagId;
+    this.knownValues[idx] = value;
+    this.knownOccupancy |= slotBit;
+    this.knownTraceLevel |= KnownTagCodec.isTraceLevel(tagId);
     return null;
   }
 
   /** Raw dense value for {@code tagId}, or {@code null} when absent (no Entry, no boxing). */
   private Object knownRawValue(long tagId) {
+    if (!this.knownMaybePresent(tagId)) return null; // definitely absent, no scan
     int i = this.knownIndexOf(tagId);
     return i < 0 ? null : this.knownValues[i];
   }
@@ -1421,6 +1479,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Removes a known tag from the dense store (swap-with-last), returning the prior Entry or null.
    */
   private Entry removeKnown(long tagId) {
+    if (!this.knownMaybePresent(tagId)) return null; // definitely absent
     int i = this.knownIndexOf(tagId);
     if (i < 0) return null;
     Object prior = this.knownValues[i];
@@ -1429,6 +1488,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownValues[i] = this.knownValues[last];
     this.knownIds[last] = 0L;
     this.knownValues[last] = null;
+    // knownOccupancy intentionally NOT cleared: a stale-set bit only costs a scan; clearing could
+    // drop a bit still shared (via collision) by a present id -> false negative.
     return materializeKnown(tagId, prior);
   }
 
@@ -1445,9 +1506,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * needed.)
    */
   private boolean parentDenseVisible(long tagId, TagMap fromAncestor) {
+    // Trace and span tags reuse the same slots, so a trace-level ancestor entry can only be
+    // shadowed by a nearer level that ALSO holds trace-level tags. A span map (knownTraceLevel
+    // false) never shadows a trace tag — skip its occupancy+scan entirely (the level-bit win). A
+    // span-level ancestor entry keeps the plain occupancy-filtered scan below.
+    boolean traceLevelTag = KnownTagCodec.isTraceLevel(tagId);
     String tag = null; // resolved lazily, only if a nearer level carries tombstones
     for (TagMap nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
-      if (nearer.knownIndexOf(tagId) >= 0) return false; // shadowed by a nearer dense entry
+      // shadowed by a nearer dense entry — the occupancy filter prunes the scan when definitely
+      // absent, so a nearer level with disjoint slots never pays a scan here (read-through win)
+      if ((!traceLevelTag || nearer.knownTraceLevel)
+          && nearer.knownMaybePresent(tagId)
+          && nearer.knownIndexOf(tagId) >= 0) return false;
       if (nearer.removedFromParent != null) {
         if (tag == null) tag = KnownTagCodec.nameOf(tagId);
         if (nearer.removedFromParent.contains(tag)) return false; // tombstoned by a nearer level
@@ -1907,6 +1977,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.knownIds = Arrays.copyOf(that.knownIds, that.knownIds.length);
       this.knownValues = Arrays.copyOf(that.knownValues, that.knownValues.length);
       this.knownCount = that.knownCount;
+      this.knownOccupancy = that.knownOccupancy;
+      this.knownTraceLevel = that.knownTraceLevel;
     }
   }
 
@@ -2294,6 +2366,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownIds = null;
     this.knownValues = null;
     this.knownCount = 0;
+    this.knownOccupancy = 0L;
+    this.knownTraceLevel = false;
   }
 
   public TagMap freeze() {
