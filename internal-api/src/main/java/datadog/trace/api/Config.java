@@ -674,6 +674,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TEST_AGENT_SESSION_TOKEN;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
@@ -740,6 +741,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -1389,6 +1391,7 @@ public class Config {
   private final boolean azureFunctions;
   private final boolean awsServerless;
   private final String traceAgentPath;
+  private final String testAgentSessionToken;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
@@ -3199,6 +3202,7 @@ public class Config {
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    testAgentSessionToken = configProvider.getString(TEST_AGENT_SESSION_TOKEN);
     String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
@@ -5186,6 +5190,10 @@ public class Config {
     return traceAgentPath;
   }
 
+  public String getTestAgentSessionToken() {
+    return testAgentSessionToken;
+  }
+
   public List<String> getTraceAgentArgs() {
     return traceAgentArgs;
   }
@@ -5740,6 +5748,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public boolean isOtlpLogsExportEnabled() {
+    return isLogsOtelEnabled() && isLogsOtlpExporterEnabled();
+  }
+
   public int getLogsOtelInterval() {
     return logsOtelInterval;
   }
@@ -5782,6 +5794,11 @@ public class Config {
 
   public boolean isMetricsOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
+  public boolean isOtlpMetricsExportEnabled() {
+    return (isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled())
+        || isOtelTracesSpanMetricsEnabled();
   }
 
   public boolean isMetricsOtelExperimentalEnabled() {
@@ -5838,6 +5855,19 @@ public class Config {
 
   public boolean isTraceOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public boolean isOtlpTracesExportEnabled() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return OTLP_WRITER_TYPE.equals(writerType);
+    }
+    String multiWriterConfig = writerType.substring(MULTI_WRITER_TYPE.length() + 1);
+    for (CharSequence subWriterType : Strings.split(multiWriterConfig, ',')) {
+      if (OTLP_WRITER_TYPE.contentEquals(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getOtlpTracesEndpoint() {

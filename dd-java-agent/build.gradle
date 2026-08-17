@@ -622,6 +622,10 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   classpath = objects.fileCollection().from(jarProvider)
   args = ['--list-integrations']
 
+  // Listing integrations only inspects classes and metadata in the assembled agent jar, so it does
+  // not need inherited JAVA_TOOL_OPTIONS.
+  environment.remove('JAVA_TOOL_OPTIONS')
+
   // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
   // fails to load, while the process exits with status 0.
   def capturedOutput = new ByteArrayOutputStream()

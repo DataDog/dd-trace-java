@@ -103,6 +103,7 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("service").asText());
     assertEquals(CRASH, event.get("message").asText());
     assertEquals("ERROR", event.get("level").asText());
+    assertTrue(event.get("ddtags").asText().contains("is_crash:true"));
   }
 
   @Test
@@ -124,6 +125,7 @@ public class CrashUploaderTest {
     assertEquals(
         readFileAsString("sample-stacktrace.txt"), event.get("error").get("stack").asText());
     assertEquals("ERROR", event.get("level").asText());
+    assertTrue(event.get("ddtags").asText().contains("is_crash:true"));
   }
 
   private String readFileAsString(String resource) throws IOException {
@@ -297,7 +299,7 @@ public class CrashUploaderTest {
     assertThatJson(extracted.toJson())
         .whenIgnoringPaths("os_info", "metadata", "experimental")
         .isEqualTo(expected.toJson());
-    assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
+    assertEquals("severity:crash,is_crash:true", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
   }
 
