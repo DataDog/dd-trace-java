@@ -76,6 +76,7 @@ import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
@@ -133,6 +134,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1049,6 +1051,27 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return createMultiSpanBuilder(instrumentationName, operationName);
   }
 
+  /**
+   * Seeds identity (instrumentation name, operation, span type) and constant tags from a prototype.
+   * {@code operationName} overrides the prototype's when non-null — the explicit value wins, the
+   * prototype is the fallback. The prototype's tags are seeded during {@link CoreSpanBuilder}
+   * construction just before the builder's own tags, so explicit tags override prototype constants.
+   */
+  @Override
+  public CoreSpanBuilder buildSpan(
+      @Nonnull final SpanPrototype prototype, CharSequence operationName) {
+    if (operationName == null) {
+      operationName = prototype.operationName();
+    }
+    CoreSpanBuilder builder =
+        createMultiSpanBuilder(prototype.instrumentationName(), operationName);
+    builder.spanPrototype = prototype;
+    if (prototype.spanType() != null) {
+      builder.spanType = prototype.spanType();
+    }
+    return builder;
+  }
+
   MultiSpanBuilder createMultiSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
     return new MultiSpanBuilder(this, instrumentationName, operationName);
@@ -1152,6 +1175,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final long startTimeMicros) {
     return CoreSpanBuilder.startSpan(
         this, instrumentationName, spanName, parent, CoreSpanBuilder.IGNORE_SCOPE, startTimeMicros);
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+    return CoreSpanBuilder.startSpan(
+        this,
+        prototype,
+        operationName != null ? operationName : prototype.operationName(),
+        CoreSpanBuilder.USE_SCOPE,
+        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
   }
 
   @Override
@@ -1603,6 +1637,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // Builder attributes
     // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
     protected TagMap.Ledger tagLedger;
+    protected SpanPrototype spanPrototype = SpanPrototype.NONE;
     protected long timestampMicro;
     protected AgentSpanContext parent;
     protected String serviceName;
@@ -1641,6 +1676,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         boolean errorFlag,
         CharSequence spanType,
         TagMap.Ledger tagLedger,
+        SpanPrototype spanPrototype,
         List<AgentSpanLink> links,
         Object builderRequestContextDataAppSec,
         Object builderRequestContextDataIast,
@@ -1660,6 +1696,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               errorFlag,
               spanType,
               tagLedger,
+              spanPrototype,
               links,
               builderRequestContextDataAppSec,
               builderRequestContextDataIast,
@@ -1745,6 +1782,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           this.errorFlag,
           this.spanType,
           this.tagLedger,
+          this.spanPrototype,
           this.links,
           this.builderRequestContextDataAppSec,
           this.builderRequestContextDataIast,
@@ -1771,6 +1809,33 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           false /* errorFlag */,
           null /* spanType */,
           null /* tagLedger */,
+          SpanPrototype.NONE /* spanPrototype */,
+          null /* links */,
+          null /* appSec */,
+          null /* iast */,
+          null /* ciViz */);
+    }
+
+    protected static final AgentSpan startSpan(
+        final CoreTracer tracer,
+        final SpanPrototype prototype,
+        final CharSequence operationName,
+        final boolean ignoreScope,
+        final long timestampMicros) {
+      return startSpan(
+          tracer,
+          AUTO_ASSIGN_SPAN_ID,
+          prototype.instrumentationName(),
+          timestampMicros,
+          null /* serviceName */,
+          operationName,
+          null /* resourceName */,
+          null /* specifiedParentSpanContext */,
+          ignoreScope,
+          false /* errorFlag */,
+          prototype.spanType(),
+          null /* tagLedger */,
+          prototype,
           null /* links */,
           null /* appSec */,
           null /* iast */,
@@ -1790,6 +1855,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         boolean errorFlag,
         CharSequence spanType,
         TagMap.Ledger tagLedger,
+        SpanPrototype spanPrototype,
         List<AgentSpanLink> links,
         Object builderRequestContextDataAppSec,
         Object builderRequestContextDataIast,
@@ -1852,6 +1918,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           errorFlag,
           spanType,
           tagLedger,
+          spanPrototype,
           links,
           builderRequestContextDataAppSec,
           builderRequestContextDataIast,
@@ -1990,6 +2057,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         boolean errorFlag,
         CharSequence spanType,
         TagMap.Ledger tagLedger,
+        SpanPrototype spanPrototype,
         List<AgentSpanLink> links,
         Object builderRequestContextDataAppSec,
         Object builderRequestContextDataIast,
@@ -2228,6 +2296,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
+      if (spanPrototype != SpanPrototype.NONE) {
+        // Seed the prototype's constant tags + integration name as fallback defaults (span type was
+        // already seeded onto the builder). apply never clobbers, so tags set below still win, and
+        // this is the same seam decorator afterStart uses.
+        context.apply(spanPrototype);
+      }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
@@ -2308,6 +2382,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       this.operationName = operationName;
 
       if (this.tagLedger != null) this.tagLedger.reset();
+      this.spanPrototype = SpanPrototype.NONE;
       this.timestampMicro = 0L;
       this.parent = null;
       this.serviceName = null;
