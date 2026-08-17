@@ -405,6 +405,10 @@ public final class DatadogProfiler {
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
     boolean referenceChainsEnabled = isReferenceChainCollectionEnabled(configProvider);
+    if (referenceChainsEnabled) {
+      log.debug(
+          "Reference chain collection is enabled; forcing liveness and generation tracking for ddprof.");
+    }
     cmd.append(",generations=")
         .append(referenceChainsEnabled || isTrackingGenerations(configProvider));
     if (omitLineNumbers(configProvider)) {
