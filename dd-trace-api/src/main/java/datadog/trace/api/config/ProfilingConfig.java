@@ -289,6 +289,10 @@ public final class ProfilingConfig {
       "profiling.otlp.include.original.payload";
   public static final boolean PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT = false;
 
+  // Lightweight mode: skip JFR→OTLP conversion, send minimal metadata + raw JFR as blob
+  public static final String PROFILING_OTLP_LIGHTWEIGHT = "profiling.otlp.lightweight";
+  public static final boolean PROFILING_OTLP_LIGHTWEIGHT_DEFAULT = false;
+
   public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
   public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL
 
