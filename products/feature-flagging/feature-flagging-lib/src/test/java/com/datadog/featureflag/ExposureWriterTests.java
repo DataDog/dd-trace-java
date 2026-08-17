@@ -1,11 +1,12 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.FlagEvaluationTestSupport.clearCoreMetrics;
+import static com.datadog.featureflag.FlagEvaluationTestSupport.metricSum;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -26,9 +27,13 @@ import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.featureflag.exposure.Flag;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
+import datadog.trace.api.telemetry.CoreMetricCollector;
+import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -44,14 +49,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okio.Okio;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
@@ -62,13 +66,22 @@ class ExposureWriterTests {
   private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
   private Queue<ExposuresRequest> requests;
   private Set<String> failed;
+  private AtomicInteger exposureAttempts;
+  private AtomicInteger attemptedExposureEvents;
+  private AtomicInteger largestAttemptBytes;
+  private AtomicInteger largestAttemptEvents;
   private JavaTestHttpServer server;
   private SharedCommunicationObjects sharedCommunicationObjects;
 
   @BeforeEach
   void setUp() {
+    clearCoreMetrics();
     requests = new ConcurrentLinkedQueue<>();
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    exposureAttempts = new AtomicInteger();
+    attemptedExposureEvents = new AtomicInteger();
+    largestAttemptBytes = new AtomicInteger();
+    largestAttemptEvents = new AtomicInteger();
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
     server =
@@ -84,6 +97,7 @@ class ExposureWriterTests {
     if (server != null) {
       server.close();
     }
+    clearCoreMetrics();
   }
 
   private void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
@@ -92,6 +106,14 @@ class ExposureWriterTests {
         adapter.fromJson(
             Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
+    exposureAttempts.incrementAndGet();
+    attemptedExposureEvents.addAndGet(exposuresRequest.exposures.size());
+    largestAttemptBytes.accumulateAndGet(api.getRequest().getBody().length, Math::max);
+    largestAttemptEvents.accumulateAndGet(exposuresRequest.exposures.size(), Math::max);
+    if ("reject-forever".equals(serviceName)) {
+      api.getResponse().status(400).send("Rejected");
+      return;
+    }
     boolean failForever = "fail-forever".equals(serviceName);
     boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
     if (fail) {
@@ -202,11 +224,75 @@ class ExposureWriterTests {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testFailuresAreRetried(boolean finallyFail) throws Exception {
-    String serviceName = finallyFail ? "fail-forever" : "fail-once";
-    Config config = mockConfig(serviceName);
+  @Test
+  void batchesDoNotExceedEventLimit() throws Exception {
+    Config config = mockConfig("test-service");
+    List<ExposureEvent> exposures = buildExposures(ExposureWriterImpl.MAX_BATCH_EVENTS + 1);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 11, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+
+      poll.eventually(() -> assertEquals(exposures.size(), allExposures().size()));
+      assertTrue(largestAttemptEvents.get() <= ExposureWriterImpl.MAX_BATCH_EVENTS);
+    }
+  }
+
+  @Test
+  void queueOverflowIsCountedAndReported() {
+    Config config = mockConfig("test-service");
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(2, 1, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.accept(buildExposure());
+      writer.accept(buildExposure());
+      writer.accept(buildExposure());
+
+      assertEquals(1, writer.droppedQueueOverflow());
+      final long queueDrops = writer.droppedQueueOverflow();
+      writer.flushForTest();
+      assertEquals(0, writer.droppedQueueOverflow());
+      final Collection<? extends MetricCollector.Metric> metrics =
+          CoreMetricCollector.getInstance().drain();
+      assertEquals(
+          queueDrops,
+          metricSum(
+              metrics,
+              ExposureWriterImpl.EXPOSURE_DROPPED_METRIC,
+              "reason:" + ExposureWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+    }
+  }
+
+  @Test
+  void eventLargerThanPayloadLimitIsNotSent() throws Exception {
+    Config config = mockConfig("test-service");
+    String largeAttribute =
+        repeat('x', ExposureWriterImpl.EXPOSURE_PAYLOAD_SIZE_LIMIT_BYTES + 1_024);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(2, 25, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      writer.accept(buildExposure(singletonMap("large", (Object) largeAttribute)));
+
+      MILLISECONDS.sleep(200); // wait for the oversized event to be processed
+      assertEquals(0, exposureAttempts.get());
+      final Collection<? extends MetricCollector.Metric> metrics =
+          CoreMetricCollector.getInstance().drain();
+      assertEquals(
+          1,
+          metricSum(
+              metrics,
+              ExposureWriterImpl.EXPOSURE_DROPPED_METRIC,
+              "reason:" + ExposureWriterImpl.DROP_REASON_PAYLOAD_LIMIT));
+    }
+  }
+
+  @Test
+  void testFailuresAreNotRetried() throws Exception {
+    Config config = mockConfig("fail-once");
 
     try (ExposureWriterImpl writer =
         new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
@@ -214,12 +300,41 @@ class ExposureWriterTests {
       writer.accept(buildExposure());
 
       MILLISECONDS.sleep(500); // wait for a flush to happen
-      ExposuresRequest found = findRequest(serviceName);
-      if (finallyFail) {
-        assertNull(found, requests.toString());
-      } else {
-        poll.eventually(() -> assertNotNull(findRequest(serviceName), requests.toString()));
+      assertNull(findRequest("fail-once"), requests.toString());
+      assertEquals(1, exposureAttempts.get());
+      final Collection<? extends MetricCollector.Metric> metrics =
+          CoreMetricCollector.getInstance().drain();
+      assertEquals(
+          1,
+          metricSum(
+              metrics,
+              ExposureWriterImpl.EXPOSURE_DROPPED_METRIC,
+              "reason:" + ExposureWriterImpl.DROP_REASON_DELIVERY_FAILURE));
+    }
+  }
+
+  @Test
+  void persistentFailureDoesNotRetainOrRetryBatch() throws Exception {
+    final int rounds = 40;
+    final int eventsPerRound = 25;
+    Config config = mockConfig("reject-forever");
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 10, 25, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      for (int round = 1; round <= rounds; round++) {
+        for (ExposureEvent exposure : buildExposures(eventsPerRound)) {
+          writer.accept(exposure);
+        }
+        final int expectedEvents = round * eventsPerRound;
+        poll.eventually(() -> assertEquals(expectedEvents, attemptedExposureEvents.get()));
       }
+
+      final int attemptsAfterLastBatch = exposureAttempts.get();
+      MILLISECONDS.sleep(100);
+      assertEquals(attemptsAfterLastBatch, exposureAttempts.get());
+      assertEquals(rounds * eventsPerRound, attemptedExposureEvents.get());
+      assertTrue(largestAttemptEvents.get() <= eventsPerRound);
     }
   }
 
@@ -237,6 +352,14 @@ class ExposureWriterTests {
       writer.accept(validExposure);
 
       poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
+      final Collection<? extends MetricCollector.Metric> metrics =
+          CoreMetricCollector.getInstance().drain();
+      assertEquals(
+          1,
+          metricSum(
+              metrics,
+              ExposureWriterImpl.EXPOSURE_DROPPED_METRIC,
+              "reason:" + ExposureWriterImpl.DROP_REASON_SERIALIZATION));
     }
   }
 
@@ -430,5 +553,11 @@ class ExposureWriterTests {
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
         new Subject("Subject_" + id, attributes));
+  }
+
+  private static String repeat(final char value, final int count) {
+    final char[] chars = new char[count];
+    Arrays.fill(chars, value);
+    return new String(chars);
   }
 }
