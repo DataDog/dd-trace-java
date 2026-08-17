@@ -32,11 +32,8 @@ import org.openjdk.jmh.annotations.Warmup;
  * short-circuits on the first check.
  *
  * <pre>
- *   # agent-bootstrap has no -Pjmh.includes wiring yet (a generalization is in flight), so for now
- *   # either run the whole module (only a handful of benchmarks) ...
- *   ./gradlew :dd-java-agent:agent-bootstrap:jmh
- *   # ... or hack a temporary filter into agent-bootstrap/build.gradle: jmh { includes = ['SharedDBCommenter.*'] }
- *   # add -prof gc (gc.alloc.rate.norm) to corroborate the allocation delta.
+ *   ./gradlew :dd-java-agent:agent-bootstrap:jmh -Pjmh.includes=SharedDBCommenterBenchmark -Pjmh.profilers=gc
+ *   # gc.alloc.rate.norm (B/op) corroborates the allocation delta.
  * </pre>
  *
  * <p><b>Results</b> (JDK 17, MacBook M-series, {@code @Threads(8)}, {@code @Fork(5)}, {@code -prof

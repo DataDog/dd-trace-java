@@ -1069,10 +1069,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.parent = null;
   }
 
-  public boolean isOptimized() {
-    return true;
-  }
-
   @Override
   public int size() {
     // Exact (Map contract). Under read-through resolves the union; prefer estimateSize() for hints.

@@ -16,6 +16,12 @@ public class NoOpLLMObsSpan implements LLMObsSpan {
   public void annotateIO(String inputData, String outputData) {}
 
   @Override
+  public void annotatePrompt(LLMObs.Prompt prompt) {}
+
+  @Override
+  public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
+
+  @Override
   public void setMetadata(Map<String, Object> metadata) {}
 
   @Override
