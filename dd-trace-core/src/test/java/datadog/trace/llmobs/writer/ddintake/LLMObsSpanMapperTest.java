@@ -87,10 +87,8 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     prompt.put("variables", Collections.singletonMap("city", "San Francisco"));
     prompt.put("chat_template", Collections.singletonList(chatTemplateEntry));
 
-    Map<String, Object> inputMap = new LinkedHashMap<>();
-    inputMap.put("messages", inputMessages);
-    inputMap.put("prompt", prompt);
-    llmSpan.setTag("_ml_obs_tag.input", inputMap);
+    llmSpan.setTag("_ml_obs_tag.input", inputMessages);
+    llmSpan.setTag("_ml_obs_tag.input_prompt", prompt);
     llmSpan.setTag("_ml_obs_tag.output", outputMessages);
 
     Map<String, Object> metadataMap = new LinkedHashMap<>();
@@ -200,6 +198,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertTrue(meta.containsKey("output"));
     Map<String, Object> outputResult = (Map<String, Object>) meta.get("output");
     assertTrue(outputResult.containsKey("messages"));
+    assertFalse(outputResult.containsKey("prompt"));
     List<Map<String, Object>> outputMsgs = (List<Map<String, Object>>) outputResult.get("messages");
     assertTrue(outputMsgs.get(0).containsKey("content"));
     assertEquals("I'll help you check the weather.", outputMsgs.get(0).get("content"));
@@ -225,6 +224,66 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     List<String> tags = (List<String>) spanData.get("tags");
     assertTrue(tags.contains("language:jvm"));
     assertTrue(tags.contains("session_id:abc-123-session"));
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("input_prompt:")));
+
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperSerializesPromptWithoutInputMessages() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> prompt = new LinkedHashMap<>();
+    prompt.put("id", "prompt_123");
+    prompt.put("template", "Hello {{name}}");
+    prompt.put("variables", Collections.singletonMap("name", "Sam"));
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.input_prompt", prompt)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> input = (Map<String, Object>) meta.get("input");
+
+    assertEquals(Collections.singletonMap("prompt", prompt), input);
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("input_prompt:")));
+
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperPreservesNestedPromptInputCompatibility() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> prompt = Collections.singletonMap("id", "legacy_prompt");
+    Map<String, Object> input = new LinkedHashMap<>();
+    input.put("messages", Collections.singletonList(LLMObs.LLMMessage.from("user", "Hello")));
+    input.put("prompt", prompt);
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.input", input)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> serializedInput = (Map<String, Object>) meta.get("input");
+
+    assertEquals(prompt, serializedInput.get("prompt"));
+    assertTrue(serializedInput.containsKey("messages"));
 
     tracer.close();
   }
@@ -775,6 +834,21 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
           public void close() throws IOException {}
         });
     return channel.toByteArray();
+  }
+
+  private static Map<String, Object> serializeSingleSpan(LLMObsSpanMapper mapper, AgentSpan span)
+      throws IOException {
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
+    packer.format(Collections.singletonList((DDSpan) span), mapper);
+    packer.flush();
+
+    assertNotNull(sink.captured);
+    datadog.trace.common.writer.Payload payload = mapper.newPayload();
+    payload.withBody(1, sink.captured);
+    Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
+    List<Map<String, Object>> spans = (List<Map<String, Object>>) result.get("spans");
+    return spans.get(0);
   }
 
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
