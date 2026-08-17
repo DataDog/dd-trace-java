@@ -1,5 +1,5 @@
 plugins {
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 val sharedConfigDirectory = "$rootDir/../gradle"
