@@ -539,7 +539,9 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
               .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
               .withTag(
                   "_ml_obs_tag.output",
-                  Collections.singletonList(LLMObs.Document.from("original document")))
+                  Collections.singletonList(
+                      LLMObs.Document.from(
+                          "original document", "result.txt", "doc-456", 0.9)))
               .start();
       retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
       retrievalSpan.finish();
@@ -551,6 +553,9 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
       List<Map<String, Object>> documents = (List<Map<String, Object>>) output.get("documents");
 
       assertEquals("processed document", documents.get(0).get("text"));
+      assertEquals("result.txt", documents.get(0).get("name"));
+      assertEquals("doc-456", documents.get(0).get("id"));
+      assertEquals(0.9, documents.get(0).get("score"));
       tracer.close();
     } finally {
       LLMObs.deregisterProcessor();

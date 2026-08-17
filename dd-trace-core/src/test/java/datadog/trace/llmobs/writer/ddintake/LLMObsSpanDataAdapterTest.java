@@ -30,7 +30,9 @@ class LLMObsSpanDataAdapterTest {
     CoreSpan<?> span = mock(CoreSpan.class);
     when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     when(span.getTag(INPUT_TAG))
-        .thenReturn(Collections.singletonList(LLMObs.Document.from("original document")));
+        .thenReturn(
+            Collections.singletonList(
+                LLMObs.Document.from("original document", "source.txt", "doc-123", 0.75)));
     when(span.getTag(OUTPUT_TAG)).thenReturn("original output");
 
     LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
@@ -46,7 +48,11 @@ class LLMObsSpanDataAdapterTest {
     ArgumentCaptor<Object> inputCaptor = ArgumentCaptor.forClass(Object.class);
     verify(span).setTag(eq(INPUT_TAG), inputCaptor.capture());
     List<?> documents = (List<?>) inputCaptor.getValue();
-    assertEquals("processed document", ((LLMObs.Document) documents.get(0)).getText());
+    LLMObs.Document document = (LLMObs.Document) documents.get(0);
+    assertEquals("processed document", document.getText());
+    assertEquals("source.txt", document.getName());
+    assertEquals("doc-123", document.getId());
+    assertEquals(Double.valueOf(0.75), document.getScore());
     verify(span).setTag(OUTPUT_TAG, "processed output");
   }
 
@@ -55,7 +61,9 @@ class LLMObsSpanDataAdapterTest {
     CoreSpan<?> span = mock(CoreSpan.class);
     when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_RETRIEVAL_SPAN_KIND);
     when(span.getTag(OUTPUT_TAG))
-        .thenReturn(Collections.singletonList(LLMObs.Document.from("original document")));
+        .thenReturn(
+            Collections.singletonList(
+                LLMObs.Document.from("original document", "result.txt", "doc-456", 0.9)));
 
     LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
 
@@ -67,7 +75,11 @@ class LLMObsSpanDataAdapterTest {
     ArgumentCaptor<Object> outputCaptor = ArgumentCaptor.forClass(Object.class);
     verify(span).setTag(eq(OUTPUT_TAG), outputCaptor.capture());
     List<?> documents = (List<?>) outputCaptor.getValue();
-    assertEquals("processed document", ((LLMObs.Document) documents.get(0)).getText());
+    LLMObs.Document document = (LLMObs.Document) documents.get(0);
+    assertEquals("processed document", document.getText());
+    assertEquals("result.txt", document.getName());
+    assertEquals("doc-456", document.getId());
+    assertEquals(Double.valueOf(0.9), document.getScore());
   }
 
   @Test
