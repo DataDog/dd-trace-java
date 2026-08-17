@@ -96,7 +96,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
       }
-      if (parent.isDefinitelyEmpty()) {
+      // Exact, not isDefinitelyEmpty(): a multi-level parent can be observationally empty while a
+      // local level still holds entries (all of them tombstoned by a nearer level). Dropping such a
+      // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
+      // contributes at least one visible entry.
+      if (parent.isEmpty()) {
         parent = null;
       }
     }
@@ -1663,6 +1667,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillMap(Map<? super String, Object> map) {
+    if (this.parent != null) {
+      // read-through source: the bucket-only loop below sees just local entries, so it would drop
+      // tags visible only through the parent chain (and ignore shadowing/tombstones). Walk the full
+      // visible union instead -- mirrors putAllOptimizedMap.
+      this.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
+      return;
+    }
+
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1681,6 +1693,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
+    if (this.parent != null) {
+      // read-through source: walk the visible union so parent-only tags aren't dropped -- see
+      // fillMap.
+      this.forEach(stringMap, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
+      return;
+    }
+
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
