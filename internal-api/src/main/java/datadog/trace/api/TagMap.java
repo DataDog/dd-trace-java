@@ -51,6 +51,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1 << 4], 0);
 
+  // Sentinel for a not-yet-resolved lazy tag id. Cannot be 0L: 0L is a valid keyOf result (the tag
+  // is not a known tag, or the codec is inactive). Shared by Entry and EntryReadingHelper.
+  static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
+
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
@@ -164,6 +168,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public static final byte DOUBLE = 9;
 
     String tag();
+
+    /**
+     * The known-tag id for this entry's tag, or {@code 0L} when the tag is not a known tag (or the
+     * {@link KnownTagCodec} is inactive). Resolved via {@link KnownTagCodec#keyOf(String)}.
+     */
+    long tagId();
 
     byte type();
 
@@ -313,6 +323,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      */
     int lazyTagHash;
 
+    /*
+     * Known-tag id, lazily resolved using the same trick as lazyTagHash. TAG_ID_NOT_COMPUTED marks
+     * "not yet resolved" (0L is a valid result -- unknown tag / inactive codec -- so it cannot be
+     * the sentinel). Only pays off on the dense-OFF path; dense-ON known tags never become Entry-s.
+     */
+    long lazyTagId = TAG_ID_NOT_COMPUTED;
+
     // To optimize construction of Entry around boxed primitives and Object entries,
     // no type checks are done during construction.
     // Any Object entries are initially marked as type ANY, prim set to 0, and the Object put into
@@ -351,6 +368,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       hash = _hash(this.tag);
       this.lazyTagHash = hash;
       return hash;
+    }
+
+    @Override
+    public long tagId() {
+      // Same lazy idiom as hash(): a benign race just recomputes keyOf, which is deterministic.
+      long id = this.lazyTagId;
+      if (id != TAG_ID_NOT_COMPUTED) return id;
+
+      id = KnownTagCodec.keyOf(this.tag);
+      this.lazyTagId = id;
+      return id;
     }
 
     @Override
@@ -2668,7 +2696,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (reader == null) {
         reader = this.denseReader = new EntryReadingHelper();
       }
-      reader.set(KnownTagCodec.nameOf(tagId), value);
+      reader.set(KnownTagCodec.nameOf(tagId), value, tagId);
       return reader;
     }
 
@@ -3307,22 +3335,43 @@ final class EntryReadingHelper implements TagMap.EntryReader {
   private Map.Entry<String, Object> mapEntry;
   private String tag;
   private Object value;
+  private long tagId;
 
   void set(String tag, Object value) {
     this.mapEntry = null;
     this.tag = tag;
     this.value = value;
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
+  }
+
+  /** Dense emit: the id is known directly, so record it and skip the keyOf resolve. */
+  void set(String tag, Object value, long tagId) {
+    this.mapEntry = null;
+    this.tag = tag;
+    this.value = value;
+    this.tagId = tagId;
   }
 
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
     this.value = mapEntry.getValue();
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   @Override
   public String tag() {
     return this.tag;
+  }
+
+  @Override
+  public long tagId() {
+    long id = this.tagId;
+    if (id != TagMap.TAG_ID_NOT_COMPUTED) return id;
+
+    id = KnownTagCodec.keyOf(this.tag);
+    this.tagId = id;
+    return id;
   }
 
   @Override

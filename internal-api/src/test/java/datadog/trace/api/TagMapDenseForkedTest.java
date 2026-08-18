@@ -281,4 +281,30 @@ class TagMapDenseForkedTest {
     assertFalse(union.containsKey(BASE_SERVICE));
     child.checkIntegrity();
   }
+
+  @Test
+  void denseReaderExposesTagId() {
+    TagMap map = map();
+    map.set(BASE_SERVICE, "billing"); // dense-routed
+    map.set(CUSTOM_A, "alpha"); // bucket-routed
+
+    Map<String, Long> idsByTag = new HashMap<>();
+    map.forEach(reader -> idsByTag.put(reader.tag(), reader.tagId()));
+
+    // dense entry: the reader carries the real known-tag id directly
+    assertEquals(KnownTagCodec.keyOf(BASE_SERVICE), idsByTag.get(BASE_SERVICE).longValue());
+    assertTrue(idsByTag.get(BASE_SERVICE) != 0L, "known tag has a non-zero id");
+    // bucket entry for a custom tag: unknown -> 0L
+    assertEquals(0L, idsByTag.get(CUSTOM_A).longValue());
+  }
+
+  @Test
+  void bucketEntryResolvesTagIdLazily() {
+    TagMap map = map();
+    map.set(CUSTOM_A, "alpha"); // custom tag stays a bucket Entry
+
+    TagMap.Entry entry = map.getEntry(CUSTOM_A);
+    assertEquals(0L, entry.tagId()); // unknown tag -> 0L
+    assertEquals(0L, entry.tagId()); // second read hits the memoized field
+  }
 }
