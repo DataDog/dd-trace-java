@@ -257,10 +257,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
           LLMObs.Document document = (LLMObs.Document) originalDocument;
           documents.add(
               LLMObs.Document.from(
-                  message.getContent(),
-                  document.getName(),
-                  document.getId(),
-                  document.getScore()));
+                  message.getContent(), document.getName(), document.getId(), document.getScore()));
         } else {
           documents.add(LLMObs.Document.from(message.getContent()));
         }
