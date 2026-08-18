@@ -2160,6 +2160,53 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void keepsRepeatedQueryKeysFromTheV2RawQueryString() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"rawPath\": \"/orders\", \"rawQueryString\": \"a=1&a=2\","
+                    + " \"queryStringParameters\": {\"a\": \"1,2\"}, \"requestContext\":"
+                    + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+                    + " \"path\": \"/orders\"}}}"));
+
+    // API Gateway comma-joins repeats into queryStringParameters, so rebuilding from that map
+    // would report a=1%2C2
+    assertEquals("a=1&a=2", tagsOf(context).get(DDTags.HTTP_QUERY));
+  }
+
+  @Test
+  void keepsPercentEncodingFromTheV2RawPath() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"rawPath\": \"/orders/a%20b\", \"rawQueryString\": \"\", \"requestContext\":"
+                    + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+                    + " \"path\": \"/orders/a b\"}}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("https://api.example.com/orders/a%20b", tags.get(Tags.HTTP_URL));
+    // An empty rawQueryString means no query string at all
+    assertNull(tags.get(DDTags.HTTP_QUERY));
+  }
+
+  @Test
+  void doesNotDuplicateAPortAlreadyInTheHostHeader() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com:8080\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
+                    + " {\"targetGroupArn\": \"arn\"}}}"));
+
+    // An ALB listener off 80/443 puts the port in Host as well, and buildURL appends it again
+    assertEquals("http://lb.example.com:8080/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
   void hostnameTagPrefersForwardedHostOverUrlHost() {
     setupMockCallbacks(new Callbacks());
     AgentSpanContext context =

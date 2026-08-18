@@ -106,6 +106,28 @@ class LambdaEventParserTest {
     assertNull(data.route);
   }
 
+  @Test
+  void httpApiExposesTheRawRequestLine() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"rawPath\": \"/users/42\", \"rawQueryString\": \"a=1&a=2\", \"requestContext\":"
+                + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+                + " \"path\": \"/users/42\"}}}");
+
+    assertEquals("/users/42?a=1&a=2", data.rawUri);
+  }
+
+  @Test
+  void restApiExposesNoRawRequestLine() {
+    // Only v2 payloads carry rawPath/rawQueryString; v1 has to be rebuilt from its parameter map
+    LambdaRequestData data =
+        parseEvent(
+            "{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"requestContext\":"
+                + " {\"httpMethod\": \"GET\"}}");
+
+    assertNull(data.rawUri);
+  }
+
   // ============================================================================
   // API Gateway v2 (WebSocket)
   // ============================================================================
@@ -137,6 +159,28 @@ class LambdaEventParserTest {
     assertEquals(LambdaTriggerType.ALB, data.triggerType);
     assertEquals("lb-123.eu-west-1.elb.amazonaws.com", data.host);
     assertNull(data.route);
+  }
+
+  @Test
+  void albStripsThePortFromTheHostHeader() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                + " \"lb.example.com:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
+                + " \"arn\"}}}");
+
+    // The port is carried separately, by x-forwarded-port
+    assertEquals("lb.example.com", data.host);
+  }
+
+  @Test
+  void albKeepsAnIpv6HostIntact() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\": \"[::1]\"},"
+                + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
+
+    assertEquals("[::1]", data.host);
   }
 
   @Test

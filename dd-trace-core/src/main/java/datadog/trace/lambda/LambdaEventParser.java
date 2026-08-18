@@ -271,7 +271,8 @@ final class LambdaEventParser {
         body,
         extractHost(requestContext, headers),
         // REST APIs expose the parameterized route as the top-level "resource"
-        stringOrNull(event.get("resource")));
+        stringOrNull(event.get("resource")),
+        null);
   }
 
   /** Extracts data from API Gateway v2 (HTTP API) or Lambda URL event */
@@ -308,7 +309,26 @@ final class LambdaEventParser {
         queryParameters,
         body,
         extractHost(requestContext, headers),
-        extractRouteKey(requestContext));
+        extractRouteKey(requestContext),
+        extractRawUri(event));
+  }
+
+  /**
+   * Reassembles the verbatim request line of an API Gateway v2 or Function URL payload from {@code
+   * rawPath} and {@code rawQueryString}, the only two fields that survive the gateway unmodified.
+   * Returns null when {@code rawPath} is absent, so the caller falls back to rebuilding the path.
+   */
+  private static String extractRawUri(Map<String, Object> event) {
+    String rawPath = stringOrNull(event.get("rawPath"));
+    if (rawPath == null) {
+      return null;
+    }
+    // Present but empty whenever the request carried no query string
+    String rawQueryString = stringOrNull(event.get("rawQueryString"));
+    if (rawQueryString == null || rawQueryString.isEmpty()) {
+      return rawPath;
+    }
+    return rawPath + '?' + rawQueryString;
   }
 
   /** Extracts data from API Gateway v2 WebSocket event */
@@ -345,7 +365,8 @@ final class LambdaEventParser {
         extractHost(requestContext, headers),
         // WebSocket route keys are used verbatim: they are not "METHOD /path" and $default,
         // $connect and $disconnect are meaningful routes rather than placeholders
-        routeKey);
+        routeKey,
+        null);
   }
 
   /** Extracts data from ALB event (with or without multi-value headers) */
@@ -421,7 +442,8 @@ final class LambdaEventParser {
         pathParameters,
         queryParameters,
         body,
-        findHeader(headers, "host"),
+        stripPort(findHeader(headers, "host")),
+        null,
         null);
   }
 
@@ -508,7 +530,18 @@ final class LambdaEventParser {
         return domainName;
       }
     }
-    return findHeader(headers, "host");
+    return stripPort(findHeader(headers, "host"));
+  }
+
+  /**
+   * Removes a trailing {@code :port}, leaving an IPv6 literal (several colons) alone. The Host
+   * header carries the port whenever the listener is not on 80 or 443 — an ALB on 8080 sends {@code
+   * example.com:8080} — and the port is tracked separately, from {@code x-forwarded-port}, so
+   * keeping it here would have {@code URIUtils.buildURL} emit it twice.
+   */
+  private static String stripPort(String host) {
+    int colon = host == null ? -1 : host.lastIndexOf(':');
+    return colon > 0 && host.indexOf(':') == colon ? host.substring(0, colon) : host;
   }
 
   /**
@@ -788,6 +821,16 @@ final class LambdaEventParser {
     /** Parameterized route, when the trigger exposes one. */
     final String route;
 
+    /**
+     * Request line exactly as the client sent it — {@code rawPath} plus {@code rawQueryString} —
+     * for the API Gateway v2 and Function URL payloads that expose it, null for every other
+     * trigger. Preferred over rebuilding the path from {@link #queryParameters}, which cannot be
+     * faithful: v2 comma-joins repeated query keys into {@code queryStringParameters}, so {@code
+     * ?a=1&a=2} would come back as {@code a=1%2C2}, and percent-encoded path segments would be
+     * lost.
+     */
+    final String rawUri;
+
     static final LambdaRequestData EMPTY =
         new LambdaRequestData(
             Collections.emptyMap(),
@@ -821,6 +864,7 @@ final class LambdaEventParser {
           queryParameters,
           body,
           null,
+          null,
           null);
     }
 
@@ -835,7 +879,8 @@ final class LambdaEventParser {
         Map<String, List<String>> queryParameters,
         Object body,
         String host,
-        String route) {
+        String route,
+        String rawUri) {
       this.headers = headers;
       this.method = method;
       this.path = path;
@@ -847,6 +892,7 @@ final class LambdaEventParser {
       this.body = body;
       this.host = host;
       this.route = route;
+      this.rawUri = rawUri;
     }
   }
 

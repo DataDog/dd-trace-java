@@ -91,9 +91,12 @@ public class LambdaAppSecHandler {
         return null;
       }
       CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
-      // Reconstruct the full path with query string: Lambda events expose them separately
-      String fullPath =
-          eventData.path == null ? null : buildFullPath(eventData.path, eventData.queryParameters);
+      // v2 payloads carry the request line verbatim; the others expose the path and a decoded
+      // parameter map only, so the query string has to be rebuilt from them
+      String fullPath = eventData.rawUri;
+      if (fullPath == null && eventData.path != null) {
+        fullPath = buildFullPath(eventData.path, eventData.queryParameters);
+      }
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
       AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
