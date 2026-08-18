@@ -16,14 +16,17 @@ import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class AgentlessExposureBackendApiTest {
+class AgentlessFeatureFlagBackendApiTest {
 
   @ParameterizedTest
   @ValueSource(ints = {403, 404, 405})
@@ -32,19 +35,20 @@ class AgentlessExposureBackendApiTest {
         new RecordingBackendApi(new HttpResponseException(statusCode, "rejected"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessExposureBackendApi api =
-        new AgentlessExposureBackendApi(
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
             local,
             () -> {
               directApiCreations.incrementAndGet();
               return direct;
-            });
+            },
+            "flag evaluation");
     final RequestBody firstBody = requestBody("first");
     final RequestBody secondBody = requestBody("second");
 
     assertEquals(0, directApiCreations.get());
-    api.post("exposures", firstBody, stream -> null, null, false);
-    api.post("exposures", secondBody, stream -> null, null, false);
+    api.post("flagevaluation", firstBody, stream -> null, null, false);
+    api.post("flagevaluation", secondBody, stream -> null, null, false);
 
     assertEquals(1, directApiCreations.get());
     assertEquals(1, local.calls);
@@ -54,14 +58,17 @@ class AgentlessExposureBackendApiTest {
     assertSame(secondBody, direct.requestBodies.get(1));
   }
 
-  @Test
-  void fallsBackAfterConnectionRefusal() throws Exception {
+  @ParameterizedTest
+  @MethodSource("featureFlagRoutes")
+  void fallsBackAfterConnectionRefusal(final String route, final String eventType)
+      throws Exception {
     final RecordingBackendApi local =
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, () -> direct);
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(local, () -> direct, eventType);
 
-    api.post("exposures", requestBody("exposure"), stream -> null, null, false);
+    api.post(route, requestBody(eventType), stream -> null, null, false);
 
     assertEquals(1, local.calls);
     assertEquals(1, direct.calls);
@@ -72,7 +79,8 @@ class AgentlessExposureBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new ConnectException("connection refused"));
     final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessExposureBackendApi api = new AgentlessExposureBackendApi(local, () -> direct);
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(local, () -> direct, "exposure");
 
     api.post("exposures", requestBody("first"), stream -> null, null, false);
     direct.failure = new IOException("direct intake failed");
@@ -105,13 +113,14 @@ class AgentlessExposureBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new HttpResponseException(404, "rejected"));
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessExposureBackendApi api =
-        new AgentlessExposureBackendApi(
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
             local,
             () -> {
               directApiCreations.incrementAndGet();
               return null;
-            });
+            },
+            "exposure");
 
     assertThrows(
         HttpResponseException.class,
@@ -128,17 +137,18 @@ class AgentlessExposureBackendApiTest {
     final RecordingBackendApi local = new RecordingBackendApi(failure);
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessExposureBackendApi api =
-        new AgentlessExposureBackendApi(
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
             local,
             () -> {
               directApiCreations.incrementAndGet();
               return direct;
-            });
+            },
+            "flag evaluation");
 
     assertThrows(
         IOException.class,
-        () -> api.post("exposures", requestBody("exposure"), stream -> null, null, false));
+        () -> api.post("flagevaluation", requestBody("evaluation"), stream -> null, null, false));
 
     assertEquals(1, local.calls);
     assertEquals(0, direct.calls);
@@ -147,6 +157,11 @@ class AgentlessExposureBackendApiTest {
 
   private static RequestBody requestBody(final String value) {
     return RequestBody.create(MediaType.parse("application/json"), value);
+  }
+
+  private static Stream<Arguments> featureFlagRoutes() {
+    return Stream.of(
+        Arguments.of("exposures", "exposure"), Arguments.of("flagevaluation", "flag evaluation"));
   }
 
   private static final class RecordingBackendApi implements BackendApi {

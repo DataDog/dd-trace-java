@@ -16,6 +16,7 @@ import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
 import java.lang.reflect.Type;
@@ -25,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import okhttp3.RequestBody;
 import okio.Buffer;
 
@@ -40,6 +42,10 @@ final class FlagEvaluationTestSupport {
   }
 
   private FlagEvaluationTestSupport() {}
+
+  static Supplier<BackendApi> backendApiSupplier(final BackendApiFactory factory) {
+    return () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false);
+  }
 
   static void clearCoreMetrics() {
     CoreMetricCollector.getInstance().drain();
@@ -98,7 +104,7 @@ final class FlagEvaluationTestSupport {
     context.put("service", "test-service");
 
     final FlagEvaluationWriterImpl.SerializingHandlerForTest handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(factory, context);
+        FlagEvaluationWriterImpl.createHandlerForTest(backendApiSupplier(factory), context);
 
     return new TestWriterSetup(handler, mockEvp, factory);
   }
@@ -112,7 +118,8 @@ final class FlagEvaluationTestSupport {
     context.put("service", "test-service");
 
     final FlagEvaluationWriterImpl.SerializingHandlerForTest handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(factory, context, payloadSizeLimitBytes);
+        FlagEvaluationWriterImpl.createHandlerForTest(
+            backendApiSupplier(factory), context, payloadSizeLimitBytes);
 
     return new TestWriterSetup(handler, mockEvp, factory);
   }

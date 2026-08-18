@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
+import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -12,23 +14,25 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
 
-class ExposureBackendApiFactoryTest {
+class FeatureFlagBackendApiFactoryTest {
 
   @Test
   void remoteConfigUsesOnlyLocalEvpProxy() {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM)).thenReturn(localApi);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertSame(localApi, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    assertSame(proxyApi, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -36,25 +40,31 @@ class ExposureBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    verify(backendApiFactory).createEvpProxyApi(Intake.EVENT_PLATFORM, true);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
   }
 
   @Test
   void agentlessPrefersLocalEvpProxyWithDirectFallback() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM))
+    when(backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(mock(BackendApi.class));
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenReturn(mock(BackendApi.class));
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertInstanceOf(AgentlessExposureBackendApi.class, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
+    verify(backendApiFactory)
+        .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -62,9 +72,11 @@ class ExposureBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM)).thenReturn(directApi);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+        .thenReturn(directApi);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(directApi, selected);
   }
@@ -73,13 +85,14 @@ class ExposureBackendApiFactoryTest {
   void agentlessUsesLocalEvpProxyWhenApiKeyIsUnavailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, null);
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM)).thenReturn(localApi);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertSame(localApi, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    assertSame(proxyApi, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -87,7 +100,8 @@ class ExposureBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, null);
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertNull(selected);
   }
@@ -97,35 +111,40 @@ class ExposureBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
   }
 
   @Test
   void agentlessDoesNotValidateDirectUrlWhileLocalRouteIsAvailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    final BackendApi localApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM)).thenReturn(localApi);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM))
+    final BackendApi proxyApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
+        .thenReturn(proxyApi);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
-    assertInstanceOf(AgentlessExposureBackendApi.class, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM);
+    assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
   void agentlessDisablesDeliveryWhenDirectUrlIsInvalidAndLocalRouteIsUnavailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
-    final BackendApi selected = new ExposureBackendApiFactory(config, backendApiFactory).create();
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertNull(selected);
   }

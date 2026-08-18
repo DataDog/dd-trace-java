@@ -13,21 +13,26 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends exposures through a local EVP proxy, with a safe direct intake fallback. */
-final class AgentlessExposureBackendApi implements BackendApi {
+/** Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback. */
+final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessExposureBackendApi.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
 
-  private final BackendApi localApi;
+  private final BackendApi proxyApi;
   private final Supplier<BackendApi> directApiSupplier;
+  private final String eventType;
   private volatile BackendApi activeApi;
   private volatile boolean directApiCreationAttempted;
 
-  AgentlessExposureBackendApi(
-      final BackendApi localApi, final Supplier<BackendApi> directApiSupplier) {
-    this.localApi = localApi;
+  AgentlessFeatureFlagBackendApi(
+      final BackendApi proxyApi,
+      final Supplier<BackendApi> directApiSupplier,
+      final String eventType) {
+    this.proxyApi = proxyApi;
     this.directApiSupplier = directApiSupplier;
-    this.activeApi = localApi;
+    this.eventType = eventType;
+    this.activeApi = proxyApi;
   }
 
   @Override
@@ -43,7 +48,7 @@ final class AgentlessExposureBackendApi implements BackendApi {
       return selectedApi.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (selectedApi != localApi || !isDefinitiveRejection(exception)) {
+      if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
         throw exception;
       }
 
@@ -58,13 +63,13 @@ final class AgentlessExposureBackendApi implements BackendApi {
   @Nullable
   private BackendApi getOrCreateDirectApi() {
     final BackendApi selectedApi = activeApi;
-    if (selectedApi != localApi) {
+    if (selectedApi != proxyApi) {
       return selectedApi;
     }
 
     synchronized (this) {
       final BackendApi currentApi = activeApi;
-      if (currentApi != localApi) {
+      if (currentApi != proxyApi) {
         return currentApi;
       }
       if (directApiCreationAttempted) {
@@ -74,7 +79,8 @@ final class AgentlessExposureBackendApi implements BackendApi {
       final BackendApi directApi = directApiSupplier.get();
       if (directApi != null) {
         LOGGER.debug(
-            "Switching Feature Flagging exposure delivery from the local EVP proxy to direct intake");
+            "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
+            eventType);
         activeApi = directApi;
       }
       directApiCreationAttempted = true;
