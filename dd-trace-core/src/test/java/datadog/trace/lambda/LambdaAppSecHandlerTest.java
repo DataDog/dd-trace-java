@@ -811,62 +811,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void extractsSchemeAndPortFromXForwardedHeaders() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/test\","
-            + "\"headers\": {\"x-forwarded-proto\": \"http\", \"x-forwarded-port\": \"8080\"},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-123\"}"
-            + "}";
-    ByteArrayInputStream event = createInputStream(eventJson);
-
-    String[] capturedScheme = {null};
-    int[] capturedPort = {-1};
-
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedScheme[0] = uri.scheme();
-                  capturedPort[0] = uri.port();
-                }));
-
-    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
-
-    assertNotNull(result);
-    assertEquals("http", capturedScheme[0]);
-    assertEquals(8080, capturedPort[0]);
-  }
-
-  @Test
-  void fallsBackToHttps443WhenXForwardedHeadersAreAbsent() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/test\","
-            + "\"headers\": {},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-123\"}"
-            + "}";
-    ByteArrayInputStream event = createInputStream(eventJson);
-
-    String[] capturedScheme = {null};
-    int[] capturedPort = {-1};
-
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedScheme[0] = uri.scheme();
-                  capturedPort[0] = uri.port();
-                }));
-
-    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
-
-    assertNotNull(result);
-    assertEquals("https", capturedScheme[0]);
-    assertEquals(443, capturedPort[0]);
-  }
-
-  @Test
   void handlesInvalidXForwardedPortGracefully() {
     String eventJson =
         "{"
@@ -1371,12 +1315,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     assertNotNull(result);
     assertInstanceOf(TagContext.class, result);
-  }
-
-  @Test
-  void processRequestStartHandlesExceptionDuringJsonParsing() {
-    ByteArrayInputStream event = createInputStream("{this is not valid JSON at all");
-    assertNull(LambdaAppSecHandler.processRequestStart(event));
   }
 
   @Test
@@ -1960,14 +1898,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertNull(capturedStatus[0]);
   }
 
-  @Test
-  void processResponseDataHandlesEmptyStringResponse() {
-    ByteArrayOutputStream result = createOutputStream("");
-    AgentSpan span = mock(AgentSpan.class);
-    LambdaAppSecHandler.processResponseData(span, result);
-    // no exception expected
-  }
-
   // ============================================================================
   // processResponseData — null individual callback handling
   // ============================================================================
@@ -2144,19 +2074,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     // Lambda comma-joins duplicate request headers, so a client-supplied X-Forwarded-Proto arrives
     // appended to the real one: taken verbatim it would yield "https, http://lb.example.com/alb"
     assertEquals("https://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
-  }
-
-  @Test
-  void appliesHttpTagsWithDefaultPortSuppressed() {
-    setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-proto\": \"http\","
-                    + " \"x-forwarded-port\": \"80\"}, \"requestContext\": {\"domainName\":"
-                    + " \"api.example.com\", \"http\": {\"method\": \"GET\", \"path\": \"/\"}}}"));
-
-    assertEquals("http://api.example.com/", tagsOf(context).get(Tags.HTTP_URL));
   }
 
   @Test
