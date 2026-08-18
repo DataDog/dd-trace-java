@@ -1,5 +1,7 @@
 package datadog.gradle.plugin.tags
 
+import java.util.Locale
+
 /**
  * Emits the generated `KnownTags.java` from a [TagRegistry]. Public API first — per-tag
  * `<X>_NAME` (string) + `<X>_ID` (encoded long, literal) couplets with a trailing `// makeTagId(...)`
@@ -150,5 +152,5 @@ object KnownTagsEmitter {
     return b.toString()
   }
 
-  private fun hex(id: Long): String = "0x%016XL".format(id)
+  private fun hex(id: Long): String = "0x%016XL".format(Locale.ROOT, id)
 }

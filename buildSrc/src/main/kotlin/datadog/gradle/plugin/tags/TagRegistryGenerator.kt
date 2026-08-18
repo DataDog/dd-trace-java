@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import java.io.File
+import java.util.Locale
 
 /**
  * Turns the language-agnostic {@code tag-conventions.yaml} + the Java overlay into the generated tag
@@ -26,6 +27,10 @@ object TagRegistryGenerator {
         mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {})
       }
 
+    // Clear the owned destination tree first, so a report/source file retired by a later generator
+    // revision doesn't linger: otherwise verifyKnownTags flags it as stale while telling developers
+    // to rerun generateKnownTags, which (without this) can't actually remove it.
+    outDir.deleteRecursively()
     outDir.mkdirs()
     // KnownTags.java goes under java/<pkg> (added as a srcDir); the .txt reports sit at the root.
     val javaPkg = File(outDir, "java/datadog/trace/api").apply { mkdirs() }
@@ -66,11 +71,12 @@ object TagRegistryGenerator {
     for (t in reg.stored) {
       a.appendLine(
         "  %6d %5s  %s   %s  %-18s %-12s %s".format(
+          Locale.ROOT,
           t.serial,
           if (t.slotted) t.slot.toString() else "-",
           if (t.intercepted) "I" else "-",
           if (t.traceLevel) "T" else "-",
-          "0x%016X".format(t.id),
+          "0x%016X".format(Locale.ROOT, t.id),
           t.required,
           t.name))
     }
@@ -79,7 +85,12 @@ object TagRegistryGenerator {
     for (v in reg.reserved) {
       a.appendLine(
         "  %6d      %-18s %-12s %s%s".format(
-          v.serial, "0x%016X".format(v.id), v.kind, v.name, v.field?.let { " -> $it" } ?: ""))
+          Locale.ROOT,
+          v.serial,
+          "0x%016X".format(Locale.ROOT, v.id),
+          v.kind,
+          v.name,
+          v.field?.let { " -> $it" } ?: ""))
     }
     a.appendLine()
     a.appendLine("# PER-TYPE colored slots. Slots within a type must be DISTINCT (a valid coloring of the")
@@ -90,11 +101,12 @@ object TagRegistryGenerator {
           .filter { it.slotted && !it.traceLevel }
           .map { it.slot }
           .sorted()
-      a.appendLine("  %-14s count=%-3d slots=%s".format(type, slots.size, slots))
+      a.appendLine("  %-14s count=%-3d slots=%s".format(Locale.ROOT, type, slots.size, slots))
     }
     val traceSlots =
       reg.stored.filter { it.traceLevel && it.slotted }.map { it.slot }.sorted()
-    a.appendLine("  %-14s count=%-3d slots=%s".format("<trace>", traceSlots.size, traceSlots))
+    a.appendLine(
+      "  %-14s count=%-3d slots=%s".format(Locale.ROOT, "<trace>", traceSlots.size, traceSlots))
     return a.toString()
   }
 
@@ -127,7 +139,8 @@ object TagRegistryGenerator {
               else -> "bkt"
             }
           lay.appendLine(
-            "    %-26s %-12s %-12s %s".format(t.name, field, t.required, if (st?.intercepted == true) "I" else ""))
+            "    %-26s %-12s %-12s %s".format(
+              Locale.ROOT, t.name, field, t.required, if (st?.intercepted == true) "I" else ""))
         }
       }
     }
@@ -157,7 +170,9 @@ object TagRegistryGenerator {
       f.appendLine("$type  (${tags.size} tags):")
       for (t in tags) {
         val st = byName[t.name]
-        f.appendLine("  %-12s %-26s %s".format(tierField(st), t.name, if (st?.intercepted == true) "I" else ""))
+        f.appendLine(
+          "  %-12s %-26s %s".format(
+            Locale.ROOT, tierField(st), t.name, if (st?.intercepted == true) "I" else ""))
       }
     }
     val traceTags =
@@ -165,7 +180,9 @@ object TagRegistryGenerator {
     f.appendLine()
     f.appendLine("<trace>  (${traceTags.size} tags):")
     for (st in traceTags) {
-      f.appendLine("  %-12s %-26s %s".format(tierField(st), st.name, if (st.intercepted) "I" else ""))
+      f.appendLine(
+        "  %-12s %-26s %s".format(
+          Locale.ROOT, tierField(st), st.name, if (st.intercepted) "I" else ""))
     }
     return f.toString()
   }
