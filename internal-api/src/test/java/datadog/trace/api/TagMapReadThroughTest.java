@@ -503,6 +503,29 @@ class TagMapReadThroughTest {
   }
 
   @Test
+  void observationallyEmptyIntermediateParentIsDroppedNotAttached() {
+    // A frozen mid level with no local entries whose every inherited key is tombstoned is
+    // observationally empty even though a local (grandparent) level still holds entries.
+    // createFromParent must drop it (exact isEmpty), so the leaf stays consistent: isEmpty() must
+    // agree with size()/lookup/iteration.
+    TagMap grandparent = TagMap.create();
+    grandparent.set("a", "gp-a");
+    grandparent.freeze();
+
+    TagMap mid = TagMap.createFromParent(grandparent);
+    mid.remove("a"); // tombstone the only inherited key -> mid is observationally empty
+    mid.freeze();
+    assertTrue(mid.isEmpty());
+
+    TagMap leaf = TagMap.createFromParent(mid);
+    assertEquals(0, leaf.size());
+    assertTrue(leaf.isEmpty(), "isEmpty() must agree with size()==0");
+    assertNull(leaf.getString("a"));
+    assertTrue(collect(leaf).isEmpty());
+    assertFalse(leaf.iterator().hasNext());
+  }
+
+  @Test
   void chainReadThroughMatchesEquivalentFlatMap() {
     TagMap leaf = threeLevelLeaf();
 
@@ -599,5 +622,97 @@ class TagMapReadThroughTest {
     assertEquals(1, child.size());
     assertEquals("x-val", child.getString("x"));
     assertNull(child.getString("a"), "no read-through after clear detached the parent");
+  }
+
+  // --- slice 8: fillMap/fillStringMap materialize the visible union, not just local entries ---
+
+  private static Map<String, Object> fillMapCollect(TagMap map) {
+    Map<String, Object> out = new HashMap<>();
+    map.fillMap(out);
+    return out;
+  }
+
+  private static Map<String, String> fillStringMapCollect(TagMap map) {
+    Map<String, String> out = new HashMap<>();
+    map.fillStringMap(out);
+    return out;
+  }
+
+  @Test
+  void fillMapMaterializesDedupedUnionLocalWins() {
+    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+    child.set("b", "child-b"); // shadows parent "b"
+    child.set("c", "child-c");
+
+    Map<String, Object> out = fillMapCollect(child);
+    assertEquals(3, out.size(), "union {a, b, c} with b deduped");
+    assertEquals("parent-a", out.get("a")); // inherited tag must not be dropped
+    assertEquals("child-b", out.get("b")); // local wins
+    assertEquals("child-c", out.get("c"));
+  }
+
+  @Test
+  void fillMapHonorsTombstonedParentKeys() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.set("c", "child-c");
+    child.remove("a"); // tombstone parent's "a"
+
+    Map<String, Object> out = fillMapCollect(child);
+    assertEquals(2, out.size());
+    assertFalse(out.containsKey("a"));
+    assertEquals("parent-b", out.get("b"));
+    assertEquals("child-c", out.get("c"));
+  }
+
+  @Test
+  void fillStringMapMaterializesDedupedUnionLocalWins() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.set("b", "child-b"); // shadows parent "b"
+    child.set("c", "child-c");
+
+    Map<String, String> out = fillStringMapCollect(child);
+    assertEquals(3, out.size());
+    assertEquals("parent-a", out.get("a")); // inherited tag preserved
+    assertEquals("child-b", out.get("b"));
+    assertEquals("child-c", out.get("c"));
+  }
+
+  @Test
+  void fillStringMapHonorsTombstonedParentKeys() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.remove("a"); // tombstone parent's "a"
+
+    Map<String, String> out = fillStringMapCollect(child);
+    assertEquals(1, out.size());
+    assertFalse(out.containsKey("a"));
+    assertEquals("parent-b", out.get("b"));
+  }
+
+  @Test
+  void fillMapAcrossChainMatchesEquivalentFlatMap() {
+    TagMap leaf = threeLevelLeaf();
+
+    TagMap flat = TagMap.create();
+    flat.set("a", "gp-a");
+    flat.set("b", "mid-b");
+    flat.set("c", "leaf-c");
+    flat.set("d", "mid-d");
+    flat.set("e", "leaf-e");
+
+    assertEquals(fillMapCollect(flat), fillMapCollect(leaf));
+    assertEquals(fillStringMapCollect(flat), fillStringMapCollect(leaf));
+  }
+
+  @Test
+  void fillMapWithoutParentFillsOnlyLocalEntries() {
+    // regression: the no-parent fast path is unchanged
+    TagMap flat = TagMap.create();
+    flat.set("x", "x-val");
+    flat.set("y", "y-val");
+
+    Map<String, Object> out = fillMapCollect(flat);
+    assertEquals(2, out.size());
+    assertEquals("x-val", out.get("x"));
+    assertEquals("y-val", out.get("y"));
   }
 }
