@@ -640,6 +640,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
+      elementStart = skipLeadingOWC(original, elementStart, w3CPTags.ddMemberValueEnd);
+      if (elementStart >= w3CPTags.ddMemberValueEnd) {
+        break;
+      }
       okSize = size;
       int elementEnd = original.indexOf(ELEMENT_SEPARATOR, elementStart);
       if (elementEnd < 0) {
