@@ -187,7 +187,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
 
   private static boolean isAllowedKeyChar(int c) {
     // space (MIN_ALLOWED_CHAR) is not allowed
-    return c > MIN_ALLOWED_CHAR && c <= MAX_ALLOWED_CHAR && c != TAGS_SEPARATOR;
+    return c > MIN_ALLOWED_CHAR
+        && c <= MAX_ALLOWED_CHAR
+        && c != TAG_KEY_SEPARATOR
+        && c != TAGS_SEPARATOR;
   }
 
   private static boolean isAllowedValueChar(int c) {
