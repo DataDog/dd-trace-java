@@ -247,6 +247,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
+  // Dense known-tag store gate (experimental, OFF by default). Read once into a static constant so
+  // it constant-propagates and dead-code-eliminates the disabled branches on the span-creation
+  // path. The KnownTagCodec is registered regardless (ids route both ways: name->id when dense is
+  // on, id->name when off); this flag only selects whether tags actually take the dense store.
+  private static final boolean DENSE_TAGS_ENABLED = Config.get().isTraceDenseTagsEnabled();
+
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
       SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
@@ -657,11 +663,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // preload this enum to avoid triggering classloading on the hot path
     TraceCollector.PublishState.values();
 
-    // Dense known-tag store (experimental, OFF by default): registering the KnownTagCodec resolver
-    // flips the dense store live so known tags store without a per-tag Entry. Gated by a system
-    // property for A/B benchmarking; when off, keyOf stays a no-op and tag storage is byte-identical
-    // to today. Promote to a Config flag if this becomes a permanent rollout.
-    if (Boolean.getBoolean("dd.trace.dense.tags.enabled")) {
+    // Dense known-tag store (experimental, OFF by default, see DENSE_TAGS_ENABLED): initializing
+    // KnownTags routes known tags into the dense store so they store without a per-tag Entry. When
+    // off, tags take the same path as today. Gated by the trace.dense.tags.enabled Config flag.
+    if (DENSE_TAGS_ENABLED) {
       KnownTags.init();
     }
 

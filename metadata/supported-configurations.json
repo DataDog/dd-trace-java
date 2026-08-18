@@ -5641,6 +5641,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_EXPERIMENTAL_DENSE_TAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED": [
       {
         "version": "A",
