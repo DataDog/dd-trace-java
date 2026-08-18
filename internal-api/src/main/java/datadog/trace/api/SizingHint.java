@@ -11,9 +11,9 @@ package datadog.trace.api;
  * no volatile or atomics.
  *
  * <p>Opaque to everything outside {@code datadog.trace.api}: no public members. {@link TagMap}
- * reads {@link #size} to size a fresh dense store and writes it back (monotonic-max) at a terminal
- * point; {@code SizingHelper} mints and compares by {@link #label}/{@link #labelHash}. Callers only
- * ever hold the reference.
+ * reads {@link #size} to size a fresh dense store and writes it back (best-effort max, see {@link
+ * TagMap#recordSize}) at a terminal point; {@code SizingHelper} mints and compares by {@link
+ * #label}/{@link #labelHash}. Callers only ever hold the reference.
  *
  * <p>{@link #labelHash} is supplied by the helper (a single spread source — {@code
  * FlatHashtable.StringHelper.hash}) so the cached gate always matches the probe hash.
