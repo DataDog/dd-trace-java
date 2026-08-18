@@ -60,8 +60,9 @@ public final class StackTraces {
       StringWriter sw = new StringWriter();
       t.printStackTrace(new PrintWriter(sw));
       trace = sw.toString();
-    } catch (Exception ignored) {
-      // printStackTrace() failed (e.g. getMessage() throws inside toString()).
+    } catch (Throwable ignored) {
+      // printStackTrace() failed (e.g. getMessage() throws inside toString(), or a
+      // StackOverflowError while formatting an already stack-constrained throwable).
       // Reconstruct from getStackTrace() so the call site is still locatable.
       try {
         trace =
@@ -70,7 +71,7 @@ public final class StackTraces {
                 + Arrays.stream(t.getStackTrace())
                     .map(f -> "\tat " + f)
                     .collect(Collectors.joining(System.lineSeparator()));
-      } catch (Exception ignored2) {
+      } catch (Throwable ignored2) {
         trace = t.getClass().getName();
       }
     }

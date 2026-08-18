@@ -83,6 +83,13 @@ class StackTracesTest {
     assertNull(StackTraces.safeGetMessage(null));
   }
 
+  @Test
+  void getStackTraceFallsBackWhenPrintStackTraceThrowsStackOverflowError() {
+    String trace =
+        StackTraces.getStackTrace(TestThrowables.throwingStackOverflowOnPrintStackTrace(), 1000);
+    assertTrue(trace.contains("TestThrowables"), "must fall back to a locatable trace");
+  }
+
   // --- getStackTrace with broken getMessage ---
 
   @ParameterizedTest(name = "truncation limit {0}")

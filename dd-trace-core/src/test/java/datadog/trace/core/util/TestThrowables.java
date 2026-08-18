@@ -20,4 +20,18 @@ public final class TestThrowables {
       }
     };
   }
+
+  /**
+   * Returns a {@link RuntimeException} whose {@link Throwable#printStackTrace(java.io.PrintWriter)}
+   * throws a {@link StackOverflowError} — simulating a second overflow while formatting a throwable
+   * that was itself caught with little remaining stack margin.
+   */
+  public static RuntimeException throwingStackOverflowOnPrintStackTrace() {
+    return new RuntimeException() {
+      @Override
+      public void printStackTrace(java.io.PrintWriter s) {
+        throw new StackOverflowError();
+      }
+    };
+  }
 }
