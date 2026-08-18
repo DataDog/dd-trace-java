@@ -2222,6 +2222,20 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void doesNotDuplicateAPortAlreadyInABracketedIpv6Host() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"[2001:db8::1]:8080\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
+                    + " {\"targetGroupArn\": \"arn\"}}}"));
+
+    assertEquals("http://[2001:db8::1]:8080/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
   void hostnameTagPrefersForwardedHostOverUrlHost() {
     setupMockCallbacks(new Callbacks());
     AgentSpanContext context =
