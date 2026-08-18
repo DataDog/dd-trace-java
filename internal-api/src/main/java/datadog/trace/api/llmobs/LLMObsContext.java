@@ -16,6 +16,9 @@ public final class LLMObsContext {
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
       ContextKey.named("llmobs_agent_version");
+  private static final ContextKey<String> PAGENT_SPAN_ID_KEY =
+      ContextKey.named("llmobs_pagent_span_id");
+  private static final ContextKey<String> PAGENT_NAME_KEY = ContextKey.named("llmobs_pagent_name");
 
   /**
    * Attach an LLMObs span context, leaving any inherited session_id/agent_version from an enclosing
@@ -56,6 +59,32 @@ public final class LLMObsContext {
         .attach();
   }
 
+  /**
+   * Attach an LLMObs span context, propagating session_id, agent_version, and agent attribution to
+   * descendant LLMObs spans. pagentSpanId identifies the nearest agent-kind ancestor; pagentName is
+   * its name (may be null). Both pagent keys are always written — null clears stale values from an
+   * outer scope.
+   */
+  public static ContextScope attach(
+      AgentSpanContext ctx,
+      String sessionId,
+      String agentVersion,
+      String pagentSpanId,
+      String pagentName) {
+    Context updated = Context.current().with(CONTEXT_KEY, ctx);
+    if (sessionId != null && !sessionId.isEmpty()) {
+      updated = updated.with(SESSION_ID_KEY, sessionId);
+    }
+    updated =
+        updated.with(
+            AGENT_VERSION_KEY,
+            agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
+    // Always write both pagent keys. null clears stale values from outer scope.
+    updated = updated.with(PAGENT_SPAN_ID_KEY, pagentSpanId);
+    updated = updated.with(PAGENT_NAME_KEY, pagentName);
+    return updated.attach();
+  }
+
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
   }
@@ -73,5 +102,19 @@ public final class LLMObsContext {
    */
   public static String currentAgentVersion() {
     return Context.current().get(AGENT_VERSION_KEY);
+  }
+
+  /**
+   * Return the parent agent span ID propagated from an enclosing agent-kind LLMObs span, or null.
+   */
+  public static String currentParentAgentSpanId() {
+    return Context.current().get(PAGENT_SPAN_ID_KEY);
+  }
+
+  /**
+   * Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null.
+   */
+  public static String currentParentAgentName() {
+    return Context.current().get(PAGENT_NAME_KEY);
   }
 }

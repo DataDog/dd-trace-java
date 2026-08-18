@@ -8,6 +8,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsPropagationAccess;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +52,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
+      LLMOBS_TAG_PREFIX + "pagent_span_id";
+  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_name";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
@@ -161,9 +166,77 @@ public class DDLLMObsSpan implements LLMObsSpan {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, resolvedAgentVersion);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    // Propagate the effective sessionId and agent_version to descendant LLMObs spans via the
-    // context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId, resolvedAgentVersion);
+
+    // Resolve agent attribution (O(1)): identify the nearest agent-kind ancestor.
+    String resolvedPagentSpanId = null;
+    String resolvedPagentName = null;
+
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
+      // This span is itself an agent — it becomes the nearest ancestor for its descendants.
+      resolvedPagentSpanId = String.valueOf(span.getSpanId());
+      resolvedPagentName = agentNameWireSafe(spanName) ? spanName : null;
+    } else {
+      // Inherit from in-process LLMObs parent (set by a parent agent span via context).
+      resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
+      resolvedPagentName = LLMObsContext.currentParentAgentName();
+
+      // Fall back to distributed propagated tags on the root APM span context.
+      if (resolvedPagentSpanId == null) {
+        AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
+        if (rootCtx instanceof LLMObsPropagationAccess) {
+          LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+          resolvedPagentSpanId = access.getParentAgentSpanId();
+          resolvedPagentName = access.getParentAgentName();
+        }
+      }
+    }
+
+    // Store pagent values as internal tags so the serializer can emit agent_attribution.
+    if (resolvedPagentSpanId != null) {
+      span.setTag(PAGENT_SPAN_ID_TAG_INTERNAL, resolvedPagentSpanId);
+      if (resolvedPagentName != null) {
+        span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedPagentName);
+      }
+    }
+
+    // If this span is an agent, stamp the pagent propagation tags for outgoing distributed calls.
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && resolvedPagentSpanId != null) {
+      AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
+      if (rootCtx instanceof LLMObsPropagationAccess) {
+        LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+        access.setParentAgentSpanId(resolvedPagentSpanId);
+        if (resolvedPagentName != null) {
+          access.setParentAgentName(resolvedPagentName);
+        }
+      }
+    }
+
+    // Propagate sessionId, agent_version, and agent attribution to descendant LLMObs spans.
+    scope =
+        LLMObsContext.attach(
+            span.spanContext(), sessionId, resolvedAgentVersion, resolvedPagentSpanId,
+            resolvedPagentName);
+  }
+
+  /**
+   * Returns true if the agent name is safe to include in the x-datadog-tags header: printable ASCII
+   * only (0x20–0x7E), no commas (delimiter), no semicolons. Max 256 UTF-8 bytes.
+   */
+  private static boolean agentNameWireSafe(String name) {
+    if (name == null) {
+      return false;
+    }
+    byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
+    if (bytes.length > 256) {
+      return false;
+    }
+    for (byte b : bytes) {
+      int u = b & 0xFF;
+      if (u < 0x20 || u > 0x7E || u == 0x2C || u == 0x3B) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
