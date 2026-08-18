@@ -176,10 +176,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
       pos++;
       if (pos < end) {
         c = s.charAt(pos);
-        // It's not allowed to have the separator as the last character so only check
-        // if there is something after the separator
-        if (pos < end - 1 && c == separator) {
-          break;
+        if (c == separator) {
+          break; // trailing separator allowed; caller resumes parsing from here
         }
       }
     } while (pos < end);

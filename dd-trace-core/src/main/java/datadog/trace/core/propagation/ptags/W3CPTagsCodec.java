@@ -352,7 +352,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (pos < end) {
         c = s.charAt(pos);
         if (c == separator) {
-          break; // trailing separator is allowed
+          break; // trailing separator allowed; caller resumes parsing from here
         }
       }
     } while (pos < end);
