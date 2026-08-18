@@ -187,9 +187,12 @@ public class ExposureWriterImpl implements ExposureWriter {
         }
         try {
           evpPublisher.post(EXPOSURES_ROUTE, payload);
-          this.buffer.clear();
         } catch (Exception e) {
           LOGGER.debug("Could not submit exposures", e);
+        } finally {
+          // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
+          // proxy rejection could otherwise replay the same exposures through direct intake.
+          this.buffer.clear();
         }
       }
     }

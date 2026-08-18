@@ -5,6 +5,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import javax.annotation.Nullable;
@@ -38,9 +39,17 @@ final class FeatureFlagBackendApiFactory {
 
   @Nullable
   BackendApi create() {
+    final boolean directFallbackAvailable =
+        CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
+            && hasDirectCredentials();
     final BackendApi proxyApi =
-        backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
+        directFallbackAvailable
+            ? backendApiFactory.createEvpProxyApi(
+                Intake.EVENT_PLATFORM,
+                eventType.responseCompressionEnabled(),
+                HttpRetryPolicy.Factory.NEVER_RETRY)
+            : backendApiFactory.createEvpProxyApi(
+                Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
     if (!CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
       if (proxyApi == null) {
         LOGGER.warn(
@@ -51,7 +60,7 @@ final class FeatureFlagBackendApiFactory {
     }
 
     if (proxyApi != null) {
-      if (hasDirectCredentials()) {
+      if (directFallbackAvailable) {
         return new AgentlessFeatureFlagBackendApi(
             proxyApi, this::createDirectApi, eventType.logName());
       }

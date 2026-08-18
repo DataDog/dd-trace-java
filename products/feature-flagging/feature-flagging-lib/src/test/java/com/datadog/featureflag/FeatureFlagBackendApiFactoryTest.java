@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,8 @@ class FeatureFlagBackendApiFactoryTest {
   void agentlessPrefersLocalEvpProxyWithDirectFallback() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(mock(BackendApi.class));
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenReturn(mock(BackendApi.class));
@@ -60,6 +62,8 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
+    verify(backendApiFactory)
+        .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
@@ -119,7 +123,9 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi proxyApi = mock(BackendApi.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(proxyApi);
+    when(backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
+        .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
