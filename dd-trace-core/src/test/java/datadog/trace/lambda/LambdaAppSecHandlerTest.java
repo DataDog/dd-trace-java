@@ -2103,6 +2103,21 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void ignoresEmptyForwardedPort() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \"\"}, \"requestContext\": {\"elb\":"
+                    + " {\"targetGroupArn\": \"arn\"}}}"));
+
+    // An empty header value takes the same path as a missing one rather than reaching parseInt
+    assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
+  }
+
+  @Test
   void normalisesForwardedSchemeCasing() {
     setupMockCallbacks(new Callbacks());
     AgentSpanContext context =
@@ -2176,6 +2191,24 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("http://api.example.com/users/42", tags.get(Tags.HTTP_URL));
     assertEquals("curl/8.1", tags.get(Tags.HTTP_USER_AGENT));
     assertEquals("public.example.com", tags.get(Tags.HTTP_HOSTNAME));
+  }
+
+  @Test
+  void omitsMethodTagWhenTheEventCarriesNoMethod() {
+    setupMockCallbacks(new Callbacks());
+    // Typed as a REST event by requestContext.requestId alone, so no httpMethod is available
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"path\": \"/users/42\", \"headers\": {\"host\": \"api.example.com\"},"
+                    + " \"requestContext\": {\"requestId\": \"req-1\", \"domainName\":"
+                    + " \"api.example.com\"}}"));
+
+    Map<String, Object> tags = tagsOf(context);
+    assertNull(tags.get(Tags.HTTP_METHOD));
+    // The remaining tags are unaffected: only the method is derived from the missing field
+    assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
+    assertEquals("api.example.com", tags.get(Tags.HTTP_HOSTNAME));
   }
 
   @Test
