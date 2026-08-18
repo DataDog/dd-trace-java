@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
@@ -15,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -33,22 +31,12 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import datadog.trace.test.util.PollingConditions;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
-
-  private static final double TIMEOUT_SECONDS = 5;
-
   @AfterEach
   void resetFlagEvaluationGateway() {
     FeatureFlaggingSystem.stop();
@@ -61,7 +49,7 @@ class FeatureFlaggingSystemTest {
   @WithConfig(
       key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
       value = "http://127.0.0.1:1")
-  void agentlessStartPreparesExposureDeliveryAndWaitsForApplicationProviderActivation() {
+  void agentlessStartWaitsForApplicationProviderActivationWithoutPreparingDelivery() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     clearInvocations(sharedCommunicationObjects);
 
@@ -69,13 +57,9 @@ class FeatureFlaggingSystemTest {
       FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
-      assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
+      assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
       assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
-
-      FeatureFlaggingGateway.activate();
-
-      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
-      assertTrue(FeatureFlaggingSystem.isConfigurationSourceStarted());
+      verifyNoInteractions(sharedCommunicationObjects);
     } finally {
       FeatureFlaggingSystem.stop();
     }
@@ -87,113 +71,51 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
-  @WithConfig(
-      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://127.0.0.1:1")
-  void agentlessActivationDuringEarlyWriterInitializationIsNotLost() throws Exception {
+  void agentlessActivationInitializesSystemOnce() {
     final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
-    final ExposureWriter exposureWriter = mock(ExposureWriter.class);
-    final CountDownLatch writerInitializationStarted = new CountDownLatch(1);
-    final CountDownLatch activationAttempted = new CountDownLatch(1);
-    final CountDownLatch finishWriterInitialization = new CountDownLatch(1);
-    final ExecutorService executor = Executors.newFixedThreadPool(2);
-    doAnswer(
-            ignored -> {
-              writerInitializationStarted.countDown();
-              assertTrue(finishWriterInitialization.await(5, TimeUnit.SECONDS));
-              return null;
-            })
-        .when(exposureWriter)
-        .init();
+    final FeatureFlaggingSystem.SystemInitializer systemInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
 
-    try {
-      final Future<?> start =
-          executor.submit(
-              () ->
-                  FeatureFlaggingSystem.start(
-                      sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> exposureWriter));
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, systemInitializer);
 
-      assertTrue(writerInitializationStarted.await(5, TimeUnit.SECONDS));
-      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    verifyNoInteractions(systemInitializer);
+    assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
 
-      final Future<?> activation =
-          executor.submit(
-              () -> {
-                activationAttempted.countDown();
-                FeatureFlaggingGateway.activate();
-              });
-      assertTrue(activationAttempted.await(5, TimeUnit.SECONDS));
+    FeatureFlaggingGateway.activate();
+    FeatureFlaggingGateway.activate();
 
-      finishWriterInitialization.countDown();
-      start.get(5, TimeUnit.SECONDS);
-
-      new PollingConditions(TIMEOUT_SECONDS)
-          .eventually(() -> assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation()));
-      verify(exposureWriter).init();
-      activation.cancel(true);
-    } finally {
-      finishWriterInitialization.countDown();
-      executor.shutdownNow();
-    }
+    verify(systemInitializer).initialize(eq(sharedCommunicationObjects), any(Config.class));
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
-  void agentlessExposureWriterInitializationFailureCleansUpAndAllowsRetry() {
+  void agentlessInitializationFailureCleansUpAndAllowsRetry() {
     final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
-    final ExposureWriter failedWriter = mock(ExposureWriter.class);
+    final FeatureFlaggingSystem.SystemInitializer failedInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
     final IllegalStateException initializationFailure =
-        new IllegalStateException("writer initialization failed");
-    doThrow(initializationFailure).when(failedWriter).init();
+        new IllegalStateException("system initialization failed");
+    doThrow(initializationFailure)
+        .when(failedInitializer)
+        .initialize(any(SharedCommunicationObjects.class), any(Config.class));
+
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, failedInitializer);
 
     final IllegalStateException thrown =
-        assertThrows(
-            IllegalStateException.class,
-            () ->
-                FeatureFlaggingSystem.start(
-                    sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> failedWriter));
+        assertThrows(IllegalStateException.class, FeatureFlaggingGateway::activate);
 
     assertSame(initializationFailure, thrown);
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
     assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
-    verify(failedWriter).close();
 
-    final ExposureWriter retryWriter = mock(ExposureWriter.class);
-    FeatureFlaggingSystem.start(
-        sharedCommunicationObjects, (ignoredSco, ignoredConfig) -> retryWriter);
-
-    assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
-    assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
-    verify(retryWriter).init();
-  }
-
-  @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(key = API_KEY, value = "")
-  @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
-  @WithConfig(
-      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://127.0.0.1:1")
-  void agentlessActivationRestartsExposureWriterAfterEarlyDiscoveryMiss() {
-    final AtomicBoolean evpProxyAvailable = new AtomicBoolean(false);
-    final DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    when(discovery.supportsEvpProxy()).thenAnswer(ignored -> evpProxyAvailable.get());
-    when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
-    final SharedCommunicationObjects sharedCommunicationObjects =
-        sharedCommunicationObjects(discovery);
-    final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
-
-    FeatureFlaggingSystem.start(sharedCommunicationObjects);
-
-    poll.eventually(() -> assertFalse(FeatureFlaggingSystem.isExposureWriterRunning()));
-    evpProxyAvailable.set(true);
+    final FeatureFlaggingSystem.SystemInitializer retryInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, retryInitializer);
     FeatureFlaggingGateway.activate();
 
-    poll.eventually(() -> assertTrue(FeatureFlaggingSystem.isExposureWriterRunning()));
-    assertTrue(FeatureFlaggingSystem.isConfigurationSourceStarted());
+    verify(retryInitializer).initialize(eq(sharedCommunicationObjects), any(Config.class));
   }
 
   @Test
@@ -349,6 +271,8 @@ class FeatureFlaggingSystemTest {
       // Agentless defers initialization until the application provider activates.
       FeatureFlaggingGateway.activate();
 
+      assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
+      assertTrue(FeatureFlaggingSystem.isConfigurationSourceStarted());
       assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
     } finally {

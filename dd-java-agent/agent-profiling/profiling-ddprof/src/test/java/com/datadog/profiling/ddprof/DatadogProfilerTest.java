@@ -147,6 +147,48 @@ class DatadogProfilerTest {
     assertTrue(startCmd(profiler).contains(",nativemem=131072"));
   }
 
+  @Test
+  void testStartCmdNativeSocketDisabledByDefault() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    assertFalse(startCmd(profiler).contains(",natsock"));
+  }
+
+  @Test
+  void testStartCmdNativeSocketEnabledWithoutInterval() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    String cmd = startCmd(profiler);
+    assertTrue(cmd.contains(",natsock"));
+    assertFalse(cmd.contains(",natsock="));
+  }
+
+  @Test
+  void testStartCmdNativeSocketEnabledWithInterval() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL, "100us");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    assertTrue(startCmd(profiler).contains(",natsock=100us"));
+  }
+
   private static String startCmd(DatadogProfiler profiler) throws Exception {
     Path targetFile = Files.createTempFile(Paths.get("/tmp"), "target_", ".jfr");
     return profiler.cmdStartProfiling(targetFile);
