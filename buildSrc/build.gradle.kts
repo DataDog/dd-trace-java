@@ -2,7 +2,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
