@@ -1,36 +1,48 @@
-# Automatically assign the team as a reviewer.
+# Automatically assign a member of the team as a reviewer.
 # https://help.github.com/en/articles/about-code-owners
 
-# Default owners, overridden by file/directory specific owners below
-* @DataDog/apm-lang-platform-java
-
-# Shared tooling
-/.agents/                     @DataDog/dd-trace-java
-/.claude/                     @DataDog/dd-trace-java
-/.githooks/                   @DataDog/dd-trace-java
-/.mvn/                        @DataDog/dd-trace-java
-/dd-java-agent/               @DataDog/dd-trace-java
-/dd-smoke-tests/              @DataDog/dd-trace-java
-/docs/                        @DataDog/dd-trace-java
-/gradle/                      @DataDog/dd-trace-java
-/tooling/                     @DataDog/dd-trace-java
-/gradle.lockfile              @DataDog/dd-trace-java
-/gradle.properties            @DataDog/dd-trace-java
-/gradlew                      @DataDog/dd-trace-java
-/gradlew.bat                  @DataDog/dd-trace-java
-/mvnw                         @DataDog/dd-trace-java
-/mvnw.cmd                     @DataDog/dd-trace-java
-/settings-gradle.lockfile     @DataDog/dd-trace-java
-/settings.gradle.kts          @DataDog/dd-trace-java
-/static-analysis.datadog.yml  @DataDog/dd-trace-java
+# Shared tooling, tests, and documentation
+/.agents/                     @DataDog/apm-java
+/.claude/                     @DataDog/apm-java
+/.editorconfig                @DataDog/apm-java
+/.githooks/                   @DataDog/apm-java
+/.gitignore                   @DataDog/apm-java
+/.gitmodules                  @DataDog/apm-java
+/.mvn/                        @DataDog/apm-java
+/AGENTS.md                    @DataDog/apm-java
+/ARCHITECTURE.md              @DataDog/apm-java
+/BUILDING.md                  @DataDog/apm-java
+/CONTRIBUTING.md              @DataDog/apm-java
+/LICENSE                      @DataDog/apm-java
+/LICENSE-3rdparty.csv         @DataDog/apm-java
+/NOTICE                       @DataDog/apm-java
+/README.md                    @DataDog/apm-java
+/SECURITY.md                  @DataDog/apm-java
+/SUPPORT.md                   @DataDog/apm-java
+/dd-smoke-tests/              @DataDog/apm-java
+/docs/                        @DataDog/apm-java
+/gradle/                      @DataDog/apm-java
+/tooling/                     @DataDog/apm-java
+/gradle.lockfile              @DataDog/apm-java
+/gradle.properties            @DataDog/apm-java
+/gradlew                      @DataDog/apm-java
+/gradlew.bat                  @DataDog/apm-java
+/mvnw                         @DataDog/apm-java
+/mvnw.cmd                     @DataDog/apm-java
+/settings-gradle.lockfile     @DataDog/apm-java
+/settings.gradle.kts          @DataDog/apm-java
+/setup.ps1                    @DataDog/apm-java
+/setup.sh                     @DataDog/apm-java
+/static-analysis.datadog.yml  @DataDog/apm-java
 
 # Shared modules
-/communication/     @DataDog/dd-trace-java
-/dd-trace-api/      @DataDog/dd-trace-java
-/dd-trace-core/     @DataDog/dd-trace-java
-/internal-api/      @DataDog/dd-trace-java
-/products/metrics/  @DataDog/dd-trace-java
-/utils/             @DataDog/dd-trace-java
+/communication/     @DataDog/apm-java
+/dd-java-agent/     @DataDog/apm-java
+/dd-trace-api/      @DataDog/apm-java
+/dd-trace-core/     @DataDog/apm-java
+/internal-api/      @DataDog/apm-java
+/products/metrics/  @DataDog/apm-java
+/utils/             @DataDog/apm-java
 
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
@@ -161,8 +173,7 @@
 /dd-smoke-tests/maven/                              @DataDog/ci-app-libraries
 /internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries
 **/civisibility/                                    @DataDog/ci-app-libraries
-**/CiVisibility*.java                               @DataDog/ci-app-libraries
-**/CiVisibility*.groovy                             @DataDog/ci-app-libraries
+**/CiVisibility*                                    @DataDog/ci-app-libraries
 
 # @DataDog/debugger-java (Live Debugger)
 /dd-java-agent/agent-debugger/                                  @DataDog/debugger-java
