@@ -422,7 +422,7 @@ public class DDSpanContext
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags =
         readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
+            ? TagMap.createFromParent(readThroughParent, sizingHint)
             : sizingHint != null ? TagMap.create(sizingHint) : TagMap.create(capacity);
     this.sizingHint = sizingHint;
 
@@ -976,15 +976,21 @@ public class DDSpanContext
   }
 
   /**
-   * Feeds this span's final dense-store size back into the sizingHint it was created from (if any).
-   * Called once at span finish; lets a reused hint self-tune to the operation's observed known-tag
-   * high-water mark, so subsequent spans of the operation are sized correctly.
+   * Feeds this span's final dense-store size back into the sizingHint it was created from (if any),
+   * so a reused hint self-tunes to the operation's observed known-tag high-water mark and later
+   * spans of the operation are sized correctly.
+   *
+   * <p>Called from {@link #processTagsAndBaggage} at serialization — the one terminal point that
+   * (a) runs for every serialized span regardless of finish mode (plain {@code finish()} AND {@code
+   * phasedFinish()}+{@code publish()}, which the async gRPC/Netty/WebFlux paths use and which never
+   * enter {@code finishAndAddToTrace}), and (b) runs AFTER the lazy tag post-processors have
+   * appended their serialization-time tags ({@code _dd.integration}, host, ...), so the recorded
+   * count is the span's true final footprint rather than an underestimate. The caller already holds
+   * {@code synchronized (unsafeTags)}, so the {@code knownCount} read is consistent; the hint write
+   * itself is best-effort racy by design (see {@link TagMap#recordSize}).
    */
   void recordDenseSize() {
     if (sizingHint != null) {
-      // Intentionally unsynchronized: recordSize is benign-racy by design (monotonic-max on a plain
-      // int), and a stale knownCount read only ever costs one extra growth on a later span. The
-      // lock would add nothing but contention on the finish path.
       unsafeTags.recordSize(sizingHint);
     }
   }
@@ -1315,6 +1321,10 @@ public class DDSpanContext
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
+
+      // Self-tune the per-operation sizing hint now that every tag (incl. the just-appended
+      // serialization-time tags) is present -- the terminal point shared by all finish modes.
+      recordDenseSize();
 
       // Links
       if (injectLinksAsTags) {

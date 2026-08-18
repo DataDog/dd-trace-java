@@ -26,14 +26,17 @@ public final class SizingHint {
   final String label;
   final int labelHash;
 
-  // Payload: the tuned dense-store size. Plain racy int, updated monotonic-max — a stale/lost read
-  // only mis-sizes an array (over/under-provision), never corrupts tag data, so no synchronization.
+  // Payload: the tuned dense-store size. Plain racy int, updated best-effort max (see
+  // TagMap#recordSize -- not strictly monotonic under concurrent finishes) — a stale/lost/lowered
+  // read only mis-sizes an array (over/under-provision), never corrupts tag data, so no
+  // synchronization.
   int size;
 
   // When true, {@code size} is fixed and recordSize won't grow it. For the shared default /
   // overflow
-  // hint (a HETEROGENEOUS catch-all for operation-less / over-budget spans): self-tuning it via
-  // monotonic-max would converge to the max across unlike sharers and over-provision the lean ones.
+  // hint (a HETEROGENEOUS catch-all for operation-less / over-budget spans): self-tuning it toward
+  // the observed max would converge to the max across unlike sharers and over-provision the lean
+  // ones.
   final boolean capped;
 
   SizingHint(String label, int labelHash, int seedSize) {

@@ -130,6 +130,20 @@ public final class FlatHashtable {
    * double-create is acceptable only when the payload makes it benign (see class doc).
    */
   public static <K, V> V getOrCreate(V[] table, K key, Helper<K, V> helper) {
+    return getOrCreate(table, key, helper, null);
+  }
+
+  /**
+   * Like {@link #getOrCreate(Object[], Object, Helper)}, but reports whether this call actually
+   * minted-and-stored a new entry: when {@code createdOut} is non-null, {@code createdOut[0]} is
+   * set to {@code true} only on the store branch, and left untouched when an existing entry
+   * matched. Callers that keep an approximate live-size counter (for a cardinality budget)
+   * increment it only when {@code createdOut[0]} — so racing callers that get an already-inserted
+   * entry back don't each over-count the same operation. Still racy by design: a benign double-mint
+   * (two threads store into the same slot) reports {@code true} on both, an over-count of at most
+   * the store-race width, not of every caller (see class doc).
+   */
+  public static <K, V> V getOrCreate(V[] table, K key, Helper<K, V> helper, boolean[] createdOut) {
     final int mask = table.length - 1;
     final int start = helper.hash(key) & mask;
     int i = start;
@@ -138,6 +152,9 @@ public final class FlatHashtable {
       if (e == null) {
         final V created = helper.create(key);
         table[i] = created; // single-reference publish; benign clobber (see class doc)
+        if (createdOut != null) {
+          createdOut[0] = true;
+        }
         return created;
       }
       if (helper.matches(key, e)) {

@@ -17,7 +17,7 @@ import datadog.trace.util.FlatHashtable;
  * <p><b>Bounded + racy by design.</b> Each lane is a fixed-capacity {@link FlatHashtable} (never
  * resized) so memory is bounded even under unbounded/dynamic operation names; once a lane's
  * cardinality budget is spent, further operations share a capped default hint. Construction,
- * insertion, and the monotonic-max size update are all lock-free and deliberately racy — a lost
+ * insertion, and the best-effort-max size update are all lock-free and deliberately racy — a lost
  * update or a double-mint only mis-sizes an array (over/under-provision) for a span or two, never
  * corrupts tag data (see {@link FlatHashtable} and {@link SizingHint} for the rationale).
  *
@@ -30,7 +30,7 @@ import datadog.trace.util.FlatHashtable;
 public final class SizingHintTable {
   private SizingHintTable() {}
 
-  // Seed for a fresh per-operation hint: a floor that self-tunes up via monotonic-max recordSize.
+  // Seed for a fresh per-operation hint: a floor that self-tunes up via best-effort-max recordSize.
   static final int SEED_SIZE = 1;
   // Fixed size for the shared over-budget hint: a small lean default. Capped (never grown by
   // recordSize) because it's a heterogeneous catch-all -- growing it would over-provision lean
@@ -84,15 +84,24 @@ public final class SizingHintTable {
     if ((entrySpan ? entrySize : childSize) >= CARDINALITY_LIMIT) {
       return overflow;
     }
-    final SizingHint created = FlatHashtable.getOrCreate(slots, key, HELPER);
-    if (created == null) {
+    // Count only a genuine insert. Between the get() miss above and this getOrCreate another thread
+    // may have inserted the same operation's hint; getOrCreate then returns that existing entry to
+    // us -- without `created` we'd still bump the lane count, so a cold-start burst of many spans
+    // of
+    // one operation could spend the budget on a single distinct name. `created[0]` is set only on
+    // the actual store branch. Allocated here on the create path only, which is warmup-rare.
+    final boolean[] created = new boolean[1];
+    final SizingHint hint = FlatHashtable.getOrCreate(slots, key, HELPER, created);
+    if (hint == null) {
       return overflow; // physically full -- shouldn't happen under the cap, but stay safe
     }
-    if (entrySpan) {
-      entrySize++; // racy approximate count
-    } else {
-      childSize++;
+    if (created[0]) {
+      if (entrySpan) {
+        entrySize++; // racy approximate count; only a real insert bumps it
+      } else {
+        childSize++;
+      }
     }
-    return created;
+    return hint;
   }
 }
