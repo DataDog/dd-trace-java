@@ -365,7 +365,10 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static boolean isAllowedKeyChar(int c) {
     // We already know that the segments have been validated against the valid chars for
     // the general tracestate header
-    return c > MIN_ALLOWED_CHAR && c <= MAX_ALLOWED_CHAR && c != KEY_VALUE_SEPARATOR;
+    return c > MIN_ALLOWED_CHAR
+        && c <= MAX_ALLOWED_CHAR
+        && c != KEY_VALUE_SEPARATOR
+        && c != ELEMENT_SEPARATOR;
   }
 
   private static boolean isAllowedValueChar(int c) {
