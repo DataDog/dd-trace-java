@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
-import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -42,10 +41,19 @@ public class ExposureWriterImpl implements ExposureWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
+    this(capacity, flushInterval, timeUnit, new ExposureBackendApiFactory(config, sco), config);
+  }
+
+  ExposureWriterImpl(
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final ExposureBackendApiFactory backendApiFactory,
+      final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final ExposureSerializingHandler serializer =
         new ExposureSerializingHandler(
-            new BackendApiFactory(config, sco),
+            backendApiFactory,
             queue,
             flushInterval,
             timeUnit,
@@ -95,8 +103,8 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final Runnable errorCallback;
 
-    public ExposureSerializingHandler(
-        final BackendApiFactory backendApiFactory,
+    ExposureSerializingHandler(
+        final ExposureBackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -104,7 +112,8 @@ public class ExposureWriterImpl implements ExposureWriter {
         final Runnable errorCallback) {
       this.queue = queue;
       this.cache = new LRUExposureCache(queue.capacity());
-      this.evpPublisher = new FeatureFlagEvpPublisher<>(backendApiFactory, ExposuresRequest.class);
+      this.evpPublisher =
+          new FeatureFlagEvpPublisher<>(backendApiFactory::create, ExposuresRequest.class);
       this.context = context;
 
       this.lastTicks = System.nanoTime();
@@ -119,7 +128,8 @@ public class ExposureWriterImpl implements ExposureWriter {
     public void run() {
       if (!evpPublisher.start()) {
         errorCallback.run();
-        throw new IllegalArgumentException("EVP Proxy not available");
+        LOGGER.warn("Feature Flagging exposure delivery is disabled");
+        return;
       }
       try {
         runDutyCycle();
