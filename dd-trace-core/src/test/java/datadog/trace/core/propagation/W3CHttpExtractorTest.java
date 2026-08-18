@@ -112,6 +112,7 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
     "keep empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-01' | ''                       | SAMPLER_KEEP | SamplingMechanism.DEFAULT |       ",
     "drop empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-00' | ''                       | SAMPLER_DROP |                           |       ",
     "keep with user keep state                     | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some'          | USER_KEEP    |                           | some  ",
+    "keep with trailing element separator          | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;'         | USER_KEEP    |                           | some  ",
     "keep with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;t.dm:-4'  | USER_KEEP    | SamplingMechanism.MANUAL  | some  ",
     "drop with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:2;o:some;t.dm:-4'  | SAMPLER_DROP |                           | some  ",
     "drop with user drop state                     | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some'         | USER_DROP    |                           | some  ",
