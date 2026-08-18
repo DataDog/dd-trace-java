@@ -123,6 +123,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       final DBInfo dbInfo =
           JDBCDecorator.parseDBInfo(
               connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+      if (!DECORATE.shouldInjectSqlComment(dbInfo)) {
+        return inputSql;
+      }
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
         dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);

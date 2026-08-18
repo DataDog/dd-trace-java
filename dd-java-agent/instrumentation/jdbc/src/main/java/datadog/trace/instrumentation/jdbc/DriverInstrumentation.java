@@ -113,7 +113,8 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
           // ignore
         }
       }
-      DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps);
+      DBInfo dbInfo =
+          JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps).toBuilder().build();
       InstrumentationContext.get(Connection.class, DBInfo.class).put(connWithContext, dbInfo);
     }
   }

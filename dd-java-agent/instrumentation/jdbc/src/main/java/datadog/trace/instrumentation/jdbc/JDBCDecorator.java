@@ -54,6 +54,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       SpanNaming.instance().namingSchema().database().service("jdbc");
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
+  public static final String DD_ORACLE_SERVICE_HASH_PREFIX = "_DD_DDSH:";
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
   private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
@@ -65,6 +66,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+  private static final boolean INJECT_ORACLE_SERVICE_HASH_ACTION =
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE)
+          && Config.get().isDbmPropagationOracleActionEnabled();
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
@@ -238,7 +242,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           // getClientInfo is likely not allowed, we can still extract info from the url alone
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
         }
-        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo).toBuilder().build();
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
@@ -290,6 +294,33 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public boolean isSqlServer(final DBInfo dbInfo) {
     return "sqlserver".equals(dbInfo.getType());
+  }
+
+  public boolean shouldInjectSqlComment(final DBInfo dbInfo) {
+    return INJECT_COMMENT && !(INJECT_ORACLE_SERVICE_HASH_ACTION && isOracle(dbInfo));
+  }
+
+  /** Sets the dynamic service hash in {@code v$session.action} once per Oracle session and hash. */
+  public void setServiceHashAction(Connection connection, DBInfo dbInfo) {
+    if (!INJECT_ORACLE_SERVICE_HASH_ACTION || !isOracle(dbInfo)) {
+      return;
+    }
+
+    final String baseHash = BaseHash.getBaseHashStr();
+    if (baseHash == null) {
+      return;
+    }
+    final String action = DD_ORACLE_SERVICE_HASH_PREFIX + baseHash;
+    if (!dbInfo.markOracleServiceAction(action)) {
+      return;
+    }
+
+    try {
+      connection.setClientInfo("OCSID.ACTION", action);
+    } catch (Throwable e) {
+      // The attempt stays recorded so unsupported drivers do not pay this cost on every query.
+      logInjectionErrorOnce("service hash action", e);
+    }
   }
 
   /**

@@ -18,6 +18,7 @@ public final class DBInfo {
   private final String warehouse;
   private final String schema;
   private volatile String poolName;
+  private volatile String oracleServiceAction;
 
   DBInfo(
       String type,
@@ -218,6 +219,14 @@ public final class DBInfo {
 
   public void setPoolName(String poolname) {
     this.poolName = poolname;
+  }
+
+  public synchronized boolean markOracleServiceAction(String action) {
+    if (action.equals(oracleServiceAction)) {
+      return false;
+    }
+    oracleServiceAction = action;
+    return true;
   }
 
   public Builder toBuilder() {

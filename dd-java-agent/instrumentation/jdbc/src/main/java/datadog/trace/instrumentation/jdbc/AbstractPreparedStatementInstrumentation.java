@@ -81,6 +81,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
+        DECORATE.setServiceHashAction(connection, dbInfo);
+
         if (INJECT_COMMENT && injectTraceContext) {
           if (DECORATE.isSqlServer(dbInfo)) {
             // The span ID is pre-determined so that we can reference it when setting the context

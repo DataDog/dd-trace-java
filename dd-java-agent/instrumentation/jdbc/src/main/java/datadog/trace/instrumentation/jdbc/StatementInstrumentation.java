@@ -93,6 +93,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
         final boolean isOracle = DECORATE.isOracle(dbInfo);
 
+        DECORATE.setServiceHashAction(connection, dbInfo);
+
         if (INJECT_COMMENT && injectTraceContext) {
           if (isSqlServer) {
             // The span ID is pre-determined so that we can reference it when setting the context
@@ -116,7 +118,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
-        if (span != null && INJECT_COMMENT) {
+        if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {
           String traceParent = null;
 
           if (injectTraceContext) {
