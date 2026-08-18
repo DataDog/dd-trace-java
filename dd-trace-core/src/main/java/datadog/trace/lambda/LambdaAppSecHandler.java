@@ -207,10 +207,6 @@ public class LambdaAppSecHandler {
       }
 
       // The only HTTP tag set on the exit path: the status does not exist at span creation.
-      // setHttpStatusCode, not setTag, so the value serialises as a string per the span spec.
-      // The error flag follows the status as in HttpServerDecorator.doOnResponseStatus and in the
-      // Lambda Extension, which sets error=1 on a 5xx handler response: without it the span would
-      // show a 500 with error:0 in deployments where no extension is in the path.
       if (responseData.statusCode > 0) {
         span.setHttpStatusCode(responseData.statusCode);
         boolean isError = Config.get().getHttpServerErrorStatuses().get(responseData.statusCode);
@@ -318,11 +314,7 @@ public class LambdaAppSecHandler {
   /**
    * Writes the HTTP tags derived from the Lambda event onto the context that will seed the
    * invocation span. Transcribed from {@code HttpServerDecorator.doOnRequest}, minus the client IP
-   * tags, {@code span.kind} and {@code http.fragment}. Must stay pure tag writing: firing the
-   * gateway callbacks here would hand the WAF the URI a second time ({@link
-   * #processAppSecRequestData} already does), and setting the resource via {@code
-   * HttpResourceDecorator.withRoute} would overwrite the {@code dd-tracer-serverless-span}
-   * placeholder resource the Lambda Extension matches on.
+   * tags, {@code span.kind} and {@code http.fragment}.
    */
   static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
     // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
