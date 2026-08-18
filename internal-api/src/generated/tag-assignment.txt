@@ -79,3 +79,4 @@
   service.name                   -> service
   url.full                       -> http.url
   url.query                      -> http.query.string
+  user_agent.original            -> http.useragent

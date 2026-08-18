@@ -17,9 +17,13 @@ private constructor(
     val type: String,
     val required: String,
     /**
-     * The tag's OpenTelemetry-namespace name, if it has one. keyOf resolves it to this tag's
-     * canonical id (inbound, many->one); openTelemetryNameOf recovers it (outbound). Further
-     * namespaces and serializer applicability are a follow-on concern.
+     * The tag's OpenTelemetry-namespace RENAME, or null when it has none. otel-name is optional and
+     * tri-state in the YAML: absent => the OpenTelemetry name is implicitly the dd-name (pass-through
+     * under the Datadog name; the RFC "retain" default) and this field is null; a name => a rename to
+     * that OpenTelemetry-namespace name; the literal `none` => Datadog-only (no OpenTelemetry name)
+     * and this field is null — a reserved value with no tags today (suppression is a follow-on), so
+     * it currently behaves as pass-through, indistinguishable from absent. keyOf resolves a rename
+     * to this tag's canonical id (inbound, many->one); openTelemetryNameOf recovers it (outbound).
      */
     val otelName: String? = null,
   )
@@ -162,19 +166,72 @@ private constructor(
           )
         }
 
+      // Trace-level tags pass through under their Datadog name for now; their OTel mapping (resource
+      // attributes) is a follow-on. TODO(otel follow-on).
       val traceLevel = tagList((root["trace_level"] as? Map<String, Any?>)?.get("tags"))
+      validateOtelNameConsistency(spanTypes, mixins, traceLevel)
       return TagConventions(spanTypes, mixins, traceLevel)
+    }
+
+    /**
+     * A tag is de-duped by name across span types / mixins (see [resolve] / [allStoredTags]), so its
+     * whole identity — including the OpenTelemetry name — must be declared consistently everywhere it
+     * appears. `http.url` on `http.server` and `http.client`, for instance, is ONE tag: it can carry
+     * exactly one otel-name. Without this check, two conflicting declarations would silently collapse
+     * to whichever the dedup happened to keep. Fail the build loudly instead. (A span-kind-dependent
+     * mapping is a derivation, not a rename, and belongs to the derivation layer — not two otel-names
+     * on one identity.)
+     */
+    private fun validateOtelNameConsistency(
+      spanTypes: Map<String, SpanType>,
+      mixins: Map<String, Mixin>,
+      traceLevel: List<Tag>,
+    ) {
+      val declared = HashMap<String, String?>() // name -> otelName from its first declaration
+      val declaredKeys = HashSet<String>()
+      val check = { t: Tag ->
+        if (declaredKeys.add(t.name)) {
+          declared[t.name] = t.otelName
+        } else {
+          require(declared[t.name] == t.otelName) {
+            "tag '${t.name}' declares conflicting otel-name: '${declared[t.name] ?: "none"}' vs " +
+                "'${t.otelName ?: "none"}'. A tag is one identity across span types/mixins and may " +
+                "carry only one otel-name; a span-kind-dependent mapping belongs to the derivation layer."
+          }
+        }
+      }
+      spanTypes.values.forEach { it.tags.forEach(check) }
+      mixins.values.forEach { it.tags.forEach(check) }
+      traceLevel.forEach(check)
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun tagList(tags: Any?): List<Tag> =
       (tags as? List<Map<String, Any?>>)?.map { m ->
         Tag(
-          name = m["tag"].toString(),
+          name = m["dd-name"].toString(),
           type = (m["type"] as? String) ?: "string",
           required = (m["required"] as? String) ?: "optional",
-          otelName = m["open-telemetry-name"] as? String,
+          otelName = parseOtelName(m),
         )
       } ?: emptyList()
+
+    /**
+     * Parse the optional, tri-state `otel-name` of one tag. Absent (key not present) => implicit
+     * dd-name (pass-through) => null; the literal `none` => Datadog-only (reserved) => null; any other
+     * non-blank string => a rename => that value. A present-but-invalid value (empty/blank, or a
+     * non-string such as a number or an unquoted YAML `null`) is a typo that would otherwise slip
+     * through the `as? String` cast into a silent pass-through or an empty rename — fail the build
+     * loudly instead.
+     */
+    private fun parseOtelName(m: Map<String, Any?>): String? {
+      if (!m.containsKey("otel-name")) return null // absent => pass-through
+      val raw = m["otel-name"]
+      require(raw is String && raw.isNotBlank()) {
+        "tag '${m["dd-name"]}' has an invalid otel-name: '$raw'. Use a non-empty name, the literal " +
+            "`none`, or omit the key entirely for pass-through under the Datadog name."
+      }
+      return raw.takeUnless { it == "none" }
+    }
   }
 }

@@ -207,20 +207,26 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
+    // OTLP is the OpenTelemetry wire format, so render each known tag under its OpenTelemetry rename
+    // when it declares one, falling back to the Datadog name otherwise (pass-through, the default).
+    // This is the straight rename projection only — suppressing a Datadog-only tag from OpenTelemetry,
+    // per-exporter opt-in, and additional namespaces are deferred to the OpenTelemetry follow-on.
+    String otelName = tagEntry.openTelemetryName();
+    String key = otelName != null ? otelName : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, key, tagEntry.stringValue());
     }
   }
 
