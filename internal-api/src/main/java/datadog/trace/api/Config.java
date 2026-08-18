@@ -175,6 +175,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_DENSE_TAGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
@@ -3303,7 +3304,8 @@ public class Config {
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.traceDenseTagsEnabled =
-        configProvider.getBoolean(TracerConfig.TRACE_DENSE_TAGS_ENABLED, false);
+        configProvider.getBoolean(
+            TracerConfig.TRACE_DENSE_TAGS_ENABLED, DEFAULT_TRACE_DENSE_TAGS_ENABLED);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -6828,6 +6830,11 @@ public class Config {
         + sqsInjectDatadogAttributeEnabled
         + ", snsInjectDatadogAttributeEnabled="
         + snsInjectDatadogAttributeEnabled
+        // Experimental: surfaced only when set away from the default, keeping normal dumps clean.
+        // Compared to the default constant (not a literal) so it survives a default change.
+        + (traceDenseTagsEnabled != DEFAULT_TRACE_DENSE_TAGS_ENABLED
+            ? ", traceDenseTagsEnabled=" + traceDenseTagsEnabled
+            : "")
         + '}';
   }
 }

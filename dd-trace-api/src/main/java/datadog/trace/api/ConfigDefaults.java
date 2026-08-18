@@ -305,6 +305,7 @@ public final class ConfigDefaults {
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
+  static final boolean DEFAULT_TRACE_DENSE_TAGS_ENABLED = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
   static final long DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL = 20; // seconds
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
