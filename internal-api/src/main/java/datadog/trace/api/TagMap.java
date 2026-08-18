@@ -79,6 +79,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return new TagMap();
   }
 
+  /** Creates a mutable TagMap whose dense store is sized per-operation from {@code hint}. */
+  public static final TagMap create(SizingHint hint) {
+    TagMap tagMap = new TagMap();
+    int n = hint.size;
+    tagMap.denseCapHint = n > 0 ? n : KNOWN_INIT_CAP;
+    return tagMap;
+  }
+
   /**
    * Creates a fresh, mutable TagMap that reads through to {@code parent} on local misses. The
    * parent must be frozen and is fixed for the life of the returned map (no re-parenting), so
@@ -94,6 +102,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * local miss/removal for no benefit.
    */
   public static final TagMap createFromParent(TagMap parent) {
+    return createFromParent(parent, null);
+  }
+
+  /**
+   * Read-through variant of {@link #create(SizingHint)}: reads through to {@code parent} on local
+   * misses AND sizes the LOCAL dense store from {@code hint}. The two are orthogonal — the parent
+   * supplies inherited reads, while locally-set known tags live in this map's own dense array,
+   * whose initial capacity the hint tunes. So the common child / shared-parent path (a non-null
+   * read-through parent) still gets per-operation sizing; without this the local store would fall
+   * back to the fixed default. A {@code null} hint behaves exactly like {@link
+   * #createFromParent(TagMap)}.
+   */
+  public static final TagMap createFromParent(TagMap parent, SizingHint hint) {
     if (parent != null) {
       if (!parent.frozen) {
         throw new IllegalStateException("read-through parent must be frozen");
@@ -102,7 +123,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         parent = null;
       }
     }
-    return new TagMap(parent);
+    TagMap tagMap = new TagMap(parent);
+    if (hint != null && hint.size > 0) {
+      tagMap.denseCapHint = hint.size;
+    }
+    return tagMap;
   }
 
   /** Creates a new TagMap.Ledger */
@@ -1112,7 +1137,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private boolean knownTraceLevel;
 
   private static final int KNOWN_INIT_CAP =
-      12; // generous per-type max stopgap; exact per-type sizing comes with the tag registry
+      12; // generous default when no SizingHint; per-operation sizing comes via create(SizingHint)
+
+  // Initial dense-array capacity, set once from a SizingHint at create(SizingHint) (per-operation
+  // sizing). Just the size (an int), NOT a hint reference -- the hint stays external (recordSize is
+  // explicit).
+  private int denseCapHint = KNOWN_INIT_CAP;
 
   /**
    * Optional frozen parent for read-through. When non-null, reads that miss the local buckets fall
@@ -1442,12 +1472,33 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   private void ensureKnownCapacity() {
     if (this.knownIds == null) {
-      this.knownIds = new long[KNOWN_INIT_CAP];
-      this.knownValues = new Object[KNOWN_INIT_CAP];
+      this.knownIds = new long[this.denseCapHint];
+      this.knownValues = new Object[this.denseCapHint];
     } else if (this.knownCount == this.knownIds.length) {
       int newCap = this.knownIds.length << 1;
       this.knownIds = Arrays.copyOf(this.knownIds, newCap);
       this.knownValues = Arrays.copyOf(this.knownValues, newCap);
+    }
+  }
+
+  /**
+   * Feeds this map's final dense-entry count back to {@code hint} (call at a terminal point: freeze
+   * / serialization). The hint self-tunes so future maps of the same operation size correctly.
+   *
+   * <p>Best-effort max, not a strict monotonic-max: the read-compare-write is unsynchronized, so
+   * two spans of the same operation finishing concurrently can both read the same old {@code size}
+   * and the later write can lower it (a 10-tag span then a 5-tag span settles at 5). And {@code
+   * size} is a plain field, so a fresh update isn't promptly visible to span-creation threads. Both
+   * are deliberately tolerated: a stale or lowered hint only mis-sizes a later span's dense array
+   * (one extra grow-copy), never corrupts tag data — so it stays lock- and atomic-free, and the
+   * next heavy span of the operation nudges it back up. A CAS/atomic-max would buy exactness at the
+   * cost of contention on this terminal path, which isn't worth it for a sizing hint.
+   */
+  public void recordSize(SizingHint hint) {
+    // Capped hints (the heterogeneous shared default) are fixed -- don't let unlike sharers grow
+    // them.
+    if (!hint.capped && this.knownCount > hint.size) {
+      hint.size = this.knownCount; // best-effort racy max (see javadoc); benign plain-int write
     }
   }
 
