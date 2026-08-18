@@ -33,6 +33,7 @@ import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
@@ -62,6 +63,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class DDEvaluatorTest {
@@ -614,6 +616,15 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(false));
     assertThat(details.getReason(), equalTo(ERROR.name()));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"eve,732", "user-1,2895", "alice,9136", "bob,8956"})
+  public void testShardCalculationMatchesGoAndEppoFixtures(
+      final String targetingKey, final int expectedShard) {
+    final Shard shard = new Shard("split-numeric-flag-some-allocation", emptyList(), 10_000);
+
+    assertThat(DDEvaluator.getShard(shard, targetingKey), equalTo(expectedShard));
   }
 
   private static Arguments[] flatteningTestCases() {

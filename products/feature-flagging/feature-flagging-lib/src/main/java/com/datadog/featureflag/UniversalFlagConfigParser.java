@@ -13,6 +13,7 @@ import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okio.BufferedSource;
@@ -105,7 +107,53 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         }
       }
     }
+    cacheEvaluationData(flag);
     validateAndCacheSemverComparands(flagKey, flag);
+  }
+
+  /** Caches immutable rule data used by each evaluation. */
+  private static void cacheEvaluationData(final Flag flag) {
+    for (final Allocation allocation : flag.allocations) {
+      if (allocation == null) {
+        continue;
+      }
+      if (allocation.rules != null) {
+        for (final Rule rule : allocation.rules) {
+          if (rule == null || rule.conditions == null) {
+            continue;
+          }
+          for (final ConditionConfiguration condition : rule.conditions) {
+            if (condition == null || condition.operator == null) {
+              continue;
+            }
+            switch (condition.operator) {
+              case MATCHES:
+              case NOT_MATCHES:
+                try {
+                  condition.cacheRegexPattern();
+                } catch (final PatternSyntaxException ignored) {
+                  // Keep the flag. Evaluation maps this same invalid expression to PARSE_ERROR.
+                }
+                break;
+              default:
+                break;
+            }
+          }
+        }
+      }
+      if (allocation.splits != null) {
+        for (final Split split : allocation.splits) {
+          if (split == null || split.shards == null) {
+            continue;
+          }
+          for (final Shard shard : split.shards) {
+            if (shard != null) {
+              shard.cacheSaltPrefix();
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
