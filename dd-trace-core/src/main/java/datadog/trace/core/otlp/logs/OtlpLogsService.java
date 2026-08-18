@@ -3,12 +3,12 @@ package datadog.trace.core.otlp.logs;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_LOGS_EXPORTER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
-import datadog.communication.otlp.OtlpGrpcSender;
-import datadog.communication.otlp.OtlpHttpSender;
 import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.otlp.OtlpResponse;
 import datadog.communication.otlp.OtlpSender;
+import datadog.communication.otlp.OtlpSenderFactory;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig.Protocol;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,41 +27,23 @@ public final class OtlpLogsService {
 
   OtlpLogsService(Config config) {
     intervalMillis = config.getLogsOtelInterval();
-    switch (config.getOtlpLogsProtocol()) {
-      case GRPC:
-        this.collector = OtlpLogsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpGrpcSender(
-                config.getOtlpLogsEndpoint(),
-                "/opentelemetry.proto.collector.logs.v1.LogsService/Export",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
-        break;
-      case HTTP_PROTOBUF:
-        this.collector = OtlpLogsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpHttpSender(
-                config.getOtlpLogsEndpoint(),
-                "/v1/logs",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
-        break;
-      case HTTP_JSON:
-        this.collector = OtlpLogsJsonCollector.INSTANCE;
-        this.sender =
-            new OtlpHttpSender(
-                config.getOtlpLogsEndpoint(),
-                "/v1/logs",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
-        break;
-      default:
-        LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());
-        this.collector = null;
-        this.sender = null;
+    Protocol protocol = config.getOtlpLogsProtocol();
+    if (protocol == Protocol.HTTP_JSON) {
+      this.collector = OtlpLogsJsonCollector.INSTANCE;
+    } else {
+      this.collector = OtlpLogsProtoCollector.INSTANCE;
+    }
+    this.sender =
+        OtlpSenderFactory.create(
+            protocol,
+            config.getOtlpLogsEndpoint(),
+            "/opentelemetry.proto.collector.logs.v1.LogsService/Export",
+            "/v1/logs",
+            config.getOtlpLogsHeaders(),
+            config.getOtlpLogsTimeout(),
+            config.getOtlpLogsCompression());
+    if (this.sender == null) {
+      LOGGER.debug("Unsupported OTLP logs protocol: {}", protocol);
     }
   }
 

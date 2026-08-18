@@ -18,15 +18,20 @@ package com.datadog.profiling.controller.openjdk;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
+import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
 public class OpenJdkRecordingData extends RecordingData {
 
   private final Recording recording;
+  private Path dumpedPath;
 
   OpenJdkRecordingData(final Recording recording, Kind kind) {
     this(recording, recording.getStartTime(), recording.getStopTime(), kind);
@@ -44,9 +49,36 @@ public class OpenJdkRecordingData extends RecordingData {
     return new RecordingInputStream(recording.getStream(start, end));
   }
 
+  /**
+   * Dumps the recording to a temp file on first call so callers can parse it directly instead of
+   * going through {@link #getStream()}. The file is cleaned up in {@link #doRelease()}.
+   */
+  @Nullable
   @Override
-  protected void doRelease() {
+  public synchronized Path getPath() {
+    if (dumpedPath == null) {
+      try {
+        Path tempDir = TempLocationManager.getInstance().getTempDir();
+        Path temp = Files.createTempFile(tempDir, "dd-profiler-", ".jfr");
+        recording.dump(temp);
+        dumpedPath = temp;
+      } catch (IOException e) {
+        return null;
+      }
+    }
+    return dumpedPath;
+  }
+
+  @Override
+  protected synchronized void doRelease() {
     recording.close();
+    if (dumpedPath != null) {
+      try {
+        Files.deleteIfExists(dumpedPath);
+      } catch (IOException ignored) {
+        // best-effort cleanup
+      }
+    }
   }
 
   @Override

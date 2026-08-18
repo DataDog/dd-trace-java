@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -170,7 +171,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
     try {
-      Files.copy(data.getStream(), temp);
+      Files.copy(data.getStream(), temp, StandardCopyOption.REPLACE_EXISTING);
       converter.addFile(temp, data.getStart(), data.getEnd());
       return converter.convert(JfrToOtlpConverter.Kind.PROTO);
     } finally {

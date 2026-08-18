@@ -2,10 +2,10 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PROFILES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON;
 
-import datadog.communication.otlp.OtlpGrpcSender;
-import datadog.communication.otlp.OtlpHttpSender;
 import datadog.communication.otlp.OtlpSender;
+import datadog.communication.otlp.OtlpSenderFactory;
 import datadog.trace.api.Config;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -27,32 +27,17 @@ final class OtlpProfilesSenderFactory {
    */
   @Nullable
   static OtlpSender create(Config config) {
-    switch (config.getOtlpProfilesProtocol()) {
-      case GRPC:
-        return new OtlpGrpcSender(
-            config.getOtlpProfilesEndpoint(),
-            "/" + DEFAULT_OTLP_GRPC_PROFILES_ENDPOINT,
-            config.getOtlpProfilesHeaders(),
-            config.getOtlpProfilesTimeout(),
-            config.getOtlpProfilesCompression());
-      case HTTP_PROTOBUF:
-        return new OtlpHttpSender(
-            config.getOtlpProfilesEndpoint(),
-            "/" + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT,
-            config.getOtlpProfilesHeaders(),
-            config.getOtlpProfilesTimeout(),
-            config.getOtlpProfilesCompression());
-      case HTTP_JSON:
-        // Profiles are always protobuf; HTTP_JSON uses the same transport as HTTP_PROTOBUF.
-        log.warn("OTLP profiles do not support JSON encoding; using HTTP_PROTOBUF transport");
-        return new OtlpHttpSender(
-            config.getOtlpProfilesEndpoint(),
-            "/" + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT,
-            config.getOtlpProfilesHeaders(),
-            config.getOtlpProfilesTimeout(),
-            config.getOtlpProfilesCompression());
-      default:
-        return null;
+    if (config.getOtlpProfilesProtocol() == HTTP_JSON) {
+      // Profiles are always protobuf; HTTP_JSON uses the same transport as HTTP_PROTOBUF.
+      log.warn("OTLP profiles do not support JSON encoding; using HTTP_PROTOBUF transport");
     }
+    return OtlpSenderFactory.create(
+        config.getOtlpProfilesProtocol(),
+        config.getOtlpProfilesEndpoint(),
+        "/" + DEFAULT_OTLP_GRPC_PROFILES_ENDPOINT,
+        "/" + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT,
+        config.getOtlpProfilesHeaders(),
+        config.getOtlpProfilesTimeout(),
+        config.getOtlpProfilesCompression());
   }
 }

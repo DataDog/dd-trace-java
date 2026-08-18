@@ -17,9 +17,12 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -31,18 +34,22 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.zip.GZIPInputStream;
+import java.util.concurrent.CountDownLatch;
+import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -99,35 +106,87 @@ public class OtlpProfileUploaderTest {
   }
 
   @Test
-  public void testDisabledUploader() throws Exception {
-    // Create uploader with OTLP disabled
-    when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
-    when(configProvider.getBoolean(PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD, false))
-        .thenReturn(false);
-
-    OtlpProfileUploader disabledUploader =
-        new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
-
-    RecordingData data = mockRecordingData();
-
-    // Should not upload anything
-    disabledUploader.onNewData(RECORDING_TYPE, data, true);
-
-    // No requests should be made
-    assertEquals(0, server.getRequestCount());
-    verify(data).release();
-
-    disabledUploader.shutdown();
-  }
-
-  // Note: Full upload tests are skipped because they require proper JFR test files
-  // and OTLP converter integration. The uploader class is tested for basic functionality.
-
-  @Test
   public void testConfigurationReading() throws Exception {
     // Verify that configuration is correctly read from ConfigProvider
     assertTrue(uploader != null);
     // Uploader was created with enabled=true, so it should be initialized
+  }
+
+  @Test
+  public void testUploadSuccessSync() throws Exception {
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    RecordingData data = mockRecordingData();
+    uploader.onNewData(RECORDING_TYPE, data, true);
+
+    RecordedRequest request = server.takeRequest(REQUEST_TIMEOUT.getSeconds(), SECONDS);
+    assertEquals(1, server.getRequestCount());
+    assertTrue(request.getPath().startsWith("/v1/profiles"));
+    verify(data, times(1)).release();
+  }
+
+  @Test
+  public void testUploadFailureStatusSync() throws Exception {
+    // The sender retries 5xx responses (1 initial attempt + 5 retries).
+    for (int i = 0; i < 6; i++) {
+      server.enqueue(new MockResponse().setResponseCode(500));
+    }
+
+    RecordingData data = mockRecordingData();
+    uploader.onNewData(RECORDING_TYPE, data, true);
+
+    server.takeRequest(REQUEST_TIMEOUT.getSeconds(), SECONDS);
+    assertEquals(6, server.getRequestCount());
+    // A failed status still releases the (single, base) reference exactly once.
+    verify(data, times(1)).release();
+  }
+
+  @Test
+  public void testUploadUsesFileBackedPathWhenAvailable(@TempDir Path tempDir) throws Exception {
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    Path recordingFile = tempDir.resolve("recording.jfr");
+    try (InputStream in = getClass().getResourceAsStream(RECORDING_RESOURCE)) {
+      Files.copy(in, recordingFile);
+    }
+
+    RecordingData data = mockRecordingData();
+    when(data.getPath()).thenReturn(recordingFile);
+
+    uploader.onNewData(RECORDING_TYPE, data, true);
+
+    server.takeRequest(REQUEST_TIMEOUT.getSeconds(), SECONDS);
+    assertEquals(1, server.getRequestCount());
+    // getStream() must not be consulted once a file path is available.
+    verify(data, never()).getStream();
+    verify(data, times(1)).release();
+  }
+
+  @Test
+  public void testUploadAsync() throws Exception {
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    RecordingData data = mockRecordingData();
+    CountDownLatch latch = new CountDownLatch(1);
+    uploader.upload(RECORDING_TYPE, data, false, latch::countDown);
+
+    assertTrue(latch.await(REQUEST_TIMEOUT.getSeconds(), SECONDS));
+    assertEquals(1, server.getRequestCount());
+    verify(data, times(1)).release();
+  }
+
+  @Test
+  public void testUploadRejectedExecutionReleasesData() throws Exception {
+    // Shut down the executor so the async submission is rejected deterministically.
+    uploader.shutdown();
+
+    RecordingData data = mockRecordingData();
+    CountDownLatch latch = new CountDownLatch(1);
+    uploader.upload(RECORDING_TYPE, data, false, latch::countDown);
+
+    assertTrue(latch.await(REQUEST_TIMEOUT.getSeconds(), SECONDS));
+    assertEquals(0, server.getRequestCount());
+    verify(data, times(1)).release();
   }
 
   private RecordingData mockRecordingData() throws IOException {
@@ -143,15 +202,5 @@ public class OtlpProfileUploaderTest {
     when(recordingData.getKind()).thenReturn(ProfilingSnapshot.Kind.PERIODIC);
     when(recordingData.getPath()).thenReturn(null); // Force stream-based conversion
     return recordingData;
-  }
-
-  private byte[] decompress(byte[] compressed) throws IOException {
-    try (GZIPInputStream gzipIn = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
-      byte[] buffer = new byte[compressed.length * 10]; // Assume max 10x expansion
-      int bytesRead = gzipIn.read(buffer);
-      byte[] result = new byte[bytesRead];
-      System.arraycopy(buffer, 0, result, 0, bytesRead);
-      return result;
-    }
   }
 }

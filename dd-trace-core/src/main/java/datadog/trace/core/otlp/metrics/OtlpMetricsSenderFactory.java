@@ -1,8 +1,7 @@
 package datadog.trace.core.otlp.metrics;
 
-import datadog.communication.otlp.OtlpGrpcSender;
-import datadog.communication.otlp.OtlpHttpSender;
 import datadog.communication.otlp.OtlpSender;
+import datadog.communication.otlp.OtlpSenderFactory;
 import datadog.trace.api.Config;
 import javax.annotation.Nullable;
 
@@ -21,24 +20,13 @@ final class OtlpMetricsSenderFactory {
    */
   @Nullable
   static OtlpSender create(Config config) {
-    switch (config.getOtlpMetricsProtocol()) {
-      case GRPC:
-        return new OtlpGrpcSender(
-            config.getOtlpMetricsEndpoint(),
-            "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      case HTTP_PROTOBUF:
-      case HTTP_JSON:
-        return new OtlpHttpSender(
-            config.getOtlpMetricsEndpoint(),
-            "/v1/metrics",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      default:
-        return null;
-    }
+    return OtlpSenderFactory.create(
+        config.getOtlpMetricsProtocol(),
+        config.getOtlpMetricsEndpoint(),
+        "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
+        "/v1/metrics",
+        config.getOtlpMetricsHeaders(),
+        config.getOtlpMetricsTimeout(),
+        config.getOtlpMetricsCompression());
   }
 }

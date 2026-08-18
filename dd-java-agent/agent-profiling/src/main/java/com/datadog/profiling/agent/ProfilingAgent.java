@@ -59,7 +59,6 @@ public class ProfilingAgent {
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
   private static volatile OtlpProfileUploader otlpUploader;
-  private static volatile DataDumper dumper;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -149,7 +148,7 @@ public class ProfilingAgent {
         final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
-        dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
+        DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
 
         uploader = new ProfileUploader(config, configProvider);
 
@@ -159,6 +158,8 @@ public class ProfilingAgent {
 
         RecordingDataListener listener = uploader::upload;
         if (dumper != null) {
+          // DataDumper only peeks at the stream synchronously; it doesn't retain/release its own
+          // reference, so it can run inline ahead of the primary listener without fan-out.
           RecordingDataListener upload = listener;
           listener =
               (type, data, sync) -> {
@@ -166,7 +167,13 @@ public class ProfilingAgent {
                 upload.onNewData(type, data, sync);
               };
         }
-        // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
+        if (otlpUploader != null) {
+          // OtlpProfileUploader may release its reference asynchronously, so it needs its own via
+          // FanOutRecordingDataListener rather than sharing the primary listener's reference.
+          listener = FanOutRecordingDataListener.wrap(listener, otlpUploader);
+        }
+        // Scrubber wraps the combined dumper+uploader+OTLP listeners so debug dumps and the OTLP
+        // upload also receive scrubbed data.
         // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
         // corrupting customer data
         if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)
@@ -177,21 +184,6 @@ public class ProfilingAgent {
               configProvider.getBoolean(
                   PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
           listener = wrapWithScrubber(listener, excludeEventTypes, failOpen);
-        }
-        if (otlpUploader != null) {
-          OtlpProfileUploader otlp = otlpUploader;
-          RecordingDataListener downstream = listener;
-          listener =
-              (type, data, sync) -> {
-                data.retain(); // OTLP uploader gets an extra reference
-                try {
-                  otlp.upload(type, data, sync, null);
-                } catch (Exception e) {
-                  log.warn(SEND_TELEMETRY, "OTLP upload failed, JFR upload will continue", e);
-                  data.release(); // undo retain; downstream releases the base reference
-                }
-                downstream.onNewData(type, data, sync);
-              };
         }
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());

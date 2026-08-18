@@ -18,45 +18,27 @@ import java.util.OptionalInt;
 public final class OtlpResponse {
   /** Factory method for a successful request with a trivial response body */
   public static OtlpResponse success(final int status) {
-    return new OtlpResponse(true, status, null, null);
-  }
-
-  /** Factory method for a successful request with a response body */
-  public static OtlpResponse success(final int status, String response) {
-    return new OtlpResponse(true, status, null, response);
-  }
-
-  /** Factory method for a successful request with a malformed response body */
-  public static OtlpResponse success(final int status, final Throwable exception) {
-    return new OtlpResponse(true, status, exception, null);
+    return new OtlpResponse(true, status, null);
   }
 
   /** Factory method for a request that received an error status in response */
   public static OtlpResponse failed(final int status) {
-    return new OtlpResponse(false, status, null, null);
-  }
-
-  /** Factory method for a request that received an error status and a response body */
-  public static OtlpResponse failed(final int status, String response) {
-    return new OtlpResponse(false, status, null, response);
+    return new OtlpResponse(false, status, null);
   }
 
   /** Factory method for a failed communication attempt */
   public static OtlpResponse failed(final Throwable exception) {
-    return new OtlpResponse(false, null, exception, null);
+    return new OtlpResponse(false, null, exception);
   }
 
   private final boolean success;
   private final Integer status;
   private final Throwable exception;
-  private final String response;
 
-  private OtlpResponse(
-      final boolean success, final Integer status, final Throwable exception, String response) {
+  private OtlpResponse(final boolean success, final Integer status, final Throwable exception) {
     this.success = success;
     this.status = status;
     this.exception = exception;
-    this.response = response;
   }
 
   public boolean success() {
@@ -69,9 +51,5 @@ public final class OtlpResponse {
 
   public Optional<Throwable> exception() {
     return Optional.ofNullable(exception);
-  }
-
-  public String response() {
-    return response;
   }
 }

@@ -18,7 +18,6 @@ package datadog.trace.api.profiling;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -30,9 +29,10 @@ public abstract class RecordingData implements ProfilingSnapshot {
 
   // Reference counting for multiple listeners. Starts at 1 (the base reference owned by the
   // first listener in the chain). Additional listeners call retain() before use and release()
-  // when done. doRelease() fires when the count reaches 0.
-  private final AtomicInteger refCount = new AtomicInteger(1);
-  private volatile boolean released = false;
+  // when done. doRelease() fires when the count reaches 0. All access to refCount/released is
+  // guarded by synchronizing on this instance.
+  private int refCount = 1;
+  private boolean released = false;
 
   public RecordingData(final Instant start, final Instant end, Kind kind) {
     this.start = start;
@@ -63,7 +63,7 @@ public abstract class RecordingData implements ProfilingSnapshot {
     if (released) {
       throw new IllegalStateException("Cannot retain released RecordingData");
     }
-    refCount.incrementAndGet();
+    refCount++;
     return this;
   }
 
@@ -89,12 +89,9 @@ public abstract class RecordingData implements ProfilingSnapshot {
       if (released) {
         return;
       }
-      int remaining = refCount.decrementAndGet();
-      if (remaining == 0) {
+      if (--refCount == 0) {
         released = true;
         shouldRelease = true;
-      } else if (remaining < 0) {
-        throw new IllegalStateException("RecordingData over-released");
       }
     }
     if (shouldRelease) {
