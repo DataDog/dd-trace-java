@@ -15,6 +15,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
@@ -510,6 +511,91 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  // Id-keyed setTag overrides: the throughput fast path. A non-intercepted id goes straight to the
+  // context's dense store with no keyOf and no interceptor. An intercepted id (span.kind,
+  // http.url, ...) is resolved back to its name and routed through the String setter, which owns
+  // the interceptor round trip and the http.status quirk -- so behavior is identical to a
+  // name-keyed set, just without paying keyOf when it isn't needed.
+  @Override
+  public DDSpan setTag(final long id, final boolean value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final int value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final long value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final float value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final double value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final String value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    if (value == null) {
+      context.setTag(id, (Object) null);
+    } else {
+      context.setTag(id, value);
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final CharSequence value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    if (value == null || value.length() == 0) {
+      context.setTag(id, (Object) null);
+    } else {
+      context.setTag(id, value);
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long id, final Object value) {
+    if (KnownTagCodec.isIntercepted(id)) {
+      return setTag(KnownTagCodec.nameOf(id), value);
+    }
+    context.setTag(id, value);
     return this;
   }
 

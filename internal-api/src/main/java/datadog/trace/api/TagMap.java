@@ -1689,6 +1689,39 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  // The set(long id, ...) family is the id-keyed counterpart of set(String, ...): the caller passes
+  // an already-resolved KnownTags.* id, so these skip the keyOf name resolution the String setters
+  // pay on every call. The id MUST name a stored known tag (see KnownTagCodec#isStored) -- custom /
+  // unknown names have no id and must use the name-keyed setters. Primitives box on the store
+  // branch, exactly as the String family does.
+  public void set(long id, @Nonnull Object value) {
+    this.putKnownById(id, value);
+  }
+
+  public void set(long id, @Nonnull CharSequence value) {
+    this.putKnownById(id, value);
+  }
+
+  public void set(long id, boolean value) {
+    this.putKnownById(id, Boolean.valueOf(value));
+  }
+
+  public void set(long id, int value) {
+    this.putKnownById(id, Integer.valueOf(value));
+  }
+
+  public void set(long id, long value) {
+    this.putKnownById(id, Long.valueOf(value));
+  }
+
+  public void set(long id, float value) {
+    this.putKnownById(id, Float.valueOf(value));
+  }
+
+  public void set(long id, double value) {
+    this.putKnownById(id, Double.valueOf(value));
+  }
+
   /**
    * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
    * {@code newEntry} is a no-op returning null, so an Entry producer (e.g. {@link
@@ -1750,6 +1783,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.checkWriteAccess();
     if (this.removedFromParent != null) {
       this.removedFromParent.remove(tag);
+    }
+    return this.putKnownValue(id, value);
+  }
+
+  /**
+   * Id-keyed counterpart of {@link #putKnownLocal}: stores a known tag densely from its resolved id
+   * with NO {@code keyOf} name resolution. The name is needed only to clear a read-through
+   * tombstone (rare), so it's resolved lazily via {@link KnownTagCodec#nameOf} on that branch only.
+   * The id must name a stored known tag (asserted); the value is pre-boxed by the {@code set(long,
+   * ...)} overloads.
+   */
+  private Entry putKnownById(long id, Object value) {
+    assert KnownTagCodec.isStored(id) : "set(long) requires a stored known-tag id";
+    this.checkWriteAccess();
+    if (this.removedFromParent != null) {
+      this.removedFromParent.remove(KnownTagCodec.nameOf(id));
     }
     return this.putKnownValue(id, value);
   }

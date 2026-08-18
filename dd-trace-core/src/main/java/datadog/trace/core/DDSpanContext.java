@@ -11,6 +11,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
@@ -1106,6 +1107,63 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
+    }
+  }
+
+  // Id-keyed setTag fast path. Precondition (enforced by the DDSpan caller): the id names a stored,
+  // NON-intercepted known tag -- so there is no keyOf resolution and no tag-interceptor round trip,
+  // just the dense store write. Intercepted ids are routed back through the String path by DDSpan
+  // (which also owns the http.status quirk), so they never reach here.
+  public void setTag(final long id, final Object value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    if (null == value) {
+      removeTag(KnownTagCodec.nameOf(id));
+      return;
+    }
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final CharSequence value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final boolean value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final int value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final long value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final float value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
+    }
+  }
+
+  public void setTag(final long id, final double value) {
+    assert !KnownTagCodec.isIntercepted(id) : "intercepted id must route through the String path";
+    synchronized (unsafeTags) {
+      unsafeTags.set(id, value);
     }
   }
 
