@@ -131,7 +131,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tagValueEndsAt == ddMemberValueEnd) {
         tagValueEndsAt = stripTrailingOWC(value, tagValuePos, tagValueEndsAt);
       } else {
-        nextTagPos = skipLeadingOWC(value, nextTagPos, ddMemberValueEnd);
+        int afterOWC = skipLeadingOWC(value, nextTagPos, ddMemberValueEnd);
+        if (afterOWC > nextTagPos && afterOWC < ddMemberValueEnd) {
+          // OWS was skipped but real content still follows - interior OWS, not trailing padding
+          log.warn("Invalid datadog tags header value: '{}' at {}", value, nextTagPos);
+          return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+        }
+        nextTagPos = afterOWC;
       }
       int keyLength = tagKeyEndsAt - tagPos;
       char c = value.charAt(tagPos);

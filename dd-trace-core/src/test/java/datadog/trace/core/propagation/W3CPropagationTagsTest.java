@@ -268,7 +268,9 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     "unknown trailing separator              | 'dd=x:y;'                                                              | 'dd=x:y'                                             | [:]                                                         ",
     "unknown trailing separator then space   | 'dd=x:y; '                                                             | 'dd=x:y'                                             | [:]                                                         ",
     "unknown trailing separator then tab     | 'dd=x:y;\t'                                                            | 'dd=x:y'                                             | [:]                                                         ",
-    "sampling unknown trailing sep then ws   | 'dd=s:0;x:y; '                                                         | 'dd=s:0;x:y'                                         | [:]                                                         "
+    "sampling unknown trailing sep then ws   | 'dd=s:0;x:y; '                                                         | 'dd=s:0;x:y'                                         | [:]                                                         ",
+    "dd interior ws between submembers       | 'dd=s:0;t.dm:934086a686-4;  t.x:y'                                     |                                                      | [:]                                                         ",
+    "dd interior single space submember      | 'dd=s:0; t.dm:934086a686-4'                                            |                                                      | [:]                                                         "
   })
   void createPropagationTagsFromHeaderValue(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
