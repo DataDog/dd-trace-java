@@ -8,6 +8,7 @@ import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -94,6 +95,43 @@ public interface AgentSpan
 
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
+
+  // Id-keyed setTag family: the caller passes an already-resolved KnownTags.* id, letting an
+  // implementation skip the keyOf name resolution (and, for non-intercepted tags, the tag
+  // interceptor) that the String overloads pay. The id must name a stored known tag. The default
+  // resolves the id back to its name and delegates to the String setter -- correctness-preserving
+  // for every implementation; the core span (DDSpan) overrides these to take the fast dense path.
+  default AgentSpan setTag(long id, boolean value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, int value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, long value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, float value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, double value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, String value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, CharSequence value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
+
+  default AgentSpan setTag(long id, Object value) {
+    return setTag(KnownTagCodec.nameOf(id), value);
+  }
 
   AgentSpan setAllTags(Map<String, ?> map);
 
