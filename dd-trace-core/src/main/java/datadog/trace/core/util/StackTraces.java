@@ -32,7 +32,7 @@ public final class StackTraces {
     }
     try {
       return t.getMessage();
-    } catch (Throwable e) {
+    } catch (Exception | StackOverflowError e) {
       return "(Exception message unavailable for "
           + t.getClass().getSimpleName()
           + ": getMessage() threw "
@@ -60,7 +60,7 @@ public final class StackTraces {
       StringWriter sw = new StringWriter();
       t.printStackTrace(new PrintWriter(sw));
       trace = sw.toString();
-    } catch (Throwable ignored) {
+    } catch (Exception | StackOverflowError ignored) {
       // printStackTrace() failed (e.g. getMessage() throws inside toString(), or a
       // StackOverflowError while formatting an already stack-constrained throwable).
       // Reconstruct from getStackTrace() so the call site is still locatable.
@@ -71,18 +71,19 @@ public final class StackTraces {
                 + Arrays.stream(t.getStackTrace())
                     .map(f -> "\tat " + f)
                     .collect(Collectors.joining(System.lineSeparator()));
-      } catch (Throwable ignored2) {
+      } catch (Exception | StackOverflowError ignored2) {
         try {
           trace = t.getClass().getName() + ": " + t.getMessage();
-        } catch (Throwable ignored3) {
+        } catch (Exception | StackOverflowError ignored3) {
           trace = t.getClass().getName();
         }
       }
     }
     try {
       return truncate(trace, maxChars);
-    } catch (Exception e) {
-      // If something goes wrong, return the original trace
+    } catch (Exception | StackOverflowError e) {
+      // If something goes wrong (including a further StackOverflowError while the stack is
+      // still constrained), return the untruncated trace rather than propagate.
       return trace;
     }
   }
