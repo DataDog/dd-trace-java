@@ -12,12 +12,7 @@ import java.util.Map;
  * WAF path, which needs the raw URI, and by the HTTP span tags, which need the URL.
  *
  * <p>Lambda events carry no scheme or port either, so both are derived from the {@code
- * x-forwarded-*} headers, defaulting to {@code https} and to the scheme's default port. The scheme
- * is normalised and whitelisted first, since the header is client-influenceable. Note that the
- * Lambda Extension ignores those headers and hardcodes {@code https} with no port, so the two agree
- * on every https trigger and this one is additionally right on an ALB http listener, which the
- * extension does not tag at all. Neither {@code rawPath()} nor {@code rawQuery()} differs from its
- * decoded counterpart: percent-decoding is not implemented.
+ * x-forwarded-*} headers, defaulting to {@code https} and to the scheme's default port.
  */
 class LambdaURIDataAdapter extends URIDataAdapterBase {
   private final String path;
@@ -43,12 +38,9 @@ class LambdaURIDataAdapter extends URIDataAdapterBase {
 
     this.host = host;
 
-    // Lowercased and whitelisted rather than used verbatim. Lowercased because the port default
-    // below and URIUtils.buildURL both compare the scheme exactly, so an "HTTPS" would defeat the
-    // default-port suppression. Whitelisted because the value is client-influenceable: Lambda
-    // flattens duplicate request headers into a single comma-joined value, so a client-supplied
-    // X-Forwarded-Proto arrives as "https, http" and would render as "https, http://host/path" in
-    // http.url and in the raw URI handed to the WAF.
+    // Lowercased because the port default below and URIUtils.buildURL both compare the scheme
+    // exactly; whitelisted because X-Forwarded-Proto is client-influenceable and arrives
+    // comma-joined when duplicated, which would render as "https, http://host/path".
     String forwardedProto = findHeader(headers, "x-forwarded-proto");
     String proto = forwardedProto == null ? null : forwardedProto.toLowerCase(Locale.ROOT);
     this.scheme = "http".equals(proto) || "https".equals(proto) ? proto : "https";
@@ -61,9 +53,8 @@ class LambdaURIDataAdapter extends URIDataAdapterBase {
       } catch (NumberFormatException ignored) {
       }
     }
-    // The default has to follow the scheme: URIUtils.buildURL only suppresses the port for 80 on
-    // http and 443 on https, so defaulting to 443 under an http scheme would leak ":443" into
-    // http.url.
+    // URIUtils.buildURL only suppresses the port for 80 on http and 443 on https, so the default
+    // has to follow the scheme or an http URL would leak ":443".
     this.port = parsedPort > 0 ? parsedPort : ("http".equals(this.scheme) ? 80 : 443);
   }
 

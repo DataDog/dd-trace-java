@@ -314,9 +314,8 @@ final class LambdaEventParser {
   }
 
   /**
-   * Reassembles the verbatim request line of an API Gateway v2 or Function URL payload from {@code
-   * rawPath} and {@code rawQueryString}, the only two fields that survive the gateway unmodified.
-   * Returns null when {@code rawPath} is absent, so the caller falls back to rebuilding the path.
+   * Reassembles the verbatim request line from {@code rawPath} and {@code rawQueryString}, or null
+   * when the payload has no {@code rawPath}, so the caller falls back to rebuilding the path.
    */
   private static String extractRawUri(Map<String, Object> event) {
     String rawPath = stringOrNull(event.get("rawPath"));
@@ -363,8 +362,7 @@ final class LambdaEventParser {
         queryParameters,
         body,
         extractHost(requestContext, headers),
-        // WebSocket route keys are used verbatim: they are not "METHOD /path" and $default,
-        // $connect and $disconnect are meaningful routes rather than placeholders
+        // Verbatim: WebSocket route keys are not "METHOD /path", and $connect is a real route
         routeKey,
         null);
   }
@@ -412,8 +410,7 @@ final class LambdaEventParser {
       queryParameters =
           extractMultiValueQueryParameters(event.get("multiValueQueryStringParameters"));
       if (queryParameters.isEmpty()) {
-        // Same fallback as the headers above: the trigger is classified ALB_MULTI_VALUE on the mere
-        // presence of the multiValueHeaders key, so the multi-value query map may be absent.
+        // ALB_MULTI_VALUE is classified on multiValueHeaders alone, so this map may be absent
         queryParameters = extractQueryParameters(event.get("queryStringParameters"));
       }
     } else {
@@ -519,9 +516,9 @@ final class LambdaEventParser {
   }
 
   /**
-   * Extracts the host the request was addressed to, used as the authority of {@code http.url}. The
-   * {@code requestContext.domainName} is preferred over the {@code Host} header, matching what the
-   * Datadog Lambda Extension uses.
+   * Extracts the host the request was addressed to, used as the authority of {@code http.url},
+   * preferring {@code requestContext.domainName} over the {@code Host} header as the extension
+   * does.
    */
   private static String extractHost(Map<?, ?> requestContext, Map<String, String> headers) {
     if (requestContext != null) {
@@ -534,10 +531,9 @@ final class LambdaEventParser {
   }
 
   /**
-   * Removes a trailing {@code :port}, leaving an IPv6 literal (several colons) alone. The Host
-   * header carries the port whenever the listener is not on 80 or 443 — an ALB on 8080 sends {@code
-   * example.com:8080} — and the port is tracked separately, from {@code x-forwarded-port}, so
-   * keeping it here would have {@code URIUtils.buildURL} emit it twice.
+   * Removes a trailing {@code :port}, leaving an IPv6 literal (several colons) alone. The port is
+   * tracked separately, from {@code x-forwarded-port}, so a {@code Host} of {@code
+   * example.com:8080} would otherwise have {@code URIUtils.buildURL} emit it twice.
    */
   private static String stripPort(String host) {
     int colon = host == null ? -1 : host.lastIndexOf(':');
@@ -546,8 +542,7 @@ final class LambdaEventParser {
 
   /**
    * Extracts the parameterized route from an API Gateway v2 {@code requestContext.routeKey}, which
-   * has the form {@code "GET /users/{id}"}. {@code $default} is a catch-all rather than a route, so
-   * it yields no route.
+   * has the form {@code "GET /users/{id}"}. {@code $default} is a catch-all, not a route.
    */
   private static String extractRouteKey(Map<?, ?> requestContext) {
     String routeKey = stringOrNull(requestContext.get("routeKey"));
@@ -590,13 +585,10 @@ final class LambdaEventParser {
   /**
    * Helper method to extract headers from event.
    *
-   * <p>Keys are lowercased here, as {@link #parseResponse} already does on the response side and as
-   * the Lambda Extension does when deserialising a trigger: Lambda preserves whatever casing the
-   * client or AWS used, and API Gateway v1 sends {@code Host} where v2 and ALB send {@code host}.
-   * Normalising once at the boundary keeps every lookup downstream a plain map access. Not folded
-   * into {@link #extractStringMap}, which also serves {@code pathParameters}, whose keys are
-   * case-sensitive. No effect on what AppSec receives — {@code
-   * AppSecRequestContext.addRequestHeader} lowercases header names itself.
+   * <p>Keys are lowercased here so every lookup downstream is a plain map access: Lambda preserves
+   * the client's casing, and API Gateway v1 sends {@code Host} where v2 and ALB send {@code host}.
+   * Not folded into {@link #extractStringMap}, which also serves the case-sensitive {@code
+   * pathParameters}.
    */
   private static Map<String, String> extractHeaders(Object headersObj) {
     Map<String, String> raw = extractStringMap(headersObj);
@@ -622,9 +614,8 @@ final class LambdaEventParser {
    * Helper method to extract query parameters from event. Converts Map<String, String> to
    * Map<String, List<String>> format expected by AppSec.
    *
-   * <p>Insertion-ordered: Moshi parses JSON objects into an insertion-ordered map, so keeping that
-   * order makes the query string rebuilt by {@link #buildFullPath} follow the event, rather than
-   * varying with hash order between invocations of the same request shape.
+   * <p>Insertion-ordered so the query string rebuilt by {@link #buildFullPath} follows the event
+   * rather than varying with hash order between invocations of the same request shape.
    */
   private static Map<String, List<String>> extractQueryParameters(Object queryParamsObj) {
     Map<String, List<String>> result = new LinkedHashMap<>();
@@ -695,8 +686,7 @@ final class LambdaEventParser {
         }
         first = false;
         try {
-          // URL-encode key and value so that special characters (e.g. '&' inside a value) are not
-          // mistaken for query string delimiters when AppSec parses the raw query string.
+          // Encoded so a '&' inside a value is not read as a delimiter when AppSec re-parses it
           fullPath.append(URLEncoder.encode(key, "UTF-8"));
           if (value != null) {
             fullPath.append('=').append(URLEncoder.encode(value, "UTF-8"));
@@ -822,12 +812,9 @@ final class LambdaEventParser {
     final String route;
 
     /**
-     * Request line exactly as the client sent it — {@code rawPath} plus {@code rawQueryString} —
-     * for the API Gateway v2 and Function URL payloads that expose it, null for every other
-     * trigger. Preferred over rebuilding the path from {@link #queryParameters}, which cannot be
-     * faithful: v2 comma-joins repeated query keys into {@code queryStringParameters}, so {@code
-     * ?a=1&a=2} would come back as {@code a=1%2C2}, and percent-encoded path segments would be
-     * lost.
+     * Request line as the client sent it, for the API Gateway v2 and Function URL payloads that
+     * expose it, null otherwise. Rebuilding it from {@link #queryParameters} instead cannot be
+     * faithful: v2 comma-joins repeated keys, so {@code ?a=1&a=2} comes back as {@code a=1%2C2}.
      */
     final String rawUri;
 

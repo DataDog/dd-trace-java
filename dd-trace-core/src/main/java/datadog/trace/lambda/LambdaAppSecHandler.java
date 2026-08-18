@@ -317,37 +317,25 @@ public class LambdaAppSecHandler {
 
   /**
    * Writes the HTTP tags derived from the Lambda event onto the context that will seed the
-   * invocation span. Transcribed from {@code HttpServerDecorator.doOnRequest}, minus the parts that
-   * do not apply here: no {@code http.fragment} (never transmitted to a server), no client IP tags,
-   * no {@code span.kind} and no resource name change — in particular, {@code
-   * HttpResourceDecorator.withRoute} must not be used, as it would overwrite the {@code
-   * dd-tracer-serverless-span} placeholder resource the Lambda Extension matches on.
-   *
-   * <p>Pure tag writing: the gateway callbacks are fired by {@link #processAppSecRequestData}, so
-   * firing them here would hand the WAF the same URI twice.
+   * invocation span. Transcribed from {@code HttpServerDecorator.doOnRequest}, minus the client IP
+   * tags, {@code span.kind} and {@code http.fragment}. Must stay pure tag writing: firing the
+   * gateway callbacks here would hand the WAF the URI a second time ({@link
+   * #processAppSecRequestData} already does), and setting the resource via {@code
+   * HttpResourceDecorator.withRoute} would overwrite the {@code dd-tracer-serverless-span}
+   * placeholder resource the Lambda Extension matches on.
    */
   static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
-    // WebSocket events carry a synthetic "WEBSOCKET" method that must stay inside the AppSec path.
-    // A $connect event does come from a real HTTP GET upgrade request, which is why it has headers
-    // and a query string, but the payload carries no method to report and none is fabricated here.
-    // Consequence: HttpEndpointPostProcessor returns early without http.method, so WebSocket spans
-    // stay out of http.endpoint aggregation even though they do get an http.route.
+    // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
     if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
       ctx.putTag(Tags.HTTP_METHOD, req.method);
     }
 
     if (req.host != null) {
-      // Without the query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it to
-      // http.url, so appending it here too would duplicate it — and appending it unobfuscated would
-      // put credentials matched by the obfuscation regex straight into http.url.
-      // For WebSocket the path is the routeKey, as the payload has no path at all; that yields
-      // https://host/$connect, which is what the Lambda Extension reports for those events too.
+      // No query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it here.
       ctx.putTag(
           Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
     }
 
-    // rawQuery() is the same string as query(): nothing in the Lambda path is percent-decoded, so
-    // the isHttpServerRawQueryString distinction the decorator makes is a no-op here.
     String query = url.rawQuery();
     if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
       ctx.putTag(DDTags.HTTP_QUERY, query);
