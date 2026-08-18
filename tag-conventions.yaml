@@ -17,7 +17,7 @@
 #   resolved_tags(type) = own + extends-chain (incl base) + included mixins + applied mixins (de-duped).
 #
 # tag fields (DOMAIN only): tag | type (string|int|long|boolean|double)
-#   | required (required|conditional|recommended|optional|opt_in) | aliases.
+#   | required (required|conditional|recommended|optional|opt_in) | open-telemetry-name.
 # The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
 # declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
 # group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
@@ -62,18 +62,18 @@ span_types:
     abstract: true
     extends: base
     tags:
-      - { tag: http.method,              type: string, required: required,    aliases: [http.request.method] }
-      - { tag: http.status_code,         type: int,    required: conditional, aliases: [http.response.status_code] }
+      - { tag: http.method,              type: string, required: required,    open-telemetry-name: http.request.method }
+      - { tag: http.status_code,         type: int,    required: conditional, open-telemetry-name: http.response.status_code }
       - { tag: network.protocol.version, type: string, required: recommended }
 
   http.server:
     extends: http
     tags:
-      - { tag: http.url,          type: string, required: required,    aliases: [url.full] }
+      - { tag: http.url,          type: string, required: required,    open-telemetry-name: url.full }
       - { tag: http.route,        type: string, required: conditional }
-      - { tag: http.hostname,     type: string, required: required,    aliases: [server.address] }
+      - { tag: http.hostname,     type: string, required: required,    open-telemetry-name: server.address }
       - { tag: http.useragent,    type: string, required: recommended }
-      - { tag: http.query.string, type: string, required: recommended, aliases: [url.query] }
+      - { tag: http.query.string, type: string, required: recommended, open-telemetry-name: url.query }
       - { tag: servlet.path,      type: string, required: optional }
       - { tag: servlet.context,   type: string, required: optional }
 
@@ -81,19 +81,19 @@ span_types:
     extends: http
     include: [ peer ]
     tags:
-      - { tag: http.url,          type: string, required: required, aliases: [url.full] }
+      - { tag: http.url,          type: string, required: required, open-telemetry-name: url.full }
       - { tag: http.resend_count, type: int,    required: recommended }
 
   db.client:
     extends: base
     include: [ peer ]
     tags:
-      - { tag: db.type,      type: string, required: required,    aliases: [db.system] }
+      - { tag: db.type,      type: string, required: required,    open-telemetry-name: db.system }
       - { tag: db.instance,  type: string, required: recommended }
-      - { tag: db.operation, type: string, required: recommended, aliases: [db.operation.name] }
+      - { tag: db.operation, type: string, required: recommended, open-telemetry-name: db.operation.name }
       - { tag: db.user,      type: string, required: recommended }
       - { tag: db.pool.name, type: string, required: optional }
-      - { tag: db.statement, type: string, required: recommended, aliases: [db.query.text] }
+      - { tag: db.statement, type: string, required: recommended, open-telemetry-name: db.query.text }
 
   view.render:
     extends: base

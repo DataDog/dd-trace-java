@@ -25,7 +25,7 @@ intercepted:
 #   kind: directive   -> triggers sampling/trace behavior
 reserved:
   - { tag: error,            kind: structural, field: error }
-  - { tag: service,          kind: structural, field: service,  aliases: [service.name] }
+  - { tag: service,          kind: structural, field: service,  open-telemetry-name: service.name }
   - { tag: resource.name,    kind: structural, field: resource }
   - { tag: span.type,        kind: structural, field: type }
   - { tag: origin,           kind: structural, field: origin }        # trace-level field

@@ -107,6 +107,16 @@ object TagRegistryGenerator {
       reg.stored.filter { it.traceLevel && it.slotted }.map { it.slot }.sorted()
     a.appendLine(
       "  %-14s count=%-3d slots=%s".format(Locale.ROOT, "<trace>", traceSlots.size, traceSlots))
+    a.appendLine()
+    a.appendLine("# OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still")
+    a.appendLine("# returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)")
+    val otelPairs =
+      (reg.stored.mapNotNull { t -> t.otelName?.let { it to t.name } } +
+          reg.reserved.mapNotNull { v -> v.otelName?.let { it to v.name } })
+        .sortedBy { it.first }
+    for ((otel, canonical) in otelPairs) {
+      a.appendLine("  %-30s -> %s".format(Locale.ROOT, otel, canonical))
+    }
     return a.toString()
   }
 

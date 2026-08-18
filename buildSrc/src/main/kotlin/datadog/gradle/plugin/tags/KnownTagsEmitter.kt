@@ -39,6 +39,11 @@ object KnownTagsEmitter {
     fun serialC(name: String) = withSuffix(cname[name]!!, "_SERIAL_NUM")
 
     val order = reg.reserved.map { it.name } + reg.stored.map { it.name } // stable emit order
+    // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
+    val otelName =
+      (reg.reserved.mapNotNull { v -> v.otelName?.let { v.name to it } } +
+          reg.stored.mapNotNull { t -> t.otelName?.let { t.name to it } })
+        .toMap()
     val b = StringBuilder()
     b.appendLine("package $pkg;")
     b.appendLine()
@@ -79,12 +84,23 @@ object KnownTagsEmitter {
     }
     b.appendLine()
 
-    // keyOf table (open-addressed, via StringIndex.EmbeddingSupport).
+    // OpenTelemetry name -> canonical tag name, for the tags that declare one. Deterministic order
+    // (by OTel name) so output stays byte-identical.
+    val otelByCanonical =
+      (reg.stored.mapNotNull { t -> t.otelName?.let { it to t.name } } +
+          reg.reserved.mapNotNull { v -> v.otelName?.let { it to v.name } })
+        .sortedBy { it.first }
+
+    // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
+    // OpenTelemetry names -- an OTel name resolves to its canonical tag's id (there is no distinct id
+    // for it), so keyOf(otelName) == keyOf(canonical); nameOf still returns the canonical name.
     b.appendLine("  private static final String[] KEYOF_NAMES = {")
     order.forEach { b.appendLine("    ${nameC(it)},") }
+    otelByCanonical.forEach { (otel, _) -> b.appendLine("    \"$otel\",") }
     b.appendLine("  };")
     b.appendLine("  private static final long[] KEYOF_VALUES = {")
     order.forEach { b.appendLine("    ${idC(it)},") }
+    otelByCanonical.forEach { (_, canonical) -> b.appendLine("    ${idC(canonical)},") }
     b.appendLine("  };")
     b.appendLine("  private static final int[] KEYOF_HASHES;")
     b.appendLine("  private static final String[] KEYOF_KEYS;")
@@ -112,6 +128,21 @@ object KnownTagsEmitter {
     for (name in order) {
       b.appendLine("            case ${serialC(name)}:")
       b.appendLine("              return ${nameC(name)};")
+    }
+    b.appendLine("            default:")
+    b.appendLine("              return null;")
+    b.appendLine("          }")
+    b.appendLine("        }")
+    b.appendLine()
+    // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has none. The
+    // caller (a serializer) owns any fall-back-to-Datadog-name policy; this stays a pure lookup.
+    b.appendLine("        @Override")
+    b.appendLine("        public String openTelemetryNameOf(long tagId) {")
+    b.appendLine("          switch (KnownTagCodec.serialNum(tagId)) {")
+    for (name in order) {
+      val otel = otelName[name] ?: continue
+      b.appendLine("            case ${serialC(name)}:")
+      b.appendLine("              return \"$otel\";")
     }
     b.appendLine("            default:")
     b.appendLine("              return null;")

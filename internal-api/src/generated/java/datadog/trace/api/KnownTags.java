@@ -348,6 +348,15 @@ public final class KnownTags {
     SPAN_KIND_NAME,
     VERSION_NAME,
     VIEW_NAME,
+    "db.operation.name",
+    "db.query.text",
+    "db.system",
+    "http.request.method",
+    "http.response.status_code",
+    "server.address",
+    "service.name",
+    "url.full",
+    "url.query",
   };
   private static final long[] KEYOF_VALUES = {
     ERROR_ID,
@@ -406,6 +415,15 @@ public final class KnownTags {
     SPAN_KIND_ID,
     VERSION_ID,
     VIEW_NAME_ID,
+    DB_OPERATION_ID,
+    DB_STATEMENT_ID,
+    DB_TYPE_ID,
+    HTTP_METHOD_ID,
+    HTTP_STATUS_CODE_ID,
+    HTTP_HOSTNAME_ID,
+    SERVICE_ID,
+    HTTP_URL_ID,
+    HTTP_QUERY_STRING_ID,
   };
   private static final int[] KEYOF_HASHES;
   private static final String[] KEYOF_KEYS;
@@ -540,6 +558,32 @@ public final class KnownTags {
               return VERSION_NAME;
             case VIEW_NAME_SERIAL_NUM:
               return VIEW_NAME;
+            default:
+              return null;
+          }
+        }
+
+        @Override
+        public String openTelemetryNameOf(long tagId) {
+          switch (KnownTagCodec.serialNum(tagId)) {
+            case SERVICE_SERIAL_NUM:
+              return "service.name";
+            case DB_OPERATION_SERIAL_NUM:
+              return "db.operation.name";
+            case DB_STATEMENT_SERIAL_NUM:
+              return "db.query.text";
+            case DB_TYPE_SERIAL_NUM:
+              return "db.system";
+            case HTTP_HOSTNAME_SERIAL_NUM:
+              return "server.address";
+            case HTTP_METHOD_SERIAL_NUM:
+              return "http.request.method";
+            case HTTP_QUERY_STRING_SERIAL_NUM:
+              return "url.query";
+            case HTTP_STATUS_CODE_SERIAL_NUM:
+              return "http.response.status_code";
+            case HTTP_URL_SERIAL_NUM:
+              return "url.full";
             default:
               return null;
           }
