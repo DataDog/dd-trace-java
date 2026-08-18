@@ -677,35 +677,41 @@ class FlagEvaluationWriterImplTest {
           .thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
       when(config.getApiKey()).thenReturn(API_KEY);
       final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-      final IntakeApi directApi =
-          new IntakeApi(
-              HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
-              API_KEY,
-              "123",
-              HttpRetryPolicy.Factory.NEVER_RETRY,
-              new OkHttpClient.Builder().build(),
-              false);
-      when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-          .thenReturn(directApi);
-      final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
-          new FeatureFlagBackendApiFactory(
-              config, backendApiFactory, FeatureFlagEventType.FLAG_EVALUATION);
-      final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
+      final OkHttpClient client = new OkHttpClient.Builder().build();
+      try {
+        final IntakeApi directApi =
+            new IntakeApi(
+                HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
+                API_KEY,
+                "123",
+                HttpRetryPolicy.Factory.NEVER_RETRY,
+                client,
+                false);
+        when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+            .thenReturn(directApi);
+        final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
+            new FeatureFlagBackendApiFactory(
+                config, backendApiFactory, FeatureFlagEventType.FLAG_EVALUATION);
+        final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
 
-      try (FlagEvaluationWriterImpl writer =
-          new FlagEvaluationWriterImpl(
-              16, 1, TimeUnit.MILLISECONDS, featureFlagBackendApiFactory, config)) {
-        writer.startForTest();
-        writer.enqueue(simpleEvent("direct-flag", "on"));
+        try (FlagEvaluationWriterImpl writer =
+            new FlagEvaluationWriterImpl(
+                16, 1, TimeUnit.MILLISECONDS, featureFlagBackendApiFactory, config)) {
+          writer.startForTest();
+          writer.enqueue(simpleEvent("direct-flag", "on"));
 
-        poll.eventually(
-            () -> {
-              assertNotNull(server.getLastRequest());
-              assertEquals(DIRECT_FLAG_EVALUATION_ENDPOINT, server.getLastRequest().getPath());
-              assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
-              assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
-              assertTrue(server.getLastRequest().getBody().length > 0);
-            });
+          poll.eventually(
+              () -> {
+                assertNotNull(server.getLastRequest());
+                assertEquals(DIRECT_FLAG_EVALUATION_ENDPOINT, server.getLastRequest().getPath());
+                assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
+                assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
+                assertTrue(server.getLastRequest().getBody().length > 0);
+              });
+        }
+      } finally {
+        client.dispatcher().executorService().shutdownNow();
+        client.connectionPool().evictAll();
       }
     }
   }
