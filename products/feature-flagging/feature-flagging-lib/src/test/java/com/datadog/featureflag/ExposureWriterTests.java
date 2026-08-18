@@ -15,6 +15,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer.HandlerApi;
 import datadog.trace.api.Config;
@@ -287,6 +288,9 @@ class ExposureWriterTests {
     assertEquals(service == null ? "unknown" : service, context.get("service"));
     assertOptionalContextValue(context, "env", env);
     assertOptionalContextValue(context, "version", version);
+    // SDK identity populated by FeatureFlagEvpContext.
+    assertEquals("dd-trace-java", context.get("source.name"));
+    assertEquals(TracerVersion.TRACER_VERSION, context.get("source.version"));
   }
 
   private static void assertOptionalContextValue(
