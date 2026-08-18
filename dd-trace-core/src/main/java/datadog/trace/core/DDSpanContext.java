@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -138,6 +139,12 @@ public class DDSpanContext
    */
   private final TagMap unsafeTags;
 
+  // Per-operation sizing hint (from SizingHintTable, keyed by operation name) this span was sized
+  // from, if any. Held so the span can feed its final dense-store size back on finish
+  // (recordDenseSize) -- the self-tuning loop that lets the reused hint converge to the operation's
+  // real known-tag high-water mark. Null when unsized.
+  private final SizingHint sizingHint;
+
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
 
@@ -244,6 +251,7 @@ public class DDSpanContext
         ProfilingContextIntegration.NoOp.INSTANCE,
         true,
         true,
+        null,
         null);
   }
 
@@ -295,6 +303,7 @@ public class DDSpanContext
         ProfilingContextIntegration.NoOp.INSTANCE,
         injectBaggageAsTags,
         injectLinksAsTags,
+        null,
         null);
   }
 
@@ -351,6 +360,7 @@ public class DDSpanContext
         profilingContextIntegration,
         injectBaggageAsTags,
         injectLinksAsTags,
+        null,
         null);
   }
 
@@ -380,7 +390,8 @@ public class DDSpanContext
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
-      final TagMap readThroughParent) {
+      final TagMap readThroughParent,
+      final SizingHint sizingHint) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -412,7 +423,8 @@ public class DDSpanContext
     this.unsafeTags =
         readThroughParent != null
             ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+            : sizingHint != null ? TagMap.create(sizingHint) : TagMap.create(capacity);
+    this.sizingHint = sizingHint;
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -960,6 +972,20 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
+    }
+  }
+
+  /**
+   * Feeds this span's final dense-store size back into the sizingHint it was created from (if any).
+   * Called once at span finish; lets a reused hint self-tune to the operation's observed known-tag
+   * high-water mark, so subsequent spans of the operation are sized correctly.
+   */
+  void recordDenseSize() {
+    if (sizingHint != null) {
+      // Intentionally unsynchronized: recordSize is benign-racy by design (monotonic-max on a plain
+      // int), and a stale knownCount read only ever costs one extra growth on a later span. The
+      // lock would add nothing but contention on the finish path.
+      unsafeTags.recordSize(sizingHint);
     }
   }
 

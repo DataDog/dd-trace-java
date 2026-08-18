@@ -157,6 +157,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
+      context.recordDenseSize();
       setLongRunningVersion(-this.longRunningVersion);
       SpanWrapper wrapper = getWrapper();
       if (wrapper != null) {
