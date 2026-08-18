@@ -13,6 +13,9 @@ import java.util.Map;
  *
  * <p>Lambda events carry no scheme or port either, so both are derived from the {@code
  * x-forwarded-*} headers, defaulting to {@code https} and to the scheme's default port.
+ *
+ * <p>Nothing is percent-decoded, so {@code path()} and {@code query()} return the raw strings and
+ * the {@code raw.resource} / {@code raw.query-string} settings have no effect.
  */
 class LambdaURIDataAdapter extends URIDataAdapterBase {
   private final String path;

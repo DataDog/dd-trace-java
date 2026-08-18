@@ -5,6 +5,7 @@ import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -118,6 +119,27 @@ class LambdaEventParserTest {
   }
 
   @Test
+  void restApiPrefersTheMultiValueQueryParameters() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
+                + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
+                + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
+
+    assertEquals(singletonMap("a", asList("1", "2")), data.queryParameters);
+  }
+
+  @Test
+  void restApiFallsBackToTheSingleValueQueryParameters() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
+                + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
+
+    assertEquals(singletonMap("a", singletonList("2")), data.queryParameters);
+  }
+
+  @Test
   void restApiExposesNoRawRequestLine() {
     // Only v2 payloads carry rawPath/rawQueryString; v1 has to be rebuilt from its parameter map
     LambdaRequestData data =
@@ -181,6 +203,17 @@ class LambdaEventParserTest {
                 + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals("[::1]", data.host);
+  }
+
+  @Test
+  void albStripsThePortFromABracketedIpv6Host() {
+    LambdaRequestData data =
+        parseEvent(
+            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                + " \"[2001:db8::1]:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
+                + " \"arn\"}}}");
+
+    assertEquals("[2001:db8::1]", data.host);
   }
 
   @Test

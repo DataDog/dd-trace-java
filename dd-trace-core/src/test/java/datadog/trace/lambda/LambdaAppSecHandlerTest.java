@@ -2176,6 +2176,21 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void keepsRepeatedQueryKeysFromTheV1MultiValueParameters() {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"path\": \"/orders\", \"queryStringParameters\": {\"a\": \"2\"},"
+                    + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
+                    + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\","
+                    + " \"domainName\": \"api.example.com\"}}"));
+
+    // REST APIs keep only the last value in queryStringParameters, unlike v2 which comma-joins
+    assertEquals("a=1&a=2", tagsOf(context).get(DDTags.HTTP_QUERY));
+  }
+
+  @Test
   void keepsPercentEncodingFromTheV2RawPath() {
     setupMockCallbacks(new Callbacks());
     AgentSpanContext context =

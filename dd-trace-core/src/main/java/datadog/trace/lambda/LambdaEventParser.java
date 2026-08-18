@@ -244,8 +244,12 @@ final class LambdaEventParser {
   private static LambdaRequestData extractApiGatewayV1Data(Map<String, Object> event) {
     Map<String, String> headers = extractHeaders(event.get("headers"));
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+    // Preferred over queryStringParameters, which keeps only the last value of a repeated key
     Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
+        extractMultiValueQueryParameters(event.get("multiValueQueryStringParameters"));
+    if (queryParameters.isEmpty()) {
+      queryParameters = extractQueryParameters(event.get("queryStringParameters"));
+    }
     Object body = extractBody(event);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
@@ -531,13 +535,16 @@ final class LambdaEventParser {
   }
 
   /**
-   * Removes a trailing {@code :port}, leaving an IPv6 literal (several colons) alone. The port is
-   * tracked separately, from {@code x-forwarded-port}, so a {@code Host} of {@code
+   * Removes a trailing {@code :port}, leaving a bracketed IPv6 literal alone unless it too carries
+   * one. The port is tracked separately, from {@code x-forwarded-port}, so a {@code Host} of {@code
    * example.com:8080} would otherwise have {@code URIUtils.buildURL} emit it twice.
    */
   private static String stripPort(String host) {
-    int colon = host == null ? -1 : host.lastIndexOf(':');
-    return colon > 0 && host.indexOf(':') == colon ? host.substring(0, colon) : host;
+    if (host == null) {
+      return null;
+    }
+    int colon = host.lastIndexOf(':');
+    return colon > 0 && colon > host.lastIndexOf(']') ? host.substring(0, colon) : host;
   }
 
   /**
