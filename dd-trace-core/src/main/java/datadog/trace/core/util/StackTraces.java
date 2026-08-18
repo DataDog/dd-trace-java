@@ -32,7 +32,7 @@ public final class StackTraces {
     }
     try {
       return t.getMessage();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       return "(Exception message unavailable for "
           + t.getClass().getSimpleName()
           + ": getMessage() threw "
@@ -72,7 +72,11 @@ public final class StackTraces {
                     .map(f -> "\tat " + f)
                     .collect(Collectors.joining(System.lineSeparator()));
       } catch (Throwable ignored2) {
-        trace = t.getClass().getName();
+        try {
+          trace = t.getClass().getName() + ": " + t.getMessage();
+        } catch (Throwable ignored3) {
+          trace = t.getClass().getName();
+        }
       }
     }
     try {
