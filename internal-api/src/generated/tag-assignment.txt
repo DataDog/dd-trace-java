@@ -67,3 +67,15 @@
   http.server    count=15  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
   view.render    count=8   slots=[0, 1, 2, 3, 4, 5, 6, 7]
   <trace>        count=13  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+# OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still
+# returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)
+  db.operation.name              -> db.operation
+  db.query.text                  -> db.statement
+  db.system                      -> db.type
+  http.request.method            -> http.method
+  http.response.status_code      -> http.status_code
+  server.address                 -> http.hostname
+  service.name                   -> service
+  url.full                       -> http.url
+  url.query                      -> http.query.string

@@ -16,6 +16,12 @@ private constructor(
     val name: String,
     val type: String,
     val required: String,
+    /**
+     * The tag's OpenTelemetry-namespace name, if it has one. keyOf resolves it to this tag's
+     * canonical id (inbound, many->one); openTelemetryNameOf recovers it (outbound). Further
+     * namespaces and serializer applicability are a follow-on concern.
+     */
+    val otelName: String? = null,
   )
 
   data class SpanType(
@@ -167,6 +173,7 @@ private constructor(
           name = m["tag"].toString(),
           type = (m["type"] as? String) ?: "string",
           required = (m["required"] as? String) ?: "optional",
+          otelName = m["open-telemetry-name"] as? String,
         )
       } ?: emptyList()
   }

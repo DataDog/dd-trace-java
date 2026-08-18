@@ -59,6 +59,24 @@ class KnownTagsTest {
   }
 
   /**
+   * (otelName, canonicalId, datadogName) — the OpenTelemetry name resolves (keyOf) to the canonical
+   * tag's id; datadogNameOf returns the Datadog name and openTelemetryNameOf returns the OTel name.
+   */
+  static Stream<Arguments> otelNamedTags() {
+    return Stream.of(
+        Arguments.of("http.request.method", KnownTags.HTTP_METHOD_ID, "http.method"),
+        Arguments.of(
+            "http.response.status_code", KnownTags.HTTP_STATUS_CODE_ID, "http.status_code"),
+        Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
+        Arguments.of("server.address", KnownTags.HTTP_HOSTNAME_ID, "http.hostname"),
+        Arguments.of("url.query", KnownTags.HTTP_QUERY_STRING_ID, "http.query.string"),
+        Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),
+        Arguments.of("db.operation.name", KnownTags.DB_OPERATION_ID, "db.operation"),
+        Arguments.of("db.query.text", KnownTags.DB_STATEMENT_ID, "db.statement"),
+        Arguments.of("service.name", KnownTags.SERVICE_ID, "service"));
+  }
+
+  /**
    * The subset flagged INTERCEPTED (sign bit) — must agree with the interceptor's needsIntercept.
    */
   static Stream<Arguments> interceptedTags() {
@@ -118,6 +136,29 @@ class KnownTagsTest {
   @MethodSource("knownTags")
   void nameOfResolvesIdToName(String name, long id) {
     assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(" + name + ")");
+  }
+
+  @ParameterizedTest
+  @MethodSource("otelNamedTags")
+  void otelNameResolvesToCanonicalId(String otelName, long id, String datadogName) {
+    // Inbound (keyOf) is many->one: both names land on the same canonical id.
+    assertEquals(id, KnownTagCodec.keyOf(otelName), "keyOf(" + otelName + ")");
+    assertEquals(id, KnownTagCodec.keyOf(datadogName), "keyOf(" + datadogName + ")");
+  }
+
+  @ParameterizedTest
+  @MethodSource("otelNamedTags")
+  void namespaceAccessorsReturnPerNamespaceName(String otelName, long id, String datadogName) {
+    assertEquals(datadogName, KnownTagCodec.datadogNameOf(id), "datadogNameOf");
+    assertEquals(otelName, KnownTagCodec.openTelemetryNameOf(id), "openTelemetryNameOf");
+    // nameOf stays the Datadog name -- outbound is namespace-specific, not normalized to OTel.
+    assertEquals(datadogName, KnownTagCodec.nameOf(id), "nameOf stays Datadog");
+  }
+
+  @Test
+  void tagsWithoutOtelNameReturnNull() {
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.HTTP_ROUTE_ID)); // no OTel name declared
+    assertNull(KnownTagCodec.openTelemetryNameOf(0L)); // unknown id
   }
 
   @ParameterizedTest

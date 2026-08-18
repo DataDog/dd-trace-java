@@ -34,6 +34,7 @@ private constructor(
     val slot: Int,
     val traceLevel: Boolean,
     val id: Long,
+    val otelName: String? = null,
   ) {
     val slotted: Boolean
       get() = slot != NO_SLOT
@@ -45,11 +46,17 @@ private constructor(
     val field: String?,
     val serial: Int,
     val id: Long,
+    val otelName: String? = null,
   )
 
   /** Java overlay: intercepted tag names + the reserved/special-key registry. */
   class Overlay(val intercepted: Set<String>, val reserved: List<ReservedDef>) {
-    data class ReservedDef(val name: String, val kind: String, val field: String?)
+    data class ReservedDef(
+      val name: String,
+      val kind: String,
+      val field: String?,
+      val otelName: String? = null,
+    )
 
     companion object {
       @Suppress("UNCHECKED_CAST")
@@ -57,7 +64,11 @@ private constructor(
         val intercepted = (root["intercepted"] as? List<String>)?.toSet() ?: emptySet()
         val reserved =
           (root["reserved"] as? List<Map<String, Any?>>)?.map { m ->
-            ReservedDef(m["tag"].toString(), (m["kind"] as? String) ?: "directive", m["field"] as? String)
+            ReservedDef(
+              m["tag"].toString(),
+              (m["kind"] as? String) ?: "directive",
+              m["field"] as? String,
+              m["open-telemetry-name"] as? String)
           } ?: emptyList()
         return Overlay(intercepted, reserved)
       }
@@ -131,7 +142,8 @@ private constructor(
           val serial = 1 + i
           ReservedTag(
             v.name, v.kind, v.field, serial,
-            encode(serial, intercepted = true, slot = NO_SLOT, traceLevel = false))
+            encode(serial, intercepted = true, slot = NO_SLOT, traceLevel = false),
+            v.otelName)
         }
 
       // Stored tags in a stable order (by name); serials are a dense global counter from
@@ -144,10 +156,33 @@ private constructor(
           val traceLevel = t.name in traceNames
           StoredTag(
             t.name, t.type, t.required, serial, intercepted, slot, traceLevel,
-            id = encode(serial, intercepted, slot, traceLevel))
+            id = encode(serial, intercepted, slot, traceLevel),
+            otelName = t.otelName)
         }
 
+      validateOtelNames(stored, reserved)
       return TagRegistry(stored, reserved, slotCount)
+    }
+
+    /**
+     * An OpenTelemetry name must be unambiguous: it may not collide with any canonical tag name, nor
+     * be claimed by two different tags. Otherwise keyOf(otelName) would have no single right answer.
+     * Fail the build loudly rather than silently pick a winner.
+     */
+    private fun validateOtelNames(stored: List<StoredTag>, reserved: List<ReservedTag>) {
+      val canonical = (stored.map { it.name } + reserved.map { it.name }).toSet()
+      val owner = HashMap<String, String>()
+      val check = { name: String, otel: String? ->
+        if (otel != null) {
+          require(otel !in canonical) {
+            "OpenTelemetry name '$otel' (of '$name') collides with canonical tag name '$otel'"
+          }
+          val prev = owner.put(otel, name)
+          require(prev == null) { "OpenTelemetry name '$otel' is claimed by both '$prev' and '$name'" }
+        }
+      }
+      stored.forEach { check(it.name, it.otelName) }
+      reserved.forEach { check(it.name, it.otelName) }
     }
   }
 }
