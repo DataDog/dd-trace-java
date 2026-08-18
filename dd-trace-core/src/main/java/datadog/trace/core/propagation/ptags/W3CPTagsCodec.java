@@ -130,6 +130,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       int nextTagPos = tagValueEndsAt + 1;
       if (tagValueEndsAt == ddMemberValueEnd) {
         tagValueEndsAt = stripTrailingOWC(value, tagValuePos, tagValueEndsAt);
+      } else {
+        nextTagPos = skipLeadingOWC(value, nextTagPos, ddMemberValueEnd);
       }
       int keyLength = tagKeyEndsAt - tagPos;
       char c = value.charAt(tagPos);
@@ -612,11 +614,17 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static int stripTrailingOWC(String original, int start, int end) {
-    char c = original.charAt(--end);
-    while (isOWC(c) && end > start) {
-      c = original.charAt(--end);
+    while (end > start + 1 && isOWC(original.charAt(end - 1))) {
+      end--;
     }
-    return ++end;
+    return end;
+  }
+
+  private static int skipLeadingOWC(String original, int start, int end) {
+    while (start < end && isOWC(original.charAt(start))) {
+      start++;
+    }
+    return start;
   }
 
   private static int cleanUpAndAppendUnknown(StringBuilder sb, W3CPTags w3CPTags, int size) {
