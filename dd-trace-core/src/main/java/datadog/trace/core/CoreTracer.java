@@ -40,7 +40,6 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.SizingHint;
@@ -2202,13 +2201,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // resolved hint sizes the span's TagMap and self-tunes on finish; null (no/unkeyable
       // operation name) falls back to the generic default capacity.
       //
-      // Gated on KnownTagCodec.isActive(): sizing only helps when the dense known-tag store is live
-      // (the experimental dd.trace.dense.tags.enabled path). With it off -- the default -- known
-      // tags don't take the dense path, so a hint buys nothing; skipping resolution here keeps the
+      // Gated on DENSE_TAGS_ENABLED: sizing only helps when tags take the dense store (the
+      // experimental trace.dense.tags.enabled path). With it off -- the default -- known tags don't
+      // take the dense path, so a hint buys nothing; skipping resolution here keeps the
       // operationName.toString() and the global-table probe off the default span-creation path
-      // entirely (do no harm).
+      // entirely (do no harm). Not KnownTagCodec.isActive(): the codec is always registered.
       final SizingHint sizingHint;
-      if (KnownTagCodec.isActive()) {
+      if (DENSE_TAGS_ENABLED) {
         final boolean entrySpan = !(resolvedParentSpanContext instanceof DDSpanContext);
         sizingHint = SizingHintTable.hintFor(operationName, entrySpan);
       } else {
