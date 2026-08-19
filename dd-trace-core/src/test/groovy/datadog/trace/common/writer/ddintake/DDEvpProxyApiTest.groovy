@@ -2,6 +2,7 @@ package datadog.trace.common.writer.ddintake
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import datadog.communication.EvpProxy
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
@@ -64,7 +65,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     clientResponse.status().present
     clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
-    agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
+    agentEvpProxy.getLastRequest().getHeader(EvpProxy.SUBDOMAIN_HEADER) == intakeSubdomain
 
     cleanup:
     agentEvpProxy.close()
@@ -100,7 +101,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     clientResponse.status().present
     clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
-    agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
+    agentEvpProxy.getLastRequest().getHeader(EvpProxy.SUBDOMAIN_HEADER) == intakeSubdomain
 
     cleanup:
     agentEvpProxy.close()
