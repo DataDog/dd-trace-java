@@ -8,6 +8,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsPropagationAccess;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -48,6 +49,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
+      LLMOBS_TAG_PREFIX + "pagent_span_id";
+  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_name";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
@@ -133,8 +137,72 @@ public class DDLLMObsSpan implements LLMObsSpan {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    // Propagate the effective sessionId to descendant LLMObs spans via the context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId);
+
+    // Resolve agent attribution (O(1)): identify the nearest agent-kind ancestor.
+    String resolvedPagentSpanId = null;
+    String resolvedPagentName = null;
+
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
+      // This span is itself an agent — it becomes the nearest ancestor for its descendants.
+      resolvedPagentSpanId = String.valueOf(span.getSpanId());
+      resolvedPagentName = agentNameWireSafe(spanName) ? spanName : null;
+    } else {
+      // Inherit from in-process LLMObs parent (set by a parent agent span via context).
+      resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
+      resolvedPagentName = LLMObsContext.currentParentAgentName();
+
+      // Fall back to distributed propagated tags on the root APM span context.
+      if (resolvedPagentSpanId == null) {
+        AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
+        if (rootCtx instanceof LLMObsPropagationAccess) {
+          LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+          resolvedPagentSpanId = access.getParentAgentSpanId();
+          resolvedPagentName = access.getParentAgentName();
+        }
+      }
+    }
+
+    // Store pagent values as internal tags so the serializer can emit agent_attribution.
+    if (resolvedPagentSpanId != null) {
+      span.setTag(PAGENT_SPAN_ID_TAG_INTERNAL, resolvedPagentSpanId);
+      if (resolvedPagentName != null) {
+        span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedPagentName);
+      }
+    }
+
+    // If this span is an agent, stamp the pagent propagation tags for outgoing distributed calls.
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
+      AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
+      if (rootCtx instanceof LLMObsPropagationAccess) {
+        LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+        access.setParentAgentSpanId(resolvedPagentSpanId);
+        if (resolvedPagentName != null) {
+          access.setParentAgentName(resolvedPagentName);
+        }
+      }
+    }
+
+    // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
+    scope = LLMObsContext.attach(span.spanContext(), sessionId, resolvedPagentSpanId, resolvedPagentName);
+  }
+
+  /**
+   * Returns true if the agent name is safe to include in the x-datadog-tags header:
+   * printable ASCII only (0x20–0x7E), no commas (delimiter), no semicolons.
+   * Max 256 UTF-8 bytes. Since the loop rejects all non-ASCII (c > 0x7E), every character that
+   * passes is single-byte in UTF-8, so length() is an exact byte-count proxy.
+   */
+  private static boolean agentNameWireSafe(String name) {
+    if (name == null || name.length() > 256) {
+      return false;
+    }
+    for (int i = 0; i < name.length(); i++) {
+      char c = name.charAt(i);
+      if (c < 0x20 || c > 0x7E || c == ',' || c == ';') {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

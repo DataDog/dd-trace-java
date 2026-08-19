@@ -546,6 +546,81 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
+  @Test
+  void testAgentAttributionEmittedWithBothFields() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my.agent")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_AGENT_SPAN_KIND)
+            .withTag("_ml_obs_tag.pagent_span_id", "abc123")
+            .withTag("_ml_obs_tag.pagent_name", "my-orchestrator")
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_attribution"));
+    Map<String, Object> attribution = (Map<String, Object>) meta.get("agent_attribution");
+    assertEquals("abc123", attribution.get("pagent_span_id"));
+    assertEquals("my-orchestrator", attribution.get("pagent_name"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testAgentAttributionEmitsExplicitNullNameWhenAbsent() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    // Only pagent_span_id is set — pagent_name tag is absent
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my.agent")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_AGENT_SPAN_KIND)
+            .withTag("_ml_obs_tag.pagent_span_id", "abc123")
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_attribution"));
+    Map<String, Object> attribution = (Map<String, Object>) meta.get("agent_attribution");
+    assertEquals("abc123", attribution.get("pagent_span_id"));
+    // pagent_name key must be present with an explicit null (not absent)
+    assertTrue(attribution.containsKey("pagent_name"));
+    assertNull(attribution.get("pagent_name"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testNoAgentAttributionBlockWhenPagentSpanIdAbsent() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "openai.chat")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertFalse(meta.containsKey("agent_attribution"));
+
+    tracer.close();
+  }
+
   private static byte[] writeTo(datadog.trace.common.writer.Payload payload) throws IOException {
     ByteArrayOutputStream channel = new ByteArrayOutputStream();
     payload.writeTo(

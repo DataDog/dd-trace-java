@@ -68,6 +68,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] ERROR_STACK = "stack".getBytes(StandardCharsets.UTF_8);
 
   private static final byte[] META = "meta".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] AGENT_ATTRIBUTION =
+      "agent_attribution".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] PAGENT_NAME = "pagent_name".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] PAGENT_SPAN_ID = "pagent_span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
@@ -94,6 +98,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + "pagent_span_id";
+  private static final String PAGENT_NAME_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "pagent_name";
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -265,7 +272,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA)));
+                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
+                    PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
+                    PAGENT_NAME_TAG_INTERNAL_FULL)));
 
     MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {
       this.writable = writable;
@@ -308,6 +317,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String inputPromptTag = LLMOBS_TAG_PREFIX + INPUT_PROMPT;
       boolean hasInput = tagsToRemapToMeta.containsKey(inputTag);
       boolean hasInputPrompt = tagsToRemapToMeta.containsKey(inputPromptTag);
+      boolean hasAgentAttribution = tagsToRemapToMeta.containsKey(PAGENT_SPAN_ID_TAG_INTERNAL_FULL);
+      boolean hasAgentAttributionName =
+          tagsToRemapToMeta.containsKey(PAGENT_NAME_TAG_INTERNAL_FULL);
       Object inputPrompt = null;
       if (hasInputPrompt) {
         if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
@@ -342,12 +354,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
       }
 
       // write meta (11)
+      // pagent_name is always emitted inside agent_attribution (never standalone), so subtract 1
+      // whenever it is in the map regardless of whether pagent_span_id is also present.
       int metaSize =
           tagsToRemapToMeta.size()
               - (hasInputPrompt ? 1 : 0)
               + (inputPrompt != null && !hasInput ? 1 : 0)
               + 1
-              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
+              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
+              - (hasAgentAttributionName ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
@@ -378,7 +393,24 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : tagsToRemapToMeta.entrySet()) {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
-        if (key.equals(INPUT) || key.equals(OUTPUT)) {
+        if (key.equals("pagent_name")) {
+          // Emitted inside the agent_attribution block below; skip standalone entry.
+          continue;
+        } else if (key.equals("pagent_span_id")) {
+          // Emit the structured agent_attribution map.
+          writable.writeUTF8(AGENT_ATTRIBUTION);
+          writable.startMap(2);
+          writable.writeUTF8(PAGENT_NAME);
+          Object nameVal = tagsToRemapToMeta.get(PAGENT_NAME_TAG_INTERNAL_FULL);
+          if (nameVal instanceof String) {
+            writable.writeString((String) nameVal, null);
+          } else {
+            writable.writeNull();
+          }
+          writable.writeUTF8(PAGENT_SPAN_ID);
+          writable.writeObject(val, null);
+          continue;
+        } else if (key.equals(INPUT) || key.equals(OUTPUT)) {
           boolean isDocumentIO =
               (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
                   || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
