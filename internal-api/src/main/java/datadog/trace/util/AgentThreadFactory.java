@@ -69,6 +69,7 @@ public final class AgentThreadFactory implements ThreadFactory {
     LLMOBS_FEEDBACK_PROCESSOR("dd-llmobs-feedback-processor"),
 
     FEATURE_FLAG_EXPOSURE_PROCESSOR("dd-ffe-exposure-processor"),
+    FEATURE_FLAG_EVALUATION_PROCESSOR("dd-ffe-evaluation-processor"),
     FEATURE_FLAG_CONFIGURATION_POLLER("dd-feature-flagging-http-poller");
 
     public final String threadName;

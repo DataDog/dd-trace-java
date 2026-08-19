@@ -8,6 +8,8 @@ public class KafkaConsumerInfo {
   private final String consumerGroup;
   private final Metadata metadata;
   private final String bootstrapServers;
+  private volatile String lastReportedMemberId;
+  private volatile int lastReportedGenerationId = Integer.MIN_VALUE;
 
   public KafkaConsumerInfo(String consumerGroup, Metadata metadata, String bootstrapServers) {
     this.consumerGroup = consumerGroup;
@@ -31,6 +33,16 @@ public class KafkaConsumerInfo {
 
   public Optional<String> getBootstrapServers() {
     return Optional.ofNullable(bootstrapServers);
+  }
+
+  public boolean hasMembershipChanged(String memberId, int generationId) {
+    return !Objects.equals(memberId, lastReportedMemberId)
+        || generationId != lastReportedGenerationId;
+  }
+
+  public void setLastReportedMembership(String memberId, int generationId) {
+    this.lastReportedMemberId = memberId;
+    this.lastReportedGenerationId = generationId;
   }
 
   @Override
