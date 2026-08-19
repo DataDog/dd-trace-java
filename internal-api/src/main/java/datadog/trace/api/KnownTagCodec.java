@@ -213,6 +213,9 @@ public final class KnownTagCodec {
   public interface Resolver {
     String nameOf(long tagId);
 
+    /** The tag's OpenTelemetry-namespace name, or {@code null} when it declares none. */
+    String openTelemetryNameOf(long tagId);
+
     long keyOf(String name);
 
     /** Number of positional slots this provider uses: (max stored fieldPos) + 1. */
@@ -230,6 +233,11 @@ public final class KnownTagCodec {
 
     @Override
     public String nameOf(long tagId) {
+      return null;
+    }
+
+    @Override
+    public String openTelemetryNameOf(long tagId) {
       return null;
     }
 
@@ -284,6 +292,21 @@ public final class KnownTagCodec {
       freezeAsNoCodec();
     }
     return null;
+  }
+
+  /** The tag's Datadog-namespace (canonical) name — the same value as {@link #nameOf}. */
+  public static String datadogNameOf(long tagId) {
+    return nameOf(tagId);
+  }
+
+  /**
+   * The tag's OpenTelemetry-namespace name, or {@code null} when it declares none (or no resolver
+   * is registered). A serializer owns any fall-back-to-Datadog-name policy; this is a pure lookup.
+   */
+  public static String openTelemetryNameOf(long tagId) {
+    if (!active) return null;
+    Resolver r = resolver;
+    return r != null ? r.openTelemetryNameOf(tagId) : null;
   }
 
   public static long keyOf(String name) {

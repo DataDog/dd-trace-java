@@ -59,6 +59,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
 
+    create("tag-registry-generator") {
+      id = "dd-trace-java.tag-registry-generator"
+      implementationClass = "datadog.gradle.plugin.tags.TagRegistryGeneratorPlugin"
+    }
+
     create("supported-config-linter") {
       id = "dd-trace-java.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
@@ -107,6 +112,7 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
+  implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
 
   compileOnly(libs.develocity)
 }

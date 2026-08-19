@@ -79,6 +79,11 @@ class TagMapDenseFuzzForkedTest {
         }
 
         @Override
+        public String openTelemetryNameOf(long tagId) {
+          return null; // synthetic resolver declares no OpenTelemetry names
+        }
+
+        @Override
         public int slotCount() {
           return 0; // positional unused
         }
