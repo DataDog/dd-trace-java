@@ -114,7 +114,7 @@ class SymDBEnablementTest {
   @Test
   public void parseLoadedClass() throws ClassNotFoundException, IOException {
     Class<?> testClass = loadSymbolClassFromJar();
-    when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass, null});
     when(config.getThirdPartyIncludes())
         .thenReturn(
             Stream.of("com.datadog.debugger.", "org.springframework.samples.")
