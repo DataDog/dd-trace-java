@@ -272,8 +272,12 @@ class W3CHttpCodec {
                 "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
           }
           // Now we know that we have at least a traceparent header
-          parseTraceParentHeader(traceparentHeader);
-          parseTraceStateHeader(tracestateHeader);
+          if (!parseTraceParentHeader(traceparentHeader)) {
+            onlyTagContext();
+            log.debug("Invalid traceparent header '{}'", traceparentHeader);
+          } else {
+            parseTraceStateHeader(tracestateHeader);
+          }
         } catch (RuntimeException e) {
           onlyTagContext();
           log.debug("Exception when building context", e);
@@ -282,39 +286,54 @@ class W3CHttpCodec {
       return super.build();
     }
 
-    void parseTraceParentHeader(String tp) {
+    /**
+     * Parses the traceparent header, returning {@code false} for any malformed input instead of
+     * throwing. Traceparent headers are attacker/misconfiguration-controlled and malformed input is
+     * common in practice, so this avoids paying for exception construction (and the resulting
+     * error-tracking noise) on what is effectively a validation failure, not an exceptional
+     * condition.
+     */
+    boolean parseTraceParentHeader(String tp) {
       int length = tp == null ? 0 : tp.length();
       if (length < TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
+        return false;
       }
-      long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
+      if (!LongStringUtils.isValidUnsignedLongHex(tp, 0, 2, true)) {
+        return false;
+      }
+      long version = LongStringUtils.parseUnsignedLongHexUnchecked(tp, 0, 2, true);
       if (version == 255) {
-        throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
+        return false;
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
+        return false;
       }
-      DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+      if (!DD128bTraceId.isValidHex(tp, TRACE_PARENT_TID_START, 32, true)) {
+        return false;
+      }
+      DDTraceId traceId = DD128bTraceId.fromHexUnchecked(tp, TRACE_PARENT_TID_START, 32, true);
       if (traceId.toLong() == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero 64 bit trace id "
-                + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+        return false;
       }
-      this.traceId = traceId;
-      this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
-      if (this.spanId == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero span id "
-                + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
+      if (!LongStringUtils.isValidUnsignedLongHex(tp, TRACE_PARENT_SID_START, 16, true)) {
+        return false;
+      }
+      long spanId = DDSpanId.fromHexUnchecked(tp, TRACE_PARENT_SID_START, 16, true);
+      if (spanId == 0) {
+        return false;
       }
       if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
-        throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
+        return false;
       }
-      long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
-      if ((flags & TRACE_PARENT_FLAGS_SAMPLED) != 0) {
-        this.samplingPriority = SAMPLER_KEEP;
-      } else {
-        this.samplingPriority = SAMPLER_DROP;
+      if (!LongStringUtils.isValidUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true)) {
+        return false;
       }
+      long flags =
+          LongStringUtils.parseUnsignedLongHexUnchecked(tp, TRACE_PARENT_FLAGS_START, 2, true);
+      this.traceId = traceId;
+      this.spanId = spanId;
+      this.samplingPriority =
+          (flags & TRACE_PARENT_FLAGS_SAMPLED) != 0 ? SAMPLER_KEEP : SAMPLER_DROP;
+      return true;
     }
 
     void parseTraceStateHeader(String tracestate) {

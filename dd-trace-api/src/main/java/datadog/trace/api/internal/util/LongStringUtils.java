@@ -39,30 +39,69 @@ public class LongStringUtils {
     if (s == null) {
       throw new NumberFormatException("null");
     }
-
-    if (len > 0 && start >= 0 && start + len <= s.length()) {
+    if (!isValidUnsignedLongHex(s, start, len, lowerCaseOnly)) {
+      if (len <= 0 || start < 0 || start + len > s.length()) {
+        throw new NumberFormatException("Empty input string");
+      }
       if (len > 16 && (len - firstNonZeroCharacter(s, start)) > 16) {
         // Unsigned 64 bits max is 16 digits, so this always overflows
         throw numberFormatOutOfLongRange(s);
       }
-      long result = 0;
-      int ok = 0;
-      for (int i = 0; i < len && ok >= 0; i++, start++) {
-        char c = s.charAt(start);
-        int d = Character.digit(c, 16);
-        if (lowerCaseOnly && Character.isUpperCase(c)) {
-          ok = -1;
-        }
-        ok |= d;
-        result = result << 4 | d;
-      }
-      if (ok < 0) {
-        throw new NumberFormatException("Illegal character in " + s.subSequence(start, len));
-      }
-      return result;
-    } else {
-      throw new NumberFormatException("Empty input string");
+      throw new NumberFormatException("Illegal character in " + s.subSequence(start, start + len));
     }
+    return parseUnsignedLongHexUnchecked(s, start, len, lowerCaseOnly);
+  }
+
+  /**
+   * Checks whether {@code s} is a valid hexadecimal representation of an unsigned 64 bit long,
+   * without allocating or throwing. Intended for hot paths (e.g. header parsing) that need to
+   * branch on validity before deciding whether to parse at all.
+   *
+   * @param s String possibly in hex of unsigned 64 bits.
+   * @param start the start index of the hex value.
+   * @param len the len of the hex value.
+   * @param lowerCaseOnly if the allowed hex characters are lower case only.
+   * @return {@code true} if {@code s} can be parsed by {@link #parseUnsignedLongHexUnchecked}.
+   */
+  public static boolean isValidUnsignedLongHex(
+      CharSequence s, int start, int len, boolean lowerCaseOnly) {
+    if (s == null || len <= 0 || start < 0 || start + len > s.length()) {
+      return false;
+    }
+    if (len > 16 && (len - firstNonZeroCharacter(s, start)) > 16) {
+      // Unsigned 64 bits max is 16 digits, so this always overflows
+      return false;
+    }
+    int ok = 0;
+    for (int i = 0; i < len; i++) {
+      char c = s.charAt(start + i);
+      int d = Character.digit(c, 16);
+      if (lowerCaseOnly && Character.isUpperCase(c)) {
+        return false;
+      }
+      ok |= d;
+    }
+    return ok >= 0;
+  }
+
+  /**
+   * Parses the hex representation of an unsigned 64 bit long from {@code s}, assuming the caller
+   * has already confirmed validity with {@link #isValidUnsignedLongHex}. Behavior is undefined if
+   * {@code s} is not valid for the given {@code start}/{@code len}/{@code lowerCaseOnly}.
+   *
+   * @param s String in hex of unsigned 64 bits.
+   * @param start the start index of the hex value.
+   * @param len the len of the hex value.
+   * @param lowerCaseOnly if the allowed hex characters are lower case only.
+   * @return long
+   */
+  public static long parseUnsignedLongHexUnchecked(
+      CharSequence s, int start, int len, boolean lowerCaseOnly) {
+    long result = 0;
+    for (int i = 0; i < len; i++, start++) {
+      result = result << 4 | Character.digit(s.charAt(start), 16);
+    }
+    return result;
   }
 
   private static int firstNonZeroCharacter(CharSequence s, int start) {
