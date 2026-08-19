@@ -100,6 +100,14 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < ddMemberValueEnd) {
+      tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
+      if (tagPos == ddMemberValueEnd) {
+        break;
+      }
+      if (isOWC(value.charAt(tagPos))) {
+        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
+        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+      }
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
               value,
@@ -130,14 +138,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       int nextTagPos = tagValueEndsAt + 1;
       if (tagValueEndsAt == ddMemberValueEnd) {
         tagValueEndsAt = stripTrailingOWC(value, tagValuePos, tagValueEndsAt);
-      } else {
-        int afterOWC = skipLeadingOWC(value, nextTagPos, ddMemberValueEnd);
-        if (afterOWC > nextTagPos && afterOWC < ddMemberValueEnd) {
-          // OWS was skipped but real content still follows - interior OWS, not trailing padding
-          log.warn("Invalid datadog tags header value: '{}' at {}", value, nextTagPos);
-          return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
-        }
-        nextTagPos = afterOWC;
       }
       int keyLength = tagKeyEndsAt - tagPos;
       char c = value.charAt(tagPos);
@@ -622,18 +622,24 @@ public class W3CPTagsCodec extends PTagsCodec {
     return c == ' ' || c == '\t';
   }
 
-  private static int stripTrailingOWC(String original, int start, int end) {
-    while (end > start + 1 && isOWC(original.charAt(end - 1))) {
+  private static int stripTrailingOWC(String value, int start, int end) {
+    while (end > start + 1 && isOWC(value.charAt(end - 1))) {
       end--;
     }
     return end;
   }
 
-  private static int skipLeadingOWC(String original, int start, int end) {
-    while (start < end && isOWC(original.charAt(start))) {
-      start++;
+  private static int skipEmptyElements(String value, int start, int end) {
+    int pos = start;
+    while (pos < end) {
+      char c = value.charAt(pos++);
+      if (c == ELEMENT_SEPARATOR) {
+        start = pos;
+      } else if (!isOWC(c)) {
+        return start;
+      }
     }
-    return start;
+    return end;
   }
 
   private static int cleanUpAndAppendUnknown(StringBuilder sb, W3CPTags w3CPTags, int size) {
@@ -646,8 +652,8 @@ public class W3CPTagsCodec extends PTagsCodec {
     int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
-      elementStart = skipLeadingOWC(original, elementStart, w3CPTags.ddMemberValueEnd);
-      if (elementStart >= w3CPTags.ddMemberValueEnd) {
+      elementStart = skipEmptyElements(original, elementStart, w3CPTags.ddMemberValueEnd);
+      if (elementStart == w3CPTags.ddMemberValueEnd) {
         break;
       }
       okSize = size;
