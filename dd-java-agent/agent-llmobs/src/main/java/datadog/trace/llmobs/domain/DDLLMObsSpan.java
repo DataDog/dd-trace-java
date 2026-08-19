@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -172,7 +171,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     // If this span is an agent, stamp the pagent propagation tags for outgoing distributed calls.
-    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && resolvedPagentSpanId != null) {
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
       AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
       if (rootCtx instanceof LLMObsPropagationAccess) {
         LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
@@ -190,19 +189,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
   /**
    * Returns true if the agent name is safe to include in the x-datadog-tags header:
    * printable ASCII only (0x20–0x7E), no commas (delimiter), no semicolons.
-   * Max 256 UTF-8 bytes.
+   * Max 256 UTF-8 bytes. Since the loop rejects all non-ASCII (c > 0x7E), every character that
+   * passes is single-byte in UTF-8, so length() is an exact byte-count proxy.
    */
   private static boolean agentNameWireSafe(String name) {
-    if (name == null) {
+    if (name == null || name.length() > 256) {
       return false;
     }
-    byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
-    if (bytes.length > 256) {
-      return false;
-    }
-    for (byte b : bytes) {
-      int u = b & 0xFF;
-      if (u < 0x20 || u > 0x7E || u == 0x2C || u == 0x3B) {
+    for (int i = 0; i < name.length(); i++) {
+      char c = name.charAt(i);
+      if (c < 0x20 || c > 0x7E || c == ',' || c == ';') {
         return false;
       }
     }
