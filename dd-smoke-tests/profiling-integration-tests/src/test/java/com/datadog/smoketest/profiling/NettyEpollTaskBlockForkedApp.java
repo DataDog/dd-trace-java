@@ -2,10 +2,14 @@
 package com.datadog.smoketest.profiling;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -14,7 +18,8 @@ public final class NettyEpollTaskBlockForkedApp {
   public static final String EVENT_LOOP_THREAD = "netty-epoll-taskblock";
 
   private static final long PROFILING_STARTUP_DELAY_MILLIS = 1500L;
-  private static final long IDLE_MILLIS = 3000L;
+  private static final int WAKEUP_COUNT = 6;
+  private static final long WAKEUP_INTERVAL_MILLIS = 500L;
 
   private NettyEpollTaskBlockForkedApp() {}
 
@@ -32,8 +37,20 @@ public final class NettyEpollTaskBlockForkedApp {
                     @Override
                     protected void initChannel(SocketChannel channel) {}
                   });
-      bootstrap.bind(0).sync().channel();
-      TimeUnit.MILLISECONDS.sleep(IDLE_MILLIS);
+      Channel serverChannel = bootstrap.bind(0).sync().channel();
+      int port = ((InetSocketAddress) serverChannel.localAddress()).getPort();
+      // A single multi-second epollWait is fragile: if the profiler's recording hasn't
+      // started yet when the one-and-only block begins, beginTaskBlock() is rejected and
+      // the whole run yields zero events, with no second chance. Instead, wake the event
+      // loop repeatedly with short-lived client connections: each connect unblocks one
+      // epollWait call, and the loop immediately re-enters epollWait for the next one,
+      // yielding several short, independent TaskBlock intervals.
+      for (int i = 0; i < WAKEUP_COUNT; i++) {
+        Thread.sleep(WAKEUP_INTERVAL_MILLIS);
+        try (Socket socket = new Socket()) {
+          socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 1000);
+        }
+      }
     } finally {
       group.shutdownGracefully().await(10, TimeUnit.SECONDS);
     }
