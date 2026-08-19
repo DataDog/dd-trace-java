@@ -124,11 +124,7 @@ final class LambdaEventParser {
       }
 
       // Extract headers — keys are lowercased to normalise casing across API GW / ALB variants
-      Map<String, String> headers = new HashMap<>();
-      Map<String, String> rawHeaders = extractStringMap(response.get("headers"));
-      for (Map.Entry<String, String> entry : rawHeaders.entrySet()) {
-        headers.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
-      }
+      Map<String, String> headers = extractHeaderMap(response.get("headers"));
 
       // Merge multiValueHeaders if present (API GW v1 / ALB), also lowercasing keys
       Object multiValueHeadersObj = response.get("multiValueHeaders");
@@ -571,38 +567,28 @@ final class LambdaEventParser {
   }
 
   /**
-   * Generic helper method to extract string key-value pairs from an object. Converts all keys and
-   * values to strings, filtering out null entries.
+   * Helper method to extract a header map from an untyped JSON object. Converts all keys and values
+   * to strings, filtering out null entries. Keys are lowercased.
    */
-  private static Map<String, String> extractStringMap(Object mapObj) {
-    Map<String, String> result = new HashMap<>();
-    if (mapObj instanceof Map) {
-      Map<?, ?> rawMap = (Map<?, ?>) mapObj;
-      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-        if (entry.getKey() != null && entry.getValue() != null) {
-          String key = String.valueOf(entry.getKey());
-          String value = String.valueOf(entry.getValue());
-          result.put(key, value);
-        }
+  private static Map<String, String> extractHeaderMap(Object headersObj) {
+    if (!(headersObj instanceof Map)) {
+      return new HashMap<>();
+    }
+    Map<?, ?> rawMap = (Map<?, ?>) headersObj;
+    Map<String, String> headers = new HashMap<>(rawMap.size() * 2);
+    for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+      if (entry.getKey() != null && entry.getValue() != null) {
+        headers.put(
+            String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT),
+            String.valueOf(entry.getValue()));
       }
     }
-    return result;
+    return headers;
   }
 
-  /**
-   * Helper method to extract headers from event.
-   *
-   * <p>Keys are lowercased here so every lookup downstream is a plain map access: Lambda preserves
-   * the client's casing, and API Gateway v1 sends {@code Host} where v2 and ALB send {@code host}.
-   * Not folded into {@link #extractStringMap}, which also serves the case-sensitive {@code
-   * pathParameters}.
-   */
+  /** Helper method to extract headers from event. */
   private static Map<String, String> extractHeaders(Object headersObj) {
-    Map<String, String> raw = extractStringMap(headersObj);
-    Map<String, String> headers = new HashMap<>(raw.size() * 2);
-    for (Map.Entry<String, String> entry : raw.entrySet()) {
-      headers.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
-    }
+    Map<String, String> headers = extractHeaderMap(headersObj);
     log.debug("Extracted {} headers", headers.size());
     if (headers.containsKey("cookie")) {
       log.debug("Cookie header found with value length: {}", headers.get("cookie").length());
@@ -610,9 +596,18 @@ final class LambdaEventParser {
     return headers;
   }
 
-  /** Helper method to extract path parameters from event */
+  /** Helper method to extract path parameters from event. */
   private static Map<String, String> extractPathParameters(Object pathParamsObj) {
-    Map<String, String> pathParams = extractStringMap(pathParamsObj);
+    if (!(pathParamsObj instanceof Map)) {
+      return new HashMap<>();
+    }
+    Map<?, ?> rawMap = (Map<?, ?>) pathParamsObj;
+    Map<String, String> pathParams = new HashMap<>(rawMap.size() * 2);
+    for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+      if (entry.getKey() != null && entry.getValue() != null) {
+        pathParams.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+      }
+    }
     log.debug("Extracted {} path parameters", pathParams.size());
     return pathParams;
   }
