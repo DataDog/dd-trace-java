@@ -160,7 +160,7 @@ class MuzzleMavenRepoUtilsTest {
   }
 
   @Test
-  fun `inverseOf returns directives outside range, inverts assertPass, and preserves properties`() {
+  fun `inverseOf preserves supported properties but not POM overrides`() {
     val repo = publishAndGetRepo("com.example", "mylib", listOf("1.0.0", "2.0.0", "3.0.0", "4.0.0", "5.0.0"))
     val directive = MuzzleDirective().apply {
       name = "mytest"
@@ -170,6 +170,13 @@ class MuzzleMavenRepoUtilsTest {
       assertPass = true
       excludeDependency("com.other:dep")
       includeSnapshots = false
+      mavenPomOverrides {
+        artifactVersions = "[2.0,4.0)"
+        dependency("com.example") {
+          matchVersions = mutableListOf("1.0")
+          replacement = "1.1"
+        }
+      }
     }
 
     val result = MuzzleMavenRepoUtils.inverseOf(directive, system, newSession(), listOf(repo))
@@ -188,6 +195,7 @@ class MuzzleMavenRepoUtilsTest {
       assertThat(directive.module).isEqualTo("mylib")
       assertThat(directive.excludedDependencies).containsExactly("com.other:dep")
       assertThat(directive.includeSnapshots).isFalse()
+      assertThat(directive.mavenPomOverrideConfig).isNull()
     }
   }
 

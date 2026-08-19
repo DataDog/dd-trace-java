@@ -6,6 +6,8 @@ import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
+import org.eclipse.aether.RepositorySystem
+import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -123,7 +125,16 @@ class MuzzlePlugin : Plugin<Project> {
       val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
       val directives = project.extensions.getByType<MuzzleExtension>().directives
       taskPlanner.plan(directives).forEach { plan ->
-        runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
+        runAfter = registerMuzzleTask(
+          plan.directive,
+          plan.artifact,
+          project,
+          runAfter,
+          muzzleBootstrap,
+          muzzleTooling,
+          system,
+          session
+        )
         muzzleReportTasks.add(runAfter)
         project.logger.info("configured ${plan.directive}")
       }
@@ -164,7 +175,9 @@ class MuzzlePlugin : Plugin<Project> {
       instrumentationProject: Project,
       runAfterTask: TaskProvider<MuzzleTask>,
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
-      muzzleTooling: NamedDomainObjectProvider<Configuration>
+      muzzleTooling: NamedDomainObjectProvider<Configuration>,
+      repositorySystem: RepositorySystem,
+      repositorySystemSession: RepositorySystemSession
     ): TaskProvider<MuzzleTask> {
       val muzzleTaskName = buildString {
         append("muzzle-Assert")
@@ -185,6 +198,28 @@ class MuzzlePlugin : Plugin<Project> {
         }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {
+        // Versions whose POMs have to be rewritten are resolved by Maven rather than Gradle, so they
+        // follow Maven's nearest-wins conflict resolution and ignore Gradle repositories and variant
+        // attributes. Every other version keeps the regular Gradle resolution below.
+        val mavenResolvedArtifact = versionArtifact
+          ?.takeIf { muzzleDirective.requiresMavenResolution(it.version) }
+
+        if (mavenResolvedArtifact != null) {
+          val resolvedClasspath = instrumentationProject.providers.provider {
+            MuzzleMavenRepoUtils.resolveDependencies(
+              muzzleDirective,
+              mavenResolvedArtifact,
+              repositorySystem,
+              repositorySystemSession
+            )
+          }
+          dependencies.add(
+            instrumentationProject.dependencies.create(instrumentationProject.files(resolvedClasspath))
+          )
+          // resolveDependencies already collects additionalDependencies into the same graph.
+          return@register
+        }
+
         if (!muzzleDirective.isCoreJdk && versionArtifact != null) {
           val depId = buildString {
             append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")

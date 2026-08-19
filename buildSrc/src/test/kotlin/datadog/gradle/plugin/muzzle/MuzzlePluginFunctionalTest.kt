@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -612,6 +613,201 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       .isEqualTo(SUCCESS)
     assertThat(result.output).withFailMessage("Excluded dependency should not be loadable from test classpath")
       .contains("Excluded dependency (guava) correctly not in test classpath")
+  }
+
+  @Test
+  fun `POM overrides replace placeholder and literal dependency versions`() {
+    assertPomOverridesRewriteBothDependencies(
+      """
+          mavenPomOverrides {
+            artifactVersions = "[1.0.0,)"
+            dependency("com.example.transitive") {
+              // Escaped '$' so the Maven property placeholder survives Kotlin string templating.
+              matchPattern = "\u0024{transitive.version}"
+              replacement = "2.0.0"
+            }
+            dependency("com.example.flattened") {
+              matchVersions = mutableListOf("1.0.0")
+              replacement = "2.0.0"
+            }
+          }
+      """.trim()
+    )
+  }
+
+  @Test
+  fun `POM overrides replace concrete dependency versions selected by a Maven range`() {
+    assertPomOverridesRewriteBothDependencies(
+      """
+          mavenPomOverrides {
+            artifactVersions = "[1.0.0,)"
+            dependency("com.example.transitive") {
+              matchPattern = "\u0024{transitive.version}"
+              replacement = "2.0.0"
+            }
+            dependency("com.example.flattened") {
+              matchVersionRanges = mutableListOf("[1.0.0,2.0.0)")
+              replacement = "2.0.0"
+            }
+          }
+      """.trim()
+    )
+  }
+
+  /**
+   * Publishes an artifact whose POM declares one dependency via an unexpanded `${'$'}{transitive.version}`
+   * property and one via a flattened literal, then asserts [overrides] rewrites both to 2.0.0.
+   */
+  private fun assertPomOverridesRewriteBothDependencies(@Language("kotlin") overrides: String) {
+    val mavenRepoFixture = createMavenRepoFixture()
+    mavenRepoFixture.publishVersions(
+      group = "com.example.test",
+      module = "with-transitive",
+      versions = listOf("1.0.0")
+    )
+    mavenRepoFixture.publishVersions(
+      group = "com.example.transitive",
+      module = "transitive-lib",
+      versions = listOf("1.0.0", "2.0.0")
+    )
+    mavenRepoFixture.publishVersions(
+      group = "com.example.flattened",
+      module = "flattened-lib",
+      versions = listOf("1.0.0", "2.0.0")
+    )
+    mavenRepoFixture.publishVersions(
+      group = "com.example.unrelated",
+      module = "unrelated-lib",
+      versions = listOf("1.0.0", "2.0.0")
+    )
+
+    val pomFile = mavenRepoFixture.repoDir.resolve(
+      "com/example/test/with-transitive/1.0.0/with-transitive-1.0.0.pom"
+    )
+    pomFile.writeText(
+      """
+      <project xmlns="http://maven.apache.org/POM/4.0.0">
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>com.example.test</groupId>
+        <artifactId>with-transitive</artifactId>
+        <version>1.0.0</version>
+        <properties>
+          <transitive.version>1.0.0</transitive.version>
+        </properties>
+        <dependencies>
+          <dependency>
+            <groupId>com.example.transitive</groupId>
+            <artifactId>transitive-lib</artifactId>
+            <version>${'$'}{transitive.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>com.example.flattened</groupId>
+            <artifactId>flattened-lib</artifactId>
+            <version>1.0.0</version>
+          </dependency>
+          <dependency>
+            <groupId>com.example.unrelated</groupId>
+            <artifactId>unrelated-lib</artifactId>
+            <version>1.0.0</version>
+            <exclusions>
+              <exclusion>
+                <groupId>com.example.flattened</groupId>
+                <artifactId>excluded-lib</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+        </dependencies>
+      </project>
+      """.trimIndent()
+    )
+
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+
+      repositories {
+        maven {
+          url = uri("${mavenRepoFixture.repoUrl}")
+          metadataSources {
+            mavenPom()
+            artifact()
+          }
+        }
+      }
+
+      muzzle {
+        pass {
+          group = "com.example.test"
+          module = "with-transitive"
+          versions = "1.0.0"
+          $overrides
+        }
+      }
+      """
+    )
+
+    writeScanPlugin(
+      """
+      java.io.InputStream resource = testApplicationClassLoader.getResourceAsStream(
+          "META-INF/maven/com.example.transitive/transitive-lib/pom.properties");
+      if (resource == null) {
+        throw new RuntimeException("Transitive dependency not found in test classpath");
+      }
+      java.util.Properties properties = new java.util.Properties();
+      try {
+        properties.load(resource);
+        resource.close();
+      } catch (java.io.IOException e) {
+        throw new RuntimeException(e);
+      }
+      if (!"2.0.0".equals(properties.getProperty("version"))) {
+        throw new RuntimeException("Expected overridden transitive version 2.0.0, found " + properties.getProperty("version"));
+      }
+      java.io.InputStream flattenedResource = testApplicationClassLoader.getResourceAsStream(
+          "META-INF/maven/com.example.flattened/flattened-lib/pom.properties");
+      if (flattenedResource == null) {
+        throw new RuntimeException("Flattened dependency not found in test classpath");
+      }
+      java.util.Properties flattenedProperties = new java.util.Properties();
+      try {
+        flattenedProperties.load(flattenedResource);
+        flattenedResource.close();
+      } catch (java.io.IOException e) {
+        throw new RuntimeException(e);
+      }
+      if (!"2.0.0".equals(flattenedProperties.getProperty("version"))) {
+        throw new RuntimeException("Expected overridden flattened version 2.0.0, found " + flattenedProperties.getProperty("version"));
+      }
+      java.io.InputStream unrelatedResource = testApplicationClassLoader.getResourceAsStream(
+          "META-INF/maven/com.example.unrelated/unrelated-lib/pom.properties");
+      if (unrelatedResource == null) {
+        throw new RuntimeException("Unrelated dependency not found in test classpath");
+      }
+      java.util.Properties unrelatedProperties = new java.util.Properties();
+      try {
+        unrelatedProperties.load(unrelatedResource);
+        unrelatedResource.close();
+      } catch (java.io.IOException e) {
+        throw new RuntimeException(e);
+      }
+      if (!"1.0.0".equals(unrelatedProperties.getProperty("version"))) {
+        throw new RuntimeException("Expected unrelated dependency version 1.0.0, found " + unrelatedProperties.getProperty("version"));
+      }
+      System.out.println("Overridden Maven dependency versions found in test classpath");
+      """
+    )
+
+    val result = run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
+    )
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.output).contains("Overridden Maven dependency versions found in test classpath")
   }
 
   @Test

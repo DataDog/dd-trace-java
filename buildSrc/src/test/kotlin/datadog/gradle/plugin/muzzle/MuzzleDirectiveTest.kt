@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 
 class MuzzleDirectiveTest {
 
@@ -158,5 +159,177 @@ class MuzzleDirectiveTest {
       Triple("repo1", "default", "https://repo1.example.com"),
       Triple("repo2", "p2", "https://repo2.example.com"),
     )
+  }
+
+  @Test
+  fun `mavenPomOverrides groups matched versions by dependency`() {
+    val directive = MuzzleDirective().apply {
+      mavenPomOverrides {
+        artifactVersions = "[7.4,8)"
+        dependency("com.example") {
+          matchVersions = mutableListOf("1.0", "2.0")
+          replacement = "2.1"
+        }
+      }
+    }
+
+    assertThat(directive.mavenPomOverrideConfig?.artifactVersions).isEqualTo("[7.4,8)")
+    assertThat(directive.mavenPomOverrideConfig?.dependencyVersionOverrides).containsExactlyEntriesOf(
+      linkedMapOf("com.example" to linkedMapOf("1.0" to "2.1", "2.0" to "2.1"))
+    )
+  }
+
+  @Test
+  fun `mavenPomOverrides accepts Maven version ranges`() {
+    val directive = MuzzleDirective().apply {
+      mavenPomOverrides {
+        artifactVersions = "[,)"
+        dependency("com.example") {
+          matchVersionRanges = mutableListOf("[1.0,2.0)")
+          replacement = "2.1"
+        }
+      }
+    }
+
+    assertThat(directive.mavenPomOverrideConfig?.dependencyVersionRangeOverrides).containsExactlyEntriesOf(
+      linkedMapOf(
+        "com.example" to mutableListOf(MavenVersionRangeOverride("[1.0,2.0)", "2.1"))
+      )
+    )
+    // An open range opts every version of the directive into Maven resolution.
+    assertThat(directive.requiresMavenResolution("1.2.3")).isTrue()
+  }
+
+  @Test
+  fun `mavenPomOverrides accepts a literal raw POM pattern`() {
+    val directive = MuzzleDirective().apply {
+      mavenPomOverrides {
+        artifactVersions = "[7.4,8)"
+        dependency("org.eclipse.jetty") {
+          matchPattern = "\u0024{jetty.version}"
+          replacement = "9.4.58.v20250814"
+        }
+      }
+    }
+
+    assertThat(directive.mavenPomOverrideConfig?.dependencyVersionOverrides).containsExactlyEntriesOf(
+      linkedMapOf(
+        "org.eclipse.jetty" to linkedMapOf(
+          "\u0024{jetty.version}" to "9.4.58.v20250814"
+        )
+      )
+    )
+  }
+
+  @Test
+  fun `mavenPomOverrides requires an artifact version range`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          dependency("com.example") {
+            matchVersions = mutableListOf("1.0")
+            replacement = "2.1"
+          }
+        }
+      }
+    }.withMessageContaining("artifactVersions is required in mavenPomOverrides")
+  }
+
+  @Test
+  fun `mavenPomOverrides rejects an invalid artifact version range`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          artifactVersions = "[7.4,8"
+          dependency("com.example") {
+            matchVersions = mutableListOf("1.0")
+            replacement = "2.1"
+          }
+        }
+      }
+    }.withMessageContaining("Invalid artifactVersions Maven version range '[7.4,8'")
+  }
+
+  @Test
+  fun `mavenPomOverrides requires at least one dependency override`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides { artifactVersions = "[7.4,8)" }
+      }
+    }.withMessageContaining("At least one dependency(group) { } override is required")
+  }
+
+  @Test
+  fun `mavenPomOverrides rejects wildcard matches`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          artifactVersions = "[7.4,8)"
+          dependency("com.example") {
+            matchVersions = mutableListOf("*")
+            replacement = "2.1"
+          }
+        }
+      }
+    }.withMessageContaining("'*' is not supported in matchVersions")
+  }
+
+  @Test
+  fun `mavenPomOverrides rejects invalid Maven version ranges`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          artifactVersions = "[7.4,8)"
+          dependency("com.example") {
+            matchVersionRanges = mutableListOf("[1.0,2.0")
+            replacement = "2.1"
+          }
+        }
+      }
+    }.withMessageContaining("Invalid matchVersionRanges entry '[1.0,2.0'")
+  }
+
+  @Test
+  fun `mavenPomOverrides requires a dependency version selector`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          artifactVersions = "[7.4,8)"
+          dependency("com.example") { replacement = "2.1" }
+        }
+      }
+    }.withMessageContaining(
+      "At least one matchVersions, matchPattern, or matchVersionRanges entry is required"
+    )
+  }
+
+  @Test
+  fun `mavenPomOverrides requires a replacement`() {
+    assertThatIllegalArgumentException().isThrownBy {
+      MuzzleDirective().apply {
+        mavenPomOverrides {
+          artifactVersions = "[7.4,8)"
+          dependency("com.example") { matchVersions = mutableListOf("1.0") }
+        }
+      }
+    }.withMessageContaining("A replacement is required")
+  }
+
+  @Test
+  fun `requiresMavenResolution respects configured artifact version range`() {
+    val directive = MuzzleDirective().apply {
+      mavenPomOverrides {
+        artifactVersions = "[7.4,8)"
+        dependency("com.example") {
+          matchVersions = mutableListOf("1.0")
+          replacement = "1.1"
+        }
+      }
+    }
+
+    assertThat(directive.requiresMavenResolution("7.4.14-ce")).isTrue()
+    assertThat(directive.requiresMavenResolution("7.9.9-ccs")).isTrue()
+    assertThat(directive.requiresMavenResolution("7.3.15-ce")).isFalse()
+    assertThat(directive.requiresMavenResolution("8.0.0-ce")).isFalse()
   }
 }

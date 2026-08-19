@@ -1,13 +1,21 @@
 package datadog.gradle.plugin.muzzle
 
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
+import org.eclipse.aether.AbstractRepositoryListener
+import org.eclipse.aether.DefaultRepositorySystemSession
+import org.eclipse.aether.RepositoryEvent
+import org.eclipse.aether.RepositoryException
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
+import org.eclipse.aether.collection.CollectRequest
 import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory
+import org.eclipse.aether.graph.Dependency
+import org.eclipse.aether.graph.Exclusion
 import org.eclipse.aether.repository.LocalRepository
 import org.eclipse.aether.repository.RemoteRepository
+import org.eclipse.aether.resolution.DependencyRequest
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
@@ -15,14 +23,34 @@ import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.file.FileTransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
+import org.eclipse.aether.util.artifact.JavaScopes
+import org.eclipse.aether.util.filter.DependencyFilterUtils
+import org.eclipse.aether.util.listener.ChainedRepositoryListener
+import org.eclipse.aether.util.version.GenericVersionScheme
+import org.eclipse.aether.version.InvalidVersionSpecificationException
 import org.eclipse.aether.version.Version
+import org.eclipse.aether.version.VersionConstraint
 import org.gradle.api.GradleException
 import org.gradle.api.logging.Logging
+import java.io.File
 import java.nio.file.Files
 
 internal object MuzzleMavenRepoUtils {
   private val log = Logging.getLogger(MuzzleMavenRepoUtils::class.java)
   private val backoffDelaysSeconds = listOf(5L, 10L, 30L)
+
+  /** A single `<dependency>` element of a POM, including `<dependencyManagement>` entries. */
+  private val DEPENDENCY_ELEMENT =
+    Regex("<dependency\\b[^>]*>.*?</dependency\\s*>", RegexOption.DOT_MATCHES_ALL)
+
+  /** The direct group id of a dependency, anchored before nested elements such as exclusions. */
+  private val DIRECT_DEPENDENCY_GROUP = Regex(
+    "^<dependency\\b[^>]*>\\s*(?:<!--.*?-->\\s*)*<groupId\\s*>\\s*([^<]*?)\\s*</groupId\\s*>",
+    RegexOption.DOT_MATCHES_ALL
+  )
+
+  /** A direct dependency version, searched only after [DIRECT_DEPENDENCY_GROUP]. */
+  private val VERSION_ELEMENT = Regex("(<version\\s*>\\s*)([^<]*?)(\\s*</version\\s*>)")
 
   /**
    * Remote repositories used to query version ranges and fetch dependencies.
@@ -122,6 +150,172 @@ internal object MuzzleMavenRepoUtils {
         includeSnapshots = muzzleDirective.includeSnapshots
       }
     }.toSet()
+  }
+
+  /**
+   * Resolves a Muzzle test classpath after applying dependency version overrides to its POMs.
+   */
+  fun resolveDependencies(
+    muzzleDirective: MuzzleDirective,
+    rootArtifact: Artifact,
+    system: RepositorySystem,
+    baseSession: RepositorySystemSession,
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos()
+  ): Set<File> {
+    val session = DefaultRepositorySystemSession(baseSession).apply {
+      repositoryListener = ChainedRepositoryListener.newInstance(
+        repositoryListener,
+        MavenDependencyVersionOverrideListener(muzzleDirective)
+      )
+    }
+
+    val exclusions = (muzzleDirective.excludedDependencies + listOf(
+      "com.sun.jdmk:jmxtools",
+      "com.sun.jmx:jmxri"
+    )).map { excluded ->
+      val parts = excluded.split(":", limit = 2)
+      Exclusion(parts[0], parts[1], "*", "*")
+    }
+
+    fun dependency(artifact: Artifact): Dependency =
+      Dependency(artifact, JavaScopes.RUNTIME, false, exclusions)
+
+    val collectRequest = CollectRequest().apply {
+      root = dependency(rootArtifact)
+      repositories = muzzleDirective.getRepositories(defaultRepos)
+      dependencies = muzzleDirective.additionalDependencies.map { dependency(DefaultArtifact(it)) }
+    }
+
+    return try {
+      val dependencyRequest = DependencyRequest(
+        system.collectDependencies(session, collectRequest).root,
+        DependencyFilterUtils.classpathFilter(JavaScopes.COMPILE, JavaScopes.RUNTIME)
+      )
+      system.resolveDependencies(session, dependencyRequest)
+        .artifactResults
+        .mapNotNull { it.artifact.file }
+        .toSet()
+    } catch (e: RepositoryException) {
+      // Without this context Gradle only reports that a file collection provider threw, which says
+      // nothing about which directive or which override was in play.
+      throw GradleException(
+        overriddenResolutionFailureMessage(muzzleDirective, rootArtifact, collectRequest.repositories),
+        e
+      )
+    }
+  }
+
+  private fun overriddenResolutionFailureMessage(
+    muzzleDirective: MuzzleDirective,
+    rootArtifact: Artifact,
+    repositories: List<RemoteRepository>
+  ): String = buildString {
+    appendLine("Muzzle failed to resolve a test classpath with Maven POM overrides applied.")
+    appendLine("Artifact:")
+    appendLine("  ${artifactCoordinates(rootArtifact)}")
+    appendLine("Directive:")
+    appendLine("  $muzzleDirective")
+    appendLine("Repositories:")
+    repositories.forEach { appendLine("  - ${it.id}: ${it.url}") }
+    appendLine("POM dependency version overrides in effect:")
+    val overrideConfig = muzzleDirective.mavenPomOverrideConfig
+    val overrides = overrideConfig?.dependencyVersionOverrides.orEmpty()
+    val rangeOverrides = overrideConfig?.dependencyVersionRangeOverrides.orEmpty()
+    if (overrides.isEmpty() && rangeOverrides.isEmpty()) {
+      appendLine("  <none>")
+    } else {
+      overrides.forEach { (group, versions) ->
+        versions.forEach { (matched, replacement) -> appendLine("  - $group:$matched -> $replacement") }
+      }
+      rangeOverrides.forEach { (group, ranges) ->
+        ranges.forEach { override ->
+          appendLine("  - $group:${override.range} -> ${override.replacement}")
+        }
+      }
+    }
+    appendLine()
+    appendLine("If a dependency version above is still unresolvable, widen mavenPomOverrides for that")
+    append("group by adding an exact matchVersions entry or widening matchVersionRanges.")
+  }
+
+  /**
+   * Muzzle resolves into a private temporary repository, so dependency versions can be updated
+   * after each POM is downloaded and before the Maven model builder reads it.
+   */
+  private class MavenDependencyVersionOverrideListener(
+    directive: MuzzleDirective
+  ) : AbstractRepositoryListener() {
+    /** A dependency group to rewrite, with its Maven ranges parsed once per directive. */
+    private class GroupOverride(
+      val exactVersions: Map<String, String>,
+      val versionRanges: List<Pair<VersionConstraint, String>>
+    ) {
+      fun replacementFor(version: String, versionScheme: GenericVersionScheme): String? {
+        exactVersions[version]?.let { return it }
+        val parsedVersion = try {
+          versionScheme.parseVersion(version)
+        } catch (_: InvalidVersionSpecificationException) {
+          return null
+        }
+        return versionRanges.firstOrNull { (range, _) -> range.containsVersion(parsedVersion) }?.second
+      }
+    }
+
+    private val versionScheme = GenericVersionScheme()
+    private val groupOverrides: Map<String, GroupOverride> =
+      directive.mavenPomOverrideConfig?.let { config ->
+        (config.dependencyVersionOverrides.keys + config.dependencyVersionRangeOverrides.keys)
+          .associateWith { group ->
+            GroupOverride(
+              exactVersions = config.dependencyVersionOverrides[group].orEmpty(),
+              versionRanges = config.dependencyVersionRangeOverrides[group].orEmpty().map { override ->
+                versionScheme.parseVersionConstraint(override.range) to override.replacement
+              }
+            )
+          }
+      }.orEmpty()
+
+    override fun artifactResolved(event: RepositoryEvent) {
+      if (groupOverrides.isEmpty()) {
+        return
+      }
+
+      val artifact = event.artifact ?: return
+
+      if (artifact.extension != "pom") {
+        return
+      }
+
+      val pom = event.file ?: artifact.file ?: return
+
+      if (!pom.isFile) {
+        return
+      }
+
+      val original = pom.readText()
+      val updated = DEPENDENCY_ELEMENT.replace(original) { dependency ->
+        val element = dependency.value
+        val groupMatch = DIRECT_DEPENDENCY_GROUP.find(element) ?: return@replace element
+        val override = groupOverrides[groupMatch.groupValues[1].trim()] ?: return@replace element
+        val versionMatch = VERSION_ELEMENT.find(element, groupMatch.range.last + 1)
+          ?: return@replace element
+        val replacement = override.replacementFor(versionMatch.groupValues[2].trim(), versionScheme)
+          ?: return@replace element
+        element.replaceRange(
+          versionMatch.range,
+          versionMatch.groupValues[1] + escapeXml(replacement) + versionMatch.groupValues[3]
+        )
+      }
+
+      if (updated != original) pom.writeText(updated)
+    }
+
+    private fun escapeXml(value: String): String = value
+      .replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
+      .replace("\"", "&quot;")
+      .replace("'", "&apos;")
   }
 
   /**
