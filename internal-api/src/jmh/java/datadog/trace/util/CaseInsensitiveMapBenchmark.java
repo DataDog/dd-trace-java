@@ -14,8 +14,6 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- *
- *
  * <ul>
  *   Benchmark for the trade-offs around case-insensitive Map look-ups, comparing:
  *   <li>TreeMap with a {@code String::compareToIgnoreCase} comparator — allocation-free, O(log n)

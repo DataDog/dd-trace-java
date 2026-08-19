@@ -15,8 +15,6 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- *
- *
  * <ul>
  *   Benchmark comparing different approaches to filling and reading a Map in a multi-thread
  *   context.
