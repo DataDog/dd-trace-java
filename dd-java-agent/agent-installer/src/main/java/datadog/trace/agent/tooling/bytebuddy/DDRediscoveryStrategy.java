@@ -72,7 +72,7 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
       final Instrumentation instrumentation, final Set<Class<?>> visited) {
     List<Class<?>> retransforming = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
-      if (clazz != null) {
+      if (clazz == null) {
         // getAllLoadedClasses can return null classes (Class Unloading)
         continue;
       }
