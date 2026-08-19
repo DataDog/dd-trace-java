@@ -61,7 +61,7 @@ object KnownTagsEmitter {
     for (v in reg.reserved) {
       b.appendLine("  public static final String ${nameC(v.name)} = \"${v.name}\";")
       b.appendLine("  public static final long ${idC(v.name)} = ${hex(v.id)};")
-      b.appendLine("  // makeTagId(serial=${v.serial}, slot=NO_SLOT) + intercepted  [${v.kind}${v.field?.let { " -> $it" } ?: ""}]")
+      b.appendLine("  // makeTagId(serial=${v.serial}, slot=NO_SLOT) + intercepted${if (v.otelName != null) " -> ${v.otelName}" else ""}  [${v.kind}${v.field?.let { " -> $it" } ?: ""}]")
       b.appendLine()
     }
 
@@ -70,7 +70,7 @@ object KnownTagsEmitter {
       val slot = if (t.slotted) t.slot.toString() else "NO_SLOT"
       b.appendLine("  public static final String ${nameC(t.name)} = \"${t.name}\";")
       b.appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
-      b.appendLine("  // makeTagId(serial=${t.serial}, slot=$slot)${if (t.intercepted) " + intercepted" else ""}${if (t.traceLevel) " + trace-level" else ""}  <${t.required}>")
+      b.appendLine("  // makeTagId(serial=${t.serial}, slot=$slot)${if (t.intercepted) " + intercepted" else ""}${if (t.traceLevel) " + trace-level" else ""}${if (t.otelName != null) " -> ${t.otelName}" else ""}  <${t.required}>")
       b.appendLine()
     }
 
@@ -84,11 +84,14 @@ object KnownTagsEmitter {
     }
     b.appendLine()
 
-    // OpenTelemetry name -> canonical tag name, for the tags that declare one. Deterministic order
-    // (by OTel name) so output stays byte-identical.
+    // OpenTelemetry name -> canonical tag name, for the tags that declare a DISTINCT one. A same-name
+    // dual (otel-name == dd-name) is already resolvable via the canonical row, so it is skipped here
+    // to keep the keyOf table free of redundant entries. Deterministic order (by OTel name) so
+    // output stays byte-identical.
     val otelByCanonical =
       (reg.stored.mapNotNull { t -> t.otelName?.let { it to t.name } } +
           reg.reserved.mapNotNull { v -> v.otelName?.let { it to v.name } })
+        .filter { (otel, canonical) -> otel != canonical }
         .sortedBy { it.first }
 
     // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then

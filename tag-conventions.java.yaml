@@ -24,13 +24,13 @@ intercepted:
 #   kind: structural  -> sets a span/trace field (`field:` names it)
 #   kind: directive   -> triggers sampling/trace behavior
 reserved:
-  - { tag: error,            kind: structural, field: error }
-  - { tag: service,          kind: structural, field: service,  open-telemetry-name: service.name }
-  - { tag: resource.name,    kind: structural, field: resource }
-  - { tag: span.type,        kind: structural, field: type }
-  - { tag: origin,           kind: structural, field: origin }        # trace-level field
-  - { tag: sampling.priority,     kind: directive }
-  - { tag: manual.keep,           kind: directive }
-  - { tag: manual.drop,           kind: directive }
-  - { tag: measured,              kind: directive }
-  - { tag: analytics.sample_rate, kind: directive }   # legacy
+  - { dd-name: error,            kind: structural, field: error }
+  - { dd-name: service,          kind: structural, field: service,  otel-name: service.name }
+  - { dd-name: resource.name,    kind: structural, field: resource }
+  - { dd-name: span.type,        kind: structural, field: type }
+  - { dd-name: origin,           kind: structural, field: origin }        # trace-level field
+  - { dd-name: sampling.priority,     kind: directive }
+  - { dd-name: manual.keep,           kind: directive }
+  - { dd-name: manual.drop,           kind: directive }
+  - { dd-name: measured,              kind: directive }
+  - { dd-name: analytics.sample_rate, kind: directive }   # legacy

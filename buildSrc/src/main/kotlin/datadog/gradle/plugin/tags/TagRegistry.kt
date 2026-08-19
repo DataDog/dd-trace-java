@@ -65,10 +65,11 @@ private constructor(
         val reserved =
           (root["reserved"] as? List<Map<String, Any?>>)?.map { m ->
             ReservedDef(
-              m["tag"].toString(),
+              m["dd-name"].toString(),
               (m["kind"] as? String) ?: "directive",
               m["field"] as? String,
-              m["open-telemetry-name"] as? String)
+              // Reserved tags are not required to declare otel-name; absent or "none" -> no name.
+              (m["otel-name"] as? String)?.takeUnless { it == "none" })
           } ?: emptyList()
         return Overlay(intercepted, reserved)
       }
@@ -165,8 +166,9 @@ private constructor(
     }
 
     /**
-     * An OpenTelemetry name must be unambiguous: it may not collide with any canonical tag name, nor
-     * be claimed by two different tags. Otherwise keyOf(otelName) would have no single right answer.
+     * An OpenTelemetry name must be unambiguous: it may not collide with a DIFFERENT tag's canonical
+     * name, nor be claimed by two different tags. A tag sharing its OWN Datadog name across both
+     * namespaces (the same-name tri-state, e.g. http.route) is allowed — keyOf still has one answer.
      * Fail the build loudly rather than silently pick a winner.
      */
     private fun validateOtelNames(stored: List<StoredTag>, reserved: List<ReservedTag>) {
@@ -174,8 +176,8 @@ private constructor(
       val owner = HashMap<String, String>()
       val check = { name: String, otel: String? ->
         if (otel != null) {
-          require(otel !in canonical) {
-            "OpenTelemetry name '$otel' (of '$name') collides with canonical tag name '$otel'"
+          require(otel == name || otel !in canonical) {
+            "OpenTelemetry name '$otel' (of '$name') collides with a different canonical tag name"
           }
           val prev = owner.put(otel, name)
           require(prev == null) { "OpenTelemetry name '$otel' is claimed by both '$prev' and '$name'" }

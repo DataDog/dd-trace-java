@@ -14,7 +14,7 @@ public final class KnownTags {
 
   public static final String SERVICE_NAME = "service";
   public static final long SERVICE_ID = 0x8002FFFF00000000L;
-  // makeTagId(serial=2, slot=NO_SLOT) + intercepted  [structural -> service]
+  // makeTagId(serial=2, slot=NO_SLOT) + intercepted -> service.name  [structural -> service]
 
   public static final String RESOURCE_NAME = "resource.name";
   public static final long RESOURCE_NAME_ID = 0x8003FFFF00000000L;
@@ -115,7 +115,7 @@ public final class KnownTags {
 
   public static final String DB_OPERATION_NAME = "db.operation";
   public static final long DB_OPERATION_ID = 0x0110000A00000000L;
-  // makeTagId(serial=272, slot=10)  <recommended>
+  // makeTagId(serial=272, slot=10) -> db.operation.name  <recommended>
 
   public static final String DB_POOL_NAME = "db.pool.name";
   public static final long DB_POOL_NAME_ID = 0x0111FFFF00000000L;
@@ -123,11 +123,11 @@ public final class KnownTags {
 
   public static final String DB_STATEMENT_NAME = "db.statement";
   public static final long DB_STATEMENT_ID = 0x8112000B00000000L;
-  // makeTagId(serial=274, slot=11) + intercepted  <recommended>
+  // makeTagId(serial=274, slot=11) + intercepted -> db.query.text  <recommended>
 
   public static final String DB_TYPE_NAME = "db.type";
   public static final long DB_TYPE_ID = 0x0113000C00000000L;
-  // makeTagId(serial=275, slot=12)  <required>
+  // makeTagId(serial=275, slot=12) -> db.system  <required>
 
   public static final String DB_USER_NAME = "db.user";
   public static final long DB_USER_ID = 0x0114000F00000000L;
@@ -151,15 +151,15 @@ public final class KnownTags {
 
   public static final String HTTP_HOSTNAME_NAME = "http.hostname";
   public static final long HTTP_HOSTNAME_ID = 0x0119000700000000L;
-  // makeTagId(serial=281, slot=7)  <required>
+  // makeTagId(serial=281, slot=7) -> server.address  <required>
 
   public static final String HTTP_METHOD_NAME = "http.method";
   public static final long HTTP_METHOD_ID = 0x811A000900000000L;
-  // makeTagId(serial=282, slot=9) + intercepted  <required>
+  // makeTagId(serial=282, slot=9) + intercepted -> http.request.method  <required>
 
   public static final String HTTP_QUERY_STRING_NAME = "http.query.string";
   public static final long HTTP_QUERY_STRING_ID = 0x011B000800000000L;
-  // makeTagId(serial=283, slot=8)  <recommended>
+  // makeTagId(serial=283, slot=8) -> url.query  <recommended>
 
   public static final String HTTP_RESEND_COUNT_NAME = "http.resend_count";
   public static final long HTTP_RESEND_COUNT_ID = 0x011C000F00000000L;
@@ -171,15 +171,15 @@ public final class KnownTags {
 
   public static final String HTTP_STATUS_CODE_NAME = "http.status_code";
   public static final long HTTP_STATUS_CODE_ID = 0x011E000A00000000L;
-  // makeTagId(serial=286, slot=10)  <conditional>
+  // makeTagId(serial=286, slot=10) -> http.response.status_code  <conditional>
 
   public static final String HTTP_URL_NAME = "http.url";
   public static final long HTTP_URL_ID = 0x811F000B00000000L;
-  // makeTagId(serial=287, slot=11) + intercepted  <required>
+  // makeTagId(serial=287, slot=11) + intercepted -> url.full  <required>
 
   public static final String HTTP_USERAGENT_NAME = "http.useragent";
   public static final long HTTP_USERAGENT_ID = 0x0120000E00000000L;
-  // makeTagId(serial=288, slot=14)  <recommended>
+  // makeTagId(serial=288, slot=14) -> user_agent.original  <recommended>
 
   public static final String LANGUAGE_NAME = "language";
   public static final long LANGUAGE_ID = 0x0121000A00000004L;
@@ -357,6 +357,7 @@ public final class KnownTags {
     "service.name",
     "url.full",
     "url.query",
+    "user_agent.original",
   };
   private static final long[] KEYOF_VALUES = {
     ERROR_ID,
@@ -424,6 +425,7 @@ public final class KnownTags {
     SERVICE_ID,
     HTTP_URL_ID,
     HTTP_QUERY_STRING_ID,
+    HTTP_USERAGENT_ID,
   };
   private static final int[] KEYOF_HASHES;
   private static final String[] KEYOF_KEYS;
@@ -584,6 +586,8 @@ public final class KnownTags {
               return "http.response.status_code";
             case HTTP_URL_SERIAL_NUM:
               return "url.full";
+            case HTTP_USERAGENT_SERIAL_NUM:
+              return "user_agent.original";
             default:
               return null;
           }

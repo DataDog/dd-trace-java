@@ -40,8 +40,12 @@ public final class KnownTagCodec {
    * {@link TagMap}). The low 32 bits are unused for known ids (the whole id is fully determined by
    * serial + slot, so the generator can emit a literal). The low 32 bits are being carved for
    * cross-cutting flags; bit 2 is the trace/span LEVEL bit (set ⟹ trace-level), and bits 1-0 are
-   * reserved for the dd/otel applicability flags that land with increment 1. The level bit lets
-   * read-through skip the shadow check across the trace/span boundary — trace and span tags reuse
+   * reserved. (An OpenTelemetry-applicability flag was considered but omitted: with pass-through as
+   * the default — a tag with no rename is emitted under its Datadog name — every known tag today is
+   * emitted under OpenTelemetry, so the flag would be constant. A tag's OpenTelemetry name, when it
+   * renames, is recovered by {@link #openTelemetryNameOf}; suppression of a Datadog-only tag from
+   * OpenTelemetry is a follow-on that would reintroduce a flag once such a tag exists.) The level
+   * bit lets read-through skip the shadow check across the trace/span boundary — trace and span tags reuse
    * the same slots, so occupancy alone can't tell them apart, but a span map (no trace-level tags)
    * can never shadow a trace-level ancestor entry (see {@link TagMap}). Unknown (string-only) custom
    * tags are NOT known ids — they key off {@code TagMap.Entry#_hash(name)} in their own bucket path

@@ -175,6 +175,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      */
     long tagId();
 
+    /**
+     * This entry's tag RENAME in the OpenTelemetry namespace, or {@code null} when the tag has no
+     * rename — in which case it passes through under its Datadog name ({@link #tag()}), which is
+     * the default. Also {@code null} for a custom tag or when the resolver is inactive. Pure lookup
+     * via {@link KnownTagCodec#openTelemetryNameOf(long)} on {@link #tagId()}; a serializer owns
+     * the fall-back-to-Datadog-name policy.
+     */
+    default String openTelemetryName() {
+      return KnownTagCodec.openTelemetryNameOf(tagId());
+    }
+
     byte type();
 
     boolean is(byte type);
