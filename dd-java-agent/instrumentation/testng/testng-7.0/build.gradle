@@ -10,7 +10,6 @@ muzzle {
     group = 'org.testng'
     module = 'testng'
     versions = '[7.0.0,7.6)'
-    skipVersions += "7.1.0" //  depends on non-existent guice-4.1.0-no_aop
   }
   // TestNG 7.6+ is compiled with Java 11
   pass {
@@ -50,4 +49,3 @@ configurations.matching({ it.name.startsWith('test') }).configureEach({
     force group: 'org.testng', name: 'testng', version: '7.0.0'
   }
 })
-
