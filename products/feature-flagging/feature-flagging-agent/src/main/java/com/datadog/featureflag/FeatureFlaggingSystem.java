@@ -14,6 +14,11 @@ import org.slf4j.LoggerFactory;
 
 public class FeatureFlaggingSystem {
 
+  @FunctionalInterface
+  interface SystemInitializer {
+    void initialize(SharedCommunicationObjects sco, Config config);
+  }
+
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
@@ -25,11 +30,12 @@ public class FeatureFlaggingSystem {
 
   private FeatureFlaggingSystem() {}
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
-  public static synchronized void start(final SharedCommunicationObjects sco) {
+  public static void start(final SharedCommunicationObjects sco) {
+    start(sco, FeatureFlaggingSystem::initializeSystem);
+  }
+
+  static synchronized void start(
+      final SharedCommunicationObjects sco, final SystemInitializer systemInitializer) {
     if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
       return;
@@ -45,33 +51,37 @@ public class FeatureFlaggingSystem {
 
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
       final FeatureFlaggingGateway.ActivationListener activationListener =
-          () -> activateAgentless(sco, config);
+          () -> activateAgentless(sco, config, systemInitializer);
       ACTIVATION_LISTENER = activationListener;
       FeatureFlaggingGateway.addActivationListener(activationListener);
       LOGGER.debug("Feature Flagging system awaiting application provider activation");
       return;
     }
 
-    initializeOrRollBack(sco, config);
+    initializeOrRollBack(sco, config, systemInitializer);
   }
 
   private static synchronized void activateAgentless(
-      final SharedCommunicationObjects sco, final Config config) {
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final SystemInitializer systemInitializer) {
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
     if (!STARTED || activationListener == null) {
       return;
     }
     ACTIVATION_LISTENER = null;
     FeatureFlaggingGateway.removeActivationListener(activationListener);
-    initializeOrRollBack(sco, config);
+    initializeOrRollBack(sco, config, systemInitializer);
   }
 
   // Any failure leaves the subsystem fully stopped: stop() releases whatever initializeSystem
   // managed to publish before it threw, so a later start() begins from a clean state.
   private static void initializeOrRollBack(
-      final SharedCommunicationObjects sco, final Config config) {
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final SystemInitializer systemInitializer) {
     try {
-      initializeSystem(sco, config);
+      systemInitializer.initialize(sco, config);
     } catch (final RuntimeException | Error e) {
       stop();
       throw e;
@@ -182,6 +192,14 @@ public class FeatureFlaggingSystem {
 
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
+  }
+
+  static boolean isExposureWriterStarted() {
+    return EXPOSURE_WRITER != null;
+  }
+
+  static boolean isConfigurationSourceStarted() {
+    return CONFIG_SERVICE != null;
   }
 
   private static void closeQuietly(final AutoCloseable resource) {
