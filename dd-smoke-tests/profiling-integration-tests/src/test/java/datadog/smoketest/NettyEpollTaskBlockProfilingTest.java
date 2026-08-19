@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.smoketest.profiling.NettyEpollTaskBlockForkedApp;
+import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
@@ -29,6 +30,8 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 /** Linux smoke coverage for TaskBlocks emitted around Netty's native-epoll event loop wait. */
 @DisabledOnJ9
 @EnabledOnOs(OS.LINUX)
+@Flaky(
+    "TaskBlock/wall-clock sampler intermittently produces zero events across JDK versions; root cause is tracked separately")
 final class NettyEpollTaskBlockProfilingTest {
   private Path dumpDir;
   private Path logFilePath;
