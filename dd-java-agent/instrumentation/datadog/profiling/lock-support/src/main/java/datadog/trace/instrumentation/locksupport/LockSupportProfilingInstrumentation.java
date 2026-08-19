@@ -30,7 +30,8 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   /** Creates the LockSupport profiling instrumentation module. */
   public LockSupportProfilingInstrumentation() {
-    super("lock-support");
+    // This is part of wall-clock profiling, not a separately configurable tracing integration.
+    super("wallclock");
   }
 
   @Override
