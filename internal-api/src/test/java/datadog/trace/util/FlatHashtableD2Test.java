@@ -22,6 +22,40 @@ class FlatHashtableD2Test {
     }
   }
 
+  /** A key whose hash is fixed at construction so composite-hash collisions can be forced. */
+  static final class CollidingKey {
+    final String label;
+    final int hash;
+
+    CollidingKey(String label, int hash) {
+      this.label = label;
+      this.hash = hash;
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof CollidingKey)) {
+        return false;
+      }
+      CollidingKey that = (CollidingKey) o;
+      return hash == that.hash && label.equals(that.label);
+    }
+  }
+
+  static final class CollidingPairEntry extends FlatHashtable.D2.Entry<CollidingKey, CollidingKey> {
+    int value;
+
+    CollidingPairEntry(CollidingKey key1, CollidingKey key2, int value) {
+      super(key1, key2);
+      this.value = value;
+    }
+  }
+
   private static FlatHashtable.D2<String, Integer, PairEntry> growable(int initialCapacity) {
     return FlatHashtable.D2.createGrowable(PairEntry.class, initialCapacity);
   }
@@ -199,5 +233,37 @@ class FlatHashtableD2Test {
     assertTrue(table.insert(new PairEntry("b", 2, 2)));
     assertFalse(table.insert(new PairEntry("c", 3, 3)));
     assertEquals(2, table.size());
+  }
+
+  @Test
+  void hashCollisionsResolveByKeyEquality() {
+    FlatHashtable.D2<CollidingKey, CollidingKey, CollidingPairEntry> table =
+        FlatHashtable.D2.createGrowable(CollidingPairEntry.class, 8);
+    CollidingKey key1 = new CollidingKey("a", 7);
+    CollidingKey key2 = new CollidingKey("x", 3);
+    CollidingPairEntry e = new CollidingPairEntry(key1, key2, 100);
+    table.insert(e);
+
+    // Same combined hash (31*7 + 3) as the stored entry, but key1 differs by equals: the entry's
+    // matches() must reject on key1, so the lookup misses rather than returning the wrong entry.
+    assertNull(table.get(new CollidingKey("b", 7), key2));
+    // Same combined hash again, key1 equal but key2 differs by equals: matches() must reject on
+    // key2.
+    assertNull(table.get(key1, new CollidingKey("y", 3)));
+    // The genuine key still resolves.
+    assertSame(e, table.get(key1, key2));
+  }
+
+  @Test
+  void growableGetOrCreateGrowsPastInitialCapacity() {
+    FlatHashtable.D2<String, Integer, PairEntry> table = growable(1);
+    for (int i = 0; i < 50; i++) {
+      PairEntry e = table.getOrCreate("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
+      assertNotNull(e);
+    }
+    assertEquals(50, table.size());
+    for (int i = 0; i < 50; i++) {
+      assertEquals(i, table.get("k", i).value);
+    }
   }
 }
