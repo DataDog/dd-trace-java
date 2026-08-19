@@ -23,7 +23,7 @@ public class WebSocketClientDecorator extends WebSocketDecorator {
 
   public AgentScope startHandshakeSpan(WebSocketClient client) {
     String uri = client.getURI().toString();
-    AgentSpan span = startSpan("websocket.handshake", OPERATION_NAME);
+    AgentSpan span = startSpan(instrumentationNames()[0], OPERATION_NAME);
     span.setTag(Tags.HTTP_URL, uri);
     span.setTag(Tags.HTTP_METHOD, "GET");
     AgentScope scope = activateSpan(span);
