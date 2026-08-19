@@ -1185,7 +1185,7 @@
         "aliases": []
       }
     ],
-    "DD_DBM_PROPAGATION_ORACLE_ACTION_ENABLED": [
+    "DD_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED": [
       {
         "version": "A",
         "type": "boolean",

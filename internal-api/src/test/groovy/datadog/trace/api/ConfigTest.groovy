@@ -100,7 +100,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
@@ -3432,14 +3432,14 @@ class ConfigTest extends DDSpecification {
     setup:
     def properties = new Properties()
     if (configured != null) {
-      properties.setProperty(DB_DBM_PROPAGATION_ORACLE_ACTION_ENABLED, configured)
+      properties.setProperty(DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, configured)
     }
 
     when:
     def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    config.isDbmPropagationOracleActionEnabled() == expected
+    config.isDbmPropagationOracleActionOnlyEnabled() == expected
 
     where:
     configured | expected

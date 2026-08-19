@@ -87,7 +87,7 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
 
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "dynamic_service")
     injectSysConfig(
-      TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ENABLED, "true")
+      TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, "true")
   }
 
   def setup() {

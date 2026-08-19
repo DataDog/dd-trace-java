@@ -68,7 +68,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   private static final boolean INJECT_ORACLE_SERVICE_HASH_ACTION =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE)
-          && Config.get().isDbmPropagationOracleActionEnabled();
+          && Config.get().isDbmPropagationOracleActionOnlyEnabled();
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
