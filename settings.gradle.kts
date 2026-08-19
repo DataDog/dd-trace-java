@@ -87,6 +87,7 @@ include(
   ":dd-java-agent:agent-profiling:profiling-controller-ddprof",
   ":dd-java-agent:agent-profiling:profiling-controller-openjdk",
   ":dd-java-agent:agent-profiling:profiling-controller-oracle",
+  ":dd-java-agent:agent-profiling:profiling-otel",
   ":dd-java-agent:agent-profiling:profiling-scrubber",
   ":dd-java-agent:agent-profiling:profiling-testing",
   ":dd-java-agent:agent-profiling:profiling-uploader",
@@ -112,6 +113,7 @@ include(
 
 include(
   ":communication",
+  ":communication:otlp-exporter",
   ":components:annotations",
   ":components:context",
   ":components:environment",

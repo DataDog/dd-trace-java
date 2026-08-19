@@ -4,6 +4,12 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+// Profiling requires Java 11+ (JFR). Set compat to 11.
+java {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+
 minimumBranchCoverage = 0.80
 
 excludedClassesCoverage += [
@@ -22,6 +28,7 @@ excludedClassesCoverage += [
 dependencies {
   implementation libs.slf4j
   implementation project(':communication')
+  implementation project(':communication:otlp-exporter')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:logging-utils')
@@ -29,6 +36,7 @@ dependencies {
   implementation project(':utils:version-utils')
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation project(':dd-java-agent:agent-profiling:profiling-otel')
 
   implementation libs.okhttp
   implementation libs.lz4

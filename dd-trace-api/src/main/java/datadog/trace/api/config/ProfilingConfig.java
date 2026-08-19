@@ -287,5 +287,24 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_SCRUB_EXCLUDE_EVENTS = "profiling.scrub.exclude-events";
 
+  // OTLP Profiles Format Support
+  public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
+  public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD =
+      "profiling.otlp.include.original.payload";
+  public static final boolean PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT = false;
+
+  // Lightweight mode: skip JFR→OTLP conversion, send minimal metadata + raw JFR as blob
+  public static final String PROFILING_OTLP_LIGHTWEIGHT = "profiling.otlp.lightweight";
+  public static final boolean PROFILING_OTLP_LIGHTWEIGHT_DEFAULT = true;
+
+  public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
+  public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL
+
+  public static final String PROFILING_OTLP_COMPRESSION_ENABLED =
+      "profiling.otlp.compression.enabled";
+  public static final boolean PROFILING_OTLP_COMPRESSION_ENABLED_DEFAULT = true;
+
   private ProfilingConfig() {}
 }

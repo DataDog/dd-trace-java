@@ -24,6 +24,7 @@ dependencies {
 
   api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
+  api project(':dd-java-agent:agent-profiling:profiling-otel')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   implementation project(':dd-java-agent:agent-profiling:profiling-scrubber')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
