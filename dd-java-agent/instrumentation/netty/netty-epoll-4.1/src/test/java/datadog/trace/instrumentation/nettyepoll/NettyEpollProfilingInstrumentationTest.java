@@ -29,8 +29,8 @@ class NettyEpollProfilingInstrumentationTest {
       "io.grpc.netty.shaded.io.netty.channel.epoll.EpollIoHandler";
 
   @Test
-  void usesItsOwnInstrumentationName() {
-    assertEquals("netty-epoll", new NettyEpollProfilingInstrumentation().name());
+  void usesTheSharedWallclockInstrumentationName() {
+    assertEquals("wallclock", new NettyEpollProfilingInstrumentation().name());
   }
 
   @Test

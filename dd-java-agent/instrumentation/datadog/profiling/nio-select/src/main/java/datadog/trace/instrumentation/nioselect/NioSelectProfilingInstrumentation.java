@@ -44,7 +44,8 @@ public class NioSelectProfilingInstrumentation extends InstrumenterModule.Profil
   };
 
   public NioSelectProfilingInstrumentation() {
-    super("nio-select");
+    // This is part of wall-clock profiling, not a separately configurable tracing integration.
+    super("wallclock");
   }
 
   @Override

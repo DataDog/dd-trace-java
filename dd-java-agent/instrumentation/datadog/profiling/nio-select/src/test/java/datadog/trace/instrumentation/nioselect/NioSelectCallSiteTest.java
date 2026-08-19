@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 class NioSelectCallSiteTest {
 
   @Test
-  void usesItsOwnInstrumentationName() {
-    assertEquals("nio-select", new NioSelectProfilingInstrumentation().name());
+  void usesTheSharedWallclockInstrumentationName() {
+    assertEquals("wallclock", new NioSelectProfilingInstrumentation().name());
   }
 
   @Test

@@ -54,7 +54,8 @@ public class NettyEpollProfilingInstrumentation extends InstrumenterModule.Profi
   };
 
   public NettyEpollProfilingInstrumentation() {
-    super("netty-epoll");
+    // This is part of wall-clock profiling, not a separately configurable tracing integration.
+    super("wallclock");
   }
 
   @Override

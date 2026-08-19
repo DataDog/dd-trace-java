@@ -8417,14 +8417,6 @@
         "aliases": ["DD_TRACE_INTEGRATION_NETTY_ENABLED", "DD_INTEGRATION_NETTY_ENABLED"]
       }
     ],
-    "DD_TRACE_NETTY_EPOLL_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_NETTY_EPOLL_ENABLED", "DD_INTEGRATION_NETTY_EPOLL_ENABLED"]
-      }
-    ],
     "DD_TRACE_NETTY_EVENT_EXECUTOR_ENABLED": [
       {
         "version": "A",
@@ -8471,14 +8463,6 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_NING_ENABLED", "DD_INTEGRATION_NING_ENABLED"]
-      }
-    ],
-    "DD_TRACE_NIO_SELECT_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_NIO_SELECT_ENABLED", "DD_INTEGRATION_NIO_SELECT_ENABLED"]
       }
     ],
     "DD_TRACE_NOT_NOT_TRACE_ENABLED": [
