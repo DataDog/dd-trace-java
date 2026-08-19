@@ -403,6 +403,18 @@ class FlatHashtableTest {
   }
 
   @Test
+  void capacityFor_rejectsCardinalityRequiringCapacityAboveMaxInt() {
+    // 536870913 at 0.5 needs 2^31 slots, which overflows a signed int -> clear error, not
+    // an opaque NegativeArraySizeException from create().
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> FlatHashtable.capacityFor(536870913, FlatHashtable.DEFAULT_LOAD_FACTOR));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> FlatHashtable.capacityFor(268435457, FlatHashtable.LOW_LOAD_FACTOR));
+  }
+
+  @Test
   void create_honorsLoadFactor() {
     TestEntry[] table = FlatHashtable.create(TestEntry.class, 4, FlatHashtable.LOW_LOAD_FACTOR);
     assertEquals(16, table.length);

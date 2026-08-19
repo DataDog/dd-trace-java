@@ -621,7 +621,16 @@ public final class FlatHashtable {
       throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
     }
     int min = (int) Math.ceil(cardinalityLimit / (double) loadFactor);
-    return Integer.highestOneBit(min - 1) << 1;
+    int capacity = Integer.highestOneBit(min - 1) << 1;
+    if (capacity <= 0) {
+      throw new IllegalArgumentException(
+          "cardinalityLimit "
+              + cardinalityLimit
+              + " at loadFactor "
+              + loadFactor
+              + " requires a capacity larger than Integer.MAX_VALUE");
+    }
+    return capacity;
   }
 
   /**
