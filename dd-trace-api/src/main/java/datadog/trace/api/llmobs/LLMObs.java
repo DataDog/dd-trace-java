@@ -2,6 +2,9 @@ package datadog.trace.api.llmobs;
 
 import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -136,6 +139,132 @@ public class LLMObs {
         String categoricalValue,
         String mlApp,
         Map<String, Object> tags);
+  }
+
+  /** A prompt template and its associated attributes for an LLM call. */
+  public static final class Prompt {
+    private final String id;
+    private final String version;
+    private final String template;
+    private final List<LLMMessage> chatTemplate;
+    private final Map<String, String> variables;
+    private final Map<String, String> tags;
+    private final List<String> contextVariables;
+    private final List<String> queryVariables;
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    private Prompt(Builder builder) {
+      this.id = builder.id;
+      this.version = builder.version;
+      this.template = builder.template;
+      this.chatTemplate = immutableList(builder.chatTemplate);
+      this.variables = immutableMap(builder.variables);
+      this.tags = immutableMap(builder.tags);
+      this.contextVariables = immutableList(builder.contextVariables);
+      this.queryVariables = immutableList(builder.queryVariables);
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+
+    public String getTemplate() {
+      return template;
+    }
+
+    public List<LLMMessage> getChatTemplate() {
+      return chatTemplate;
+    }
+
+    public Map<String, String> getVariables() {
+      return variables;
+    }
+
+    public Map<String, String> getTags() {
+      return tags;
+    }
+
+    public List<String> getContextVariables() {
+      return contextVariables;
+    }
+
+    public List<String> getQueryVariables() {
+      return queryVariables;
+    }
+
+    private static <T> List<T> immutableList(List<T> values) {
+      return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
+    }
+
+    private static <K, V> Map<K, V> immutableMap(Map<K, V> values) {
+      return values == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(values));
+    }
+
+    public static final class Builder {
+      private String id;
+      private String version;
+      private String template;
+      private List<LLMMessage> chatTemplate;
+      private Map<String, String> variables;
+      private Map<String, String> tags;
+      private List<String> contextVariables;
+      private List<String> queryVariables;
+
+      private Builder() {}
+
+      public Builder id(String id) {
+        this.id = id;
+        return this;
+      }
+
+      public Builder version(String version) {
+        this.version = version;
+        return this;
+      }
+
+      public Builder template(String template) {
+        this.template = template;
+        this.chatTemplate = null;
+        return this;
+      }
+
+      public Builder template(List<LLMMessage> chatTemplate) {
+        this.template = null;
+        this.chatTemplate = chatTemplate;
+        return this;
+      }
+
+      public Builder variables(Map<String, String> variables) {
+        this.variables = variables;
+        return this;
+      }
+
+      public Builder tags(Map<String, String> tags) {
+        this.tags = tags;
+        return this;
+      }
+
+      public Builder contextVariables(List<String> contextVariables) {
+        this.contextVariables = contextVariables;
+        return this;
+      }
+
+      public Builder queryVariables(List<String> queryVariables) {
+        this.queryVariables = queryVariables;
+        return this;
+      }
+
+      public Prompt build() {
+        return new Prompt(this);
+      }
+    }
   }
 
   public static class ToolCall {
@@ -305,17 +434,40 @@ public class LLMObs {
 
   public static class Document {
     private String text;
+    private String name;
+    private String id;
+    private Double score;
 
     public static Document from(String text) {
-      return new Document(text);
+      return new Document(text, null, null, null);
     }
 
-    private Document(String text) {
+    public static Document from(
+        String text, @Nullable String name, @Nullable String id, @Nullable Double score) {
+      return new Document(text, name, id, score);
+    }
+
+    private Document(String text, String name, String id, Double score) {
       this.text = text;
+      this.name = name;
+      this.id = id;
+      this.score = score;
     }
 
     public String getText() {
       return text;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public Double getScore() {
+      return score;
     }
   }
 }

@@ -2,6 +2,7 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 
+import datadog.communication.EvpProxy;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -42,6 +43,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   // internal tags to be prefixed
   private static final String INPUT = "input";
+  private static final String INPUT_PROMPT = "input_prompt";
   private static final String OUTPUT = "output";
   private static final String SPAN_KIND_TAG_KEY = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
 
@@ -67,6 +69,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private static final byte[] META = "meta".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METRICS = "metrics".getBytes(StandardCharsets.UTF_8);
@@ -99,7 +102,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private int spansWritten;
 
   public LLMObsSpanMapper() {
-    this(5 << 20);
+    this(EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES);
   }
 
   private LLMObsSpanMapper(int size) {
@@ -256,6 +259,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
             new HashSet<>(
                 Arrays.asList(
                     LLMOBS_TAG_PREFIX + INPUT,
+                    LLMOBS_TAG_PREFIX + INPUT_PROMPT,
                     LLMOBS_TAG_PREFIX + OUTPUT,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_NAME,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
@@ -300,6 +304,20 @@ public class LLMObsSpanMapper implements RemoteMapper {
         LOGGER.warn("missing span kind");
       }
 
+      String inputTag = LLMOBS_TAG_PREFIX + INPUT;
+      String inputPromptTag = LLMOBS_TAG_PREFIX + INPUT_PROMPT;
+      boolean hasInput = tagsToRemapToMeta.containsKey(inputTag);
+      boolean hasInputPrompt = tagsToRemapToMeta.containsKey(inputPromptTag);
+      Object inputPrompt = null;
+      if (hasInputPrompt) {
+        if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
+          inputPrompt = tagsToRemapToMeta.get(inputPromptTag);
+        } else {
+          LOGGER.warn(
+              "dropping prompt on non-LLM span kind, annotating prompts is only supported for LLM span kinds");
+        }
+      }
+
       // write metrics (9)
       writable.writeUTF8(METRICS);
       writable.startMap(metricsSize);
@@ -325,7 +343,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // write meta (11)
       int metaSize =
-          tagsToRemapToMeta.size() + 1 + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
+          tagsToRemapToMeta.size()
+              - (hasInputPrompt ? 1 : 0)
+              + (inputPrompt != null && !hasInput ? 1 : 0)
+              + 1
+              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
@@ -357,43 +379,63 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
+          boolean isDocumentIO =
+              (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+                  || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             writable.writeString(key, null);
             if (val instanceof List) {
-              writable.startMap(1);
-              writable.writeString("messages", null);
-              writeLlmMessages((List<?>) val);
+              writeLlmMessagesField((List<?>) val, key.equals(INPUT) ? inputPrompt : null);
             } else if (key.equals(INPUT) && val instanceof Map) {
-              writeLlmInputMap((Map<?, ?>) val);
+              writeLlmInputMap((Map<?, ?>) val, inputPrompt);
             } else {
               LOGGER.warn(
                   "unexpectedly found incorrect type for LLM span IO {}, expecting list",
                   val.getClass().getName());
               continue;
             }
-          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
-            if (!(val instanceof List)) {
-              LOGGER.warn(
-                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
-                  val.getClass().getName());
-              continue;
-            }
+          } else if (isDocumentIO && isDocumentList(val)) {
             writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
             writable.writeString("documents", null);
             writable.startArray(documents.size());
             for (LLMObs.Document document : documents) {
-              writable.startMap(1);
+              int documentSize = 1;
+              if (document.getName() != null) documentSize++;
+              if (document.getId() != null) documentSize++;
+              if (document.getScore() != null) documentSize++;
+              writable.startMap(documentSize);
               writable.writeString("text", null);
               writable.writeString(document.getText(), null);
+              if (document.getName() != null) {
+                writable.writeString("name", null);
+                writable.writeString(document.getName(), null);
+              }
+              if (document.getId() != null) {
+                writable.writeString("id", null);
+                writable.writeString(document.getId(), null);
+              }
+              if (document.getScore() != null) {
+                writable.writeString("score", null);
+                writable.writeObject(document.getScore(), null);
+              }
             }
           } else {
+            if (isDocumentIO) {
+              LOGGER.warn(
+                  "unexpectedly found invalid document data for {} span {}, serializing as value",
+                  spanKind,
+                  key);
+            }
             writable.writeString(key, null);
             writable.startMap(1);
             writable.writeString("value", null);
             writable.writeObject(val, null);
           }
+        } else if (key.equals(INPUT_PROMPT)) {
+          // Serialized as meta.input.prompt above, or after this loop when no input is present.
+          continue;
         } else if (key.equals(LLMObsTags.TOOL_DEFINITIONS) && val instanceof List) {
           writable.writeString(key, null);
           writeToolDefinitions((List<?>) val);
@@ -409,6 +451,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.writeString(key, null);
           writable.writeObject(val, null);
         }
+      }
+
+      if (inputPrompt != null && !hasInput) {
+        writable.writeString(INPUT, null);
+        writable.startMap(1);
+        writable.writeUTF8(PROMPT);
+        writable.writeObject(inputPrompt, null);
       }
     }
 
@@ -444,8 +493,31 @@ public class LLMObsSpanMapper implements RemoteMapper {
       }
     }
 
-    private void writeLlmInputMap(Map<?, ?> inputMap) {
-      writable.startMap(inputMap.size());
+    private static boolean isDocumentList(Object value) {
+      if (!(value instanceof List)) {
+        return false;
+      }
+      for (Object item : (List<?>) value) {
+        if (!(item instanceof LLMObs.Document)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private void writeLlmMessagesField(List<?> messages, Object inputPrompt) {
+      writable.startMap(inputPrompt == null ? 1 : 2);
+      writable.writeString("messages", null);
+      writeLlmMessages(messages);
+      if (inputPrompt != null) {
+        writable.writeUTF8(PROMPT);
+        writable.writeObject(inputPrompt, null);
+      }
+    }
+
+    private void writeLlmInputMap(Map<?, ?> inputMap, Object inputPrompt) {
+      boolean addInputPrompt = inputPrompt != null && !inputMap.containsKey("prompt");
+      writable.startMap(inputMap.size() + (addInputPrompt ? 1 : 0));
       for (Map.Entry<?, ?> entry : inputMap.entrySet()) {
         String inputKey = String.valueOf(entry.getKey());
         Object inputValue = entry.getValue();
@@ -455,6 +527,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
         } else {
           writable.writeObject(inputValue, null);
         }
+      }
+      if (addInputPrompt) {
+        writable.writeUTF8(PROMPT);
+        writable.writeObject(inputPrompt, null);
       }
     }
 

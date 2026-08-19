@@ -13,7 +13,7 @@ plugins {
 }
 
 dependencies {
-  api('com.datadoghq:jmxfetch:0.52.0') {
+  api('com.datadoghq:jmxfetch:0.52.1') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'com.beust', module: 'jcommander'

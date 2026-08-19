@@ -3,6 +3,8 @@ plugins {
 }
 
 muzzle {
+  extraRepository("confluent-releases", "https://packages.confluent.io/maven/")
+
   pass {
     name = "since-0.11"
     group = "org.apache.kafka"
@@ -69,5 +71,4 @@ tasks.named("iastLatestDepTest3", Test) {
   javaLauncher = getJavaLauncherFor(17)
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }
-
 

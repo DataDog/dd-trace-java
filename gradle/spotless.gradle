@@ -51,8 +51,8 @@ spotless {
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
-      tableTestFormatter('1.1.1')
-      googleJavaFormat('1.35.0')
+      tableTestFormatter(libs.versions.tabletest.formatter.get())
+      googleJavaFormat(libs.versions.google.java.format.get())
     }
   }
 
@@ -67,7 +67,7 @@ spotless {
     } else {
       target '*.gradle'
     }
-    greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+    greclipse(libs.versions.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
     custom 'forbidGradleJavaScriptPlugin', forbidJavaGradleApplyStep
   }
 
@@ -75,7 +75,7 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    ktlint('1.8.0').editorConfigOverride([
+    ktlint(libs.versions.ktlint.get()).editorConfigOverride([
       // Disable trailing comma rules to minimize diff.
       'ktlint_standard_trailing-comma-on-call-site': 'disabled',
       'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
@@ -92,7 +92,7 @@ spotless {
         // so it formats Java files by default (unless `excludeJava` is used).
       }
       targetExclude(buildDirectoryFiles)
-      greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+      greclipse(libs.versions.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }
 
@@ -100,8 +100,7 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectoryFiles)
-      // TODO: For some reason Scala format is working correctly with this version only.
-      scalafmt('3.8.6').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      scalafmt(libs.versions.scalafmt.get()).configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
@@ -124,7 +123,7 @@ spotless {
     kotlin {
       toggleOffOn()
       targetExclude(buildDirectoryFiles)
-      ktlint('1.8.0').editorConfigOverride([
+      ktlint(libs.versions.ktlint.get()).editorConfigOverride([
         // Disable trailing comma rules to minimize diff.
         'ktlint_standard_trailing-comma-on-call-site': 'disabled',
         'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
