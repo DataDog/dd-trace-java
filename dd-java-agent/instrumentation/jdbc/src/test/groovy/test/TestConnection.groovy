@@ -25,6 +25,8 @@ class TestConnection implements Connection {
   public String clientInfoName
   public String clientInfoValue
   public int clientInfoSetCount
+  public int clientInfoFailuresRemaining
+  public boolean clientInfoUnsupported
 
   TestConnection(boolean throwException) {
     if (throwException) {
@@ -236,9 +238,16 @@ class TestConnection implements Connection {
 
   @Override
   void setClientInfo(String name, String value) throws SQLClientInfoException {
+    clientInfoSetCount++
+    if (clientInfoUnsupported) {
+      throw new UnsupportedOperationException("client info is unsupported")
+    }
+    if (clientInfoFailuresRemaining > 0) {
+      clientInfoFailuresRemaining--
+      throw new SQLClientInfoException()
+    }
     clientInfoName = name
     clientInfoValue = value
-    clientInfoSetCount++
   }
 
   @Override

@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -102,7 +103,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
-    contextStore.put("java.sql.Connection", DBInfo.class.getName());
+    contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
     return contextStore;
   }
 
@@ -121,8 +122,10 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       final String inputSql = sql;
       final AgentSpan activeSpan = activeSpan();
       final DBInfo dbInfo =
-          JDBCDecorator.parseDBInfo(
-              connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+          JDBCDecorator.parseConnectionContext(
+                  connection,
+                  InstrumentationContext.get(Connection.class, JDBCConnectionContext.class))
+              .getDbInfo();
       if (!DECORATE.shouldInjectSqlComment(dbInfo)) {
         return inputSql;
       }

@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -43,7 +44,7 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Connection", DBInfo.class.getName());
+    return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
   }
 
   @Override
@@ -113,9 +114,9 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
           // ignore
         }
       }
-      DBInfo dbInfo =
-          JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps).toBuilder().build();
-      InstrumentationContext.get(Connection.class, DBInfo.class).put(connWithContext, dbInfo);
+      DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps);
+      InstrumentationContext.get(Connection.class, JDBCConnectionContext.class)
+          .put(connWithContext, new JDBCConnectionContext(dbInfo));
     }
   }
 }

@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -55,7 +56,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Connection", DBInfo.class.getName());
+    return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
   }
 
   @Override
@@ -85,20 +86,22 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final JDBCConnectionContext connectionContext =
+            JDBCDecorator.parseConnectionContext(
+                connection,
+                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+        final DBInfo dbInfo = connectionContext.getDbInfo();
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         final AgentSpan span;
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
         final boolean isOracle = DECORATE.isOracle(dbInfo);
 
-        DECORATE.setServiceHashAction(connection, dbInfo);
+        DECORATE.setServiceHashAction(connection, connectionContext);
 
         if (INJECT_COMMENT && injectTraceContext) {
           if (isSqlServer) {
             // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
             // we then force that pre-determined span ID for the span covering the actual query
             span =
                 AgentTracer.get()
@@ -116,7 +119,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         }
 
         DECORATE.afterStart(span);
-        DECORATE.onConnection(span, dbInfo);
+        DECORATE.onConnection(span, connectionContext);
         final String copy = sql;
         if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {
           String traceParent = null;

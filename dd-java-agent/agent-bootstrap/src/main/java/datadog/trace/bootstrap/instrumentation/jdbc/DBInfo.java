@@ -17,8 +17,6 @@ public final class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
-  private volatile String poolName;
-  private volatile String oracleServiceAction;
 
   DBInfo(
       String type,
@@ -31,8 +29,7 @@ public final class DBInfo {
       String host,
       Integer port,
       String warehouse,
-      String schema,
-      String poolName) {
+      String schema) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -44,7 +41,6 @@ public final class DBInfo {
     this.port = port;
     this.warehouse = warehouse;
     this.schema = schema;
-    this.poolName = poolName;
   }
 
   public static final class Builder {
@@ -61,7 +57,6 @@ public final class DBInfo {
     private String schema;
     private String host;
     private Integer port;
-    private String poolName;
 
     Builder() {}
 
@@ -76,8 +71,7 @@ public final class DBInfo {
         String host,
         Integer port,
         String warehouse,
-        String schema,
-        String poolName) {
+        String schema) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -89,7 +83,6 @@ public final class DBInfo {
       this.port = port;
       this.warehouse = warehouse;
       this.schema = schema;
-      this.poolName = poolName;
     }
 
     public Builder type(String type) {
@@ -147,11 +140,6 @@ public final class DBInfo {
       return this;
     }
 
-    public Builder poolName(String poolName) {
-      this.poolName = poolName;
-      return this;
-    }
-
     public DBInfo build() {
       return new DBInfo(
           type,
@@ -164,8 +152,7 @@ public final class DBInfo {
           host,
           port,
           warehouse,
-          schema,
-          poolName);
+          schema);
     }
   }
 
@@ -213,22 +200,6 @@ public final class DBInfo {
     return schema;
   }
 
-  public String getPoolName() {
-    return poolName;
-  }
-
-  public void setPoolName(String poolname) {
-    this.poolName = poolname;
-  }
-
-  public synchronized boolean markOracleServiceAction(String action) {
-    if (action.equals(oracleServiceAction)) {
-      return false;
-    }
-    oracleServiceAction = action;
-    return true;
-  }
-
   public Builder toBuilder() {
     return new Builder(
         type,
@@ -241,8 +212,7 @@ public final class DBInfo {
         host,
         port,
         warehouse,
-        schema,
-        poolName);
+        schema);
   }
 
   @Override
@@ -260,8 +230,7 @@ public final class DBInfo {
         && Objects.equals(host, dbInfo.host)
         && Objects.equals(port, dbInfo.port)
         && Objects.equals(warehouse, dbInfo.warehouse)
-        && Objects.equals(schema, dbInfo.schema)
-        && Objects.equals(poolName, dbInfo.poolName);
+        && Objects.equals(schema, dbInfo.schema);
   }
 
   @Override
