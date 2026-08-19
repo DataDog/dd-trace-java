@@ -1,76 +1,151 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.api.DDTags.PROCESS_TAGS;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
+import static datadog.trace.api.DDTags.THREAD_ID;
+import static datadog.trace.api.DDTags.THREAD_NAME;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.ENV;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
+import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.newStringTable;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readAttributes;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readBinary;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstChunk;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstSpan;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readStreamingString;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipChunkField;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipPayloadField;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipSpanField;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.traceIdBytes;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.unpackUnsignedLong;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.msgpack.core.MessageFormat.FIXSTR;
-import static org.msgpack.core.MessageFormat.STR16;
-import static org.msgpack.core.MessageFormat.STR32;
-import static org.msgpack.core.MessageFormat.STR8;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
-import datadog.trace.common.writer.TraceGenerator;
+import datadog.trace.common.writer.TraceGenerator.PojoSpan;
+import datadog.trace.common.writer.ddagent.V1PayloadReader.ChunkField;
+import datadog.trace.common.writer.ddagent.V1PayloadReader.PayloadField;
+import datadog.trace.common.writer.ddagent.V1PayloadReader.SpanField;
+import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanEvent;
+import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanLink;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.junit.utils.converter.SamplingMechanismConverter;
-import datadog.trace.test.util.DDJavaSpecification;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.ValueType;
 import org.tabletest.junit.TableTest;
 
-class TraceMapperV1PayloadTest extends DDJavaSpecification {
+@ExtendWith(WithConfigExtension.class)
+class TraceMapperV1PayloadTest {
+
+  private static final String DECISION_MAKER_TAG = "_dd.p.dm";
+
+  /** Every field the v1 payload header carries, mirroring {@code TraceMapperV1.buildHeader}. */
+  private static final Set<Integer> EXPECTED_PAYLOAD_FIELD_IDS =
+      new HashSet<>(
+          asList(
+              PayloadField.CONTAINER_ID,
+              PayloadField.LANGUAGE_NAME,
+              PayloadField.LANGUAGE_VERSION,
+              PayloadField.TRACER_VERSION,
+              PayloadField.RUNTIME_ID,
+              PayloadField.ENV,
+              PayloadField.HOSTNAME,
+              PayloadField.APP_VERSION,
+              PayloadField.ATTRIBUTES,
+              PayloadField.CHUNKS));
+
+  /** Every field a v1 span carries, mirroring {@code TraceMapperV1.encodeSpans}. */
+  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS =
+      new HashSet<>(
+          asList(
+              SpanField.SERVICE,
+              SpanField.NAME,
+              SpanField.RESOURCE,
+              SpanField.SPAN_ID,
+              SpanField.PARENT_ID,
+              SpanField.START,
+              SpanField.DURATION,
+              SpanField.ERROR,
+              SpanField.ATTRIBUTES,
+              SpanField.TYPE,
+              SpanField.LINKS,
+              SpanField.EVENTS,
+              SpanField.ENV,
+              SpanField.VERSION,
+              SpanField.COMPONENT,
+              SpanField.KIND));
+
+  // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
+  // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
+  @BeforeEach
+  void syncProcessTags() {
+    ProcessTags.reset(Config.get());
+  }
 
   @TableTest({
-    "scenario             | bufferSize | traceCount | lowCardinality",
-    "0 traces low card    | 20480      | 0          | true          ",
-    "1 trace low card     | 20480      | 1          | true          ",
-    "2 traces low card    | 30720      | 2          | true          ",
-    "0 traces high card   | 20480      | 0          | false         ",
-    "1 trace high card    | 20480      | 1          | false         ",
-    "2 traces high card   | 30720      | 2          | false         ",
-    "10 traces low card   | 102400     | 10         | true          ",
-    "100 traces high card | 102400     | 100        | false         "
+    "scenario                         | bufferSizeKb | traceCount | lowCardinality",
+    "no traces, low cardinality       | 20           | 0          | true          ",
+    "one trace, low cardinality       | 20           | 1          | true          ",
+    "two traces, low cardinality      | 30           | 2          | true          ",
+    "no traces, high cardinality      | 20           | 0          | false         ",
+    "one trace, high cardinality      | 20           | 1          | false         ",
+    "two traces, high cardinality     | 30           | 2          | false         ",
+    "ten traces, low cardinality      | 100          | 10         | true          ",
+    "hundred traces, high cardinality | 100          | 100        | false         "
   })
-  void testTracesWrittenCorrectly(int bufferSize, int traceCount, boolean lowCardinality) {
-    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
+  void tracesWrittenCorrectly(
+      String scenario, int bufferSizeKb, int traceCount, boolean lowCardinality) {
+    List<List<PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     TraceMapperV1 traceMapper = new TraceMapperV1();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier));
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSizeKb << 10, verifier));
 
     boolean tracesFitInBuffer = true;
-    for (List<TraceGenerator.PojoSpan> trace : traces) {
+    for (List<PojoSpan> trace : traces) {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
@@ -85,40 +160,37 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
   }
 
   @Test
-  void testEndpointReturnsV10() {
+  void endpointReturnsV1() {
     assertEquals("v1.0", new TraceMapperV1().endpoint());
   }
 
-  @Test
-  void testSpanKindValueConversion() {
-    assertEquals(TraceMapperV1.SPAN_KIND_UNSPECIFIED, TraceMapperV1.getSpanKindValue(null));
-    assertEquals(
-        TraceMapperV1.SPAN_KIND_INTERNAL, TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_INTERNAL));
-    assertEquals(
-        TraceMapperV1.SPAN_KIND_SERVER, TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_SERVER));
-    assertEquals(
-        TraceMapperV1.SPAN_KIND_CLIENT, TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CLIENT));
-    assertEquals(
-        TraceMapperV1.SPAN_KIND_PRODUCER, TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_PRODUCER));
-    assertEquals(
-        TraceMapperV1.SPAN_KIND_CONSUMER, TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CONSUMER));
-    assertEquals(TraceMapperV1.SPAN_KIND_INTERNAL, TraceMapperV1.getSpanKindValue("unknown"));
+  // expectedKind holds the wire values, which must stay in sync with TraceMapperV1.SPAN_KIND_*.
+  @TableTest({
+    "scenario               | spanKind | expectedKind",
+    "no span.kind tag       |          | 0           ",
+    "internal span kind     | internal | 1           ",
+    "server span kind       | server   | 2           ",
+    "client span kind       | client   | 3           ",
+    "producer span kind     | producer | 4           ",
+    "consumer span kind     | consumer | 5           ",
+    "unrecognized span kind | unknown  | 1           "
+  })
+  void spanKindValueConversion(String scenario, String spanKind, int expectedKind) {
+    assertEquals(expectedKind, TraceMapperV1.getSpanKindValue(spanKind));
   }
 
   @Test
-  void testPayloadContainsExpectedHeaderAndChunkFields() throws IOException {
+  void payloadContainsExpectedHeaderAndChunkFields() throws IOException {
     Map<String, Object> tags = new HashMap<>();
-    tags.put(Tags.ENV, "prod");
-    tags.put(Tags.VERSION, "1.2.3");
-    tags.put(Tags.COMPONENT, "http-client");
-    tags.put(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    tags.put(ENV, "prod");
+    tags.put(VERSION, "1.2.3");
+    tags.put(COMPONENT, "http-client");
+    tags.put(SPAN_KIND, SPAN_KIND_CLIENT);
     tags.put("attr.string", "value");
     tags.put("attr.bool", true);
     tags.put("attr.number", 12.5d);
-    tags.put("_dd.p.dm", "-3");
-
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
+    PojoSpan span =
+        new PojoSpan(
             "service-a",
             "operation-a",
             "resource-a",
@@ -128,205 +200,115 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
             1000L,
             2000L,
             1,
-            Collections.emptyMap(),
+            singletonMap(DECISION_MAKER_TAG, "-3"),
             tags,
             "web",
             false,
-            PrioritySampling.SAMPLER_KEEP,
+            SAMPLER_KEEP,
             200,
             "rum");
 
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
+    byte[] encoded = serializeV1Payload(span);
+    List<String> stringTable = newStringTable();
 
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    Set<Integer> payloadFieldsSeen = new HashSet<>();
-    int chunkCount = -1;
-    Map<String, Object> payloadAttributes = null;
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)) {
+      int payloadFieldCount = unpacker.unpackMapHeader();
+      Set<Integer> payloadFieldsSeen = new HashSet<>();
+      int chunkCount = -1;
+      Map<String, Object> payloadAttributes = null;
 
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int fieldId = unpacker.unpackInt();
-      payloadFieldsSeen.add(fieldId);
-      switch (fieldId) {
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 8:
-        case 9:
-          readStreamingString(unpacker, stringTable);
-          break;
-        case 10:
-          payloadAttributes = readAttributes(unpacker, stringTable);
-          break;
-        case 11:
+      for (int i = 0; i < payloadFieldCount; i++) {
+        int fieldId = unpacker.unpackInt();
+        payloadFieldsSeen.add(fieldId);
+        if (fieldId == PayloadField.CHUNKS) {
           chunkCount = unpacker.unpackArrayHeader();
           assertEquals(1, chunkCount);
-          verifyChunk(unpacker, Collections.singletonList(span), stringTable);
-          break;
-        default:
-          Assertions.fail("Unexpected payload field id: " + fieldId);
+          verifyChunk(unpacker, singletonList(span), stringTable);
+        } else if (fieldId == PayloadField.ATTRIBUTES) {
+          payloadAttributes = readAttributes(unpacker, stringTable);
+        } else {
+          skipPayloadField(unpacker, fieldId, stringTable);
+        }
       }
-    }
 
-    assertEquals(10, payloadFieldCount);
-    Set<Integer> expectedFields = new HashSet<>();
-    for (int i = 2; i <= 11; i++) {
-      expectedFields.add(i);
-    }
-    assertEquals(expectedFields, payloadFieldsSeen);
-    assertEquals(1, chunkCount);
-    assertNotNull(payloadAttributes);
-    if (ProcessTags.getTagsForSerialization() == null) {
-      assertEquals(0, payloadAttributes.size());
-    } else {
-      assertEquals(1, payloadAttributes.size());
-      assertEquals(
-          ProcessTags.getTagsForSerialization().toString(),
-          payloadAttributes.get(DDTags.PROCESS_TAGS));
+      assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
+      assertEquals(EXPECTED_PAYLOAD_FIELD_IDS, payloadFieldsSeen);
+      assertEquals(1, chunkCount);
+      assertNotNull(payloadAttributes);
+      CharSequence processTags = ProcessTags.getTagsForSerialization();
+      if (processTags == null) {
+        assertEquals(0, payloadAttributes.size());
+      } else {
+        assertEquals(1, payloadAttributes.size());
+        assertEquals(processTags.toString(), payloadAttributes.get(PROCESS_TAGS));
+      }
     }
   }
 
+  // expectedSamplingMechanism 0 is SamplingMechanism.DEFAULT.
   @TableTest({
-    "scenario        | decisionMakerTag | expectedSamplingMechanism        ",
-    "null tag        |                  | SamplingMechanism.DEFAULT        ",
-    "simple negative | '-3'             | SamplingMechanism.LOCAL_USER_RULE",
-    "compound        | '934086a686-7'   | 7                                ",
-    "invalid         | 'invalid'        | SamplingMechanism.DEFAULT        "
+    "scenario                      | decisionMakerTag | expectedSamplingMechanism",
+    "no _dd.p.dm tag               |                  | 0                        ",
+    "negative numeric value        | '-3'             | 3                        ",
+    "hashed prefix before the dash | '934086a686-7'   | 7                        ",
+    "unparseable value             | invalid          | 0                        "
   })
-  void testSamplingMechanismNormalizationFromDdPDm(
-      String decisionMakerTag,
-      @ConvertWith(SamplingMechanismConverter.class) int expectedSamplingMechanism)
-      throws IOException {
-    Map<String, Object> dmTags =
-        decisionMakerTag == null
-            ? Collections.emptyMap()
-            : Collections.singletonMap("_dd.p.dm", decisionMakerTag);
-
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            321L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            dmTags,
-            "custom",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    unpacker.unpackMapHeader();
-    int samplingMechanism = -1;
-
-    for (int i = 0; i < 10; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId == 11) {
-        int chunkCount = unpacker.unpackArrayHeader();
-        assertEquals(1, chunkCount);
-        int chunkFieldCount = unpacker.unpackMapHeader();
-        for (int j = 0; j < chunkFieldCount; j++) {
-          int chunkFieldId = unpacker.unpackInt();
-          if (chunkFieldId == 7) {
-            samplingMechanism = unpacker.unpackInt();
-          } else {
-            skipChunkField(unpacker, chunkFieldId, stringTable);
-          }
-        }
-      } else {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
-      }
+  void samplingMechanismNormalizationFromDecisionMaker(
+      String scenario, String decisionMakerTag, int expectedSamplingMechanism) throws IOException {
+    Map<String, String> baggage = new HashMap<>();
+    if (decisionMakerTag != null) {
+      baggage.put(DECISION_MAKER_TAG, decisionMakerTag);
     }
 
-    assertEquals(expectedSamplingMechanism, samplingMechanism);
+    byte[] encoded = serializeV1Payload(spanWithBaggage(baggage));
+
+    assertEquals(expectedSamplingMechanism, readFirstChunk(encoded).getSamplingMechanism());
   }
 
   @Test
-  void testSpanIdsAreEncodedAsUnsignedValuesInV1Payloads() throws IOException {
+  void spanIdsAreEncodedAsUnsignedValues() throws IOException {
     long spanId = Long.MIN_VALUE + 123L;
     long parentId = Long.MIN_VALUE + 456L;
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            spanId,
-            parentId,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
 
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
+    byte[] encoded = serializeV1Payload(spanWithIds(spanId, parentId));
+    List<String> stringTable = newStringTable();
 
-    unpacker.unpackMapHeader();
     Long actualSpanId = null;
     Long actualParentId = null;
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)) {
+      int payloadFieldCount = unpacker.unpackMapHeader();
+      for (int i = 0; i < payloadFieldCount; i++) {
+        int payloadFieldId = unpacker.unpackInt();
+        if (payloadFieldId != PayloadField.CHUNKS) {
+          skipPayloadField(unpacker, payloadFieldId, stringTable);
+          continue;
+        }
+        assertEquals(1, unpacker.unpackArrayHeader());
 
-    for (int i = 0; i < 10; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId == 11) {
-        int chunkCount = unpacker.unpackArrayHeader();
-        assertEquals(1, chunkCount);
         int chunkFieldCount = unpacker.unpackMapHeader();
         for (int j = 0; j < chunkFieldCount; j++) {
           int chunkFieldId = unpacker.unpackInt();
-          if (chunkFieldId == 4) {
-            int spanCount = unpacker.unpackArrayHeader();
-            assertEquals(1, spanCount);
-            int spanFieldCount = unpacker.unpackMapHeader();
-            for (int k = 0; k < spanFieldCount; k++) {
-              int spanFieldId = unpacker.unpackInt();
-              switch (spanFieldId) {
-                case 4:
-                  assertEquals(MessageFormat.UINT64, unpacker.getNextFormat());
-                  actualSpanId = DDSpanId.from(unpacker.unpackBigInteger().toString());
-                  break;
-                case 5:
-                  assertEquals(MessageFormat.UINT64, unpacker.getNextFormat());
-                  actualParentId = DDSpanId.from(unpacker.unpackBigInteger().toString());
-                  break;
-                default:
-                  skipSpanField(unpacker, spanFieldId, stringTable);
-              }
-            }
-          } else {
+          if (chunkFieldId != ChunkField.SPANS) {
             skipChunkField(unpacker, chunkFieldId, stringTable);
+            continue;
+          }
+          assertEquals(1, unpacker.unpackArrayHeader());
+
+          int spanFieldCount = unpacker.unpackMapHeader();
+          for (int k = 0; k < spanFieldCount; k++) {
+            int spanFieldId = unpacker.unpackInt();
+            switch (spanFieldId) {
+              case SpanField.SPAN_ID:
+                actualSpanId = unpackUint64(unpacker);
+                break;
+              case SpanField.PARENT_ID:
+                actualParentId = unpackUint64(unpacker);
+                break;
+              default:
+                skipSpanField(unpacker, spanFieldId, stringTable);
+            }
           }
         }
-      } else {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
       }
     }
 
@@ -335,394 +317,183 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
   }
 
   @Test
-  void testSpanLinksAreEncodedFromStructuredSpanLinks() throws IOException {
-    Map<String, String> linkAttrs = new HashMap<>();
-    linkAttrs.put("link.kind", "follows_from");
-    linkAttrs.put("context_headers", "tracecontext");
+  void spanLinksAreEncodedFromStructuredSpanLinks() throws IOException {
+    DDTraceId firstLinkTraceId = DDTraceId.fromHex("11223344556677889900aabbccddeeff");
+    long firstLinkSpanId = DDSpanId.fromHex("000000000000002a");
+    Map<String, String> firstLinkAttributes = new HashMap<>();
+    firstLinkAttributes.put("link.kind", "follows_from");
+    firstLinkAttributes.put("context_headers", "tracecontext");
+    DDTraceId secondLinkTraceId = DDTraceId.fromHex("00000000000000000000000000000001");
+    long secondLinkSpanId = DDSpanId.fromHex("0000000000000002");
+    List<AgentSpanLink> spanLinks = new ArrayList<>();
+    spanLinks.add(
+        new TestSpanLink(
+            firstLinkTraceId,
+            firstLinkSpanId,
+            (byte) 1,
+            "dd=s:1",
+            SpanAttributes.fromMap(firstLinkAttributes)));
+    spanLinks.add(
+        new TestSpanLink(secondLinkTraceId, secondLinkSpanId, (byte) 0, "", SpanAttributes.EMPTY));
 
-    List<AgentSpanLink> spanLinks =
-        Arrays.asList(
-            new TestSpanLink(
-                DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
-                DDSpanId.fromHex("000000000000002a"),
-                (byte) 1,
-                "dd=s:1",
-                SpanAttributes.fromMap(linkAttrs)),
-            new TestSpanLink(
-                DDTraceId.fromHex("00000000000000000000000000000001"),
-                DDSpanId.fromHex("0000000000000002"),
-                (byte) 0,
-                "",
-                SpanAttributes.EMPTY));
-
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null,
-            spanLinks);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    List<Map<String, Object>> links = readFirstSpanLinks(unpacker, stringTable);
+    List<V1SpanLink> links = readFirstSpan(serializeV1Payload(spanWithLinks(spanLinks))).getLinks();
 
     assertEquals(2, links.size());
-    assertArrayEquals(
-        traceIdBytes(DDTraceId.fromHex("11223344556677889900aabbccddeeff")),
-        (byte[]) links.get(0).get("traceId"));
-    assertEquals(DDSpanId.fromHex("000000000000002a"), links.get(0).get("spanId"));
-    assertEquals("dd=s:1", links.get(0).get("tracestate"));
-    assertEquals(1L, links.get(0).get("flags"));
-    Map<String, Object> expectedLinkAttrs0 = new HashMap<>();
-    expectedLinkAttrs0.put("link.kind", "follows_from");
-    expectedLinkAttrs0.put("context_headers", "tracecontext");
-    assertEquals(expectedLinkAttrs0, links.get(0).get("attributes"));
+    V1SpanLink firstLink = links.get(0);
+    assertArrayEquals(traceIdBytes(firstLinkTraceId), firstLink.getTraceId());
+    assertEquals(firstLinkSpanId, firstLink.getSpanId());
+    assertEquals("dd=s:1", firstLink.getTraceState());
+    assertEquals(1L, firstLink.getTraceFlags());
+    assertEquals(firstLinkAttributes, firstLink.getAttributes());
 
-    assertArrayEquals(
-        traceIdBytes(DDTraceId.fromHex("00000000000000000000000000000001")),
-        (byte[]) links.get(1).get("traceId"));
-    assertEquals(DDSpanId.fromHex("0000000000000002"), links.get(1).get("spanId"));
-    assertEquals("", links.get(1).get("tracestate"));
-    assertEquals(0L, links.get(1).get("flags"));
-    assertEquals(Collections.emptyMap(), links.get(1).get("attributes"));
+    V1SpanLink secondLink = links.get(1);
+    assertArrayEquals(traceIdBytes(secondLinkTraceId), secondLink.getTraceId());
+    assertEquals(secondLinkSpanId, secondLink.getSpanId());
+    assertEquals("", secondLink.getTraceState());
+    assertEquals(0L, secondLink.getTraceFlags());
+    assertEquals(emptyMap(), secondLink.getAttributes());
   }
 
   @Test
-  void testFirstSpanTagsAreProcessedOnce() {
-    CountingPojoSpan firstSpan =
-        new CountingPojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.singletonMap(Tags.HTTP_URL, "http://localhost:7777/"),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
+  void firstSpanTagsAreProcessedOnce() {
+    CountingPojoSpan firstSpan = new CountingPojoSpan("operation-a", "resource-a", 123L, 0L);
+    CountingPojoSpan secondSpan = new CountingPojoSpan("operation-b", "resource-b", 456L, 123L);
+    List<PojoSpan> trace = new ArrayList<>();
+    trace.add(firstSpan);
+    trace.add(secondSpan);
 
-    CountingPojoSpan secondSpan =
-        new CountingPojoSpan(
-            "service-a",
-            "operation-b",
-            "resource-b",
-            DDTraceId.ONE,
-            456L,
-            123L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.singletonMap(Tags.HTTP_URL, "http://localhost:7777/"),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-
-    serializeMappedPayload(mapper, Collections.singletonList(Arrays.asList(firstSpan, secondSpan)));
+    serializeV1Payload(trace);
 
     assertEquals(1, firstSpan.processTagsAndBaggageCount);
     assertEquals(1, secondSpan.processTagsAndBaggageCount);
   }
 
   @Test
-  void testMissingSpanLinksEncodeEmptyLinks() throws IOException {
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
+  void missingSpanLinksEncodeEmptyLinks() throws IOException {
+    byte[] encoded = serializeV1Payload(span(emptyMap()));
 
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    List<Map<String, Object>> links = readFirstSpanLinks(unpacker, stringTable);
-
-    assertTrue(links.isEmpty());
+    assertTrue(readFirstSpan(encoded).getLinks().isEmpty());
   }
 
   @Test
-  void testSpanEventsAreEncodedFromEventsTag() throws IOException {
-    Map<String, Object> eventOneAttrs = new HashMap<>();
-    eventOneAttrs.put("str", "v");
-    eventOneAttrs.put("int", 42L);
-    eventOneAttrs.put("double", 12.5d);
-    eventOneAttrs.put("bool", true);
-    eventOneAttrs.put("arr", Arrays.asList("x", 7L, 2.5d, false));
+  void spanEventsAreEncodedFromEventsTag() throws IOException {
+    Map<String, Object> firstEventAttributes = new HashMap<>();
+    firstEventAttributes.put("str", "v");
+    firstEventAttributes.put("int", 42L);
+    firstEventAttributes.put("double", 12.5d);
+    firstEventAttributes.put("bool", true);
+    firstEventAttributes.put("arr", asList("x", 7L, 2.5d, false));
+    Map<String, Object> firstEvent = new HashMap<>();
+    firstEvent.put("time_unix_nano", 1234567890L);
+    firstEvent.put("name", "event.one");
+    firstEvent.put("attributes", firstEventAttributes);
+    Map<String, Object> secondEvent = new HashMap<>();
+    secondEvent.put("time_unix_nano", 1234567891L);
+    secondEvent.put("name", "event.two");
+    PojoSpan span = span(singletonMap(SPAN_EVENTS, asList(firstEvent, secondEvent)));
 
-    Map<String, Object> eventOne = new HashMap<>();
-    eventOne.put("time_unix_nano", 1234567890L);
-    eventOne.put("name", "event.one");
-    eventOne.put("attributes", eventOneAttrs);
-
-    Map<String, Object> eventTwo = new HashMap<>();
-    eventTwo.put("time_unix_nano", 1234567891L);
-    eventTwo.put("name", "event.two");
-
-    Map<String, Object> tags =
-        Collections.singletonMap("events", Arrays.asList(eventOne, eventTwo));
-
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            tags,
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    List<Map<String, Object>> events = readFirstSpanEvents(unpacker, stringTable);
+    List<V1SpanEvent> events = readFirstSpan(serializeV1Payload(span)).getEvents();
 
     assertEquals(2, events.size());
-    assertEquals(1234567890L, events.get(0).get("timeUnixNano"));
-    assertEquals("event.one", events.get(0).get("name"));
-    Map<String, Object> decodedAttrs0 = (Map<String, Object>) events.get(0).get("attributes");
-    assertEquals("v", decodedAttrs0.get("str"));
-    assertEquals(42L, decodedAttrs0.get("int"));
-    assertEquals(12.5d, ((Number) decodedAttrs0.get("double")).doubleValue(), 0.000001d);
-    assertEquals(true, decodedAttrs0.get("bool"));
-    assertEquals(Arrays.<Object>asList("x", 7L, 2.5d, false), decodedAttrs0.get("arr"));
+    V1SpanEvent firstDecodedEvent = events.get(0);
+    assertEquals(1234567890L, firstDecodedEvent.getTimeUnixNano());
+    assertEquals("event.one", firstDecodedEvent.getName());
+    Map<String, Object> firstDecodedAttributes = firstDecodedEvent.getAttributes();
+    assertEquals("v", firstDecodedAttributes.get("str"));
+    assertEquals(42L, firstDecodedAttributes.get("int"));
+    assertAttributeValueEquals(12.5d, firstDecodedAttributes.get("double"), "double");
+    assertEquals(true, firstDecodedAttributes.get("bool"));
+    assertEquals(asList("x", 7L, 2.5d, false), firstDecodedAttributes.get("arr"));
 
-    assertEquals(1234567891L, events.get(1).get("timeUnixNano"));
-    assertEquals("event.two", events.get(1).get("name"));
-    assertEquals(Collections.emptyMap(), events.get(1).get("attributes"));
+    V1SpanEvent secondDecodedEvent = events.get(1);
+    assertEquals(1234567891L, secondDecodedEvent.getTimeUnixNano());
+    assertEquals("event.two", secondDecodedEvent.getName());
+    assertEquals(emptyMap(), secondDecodedEvent.getAttributes());
   }
 
   @Test
-  void testMalformedSpanEventsFallBackToEmptyEvents() throws IOException {
-    Map<String, Object> malformedEvent = Collections.singletonMap("foo", "bar");
-    Map<String, Object> tags = Collections.singletonMap("events", malformedEvent);
+  void malformedSpanEventsFallBackToEmptyEvents() throws IOException {
+    // a map instead of the expected list of events
+    PojoSpan span = span(singletonMap(SPAN_EVENTS, singletonMap("foo", "bar")));
 
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            tags,
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    List<Map<String, Object>> events = readFirstSpanEvents(unpacker, stringTable);
-
-    assertTrue(events.isEmpty());
+    assertTrue(readFirstSpan(serializeV1Payload(span)).getEvents().isEmpty());
   }
 
   @Test
-  void testMetaStructIsEncodedAsBytesAttribute() throws IOException {
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            200,
-            null);
-
+  void metaStructIsEncodedAsBytesAttribute() throws IOException {
+    PojoSpan span = span(emptyMap());
     Map<String, Object> metaStructValue = new HashMap<>();
     metaStructValue.put("foo", "bar");
     metaStructValue.put("answer", 42L);
     span.setMetaStruct("meta_key", metaStructValue);
 
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable);
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
     byte[] metaStructBytes = (byte[]) attributes.get("meta_key");
-    MessageUnpacker metaStructUnpacker = MessagePack.newDefaultUnpacker(metaStructBytes);
-    int metaStructFieldCount = metaStructUnpacker.unpackMapHeader();
+    assertNotNull(metaStructBytes);
+
     Map<String, Object> decodedMetaStruct = new HashMap<>();
-    for (int i = 0; i < metaStructFieldCount; i++) {
-      String key = metaStructUnpacker.unpackString();
-      switch (metaStructUnpacker.getNextFormat().getValueType()) {
-        case INTEGER:
-          decodedMetaStruct.put(key, metaStructUnpacker.unpackLong());
-          break;
-        case STRING:
-          decodedMetaStruct.put(key, metaStructUnpacker.unpackString());
-          break;
-        default:
-          Assertions.fail("Unexpected meta_struct value type for key " + key);
+    try (MessageUnpacker metaStructUnpacker = MessagePack.newDefaultUnpacker(metaStructBytes)) {
+      int metaStructFieldCount = metaStructUnpacker.unpackMapHeader();
+      for (int i = 0; i < metaStructFieldCount; i++) {
+        String key = metaStructUnpacker.unpackString();
+        ValueType valueType = metaStructUnpacker.getNextFormat().getValueType();
+        switch (valueType) {
+          case INTEGER:
+            decodedMetaStruct.put(key, metaStructUnpacker.unpackLong());
+            break;
+          case STRING:
+            decodedMetaStruct.put(key, metaStructUnpacker.unpackString());
+            break;
+          default:
+            fail("Unexpected meta_struct value type for key " + key);
+        }
       }
     }
 
-    assertNotNull(metaStructBytes);
     assertEquals("bar", decodedMetaStruct.get("foo"));
     assertEquals(42L, decodedMetaStruct.get("answer"));
   }
 
   @Test
-  void testMapValuedSpanTagsAreFlattenedInV1Attributes() throws IOException {
-    Map<String, Object> profile = new HashMap<>();
-    profile.put("age", 30L);
-
-    Map<String, Object> usr = new HashMap<>();
-    usr.put("id", "123");
-    usr.put("name", "alice");
-    usr.put("authenticated", true);
-    usr.put("profile", profile);
-
-    Map<String, Object> metadata0 = new HashMap<>();
-    metadata0.put("event", "login");
-    metadata0.put("attempts", 1L);
-
-    Map<String, Object> metadata1 = new HashMap<>();
-    metadata1.put("blocked", false);
-
-    Map<String, Object> appsecEvents = new HashMap<>();
-    appsecEvents.put("metadata0", metadata0);
-    appsecEvents.put("metadata1", metadata1);
-
+  void mapValuedSpanTagsAreFlattenedInAttributes() throws IOException {
+    Map<String, Object> user = new HashMap<>();
+    user.put("id", "123");
+    user.put("name", "alice");
+    user.put("authenticated", true);
+    user.put("profile", singletonMap("age", 30L));
+    Map<String, Object> loginMetadata = new HashMap<>();
+    loginMetadata.put("event", "login");
+    loginMetadata.put("attempts", 1L);
+    Map<String, Object> loginSuccess = new HashMap<>();
+    loginSuccess.put("metadata0", loginMetadata);
+    loginSuccess.put("metadata1", singletonMap("blocked", false));
     Map<String, Object> tags = new HashMap<>();
-    tags.put("usr", usr);
-    tags.put("appsec.events.users.login.success", appsecEvents);
+    tags.put("usr", user);
+    String loginSuccessTag = "appsec.events.users.login.success";
+    tags.put(loginSuccessTag, loginSuccess);
 
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            tags,
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            0,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable);
-
-    assertTrue(attributes.containsKey("usr.id"));
-    assertTrue(attributes.containsKey("usr.name"));
-    assertTrue(attributes.containsKey("usr.authenticated"));
-    assertTrue(attributes.containsKey("usr.profile.age"));
-    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata0.event"));
-    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata0.attempts"));
-    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata1.blocked"));
+    // status code 0 keeps the encoder from adding an http.status_code attribute
+    Map<String, Object> attributes =
+        readFirstSpan(serializeV1Payload(span(tags, 0))).getAttributes();
 
     assertEquals("123", attributes.get("usr.id"));
     assertEquals("alice", attributes.get("usr.name"));
     assertEquals(true, attributes.get("usr.authenticated"));
-    assertEquals(30d, ((Number) attributes.get("usr.profile.age")).doubleValue(), 0.000001d);
-    assertEquals("login", attributes.get("appsec.events.users.login.success.metadata0.event"));
-    assertEquals(
-        1d,
-        ((Number) attributes.get("appsec.events.users.login.success.metadata0.attempts"))
-            .doubleValue(),
-        0.000001d);
-    assertEquals(false, attributes.get("appsec.events.users.login.success.metadata1.blocked"));
+    assertAttributeValueEquals(30L, attributes.get("usr.profile.age"), "usr.profile.age");
+    assertEquals("login", attributes.get(loginSuccessTag + ".metadata0.event"));
+    assertAttributeValueEquals(
+        1L, attributes.get(loginSuccessTag + ".metadata0.attempts"), "attempts");
+    assertEquals(false, attributes.get(loginSuccessTag + ".metadata1.blocked"));
+    // the 7 flattened entries plus thread.id and thread.name, and nothing else
+    assertEquals(9, attributes.size());
 
+    // the map-valued tags themselves are replaced by their flattened entries
     assertFalse(attributes.containsKey("usr"));
-    assertFalse(attributes.containsKey("appsec.events.users.login.success"));
+    assertFalse(attributes.containsKey(loginSuccessTag));
   }
 
   @Test
-  void testPrimitiveSpanTagsAreEncodedInV1Attributes() throws IOException {
+  void primitiveSpanTagsAreEncodedInAttributes() throws IOException {
     Map<String, Object> tags = new HashMap<>();
     tags.put("tag.bool", true);
     tags.put("tag.int", 7);
@@ -730,87 +501,43 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     tags.put("tag.float", 3.5f);
     tags.put("tag.double", 4.25d);
 
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            tags,
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            0,
-            null);
-
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
-
-    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable);
+    // status code 0 keeps the encoder from adding an http.status_code attribute
+    Map<String, Object> attributes =
+        readFirstSpan(serializeV1Payload(span(tags, 0))).getAttributes();
 
     assertEquals(true, attributes.get("tag.bool"));
-    assertEquals(7d, ((Number) attributes.get("tag.int")).doubleValue(), 0.000001d);
-    assertEquals(9d, ((Number) attributes.get("tag.long")).doubleValue(), 0.000001d);
-    assertEquals(3.5d, ((Number) attributes.get("tag.float")).doubleValue(), 0.000001d);
-    assertEquals(4.25d, ((Number) attributes.get("tag.double")).doubleValue(), 0.000001d);
+    assertAttributeValueEquals(7, attributes.get("tag.int"), "tag.int");
+    assertAttributeValueEquals(9L, attributes.get("tag.long"), "tag.long");
+    assertAttributeValueEquals(3.5f, attributes.get("tag.float"), "tag.float");
+    assertAttributeValueEquals(4.25d, attributes.get("tag.double"), "tag.double");
+    // the 5 tags plus thread.id and thread.name, and nothing else
+    assertEquals(7, attributes.size());
   }
 
   @Test
-  void testThreadMetadataIsEncodedInV1Attributes() throws IOException {
-    TraceGenerator.PojoSpan span =
-        new TraceGenerator.PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "web",
-            false,
-            PrioritySampling.SAMPLER_KEEP,
-            0,
-            null);
+  void threadMetadataIsEncodedInAttributes() throws IOException {
+    // status code 0 keeps the encoder from adding an http.status_code attribute
+    PojoSpan span = span(emptyMap(), 0);
 
-    TraceMapperV1 mapper = new TraceMapperV1();
-    byte[] encoded =
-        serializeMappedPayload(mapper, Collections.singletonList(Collections.singletonList(span)));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
-    List<String> stringTable = new ArrayList<>();
-    stringTable.add("");
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
 
-    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable);
-
-    assertAttributeValueEquals(
-        span.getTag(DDTags.THREAD_ID), attributes.get(DDTags.THREAD_ID), DDTags.THREAD_ID);
-    assertEquals(span.getTag(DDTags.THREAD_NAME).toString(), attributes.get(DDTags.THREAD_NAME));
+    assertAttributeValueEquals(span.getTag(THREAD_ID), attributes.get(THREAD_ID), THREAD_ID);
+    Object expectedThreadName = span.getTag(THREAD_NAME);
+    assertEquals(expectedThreadName.toString(), attributes.get(THREAD_NAME));
+    // thread metadata is all a tagless span encodes
+    assertEquals(2, attributes.size());
   }
 
-  // --- Inner classes ---
+  private static final class PayloadVerifier implements ByteBufferConsumer {
 
-  private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
-
-    private final List<List<TraceGenerator.PojoSpan>> expectedTraces;
+    private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV1 mapper;
-    private ByteBuffer captured = ByteBuffer.allocate(200 << 10);
+    private final PayloadVerifiers.CapturingChannel channel =
+        new PayloadVerifiers.CapturingChannel(200 << 10);
+
     private int position = 0;
 
-    private PayloadVerifier(
-        List<List<TraceGenerator.PojoSpan>> expectedTraces, TraceMapperV1 mapper) {
+    private PayloadVerifier(List<List<PojoSpan>> expectedTraces, TraceMapperV1 mapper) {
       this.expectedTraces = expectedTraces;
       this.mapper = mapper;
     }
@@ -826,181 +553,49 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
       }
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer);
-        payload.writeTo(this);
-        captured.flip();
-
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured);
-        if (messageCount == 0) {
-          assertEquals(0, unpacker.unpackMapHeader());
-          return;
-        }
-
-        List<String> stringTable = new ArrayList<>();
-        stringTable.add("");
-
-        int payloadFieldCount = unpacker.unpackMapHeader();
-        assertEquals(10, payloadFieldCount);
-
-        boolean seenChunks = false;
-        for (int i = 0; i < payloadFieldCount; i++) {
-          int fieldId = unpacker.unpackInt();
-          if (fieldId == 11) {
-            int traceCount = unpacker.unpackArrayHeader();
-            assertEquals(messageCount, traceCount);
-            seenChunks = true;
-            for (int traceIndex = 0; traceIndex < traceCount; traceIndex++) {
-              List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++);
-              verifyChunk(unpacker, expectedTrace, stringTable);
-            }
-          } else {
-            skipPayloadField(unpacker, fieldId, stringTable);
+        payload.writeTo(channel);
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(channel.flipForReading())) {
+          if (messageCount == 0) {
+            assertEquals(0, unpacker.unpackMapHeader());
+            return;
           }
-        }
 
-        assertTrue(seenChunks);
+          List<String> stringTable = newStringTable();
+          int payloadFieldCount = unpacker.unpackMapHeader();
+          assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
+
+          boolean seenChunks = false;
+          for (int i = 0; i < payloadFieldCount; i++) {
+            int fieldId = unpacker.unpackInt();
+            if (fieldId == PayloadField.CHUNKS) {
+              int traceCount = unpacker.unpackArrayHeader();
+              assertEquals(messageCount, traceCount);
+              seenChunks = true;
+              for (int traceIndex = 0; traceIndex < traceCount; traceIndex++) {
+                verifyChunk(unpacker, expectedTraces.get(position++), stringTable);
+              }
+            } else {
+              skipPayloadField(unpacker, fieldId, stringTable);
+            }
+          }
+
+          assertTrue(seenChunks);
+        }
       } catch (IOException e) {
-        Assertions.fail(e.getMessage());
+        fail(e.getMessage());
       } finally {
         mapper.reset();
-        captured.position(0);
-        captured.limit(captured.capacity());
+        channel.resetForWriting();
       }
-    }
-
-    @Override
-    public int write(ByteBuffer src) {
-      if (captured.remaining() < src.remaining()) {
-        ByteBuffer newBuffer = ByteBuffer.allocate(captured.capacity() + src.remaining());
-        captured.flip();
-        newBuffer.put(captured);
-        captured = newBuffer;
-        return write(src);
-      }
-      captured.put(src);
-      return src.position();
     }
 
     void verifyTracesConsumed() {
       assertEquals(expectedTraces.size(), position);
     }
-
-    @Override
-    public boolean isOpen() {
-      return true;
-    }
-
-    @Override
-    public void close() {}
   }
-
-  private static class CountingPojoSpan extends TraceGenerator.PojoSpan {
-    int processTagsAndBaggageCount = 0;
-
-    CountingPojoSpan(
-        String serviceName,
-        String operationName,
-        CharSequence resourceName,
-        DDTraceId traceId,
-        long spanId,
-        long parentId,
-        long start,
-        long duration,
-        int error,
-        Map<String, String> baggage,
-        Map<String, Object> tags,
-        CharSequence type,
-        boolean measured,
-        int samplingPriority,
-        int statusCode,
-        CharSequence origin) {
-      super(
-          serviceName,
-          operationName,
-          resourceName,
-          traceId,
-          spanId,
-          parentId,
-          start,
-          duration,
-          error,
-          baggage,
-          tags,
-          type,
-          measured,
-          samplingPriority,
-          statusCode,
-          origin);
-    }
-
-    @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
-      processTagsAndBaggageCount++;
-      super.processTagsAndBaggage(consumer);
-    }
-  }
-
-  private static class ByteArrayChannel implements WritableByteChannel {
-    private byte[] data = new byte[0];
-
-    @Override
-    public int write(ByteBuffer src) {
-      int len = src.remaining();
-      byte[] incoming = new byte[len];
-      src.get(incoming);
-      byte[] combined = new byte[data.length + incoming.length];
-      System.arraycopy(data, 0, combined, 0, data.length);
-      System.arraycopy(incoming, 0, combined, data.length, incoming.length);
-      data = combined;
-      return len;
-    }
-
-    byte[] bytes() {
-      return data;
-    }
-
-    @Override
-    public boolean isOpen() {
-      return true;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  private static class CapturedBody implements ByteBufferConsumer {
-    private final TraceMapperV1 mapper;
-    private byte[] payloadBytes;
-
-    private CapturedBody(TraceMapperV1 mapper) {
-      this.mapper = mapper;
-    }
-
-    @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
-      Payload payload = mapper.newPayload().withBody(messageCount, buffer);
-      payloadBytes = serializePayload(payload);
-      mapper.reset();
-    }
-  }
-
-  /** Subclass to expose SpanLink's protected constructor for testing. */
-  private static class TestSpanLink extends SpanLink {
-    TestSpanLink(
-        DDTraceId traceId,
-        long spanId,
-        byte traceFlags,
-        String traceState,
-        SpanAttributes attributes) {
-      super(traceId, spanId, traceFlags, traceState, attributes);
-    }
-  }
-
-  // --- Helper methods ---
 
   private static void verifyChunk(
-      MessageUnpacker unpacker,
-      List<TraceGenerator.PojoSpan> expectedTrace,
-      List<String> stringTable)
+      MessageUnpacker unpacker, List<PojoSpan> expectedTrace, List<String> stringTable)
       throws IOException {
     int chunkFieldCount = unpacker.unpackMapHeader();
     assertEquals(6, chunkFieldCount);
@@ -1010,64 +605,54 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     Map<String, Object> chunkAttributes = null;
     byte[] traceId = null;
     Integer samplingMechanism = null;
-    List<TraceGenerator.PojoSpan> decodedSpans = null;
+    boolean seenSpans = false;
 
     for (int i = 0; i < chunkFieldCount; i++) {
       int fieldId = unpacker.unpackInt();
       switch (fieldId) {
-        case 1:
+        case ChunkField.PRIORITY:
           priority = unpacker.unpackInt();
           break;
-        case 2:
+        case ChunkField.ORIGIN:
           origin = readStreamingString(unpacker, stringTable);
           break;
-        case 3:
+        case ChunkField.ATTRIBUTES:
           chunkAttributes = readAttributes(unpacker, stringTable);
           break;
-        case 4:
-          decodedSpans = verifySpans(unpacker, expectedTrace, stringTable);
+        case ChunkField.SPANS:
+          verifySpans(unpacker, expectedTrace, stringTable);
+          seenSpans = true;
           break;
-        case 6:
-          int traceIdLen = unpacker.unpackBinaryHeader();
-          traceId = new byte[traceIdLen];
-          unpacker.readPayload(traceId);
+        case ChunkField.TRACE_ID:
+          traceId = readBinary(unpacker);
           break;
-        case 7:
+        case ChunkField.SAMPLING_MECHANISM:
           samplingMechanism = unpacker.unpackInt();
           break;
         default:
-          Assertions.fail("Unexpected chunk field id: " + fieldId);
+          fail("Unexpected chunk field id: " + fieldId);
       }
     }
 
     assertNotNull(priority);
     assertNotNull(origin);
     assertNotNull(chunkAttributes);
-    assertNotNull(decodedSpans);
+    assertTrue(seenSpans);
     assertNotNull(traceId);
     assertNotNull(samplingMechanism);
 
-    TraceGenerator.PojoSpan firstSpan = expectedTrace.get(0);
-    assertEquals(firstSpan.samplingPriority(), (int) priority);
+    PojoSpan firstSpan = expectedTrace.get(0);
+    assertEquals(firstSpan.samplingPriority(), priority.intValue());
     assertEqualsWithNullAsEmpty(firstSpan.getOrigin(), origin);
     assertEquals(1, chunkAttributes.size());
     assertEqualsWithNullAsEmpty(
         firstSpan.getLocalRootSpan().getServiceName(), (String) chunkAttributes.get("service"));
     assertArrayEquals(traceIdBytes(firstSpan.getTraceId()), traceId);
-    assertEquals(expectedSamplingMechanism(firstSpan.getTags()), (int) samplingMechanism);
+    assertEquals(expectedSamplingMechanism(firstSpan.getBaggage()), samplingMechanism.intValue());
   }
 
-  private static byte[] traceIdBytes(DDTraceId traceId) {
-    return ByteBuffer.allocate(16)
-        .putLong(traceId.toHighOrderLong())
-        .putLong(traceId.toLong())
-        .array();
-  }
-
-  private static List<TraceGenerator.PojoSpan> verifySpans(
-      MessageUnpacker unpacker,
-      List<TraceGenerator.PojoSpan> expectedTrace,
-      List<String> stringTable)
+  private static void verifySpans(
+      MessageUnpacker unpacker, List<PojoSpan> expectedTrace, List<String> stringTable)
       throws IOException {
     int spanCount = unpacker.unpackArrayHeader();
     assertEquals(expectedTrace.size(), spanCount);
@@ -1075,23 +660,23 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     for (int i = 0; i < spanCount; i++) {
       verifySpan(unpacker, expectedTrace.get(i), stringTable);
     }
-    return expectedTrace;
   }
 
   private static void verifySpan(
-      MessageUnpacker unpacker, TraceGenerator.PojoSpan expectedSpan, List<String> stringTable)
+      MessageUnpacker unpacker, PojoSpan expectedSpan, List<String> stringTable)
       throws IOException {
     int spanFieldCount = unpacker.unpackMapHeader();
-    assertEquals(16, spanFieldCount);
+    assertEquals(EXPECTED_SPAN_FIELD_IDS.size(), spanFieldCount);
 
+    Set<Integer> spanFieldsSeen = new HashSet<>();
     String service = null;
     String name = null;
     String resource = null;
-    Long spanId = null;
-    Long parentId = null;
-    Long start = null;
-    Long duration = null;
-    Boolean error = null;
+    long spanId = 0;
+    long parentId = 0;
+    long start = 0;
+    long duration = 0;
+    boolean error = false;
     Map<String, Object> attributes = null;
     String type = null;
     int linksCount = -1;
@@ -1099,96 +684,101 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     String env = null;
     String version = null;
     String component = null;
-    Integer spanKind = null;
+    int spanKind = -1;
 
     for (int i = 0; i < spanFieldCount; i++) {
       int fieldId = unpacker.unpackInt();
+      spanFieldsSeen.add(fieldId);
       switch (fieldId) {
-        case 1:
+        case SpanField.SERVICE:
           service = readStreamingString(unpacker, stringTable);
           break;
-        case 2:
+        case SpanField.NAME:
           name = readStreamingString(unpacker, stringTable);
           break;
-        case 3:
+        case SpanField.RESOURCE:
           resource = readStreamingString(unpacker, stringTable);
           break;
-        case 4:
+        case SpanField.SPAN_ID:
           spanId = unpackUnsignedLong(unpacker);
           break;
-        case 5:
+        case SpanField.PARENT_ID:
           parentId = unpackUnsignedLong(unpacker);
           break;
-        case 6:
+        case SpanField.START:
           start = unpacker.unpackLong();
           break;
-        case 7:
+        case SpanField.DURATION:
           duration = unpacker.unpackLong();
           break;
-        case 8:
+        case SpanField.ERROR:
           error = unpacker.unpackBoolean();
           break;
-        case 9:
+        case SpanField.ATTRIBUTES:
           attributes = readAttributes(unpacker, stringTable);
           break;
-        case 10:
+        case SpanField.TYPE:
           type = readStreamingString(unpacker, stringTable);
           break;
-        case 11:
+        case SpanField.LINKS:
           linksCount = unpacker.unpackArrayHeader();
           break;
-        case 12:
+        case SpanField.EVENTS:
           eventsCount = unpacker.unpackArrayHeader();
           break;
-        case 13:
+        case SpanField.ENV:
           env = readStreamingString(unpacker, stringTable);
           break;
-        case 14:
+        case SpanField.VERSION:
           version = readStreamingString(unpacker, stringTable);
           break;
-        case 15:
+        case SpanField.COMPONENT:
           component = readStreamingString(unpacker, stringTable);
           break;
-        case 16:
+        case SpanField.KIND:
           spanKind = unpacker.unpackInt();
           break;
         default:
-          Assertions.fail("Unexpected span field id: " + fieldId);
+          fail("Unexpected span field id: " + fieldId);
       }
     }
+
+    // A 16-entry map could still repeat one field id and omit another, which would leave a decoded
+    // value at its initial sentinel. Pinning the id set makes each field present exactly once, so
+    // the value assertions below cannot pass on an unwritten field (e.g. parentId 0, error false).
+    assertEquals(EXPECTED_SPAN_FIELD_IDS, spanFieldsSeen);
 
     assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), service);
     assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), name);
     assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resource);
-    assertEquals(expectedSpan.getSpanId(), (long) spanId);
-    assertEquals(expectedSpan.getParentId(), (long) parentId);
-    assertEquals(expectedSpan.getStartTime(), (long) start);
-    assertEquals(expectedSpan.getDurationNano(), (long) duration);
+    assertEquals(expectedSpan.getSpanId(), spanId);
+    assertEquals(expectedSpan.getParentId(), parentId);
+    assertEquals(expectedSpan.getStartTime(), start);
+    assertEquals(expectedSpan.getDurationNano(), duration);
     assertEquals(expectedSpan.getError() != 0, error);
     assertEqualsWithNullAsEmpty(expectedSpan.getType(), type);
     assertEquals(0, linksCount);
     assertEquals(0, eventsCount);
-    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.ENV), env);
-    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.VERSION), version);
-    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.COMPONENT), component);
-    assertEquals(
-        TraceMapperV1.getSpanKindValue(expectedSpan.getTag(Tags.SPAN_KIND)), (int) spanKind);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(ENV), env);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(VERSION), version);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(COMPONENT), component);
+    assertEquals(TraceMapperV1.getSpanKindValue(expectedSpan.getTag(SPAN_KIND)), spanKind);
 
     assertNotNull(attributes);
     int expectedHttpStatusCode = expectedSpan.getHttpStatusCode();
     boolean shouldContainHttpStatus =
-        expectedHttpStatusCode != 0 && !expectedSpan.getTags().containsKey("http.status_code");
+        expectedHttpStatusCode != 0 && !expectedSpan.getTags().containsKey(HTTP_STATUS);
     Map<String, Object> expectedAttributes = new HashMap<>(expectedSpan.getBaggage());
-    expectedAttributes.put(DDTags.THREAD_ID, expectedSpan.getTag(DDTags.THREAD_ID));
-    expectedAttributes.put(DDTags.THREAD_NAME, expectedSpan.getTag(DDTags.THREAD_NAME));
+    expectedAttributes.put(THREAD_ID, expectedSpan.getTag(THREAD_ID));
+    expectedAttributes.put(THREAD_NAME, expectedSpan.getTag(THREAD_NAME));
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
-      if (DDTags.SPAN_EVENTS.equals(entry.getKey())) {
+      if (SPAN_EVENTS.equals(entry.getKey())) {
         continue;
       }
       addFlattenedExpectedAttribute(expectedAttributes, entry.getKey(), entry.getValue());
     }
     if (shouldContainHttpStatus) {
-      expectedAttributes.put("http.status_code", Integer.toString(expectedHttpStatusCode));
+      expectedAttributes.put(HTTP_STATUS, Integer.toString(expectedHttpStatusCode));
     }
     if (expectedSpan.isTopLevel()) {
       expectedAttributes.put(InstrumentationTags.DD_TOP_LEVEL.toString(), 1d);
@@ -1197,45 +787,9 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     assertEquals(expectedAttributes.size(), attributes.size());
     for (Map.Entry<String, Object> entry : expectedAttributes.entrySet()) {
       String key = entry.getKey();
-      Object expectedValue = entry.getValue();
       assertTrue(attributes.containsKey(key), "Missing attribute key: " + key);
-      assertAttributeValueEquals(expectedValue, attributes.get(key), key);
+      assertAttributeValueEquals(entry.getValue(), attributes.get(key), key);
     }
-  }
-
-  private static Map<String, Object> readAttributes(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int attrArraySize = unpacker.unpackArrayHeader();
-    assertEquals(0, attrArraySize % 3);
-    int attrCount = attrArraySize / 3;
-
-    Map<String, Object> attributes = new HashMap<>();
-    for (int i = 0; i < attrCount; i++) {
-      String key = readStreamingString(unpacker, stringTable);
-      int attrType = unpacker.unpackInt();
-      Object value;
-      switch (attrType) {
-        case TraceMapperV1.VALUE_TYPE_STRING:
-          value = readStreamingString(unpacker, stringTable);
-          break;
-        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
-          value = unpacker.unpackBoolean();
-          break;
-        case TraceMapperV1.VALUE_TYPE_FLOAT:
-          value = unpacker.unpackDouble();
-          break;
-        case TraceMapperV1.VALUE_TYPE_BYTES:
-          int len = unpacker.unpackBinaryHeader();
-          byte[] data = new byte[len];
-          unpacker.readPayload(data);
-          value = data;
-          break;
-        default:
-          value = Assertions.fail("Unknown attribute value type: " + attrType);
-      }
-      attributes.put(key, value);
-    }
-    return attributes;
   }
 
   private static void assertAttributeValueEquals(Object expected, Object actual, String key) {
@@ -1252,14 +806,6 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     }
   }
 
-  private static long unpackUnsignedLong(MessageUnpacker unpacker) throws IOException {
-    MessageFormat format = unpacker.getNextFormat();
-    if (format == MessageFormat.UINT64) {
-      return DDSpanId.from(unpacker.unpackBigInteger().toString());
-    }
-    return unpacker.unpackLong();
-  }
-
   private static void addFlattenedExpectedAttribute(
       Map<String, Object> expectedAttributes, String key, Object value) {
     if (!(value instanceof Map)) {
@@ -1272,549 +818,162 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     }
   }
 
-  private static int expectedSamplingMechanism(Map<String, Object> tags) {
-    Object decisionMakerRaw = tags.get("_dd.p.dm");
-    if (decisionMakerRaw == null) {
+  private static int expectedSamplingMechanism(Map<String, String> propagationMetadata) {
+    String decisionMaker = propagationMetadata.get(DECISION_MAKER_TAG);
+    if (decisionMaker == null) {
       return SamplingMechanism.DEFAULT;
     }
 
-    String decisionMaker = String.valueOf(decisionMakerRaw);
     try {
-      int value = Integer.parseInt(decisionMaker);
-      return value < 0 ? -value : value;
+      return Math.abs(Integer.parseInt(decisionMaker));
     } catch (NumberFormatException ignored) {
       int separator = decisionMaker.lastIndexOf('-');
       if (separator >= 0 && separator + 1 < decisionMaker.length()) {
         try {
-          int value = Integer.parseInt(decisionMaker.substring(separator + 1));
-          return value < 0 ? -value : value;
+          return Math.abs(Integer.parseInt(decisionMaker.substring(separator + 1)));
         } catch (NumberFormatException ignoredAgain) {
-          // fall through
+          // not a mechanism suffix either, fall through to the default
         }
       }
       return SamplingMechanism.DEFAULT;
     }
   }
 
-  private static String readStreamingString(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    MessageFormat format = unpacker.getNextFormat();
-    if (format == FIXSTR || format == STR8 || format == STR16 || format == STR32) {
-      String value = unpacker.unpackString();
-      if (!stringTable.contains(value)) {
-        stringTable.add(value);
-      }
-      return value;
-    }
-
-    int index = unpacker.unpackInt();
-    assertTrue(index >= 0 && index < stringTable.size(), "Invalid string-table index: " + index);
-    return stringTable.get(index);
+  /** Asserts the next value is encoded as an unsigned 64-bit integer, and returns it. */
+  private static long unpackUint64(MessageUnpacker unpacker) throws IOException {
+    assertEquals(MessageFormat.UINT64, unpacker.getNextFormat());
+    return unpackUnsignedLong(unpacker);
   }
 
-  private static void skipPayloadField(
-      MessageUnpacker unpacker, int fieldId, List<String> stringTable) throws IOException {
-    switch (fieldId) {
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-      case 6:
-      case 7:
-      case 8:
-      case 9:
-        readStreamingString(unpacker, stringTable);
-        break;
-      case 10:
-        readAttributes(unpacker, stringTable);
-        break;
-      default:
-        Assertions.fail("Unexpected payload field id while skipping: " + fieldId);
-    }
+  private static byte[] serializeV1Payload(PojoSpan span) {
+    return serializeV1Payload(singletonList(span));
   }
 
-  private static void skipChunkField(
-      MessageUnpacker unpacker, int fieldId, List<String> stringTable) throws IOException {
-    switch (fieldId) {
-      case 1:
-        unpacker.unpackInt();
-        break;
-      case 2:
-        readStreamingString(unpacker, stringTable);
-        break;
-      case 3:
-        readAttributes(unpacker, stringTable);
-        break;
-      case 4:
-        int spanCount = unpacker.unpackArrayHeader();
-        for (int i = 0; i < spanCount; i++) {
-          skipSpan(unpacker, stringTable);
-        }
-        break;
-      case 5:
-        unpacker.unpackBoolean();
-        break;
-      case 6:
-        int len = unpacker.unpackBinaryHeader();
-        byte[] ignored = new byte[len];
-        unpacker.readPayload(ignored);
-        break;
-      case 7:
-        unpacker.unpackInt();
-        break;
-      default:
-        Assertions.fail("Unexpected chunk field id while skipping: " + fieldId);
-    }
-  }
-
-  private static void skipSpan(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    int fieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < fieldCount; i++) {
-      int fieldId = unpacker.unpackInt();
-      switch (fieldId) {
-        case 1:
-        case 2:
-        case 3:
-        case 10:
-        case 13:
-        case 14:
-        case 15:
-          readStreamingString(unpacker, stringTable);
-          break;
-        case 4:
-        case 5:
-          unpacker.unpackValue().asNumberValue().toLong();
-          break;
-        case 6:
-        case 7:
-          unpacker.unpackLong();
-          break;
-        case 8:
-          unpacker.unpackBoolean();
-          break;
-        case 9:
-          int attrArraySize = unpacker.unpackArrayHeader();
-          int attrCount = attrArraySize / 3;
-          for (int j = 0; j < attrCount; j++) {
-            readStreamingString(unpacker, stringTable);
-            int type = unpacker.unpackInt();
-            switch (type) {
-              case TraceMapperV1.VALUE_TYPE_STRING:
-                readStreamingString(unpacker, stringTable);
-                break;
-              case TraceMapperV1.VALUE_TYPE_BOOLEAN:
-                unpacker.unpackBoolean();
-                break;
-              case TraceMapperV1.VALUE_TYPE_FLOAT:
-                unpacker.unpackDouble();
-                break;
-              case TraceMapperV1.VALUE_TYPE_BYTES:
-                int blen = unpacker.unpackBinaryHeader();
-                byte[] bignored = new byte[blen];
-                unpacker.readPayload(bignored);
-                break;
-              default:
-                Assertions.fail("Unexpected attribute type while skipping: " + type);
-            }
-          }
-          break;
-        case 11:
-        case 12:
-          unpacker.unpackArrayHeader();
-          break;
-        case 16:
-          unpacker.unpackInt();
-          break;
-        default:
-          Assertions.fail("Unexpected span field id while skipping: " + fieldId);
-      }
-    }
-  }
-
-  private static Map<String, Object> readFirstSpanAttributes(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId != 11) {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
-        continue;
-      }
-
-      int chunkCount = unpacker.unpackArrayHeader();
-      assertEquals(1, chunkCount);
-
-      int chunkFieldCount = unpacker.unpackMapHeader();
-      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
-        int chunkFieldId = unpacker.unpackInt();
-        if (chunkFieldId != 4) {
-          skipChunkField(unpacker, chunkFieldId, stringTable);
-          continue;
-        }
-
-        int spanCount = unpacker.unpackArrayHeader();
-        assertEquals(1, spanCount);
-
-        int spanFieldCount = unpacker.unpackMapHeader();
-        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
-          int spanFieldId = unpacker.unpackInt();
-          if (spanFieldId == 9) {
-            return readAttributes(unpacker, stringTable);
-          }
-          skipSpanField(unpacker, spanFieldId, stringTable);
-        }
-      }
-    }
-    return Assertions.fail("Could not find span attributes field in first span");
-  }
-
-  private static List<Map<String, Object>> readFirstSpanLinks(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId != 11) {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
-        continue;
-      }
-
-      int chunkCount = unpacker.unpackArrayHeader();
-      assertEquals(1, chunkCount);
-
-      int chunkFieldCount = unpacker.unpackMapHeader();
-      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
-        int chunkFieldId = unpacker.unpackInt();
-        if (chunkFieldId != 4) {
-          skipChunkField(unpacker, chunkFieldId, stringTable);
-          continue;
-        }
-
-        int spanCount = unpacker.unpackArrayHeader();
-        assertEquals(1, spanCount);
-
-        int spanFieldCount = unpacker.unpackMapHeader();
-        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
-          int spanFieldId = unpacker.unpackInt();
-          if (spanFieldId == 11) {
-            return readSpanLinks(unpacker, stringTable);
-          }
-          skipSpanField(unpacker, spanFieldId, stringTable);
-        }
-      }
-    }
-    return Assertions.fail("Could not find span links field in first span");
-  }
-
-  private static void skipSpanField(MessageUnpacker unpacker, int fieldId, List<String> stringTable)
-      throws IOException {
-    switch (fieldId) {
-      case 1:
-      case 2:
-      case 3:
-      case 10:
-      case 13:
-      case 14:
-      case 15:
-        readStreamingString(unpacker, stringTable);
-        break;
-      case 4:
-      case 5:
-        unpacker.unpackValue().asNumberValue().toLong();
-        break;
-      case 6:
-      case 7:
-        unpacker.unpackLong();
-        break;
-      case 8:
-        unpacker.unpackBoolean();
-        break;
-      case 9:
-        readAttributes(unpacker, stringTable);
-        break;
-      case 12:
-        int eventsCount = unpacker.unpackArrayHeader();
-        for (int j = 0; j < eventsCount; j++) {
-          skipSpanEvent(unpacker, stringTable);
-        }
-        break;
-      case 11:
-        int linksCount = unpacker.unpackArrayHeader();
-        for (int j = 0; j < linksCount; j++) {
-          int linkFieldCount = unpacker.unpackMapHeader();
-          for (int k = 0; k < linkFieldCount; k++) {
-            int linkFieldId = unpacker.unpackInt();
-            switch (linkFieldId) {
-              case 1:
-                int traceIdLen = unpacker.unpackBinaryHeader();
-                byte[] traceIdIgnored = new byte[traceIdLen];
-                unpacker.readPayload(traceIdIgnored);
-                break;
-              case 2:
-              case 5:
-                unpacker.unpackValue().asNumberValue().toLong();
-                break;
-              case 3:
-                readAttributes(unpacker, stringTable);
-                break;
-              case 4:
-                readStreamingString(unpacker, stringTable);
-                break;
-              default:
-                Assertions.fail("Unexpected span link field id while skipping: " + linkFieldId);
-            }
-          }
-        }
-        break;
-      case 16:
-        unpacker.unpackInt();
-        break;
-      default:
-        Assertions.fail("Unexpected span field id while skipping: " + fieldId);
-    }
-  }
-
-  private static List<Map<String, Object>> readSpanLinks(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int linksCount = unpacker.unpackArrayHeader();
-    List<Map<String, Object>> links = new ArrayList<>();
-
-    for (int i = 0; i < linksCount; i++) {
-      int linkFieldCount = unpacker.unpackMapHeader();
-      assertEquals(5, linkFieldCount);
-
-      byte[] traceId = null;
-      Long spanId = null;
-      Map<String, Object> attributes = null;
-      String tracestate = null;
-      Long flags = null;
-
-      for (int j = 0; j < linkFieldCount; j++) {
-        int linkFieldId = unpacker.unpackInt();
-        switch (linkFieldId) {
-          case 1:
-            int traceIdLen = unpacker.unpackBinaryHeader();
-            traceId = new byte[traceIdLen];
-            unpacker.readPayload(traceId);
-            break;
-          case 2:
-            spanId = unpacker.unpackValue().asNumberValue().toLong();
-            break;
-          case 3:
-            attributes = readAttributes(unpacker, stringTable);
-            break;
-          case 4:
-            tracestate = readStreamingString(unpacker, stringTable);
-            break;
-          case 5:
-            flags = unpacker.unpackValue().asNumberValue().toLong();
-            break;
-          default:
-            Assertions.fail("Unexpected span link field id: " + linkFieldId);
-        }
-      }
-
-      Map<String, Object> link = new HashMap<>();
-      link.put("traceId", traceId);
-      link.put("spanId", spanId);
-      link.put("attributes", attributes);
-      link.put("tracestate", tracestate);
-      link.put("flags", flags);
-      links.add(link);
-    }
-
-    return links;
-  }
-
-  private static List<Map<String, Object>> readFirstSpanEvents(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId != 11) {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
-        continue;
-      }
-
-      int chunkCount = unpacker.unpackArrayHeader();
-      assertEquals(1, chunkCount);
-
-      int chunkFieldCount = unpacker.unpackMapHeader();
-      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
-        int chunkFieldId = unpacker.unpackInt();
-        if (chunkFieldId != 4) {
-          skipChunkField(unpacker, chunkFieldId, stringTable);
-          continue;
-        }
-
-        int spanCount = unpacker.unpackArrayHeader();
-        assertEquals(1, spanCount);
-
-        int spanFieldCount = unpacker.unpackMapHeader();
-        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
-          int spanFieldId = unpacker.unpackInt();
-          if (spanFieldId == 12) {
-            return readSpanEvents(unpacker, stringTable);
-          }
-          skipSpanField(unpacker, spanFieldId, stringTable);
-        }
-      }
-    }
-    return Assertions.fail("Could not find span events field in first span");
-  }
-
-  private static List<Map<String, Object>> readSpanEvents(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int eventsCount = unpacker.unpackArrayHeader();
-    List<Map<String, Object>> events = new ArrayList<>();
-
-    for (int i = 0; i < eventsCount; i++) {
-      int eventFieldCount = unpacker.unpackMapHeader();
-      assertEquals(3, eventFieldCount);
-
-      Long timeUnixNano = null;
-      String name = null;
-      Map<String, Object> attributes = null;
-
-      for (int j = 0; j < eventFieldCount; j++) {
-        int eventFieldId = unpacker.unpackInt();
-        switch (eventFieldId) {
-          case 1:
-            timeUnixNano = unpacker.unpackLong();
-            break;
-          case 2:
-            name = readStreamingString(unpacker, stringTable);
-            break;
-          case 3:
-            attributes = readEventAttributes(unpacker, stringTable);
-            break;
-          default:
-            Assertions.fail("Unexpected span event field id: " + eventFieldId);
-        }
-      }
-
-      Map<String, Object> event = new HashMap<>();
-      event.put("timeUnixNano", timeUnixNano);
-      event.put("name", name);
-      event.put("attributes", attributes);
-      events.add(event);
-    }
-    return events;
-  }
-
-  private static Map<String, Object> readEventAttributes(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int attrArraySize = unpacker.unpackArrayHeader();
-    assertEquals(0, attrArraySize % 3);
-    int attrCount = attrArraySize / 3;
-    Map<String, Object> attributes = new HashMap<>();
-
-    for (int i = 0; i < attrCount; i++) {
-      String key = readStreamingString(unpacker, stringTable);
-      int attrType = unpacker.unpackInt();
-      Object value;
-      switch (attrType) {
-        case TraceMapperV1.VALUE_TYPE_STRING:
-          value = readStreamingString(unpacker, stringTable);
-          break;
-        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
-          value = unpacker.unpackBoolean();
-          break;
-        case TraceMapperV1.VALUE_TYPE_FLOAT:
-          value = unpacker.unpackDouble();
-          break;
-        case TraceMapperV1.VALUE_TYPE_INT:
-          value = unpacker.unpackLong();
-          break;
-        case TraceMapperV1.VALUE_TYPE_ARRAY:
-          value = readEventArrayValue(unpacker, stringTable);
-          break;
-        default:
-          value = Assertions.fail("Unknown event attribute value type: " + attrType);
-      }
-      attributes.put(key, value);
-    }
-    return attributes;
-  }
-
-  private static List<Object> readEventArrayValue(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
-    int itemArraySize = unpacker.unpackArrayHeader();
-    assertEquals(0, itemArraySize % 2);
-    int itemCount = itemArraySize / 2;
-    List<Object> values = new ArrayList<>();
-    for (int i = 0; i < itemCount; i++) {
-      int itemType = unpacker.unpackInt();
-      switch (itemType) {
-        case TraceMapperV1.VALUE_TYPE_STRING:
-          values.add(readStreamingString(unpacker, stringTable));
-          break;
-        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
-          values.add(unpacker.unpackBoolean());
-          break;
-        case TraceMapperV1.VALUE_TYPE_FLOAT:
-          values.add(unpacker.unpackDouble());
-          break;
-        case TraceMapperV1.VALUE_TYPE_INT:
-          values.add(unpacker.unpackLong());
-          break;
-        default:
-          Assertions.fail("Unknown event array item type: " + itemType);
-      }
-    }
-    return values;
-  }
-
-  private static void skipSpanEvent(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    int fieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < fieldCount; i++) {
-      int fieldId = unpacker.unpackInt();
-      switch (fieldId) {
-        case 1:
-          unpacker.unpackLong();
-          break;
-        case 2:
-          readStreamingString(unpacker, stringTable);
-          break;
-        case 3:
-          readEventAttributes(unpacker, stringTable);
-          break;
-        default:
-          Assertions.fail("Unexpected event field id while skipping: " + fieldId);
-      }
-    }
-  }
-
-  private static byte[] serializeMappedPayload(
-      TraceMapperV1 mapper, List<List<TraceGenerator.PojoSpan>> traces) {
+  /** Maps a single trace and returns the complete v1 payload bytes. */
+  private static byte[] serializeV1Payload(List<PojoSpan> trace) {
+    TraceMapperV1 mapper = new TraceMapperV1();
     CapturedBody capturedBody = new CapturedBody(mapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(2 << 20, capturedBody));
 
-    for (List<TraceGenerator.PojoSpan> trace : traces) {
-      assertTrue(packer.format(trace, mapper));
-    }
+    assertTrue(packer.format(trace, mapper));
     packer.flush();
 
     assertNotNull(capturedBody.payloadBytes);
     return capturedBody.payloadBytes;
   }
 
-  private static byte[] serializePayload(Payload payload) {
-    ByteArrayChannel channel = new ByteArrayChannel();
-    try {
-      payload.writeTo(channel);
-    } catch (IOException e) {
-      Assertions.fail(e.getMessage());
-    }
-    return channel.bytes();
+  private static PojoSpan span(Map<String, Object> tags) {
+    return span(123L, 0L, emptyMap(), tags, 200, emptyList());
   }
 
-  private static void assertEqualsWithNullAsEmpty(CharSequence expected, String actual) {
-    if (expected == null) {
-      assertEquals("", actual);
-    } else {
-      assertEquals(expected.toString(), actual);
+  private static PojoSpan span(Map<String, Object> tags, int statusCode) {
+    return span(123L, 0L, emptyMap(), tags, statusCode, emptyList());
+  }
+
+  private static PojoSpan spanWithBaggage(Map<String, String> baggage) {
+    return span(123L, 0L, baggage, emptyMap(), 200, emptyList());
+  }
+
+  private static PojoSpan spanWithIds(long spanId, long parentId) {
+    return span(spanId, parentId, emptyMap(), emptyMap(), 200, emptyList());
+  }
+
+  private static PojoSpan spanWithLinks(List<AgentSpanLink> spanLinks) {
+    return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks);
+  }
+
+  /** A span carrying the fields shared by most tests; only the varying pieces are parameters. */
+  private static PojoSpan span(
+      long spanId,
+      long parentId,
+      Map<String, String> baggage,
+      Map<String, Object> tags,
+      int statusCode,
+      List<AgentSpanLink> spanLinks) {
+    return new PojoSpan(
+        "service-a",
+        "operation-a",
+        "resource-a",
+        DDTraceId.ONE,
+        spanId,
+        parentId,
+        1000L,
+        2000L,
+        0,
+        baggage,
+        tags,
+        "web",
+        false,
+        SAMPLER_KEEP,
+        statusCode,
+        null,
+        spanLinks);
+  }
+
+  private static final class CapturedBody implements ByteBufferConsumer {
+    private final TraceMapperV1 mapper;
+    private byte[] payloadBytes;
+
+    private CapturedBody(TraceMapperV1 mapper) {
+      this.mapper = mapper;
+    }
+
+    @Override
+    public void accept(int messageCount, ByteBuffer buffer) {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try {
+        Payload payload = mapper.newPayload().withBody(messageCount, buffer);
+        payload.writeTo(Channels.newChannel(out));
+        payloadBytes = out.toByteArray();
+      } catch (IOException e) {
+        fail("Failed to serialize the v1 payload: " + e.getMessage());
+      } finally {
+        mapper.reset();
+      }
+    }
+  }
+
+  /** A span counting how many times its tags and baggage were handed to the mapper. */
+  private static final class CountingPojoSpan extends PojoSpan {
+    private int processTagsAndBaggageCount = 0;
+
+    private CountingPojoSpan(
+        String operationName, CharSequence resourceName, long spanId, long parentId) {
+      super(
+          "service-a",
+          operationName,
+          resourceName,
+          DDTraceId.ONE,
+          spanId,
+          parentId,
+          1000L,
+          2000L,
+          0,
+          emptyMap(),
+          singletonMap(HTTP_URL, "http://localhost:7777/"),
+          "web",
+          false,
+          SAMPLER_KEEP,
+          200,
+          null);
+    }
+
+    @Override
+    public void processTagsAndBaggage(MetadataConsumer consumer) {
+      processTagsAndBaggageCount++;
+      super.processTagsAndBaggage(consumer);
+    }
+  }
+
+  /** {@link SpanLink}'s constructor is protected, so tests reach it through a subclass. */
+  private static final class TestSpanLink extends SpanLink {
+    private TestSpanLink(
+        DDTraceId traceId,
+        long spanId,
+        byte traceFlags,
+        String traceState,
+        SpanAttributes attributes) {
+      super(traceId, spanId, traceFlags, traceState, attributes);
     }
   }
 }

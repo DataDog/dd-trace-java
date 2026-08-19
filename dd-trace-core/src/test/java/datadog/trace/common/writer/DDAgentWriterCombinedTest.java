@@ -36,7 +36,7 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.util.Collections;

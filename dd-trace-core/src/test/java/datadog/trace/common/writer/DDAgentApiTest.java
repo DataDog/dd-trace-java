@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.ProtocolVersion;
+import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.writer.RemoteApi.Response;
@@ -37,7 +40,6 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -53,6 +55,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Assertions;
@@ -561,6 +564,50 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       @SuppressWarnings("unchecked")
       Map<String, Object> actualMeta2 = mapper.readValue(metaStruct.get("meta_2"), Map.class);
       assertEquals(meta2, actualMeta2);
+    } finally {
+      agent.close();
+    }
+  }
+
+  @TableTest({
+    "scenario                                   | otlpSpanMetrics | nativeMetrics | expectedComputesStats",
+    "gap case: OTLP span metrics on, native off | true            | false         | true                 ",
+    "neither pipeline computes stats            | false           | false         | false                ",
+    "native stats on (regression guard)         | false           | true          | true                 ",
+    "both on                                    | true            | true          | true                 "
+  })
+  void testDatadogClientComputedStatsHeaderSetWhenEitherStatsPipelineIsEnabled(
+      boolean otlpSpanMetrics, boolean nativeMetrics, boolean expectedComputesStats) {
+    datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig(
+        OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED, String.valueOf(otlpSpanMetrics));
+
+    JavaTestHttpServer agent =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(h -> h.put("v0.4/traces", api -> api.getResponse().status(200).send())));
+    try {
+      HttpUrl agentUrl = HttpUrl.get(agent.getAddress().toString());
+
+      // Mock feature discovery so the native-stats pipeline signal can be controlled independently
+      // of what the (embedded) agent advertises. supportsMetrics() reflects agent-side client
+      // stats support.
+      DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+      when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+      when(discovery.supportsMetrics()).thenReturn(nativeMetrics);
+      when(discovery.state()).thenReturn(null);
+
+      OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
+      // nativeMetrics is the constructor flag WriterFactory sets from
+      // Config.isTracerMetricsEnabled().
+      DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, nativeMetrics);
+      Payload payload = prepareTraces("v0.4/traces", emptyList());
+
+      Response clientResponse = api.sendSerializedTraces(payload);
+
+      assertTrue(clientResponse.success());
+      assertEquals(
+          expectedComputesStats,
+          "true".equals(agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Stats")));
     } finally {
       agent.close();
     }
