@@ -437,15 +437,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
       }
 
       // write meta (11)
-      // agent_attribution merges pagent_span_id + pagent_name into one map entry; if both tags
-      // are present subtract 1 so the pre-declared map size stays accurate.
+      // pagent_name is always emitted inside agent_attribution (never standalone), so subtract 1
+      // whenever it is in the map regardless of whether pagent_span_id is also present.
       int metaSize =
           tagsToRemapToMeta.size()
               - (hasInputPrompt ? 1 : 0)
               + (inputPrompt != null && !hasInput ? 1 : 0)
               + 1
               + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
-              - (hasAgentAttribution && hasAgentAttributionName ? 1 : 0);
+              - (hasAgentAttributionName ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
