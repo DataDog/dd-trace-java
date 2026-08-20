@@ -302,7 +302,15 @@ public final class StringIndex {
       throw new IllegalStateException("table full"); // impossible at LF <= 0.5
     }
 
-    /** Probe; returns the slot or -1. Raw arrays — no Data, no instance. */
+    /**
+     * Probe; returns the slot or -1. Raw arrays — no Data, no instance.
+     *
+     * @param h {@code name}'s hash, precomputed by the caller (skips a recomputation when the
+     *     caller already has it, e.g. hashing once to probe several tables). Must be {@link
+     *     #hash(String)}'s exact output for {@code name} — a plain {@code name.hashCode()} (no
+     *     spread) or any other value silently degrades probing or masks a real match as a miss.
+     *     Prefer {@link #indexOf(int[], String[], String)} unless you already have the hash.
+     */
     public static int indexOf(int[] hashes, String[] names, String name, int h) {
       final int mask = hashes.length - 1;
       int i = h & mask;
