@@ -42,9 +42,16 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
   static final MonitoringImpl monitoring =
       new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
 
-  // Groovy baseline: v0.5 ~5.5s, v0.4 ~1.3s; Java has higher mock overhead so use 30s timeout
-  @Timeout(30)
-  @TableTest({"scenario | traceEndpoint", "v0.5     | 'v0.5/traces'", "v0.4     | 'v0.4/traces'"})
+  // Groovy baseline: v0.5 ~5.5s, v0.4 ~1.3s;
+  // Java has higher mock overhead, especially on first call, so use 60s timeout
+  @Timeout(60)
+  // spotless:off
+  @TableTest({
+      "scenario | traceEndpoint",
+      "v0.5     | 'v0.5/traces'",
+      "v0.4     | 'v0.4/traces'"
+  })
+  // spotless:on
   void testFlushAutomaticallyWhenDataLimitIsBreached(String traceEndpoint) throws Exception {
     AtomicBoolean flushed = new AtomicBoolean();
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
