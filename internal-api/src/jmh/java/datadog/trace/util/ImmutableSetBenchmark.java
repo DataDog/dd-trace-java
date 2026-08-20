@@ -37,10 +37,11 @@ import org.openjdk.jmh.annotations.Warmup;
  *       flat/immutable set comparison.
  *   <li>{@code stringIndex} — {@link StringIndex#contains} on the instance wrapper (one field load
  *       to reach the placed arrays, then an open-addressed probe).
- *   <li>{@code support} — the same probe via {@link StringIndex.EmbeddingSupport#indexOf} over
- *       {@code static final} arrays, so the JIT folds the refs to constants and there is nothing to
- *       dereference (the hot path StringIndex recommends). The {@code stringIndex}/{@code support}
- *       pair shows the indirection cost of the wrapper.
+ *   <li>{@code stringIndex_embedded} — the same probe via {@link
+ *       StringIndex.EmbeddingSupport#indexOf} over {@code static final} arrays, so the JIT folds
+ *       the refs to constants and there is nothing to dereference (the hot path StringIndex
+ *       recommends). The {@code stringIndex}/{@code stringIndex_embedded} pair shows the
+ *       indirection cost of the wrapper.
  * </ul>
  *
  * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
@@ -50,27 +51,27 @@ import org.openjdk.jmh.annotations.Warmup;
  * millions):
  *
  * <pre>{@code
- * Structure              hit     miss
- * support (static)      2320     2159    (fastest)
- * hashSet               2198     2134
- * stringIndex (inst)    2098     1548 *  (* miss bimodal -- see caveat)
- * tracerImmutableSet    1914     1663    (Set.copyOf / SetN)
- * array                  941      589
- * sortedArray            685      610
- * treeSet                657      610
+ * Structure                    hit     miss
+ * stringIndex_embedded (static) 2320     2159    (fastest)
+ * hashSet                      2198     2134
+ * stringIndex (inst)           2098     1548 *  (* miss bimodal -- see caveat)
+ * tracerImmutableSet           1914     1663    (Set.copyOf / SetN)
+ * array                         941      589
+ * sortedArray                   685      610
+ * treeSet                       657      610
  * }</pre>
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>The static {@code Support} path is the fastest — it beats {@code HashSet} on hit and miss
- *       and crushes the scan/search/tree forms.
- *   <li>{@code stringIndex} (the instance wrapper) trails {@code Support} by the field-load
- *       indirection (~10% on hit), landing near {@code HashSet} — fine off the hot path, prefer
- *       {@code Support} on it.
+ *   <li>The static {@code EmbeddingSupport} path is the fastest — it beats {@code HashSet} on hit
+ *       and miss and crushes the scan/search/tree forms.
+ *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
+ *       field-load indirection (~10% on hit), landing near {@code HashSet} — fine off the hot path,
+ *       prefer {@code EmbeddingSupport} on it.
  *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) is ~1.2x
- *       behind {@code Support} on hit but the most <i>compact</i> (~27% smaller — no cached hashes,
- *       no 2x table). So StringIndex's edge over {@code SetN} is speed + the {@code
+ *       behind {@code EmbeddingSupport} on hit but the most <i>compact</i> (~27% smaller — no
+ *       cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed + the {@code
  *       indexOf}-&gt;parallel-array capability, not footprint; over {@code HashSet} it wins both.
  *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail the hashed structures, most on
  *       miss.
@@ -78,12 +79,12 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
  * {@code @Fork(10)}: 6 forks fast, 4 slow, nothing between). ~60% of forks compile to a fast mode
- * (~2000, ≈ {@code support_miss} — the wrapper indirection is then free) and ~40% to a slow mode
- * (~1070, ~half); each fork locks one at warmup. So the {@code 1548 ±27%} above is a mode-mix, not
- * noise. Cause: C2 hoists the instance field-loads ({@code this.hashes}/{@code names}) out of the
- * miss-path probe loop only in the fast mode; the static {@code Support} path const-folds those
- * refs and is never bimodal ({@code support_miss} ±0.3%). Prefer {@code Support} where miss latency
- * matters.
+ * (~2000, ≈ {@code stringIndex_embedded_miss} — the wrapper indirection is then free) and ~40% to a
+ * slow mode (~1070, ~half); each fork locks one at warmup. So the {@code 1548 ±27%} above is a
+ * mode-mix, not noise. Cause: C2 hoists the instance field-loads ({@code this.hashes}/{@code
+ * names}) out of the miss-path probe loop only in the fast mode; the static {@code
+ * EmbeddingSupport} path const-folds those refs and is never bimodal ({@code
+ * stringIndex_embedded_miss} ±0.3%). Prefer {@code EmbeddingSupport} where miss latency matters.
  */
 @Fork(5) // 5 forks settle the bimodal stringIndex_miss / interface-dispatch arms (see header)
 @Warmup(iterations = 2)
@@ -107,10 +108,10 @@ public class ImmutableSetBenchmark {
     return misses;
   }
 
-  // StringIndex static-Support mode: the placed arrays pulled into static final fields, so the JIT
-  // folds the refs to constants and Support.indexOf has nothing to dereference (the hot path the
-  // StringIndex class Javadoc recommends). Contrast support_* (these) with stringIndex_* (the
-  // instance wrapper, one field load) to see the indirection cost.
+  // StringIndex static-EmbeddingSupport mode: the placed arrays pulled into static final fields, so
+  // the JIT folds the refs to constants and EmbeddingSupport.indexOf has nothing to dereference
+  // (the hot path the StringIndex class Javadoc recommends). Contrast stringIndex_embedded_*
+  // (these) with stringIndex_* (the instance wrapper, one field load) to see the indirection cost.
   static final int[] SI_HASHES;
   static final String[] SI_NAMES;
 
@@ -234,12 +235,12 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
-  public boolean support_hit(Cursor cursor) {
+  public boolean stringIndex_embedded_hit(Cursor cursor) {
     return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
   }
 
   @Benchmark
-  public boolean support_miss(Cursor cursor) {
+  public boolean stringIndex_embedded_miss(Cursor cursor) {
     return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
   }
 }

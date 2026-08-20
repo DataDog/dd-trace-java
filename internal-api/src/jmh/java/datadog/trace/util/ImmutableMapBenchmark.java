@@ -35,9 +35,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>Also compared: {@link StringIndex} used as a string-&gt;int map — an open-addressed index plus
  * a slot-aligned {@code int[]} of values ({@code SI_VALUES[indexOf(key)]}). {@code
- * stringIndex_get*} goes through the instance wrapper; {@code support_get*} reads via {@code static
- * final} arrays (the JIT folds the refs). No {@code iterate} arm — StringIndex is a lookup index,
- * not an iteration structure; its map use case is the {@code indexOf}-&gt;parallel-array read.
+ * stringIndex_get*} goes through the instance wrapper; {@code stringIndex_embedded_get*} reads via
+ * {@code static final} arrays (the JIT folds the refs). No {@code iterate} arm — StringIndex is a
+ * lookup index, not an iteration structure; its map use case is the {@code
+ * indexOf}-&gt;parallel-array read.
  *
  * <p>Lookups use {@code EQUAL_KEYS} (distinct String instances) to exercise {@code equals()};
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
@@ -48,14 +49,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * key (the {@code ==} fast path — the common tracer case):
  *
  * <pre>{@code
- * Structure              get    sameKey
- * support (static)      1498     2081    (fastest)
- * stringIndex (inst)    1363     1900
- * hashMap               1216     1850
- * linkedHashMap         1214       -
- * tagMap                1167     1386
- * tracerImmutableMap    1049     1364    (MapN)
- * treeMap                656       -
+ * Structure                    get    sameKey
+ * stringIndex_embedded (static) 1498     2081    (fastest)
+ * stringIndex (inst)           1363     1900
+ * hashMap                      1216     1850
+ * linkedHashMap                1214       -
+ * tagMap                       1167     1386
+ * tracerImmutableMap           1049     1364    (MapN)
+ * treeMap                       656       -
  * }</pre>
  *
  * <p>{@code iterate} (full traversal):
@@ -72,10 +73,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Key findings:
  *
  * <ul>
- *   <li>StringIndex-as-map ({@code Support}) is the fastest {@code get} — beating {@code HashMap}
- *       and {@code Map.copyOf}/{@code MapN}, most on the interned path; the instance wrapper trails
- *       it by ~10%. (vs {@code MapN} the edge is speed + the slot/parallel-array capability, not
- *       footprint — see {@link ImmutableSetBenchmark}.)
+ *   <li>StringIndex-as-map ({@code EmbeddingSupport}) is the fastest {@code get} — beating {@code
+ *       HashMap} and {@code Map.copyOf}/{@code MapN}, most on the interned path; the instance
+ *       wrapper trails it by ~10%. (vs {@code MapN} the edge is speed + the slot/parallel-array
+ *       capability, not footprint — see {@link ImmutableSetBenchmark}.)
  *   <li>{@code TagMap.forEach} (148) beats its own {@code iterator} (96) by ~1.5x: TagMap's
  *       structure makes a faithful external {@code Iterator} expensive (externalized cursor +
  *       skip-empty + per-call re-entry + the iterator allocation) — all of which internal {@code
@@ -116,9 +117,10 @@ public class ImmutableMapBenchmark {
   }
 
   // StringIndex as a string->int map: an open-addressed index plus a slot-aligned int[] of values
-  // (VALUES[indexOf(key)]). support_* reads via static final arrays (JIT folds the refs to
-  // constants); stringIndex_* goes through the instance wrapper. Both share one placement --
-  // StringIndex.of and Support.create place identically -- so SI_VALUES aligns with either.
+  // (VALUES[indexOf(key)]). stringIndex_embedded_* reads via static final arrays (JIT folds the
+  // refs to constants); stringIndex_* goes through the instance wrapper. Both share one placement
+  // -- StringIndex.of and EmbeddingSupport.create place identically -- so SI_VALUES aligns with
+  // either.
   static final int[] SI_HASHES;
   static final String[] SI_NAMES;
   static final int[] SI_VALUES;
@@ -275,12 +277,12 @@ public class ImmutableMapBenchmark {
   }
 
   @Benchmark
-  public int support_get(Cursor cursor) {
+  public int stringIndex_embedded_get(Cursor cursor) {
     return SI_VALUES[StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey())];
   }
 
   @Benchmark
-  public int support_get_sameKey(Cursor cursor) {
+  public int stringIndex_embedded_get_sameKey(Cursor cursor) {
     return SI_VALUES[
         StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey(INSERTION_KEYS))];
   }
