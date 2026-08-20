@@ -19,6 +19,7 @@ public class LLMObs {
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
+  private static final Object SPAN_PROCESSOR_LOCK = new Object();
   @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
   protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
       NoOpLLMObsFeedbackProcessor.INSTANCE;
@@ -81,19 +82,23 @@ public class LLMObs {
    * @throws NullPointerException if {@code processor} is {@code null}
    * @throws IllegalStateException if a processor is already registered
    */
-  public static synchronized void registerProcessor(LLMObsSpanProcessor processor) {
+  public static void registerProcessor(LLMObsSpanProcessor processor) {
     Objects.requireNonNull(processor, "processor");
-    if (SPAN_PROCESSOR != null) {
-      throw new IllegalStateException(
-          "An LLM Observability span processor is already registered. "
-              + "Deregister it before registering another.");
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      if (SPAN_PROCESSOR != null) {
+        throw new IllegalStateException(
+            "An LLM Observability span processor is already registered. "
+                + "Deregister it before registering another.");
+      }
+      SPAN_PROCESSOR = processor;
     }
-    SPAN_PROCESSOR = processor;
   }
 
   /** Deregisters the current LLM Observability span processor, if one is registered. */
-  public static synchronized void deregisterProcessor() {
-    SPAN_PROCESSOR = null;
+  public static void deregisterProcessor() {
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      SPAN_PROCESSOR = null;
+    }
   }
 
   public static void SubmitEvaluation(
