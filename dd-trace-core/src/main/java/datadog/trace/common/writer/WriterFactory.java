@@ -134,7 +134,7 @@ public class WriterFactory {
       }
     }
 
-    RemoteWriter remoteWriter;
+    Writer remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
       final RemoteApi remoteApi =
@@ -215,6 +215,25 @@ public class WriterFactory {
       }
 
       remoteWriter = builder.build();
+
+      // DDAgentWriter only speaks the regular trace protocol, so LLM Observability spans
+      // (tagged with DDSpanTypes.LLMOBS) need their own track sent via the EVP proxy -- without
+      // this, they're silently dropped by the agent/extension instead of reaching LLM Obs
+      // intake. Flush this track synchronously too when the primary writer is (i.e. in a
+      // serverless environment), so spans aren't lost when the execution environment freezes.
+      if (config.isLlmObsEnabled()) {
+        final RemoteApi llmObsApi =
+            createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
+        final DDIntakeWriter llmObsWriter =
+            DDIntakeWriter.builder()
+                .addTrack(TrackType.LLMOBS, llmObsApi)
+                .healthMetrics(healthMetrics)
+                .monitoring(commObjects.monitoring)
+                .alwaysFlush(alwaysFlush)
+                .flushIntervalMilliseconds(flushIntervalMilliseconds)
+                .build();
+        remoteWriter = new MultiWriter(new Writer[] {remoteWriter, llmObsWriter});
+      }
     }
 
     return remoteWriter;
