@@ -760,8 +760,10 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
         int insertionSlot,
         @Nonnull Object key,
         @Nonnull Object value) {
-      // Same null-value invariant as setOrReject; insertAt is a separate spine write path that does
-      // not flow through it, so it needs its own guard.
+      // Same null-key/null-value invariant as setOrReject; insertAt is a separate spine write path
+      // that does not flow through it, so it needs its own guard. A null key would otherwise write
+      // a value reachable via containsValue but not via any key-based lookup -- a retention bug.
+      Objects.requireNonNull(key, "key");
       Objects.requireNonNull(value, "value");
       if (mapData == null) {
         return newMapData(initialCapacity, key, value);

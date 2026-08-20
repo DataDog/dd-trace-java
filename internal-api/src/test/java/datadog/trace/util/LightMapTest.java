@@ -656,6 +656,24 @@ class LightMapTest {
     }
 
     @Test
+    void insertAtRejectsNullKey() {
+      assertThrows(
+          NullPointerException.class,
+          () ->
+              EmbeddingSupport.insertAt(
+                  4, null, EmbeddingSupport.SLOT_CAPACITY_REACHED, null, "A"));
+    }
+
+    @Test
+    void insertAtRejectsNullValue() {
+      assertThrows(
+          NullPointerException.class,
+          () ->
+              EmbeddingSupport.insertAt(
+                  4, null, EmbeddingSupport.SLOT_CAPACITY_REACHED, "a", null));
+    }
+
+    @Test
     void forEachStaticVisitsLiveEntries() {
       Object[] data = null;
       for (int i = 0; i < 6; i++) {
