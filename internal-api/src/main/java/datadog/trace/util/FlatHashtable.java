@@ -18,8 +18,17 @@ import javax.annotation.Nullable;
  * reference per slot: entry publication is a single reference store, so a reader sees {@code null}
  * or a complete entry (never a torn one), and {@code final} identity fields on the entry are
  * visible under racy publication. That sidesteps the memory-ordering / visibility problems parallel
- * key/hash/value arrays would create — no {@code volatile}, no atomics — as long as the payload is
- * one where a stale/lost read is benign (miss → recreate; clobber → one wins).
+ * key/hash/value arrays would create — no {@code volatile}, no atomics.
+ *
+ * <p><b>Concurrent use is racy by design, not lock-free-safe in general.</b> The single-reference
+ * guarantee above covers only the slot reference and an entry's {@code final} fields; a non-final
+ * payload field written after construction is <b>not</b> safely published by a racing {@link
+ * #getOrCreate}, and a freshly built entry that loses the slot race is discarded without ever being
+ * retained by the table. That is fine for build-then-publish usage (populate on one thread, e.g. a
+ * static-final table, then read from many) and for a payload where a stale/default read or a
+ * discarded race-loser is <b>benign</b> (miss → recreate; clobber → one wins). For concurrent
+ * <i>creation</i> of entries with meaningful post-construction state, keep entry state fully {@code
+ * final} — do not rely on this class for safe publication of mutable entry fields.
  *
  * <p><b>Bounded by construction</b> — and that is a feature, not just a limit. {@link #create}
  * takes a cardinality budget, so you cannot build one without deciding <i>how big it may get</i> —
@@ -531,6 +540,10 @@ public final class FlatHashtable {
 
     /**
      * Hash of {@code key}; defaults to {@code key.hashCode()} (the table applies its own spread).
+     * This default NPEs on a {@code null} key — unlike {@link D1.Entry}, which maps a {@code null}
+     * key to a dedicated hash sentinel, the raw core takes no position on {@code null} keys; a
+     * strategy that must support them overrides {@code hashKey} (and {@code matches}) to handle
+     * {@code null} itself.
      */
     default long hashKey(K key) {
       return key.hashCode();
