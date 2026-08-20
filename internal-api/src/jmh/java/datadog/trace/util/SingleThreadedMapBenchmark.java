@@ -31,11 +31,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * ConcurrentHashtable} / {@code ThreadSafeMap} suites. Running at {@code @Threads(8)} keeps
  * allocation / GC interactions visible without introducing lock contention.
  *
- * <p>{@code size} is swept via {@code @Param} ({@code 4, 8, 64, 256}) rather than fixed at one
- * count, so every benchmark runs once per size: 4 and 8 straddle {@code LightMap}'s {@code
- * DEFAULT_CAPACITY} seed, and 64/256 force multiple grows. Use this to see how the LightMap-vs-
- * HashMap comparison (construction cost, allocation, probe length) shifts as live entries grow,
- * rather than reading a single fixed-size snapshot as universal.
+ * <p>{@code size} is swept via {@code @Param} ({@code 4, 8, 16, 32, 64, 256}) rather than fixed at
+ * one count, so every benchmark runs once per size: 4 and 8 straddle {@code LightMap}'s {@code
+ * DEFAULT_CAPACITY} seed, 16/32 cover the small-map regime the primitive targets, and 64/256 force
+ * multiple grows well past it. Use this to see how the LightMap-vs-HashMap comparison (construction
+ * cost, allocation, probe length) shifts as live entries grow, rather than reading a single
+ * fixed-size snapshot as universal.
  *
  * <p>Comparing different Map types:
  *
@@ -145,8 +146,9 @@ public class SingleThreadedMapBenchmark {
 
   // Map size, swept so the LightMap-vs-HashMap comparison (construction cost, allocation, probe
   // length) can be read as a function of live entries rather than pinned to one arbitrarily chosen
-  // count. 4 and 8 straddle LightMap's DEFAULT_CAPACITY seed; 64 and 256 exercise multiple grows.
-  @Param({"4", "8", "64", "256"})
+  // count. 4 and 8 straddle LightMap's DEFAULT_CAPACITY seed; 16 and 32 cover the expected regime
+  // for a small map; 64 and 256 exercise multiple grows well past it.
+  @Param({"4", "8", "16", "32", "64", "256"})
   public int size;
 
   String[] insertionKeys;
