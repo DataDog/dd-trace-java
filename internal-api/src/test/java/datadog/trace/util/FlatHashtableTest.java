@@ -415,6 +415,19 @@ class FlatHashtableTest {
   }
 
   @Test
+  void grownLength_doublesNormally() {
+    assertEquals(8, FlatHashtable.grownLength(4));
+    assertEquals(1 << 30, FlatHashtable.grownLength(1 << 29));
+  }
+
+  @Test
+  void grownLength_rejectsOverflowingCurrentLength() {
+    // 1 << 30 doubled overflows a signed int -> clear error, not an opaque
+    // NegativeArraySizeException from Array.newInstance() deep inside resize()/grow().
+    assertThrows(IllegalStateException.class, () -> FlatHashtable.grownLength(1 << 30));
+  }
+
+  @Test
   void create_honorsLoadFactor() {
     TestEntry[] table = FlatHashtable.create(TestEntry.class, 4, FlatHashtable.LOW_LOAD_FACTOR);
     assertEquals(16, table.length);

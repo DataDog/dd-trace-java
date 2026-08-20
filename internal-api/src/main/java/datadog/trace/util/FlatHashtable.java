@@ -812,7 +812,23 @@ public final class FlatHashtable {
    */
   @SuppressWarnings("unchecked")
   private static <E> E[] allocateGrown(E[] table) {
-    return (E[]) Array.newInstance(table.getClass().getComponentType(), table.length << 1);
+    return (E[]) Array.newInstance(table.getClass().getComponentType(), grownLength(table.length));
+  }
+
+  /**
+   * {@code currentLength << 1}, guarded against overflow. {@code currentLength << 1} overflows to a
+   * negative value at {@code currentLength == 1 << 30}; without this check the failure surfaces as
+   * an opaque {@code NegativeArraySizeException} from {@code Array.newInstance} in {@link
+   * #allocateGrown}. Same overflow class as {@link #capacityFor}'s guard -- this is the growth-time
+   * counterpart.
+   */
+  static int grownLength(int currentLength) {
+    int grownLength = currentLength << 1;
+    if (grownLength <= 0) {
+      throw new IllegalStateException(
+          "cannot grow a table of length " + currentLength + " past Integer.MAX_VALUE");
+    }
+    return grownLength;
   }
 
   /**
