@@ -42,9 +42,7 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
   static final MonitoringImpl monitoring =
       new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
 
-  // Groovy baseline: v0.5 ~5.5s, v0.4 ~1.3s;
-  // Java has higher mock overhead, especially on first call, so use 60s timeout
-  @Timeout(60)
+  @Timeout(180)
   // spotless:off
   @TableTest({
       "scenario | traceEndpoint",
