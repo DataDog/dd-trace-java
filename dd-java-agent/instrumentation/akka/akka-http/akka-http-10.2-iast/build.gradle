@@ -1,5 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+}
 
 muzzle {
   pass {

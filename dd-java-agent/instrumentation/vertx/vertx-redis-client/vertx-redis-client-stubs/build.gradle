@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.conventions.java'
+}
 
 dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'

@@ -1,5 +1,7 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.call-site-instrumentation'
 }
 
 muzzle {
@@ -23,9 +25,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
