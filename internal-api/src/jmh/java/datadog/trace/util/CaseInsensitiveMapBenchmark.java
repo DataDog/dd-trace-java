@@ -18,7 +18,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *   Benchmark for the trade-offs around case-insensitive Map look-ups, comparing:
  *   <li>TreeMap with a {@code String::compareToIgnoreCase} comparator — allocation-free, O(log n)
  *   <li>HashMap keyed on {@code toLowerCase()} — O(1) but allocates a folded String per look-up
- *   <li>FlatHashtable with a {@link FlatHashtable.CaseInsensitiveStringKeyStrategy} — O(1) probe,
+ *   <li>FlatHashtable with a {@link FlatHashtable.CaseInsensitiveStringStrategy} — O(1) probe,
  *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
