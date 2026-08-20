@@ -84,7 +84,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         final DBInfo dbInfo = connectionContext.getDbInfo();
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
-        DECORATE.setServiceHashAction(connection, connectionContext);
+        final String oracleServiceHash =
+            DECORATE.setServiceHashAction(connection, connectionContext);
 
         if (INJECT_COMMENT && injectTraceContext) {
           if (DECORATE.isSqlServer(dbInfo)) {
@@ -112,7 +113,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, connectionContext);
         DECORATE.onPreparedStatement(span, queryInfo);
-        DECORATE.withBaseHash(span);
+        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
 
         return activateSpan(span);
       } catch (SQLException e) {

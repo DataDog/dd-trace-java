@@ -27,6 +27,7 @@ class TestConnection implements Connection {
   public int clientInfoSetCount
   public int clientInfoFailuresRemaining
   public boolean clientInfoUnsupported
+  public Runnable clientInfoSetCallback
 
   TestConnection(boolean throwException) {
     if (throwException) {
@@ -248,6 +249,7 @@ class TestConnection implements Connection {
     }
     clientInfoName = name
     clientInfoValue = value
+    clientInfoSetCallback?.run()
   }
 
   @Override

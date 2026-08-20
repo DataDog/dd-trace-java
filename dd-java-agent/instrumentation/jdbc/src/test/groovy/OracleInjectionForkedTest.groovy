@@ -160,6 +160,40 @@ class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestB
     connection.clientInfoSetCount == 2
   }
 
+  def "Oracle #statementType uses one BaseHash value for ACTION and the span"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    connection.clientInfoSetCallback = {
+      BaseHash.updateBaseHash(123456789L)
+    }
+
+    when:
+    if (prepared) {
+      connection.prepareStatement(query).execute()
+    } else {
+      connection.createStatement().executeQuery(query)
+    }
+
+    then:
+    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    BaseHash.getBaseHashStr() == "123456789"
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "-6937226773133363462"
+          }
+        }
+      }
+    }
+
+    where:
+    statementType        | prepared
+    "statement"          | false
+    "prepared statement" | true
+  }
+
   def "Oracle dynamic service mode initializes every connection with the same URL"() {
     setup:
     def firstConnection = createOracleConnection(serviceNameUrl)

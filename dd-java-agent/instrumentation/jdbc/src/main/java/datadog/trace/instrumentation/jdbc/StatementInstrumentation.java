@@ -96,7 +96,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
         final boolean isOracle = DECORATE.isOracle(dbInfo);
 
-        DECORATE.setServiceHashAction(connection, connectionContext);
+        final String oracleServiceHash =
+            DECORATE.setServiceHashAction(connection, connectionContext);
 
         if (INJECT_COMMENT && injectTraceContext) {
           if (isSqlServer) {
@@ -177,7 +178,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-        DECORATE.withBaseHash(span);
+        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

@@ -32,10 +32,13 @@ class JDBCConnectionContextTest {
     JDBCConnectionContext context = oracleContext();
 
     assertTrue(context.shouldSetOracleServiceHash("123"));
+    assertFalse(context.isOracleServiceHashSet("123"));
 
     context.markOracleServiceHashSet("123");
 
     assertFalse(context.shouldSetOracleServiceHash("123"));
+    assertTrue(context.isOracleServiceHashSet("123"));
+    assertFalse(context.isOracleServiceHashSet("456"));
     assertTrue(context.shouldSetOracleServiceHash("456"));
   }
 

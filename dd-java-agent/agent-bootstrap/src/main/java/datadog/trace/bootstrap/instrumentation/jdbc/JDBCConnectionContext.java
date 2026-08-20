@@ -30,6 +30,11 @@ public final class JDBCConnectionContext {
     return !oracleServiceActionUnsupported && !baseHash.equals(oracleServiceHash);
   }
 
+  /** Returns whether the given Oracle service hash was successfully applied to this connection. */
+  public boolean isOracleServiceHashSet(String baseHash) {
+    return baseHash.equals(oracleServiceHash);
+  }
+
   /** Records a successfully applied Oracle service hash. */
   public void markOracleServiceHashSet(String baseHash) {
     oracleServiceHash = baseHash;
