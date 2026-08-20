@@ -547,4 +547,27 @@ class FlatHashtableTest {
             table, "CONTENT-TYPE", TestCaseInsensitiveStrategy.INSTANCE, CREATE));
     assertNull(FlatHashtable.get(table, "content-length", TestCaseInsensitiveStrategy.INSTANCE));
   }
+
+  /**
+   * End-to-end regression for the supplementary-plane false-miss: a per-{@code char} hash fold
+   * hashed this pair differently even where {@code equalsIgnoreCase} treats them as equal (JDK 9+),
+   * so {@code get} would stop probing at the first empty slot and never find the stored entry.
+   * Folding by code point keeps the hash consistent with {@code matches}, so the lookup finds it.
+   * Guarded by {@code equalsIgnoreCase} itself so the test is correct on JDK 8 too, where the pair
+   * is merely a benign collision {@code matches} resolves to no match.
+   */
+  @Test
+  void caseInsensitiveStrategy_doesNotFalseMissOnSupplementaryCasePair() {
+    String s1 = new String(Character.toChars(0x10400)); // DESERET CAPITAL LETTER LONG I
+    String s2 = new String(Character.toChars(0x10428)); // DESERET SMALL LETTER LONG I
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry stored =
+        FlatHashtable.getOrCreate(table, s1, TestCaseInsensitiveStrategy.INSTANCE, CREATE);
+
+    if (s1.equalsIgnoreCase(s2)) {
+      assertSame(stored, FlatHashtable.get(table, s2, TestCaseInsensitiveStrategy.INSTANCE));
+    } else {
+      assertNull(FlatHashtable.get(table, s2, TestCaseInsensitiveStrategy.INSTANCE));
+    }
+  }
 }
