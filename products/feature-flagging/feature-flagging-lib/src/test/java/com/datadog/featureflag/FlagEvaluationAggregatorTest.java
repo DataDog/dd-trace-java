@@ -81,6 +81,110 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
+  void byteBudgetOverflowRoutesToDegradedTierAndReportsReason() {
+    final Map<String, Object> attrs = context(10, 16, 32);
+    final FlagEvalEvent event = event("byte-flag", "on", "alloc1", "user-1", 1000L, true, attrs);
+    final long fullBucketBytes =
+        FlagEvaluationMemoryEstimator.fullBucketBytes(
+            event, attrs, FlagEvaluationAggregator.canonicalContextKey(attrs));
+    final long degradedBucketBytes = FlagEvaluationMemoryEstimator.degradedBucketBytes(event);
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator(fullBucketBytes - 1);
+
+    aggregator.aggregate(event);
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertEquals(0, state.fullTier.size());
+    assertEquals(1, state.degradedTier.size());
+    assertEquals(1, state.degradedByteBudget);
+    assertEquals(0, state.degradedCardinalityCap);
+    assertEquals(0, state.droppedByteBudget);
+    assertEquals(degradedBucketBytes, state.retainedBytes);
+  }
+
+  @Test
+  void byteBudgetDropsNewDegradedBucketWhenNoSpaceRemains() {
+    final Map<String, Object> attrs = context(10, 16, 32);
+    final FlagEvalEvent event =
+        event("drop-byte-flag", "on", "alloc1", "user-1", 1000L, true, attrs);
+    final long degradedBucketBytes = FlagEvaluationMemoryEstimator.degradedBucketBytes(event);
+    final FlagEvaluationAggregator aggregator =
+        new FlagEvaluationAggregator(degradedBucketBytes - 1);
+
+    aggregator.aggregate(event);
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertTrue(state.fullTier.isEmpty());
+    assertTrue(state.degradedTier.isEmpty());
+    assertEquals(1, state.droppedByteBudget);
+    assertEquals(0, state.degradedByteBudget);
+    assertEquals(0, state.retainedBytes);
+  }
+
+  @Test
+  void existingBucketMergesWithoutReservingMoreBytes() {
+    final Map<String, Object> attrs = context(10, 16, 32);
+    final FlagEvalEvent event =
+        event("merge-byte-flag", "on", "alloc1", "user-1", 1000L, true, attrs);
+    final long fullBucketBytes =
+        FlagEvaluationMemoryEstimator.fullBucketBytes(
+            event, attrs, FlagEvaluationAggregator.canonicalContextKey(attrs));
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator(fullBucketBytes);
+
+    aggregator.aggregate(event);
+    aggregator.aggregate(event);
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertEquals(1, state.fullTier.size());
+    assertEquals(2, state.fullTier.values().iterator().next().count);
+    assertEquals(fullBucketBytes, state.retainedBytes);
+  }
+
+  @Test
+  void clearReleasesRetainedByteBudget() {
+    final FlagEvalEvent event = simpleEvent("clear-byte-flag", "on");
+    final long fullBucketBytes = FlagEvaluationMemoryEstimator.fullBucketBytes(event, null, "");
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator(fullBucketBytes);
+
+    aggregator.aggregate(event);
+    assertEquals(fullBucketBytes, aggregator.retainedBytes());
+
+    aggregator.clear();
+    assertEquals(0, aggregator.retainedBytes());
+    aggregator.aggregate(event);
+    assertEquals(1, aggregator.fullTierSize());
+  }
+
+  @Test
+  void estimatorCoversMeasuredJolProfiles() {
+    final Map<String, Object> typical = context(256, 16, 32);
+    final FlagEvalEvent typicalEvent =
+        event("flag", "on", "allocation", fixedLength("subject", 64), 1L, true, typical);
+    final Map<String, Object> maximum = context(256, 256, 256);
+    final FlagEvalEvent maximumEvent =
+        event("flag", "on", "allocation", fixedLength("subject", 64), 1L, true, maximum);
+    final FlagEvalEvent protectedEvent =
+        event("flag", "on", "allocation", fixedLength("subject", 64), 1L, false, maximum);
+    final Map<String, Object> nullValue = new HashMap<>();
+    nullValue.put("nullable", null);
+    final FlagEvalEvent nullValueEvent =
+        event("flag", "on", "allocation", "subject", 1L, true, nullValue);
+
+    assertTrue(
+        FlagEvaluationMemoryEstimator.fullBucketBytes(
+                typicalEvent, typical, FlagEvaluationAggregator.canonicalContextKey(typical))
+            >= 60_021);
+    assertTrue(
+        FlagEvaluationMemoryEstimator.fullBucketBytes(
+                maximumEvent, maximum, FlagEvaluationAggregator.canonicalContextKey(maximum))
+            >= 297_589);
+    assertTrue(FlagEvaluationMemoryEstimator.fullBucketBytes(protectedEvent, null, "") >= 253);
+    assertTrue(
+        FlagEvaluationMemoryEstimator.fullBucketBytes(
+                nullValueEvent, nullValue, FlagEvaluationAggregator.canonicalContextKey(nullValue))
+            > 0);
+  }
+
+  @Test
   void perFlagCapOverflowRoutesToDegradedTierAndMergesSameDegradedKey() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
     aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
@@ -201,6 +305,7 @@ class FlagEvaluationAggregatorTest {
     assertEquals(131_072, FlagEvaluationAggregator.GLOBAL_CAP);
     assertEquals(10_000, FlagEvaluationAggregator.PER_FLAG_CAP);
     assertEquals(32_768, FlagEvaluationAggregator.DEGRADED_CAP);
+    assertEquals(64L << 20, FlagEvaluationAggregator.RETAINED_BYTE_BUDGET);
   }
 
   @Test
@@ -392,6 +497,23 @@ class FlagEvaluationAggregatorTest {
 
   private static FlagEvalEvent simpleEvent(final String flagKey, final String variant) {
     return event(flagKey, variant, "alloc1", "user-1", 1000L, emptyMap());
+  }
+
+  private static Map<String, Object> context(
+      final int fieldCount, final int keyLength, final int valueLength) {
+    final Map<String, Object> attrs = new HashMap<>();
+    for (int field = 0; field < fieldCount; field++) {
+      attrs.put(fixedLength("key-" + field, keyLength), fixedLength("value-" + field, valueLength));
+    }
+    return attrs;
+  }
+
+  private static String fixedLength(final String prefix, final int length) {
+    final char[] value = new char[length];
+    final int prefixLength = Math.min(prefix.length(), length);
+    prefix.getChars(0, prefixLength, value, 0);
+    Arrays.fill(value, prefixLength, length, 'x');
+    return new String(value);
   }
 
   private static FlagEvaluationAggregator.FullKey fullKey(
