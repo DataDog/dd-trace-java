@@ -283,8 +283,10 @@ public final class StringIndex {
       return out;
     }
 
-    /** Build-time placement. Returns the slot. */
-    public static int put(int[] hashes, String[] names, String name, int h) {
+    /**
+     * Build-time placement. Returns the slot. Package-private: only {@link #create} places names.
+     */
+    static int put(int[] hashes, String[] names, String name, int h) {
       final int mask = hashes.length - 1;
       int i = h & mask;
       for (int probes = 0; probes <= mask; probes++, i = (i + 1) & mask) {
