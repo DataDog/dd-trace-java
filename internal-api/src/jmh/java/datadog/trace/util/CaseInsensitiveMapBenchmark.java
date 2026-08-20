@@ -196,7 +196,7 @@ public class CaseInsensitiveMapBenchmark {
   // after build, so reads are lock-free (see FlatHashtable / ThreadSafeMapBenchmark).
   static final class CIEntry extends FlatHashtable.Entry {
     final String key; // original case preserved
-    final int value;
+    int value; // mutable: the collision loop below overwrites it on a hit, mirroring put()
 
     CIEntry(String key, long hash, int value) {
       super(hash); // cache the (char-by-char) case-insensitive hash
@@ -243,12 +243,17 @@ public class CaseInsensitiveMapBenchmark {
     }
     // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
     // insensitive collisions. getOrCreate finds the already-present lower-case entry (a hit -> the
-    // create never fires, nothing allocates), doing the same probe/match work the maps' overwrite
-    // puts do — so all three create arms perform the same 24 operations and are comparable.
+    // create never fires, nothing allocates) and then the value is overwritten explicitly -- getOr-
+    // Create itself never updates an existing entry, so without this the FlatHashtable arm would do
+    // less work (and end up with different final values) than the maps' overwriting put(), a false
+    // performance advantage. With the overwrite, all three create arms perform the same 24
+    // operations and end up with the same final values.
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
       for (String prefix : UPPER_PREFIXES) {
-        FlatHashtable.getOrCreate(
-            table, prefix + "-" + suffix, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+        String key = prefix + "-" + suffix;
+        CIEntry entry =
+            FlatHashtable.getOrCreate(table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+        entry.value = suffix + 1;
       }
     }
     return table;
