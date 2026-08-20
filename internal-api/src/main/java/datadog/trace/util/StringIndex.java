@@ -27,6 +27,13 @@ import java.util.function.ToLongFunction;
  * mapIntValues}/{@code mapLongValues} build such an array at construction; {@code lookup}/{@code
  * lookupOrDefault} read one back in a single call (slot resolve + array read).
  *
+ * <pre>{@code
+ * StringIndex methods = StringIndex.of("GET", "POST", "PUT");
+ * int[] ids = methods.mapIntValues(name -> nextMethodId());
+ * ...
+ * int id = methods.lookupOrDefault(ids, incomingMethod, UNKNOWN_METHOD_ID);
+ * }</pre>
+ *
  * <p>Slot 0-value is the empty sentinel: {@link EmbeddingSupport#hash} never returns 0, so {@code
  * hashes[i] == 0} unambiguously means an empty slot.
  *
