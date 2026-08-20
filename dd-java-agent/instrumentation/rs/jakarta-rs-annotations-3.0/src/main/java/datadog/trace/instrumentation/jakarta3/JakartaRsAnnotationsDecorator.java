@@ -2,16 +2,19 @@ package datadog.trace.instrumentation.jakarta3;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -51,6 +54,34 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return JAKARTA_RS_CONTROLLER;
+  }
+
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    // If the mapped status isn't one of the configured "server error" statuses, this isn't really
+    // an error from the caller's point of view (e.g. a 404 NotFoundException), even though a Java
+    // exception was thrown to get there.
+    Integer status = extractResponseStatus(throwable);
+    if (status != null) {
+      span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
+      span.setError(
+          Config.get().getHttpServerErrorStatuses().get(status),
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  // Walk the cause chain looking for a WebApplicationException, which carries the response the
+  // framework will actually send.
+  private static Integer extractResponseStatus(final Throwable throwable) {
+    Throwable current = throwable;
+    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+      if (current instanceof WebApplicationException) {
+        return ((WebApplicationException) current).getResponse().getStatus();
+      }
+    }
+    return null;
   }
 
   public void onJakartaRsSpan(

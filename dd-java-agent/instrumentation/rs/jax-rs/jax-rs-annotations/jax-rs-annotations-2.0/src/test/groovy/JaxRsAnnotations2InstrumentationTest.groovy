@@ -7,10 +7,12 @@ import io.dropwizard.jersey.PATCH
 import javax.ws.rs.DELETE
 import javax.ws.rs.GET
 import javax.ws.rs.HEAD
+import javax.ws.rs.NotFoundException
 import javax.ws.rs.OPTIONS
 import javax.ws.rs.POST
 import javax.ws.rs.PUT
 import javax.ws.rs.Path
+import javax.ws.rs.WebApplicationException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -138,6 +140,105 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
     //    "GET /child/invoke"         | new JavaInterfaces.DefaultChildClassOnInterface()
 
     className = JaxRsAnnotationsDecorator.DECORATE.className(obj.class)
+  }
+
+  def "resource method exception with an embedded non-5xx status is not flagged as an error"() {
+    setup:
+    def obj = new Jax() {
+        @GET
+        @Path("/not-found")
+        void call() {
+          throw new NotFoundException()
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(NotFoundException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /not-found"
+          spanType "web"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/not-found"
+            errorTags(NotFoundException, "HTTP 404 Not Found")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception with an embedded 5xx status is flagged as an error"() {
+    setup:
+    def obj = new Jax() {
+        @GET
+        @Path("/internal-error")
+        void call() {
+          throw new WebApplicationException(500)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /internal-error"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/internal-error"
+            errorTags(WebApplicationException, "HTTP 500 Internal Server Error")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method with a plain exception is still flagged as an error"() {
+    setup:
+    def obj = new Jax() {
+        @GET
+        @Path("/boom")
+        void call() {
+          throw new IllegalStateException("boom")
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(IllegalStateException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /boom"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/boom"
+            errorTags(IllegalStateException, "boom")
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   def "no annotations has no effect"() {
