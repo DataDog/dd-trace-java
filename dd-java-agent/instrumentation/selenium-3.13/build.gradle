@@ -9,8 +9,7 @@ muzzle {
     group = 'org.seleniumhq.selenium'
     module = 'selenium-java'
     versions = '[3.13.0,)'
-    skipVersions += ["4.10.0", "4.11.0"] // depends on non-existent io.netty:netty-transport-native-epoll:4.1.92.Final
-    skipVersions += "4.16.0" // depends on non-existent org.seleniumhq.selenium:selenium-devtools-v119:4.16.0
+    skipVersions += "4.16.0" // org.seleniumhq.selenium:selenium-devtools-v119:4.16.0 is missing its POM in Maven Central
   }
 }
 
