@@ -82,6 +82,10 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
   private final int maxSlots;
   @Nullable private final AdaptiveSizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
+  // Maintained exactly (incremented on genuine insert, decremented on remove) so size() is O(1)
+  // and so it can be handed to the spine as a live-size hint -- see setOrReject's sizeBox param.
+  // The spine itself stays stateless (no field to put this in); only the object tier has one.
+  private int size = 0;
 
   private LightMap(int capacity, int maxSlots) {
     this.initialCapacity = capacity;
@@ -205,12 +209,15 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     // array and teach the sizing hint. A null result is the spine's non-fatal rejection signal.
     Object[] before = this.data;
     int beforeSlots = EmbeddingSupport.numSlots(before);
+    int[] sizeBox = {this.size};
     Object[] after =
-        EmbeddingSupport.setOrReject(this.initialCapacity, this.maxSlots, before, key, value);
+        EmbeddingSupport.setOrReject(
+            this.initialCapacity, this.maxSlots, before, key, value, sizeBox);
     if (after == null) {
       return false; // capped, physically full, key is new
     }
     this.data = after;
+    this.size = sizeBox[0];
     recordGrowth(beforeSlots, after);
     return true;
   }
@@ -233,12 +240,14 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
   }
 
   public void remove(@Nonnull K key) {
-    EmbeddingSupport.remove(this.data, key);
+    if (EmbeddingSupport.remove(this.data, key)) {
+      this.size--;
+    }
   }
 
   /** The number of live entries in this map (tombstones excluded). */
   public int size() {
-    return EmbeddingSupport.size(this.data);
+    return this.size;
   }
 
   public boolean containsKey(@Nonnull K key) {
@@ -588,8 +597,9 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     public static <V> Object[] set(
         int initialCapacity, @Nullable Object[] mapData, @Nonnull Object key, @Nonnull V value) {
       // Uncapped: NO_MAX_SLOTS makes the cap check inert, so setOrReject grows on demand and never
-      // rejects -- the result is always non-null.
-      return setOrReject(initialCapacity, NO_MAX_SLOTS, mapData, key, value);
+      // rejects -- the result is always non-null. No maintained size to hand it (the spine is
+      // stateless), so the null sizeBox falls back to the exact O(numSlots) scan.
+      return setOrReject(initialCapacity, NO_MAX_SLOTS, mapData, key, value, null);
     }
 
     /**
@@ -614,7 +624,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       // Seed a fresh table from the hint (mirrors LightMap(hint)); initialCapacity is only
       // read on the null-array branch, so the 0 below is never consumed when mapData is non-null.
       int seedCapacity = (mapData == null) ? hint.seedSlots() : 0;
-      Object[] after = setOrReject(seedCapacity, NO_MAX_SLOTS, mapData, key, value);
+      Object[] after = setOrReject(seedCapacity, NO_MAX_SLOTS, mapData, key, value, null);
       // Teach the hint on a genuine grow only (not the lazy first allocation, which already seeded
       // from the hint) -- mirrors LightMap.recordGrowth.
       if (beforeSlots != 0) {
@@ -634,17 +644,26 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     // and the key is genuinely new -- the caller's non-fatal rejection signal. With {@code maxSlots
     // == NO_MAX_SLOTS} the cap check is inert (numSlots is always below it), so a grow is always
     // available and the result is never null.
+    //
+    // sizeBox is an optional one-element live-entry-count hint/out-param: if non-null, its [0] is
+    // read (instead of scanning via size(mapData)) for the probe-bound backstop below, and bumped
+    // on a genuine insert (not an overwrite) so the caller's maintained count stays in sync. Only
+    // the object tier (LightMap) has anywhere to keep that count -- the spine is stateless by
+    // design (see the class-level embedding note) -- so spine callers always pass null and pay the
+    // scan; this is the rare/expert path's cost, not the common one's.
     @Nullable
     static <V> Object[] setOrReject(
         int initialCapacity,
         int maxSlots,
         @Nullable Object[] mapData,
         @Nonnull Object key,
-        @Nonnull V value) {
+        @Nonnull V value,
+        @Nullable int[] sizeBox) {
       // The map contract forbids null values (a null get() unambiguously means "absent"), so reject
       // one here -- the single chokepoint every set path (object tier and spine) flows through.
       Objects.requireNonNull(value, "value");
       if (mapData == null) {
+        if (sizeBox != null) sizeBox[0] = 1;
         return newMapData(initialCapacity, key, value);
       }
 
@@ -654,7 +673,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       int home = preferredSlot(numSlots, key.hashCode());
       int slot = findInsertionSlot(mapData, numSlots, key, home);
       if (slot >= 0) {
-        // Key already present -- overwrite in place, no growth.
+        // Key already present -- overwrite in place, no growth, no size change.
         mapData[slot + numSlots] = value;
         return mapData;
       }
@@ -665,6 +684,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
         if (numSlots < maxSlots) {
           mapData = expandMapData(mapData);
           newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
+          if (sizeBox != null) sizeBox[0] += 1;
           return mapData;
         }
         return null;
@@ -678,14 +698,17 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       // cannot grow, so we fill past MAX_PROBES until physically full.
       int availableSlot = flip(slot);
       int distance = (availableSlot - home) & (numSlots - 1);
+      long liveEntries = (sizeBox != null) ? sizeBox[0] : size(mapData);
       if (distance >= MAX_PROBES
           && numSlots < maxSlots
-          && (long) numSlots < (long) size(mapData) * MAX_SLOTS_PER_LIVE_ENTRY) {
+          && (long) numSlots < liveEntries * MAX_SLOTS_PER_LIVE_ENTRY) {
         // Grow, then insert into the fresh (tombstone-free, better-spread) table.
         mapData = expandMapData(mapData);
         newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
+        if (sizeBox != null) sizeBox[0] += 1;
         return mapData;
       }
+      if (sizeBox != null) sizeBox[0] += 1;
       mapData[availableSlot] = key;
       mapData[availableSlot + numSlots] = value;
       return mapData;
