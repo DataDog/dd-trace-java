@@ -168,6 +168,52 @@ class WriterFactoryTest extends DDSpecification {
     "DDIntakeWriter"                           | false        | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
   }
 
+  def "test DDAgentWriter also wires up an LLM Observability track when llm obs is enabled"() {
+    setup:
+    def config = Mock(Config)
+    config.apiKey >> "my-api-key"
+    config.agentUrl >> "http://my-agent.url"
+    config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
+    config.tracerMetricsEnabled >> true
+    config.isLlmObsEnabled() >> true
+    config.llmObsAgentlessEnabled >> false
+
+    def response = buildHttpResponse(true, true, HttpUrl.parse(config.agentUrl + "/info"))
+    def mockCall = Mock(Call)
+    def mockHttpClient = Mock(OkHttpClient)
+    mockCall.execute() >> {
+      sleep(400)
+      return response
+    }
+    mockHttpClient.newCall(_ as Request) >> mockCall
+
+    def sharedComm = new SharedCommunicationObjects()
+    sharedComm.agentHttpClient = mockHttpClient
+    sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
+    sharedComm.createRemaining(config)
+
+    def sampler = Mock(Sampler)
+
+    when:
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter")
+
+    then:
+    writer.class == MultiWriter
+    def subWriters = readField(writer, "writers")
+    subWriters.length == 2
+    subWriters[0].class == DDAgentWriter
+    subWriters[1].class == DDIntakeWriter
+    def llmObsApis = ((RemoteWriter) subWriters[1]).apis
+    llmObsApis.size() == 1
+    llmObsApis[0].class == DDEvpProxyApi
+  }
+
+  static readField(Object instance, String fieldName) {
+    def field = instance.class.getDeclaredField(fieldName)
+    field.setAccessible(true)
+    return field.get(instance)
+  }
+
   def "test writer creation for OtlpWriter wires #protocol+#compression"() {
     setup:
     def config = Mock(Config)
