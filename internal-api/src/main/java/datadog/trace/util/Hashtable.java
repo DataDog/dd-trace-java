@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
  * building blocks on this class (see {@link #createFixedBuckets(Class, int)}, {@link
- * #bucket(Hashtable.Entry[], long)}, {@link #insertHeadEntry(Hashtable.Entry[], int,
+ * #bucketFor(Hashtable.Entry[], long)}, {@link #insertHeadEntryAt(Hashtable.Entry[], int,
  * Hashtable.Entry)}, and friends). The deprecated {@link Support} class is a thin facade over those
  * same statics, retained for source compatibility.
  */
@@ -161,7 +161,7 @@ public final class Hashtable {
     @Nullable
     public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucket(this.buckets, keyHash);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -190,7 +190,7 @@ public final class Hashtable {
     }
 
     public void insert(@Nonnull TEntry newEntry) {
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
@@ -207,7 +207,7 @@ public final class Hashtable {
         }
       }
 
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -226,7 +226,7 @@ public final class Hashtable {
     public TEntry getOrCreate(
         @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucket(this.buckets, keyHash);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -234,7 +234,7 @@ public final class Hashtable {
         }
       }
       TEntry newEntry = creator.apply(key);
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return newEntry;
     }
@@ -359,7 +359,7 @@ public final class Hashtable {
     @Nullable
     public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucket(this.buckets, keyHash);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -388,7 +388,7 @@ public final class Hashtable {
     }
 
     public void insert(@Nonnull TEntry newEntry) {
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
@@ -405,7 +405,7 @@ public final class Hashtable {
         }
       }
 
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -421,7 +421,7 @@ public final class Hashtable {
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucket(this.buckets, keyHash);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -429,7 +429,7 @@ public final class Hashtable {
         }
       }
       TEntry newEntry = creator.apply(key1, key2);
-      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return newEntry;
     }
@@ -523,10 +523,16 @@ public final class Hashtable {
    * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
    * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
    * doesn't need to thread a raw {@link Entry} variable through.
+   *
+   * <p>Named to match {@link ConcurrentHashtable#bucketFor} rather than {@code bucket}: this class
+   * has no competing {@code int}-index overload today, but naming it {@code bucketFor} up front
+   * keeps the two classes' static building blocks aligned and avoids reintroducing the {@code
+   * bucket}/{@code insertHeadEntry} int-vs-long overload ambiguity that {@link ConcurrentHashtable}
+   * had to rename its way out of.
    */
   @SuppressWarnings("unchecked")
   @Nullable
-  public static <TEntry extends Entry> TEntry bucket(
+  public static <TEntry extends Entry> TEntry bucketFor(
       @Nonnull Hashtable.Entry[] buckets, long keyHash) {
     return (TEntry) buckets[bucketIndex(buckets, keyHash)];
   }
@@ -535,21 +541,27 @@ public final class Hashtable {
    * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
    * responsible for size accounting -- this method only touches the chain pointers.
    */
-  public static void insertHeadEntry(
+  public static void insertHeadEntryAt(
       @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
   }
 
   /**
-   * Convenience overload of {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)} that
-   * derives the bucket index from {@code keyHash}. Use this when the caller has the hash but not
-   * the index; if the index has already been computed for another reason, prefer the int-taking
-   * overload to avoid the redundant mask.
+   * Convenience form of {@link #insertHeadEntryAt} that derives the bucket index from {@code
+   * keyHash}. Use this when the caller has the hash but not the index; if the index has already
+   * been computed for another reason, prefer {@link #insertHeadEntryAt} to avoid the redundant
+   * mask.
+   *
+   * <p>Named distinctly from {@link #insertHeadEntryAt} (rather than overloaded on {@code long} vs.
+   * {@code int}) for the same reason {@link ConcurrentHashtable#insertHeadEntryFor} is: a caller
+   * with a primitive {@code int}-typed key hash calling an overloaded {@code
+   * insertHeadEntry(buckets, intHash, entry)} would silently bind to the {@code int}-index overload
+   * instead of widening to this one, treating the raw hash as an array index.
    */
-  public static void insertHeadEntry(
+  public static void insertHeadEntryFor(
       @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
-    insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
+    insertHeadEntryAt(buckets, bucketIndex(buckets, keyHash), entry);
   }
 
   public static void clear(@Nonnull Hashtable.Entry[] buckets) {
@@ -749,31 +761,32 @@ public final class Hashtable {
     }
 
     /**
-     * @deprecated use {@link Hashtable#insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)}.
+     * @deprecated use {@link Hashtable#insertHeadEntryAt(Hashtable.Entry[], int, Hashtable.Entry)}.
      */
     @Deprecated
     public static void insertHeadEntry(
         @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
-      Hashtable.insertHeadEntry(buckets, bucketIndex, entry);
+      Hashtable.insertHeadEntryAt(buckets, bucketIndex, entry);
     }
 
     /**
-     * @deprecated use {@link Hashtable#insertHeadEntry(Hashtable.Entry[], long, Hashtable.Entry)}.
+     * @deprecated use {@link Hashtable#insertHeadEntryFor(Hashtable.Entry[], long,
+     *     Hashtable.Entry)}.
      */
     @Deprecated
     public static void insertHeadEntry(
         @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
-      Hashtable.insertHeadEntry(buckets, keyHash, entry);
+      Hashtable.insertHeadEntryFor(buckets, keyHash, entry);
     }
 
     /**
-     * @deprecated use {@link Hashtable#bucket(Hashtable.Entry[], long)}.
+     * @deprecated use {@link Hashtable#bucketFor(Hashtable.Entry[], long)}.
      */
     @Deprecated
     @Nullable
     public static <TEntry extends Hashtable.Entry> TEntry bucket(
         @Nonnull Hashtable.Entry[] buckets, long keyHash) {
-      return Hashtable.bucket(buckets, keyHash);
+      return Hashtable.bucketFor(buckets, keyHash);
     }
 
     /**
