@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.springframework.security'
@@ -6,7 +10,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 final springSecurityVersion = '5.8.2'

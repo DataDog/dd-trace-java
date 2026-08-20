@@ -3,10 +3,9 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-api")
   id("dd-trace-java.jmh-conventions")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 java {
   toolchain {

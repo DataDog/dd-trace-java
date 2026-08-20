@@ -16,6 +16,11 @@ public final class LLMObsInternal extends LLMObs {
     EVAL_PROCESSOR = evalProcessor;
   }
 
+  /** Sets the LLM Observability feedback processor. */
+  public static void setFeedbackProcessor(LLMObsFeedbackProcessor feedbackProcessor) {
+    FEEDBACK_PROCESSOR = feedbackProcessor;
+  }
+
   /** Returns the registered user span processor, if any. */
   @Nullable
   public static LLMObsSpanProcessor getSpanProcessor() {
