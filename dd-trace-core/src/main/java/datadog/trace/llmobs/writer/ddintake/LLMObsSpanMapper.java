@@ -255,7 +255,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         } else {
           markDroppedSpan(i, spans.size());
         }
-      } catch (RuntimeException error) {
+      } catch (Throwable error) {
         processorError = true;
         markDroppedSpan(i, spans.size());
         LOGGER.warn("Error in LLM Observability span processor, dropping span", error);

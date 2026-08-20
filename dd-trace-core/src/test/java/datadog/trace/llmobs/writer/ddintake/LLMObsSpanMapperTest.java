@@ -732,6 +732,32 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void testLLMObsSpanProcessorErrorDropsSpan() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          if ("true".equals(span.getTag("drop"))) {
+            throw new AssertionError("processor failure");
+          }
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Arrays.asList((DDSpan) dropped, (DDSpan) retained), new LLMObsSpanMapper());
+
+      assertEquals(1, spans.size());
+      assertEquals("retained", spans.get(0).get("name"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
   void testLLMObsSpanProcessorRunsOnceWhenSerializationRetries() {
     AtomicInteger calls = new AtomicInteger();
     LLMObsMetricCollector.get().drain();
