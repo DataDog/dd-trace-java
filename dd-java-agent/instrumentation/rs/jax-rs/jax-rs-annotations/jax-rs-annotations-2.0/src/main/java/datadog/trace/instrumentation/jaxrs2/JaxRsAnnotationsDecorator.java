@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -61,6 +62,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     // an error from the caller's point of view (e.g. a 404 NotFoundException), even though a Java
     // exception was thrown to get there.
     Integer status = extractResponseStatus(throwable);
+    if (status == null) {
+      status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
+    }
     if (status != null) {
       span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
       span.setError(

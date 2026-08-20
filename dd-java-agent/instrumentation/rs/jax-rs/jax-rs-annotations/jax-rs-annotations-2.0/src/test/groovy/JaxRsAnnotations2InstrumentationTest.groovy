@@ -241,6 +241,74 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
     }
   }
 
+  def "resource method exception recognized via configured custom accessor with a non-5xx status is not flagged as an error"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS, "${CustomStatusException.name}#httpCode")
+    def obj = new Jax() {
+        @GET
+        @Path("/custom-not-found")
+        void call() {
+          throw new CustomStatusException(404)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(CustomStatusException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /custom-not-found"
+          spanType "web"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-not-found"
+            errorTags(CustomStatusException)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception recognized via configured custom accessor with a 5xx status is flagged as an error"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS, "${CustomStatusException.name}#httpCode")
+    def obj = new Jax() {
+        @GET
+        @Path("/custom-internal-error")
+        void call() {
+          throw new CustomStatusException(500)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(CustomStatusException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /custom-internal-error"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-internal-error"
+            errorTags(CustomStatusException)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "no annotations has no effect"() {
     setup:
     def obj = new Jax() {
@@ -262,6 +330,18 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
           }
         }
       }
+    }
+  }
+
+  static class CustomStatusException extends RuntimeException {
+    private final int status
+
+    CustomStatusException(int status) {
+      this.status = status
+    }
+
+    int httpCode() {
+      return status
     }
   }
 
