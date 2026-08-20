@@ -160,7 +160,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenGradleProjectFiles(projectName);
-    givenGradleProjectProperties(gradleVersion);
+    givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
     BuildResult buildResult = runGradleTests(gradleVersion, true, false);
@@ -193,7 +193,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       additionalArgs.put(
           CiVisibilityConfig.CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED, "true");
     }
-    givenGradleProjectProperties(gradleVersion, additionalArgs);
+    givenGradleProjectProperties(additionalArgs);
     ensureDependenciesDownloaded(gradleVersion);
 
     BuildResult buildResult =
@@ -231,7 +231,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleProjectFiles(projectName);
-    givenGradleProjectProperties(gradleVersion);
+    givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenKnownTests(true);
@@ -294,7 +294,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
     givenGradleProjectFiles(projectName);
-    givenGradleProjectProperties(gradleVersion);
+    givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenFlakyRetries(flakyRetries);
@@ -333,12 +333,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
   }
 
-  private void givenGradleProjectProperties(String gradleVersion) throws IOException {
-    givenGradleProjectProperties(gradleVersion, Collections.emptyMap());
+  private void givenGradleProjectProperties() throws IOException {
+    givenGradleProjectProperties(Collections.emptyMap());
   }
 
-  private void givenGradleProjectProperties(
-      String gradleVersion, Map<String, String> additionalArgs) throws IOException {
+  private void givenGradleProjectProperties(Map<String, String> additionalArgs) throws IOException {
     assertTrue(new java.io.File(AGENT_JAR).isFile());
 
     Path ddApiKeyPath = testKitFolder.resolve(".dd.api.key");
@@ -361,10 +360,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     effectiveAdditionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
     List<String> arguments =
         buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, effectiveAdditionalArgs);
-    // Gradle 4.10.3's native-platform crashes on Linux when restoring non-ASCII environment values.
-    if (GradleVersion.version("4.10.3").equals(GradleVersion.version(gradleVersion))) {
-      arguments.add("-Dorg.gradle.native=false");
-    }
     addCrashDiagnostics(arguments);
 
     String gradleProperties = "org.gradle.jvmargs=" + String.join(" ", arguments);
