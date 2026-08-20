@@ -40,9 +40,13 @@ import net.bytebuddy.matcher.ElementMatcher;
  * with native TaskBlock ownership. Native entry rejects traced and virtual threads, so Java does
  * not retain span or carrier-thread state.
  *
- * <p><b>Performance note:</b> the call-site transformer filters on the actual class-file constant
- * pool and replaces each supported invocation with a stack-compatible static helper call. It does
- * not reload class resources, add caller-side exception handlers, or recompute stack-map frames.
+ * <p><b>Performance note:</b> {@link #callerType()} only excludes JDK, bytebuddy, and datadog
+ * packages, so every other loaded class pays a one-time class-file constant-pool scan at load time
+ * (falling back to re-reading the class's bytes from its loader when they are not already available
+ * from the transformation builder). This is the same broad-coverage tradeoff already accepted by
+ * IAST's call-site instrumentation. Once a call site is matched, the transformer replaces each
+ * supported invocation with a stack-compatible static helper call; it does not add caller-side
+ * exception handlers or recompute stack-map frames.
  */
 @AutoService(InstrumenterModule.class)
 public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Profiling

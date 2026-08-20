@@ -122,12 +122,12 @@ final class ThreadSleepTaskBlockProfilingTest {
         for (IItem item : items) {
           String thread = threadAccessor == null ? null : threadAccessor.getMember(item);
           observedThreads.add(thread);
+          spanlessMissingThread |= thread == null || thread.isEmpty();
           if (ThreadSleepTaskBlockForkedApp.SPANLESS_PLATFORM_THREAD.equals(thread)) {
             spanlessPlatformCount++;
             spanlessHasContext |=
                 spanAccessor.getMember(item).longValue() != 0L
                     || rootAccessor.getMember(item).longValue() != 0L;
-            spanlessMissingThread |= thread == null || thread.isEmpty();
           } else if (ThreadSleepTaskBlockForkedApp.ACTIVE_PLATFORM_THREAD.equals(thread)) {
             activePlatformCount++;
             activeEvents.add(

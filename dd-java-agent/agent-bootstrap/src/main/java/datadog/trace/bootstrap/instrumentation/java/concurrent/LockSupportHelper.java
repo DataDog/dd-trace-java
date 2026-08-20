@@ -53,13 +53,29 @@ public final class LockSupportHelper {
 
   /** Drains unpark attribution and balances an accepted park entry. */
   public static void parkExit(ProfilingContextIntegration profiling, long blockerHash) {
+    parkExit(profiling, blockerHash, UNPARKING_STATE);
+  }
+
+  static void parkExit(
+      ProfilingContextIntegration profiling,
+      long blockerHash,
+      WeakMap<Thread, UnparkState> unparkingState) {
     if (profiling == null) {
       return;
     }
-    WeakMap<Thread, UnparkState> unparkingState = UNPARKING_STATE;
-    UnparkState state = unparkingState == null ? null : unparkingState.get(Thread.currentThread());
+    UnparkState state = getUnparkState(unparkingState, Thread.currentThread());
     long unblockingSpanId = state == null ? 0L : UNBLOCKING_SPAN_ID.getAndSet(state, 0L);
     parkExit(profiling, blockerHash, unblockingSpanId);
+  }
+
+  /**
+   * Guards against {@code unparkingState} still being {@code null} during recursive class
+   * initialization. Shared by {@link #parkExit} and {@link #recordUnpark} so both methods use the
+   * same null-safety idiom.
+   */
+  private static UnparkState getUnparkState(
+      WeakMap<Thread, UnparkState> unparkingState, Thread thread) {
+    return unparkingState == null ? null : unparkingState.get(thread);
   }
 
   static void parkExit(
@@ -100,19 +116,19 @@ public final class LockSupportHelper {
     AgentSpan span = AgentTracer.activeSpan();
     AgentSpanContext context = span == null ? null : span.spanContext();
     if (context instanceof ProfilerContext) {
-      UnparkState state = unparkingState.get(thread);
+      UnparkState state = getUnparkState(unparkingState, thread);
       if (state == null) {
         if (unparkingState.size() >= MAX_UNPARKING_STATES) {
           return;
         }
         unparkingState.putIfAbsent(thread, new UnparkState());
-        state = unparkingState.get(thread);
+        state = getUnparkState(unparkingState, thread);
       }
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
       }
     } else {
-      UnparkState state = unparkingState.get(thread);
+      UnparkState state = getUnparkState(unparkingState, thread);
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, 0L);
       }

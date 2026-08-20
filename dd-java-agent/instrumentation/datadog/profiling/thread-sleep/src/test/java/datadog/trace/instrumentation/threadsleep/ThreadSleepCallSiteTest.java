@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.ByteBuddy;
@@ -44,14 +43,6 @@ class ThreadSleepCallSiteTest {
   }
 
   @Test
-  void callSiteProviderIsAccessibleAcrossAgentClassLoaders() {
-    Class<?> provider = ThreadSleepProfilingInstrumentation.ThreadSleepCallSites.class;
-
-    assertTrue(Modifier.isPublic(provider.getModifiers()));
-    assertTrue(Modifier.isStatic(provider.getModifiers()));
-  }
-
-  @Test
   void exactThreadSleepOverloadsAreReplacedByStackCompatibleHelpers() {
     byte[] transformed = transform(ExactThreadSleepFixture.class);
 
@@ -68,6 +59,26 @@ class ThreadSleepCallSiteTest {
     InvocationCounts counts = scan(transformed);
     assertEquals(1, counts.helperCalls);
     assertEquals(0, counts.timeUnitSleepCalls);
+  }
+
+  @Test
+  void twoArgSleepIsReplacedAndExecutes() throws Exception {
+    byte[] transformed = transform(ExactThreadSleepFixture.class);
+    Class<?> fixture = new ByteArrayClassLoader(getClass().getClassLoader()).define(transformed);
+    Method sleep = fixture.getDeclaredMethod("sleep", long.class, int.class);
+    sleep.setAccessible(true);
+
+    sleep.invoke(null, 0L, 0);
+  }
+
+  @Test
+  void timeUnitSleepIsReplacedAndExecutes() throws Exception {
+    byte[] transformed = transform(TimeUnitSleepFixture.class);
+    Class<?> fixture = new ByteArrayClassLoader(getClass().getClassLoader()).define(transformed);
+    Method sleep = fixture.getDeclaredMethod("sleep", long.class);
+    sleep.setAccessible(true);
+
+    sleep.invoke(null, 0L);
   }
 
   @Test

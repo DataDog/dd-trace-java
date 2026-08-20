@@ -7,10 +7,22 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 /** Helper for synchronously bracketing untraced {@code Thread.sleep} intervals. */
 public final class TaskBlockHelper {
+  private static final LongAdder DROPPED_COMPLETIONS = new LongAdder();
+
   private TaskBlockHelper() {}
+
+  /**
+   * Number of TaskBlock intervals that were begun but never emitted (native rejection or the
+   * profiling hook becoming unavailable between {@code begin} and {@code finish}). Exposed so tests
+   * and diagnostics can distinguish this from "no events produced".
+   */
+  public static long droppedCompletions() {
+    return DROPPED_COMPLETIONS.sum();
+  }
 
   static ProfilingContextIntegration profiling() {
     try {
@@ -36,8 +48,11 @@ public final class TaskBlockHelper {
       return;
     }
     try {
-      profiling.endTaskBlock(token, 0L, 0L);
+      if (!profiling.endTaskBlock(token, 0L, 0L)) {
+        DROPPED_COMPLETIONS.increment();
+      }
     } catch (Throwable ignored) {
+      DROPPED_COMPLETIONS.increment();
     }
   }
 
@@ -48,6 +63,10 @@ public final class TaskBlockHelper {
 
   static void sleep(ProfilingContextIntegration profiling, long millis)
       throws InterruptedException {
+    if (millis <= 0) {
+      Thread.sleep(millis);
+      return;
+    }
     long token = begin(profiling);
     try {
       Thread.sleep(millis);
@@ -63,6 +82,10 @@ public final class TaskBlockHelper {
 
   static void sleep(ProfilingContextIntegration profiling, long millis, int nanos)
       throws InterruptedException {
+    if (millis <= 0 && nanos <= 0) {
+      Thread.sleep(millis, nanos);
+      return;
+    }
     long token = begin(profiling);
     try {
       Thread.sleep(millis, nanos);
@@ -78,6 +101,10 @@ public final class TaskBlockHelper {
 
   static void sleep(ProfilingContextIntegration profiling, TimeUnit unit, long timeout)
       throws InterruptedException {
+    if (timeout <= 0) {
+      unit.sleep(timeout);
+      return;
+    }
     long token = begin(profiling);
     try {
       unit.sleep(timeout);

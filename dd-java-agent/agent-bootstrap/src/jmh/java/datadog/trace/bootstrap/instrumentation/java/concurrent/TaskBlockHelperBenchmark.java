@@ -39,11 +39,11 @@ public class TaskBlockHelperBenchmark {
 
   /** Measures the zero-token completion fast path. */
   @Benchmark
-  public void finishRejected(BenchmarkState state) {
+  public void finishZeroToken(BenchmarkState state) {
     TaskBlockHelper.finish(state.accepted, 0L);
   }
 
-  /** Measures the full rejected wrapper path for a zero-duration sleep. */
+  /** Measures the zero-duration short-circuit that skips the tracer lookup entirely. */
   @Benchmark
   public void rejectedZeroDurationSleep(BenchmarkState state) throws InterruptedException {
     TaskBlockHelper.sleep(state.rejected, 0L);

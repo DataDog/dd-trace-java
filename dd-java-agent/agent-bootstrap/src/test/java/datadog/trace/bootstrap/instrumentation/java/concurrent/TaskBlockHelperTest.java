@@ -4,6 +4,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -47,6 +48,28 @@ class TaskBlockHelperTest {
   }
 
   @Test
+  void rejectedCompletionIsCountedAsDropped() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    when(profiling.endTaskBlock(TOKEN, 0L, 0L)).thenReturn(false);
+    long before = TaskBlockHelper.droppedCompletions();
+
+    TaskBlockHelper.finish(profiling, TOKEN);
+
+    assertEquals(before + 1, TaskBlockHelper.droppedCompletions());
+  }
+
+  @Test
+  void completionFailureIsCountedAsDropped() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    doThrow(new IllegalStateException("exit")).when(profiling).endTaskBlock(TOKEN, 0L, 0L);
+    long before = TaskBlockHelper.droppedCompletions();
+
+    TaskBlockHelper.finish(profiling, TOKEN);
+
+    assertEquals(before + 1, TaskBlockHelper.droppedCompletions());
+  }
+
+  @Test
   void entryAndExitFailuresAreContained() {
     ProfilingContextIntegration entryFailure = mock(ProfilingContextIntegration.class);
     when(entryFailure.beginTaskBlock()).thenThrow(new IllegalStateException("entry"));
@@ -61,9 +84,30 @@ class TaskBlockHelperTest {
   void normalSleepBalancesAcceptedToken() throws InterruptedException {
     ProfilingContextIntegration profiling = acceptedIntegration();
 
-    TaskBlockHelper.sleep(profiling, 0L);
+    TaskBlockHelper.sleep(profiling, 1L);
 
     verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void zeroDurationSleepDoesNotOpenTaskBlock() throws InterruptedException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+
+    TaskBlockHelper.sleep(profiling, 0L);
+
+    verify(profiling, never()).beginTaskBlock();
+    verify(profiling, never()).endTaskBlock(anyLong(), anyLong(), anyLong());
+  }
+
+  @Test
+  void zeroDurationLongIntAndTimeUnitSleepsDoNotOpenTaskBlock() throws InterruptedException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+
+    TaskBlockHelper.sleep(profiling, 0L, 0);
+    TaskBlockHelper.sleep(profiling, TimeUnit.NANOSECONDS, 0L);
+
+    verify(profiling, never()).beginTaskBlock();
+    verify(profiling, never()).endTaskBlock(anyLong(), anyLong(), anyLong());
   }
 
   @Test
@@ -80,12 +124,13 @@ class TaskBlockHelperTest {
   }
 
   @Test
-  void invalidSleepArgumentsBalanceAcceptedToken() {
+  void negativeMillisSleepThrowsWithoutOpeningTaskBlock() {
     ProfilingContextIntegration profiling = acceptedIntegration();
 
     assertThrows(IllegalArgumentException.class, () -> TaskBlockHelper.sleep(profiling, -1L));
 
-    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+    verify(profiling, never()).beginTaskBlock();
+    verify(profiling, never()).endTaskBlock(anyLong(), anyLong(), anyLong());
   }
 
   @Test

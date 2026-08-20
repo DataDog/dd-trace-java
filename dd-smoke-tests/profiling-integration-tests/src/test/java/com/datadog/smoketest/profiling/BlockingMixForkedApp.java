@@ -11,11 +11,15 @@ public final class BlockingMixForkedApp {
   private static final String THREAD_PARK = "blockingmix-park";
   private static final String THREAD_SYNC = "blockingmix-sync";
 
-  private static final int SLEEP_ITERATIONS = 20;
-  private static final int PARK_ITERATIONS = 20;
-  private static final int SYNC_ITERATIONS = 20;
+  // Iteration counts and durations are generous on purpose: the wall-clock sampler only emits a
+  // TaskBlock event for a bracket it happens to observe, so a longer aggregate blocking window per
+  // population drives the probability of a zero-event run down instead of relying on a single
+  // short bracket.
+  private static final int SLEEP_ITERATIONS = 40;
+  private static final int PARK_ITERATIONS = 40;
+  private static final int SYNC_ITERATIONS = 40;
   private static final long PARK_NANOS = 50_000_000L;
-  private static final long SLEEP_MILLIS = 50L;
+  private static final long SLEEP_MILLIS = 75L;
   private static final long SYNC_HOLD_MILLIS = 50L;
   private static final long PROFILING_STARTUP_DELAY_MILLIS = 1500L;
 

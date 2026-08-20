@@ -14,8 +14,11 @@ public final class ThreadSleepTaskBlockForkedApp {
   public static final String CROSS_ROTATION_THREAD = "threadsleep-cross-rotation";
   public static final long CROSS_ROTATION_SLEEP_MILLIS = 2500L;
 
-  private static final int SLEEP_ITERATIONS = 20;
-  private static final long SLEEP_MILLIS = 50L;
+  // Iteration count and duration are generous on purpose: the wall-clock sampler only emits a
+  // TaskBlock event for a bracket it happens to observe, so a longer aggregate blocking window
+  // drives the probability of a zero-event run down instead of relying on a single short bracket.
+  private static final int SLEEP_ITERATIONS = 40;
+  private static final long SLEEP_MILLIS = 75L;
   private static final long PROFILING_STARTUP_DELAY_MILLIS = 1500L;
 
   private ThreadSleepTaskBlockForkedApp() {}
