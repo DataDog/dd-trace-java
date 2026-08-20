@@ -858,6 +858,17 @@ public final class FlatHashtable {
    * <p><b>Grows unboundedly.</b> Unlike {@code insert}'s {@code false}, this hides the full signal,
    * so it is the easiest place to leak memory: use it only for a genuinely bounded key domain,
    * never over externally-controlled cardinality.
+   *
+   * <p><b>Grows at 100% fill, not at a load factor.</b> The raw core carries no live-size counter
+   * (see the class contract), so it has no cheap way to know the current fill short of a full table
+   * scan; growing only when {@link #insert} reports "full" is the only trigger available without
+   * one. {@link #DEFAULT_LOAD_FACTOR} and {@link #LOW_LOAD_FACTOR}'s Knuth figures size a
+   * <i>fixed</i> table (via {@link #capacityFor} / {@link #create}) up front for its expected
+   * cardinality; they are not an insert-time growth trigger here. A caller that sizes up front —
+   * the expected usage — never sees the difference; one that instead leans on {@code
+   * resizingInsert} to grow an under-sized table from scratch runs fill up through 0.75, 0.9, and
+   * 1.0 before doubling, past where those figures stop applying. A caller that already tracks live
+   * size (as {@link D1} / {@link D2} do) can grow at a load factor of its own choosing instead.
    */
   @Nonnull
   public static <E extends Entry> E[] resizingInsert(@Nonnull E[] table, @Nonnull E entry) {
@@ -870,7 +881,7 @@ public final class FlatHashtable {
 
   /**
    * {@link #resizingInsert(Entry[], Entry)} for any entry type (home via {@link
-   * HashStrategy#hashOf}). Same grows-unboundedly caution.
+   * HashStrategy#hashOf}). Same grows-unboundedly caution and same probe-to-full growth trigger.
    */
   @StrategyConsumer
   @Nonnull
