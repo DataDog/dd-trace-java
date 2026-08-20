@@ -1147,13 +1147,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processRequestEndSetsUnsupportedEventTypeMetricWhenNoTriggerTypeWasRecorded() {
+  void processRequestEndSetsNoUnsupportedEventTypeMetricWhenNoTriggerTypeWasRecorded() {
+    // AppSec was inactive at request start and enabled mid-invocation
     AgentSpan span = mock(AgentSpan.class);
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
-    verifyNoMoreInteractions(span);
+    verify(span, never()).setMetric(anyString(), anyInt());
   }
 
   @Test
