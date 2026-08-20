@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -11,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
 import datadog.trace.llmobs.domain.LLMObsFeedbackEvent;
-import datadog.trace.llmobs.domain.LLMObsInternal;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
 import java.util.Map;
@@ -46,12 +46,11 @@ public class LLMObsSystem {
 
     String mlApp = config.getLlmObsMlApp();
     WellKnownTags wellKnownTags = config.getWellKnownTags();
-    LLMObsInternal.setLLMObsSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
+    LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
 
-    LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+    LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
 
-    LLMObsInternal.setLLMObsFeedbackProcessor(
-        new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+    LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {

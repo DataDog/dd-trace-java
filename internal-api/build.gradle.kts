@@ -152,6 +152,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
+  // Internal cross-module bridge
+  "datadog.trace.api.llmobs.LLMObsInternal",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
