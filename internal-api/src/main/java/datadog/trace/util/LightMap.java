@@ -88,6 +88,13 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
   private int size = 0;
 
   private LightMap(int capacity, int maxSlots) {
+    // Validate eagerly, at construction, rather than lazily on first write -- capacity itself is
+    // stored unrounded (rounded on demand by newMapData), so this call's only purpose is the
+    // range check; NO_MAX_SLOTS is a sentinel, not a real cap, so it's exempt.
+    EmbeddingSupport.roundUpToPow2(capacity);
+    if (maxSlots != NO_MAX_SLOTS) {
+      EmbeddingSupport.roundUpToPow2(maxSlots);
+    }
     this.initialCapacity = capacity;
     this.sizingHint = null;
     this.maxSlots = maxSlots;
@@ -1083,7 +1090,19 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       return (hash ^ (hash >>> 16)) & (numSlots - 1);
     }
 
+    // The largest representable slot count. The spine allocates a 2 * numSlots array, so 1 << 30
+    // is already unrepresentable (the array length itself would overflow); this stays one power
+    // of two below that so a table at the cap can still be asked to grow (and be rejected) without
+    // the intermediate arithmetic overflowing either.
+    static final int MAX_SLOTS = 1 << 29;
+
     static int roundUpToPow2(int n) {
+      if (n < 0) {
+        throw new IllegalArgumentException("capacity must not be negative: " + n);
+      }
+      if (n > MAX_SLOTS) {
+        throw new IllegalArgumentException("capacity too large: " + n + " (max " + MAX_SLOTS + ")");
+      }
       return n <= 1 ? 1 : Integer.highestOneBit(n - 1) << 1;
     }
   }

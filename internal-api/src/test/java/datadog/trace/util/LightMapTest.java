@@ -722,6 +722,34 @@ class LightMapTest {
       assertFalse(EmbeddingSupport.isRemoved("removed"));
       assertFalse(EmbeddingSupport.isRemoved(new String("REMOVED")));
     }
+
+    @Test
+    void roundUpToPow2RejectsNegativeCapacity() {
+      assertThrows(IllegalArgumentException.class, () -> EmbeddingSupport.roundUpToPow2(-1));
+    }
+
+    @Test
+    void roundUpToPow2RejectsCapacityAboveMaxSlots() {
+      // Integer.MAX_VALUE used to shift to Integer.MIN_VALUE here, silently turning an
+      // "effectively unbounded" request into a permanent one-slot table.
+      assertThrows(
+          IllegalArgumentException.class, () -> EmbeddingSupport.roundUpToPow2(Integer.MAX_VALUE));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> EmbeddingSupport.roundUpToPow2(EmbeddingSupport.MAX_SLOTS + 1));
+      assertEquals(
+          EmbeddingSupport.MAX_SLOTS, EmbeddingSupport.roundUpToPow2(EmbeddingSupport.MAX_SLOTS));
+    }
+
+    @Test
+    void expandMapDataRejectsRequestedCapacityAboveMaxSlots() {
+      // Growing a table already at MAX_SLOTS would need to double past it, overflowing the
+      // backing array's length; expandMapData must reject that rather than allocate garbage.
+      Object[] data = EmbeddingSupport.set(null, "a", "A");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> EmbeddingSupport.expandMapData(data, EmbeddingSupport.MAX_SLOTS + 1));
+    }
   }
 
   @Nested
@@ -1051,6 +1079,36 @@ class LightMapTest {
       assertTrue(
           hint.currentSeedSlots() <= 16,
           "learned seed " + hint.currentSeedSlots() + " must not exceed the 16-slot cap");
+    }
+
+    @Test
+    void createCappedRejectsCapacityThatOverflowsOnRounding() {
+      // roundUpToPow2(Integer.MAX_VALUE) used to silently overflow to Integer.MIN_VALUE, so the
+      // requested "effectively unbounded" cap instead became a permanent one-slot map with no
+      // exception. It must now fail loudly at construction instead.
+      assertThrows(IllegalArgumentException.class, () -> LightMap.createCapped(Integer.MAX_VALUE));
+    }
+
+    @Test
+    void createCappedRejectsNegativeCapacity() {
+      assertThrows(IllegalArgumentException.class, () -> LightMap.createCapped(-1));
+    }
+
+    @Test
+    void createUncappedRejectsCapacityAboveMaxSlotsAtConstruction() {
+      assertThrows(IllegalArgumentException.class, () -> LightMap.createUncapped((1 << 29) + 1));
+    }
+
+    @Test
+    void createCappedTwoArgRejectsCapacityAboveMaxSlots() {
+      assertThrows(IllegalArgumentException.class, () -> LightMap.createCapped(8, (1 << 29) + 1));
+    }
+
+    @Test
+    void adaptiveSizingHintBuilderRejectsCapacityAboveMaxSlots() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> LightMap.AdaptiveSizingHint.builder().maxCapacity((1 << 29) + 1).build());
     }
   }
 
