@@ -10,4 +10,8 @@ public class LLMObsInternal extends LLMObs {
   public static void setLLMObsEvalProcessor(final LLMObsEvalProcessor evalProcessor) {
     LLMObs.EVAL_PROCESSOR = evalProcessor;
   }
+
+  public static void setLLMObsFeedbackProcessor(final LLMObsFeedbackProcessor feedbackProcessor) {
+    LLMObs.FEEDBACK_PROCESSOR = feedbackProcessor;
+  }
 }

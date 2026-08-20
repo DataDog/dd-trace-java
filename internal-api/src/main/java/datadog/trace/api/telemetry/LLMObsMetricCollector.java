@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +25,11 @@ public final class LLMObsMetricCollector
   }
 
   public static final String SPAN_FINISHED_METRIC = "span.finished";
+  public static final String FEEDBACK_SUBMITTED_METRIC = "feedback_submitted";
   public static final String COUNT_METRIC_TYPE = "count";
+
+  /** Tag value used when a submission failed before the real value could be determined. */
+  private static final String OTHER = "other";
 
   private static final String IS_ROOT_SPAN_TRUE = "is_root_span:1";
   private static final String IS_ROOT_SPAN_FALSE = "is_root_span:0";
@@ -78,6 +83,38 @@ public final class LLMObsMetricCollector
         new LLMObsMetric(METRIC_NAMESPACE, true, SPAN_FINISHED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {} for {}", SPAN_FINISHED_METRIC, integration);
+    }
+  }
+
+  /**
+   * Record an end-user feedback submission attempt, successful or not.
+   *
+   * <p>Mirrors {@code record_llmobs_submit_feedback} in dd-trace-py: rejected submissions are
+   * counted too, tagged with the validation error, so that adoption and SDK misuse are both
+   * visible.
+   *
+   * @param metricType the feedback metric type (e.g. "boolean"), or null if it could not be
+   *     determined
+   * @param targetType the wire key of the feedback target (e.g. "span_id"), or null if it could not
+   *     be determined
+   * @param error the validation error code (e.g. "invalid_submitter"), or null if the submission
+   *     was accepted
+   */
+  public void recordFeedbackSubmitted(
+      @Nullable String metricType, @Nullable String targetType, @Nullable String error) {
+    List<String> tags = new ArrayList<>(4);
+    tags.add(error == null ? ERROR_FALSE : ERROR_TRUE);
+    if (error != null) {
+      tags.add("error_type:" + error);
+    }
+    tags.add("metric_type:" + (metricType == null ? OTHER : metricType));
+    tags.add("target_type:" + (targetType == null ? OTHER : targetType));
+
+    LLMObsMetric metric =
+        new LLMObsMetric(
+            METRIC_NAMESPACE, true, FEEDBACK_SUBMITTED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
+    if (!metricsQueue.offer(metric)) {
+      log.debug("Unable to add telemetry metric {}", FEEDBACK_SUBMITTED_METRIC);
     }
   }
 
