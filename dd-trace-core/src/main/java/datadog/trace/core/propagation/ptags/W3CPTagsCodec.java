@@ -113,7 +113,9 @@ public class W3CPTagsCodec extends PTagsCodec {
               false,
               W3CPTagsCodec::isAllowedKeyChar);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
-        tagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
+        int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
+        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        tagPos = nextTagPos;
         continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
@@ -125,8 +127,10 @@ public class W3CPTagsCodec extends PTagsCodec {
               ELEMENT_SEPARATOR,
               true,
               W3CPTagsCodec::isAllowedValueChar);
-      if (tagValueEndsAt < 0 || tagValueEndsAt > ddMemberValueEnd) {
-        tagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
+      if (tagValueEndsAt < 0) {
+        int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
+        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        tagPos = nextTagPos;
         continue;
       }
       int nextTagPos = tagValueEndsAt + 1;
@@ -625,8 +629,14 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static int skipMalformedElement(String value, int start, int end) {
     log.warn(
         "Invalid datadog tags header value: '{}' dropping malformed element at {}", value, start);
-    int elementEnd = value.indexOf(ELEMENT_SEPARATOR, start);
-    return (elementEnd < 0 || elementEnd >= end) ? end : elementEnd + 1;
+    int pos = start;
+    while (pos < end) {
+      char c = value.charAt(pos++);
+      if (c == ELEMENT_SEPARATOR) {
+        return pos;
+      }
+    }
+    return end;
   }
 
   private static int skipEmptyElements(String value, int start, int end) {
@@ -658,33 +668,25 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       okSize = size;
       int elementEnd = original.indexOf(ELEMENT_SEPARATOR, elementStart);
-      if (elementEnd < 0) {
+      if (elementEnd < 0 || elementEnd > w3CPTags.ddMemberValueEnd) {
         elementEnd = w3CPTags.ddMemberValueEnd;
       }
       if (!original.startsWith(Encoding.W3C.getPrefix(), elementStart)) {
-        int tagKeyEndsAt =
-            validateCharsUntilSeparatorOrEnd(
-                original,
-                elementStart,
-                elementEnd,
-                KEY_VALUE_SEPARATOR,
-                false,
-                W3CPTagsCodec::isAllowedKeyChar);
-        if (tagKeyEndsAt > elementStart && tagKeyEndsAt < elementEnd) {
-          char first = original.charAt(elementStart);
-          // ignore known o:, s:, and p: elements because we always add them back in appendPrefix
-          if ((first != 'o' && first != 's' && first != 'p') || tagKeyEndsAt - elementStart != 1) {
-            if (sb.length() > EMPTY_SIZE) {
-              sb.append(ELEMENT_SEPARATOR);
-              size++;
-            }
-            int end = elementEnd;
-            if (end == w3CPTags.ddMemberValueEnd) {
-              end = stripTrailingOWC(original, elementStart, end);
-            }
-            sb.append(original, elementStart, end);
-            size += (end - elementStart);
+        char first = original.charAt(elementStart);
+        // ignore known o:, s:, and p: elements because we always add them back in appendPrefix
+        if ((first != 'o' && first != 's' && first != 'p')
+            || elementStart + 1 >= elementEnd
+            || original.charAt(elementStart + 1) != KEY_VALUE_SEPARATOR) {
+          if (sb.length() > EMPTY_SIZE) {
+            sb.append(ELEMENT_SEPARATOR);
+            size++;
           }
+          int end = elementEnd;
+          if (end == w3CPTags.ddMemberValueEnd) {
+            end = stripTrailingOWC(original, elementStart, end);
+          }
+          sb.append(original, elementStart, end);
+          size += (end - elementStart);
         }
       }
       elementStart = elementEnd + 1;
