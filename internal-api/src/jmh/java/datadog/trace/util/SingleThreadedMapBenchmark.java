@@ -71,6 +71,14 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @State(Scope.Thread)
 public class SingleThreadedMapBenchmark {
+  // Genuinely static final and shared across every thread, matching the intended production usage
+  // (LightMap.createUncappedAdaptiveSizingHint(), minted once per call site, not per thread). The
+  // per-thread lightMapSizingHint field below gives each @Threads(8) worker its own private hint,
+  // so it never exercises the concurrent seedSlots()/recordSlots() races that a real shared hint
+  // sees; create_lightMap_adaptive_static does.
+  static final AdaptiveSizingHint STATIC_LIGHT_MAP_SIZING_HINT =
+      LightMap.createUncappedAdaptiveSizingHint();
+
   static final String[] INSERTION_KEYS = {
     "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
   };
@@ -133,10 +141,10 @@ public class SingleThreadedMapBenchmark {
   LinkedHashMap<String, Integer> linkedHashMap;
   TagMap tagMap;
   LightMap<String, Integer> lightMap;
-  // Minted once and reused across every create_lightMap_adaptive invocation, mirroring the intended
-  // static-final-per-site usage. Warmup iterations let it converge to the fill size, so the
-  // measured
-  // creates seed a right-sized table instead of resizing up from the small createUncapped() seed.
+  // Minted once per thread and reused across every create_lightMap_adaptive invocation on that
+  // thread. Warmup iterations let it converge to the fill size, so the measured creates seed a
+  // right-sized table instead of resizing up from the small createUncapped() seed. Unlike
+  // STATIC_LIGHT_MAP_SIZING_HINT above, this hint is never shared between threads.
   AdaptiveSizingHint lightMapSizingHint;
   // Prebuilt raw spine (no wrapper) for the embedded get / iterate arms.
   Object[] lightMapData;
@@ -225,6 +233,15 @@ public class SingleThreadedMapBenchmark {
     // Same fill, but seeded from the self-tuning hint held across invocations -- isolates how much
     // of create_lightMap's cost is resize churn from the small createUncapped() seed.
     return fillLightMap(LightMap.create(lightMapSizingHint));
+  }
+
+  @Benchmark
+  public LightMap<String, Integer> create_lightMap_adaptive_static() {
+    // Same fill as create_lightMap_adaptive, but seeded from STATIC_LIGHT_MAP_SIZING_HINT, a
+    // single hint instance shared by every @Threads(8) worker -- the genuine "static final held
+    // once per call site" usage the class doc recommends, including the seedSlots()/recordSlots()
+    // races that come with sharing it across concurrently-running threads.
+    return fillLightMap(LightMap.create(STATIC_LIGHT_MAP_SIZING_HINT));
   }
 
   @Benchmark
