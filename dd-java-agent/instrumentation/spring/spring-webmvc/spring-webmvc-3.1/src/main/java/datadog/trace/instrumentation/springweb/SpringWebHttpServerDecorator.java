@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.Method;
 import javax.servlet.Servlet;
@@ -141,6 +142,9 @@ public class SpringWebHttpServerDecorator
     // "server error" statuses, this isn't really an error from the caller's point of view (e.g. a
     // 404 mapping), even though a Java exception was thrown to get there.
     Integer status = extractResponseStatus(throwable);
+    if (status == null) {
+      status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
+    }
     if (status != null) {
       span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
       span.setError(

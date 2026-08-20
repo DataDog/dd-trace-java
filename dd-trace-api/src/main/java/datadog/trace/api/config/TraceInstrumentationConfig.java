@@ -198,6 +198,15 @@ public final class TraceInstrumentationConfig {
       "trace.jax-rs.exception-as-error.enabled";
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
 
+  /**
+   * Comma-separated list of {@code fully.qualified.ExceptionClass#accessorMethod} entries. When a
+   * JAX-RS/Spring MVC handler throws an exception matching one of these entries (or a subclass of
+   * one), the named no-arg accessor method is invoked reflectively and its numeric return value is
+   * used as the HTTP status for deciding whether the span should be flagged as an error, instead of
+   * unconditionally marking it as an error.
+   */
+  public static final String RESPONSE_STATUS_EXCEPTIONS = "trace.response-status.exceptions";
+
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 

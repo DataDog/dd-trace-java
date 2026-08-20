@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
@@ -62,6 +63,9 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
     // an error from the caller's point of view (e.g. a 404 NotFoundException), even though a Java
     // exception was thrown to get there.
     Integer status = extractResponseStatus(throwable);
+    if (status == null) {
+      status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
+    }
     if (status != null) {
       span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
       span.setError(
