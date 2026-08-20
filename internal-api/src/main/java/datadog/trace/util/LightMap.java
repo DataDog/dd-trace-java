@@ -867,6 +867,11 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     @Nonnull
     public static Object[] expandMapData(@Nonnull Object[] origMapData, int newCapacity) {
       newCapacity = roundUpToPow2(newCapacity);
+      int liveEntries = size(origMapData);
+      if (newCapacity < liveEntries) {
+        throw new IllegalArgumentException(
+            "new capacity " + newCapacity + " cannot hold " + liveEntries + " entries");
+      }
       int newSize = newCapacity << 1;
       // Don't try to optimize by returning origMapData if big enough to contain
       // the newCapacity.  There's subtle invariant that new maps also don't
@@ -1046,6 +1051,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
           return;
         }
       }
+      throw new IllegalStateException("no free slot for " + key + " in a table of " + numSlots);
     }
 
     static int preferredSlot(int numSlots, int hash) {

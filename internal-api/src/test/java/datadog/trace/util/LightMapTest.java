@@ -575,6 +575,17 @@ class LightMapTest {
     }
 
     @Test
+    void expandToUndersizedCapacityRejectsRatherThanDroppingEntries() {
+      Object[] data = null;
+      for (int i = 0; i < 4; i++) {
+        data = EmbeddingSupport.set(4, data, "k" + i, i);
+      }
+      Object[] fourEntries = data;
+      assertThrows(
+          IllegalArgumentException.class, () -> EmbeddingSupport.expandMapData(fourEntries, 1));
+    }
+
+    @Test
     void copyIsIndependent() {
       Object[] data = EmbeddingSupport.set(4, null, "a", "A");
       Object[] copy = EmbeddingSupport.copy(data);
