@@ -326,6 +326,10 @@ public final class StringIndex {
       return -1;
     }
 
+    /**
+     * Probe; returns the slot or -1. Computes {@code name}'s hash for you — prefer this overload
+     * unless you already have the hash on hand (e.g. from probing another table with it).
+     */
     public static int indexOf(int[] hashes, String[] names, String name) {
       return indexOf(hashes, names, name, hash(name));
     }
