@@ -91,11 +91,11 @@ class HashtableTest {
       Hashtable.Entry[] buckets = Hashtable.createFixedBuckets(StringIntEntry.class, 4);
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
-      Hashtable.insertHeadEntry(buckets, 0, a);
+      Hashtable.insertHeadEntryAt(buckets, 0, a);
       assertSame(a, buckets[0]);
       assertNull(a.next());
 
-      Hashtable.insertHeadEntry(buckets, 0, b);
+      Hashtable.insertHeadEntryAt(buckets, 0, b);
       assertSame(b, buckets[0]);
       assertSame(a, b.next());
       assertNull(a.next());
