@@ -474,10 +474,12 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     // lives here in the spine rather than needing a maintained live count in the object tier.
     //
     // Chosen as a power-of-two-friendly 8 from measurement (LightMapGrowBenchmark): it caps
-    // the worst-case probe at 8 while keeping the memory over-provision modest on well-spread keys.
-    // Because a table never has more than (numSlots - 1) probe distance, this is inert for tables
-    // of
-    // 8 slots or fewer -- tiny maps still grow only when physically full, exactly as before.
+    // the worst-case probe at 8 for well-spread keys, while keeping the memory over-provision
+    // modest. That cap does not hold under a genuine hashCode() collision cluster, where the
+    // MAX_SLOTS_PER_LIVE_ENTRY backstop below refuses further probe-bound growth and lets the
+    // chain run longer -- bounded memory, not bounded probe length, in that case. Because a table
+    // never has more than (numSlots - 1) probe distance, this trigger is inert for tables of 8
+    // slots or fewer -- tiny maps still grow only when physically full, exactly as before.
     static final int MAX_PROBES = 8;
 
     // Backstop on probe-bound over-growth, so a hashCode() collision set cannot exhaust the heap.
