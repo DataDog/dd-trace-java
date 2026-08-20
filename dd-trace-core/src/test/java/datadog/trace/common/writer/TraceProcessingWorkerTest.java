@@ -57,7 +57,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   @Test
   void testHeartbeatsShouldBeTriggeredAutomaticallyWhenEnabled() throws Exception {
     AtomicInteger flushCount = new AtomicInteger();
-    TraceProcessingWorker worker =
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             mock(HealthMetrics.class),
@@ -66,12 +66,11 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             1,
             TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-            null);
+            null)) {
 
-    // processor is started
-    worker.start();
+      // processor is started
+      worker.start();
 
-    try {
       // heartbeat occurs automatically
       long deadline = System.currentTimeMillis() + 5000;
       while (System.currentTimeMillis() < deadline) {
@@ -79,9 +78,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         Thread.sleep(50);
       }
       assertTrue(flushCount.get() > 0);
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 

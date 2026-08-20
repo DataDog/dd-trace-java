@@ -137,7 +137,7 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String apiVersion = "v2";
     String path = buildIntakePath(trackType, apiVersion);
     int[] retry = {0};
-    JavaTestHttpServer intake =
+    try (JavaTestHttpServer intake =
         JavaTestHttpServer.httpServer(
             s ->
                 s.handlers(
@@ -154,18 +154,16 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
                               } else {
                                 api.getResponse().status(200).send();
                               }
-                            })));
-    DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
-    Payload payload = prepareTraces(trackType, Collections.emptyList());
+                            })))) {
 
-    try {
+      DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
+      Payload payload = prepareTraces(trackType, Collections.emptyList());
+
       RemoteApi.Response clientResponse = client.sendSerializedTraces(payload);
       assertTrue(clientResponse.success());
       assertTrue(clientResponse.status().isPresent());
       assertEquals(200, clientResponse.status().getAsInt());
       assertEquals(path, intake.getLastRequest().getPath());
-    } finally {
-      intake.close();
     }
   }
 

@@ -51,62 +51,64 @@ class TraceMapperTest extends DDCoreJavaSpecification {
     ByteBuffer dictionaryBytes = dictionaryBuffer.slice();
     Map<String, String> meta = new HashMap<>();
 
-    MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes);
-    int dictionaryLength = TraceMapperTestBridge.getEncoding(traceMapper).size();
-    String[] dictionary = new String[dictionaryLength];
-    for (int i = 0; i < dictionary.length; ++i) {
-      dictionary[i] = dictionaryUnpacker.unpackString();
-    }
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(sink.captured);
-    int traceCount = unpacker.unpackArrayHeader();
-    assertEquals(1, traceCount);
-    for (int i = 0; i < traceCount; ++i) {
-      int arrayLength = unpacker.unpackArrayHeader();
-      assertEquals(12, arrayLength);
-      String serviceName = dictionary[unpacker.unpackInt()];
-      assertEquals("my-service", serviceName);
-      String operationName = dictionary[unpacker.unpackInt()];
-      assertTrue(operationName.isEmpty());
-      String resourceName = dictionary[unpacker.unpackInt()];
-      assertTrue(resourceName.isEmpty());
-      long traceId = unpacker.unpackLong();
-      assertTrue(traceId > 0);
-      long spanId = unpacker.unpackLong();
-      assertTrue(spanId > 0);
-      long parentId = unpacker.unpackLong();
-      assertEquals(0, parentId);
-      long start = unpacker.unpackLong();
-      assertTrue(start > 0);
-      long duration = unpacker.unpackLong();
-      assertEquals(-start, duration);
-      int error = unpacker.unpackInt();
-      assertEquals(0, error);
-      int metaHeader = unpacker.unpackMapHeader();
-      for (int j = 0; j < metaHeader; ++j) {
-        String key = dictionary[unpacker.unpackInt()];
-        assertNotNull(key);
-        String value = dictionary[unpacker.unpackInt()];
-        assertNotNull(value);
-        meta.put(key, value);
+    try (MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)) {
+      int dictionaryLength = TraceMapperTestBridge.getEncoding(traceMapper).size();
+      String[] dictionary = new String[dictionaryLength];
+      for (int i = 0; i < dictionary.length; ++i) {
+        dictionary[i] = dictionaryUnpacker.unpackString();
       }
-      int metricsHeader = unpacker.unpackMapHeader();
-      for (int j = 0; j < metricsHeader; ++j) {
-        String key = dictionary[unpacker.unpackInt()];
-        assertNotNull(key);
-        unpacker.skipValue();
-      }
-      String type = dictionary[unpacker.unpackInt()];
-      assertNotNull(type);
+      try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(sink.captured)) {
+        int traceCount = unpacker.unpackArrayHeader();
+        assertEquals(1, traceCount);
+        for (int i = 0; i < traceCount; ++i) {
+          int arrayLength = unpacker.unpackArrayHeader();
+          assertEquals(12, arrayLength);
+          String serviceName = dictionary[unpacker.unpackInt()];
+          assertEquals("my-service", serviceName);
+          String operationName = dictionary[unpacker.unpackInt()];
+          assertTrue(operationName.isEmpty());
+          String resourceName = dictionary[unpacker.unpackInt()];
+          assertTrue(resourceName.isEmpty());
+          long traceId = unpacker.unpackLong();
+          assertTrue(traceId > 0);
+          long spanId = unpacker.unpackLong();
+          assertTrue(spanId > 0);
+          long parentId = unpacker.unpackLong();
+          assertEquals(0, parentId);
+          long start = unpacker.unpackLong();
+          assertTrue(start > 0);
+          long duration = unpacker.unpackLong();
+          assertEquals(-start, duration);
+          int error = unpacker.unpackInt();
+          assertEquals(0, error);
+          int metaHeader = unpacker.unpackMapHeader();
+          for (int j = 0; j < metaHeader; ++j) {
+            String key = dictionary[unpacker.unpackInt()];
+            assertNotNull(key);
+            String value = dictionary[unpacker.unpackInt()];
+            assertNotNull(value);
+            meta.put(key, value);
+          }
+          int metricsHeader = unpacker.unpackMapHeader();
+          for (int j = 0; j < metricsHeader; ++j) {
+            String key = dictionary[unpacker.unpackInt()];
+            assertNotNull(key);
+            unpacker.skipValue();
+          }
+          String type = dictionary[unpacker.unpackInt()];
+          assertNotNull(type);
+          // find the meta entry whose key contains ".mydata." and verify its value
+          String myDataValue = null;
+          for (Map.Entry<String, String> entry : meta.entrySet()) {
+            if (entry.getKey().contains(".mydata.")) {
+              myDataValue = entry.getValue();
+              break;
+            }
+          }
 
-      // find the meta entry whose key contains ".mydata." and verify its value
-      String myDataValue = null;
-      for (Map.Entry<String, String> entry : meta.entrySet()) {
-        if (entry.getKey().contains(".mydata.")) {
-          myDataValue = entry.getValue();
-          break;
+          assertEquals("[1,2,3]", myDataValue);
         }
       }
-      assertEquals("[1,2,3]", myDataValue);
     }
 
     tracer.close();
