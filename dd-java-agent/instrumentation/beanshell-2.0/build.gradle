@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   // BeanShell ships under two coordinates over its lifetime: the original org.beanshell:bsh
   // (up to 2.0b5) and the later org.apache-extras.beanshell:bsh (2.0b5, 2.0b6). Cover both.
@@ -15,8 +19,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

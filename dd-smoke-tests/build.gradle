@@ -1,6 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
 
 description = 'dd-smoke-tests'
 
