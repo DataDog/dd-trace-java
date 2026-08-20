@@ -56,35 +56,38 @@ import javax.annotation.concurrent.ThreadSafe;
  * object-key constraints are acceptable — they handle synchronization internally. When you need
  * primitive key components, three-or-more key parts, or extra per-entry value fields, drive the
  * table yourself with the static building blocks on this class: allocate the spine with {@link
- * #createFixedBuckets(Class, int)}, then operate on it with {@link #bucket}, {@link #unlink},
- * {@link #removeIf}, {@link #drain}, {@link #clear}, and {@link #forEach}. This is the same "static
- * functions over a caller-owned array" shape as {@link Hashtable} (see how {@code AggregateTable}
- * uses {@code Hashtable}); the calling class then owns the array and exposes whatever operations it
- * needs. Subclass {@link Entry} directly for such tables.
+ * #createFixedBuckets(Class, int)}, then operate on it with {@link #bucketFor} / {@link #bucketAt},
+ * {@link #unlink}, {@link #removeIf}, {@link #drain}, {@link #clear}, and {@link #forEach}. This is
+ * the same "static functions over a caller-owned array" shape as {@link Hashtable} (see how {@code
+ * AggregateTable} uses {@code Hashtable}); the calling class then owns the array and exposes
+ * whatever operations it needs. Subclass {@link Entry} directly for such tables.
  *
  * <p><b>Locking model.</b> Writes are guarded by a per-table monitor obtained from {@link
  * #getWriteLock(AtomicReferenceArray)} — treat it as opaque rather than assuming it is the array.
- * Reads are lock-free: {@link #bucket} walks and {@link #forEach} take no lock and are safe from
- * any thread. The whole-table mutators — {@link #removeIf}, {@link #drain}, {@link #clear} — are
- * <b>self-locking</b> ({@code synchronized (getWriteLock(buckets))} internally), so a custom table
- * calls them directly with no lock of its own. The only writes a custom table performs by hand are
- * single-key insert and remove; each is an atomic check-then-write that the caller wraps in {@code
- * synchronized (getWriteLock(buckets))} so it excludes other writers and the self-locking mutators
- * (same monitor, so it nests cleanly with the built-ins):
+ * Reads are lock-free: {@link #bucketFor} / {@link #bucketAt} walks and {@link #forEach} take no
+ * lock and are safe from any thread. The whole-table mutators — {@link #removeIf}, {@link #drain},
+ * {@link #clear} — are <b>self-locking</b> ({@code synchronized (getWriteLock(buckets))}
+ * internally), so a custom table calls them directly with no lock of its own. The only writes a
+ * custom table performs by hand are single-key insert and remove; each is an atomic
+ * check-then-write that the caller wraps in {@code synchronized (getWriteLock(buckets))} so it
+ * excludes other writers and the self-locking mutators (same monitor, so it nests cleanly with the
+ * built-ins):
  *
  * <ol>
- *   <li>Lock-free pre-check: walk the chain via {@link #bucket}; return if found.
+ *   <li>Lock-free pre-check: walk the chain via {@link #bucketFor} / {@link #bucketAt}; return if
+ *       found.
  *   <li>{@code synchronized (getWriteLock(buckets))} — take the table's write monitor.
  *   <li>Re-check under the lock (another thread may have inserted between step 1 and step 2).
- *   <li>Insert: build the entry and publish it with {@link #insertHeadEntry}. Remove: splice it out
- *       with {@link #unlink}. Both are volatile writes that lock-free readers observe atomically.
+ *   <li>Insert: build the entry and publish it with {@link #insertHeadEntryFor} / {@link
+ *       #insertHeadEntryAt}. Remove: splice it out with {@link #unlink}. Both are volatile writes
+ *       that lock-free readers observe atomically.
  * </ol>
  *
- * <p>{@link #bucket} (a lock-free read), {@link #insertHeadEntry}, and {@link #unlink} are the
- * single-slot primitives for that hand-written path; the two mutating ones do <b>not</b> lock, so
- * call them only inside the caller's {@code synchronized (getWriteLock(buckets))} block. The
- * entry's chain pointer is written for you by those helpers — custom tables never touch it
- * directly.
+ * <p>{@link #bucketFor} / {@link #bucketAt} (a lock-free read), {@link #insertHeadEntryFor} /
+ * {@link #insertHeadEntryAt}, and {@link #unlink} are the single-slot primitives for that
+ * hand-written path; the two mutating ones do <b>not</b> lock, so call them only inside the
+ * caller's {@code synchronized (getWriteLock(buckets))} block. The entry's chain pointer is written
+ * for you by those helpers — custom tables never touch it directly.
  */
 public final class ConcurrentHashtable {
   private ConcurrentHashtable() {}
@@ -196,7 +199,7 @@ public final class ConcurrentHashtable {
     @Nullable
     public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucket(buckets, keyHash);
+      for (TEntry curEntry = bucketFor(buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -216,13 +219,15 @@ public final class ConcurrentHashtable {
         @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(buckets, keyHash);
-      for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
+      for (TEntry curEntry = bucketAt(buckets, index);
+          curEntry != null;
+          curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
           return curEntry;
         }
       }
       synchronized (getWriteLock(buckets)) {
-        for (TEntry curEntry = bucket(buckets, index);
+        for (TEntry curEntry = bucketAt(buckets, index);
             curEntry != null;
             curEntry = curEntry.next()) {
           if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -230,7 +235,7 @@ public final class ConcurrentHashtable {
           }
         }
         TEntry newEntry = creator.apply(key);
-        insertHeadEntry(buckets, index, newEntry);
+        insertHeadEntryAt(buckets, index, newEntry);
         size.incrementAndGet();
         return newEntry;
       }
@@ -247,7 +252,7 @@ public final class ConcurrentHashtable {
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
         TEntry prev = null;
-        for (TEntry curEntry = bucket(buckets, index);
+        for (TEntry curEntry = bucketAt(buckets, index);
             curEntry != null;
             prev = curEntry, curEntry = curEntry.next()) {
           if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -411,7 +416,7 @@ public final class ConcurrentHashtable {
     @Nullable
     public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucket(buckets, keyHash);
+      for (TEntry curEntry = bucketFor(buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -436,13 +441,15 @@ public final class ConcurrentHashtable {
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(buckets, keyHash);
-      for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
+      for (TEntry curEntry = bucketAt(buckets, index);
+          curEntry != null;
+          curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
           return curEntry;
         }
       }
       synchronized (getWriteLock(buckets)) {
-        for (TEntry curEntry = bucket(buckets, index);
+        for (TEntry curEntry = bucketAt(buckets, index);
             curEntry != null;
             curEntry = curEntry.next()) {
           if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -450,7 +457,7 @@ public final class ConcurrentHashtable {
           }
         }
         TEntry newEntry = creator.apply(key1, key2);
-        insertHeadEntry(buckets, index, newEntry);
+        insertHeadEntryAt(buckets, index, newEntry);
         size.incrementAndGet();
         return newEntry;
       }
@@ -467,7 +474,7 @@ public final class ConcurrentHashtable {
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
         TEntry prev = null;
-        for (TEntry curEntry = bucket(buckets, index);
+        for (TEntry curEntry = bucketAt(buckets, index);
             curEntry != null;
             prev = curEntry, curEntry = curEntry.next()) {
           if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -605,9 +612,16 @@ public final class ConcurrentHashtable {
   /**
    * Returns the head entry of the bucket that {@code keyHash} maps to. The bucket read is a
    * volatile read of the slot, so it is safe from any thread without a lock.
+   *
+   * <p>Named distinctly from {@link #bucketAt} (rather than overloaded on {@code long} vs. {@code
+   * int}) deliberately: a caller with a primitive {@code int}-typed key hash that called an
+   * overloaded {@code bucket(buckets, intHash)} would silently bind to the {@code int}-index
+   * overload instead of widening to this one, reading the raw hash as an array index — out-of-range
+   * hashes throw {@link IndexOutOfBoundsException}, in-range-but-wrong ones silently read the wrong
+   * bucket.
    */
   @Nullable
-  public static <TEntry extends Entry> TEntry bucket(
+  public static <TEntry extends Entry> TEntry bucketFor(
       @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash) {
     return buckets.get(bucketIndex(buckets, keyHash));
   }
@@ -615,10 +629,11 @@ public final class ConcurrentHashtable {
   /**
    * Returns the head entry of the bucket at {@code index}. Use when the bucket index is already
    * computed (e.g. inside {@code getOrCreate} where the same index is reused across the lock
-   * boundary).
+   * boundary). See {@link #bucketFor} for why this is a distinct name rather than an {@code int}
+   * overload of it.
    */
   @Nullable
-  public static <TEntry extends Entry> TEntry bucket(
+  public static <TEntry extends Entry> TEntry bucketAt(
       @Nonnull AtomicReferenceArray<TEntry> buckets, int index) {
     return buckets.get(index);
   }
@@ -629,25 +644,28 @@ public final class ConcurrentHashtable {
    * {@code next} already points at the old head) atomically. Single-slot primitive: it does not
    * lock, so call it inside the caller's {@code synchronized (getWriteLock(buckets))} block, after
    * re-checking the chain for the key under that lock. Does not touch size accounting.
+   *
+   * <p>See {@link #bucketFor} for why this is a distinct name rather than an {@code int} overload
+   * of {@link #insertHeadEntryFor}.
    */
   @GuardedBy("getWriteLock(buckets)")
-  public static <TEntry extends Entry> void insertHeadEntry(
+  public static <TEntry extends Entry> void insertHeadEntryAt(
       @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLock(buckets))
-        : "insertHeadEntry called without holding getWriteLock(buckets)";
+        : "insertHeadEntryAt called without holding getWriteLock(buckets)";
     entry.setNext(buckets.get(index));
     buckets.set(index, entry);
   }
 
   /**
-   * Convenience overload of {@link #insertHeadEntry(AtomicReferenceArray, int, Entry)} that derives
-   * the bucket index from {@code keyHash}. Prefer the int-taking overload when the index is already
-   * computed (e.g. a {@code getOrCreate} that reuses it across the lock-free pre-check).
+   * Convenience form of {@link #insertHeadEntryAt} that derives the bucket index from {@code
+   * keyHash}. Prefer {@link #insertHeadEntryAt} when the index is already computed (e.g. a {@code
+   * getOrCreate} that reuses it across the lock-free pre-check).
    */
   @GuardedBy("getWriteLock(buckets)")
-  public static <TEntry extends Entry> void insertHeadEntry(
+  public static <TEntry extends Entry> void insertHeadEntryFor(
       @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash, @Nonnull TEntry entry) {
-    insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
+    insertHeadEntryAt(buckets, bucketIndex(buckets, keyHash), entry);
   }
 
   /**

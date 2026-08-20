@@ -81,15 +81,16 @@ class ConcurrentHashtableStaticsTest {
   }
 
   @Test
-  void insertHeadEntryByKeyHashOverloadPlacesInMaskedBucket() {
+  void insertHeadEntryForPlacesInBucketMaskedFromKeyHash() {
     AtomicReferenceArray<IntEntry> buckets =
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8); // mask 7
     IntEntry e = new IntEntry(9, 1); // keyHash 9 → bucket 1
     synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
-      ConcurrentHashtable.insertHeadEntry(buckets, e.keyHash, e);
+      ConcurrentHashtable.insertHeadEntryFor(buckets, e.keyHash, e);
     }
-    assertSame(e, ConcurrentHashtable.bucket(buckets, 9L)); // keyHash overload
-    assertSame(e, ConcurrentHashtable.bucket(buckets, 1)); // index overload
+    assertSame(e, ConcurrentHashtable.bucketFor(buckets, 9L)); // masks keyHash to the bucket index
+    assertSame(
+        e, ConcurrentHashtable.bucketAt(buckets, 1)); // same slot, addressed directly by index
     assertNull(buckets.get(0));
   }
 
@@ -216,7 +217,7 @@ class ConcurrentHashtableStaticsTest {
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
     assertThrows(
         AssertionError.class,
-        () -> ConcurrentHashtable.insertHeadEntry(buckets, 0, new IntEntry(1, 1)));
+        () -> ConcurrentHashtable.insertHeadEntryAt(buckets, 0, new IntEntry(1, 1)));
   }
 
   @Test
@@ -226,7 +227,7 @@ class ConcurrentHashtableStaticsTest {
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
     IntEntry e = new IntEntry(1, 1);
     synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
-      ConcurrentHashtable.insertHeadEntry(buckets, 0, e);
+      ConcurrentHashtable.insertHeadEntryAt(buckets, 0, e);
     }
     assertThrows(AssertionError.class, () -> ConcurrentHashtable.unlink(buckets, 0, null, e));
   }
@@ -335,7 +336,9 @@ class ConcurrentHashtableStaticsTest {
     }
 
     IntEntry get(int key) {
-      for (IntEntry e = ConcurrentHashtable.bucket(buckets, (long) key); e != null; e = e.next()) {
+      for (IntEntry e = ConcurrentHashtable.bucketFor(buckets, (long) key);
+          e != null;
+          e = e.next()) {
         if (e.matches(key)) {
           return e;
         }
@@ -345,19 +348,19 @@ class ConcurrentHashtableStaticsTest {
 
     IntEntry getOrCreate(int key, int value) {
       int index = ConcurrentHashtable.bucketIndex(buckets, key);
-      for (IntEntry e = ConcurrentHashtable.bucket(buckets, index); e != null; e = e.next()) {
+      for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
         if (e.matches(key)) {
           return e;
         }
       }
       synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
-        for (IntEntry e = ConcurrentHashtable.bucket(buckets, index); e != null; e = e.next()) {
+        for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {
             return e;
           }
         }
         IntEntry created = new IntEntry(key, value);
-        ConcurrentHashtable.insertHeadEntry(buckets, index, created);
+        ConcurrentHashtable.insertHeadEntryAt(buckets, index, created);
         size.incrementAndGet();
         return created;
       }
@@ -366,20 +369,20 @@ class ConcurrentHashtableStaticsTest {
     /** {@link #getOrCreate} variant that counts real creations, for the exactly-once race test. */
     IntEntry getOrCreateCounting(int key, AtomicInteger createCount) {
       int index = ConcurrentHashtable.bucketIndex(buckets, key);
-      for (IntEntry e = ConcurrentHashtable.bucket(buckets, index); e != null; e = e.next()) {
+      for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
         if (e.matches(key)) {
           return e;
         }
       }
       synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
-        for (IntEntry e = ConcurrentHashtable.bucket(buckets, index); e != null; e = e.next()) {
+        for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {
             return e;
           }
         }
         createCount.incrementAndGet();
         IntEntry created = new IntEntry(key, 0);
-        ConcurrentHashtable.insertHeadEntry(buckets, index, created);
+        ConcurrentHashtable.insertHeadEntryAt(buckets, index, created);
         size.incrementAndGet();
         return created;
       }
@@ -389,7 +392,7 @@ class ConcurrentHashtableStaticsTest {
       int index = ConcurrentHashtable.bucketIndex(buckets, key);
       synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
         IntEntry prev = null;
-        for (IntEntry e = ConcurrentHashtable.bucket(buckets, index); e != null; e = e.next()) {
+        for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {
             ConcurrentHashtable.unlink(buckets, index, prev, e);
             size.decrementAndGet();

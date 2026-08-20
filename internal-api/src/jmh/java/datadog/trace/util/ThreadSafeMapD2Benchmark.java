@@ -207,7 +207,7 @@ public class ThreadSafeMapD2Benchmark {
         // populate support table
         SupportEntry se = new SupportEntry(SOURCE_K1[i], k2);
         synchronized (ConcurrentHashtable.getWriteLock(supportBuckets)) {
-          ConcurrentHashtable.insertHeadEntry(supportBuckets, se.keyHash, se);
+          ConcurrentHashtable.insertHeadEntryFor(supportBuckets, se.keyHash, se);
         }
         Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
         concurrentHashMap.put(key, (long) i);
@@ -241,7 +241,7 @@ public class ThreadSafeMapD2Benchmark {
     String k1 = SOURCE_K1[i];
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
-    for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, keyHash);
+    for (SupportEntry e = ConcurrentHashtable.bucketFor(s.supportBuckets, keyHash);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -282,7 +282,7 @@ public class ThreadSafeMapD2Benchmark {
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
     int index = ConcurrentHashtable.bucketIndex(s.supportBuckets, keyHash);
-    for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, index);
+    for (SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -290,7 +290,7 @@ public class ThreadSafeMapD2Benchmark {
       }
     }
     synchronized (ConcurrentHashtable.getWriteLock(s.supportBuckets)) {
-      for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, index);
+      for (SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
           e != null;
           e = e.next()) {
         if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -298,7 +298,7 @@ public class ThreadSafeMapD2Benchmark {
         }
       }
       SupportEntry newEntry = new SupportEntry(k1, k2);
-      ConcurrentHashtable.insertHeadEntry(s.supportBuckets, index, newEntry);
+      ConcurrentHashtable.insertHeadEntryAt(s.supportBuckets, index, newEntry);
       return newEntry;
     }
   }
