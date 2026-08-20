@@ -57,6 +57,12 @@ public class LambdaAppSecHandler {
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
+  /**
+   * Marks an invocation AppSec did not process because the trigger is not HTTP. Mirrors {@code
+   * _dd.appsec.unsupported_event_type} in the Python and Node.js Lambda tracers.
+   */
+  private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";
+
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
@@ -66,9 +72,13 @@ public class LambdaAppSecHandler {
    * gateway callbacks on the parsed event, and, for recognised HTTP triggers, applies the HTTP tags
    * to the returned context so they land on the invocation span at creation.
    *
+   * <p>Invocations whose trigger is not an HTTP one are skipped entirely, as in the Python and
+   * Node.js Lambda tracers; {@link #processRequestEnd(AgentSpan)} marks them on the span instead.
+   *
    * @param event the Lambda event object
    * @return a {@link TagContext} carrying the AppSec request context and the HTTP tags, or null if
-   *     AppSec is disabled, the event is not a parseable payload, or processing fails
+   *     AppSec is disabled, the trigger is not HTTP, the event is not a parseable payload, or
+   *     processing fails
    */
   public static AgentSpanContext processRequestStart(Object event) {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
@@ -91,6 +101,10 @@ public class LambdaAppSecHandler {
         return null;
       }
       CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
+      if (!eventData.triggerType.isHttp()) {
+        log.debug("Trigger type {} is not HTTP, skipping AppSec processing", eventData.triggerType);
+        return null;
+      }
       // v2 payloads carry the request line verbatim; the others expose the path and a decoded
       // parameter map only, so the query string has to be rebuilt from them
       String fullPath = eventData.rawUri;
@@ -100,7 +114,7 @@ public class LambdaAppSecHandler {
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
       AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
-      if (context instanceof TagContext && eventData.triggerType.isHttp()) {
+      if (context instanceof TagContext) {
         applyHttpTags((TagContext) context, eventData, uriAdapter);
       }
       return context;
@@ -112,14 +126,25 @@ public class LambdaAppSecHandler {
 
   /**
    * Invokes the requestEnded gateway callback to add AppSec data to the span, propagates the
-   * sampling decision of trace-tagging rules, and clears the per-invocation state.
+   * sampling decision of trace-tagging rules, and clears the per-invocation state. Invocations
+   * skipped by {@link #processRequestStart(Object)} because their trigger is not HTTP are marked
+   * with {@value #UNSUPPORTED_EVENT_TYPE_METRIC} instead.
    *
    * @param span the current span
    */
   public static void processRequestEnd(AgentSpan span) {
+    LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
     if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
+      return;
+    }
+
+    // A null trigger type means processRequestStart never ran for this invocation, which is not an
+    // HTTP request either. Both cases are reported the same way, and nothing below applies since
+    // no AppSec request context was created.
+    if (triggerType == null || !triggerType.isHttp()) {
+      span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;
     }
 
