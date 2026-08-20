@@ -148,6 +148,23 @@ public final class StringIndex {
 
   /**
    * Static algorithm over raw arrays. Query helpers take raw arrays, never a Data or a StringIndex.
+   *
+   * <pre>{@code
+   * private static final int[] METHOD_HASHES;
+   * private static final String[] METHOD_NAMES;
+   * private static final int[] METHOD_IDS;
+   *
+   * static {
+   *   Data data = EmbeddingSupport.create("GET", "POST", "PUT");
+   *   METHOD_HASHES = data.hashes;
+   *   METHOD_NAMES = data.names;
+   *   METHOD_IDS = EmbeddingSupport.mapIntValues(data.names, name -> nextMethodId());
+   * }
+   *
+   * ...
+   * int id = EmbeddingSupport.lookupOrDefault(
+   *     METHOD_HASHES, METHOD_NAMES, METHOD_IDS, incomingMethod, UNKNOWN_METHOD_ID);
+   * }</pre>
    */
   public static final class EmbeddingSupport {
     private EmbeddingSupport() {}
