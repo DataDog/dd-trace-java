@@ -1,11 +1,13 @@
 package datadog.trace.llmobs.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.communication.EvpProxy;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.api.llmobs.LLMObs;
@@ -55,6 +57,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String SPAN_KIND_TAG_KEY = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSpanMapper.class);
+  private static final RatelimitedLogger PROCESSOR_ERROR_LOGGER =
+      new RatelimitedLogger(LOGGER, 1, MINUTES);
 
   private static final byte[] STAGE = "_dd.stage".getBytes(StandardCharsets.UTF_8);
   private static final byte[] EVENT_TYPE = "event_type".getBytes(StandardCharsets.UTF_8);
@@ -258,7 +262,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
       } catch (Throwable error) {
         processorError = true;
         markDroppedSpan(i, spans.size());
-        LOGGER.warn("Error in LLM Observability span processor, dropping span", error);
+        PROCESSOR_ERROR_LOGGER.warn(
+            "Error in LLM Observability span processor, dropping span", error);
       } finally {
         LLMObsMetricCollector.get().recordUserProcessorCalled(processorError);
       }
