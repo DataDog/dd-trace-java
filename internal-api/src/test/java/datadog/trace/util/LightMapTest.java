@@ -1084,6 +1084,21 @@ class LightMapTest {
     }
 
     @Test
+    void createCappedAdaptiveSizingHintClampsDefaultSeedInsteadOfThrowing() {
+      // createCappedAdaptiveSizingHint(4) never gave the caller a chance to pick a seed: the
+      // builder's default seed (DEFAULT_HINT_SLOTS = 8) used to be compared against the 4-slot cap
+      // as if it were an explicit request, throwing on a call that looks identical to the
+      // always-succeeds LightMap.createCapped(4). A left-at-default seed above the cap must instead
+      // clamp down to the cap, matching createCapped(int)'s behavior.
+      LightMap.AdaptiveSizingHint hint = LightMap.createCappedAdaptiveSizingHint(4);
+      LightMap<String, Integer> map = LightMap.create(hint);
+      for (int i = 0; i < 4; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertFalse(map.set("k4", 4), "cap of 4 must not be exceeded");
+    }
+
+    @Test
     void cappedHintNeverSeedsAMapLargerThanTheCap() {
       // The learned seed is clamped to the cap: even after a map grows to the cap, recordSlots
       // (which

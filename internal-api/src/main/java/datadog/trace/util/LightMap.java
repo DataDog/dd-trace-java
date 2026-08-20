@@ -405,6 +405,10 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     /** Builds an {@link AdaptiveSizingHint} with an initial and/or maximum capacity. */
     public static final class Builder {
       private int initCapacity = DEFAULT_HINT_SLOTS;
+      // Distinguishes "left at the default seed" from "caller asked for this seed": a default seed
+      // above maxCapacity is silently clamped down (same behavior as createCapped(int)); an
+      // explicit one above maxCapacity is a caller error (same behavior as createCapped(int, int)).
+      private boolean initCapacityExplicit;
       private int maxCapacity = NO_MAX_SLOTS;
 
       private Builder() {}
@@ -413,6 +417,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       @Nonnull
       public Builder initCapacity(int slots) {
         this.initCapacity = slots;
+        this.initCapacityExplicit = true;
         return this;
       }
 
@@ -436,8 +441,12 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
                 ? NO_MAX_SLOTS
                 : EmbeddingSupport.roundUpToPow2(this.maxCapacity);
         if (max != NO_MAX_SLOTS && seed > max) {
-          throw new IllegalArgumentException(
-              "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
+          if (!this.initCapacityExplicit) {
+            seed = max;
+          } else {
+            throw new IllegalArgumentException(
+                "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
+          }
         }
         return new AdaptiveSizingHint(seed, max);
       }
