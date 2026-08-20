@@ -13,6 +13,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -29,6 +30,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * case lives in {@link ImmutableMapBenchmark}, and the contended case in the {@code
  * ConcurrentHashtable} / {@code ThreadSafeMap} suites. Running at {@code @Threads(8)} keeps
  * allocation / GC interactions visible without introducing lock contention.
+ *
+ * <p>{@code size} is swept via {@code @Param} ({@code 4, 8, 64, 256}) rather than fixed at one
+ * count, so every benchmark runs once per size: 4 and 8 straddle {@code LightMap}'s {@code
+ * DEFAULT_CAPACITY} seed, and 64/256 force multiple grows. Use this to see how the LightMap-vs-
+ * HashMap comparison (construction cost, allocation, probe length) shifts as live entries grow,
+ * rather than reading a single fixed-size snapshot as universal.
  *
  * <p>Comparing different Map types:
  *
@@ -79,37 +86,39 @@ public class SingleThreadedMapBenchmark {
   static final AdaptiveSizingHint STATIC_LIGHT_MAP_SIZING_HINT =
       LightMap.createUncappedAdaptiveSizingHint();
 
-  static final String[] INSERTION_KEYS = {
-    "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
-  };
-
-  // Distinct String instances so lookups exercise equals(), not identity.
-  static final String[] EQUAL_KEYS = newEqualKeys();
-
-  static String[] newEqualKeys() {
-    String[] keys = new String[INSERTION_KEYS.length];
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      keys[i] = new String(INSERTION_KEYS[i]);
+  static String[] newInsertionKeys(int size) {
+    String[] keys = new String[size];
+    for (int i = 0; i < size; ++i) {
+      keys[i] = "key" + i;
     }
     return keys;
   }
 
-  static void fill(Map<String, Integer> map) {
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      map.put(INSERTION_KEYS[i], i);
+  // Distinct String instances so lookups exercise equals(), not identity.
+  static String[] newEqualKeys(String[] insertionKeys) {
+    String[] keys = new String[insertionKeys.length];
+    for (int i = 0; i < insertionKeys.length; ++i) {
+      keys[i] = new String(insertionKeys[i]);
+    }
+    return keys;
+  }
+
+  static void fill(Map<String, Integer> map, String[] keys) {
+    for (int i = 0; i < keys.length; ++i) {
+      map.put(keys[i], i);
     }
   }
 
-  static TagMap fillTagMap(TagMap map) {
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      map.set(INSERTION_KEYS[i], i); // primitive support
+  static TagMap fillTagMap(TagMap map, String[] keys) {
+    for (int i = 0; i < keys.length; ++i) {
+      map.set(keys[i], i); // primitive support
     }
     return map;
   }
 
-  static LightMap<String, Integer> fillLightMap(LightMap<String, Integer> map) {
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      map.set(INSERTION_KEYS[i], i);
+  static LightMap<String, Integer> fillLightMap(LightMap<String, Integer> map, String[] keys) {
+    for (int i = 0; i < keys.length; ++i) {
+      map.set(keys[i], i);
     }
     return map;
   }
@@ -117,22 +126,32 @@ public class SingleThreadedMapBenchmark {
   // The "embedded" analog of fillLightMap: no LightMap wrapper object at all -- the caller owns a
   // raw Object[] spine and drives EmbeddingSupport static functions over it. set() returns the
   // (possibly grown) array, mirroring how a consumer that has "dropped a level" would hold it.
-  static Object[] fillLightMapEmbedded() {
+  static Object[] fillLightMapEmbedded(String[] keys) {
     Object[] data = null;
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      data = EmbeddingSupport.set(data, INSERTION_KEYS[i], i);
+    for (int i = 0; i < keys.length; ++i) {
+      data = EmbeddingSupport.set(data, keys[i], i);
     }
     return data;
   }
 
   // Embedded fill seeded from a self-tuning hint (spine counterpart of LightMap.create(hint)).
-  static Object[] fillLightMapEmbedded(AdaptiveSizingHint hint) {
+  static Object[] fillLightMapEmbedded(AdaptiveSizingHint hint, String[] keys) {
     Object[] data = null;
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      data = EmbeddingSupport.set(hint, data, INSERTION_KEYS[i], i);
+    for (int i = 0; i < keys.length; ++i) {
+      data = EmbeddingSupport.set(hint, data, keys[i], i);
     }
     return data;
   }
+
+  // Map size, swept so the LightMap-vs-HashMap comparison (construction cost, allocation, probe
+  // length) can be read as a function of live entries rather than pinned to one arbitrarily chosen
+  // count. 4 and 8 straddle LightMap's DEFAULT_CAPACITY seed; 64 and 256 exercise multiple grows.
+  @Param({"4", "8", "64", "256"})
+  public int size;
+
+  String[] insertionKeys;
+  // Distinct String instances so lookups exercise equals(), not identity.
+  String[] equalKeys;
 
   // Per-thread prebuilt maps for the read + clone benchmarks (built once per trial, per thread).
   HashMap<String, Integer> hashMap;
@@ -152,22 +171,24 @@ public class SingleThreadedMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    insertionKeys = newInsertionKeys(size);
+    equalKeys = newEqualKeys(insertionKeys);
     hashMap = new HashMap<>();
-    fill(hashMap);
+    fill(hashMap, insertionKeys);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));
     treeMap = new TreeMap<>();
-    fill(treeMap);
+    fill(treeMap, insertionKeys);
     linkedHashMap = new LinkedHashMap<>();
-    fill(linkedHashMap);
-    tagMap = fillTagMap(TagMap.create());
-    lightMap = fillLightMap(LightMap.createUncapped());
+    fill(linkedHashMap, insertionKeys);
+    tagMap = fillTagMap(TagMap.create(), insertionKeys);
+    lightMap = fillLightMap(LightMap.createUncapped(), insertionKeys);
     lightMapSizingHint = LightMap.createUncappedAdaptiveSizingHint();
-    lightMapData = fillLightMapEmbedded();
+    lightMapData = fillLightMapEmbedded(insertionKeys);
   }
 
   String nextLookupKey() {
-    if (++index >= EQUAL_KEYS.length) index = 0;
-    return EQUAL_KEYS[index];
+    if (++index >= equalKeys.length) index = 0;
+    return equalKeys[index];
   }
 
   // ---- construction: build cost + allocation ----
@@ -175,7 +196,7 @@ public class SingleThreadedMapBenchmark {
   @Benchmark
   public Map<String, Integer> create_hashMap() {
     HashMap<String, Integer> map = new HashMap<>();
-    fill(map);
+    fill(map, insertionKeys);
     return map;
   }
 
@@ -183,56 +204,56 @@ public class SingleThreadedMapBenchmark {
   public Map<String, Integer> create_hashMap_sized() {
     // Sizing is preferable for large maps, but in practice most of our maps fall within the
     // default.
-    HashMap<String, Integer> map = new HashMap<>(INSERTION_KEYS.length);
-    fill(map);
+    HashMap<String, Integer> map = new HashMap<>(insertionKeys.length);
+    fill(map, insertionKeys);
     return map;
   }
 
   @Benchmark
   public Map<String, Integer> create_synchronizedHashMap() {
     Map<String, Integer> map = Collections.synchronizedMap(new HashMap<>());
-    fill(map);
+    fill(map, insertionKeys);
     return map;
   }
 
   @Benchmark
   public TreeMap<String, Integer> create_treeMap() {
     TreeMap<String, Integer> map = new TreeMap<>();
-    fill(map);
+    fill(map, insertionKeys);
     return map;
   }
 
   @Benchmark
   public LinkedHashMap<String, Integer> create_linkedHashMap() {
     LinkedHashMap<String, Integer> map = new LinkedHashMap<>();
-    fill(map);
+    fill(map, insertionKeys);
     return map;
   }
 
   @Benchmark
   public TagMap create_tagMap() {
-    return fillTagMap(TagMap.create());
+    return fillTagMap(TagMap.create(), insertionKeys);
   }
 
   @Benchmark
   public TagMap create_tagMap_via_ledger() {
     TagMap.Ledger ledger = TagMap.ledger();
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      ledger.set(INSERTION_KEYS[i], i); // primitive support
+    for (int i = 0; i < insertionKeys.length; ++i) {
+      ledger.set(insertionKeys[i], i); // primitive support
     }
     return ledger.build();
   }
 
   @Benchmark
   public LightMap<String, Integer> create_lightMap() {
-    return fillLightMap(LightMap.createUncapped());
+    return fillLightMap(LightMap.createUncapped(), insertionKeys);
   }
 
   @Benchmark
   public LightMap<String, Integer> create_lightMap_adaptive() {
     // Same fill, but seeded from the self-tuning hint held across invocations -- isolates how much
     // of create_lightMap's cost is resize churn from the small createUncapped() seed.
-    return fillLightMap(LightMap.create(lightMapSizingHint));
+    return fillLightMap(LightMap.create(lightMapSizingHint), insertionKeys);
   }
 
   @Benchmark
@@ -240,8 +261,10 @@ public class SingleThreadedMapBenchmark {
     // Same fill as create_lightMap_adaptive, but seeded from STATIC_LIGHT_MAP_SIZING_HINT, a
     // single hint instance shared by every @Threads(8) worker -- the genuine "static final held
     // once per call site" usage the class doc recommends, including the seedSlots()/recordSlots()
-    // races that come with sharing it across concurrently-running threads.
-    return fillLightMap(LightMap.create(STATIC_LIGHT_MAP_SIZING_HINT));
+    // races that come with sharing it across concurrently-running threads. Note this hint is also
+    // shared *across* @Param size values within one fork, so its learned seed can carry over from
+    // one size to the next -- a caveat specific to this arm, not to static hints in general.
+    return fillLightMap(LightMap.create(STATIC_LIGHT_MAP_SIZING_HINT), insertionKeys);
   }
 
   @Benchmark
@@ -249,13 +272,13 @@ public class SingleThreadedMapBenchmark {
     // No wrapper object -- build straight over a raw Object[] spine. The delta to create_lightMap
     // is
     // the LightMap wrapper's own allocation/overhead.
-    return fillLightMapEmbedded();
+    return fillLightMapEmbedded(insertionKeys);
   }
 
   @Benchmark
   public Object[] create_lightMap_embedded_adaptive() {
     // Embedded + hint-seeded: the leanest create path (no wrapper, right-sized first table).
-    return fillLightMapEmbedded(lightMapSizingHint);
+    return fillLightMapEmbedded(lightMapSizingHint, insertionKeys);
   }
 
   // ---- copy ----
