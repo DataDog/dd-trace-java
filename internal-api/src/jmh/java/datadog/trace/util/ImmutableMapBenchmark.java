@@ -49,14 +49,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * key (the {@code ==} fast path — the common tracer case):
  *
  * <pre>{@code
- * Structure                    get    sameKey
- * stringIndex_embedded (static) 1498     2081    (fastest)
- * stringIndex (inst)           1363     1900
- * hashMap                      1216     1850
- * linkedHashMap                1214       -
- * tagMap                       1167     1386
- * tracerImmutableMap           1049     1364    (MapN)
- * treeMap                       656       -
+ * Structure                           get sameKey
+ * stringIndex_embedded (static)      1498    2081    (fastest)
+ * stringIndex (inst)                 1363    1900
+ * hashMap                            1216    1850
+ * linkedHashMap                      1214       -
+ * tagMap                             1167    1386
+ * tracerImmutableMap                 1049    1364    (MapN)
+ * treeMap                             656       -
  * }</pre>
  *
  * <p>{@code iterate} (full traversal):

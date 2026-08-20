@@ -51,14 +51,14 @@ import org.openjdk.jmh.annotations.Warmup;
  * millions):
  *
  * <pre>{@code
- * Structure                    hit     miss
- * stringIndex_embedded (static) 2320     2159    (fastest)
- * hashSet                      2198     2134
- * stringIndex (inst)           2098     1548 *  (* miss bimodal -- see caveat)
- * tracerImmutableSet           1914     1663    (Set.copyOf / SetN)
- * array                         941      589
- * sortedArray                   685      610
- * treeSet                       657      610
+ * Structure                           hit    miss
+ * stringIndex_embedded (static)      2320    2159    (fastest)
+ * hashSet                            2198    2134
+ * stringIndex (inst)                 2098  1548 *    (* miss bimodal -- see caveat)
+ * tracerImmutableSet                 1914    1663    (Set.copyOf / SetN)
+ * array                               941     589
+ * sortedArray                         685     610
+ * treeSet                             657     610
  * }</pre>
  *
  * <p>Key findings:
