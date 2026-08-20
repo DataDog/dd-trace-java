@@ -3,8 +3,11 @@ package datadog.trace.instrumentation.springweb;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -12,7 +15,9 @@ import java.lang.reflect.Method;
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.HttpRequestHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
@@ -20,6 +25,38 @@ import org.springframework.web.servlet.mvc.Controller;
 
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
+
+  // ResponseStatusException was added in Spring 5.0; this module also supports Spring 3.1-4.x,
+  // so it can't be referenced directly. Resolved reflectively, once, and reused.
+  private static final Method RESPONSE_STATUS_EXCEPTION_GET_STATUS =
+      findResponseStatusExceptionGetStatus();
+
+  private static Method findResponseStatusExceptionGetStatus() {
+    try {
+      Class<?> responseStatusExceptionClass =
+          Class.forName(
+              "org.springframework.web.server.ResponseStatusException",
+              false,
+              SpringWebHttpServerDecorator.class.getClassLoader());
+      return responseStatusExceptionClass.getMethod("getStatus");
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      return null;
+    }
+  }
+
+  // ResponseStatus#code() was added in Spring 4.2 as an alias of value(); this module compiles
+  // against Spring 3.1, so it can't be referenced directly. Resolved reflectively, once, and
+  // reused. Plain reflection doesn't resolve Spring's @AliasFor, so if a caller only set code(),
+  // value() still reports its own default rather than the value mirrored from code().
+  private static final Method RESPONSE_STATUS_CODE = findResponseStatusCode();
+
+  private static Method findResponseStatusCode() {
+    try {
+      return ResponseStatus.class.getMethod("code");
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+  }
 
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
@@ -95,6 +132,61 @@ public class SpringWebHttpServerDecorator
   @Override
   protected String getRequestHeader(final HttpServletRequest request, String key) {
     return request.getHeader(key);
+  }
+
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    // Walk the cause chain looking for a status the exception itself carries (@ResponseStatus, or
+    // a ResponseStatusException on Spring 5+). If the mapped status isn't one of the configured
+    // "server error" statuses, this isn't really an error from the caller's point of view (e.g. a
+    // 404 mapping), even though a Java exception was thrown to get there.
+    Integer status = extractResponseStatus(throwable);
+    if (status != null) {
+      span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
+      span.setError(
+          Config.get().getHttpServerErrorStatuses().get(status),
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  private static Integer extractResponseStatus(final Throwable throwable) {
+    Throwable current = throwable;
+    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+      if (RESPONSE_STATUS_EXCEPTION_GET_STATUS != null
+          && RESPONSE_STATUS_EXCEPTION_GET_STATUS.getDeclaringClass().isInstance(current)) {
+        try {
+          Object httpStatus = RESPONSE_STATUS_EXCEPTION_GET_STATUS.invoke(current);
+          if (httpStatus instanceof HttpStatus) {
+            return ((HttpStatus) httpStatus).value();
+          }
+        } catch (Throwable ignored) {
+          // fall through to the @ResponseStatus check below
+        }
+      }
+      for (Class<?> type : new ClassHierarchyIterable(current.getClass())) {
+        ResponseStatus responseStatus = type.getAnnotation(ResponseStatus.class);
+        if (responseStatus != null) {
+          return responseStatusCode(responseStatus);
+        }
+      }
+    }
+    return null;
+  }
+
+  private static int responseStatusCode(final ResponseStatus responseStatus) {
+    if (RESPONSE_STATUS_CODE != null) {
+      try {
+        HttpStatus code = (HttpStatus) RESPONSE_STATUS_CODE.invoke(responseStatus);
+        if (code != HttpStatus.INTERNAL_SERVER_ERROR) {
+          return code.value();
+        }
+      } catch (Throwable ignored) {
+        // fall through to value() below
+      }
+    }
+    return responseStatus.value().value();
   }
 
   @Override
