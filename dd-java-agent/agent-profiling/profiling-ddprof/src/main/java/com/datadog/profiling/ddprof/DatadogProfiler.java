@@ -586,6 +586,10 @@ public final class DatadogProfiler {
     return RECORDING.get() && taskBlockBridge.parkEnter();
   }
 
+  boolean isUnparkAttributionEnabled() {
+    return RECORDING.get() && taskBlockBridge.hasParkSupport();
+  }
+
   void parkExit(long blocker, long unblockingSpanId) {
     taskBlockBridge.parkExit(blocker, unblockingSpanId);
   }

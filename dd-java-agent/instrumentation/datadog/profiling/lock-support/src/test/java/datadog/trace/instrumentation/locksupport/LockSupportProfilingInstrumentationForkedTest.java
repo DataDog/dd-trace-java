@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -24,6 +26,8 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = PROFILING_DATADOG_PROFILER_WALL_PRECHECK, value = "true")
 @WithConfig(key = PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER, value = "false")
 class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentationTest {
+  /** Bounded so an unpark that is somehow missed fails the assertion instead of hanging. */
+  private static final long PARK_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
 
   @BeforeEach
   void clearProfilingContextIntegration() {
@@ -65,7 +69,7 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
     Object blocker = new Object();
     Thread callingThread = Thread.currentThread();
 
-    LockSupport.parkUntil(blocker, System.currentTimeMillis() + 1L);
+    LockSupport.parkUntil(blocker, System.currentTimeMillis() + 50L);
 
     assertEquals(1, testProfilingContextIntegration.getAcceptedParkEnterCalls(callingThread));
     assertEquals(1, testProfilingContextIntegration.getParkExitCalls(callingThread));
@@ -83,6 +87,46 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
 
     assertEquals(0, testProfilingContextIntegration.getParkEnterCalls(callingThread));
     assertEquals(0, testProfilingContextIntegration.getParkExitCalls(callingThread));
+  }
+
+  @Test
+  void tracedUnparkIsAttributedToTheParkExitOfTheTargetThread() throws Exception {
+    Thread worker =
+        new Thread(() -> LockSupport.parkNanos(PARK_TIMEOUT_NANOS), "locksupport-park-target");
+    worker.start();
+
+    AgentSpan span = tracer.startSpan("test", "locksupport.unparker");
+    long spanId;
+    try (AgentScope ignored = tracer.activateSpan(span)) {
+      spanId = span.getSpanId();
+      // Recorded against the target thread regardless of whether it has parked yet.
+      LockSupport.unpark(worker);
+    } finally {
+      span.finish();
+    }
+    worker.join(TimeUnit.SECONDS.toMillis(10));
+
+    assertFalse(worker.isAlive(), "Parked worker was not released");
+    assertEquals(spanId, testProfilingContextIntegration.getLastUnblockingSpanId(worker));
+  }
+
+  @Test
+  void untrackedUnparkAttributionIsSkippedWhenTheProfilerIsNotRecording() throws Exception {
+    testProfilingContextIntegration.setUnparkAttributionEnabled(false);
+    Thread worker =
+        new Thread(() -> LockSupport.parkNanos(PARK_TIMEOUT_NANOS), "locksupport-park-untracked");
+    worker.start();
+
+    AgentSpan span = tracer.startSpan("test", "locksupport.unparker");
+    try (AgentScope ignored = tracer.activateSpan(span)) {
+      LockSupport.unpark(worker);
+    } finally {
+      span.finish();
+    }
+    worker.join(TimeUnit.SECONDS.toMillis(10));
+
+    assertFalse(worker.isAlive(), "Parked worker was not released");
+    assertEquals(0L, testProfilingContextIntegration.getLastUnblockingSpanId(worker));
   }
 
   @Test

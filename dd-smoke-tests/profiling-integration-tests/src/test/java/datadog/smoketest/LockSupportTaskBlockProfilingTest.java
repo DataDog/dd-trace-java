@@ -133,7 +133,16 @@ final class LockSupportTaskBlockProfilingTest {
         for (IItem item : items) {
           String thread = threadAccessor == null ? null : threadAccessor.getMember(item);
           long blocker = blockerAccessor.getMember(item).longValue();
+          // Identity hashes can collide with unrelated blockers, so pair the blocker identity
+          // with the workload thread that is known to park on it.
           if (blocker == spanlessBlocker) {
+            if (thread == null || thread.isEmpty()) {
+              spanlessMissingThread = true;
+              continue;
+            }
+            if (!LockSupportTaskBlockForkedApp.SPANLESS_PLATFORM_THREAD.equals(thread)) {
+              continue;
+            }
             spanlessPlatformCount++;
             spanlessHasContext |=
                 spanAccessor.getMember(item).longValue() != 0L
@@ -141,13 +150,11 @@ final class LockSupportTaskBlockProfilingTest {
             spanlessWithBlocker++;
             spanlessWithUnblockingSpan +=
                 unblockingAccessor.getMember(item).longValue() == 0L ? 0 : 1;
-            spanlessMissingThread |=
-                thread == null
-                    || thread.isEmpty()
-                    || !LockSupportTaskBlockForkedApp.SPANLESS_PLATFORM_THREAD.equals(thread);
-          } else if (blocker == activeBlocker) {
+          } else if (blocker == activeBlocker
+              && LockSupportTaskBlockForkedApp.ACTIVE_PLATFORM_THREAD.equals(thread)) {
             activePlatformCount++;
-          } else if (blocker == virtualBlocker) {
+          } else if (blocker == virtualBlocker
+              && LockSupportTaskBlockForkedApp.VIRTUAL_THREAD.equals(thread)) {
             virtualCount++;
           }
         }

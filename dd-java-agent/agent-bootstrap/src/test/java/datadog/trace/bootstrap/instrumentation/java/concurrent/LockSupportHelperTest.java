@@ -3,14 +3,17 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -18,9 +21,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -182,10 +189,65 @@ class LockSupportHelperTest {
   @Test
   void nullUnparkTargetIsNoOp() {
     installActiveSpan(71L);
+    // UNPARKING_STATE is shared for the whole JVM, so only the delta is meaningful.
+    int sizeBefore = LockSupportHelper.UNPARKING_STATE.size();
 
     LockSupportHelper.recordUnpark(null);
 
-    assertEquals(0, LockSupportHelper.UNPARKING_STATE.size());
+    assertEquals(sizeBefore, LockSupportHelper.UNPARKING_STATE.size());
+  }
+
+  @Test
+  void unparkAttributionIsSkippedWhenProfilerDoesNotConsumeIt() {
+    Thread target = newTargetThread();
+    AgentSpan span = mock(AgentSpan.class);
+    ProfilerSpanContext context = mock(ProfilerSpanContext.class);
+    when(span.spanContext()).thenReturn(context);
+    when(context.getSpanId()).thenReturn(81L);
+    AgentTracer.forceRegister(tracerWithActiveSpan(span, false));
+
+    LockSupportHelper.recordUnpark(target);
+
+    assertNull(LockSupportHelper.UNPARKING_STATE.get(target));
+    verify(span, never()).spanContext();
+  }
+
+  @Test
+  void tracedUnparkIsDrainedByTheParkExitOfTheTargetThread() throws Exception {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    // The park advice drains the state from the parked thread itself, not from the unparker.
+    Thread target = new Thread(() -> LockSupportHelper.parkExit(profiling, 7L));
+    targetThreads.add(target);
+    installActiveSpan(91L);
+
+    LockSupportHelper.recordUnpark(target);
+    assertEquals(91L, unblockingSpanId(target));
+
+    target.start();
+    target.join(TimeUnit.SECONDS.toMillis(10));
+
+    assertFalse(target.isAlive(), "Target thread did not finish");
+    assertEquals(0L, unblockingSpanId(target));
+    verify(profiling).parkExit(7L, 91L);
+  }
+
+  @Test
+  void virtualThreadTargetsAreNotTracked() throws Exception {
+    Optional<ExecutorService> maybeExecutor = ThreadSupport.newVirtualThreadPerTaskExecutor();
+    assumeTrue(maybeExecutor.isPresent(), "Virtual threads are unavailable");
+    ExecutorService executor = maybeExecutor.get();
+    installActiveSpan(101L);
+    int sizeBefore = LockSupportHelper.UNPARKING_STATE.size();
+    try {
+      CompletableFuture<Thread> virtual = new CompletableFuture<>();
+      executor.execute(() -> virtual.complete(Thread.currentThread()));
+      // ddprof never owns virtual-thread park intervals, so nothing would ever drain the state.
+      LockSupportHelper.recordUnpark(virtual.get(10, TimeUnit.SECONDS));
+
+      assertEquals(sizeBefore, LockSupportHelper.UNPARKING_STATE.size());
+    } finally {
+      executor.shutdown();
+    }
   }
 
   private Thread newTargetThread() {
@@ -208,7 +270,15 @@ class LockSupportHelperTest {
   }
 
   private static AgentTracer.TracerAPI tracerWithActiveSpan(AgentSpan span) {
+    return tracerWithActiveSpan(span, true);
+  }
+
+  private static AgentTracer.TracerAPI tracerWithActiveSpan(
+      AgentSpan span, boolean unparkAttributionEnabled) {
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    when(profiling.isUnparkAttributionEnabled()).thenReturn(unparkAttributionEnabled);
+    when(tracer.getProfilingContext()).thenReturn(profiling);
     when(tracer.activeSpan()).thenReturn(span);
     return tracer;
   }

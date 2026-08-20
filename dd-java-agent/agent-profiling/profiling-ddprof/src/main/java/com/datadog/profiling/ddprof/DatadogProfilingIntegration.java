@@ -91,6 +91,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     DDPROF.parkExit(blocker, unblockingSpanId);
   }
 
+  @Override
+  public boolean isUnparkAttributionEnabled() {
+    return DDPROF.isUnparkAttributionEnabled();
+  }
+
   public void clearContext() {
     DDPROF.clearTraceContext();
   }

@@ -35,10 +35,13 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   private final Set<Thread> activeParkEntries = ConcurrentHashMap.newKeySet();
   private final AtomicLong lastParkBlocker = new AtomicLong();
   private final AtomicLong lastUnblockingSpanId = new AtomicLong();
+  private final ConcurrentMap<Thread, AtomicLong> lastUnblockingSpanIdByThread =
+      new ConcurrentHashMap<>();
   private final Set<Thread> parkExitThreads = ConcurrentHashMap.newKeySet();
   private final BlockingDeque<Timing> closedTimings = new LinkedBlockingDeque<>();
   private final Logger logger = LoggerFactory.getLogger(TestProfilingContextIntegration.class);
   private volatile boolean acceptParkEntries = true;
+  private volatile boolean unparkAttributionEnabled = true;
 
   @Override
   public void onAttach() {
@@ -61,8 +64,10 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     activeParkEntries.clear();
     lastParkBlocker.set(0);
     lastUnblockingSpanId.set(0);
+    lastUnblockingSpanIdByThread.clear();
     parkExitThreads.clear();
     acceptParkEntries = true;
+    unparkAttributionEnabled = true;
   }
 
   @Override
@@ -89,7 +94,18 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
         .incrementAndGet();
     lastParkBlocker.set(blocker);
     lastUnblockingSpanId.set(unblockingSpanId);
+    if (unblockingSpanId != 0) {
+      // Keyed by thread so assertions are immune to unrelated parks on background threads.
+      lastUnblockingSpanIdByThread
+          .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicLong())
+          .set(unblockingSpanId);
+    }
     parkExitThreads.add(Thread.currentThread());
+  }
+
+  @Override
+  public boolean isUnparkAttributionEnabled() {
+    return unparkAttributionEnabled;
   }
 
   @Override
@@ -166,6 +182,12 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     return lastUnblockingSpanId;
   }
 
+  /** Returns the last non-zero unblocking span id drained by a park exit on {@code thread}. */
+  public long getLastUnblockingSpanId(Thread thread) {
+    AtomicLong spanId = lastUnblockingSpanIdByThread.get(thread);
+    return spanId == null ? 0L : spanId.get();
+  }
+
   public Set<Thread> getParkExitThreads() {
     return parkExitThreads;
   }
@@ -180,6 +202,10 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
 
   public void setAcceptParkEntries(boolean acceptParkEntries) {
     this.acceptParkEntries = acceptParkEntries;
+  }
+
+  public void setUnparkAttributionEnabled(boolean unparkAttributionEnabled) {
+    this.unparkAttributionEnabled = unparkAttributionEnabled;
   }
 
   public boolean isBalanced() {

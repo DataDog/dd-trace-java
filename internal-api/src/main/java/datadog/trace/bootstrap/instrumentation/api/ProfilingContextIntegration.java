@@ -48,6 +48,18 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   /** Completes a {@code LockSupport.park*} dispatch accepted by {@link #parkEnter()}. */
   default void parkExit(long blocker, long unblockingSpanId) {}
 
+  /**
+   * Whether {@code LockSupport.unpark} callers should record best-effort span attribution for the
+   * target thread. This is a cheap gate on a very hot path: when it returns {@code false} the
+   * instrumentation skips the active span lookup entirely.
+   *
+   * @return {@code true} when a subsequent {@link #parkExit(long, long)} could consume the recorded
+   *     unblocking span id
+   */
+  default boolean isUnparkAttributionEnabled() {
+    return false;
+  }
+
   String name();
 
   final class NoOp implements ProfilingContextIntegration {

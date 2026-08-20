@@ -47,16 +47,17 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(parkMethod("park", 1), getClass().getName() + "$ParkWithBlockerAdvice");
     transformer.applyAdvice(
-        parkMethod("park", 1).or(parkMethod("parkUntil", 2)),
-        getClass().getName() + "$ParkWithBlockerAdvice");
-    transformer.applyAdvice(
-        parkMethod("park", 0).or(parkMethod("parkUntil", 1)),
-        getClass().getName() + "$ParkWithoutBlockerAdvice");
+        parkMethod("park", 0), getClass().getName() + "$ParkWithoutBlockerAdvice");
     transformer.applyAdvice(
         parkMethod("parkNanos", 2), getClass().getName() + "$ParkNanosWithBlockerAdvice");
     transformer.applyAdvice(
         parkMethod("parkNanos", 1), getClass().getName() + "$ParkNanosWithoutBlockerAdvice");
+    transformer.applyAdvice(
+        parkMethod("parkUntil", 2), getClass().getName() + "$ParkUntilWithBlockerAdvice");
+    transformer.applyAdvice(
+        parkMethod("parkUntil", 1), getClass().getName() + "$ParkUntilWithoutBlockerAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -140,6 +141,44 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ProfilingContextIntegration before(@Advice.Argument(0) long nanos) {
       return nanos > 0 ? LockSupportHelper.parkEnter() : null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+      LockSupportHelper.parkExit(profiling, 0L);
+    }
+  }
+
+  /** Advice for absolute-deadline park variants whose first argument is the blocker object. */
+  public static final class ParkUntilWithBlockerAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ProfilingContextIntegration before(
+        @Advice.Argument(0) Object blocker,
+        @Advice.Argument(1) long deadline,
+        @Advice.Local("blockerHash") long blockerHash) {
+      if (deadline <= System.currentTimeMillis()) {
+        return null;
+      }
+      ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
+      if (profiling != null) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
+      }
+      return profiling;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("blockerHash") long blockerHash) {
+      LockSupportHelper.parkExit(profiling, blockerHash);
+    }
+  }
+
+  /** Advice for absolute-deadline park variants without an explicit blocker object. */
+  public static final class ParkUntilWithoutBlockerAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ProfilingContextIntegration before(@Advice.Argument(0) long deadline) {
+      return deadline > System.currentTimeMillis() ? LockSupportHelper.parkEnter() : null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

@@ -66,6 +66,10 @@ public abstract class AbstractInstrumentationTest {
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
 
   protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
+  // Mirrors InstrumentationSpecification.TEST_PROFILING_CONTEXT_INTEGRATION: the Groovy base class
+  // already installs this recording integration for every instrumentation spec, so the JUnit base
+  // class does the same to keep both harnesses behaviourally identical. Not a mock, because that
+  // would break exhaustive interaction-verifying tests.
   protected static final TestProfilingContextIntegration testProfilingContextIntegration =
       new TestProfilingContextIntegration();
 

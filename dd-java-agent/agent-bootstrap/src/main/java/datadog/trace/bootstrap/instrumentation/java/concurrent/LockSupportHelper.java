@@ -1,6 +1,7 @@
 // Copyright 2026 Datadog, Inc.
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -8,20 +9,28 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.Function;
 
 /** Helper for profiling {@code LockSupport.park*} intervals from bootstrap instrumentation. */
 public final class LockSupportHelper {
   private static final int MAX_UNPARKING_STATES = 50_000;
 
+  private static final AtomicLongFieldUpdater<UnparkState> UNBLOCKING_SPAN_ID =
+      AtomicLongFieldUpdater.newUpdater(UnparkState.class, "unblockingSpanId");
+
+  private static final Function<Thread, UnparkState> NEW_UNPARK_STATE = thread -> new UnparkState();
+
   /**
    * Best-effort association between a parked thread and the most recent {@code unpark} caller's
    * active span. Weak keys avoid retaining terminated threads and each target reuses a primitive
    * state holder to avoid boxing span identifiers.
+   *
+   * <p>Deliberately the last field to be initialized: building the map itself parks and unparks
+   * threads, so the instrumented {@code LockSupport} methods can re-enter this class on the very
+   * thread running {@code <clinit>}. A {@code null} read is therefore a legal observation meaning
+   * "initialization still in progress", and every reader must tolerate it.
    */
   static final WeakMap<Thread, UnparkState> UNPARKING_STATE = WeakMap.Supplier.newWeakMap();
-
-  private static final AtomicLongFieldUpdater<UnparkState> UNBLOCKING_SPAN_ID =
-      AtomicLongFieldUpdater.newUpdater(UnparkState.class, "unblockingSpanId");
 
   static final class UnparkState {
     volatile long unblockingSpanId;
@@ -50,7 +59,8 @@ public final class LockSupportHelper {
     if (profiling == null) {
       return;
     }
-    UnparkState state = UNPARKING_STATE.get(Thread.currentThread());
+    WeakMap<Thread, UnparkState> states = UNPARKING_STATE;
+    UnparkState state = states == null ? null : states.get(Thread.currentThread());
     long unblockingSpanId = state == null ? 0L : UNBLOCKING_SPAN_ID.getAndSet(state, 0L);
     parkExit(profiling, blockerHash, unblockingSpanId);
   }
@@ -71,25 +81,36 @@ public final class LockSupportHelper {
    * older traced caller so the association follows last-writer semantics.
    */
   public static void recordUnpark(Thread thread) {
-    if (thread == null) {
+    // Virtual-thread park intervals are rejected by the profiler, so their state would never be
+    // drained by parkExit and would only be reclaimed by unpredictable GC of the weak key. Virtual
+    // threads are created and destroyed often, so skip them outright.
+    if (thread == null || ThreadSupport.isVirtual(thread)) {
+      return;
+    }
+    WeakMap<Thread, UnparkState> states = UNPARKING_STATE;
+    if (states == null) {
+      // Re-entered from the map's own initialization; nothing can consume the attribution yet.
+      return;
+    }
+    // unpark is extremely hot; skip the active span lookup (which installs a scope stack thread
+    // local on every unparking thread) unless the profiler can actually consume the attribution.
+    ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
+    if (profiling == null || !profiling.isUnparkAttributionEnabled()) {
       return;
     }
     AgentSpan span = AgentTracer.activeSpan();
     AgentSpanContext context = span == null ? null : span.spanContext();
     if (context instanceof ProfilerContext) {
-      UnparkState state = UNPARKING_STATE.get(thread);
+      UnparkState state = states.get(thread);
       if (state == null) {
-        if (UNPARKING_STATE.size() >= MAX_UNPARKING_STATES) {
+        if (states.size() >= MAX_UNPARKING_STATES) {
           return;
         }
-        UNPARKING_STATE.putIfAbsent(thread, new UnparkState());
-        state = UNPARKING_STATE.get(thread);
+        state = states.computeIfAbsent(thread, NEW_UNPARK_STATE);
       }
-      if (state != null) {
-        UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
-      }
-    } else {
-      UnparkState state = UNPARKING_STATE.get(thread);
+      UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
+    } else if (states.size() != 0) {
+      UnparkState state = states.get(thread);
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, 0L);
       }
