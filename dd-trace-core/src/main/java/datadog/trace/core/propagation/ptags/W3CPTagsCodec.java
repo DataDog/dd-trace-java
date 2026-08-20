@@ -101,12 +101,8 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
-      if (tagPos == ddMemberValueEnd) {
+      if (tagPos >= ddMemberValueEnd) {
         break;
-      }
-      if (isOWC(value.charAt(tagPos))) {
-        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
-        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
       }
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -116,10 +112,9 @@ public class W3CPTagsCodec extends PTagsCodec {
               KEY_VALUE_SEPARATOR,
               false,
               W3CPTagsCodec::isAllowedKeyChar);
-      if (tagKeyEndsAt < 0 || tagKeyEndsAt == ddMemberValueEnd) {
-        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
-        // TODO drop parts?
-        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+      if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
+        tagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
+        continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt =
@@ -130,10 +125,9 @@ public class W3CPTagsCodec extends PTagsCodec {
               ELEMENT_SEPARATOR,
               true,
               W3CPTagsCodec::isAllowedValueChar);
-      if (tagValueEndsAt < 0) {
-        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
-        // TODO drop parts?
-        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+      if (tagValueEndsAt < 0 || tagValueEndsAt > ddMemberValueEnd) {
+        tagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
+        continue;
       }
       int nextTagPos = tagValueEndsAt + 1;
       if (tagValueEndsAt == ddMemberValueEnd) {
@@ -160,7 +154,6 @@ public class W3CPTagsCodec extends PTagsCodec {
               if (tagKey.equals(TRACE_ID_TAG)) {
                 return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
-              // TODO drop parts?
               return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
@@ -629,6 +622,13 @@ public class W3CPTagsCodec extends PTagsCodec {
     return end;
   }
 
+  private static int skipMalformedElement(String value, int start, int end) {
+    log.warn(
+        "Invalid datadog tags header value: '{}' dropping malformed element at {}", value, start);
+    int elementEnd = value.indexOf(ELEMENT_SEPARATOR, start);
+    return (elementEnd < 0 || elementEnd >= end) ? end : elementEnd + 1;
+  }
+
   private static int skipEmptyElements(String value, int start, int end) {
     int pos = start;
     while (pos < end) {
@@ -662,20 +662,29 @@ public class W3CPTagsCodec extends PTagsCodec {
         elementEnd = w3CPTags.ddMemberValueEnd;
       }
       if (!original.startsWith(Encoding.W3C.getPrefix(), elementStart)) {
-        char first = original.charAt(elementStart);
-        char second = original.charAt(elementStart + 1);
-        if (second != KEY_VALUE_SEPARATOR || (first != 'o' && first != 's')) {
-          // only append elements that we don't know about or are not tags
-          if (sb.length() > EMPTY_SIZE) {
-            sb.append(ELEMENT_SEPARATOR);
-            size++;
+        int tagKeyEndsAt =
+            validateCharsUntilSeparatorOrEnd(
+                original,
+                elementStart,
+                elementEnd,
+                KEY_VALUE_SEPARATOR,
+                false,
+                W3CPTagsCodec::isAllowedKeyChar);
+        if (tagKeyEndsAt > elementStart && tagKeyEndsAt < elementEnd) {
+          char first = original.charAt(elementStart);
+          // ignore known o:, s:, and p: elements because we always add them back in appendPrefix
+          if ((first != 'o' && first != 's' && first != 'p') || tagKeyEndsAt - elementStart != 1) {
+            if (sb.length() > EMPTY_SIZE) {
+              sb.append(ELEMENT_SEPARATOR);
+              size++;
+            }
+            int end = elementEnd;
+            if (end == w3CPTags.ddMemberValueEnd) {
+              end = stripTrailingOWC(original, elementStart, end);
+            }
+            sb.append(original, elementStart, end);
+            size += (end - elementStart);
           }
-          int end = elementEnd;
-          if (end == w3CPTags.ddMemberValueEnd) {
-            end = stripTrailingOWC(original, elementStart, end);
-          }
-          sb.append(original, elementStart, end);
-          size += (end - elementStart);
         }
       }
       elementStart = elementEnd + 1;
