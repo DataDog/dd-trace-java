@@ -40,6 +40,23 @@ class StringIndexTest {
   }
 
   @Test
+  void capacityFor_boundsAtMaxCapacity() {
+    // ceil(n / loadFactor) landing exactly on MAX_CAPACITY still succeeds.
+    int n = EmbeddingSupport.MAX_CAPACITY / 2; // ceil(n / 0.5) == MAX_CAPACITY
+    assertEquals(EmbeddingSupport.MAX_CAPACITY, EmbeddingSupport.capacityFor(n));
+  }
+
+  @Test
+  void capacityFor_rejectsCapacityAboveMax() {
+    // Required capacity exceeds MAX_CAPACITY: previously the double->int narrowing conversion
+    // saturated at Integer.MAX_VALUE and the subsequent << 1 wrapped to a negative array size.
+    assertThrows(IllegalArgumentException.class, () -> EmbeddingSupport.capacityFor(1, 1e-10f));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> EmbeddingSupport.capacityFor(EmbeddingSupport.MAX_CAPACITY + 1));
+  }
+
+  @Test
   void instance_contains_internedAndCopy_andMiss() {
     StringIndex set = StringIndex.of("foo", "bar", "baz");
 

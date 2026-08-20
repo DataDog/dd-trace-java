@@ -161,6 +161,9 @@ public final class StringIndex {
     /** Sparse load factor — target fill {@code <= 0.25} ({@code >= 4x} capacity). */
     public static final float LOW_LOAD_FACTOR = 0.25f;
 
+    /** Largest power-of-two capacity {@link #capacityFor} can return without overflowing. */
+    public static final int MAX_CAPACITY = 1 << 30;
+
     /** Power-of-two capacity for {@code n} names at the {@link #DEFAULT_LOAD_FACTOR}. */
     public static int capacityFor(int n) {
       return capacityFor(n, DEFAULT_LOAD_FACTOR);
@@ -170,6 +173,12 @@ public final class StringIndex {
      * Power-of-two capacity for {@code n} names at {@code loadFactor}: the smallest power of two
      * {@code >= ceil(n / loadFactor)} (so the achieved fill is {@code <= loadFactor}). {@code n ==
      * 0} yields a minimal 2-slot table (StringIndex allows the empty set, unlike FlatHashtable).
+     *
+     * @throws IllegalArgumentException if {@code n} is negative, {@code loadFactor} is not in
+     *     {@code (0, 1)}, or the required capacity exceeds {@link #MAX_CAPACITY} — computing {@code
+     *     ceil(n / loadFactor)} as a {@code double} first (rather than narrowing to {@code int}
+     *     before the check) means a huge result saturates the check instead of silently wrapping to
+     *     a negative array size.
      */
     public static int capacityFor(int n, float loadFactor) {
       if (n < 0) {
@@ -181,8 +190,18 @@ public final class StringIndex {
       if (n == 0) {
         return 2; // empty set -> minimal table (one always-empty slot suffices, 2 keeps it pow2)
       }
-      int min = (int) Math.ceil(n / (double) loadFactor);
-      return Integer.highestOneBit(min - 1) << 1;
+      double min = Math.ceil(n / (double) loadFactor);
+      if (min > MAX_CAPACITY) {
+        throw new IllegalArgumentException(
+            "capacity for n="
+                + n
+                + " at loadFactor="
+                + loadFactor
+                + " exceeds maximum capacity ("
+                + MAX_CAPACITY
+                + ")");
+      }
+      return Integer.highestOneBit((int) min - 1) << 1;
     }
 
     /** Build the placed table. Returns a Data carrier; pull its arrays into your own fields. */
