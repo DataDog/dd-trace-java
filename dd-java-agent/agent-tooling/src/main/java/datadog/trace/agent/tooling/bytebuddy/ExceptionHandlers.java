@@ -49,23 +49,42 @@ public class ExceptionHandlers {
           //
           // Emits the following Java-equivalent code when exitOnFailure is false:
           //
-          // BlockingExceptionHandler.rethrowIfBlockingException(t);
           // try {
+          //   BlockingExceptionHandler.rethrowIfBlockingException(t);
           //   InstrumentationErrors.recordError();
           //   org.slf4j.LoggerFactory.getLogger((Class) ExceptionLogger.class)
           //     .debug("Failed to handle exception in instrumentation for <type> (" + adviceName +
           // ")", t);
           // } catch (Throwable t2) {
+          //   if (t2.getClass().getName().equals("datadog.appsec.api.blocking.BlockingException"))
+          // {
+          //     throw t2;
+          //   }
           // }
           //
           // and the same with .error(...) followed by System.exit(1) when exitOnFailure is true.
+          //
+          // rethrowIfBlockingException is inside the try/catch (rather than called bare, as
+          // before) so that an unexpected failure resolving/invoking it - e.g. a
+          // NoClassDefFoundError from a classloader that can't see the appsec module - is
+          // swallowed like any other instrumentation error instead of replacing the original
+          // exception and escaping into the instrumented method's caller. The catch handler
+          // re-throws only when the caught exception really is the BlockingException the call
+          // was meant to propagate. It compares by class name rather than using `instanceof`
+          // because `instanceof` would itself need to resolve BlockingException via the
+          // instrumented class's own classloader - the same NoClassDefFoundError risk this whole
+          // try/catch exists to guard against.
           final Label logStart = new Label();
           final Label logEnd = new Label();
           final Label eatException = new Label();
+          final Label notBlocking = new Label();
           final Label handlerExit = new Label();
 
           // Frames are only meaningful for class files in version 6 or later.
           final boolean frames = context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
+
+          mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
+          mv.visitLabel(logStart);
 
           if (appSecEnabled) {
             // Need throwable on top for rethrowIfBlockingException.
@@ -81,8 +100,6 @@ public class ExceptionHandlers {
             mv.visitInsn(Opcodes.SWAP);
           }
 
-          mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
-          mv.visitLabel(logStart);
           // record instrumentation error
           if (detailedErrors) {
             // recordError(Throwable) needs throwable on top, then we restore.
@@ -148,11 +165,41 @@ public class ExceptionHandlers {
           mv.visitLabel(logEnd);
           mv.visitJumpInsn(Opcodes.GOTO, handlerExit);
 
-          // if the runtime can't reach our ExceptionHandler or logger,
-          //   silently eat the exception
+          // If the runtime can't reach our ExceptionHandler or logger, or
+          // rethrowIfBlockingException itself failed unexpectedly, silently eat the exception -
+          // unless it's the BlockingException rethrowIfBlockingException was meant to propagate,
+          // in which case let it through.
           mv.visitLabel(eatException);
           if (frames) {
             mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"});
+          }
+          if (appSecEnabled) {
+            // Compare by class name instead of `instanceof`: `instanceof` would resolve
+            // BlockingException via the instrumented class's own classloader, which can throw
+            // NoClassDefFoundError right here - uncaught - on a classloader that can't see the
+            // appsec module. A name comparison never triggers that resolution.
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                "java/lang/Object",
+                "getClass",
+                "()Ljava/lang/Class;",
+                false);
+            mv.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getName", "()Ljava/lang/String;", false);
+            mv.visitLdcInsn("datadog.appsec.api.blocking.BlockingException");
+            mv.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                "java/lang/String",
+                "equals",
+                "(Ljava/lang/Object;)Z",
+                false);
+            mv.visitJumpInsn(Opcodes.IFEQ, notBlocking);
+            mv.visitInsn(Opcodes.ATHROW);
+            mv.visitLabel(notBlocking);
+            if (frames) {
+              mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"});
+            }
           }
           mv.visitInsn(Opcodes.POP);
           // mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Throwable",
