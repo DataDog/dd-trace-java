@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -48,7 +49,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
-    contextStore.put("java.sql.Connection", DBInfo.class.getName());
+    contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
     return contextStore;
   }
 
@@ -76,15 +77,20 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           return null;
         }
         final AgentSpan span;
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final JDBCConnectionContext connectionContext =
+            JDBCDecorator.parseConnectionContext(
+                connection,
+                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+        final DBInfo dbInfo = connectionContext.getDbInfo();
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+
+        final String oracleServiceHash =
+            DECORATE.setServiceHashAction(connection, connectionContext);
 
         if (INJECT_COMMENT && injectTraceContext) {
           if (DECORATE.isSqlServer(dbInfo)) {
             // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
             // we then force that pre-determined span ID for the span covering the actual query
             span =
                 AgentTracer.get()
@@ -105,9 +111,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
         }
         DECORATE.afterStart(span);
-        DECORATE.onConnection(span, dbInfo);
+        DECORATE.onConnection(span, connectionContext);
         DECORATE.onPreparedStatement(span, queryInfo);
-        DECORATE.withBaseHash(span);
+        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
 
         return activateSpan(span);
       } catch (SQLException e) {
