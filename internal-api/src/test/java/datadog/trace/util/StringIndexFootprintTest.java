@@ -1,11 +1,14 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import datadog.environment.JavaVirtualMachine;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jol.info.GraphLayout;
 
@@ -43,6 +46,14 @@ import org.openjdk.jol.info.GraphLayout;
  * speed and the {@code indexOf}-&gt;parallel-array capability, not footprint.
  */
 class StringIndexFootprintTest {
+
+  @BeforeAll
+  static void assumeNotJ9Jvm() {
+    // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
+    // IllegalStateException on J9-based JVMs (IBM/Semeru) — same guard as
+    // ScopeAndContinuationLayoutTest.
+    assumeFalse(JavaVirtualMachine.isJ9());
+  }
 
   static String[] elements(int n) {
     String[] a = new String[n];
