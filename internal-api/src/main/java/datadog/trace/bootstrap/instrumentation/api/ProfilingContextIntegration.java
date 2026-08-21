@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.EndpointCheckpointer;
@@ -32,6 +33,31 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   default int encodeResourceName(CharSequence constant) {
     return 0;
+  }
+
+  /**
+   * Called before the current thread enters {@code LockSupport.park*}.
+   *
+   * @return {@code true} when the integration accepted the entry dispatch and therefore requires a
+   *     matching {@link #parkExit(long, long)}, even if profiling stops before the park returns
+   */
+  default boolean parkEnter() {
+    return false;
+  }
+
+  /** Completes a {@code LockSupport.park*} dispatch accepted by {@link #parkEnter()}. */
+  default void parkExit(long blocker, long unblockingSpanId) {}
+
+  /**
+   * Whether {@code LockSupport.unpark} callers should record best-effort span attribution for the
+   * target thread. This is a cheap gate on a very hot path: when it returns {@code false} the
+   * instrumentation skips the active span lookup entirely.
+   *
+   * @return {@code true} when a subsequent {@link #parkExit(long, long)} could consume the recorded
+   *     unblocking span id
+   */
+  default boolean isUnparkAttributionEnabled() {
+    return false;
   }
 
   String name();
