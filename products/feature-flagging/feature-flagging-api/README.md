@@ -55,6 +55,21 @@ boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
 
+### Java agent injection
+
+Applications that attach the Datadog Java agent only need the OpenFeature SDK on their application
+classpath. When Feature Flagging is explicitly enabled, the agent installs the Datadog provider the
+first time `OpenFeatureAPI.getInstance()` is called:
+
+```shell
+DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless
+```
+
+This works when tracing is disabled with `DD_TRACE_ENABLED=false`; Feature Flagging remains owned by
+the Java agent and uses its runtime and transport. Injection only replaces OpenFeature's built-in
+no-op provider, so a provider installed by application code is preserved. Set
+`DD_TRACE_OPENFEATURE_ENABLED=false` to disable provider injection.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider

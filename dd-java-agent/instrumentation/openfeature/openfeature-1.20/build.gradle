@@ -1,0 +1,27 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = 'dev.openfeature'
+    module = 'sdk'
+    versions = '[1.20.1,2.0.0)'
+    javaVersion = '11'
+  }
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+dependencies {
+  compileOnly group: 'dev.openfeature', name: 'sdk', version: '1.20.1'
+
+  implementation(project(':products:feature-flagging:feature-flagging-api')) {
+    transitive = false
+  }
+
+  testImplementation project(':products:feature-flagging:feature-flagging-bootstrap')
+  testImplementation group: 'dev.openfeature', name: 'sdk', version: '1.20.1'
+}
