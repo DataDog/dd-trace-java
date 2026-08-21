@@ -115,69 +115,6 @@ public class DD128bTraceId extends DDTraceId {
   }
 
   /**
-   * Checks whether {@code s} is a valid hexadecimal representation of a 128-bit trace id, without
-   * allocating or throwing. Mirrors the high/low order splitting done by {@link #fromHexUnchecked}
-   * so the two stay in sync - unlike {@link LongStringUtils#isValidUnsignedLongHex}, which only
-   * validates a single unsigned 64-bit value and cannot be applied directly to the full 32-char
-   * range here.
-   *
-   * @param s The string containing the hexadecimal {@link String} representation to check (32 lower
-   *     or higher-case hexadecimal characters maximum).
-   * @param start The start index of the hexadecimal {@link String} representation to check.
-   * @param length The length of the hexadecimal {@link String} representation to check.
-   * @param lowerCaseOnly Whether the hexadecimal characters to check are lower-case only or not.
-   * @return {@code true} if {@code s} can be parsed by {@link #fromHexUnchecked}.
-   */
-  public static boolean isValidHex(String s, int start, int length, boolean lowerCaseOnly) {
-    if (s == null || start < 0 || length <= 0 || length > 32 || start + length > s.length()) {
-      return false;
-    }
-    if (length > 16) {
-      int highOrderLength = length - 16;
-      return LongStringUtils.isValidUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly)
-          && LongStringUtils.isValidUnsignedLongHex(s, start + highOrderLength, 16, lowerCaseOnly);
-    }
-    return LongStringUtils.isValidUnsignedLongHex(s, start, length, lowerCaseOnly);
-  }
-
-  /**
-   * Create a new 128-bit {@link DD128bTraceId} from the given hexadecimal {@link String}
-   * representation, assuming the caller has already confirmed validity with {@link #isValidHex}.
-   * Behavior is undefined for an invalid representation. Intended for hot paths (e.g. header
-   * parsing) that need to avoid exceptions on malformed input.
-   *
-   * @param s The string containing the hexadecimal {@link String} representation to parse (32 lower
-   *     or higher-case hexadecimal characters maximum).
-   * @param start The start index of the hexadecimal {@link String} representation to parse.
-   * @param length The length of the hexadecimal {@link String} representation to parse.
-   * @param lowerCaseOnly Whether the hexadecimal characters to parse are lower-case only or not.
-   * @return The created TraceId instance.
-   */
-  public static DD128bTraceId fromHexUnchecked(
-      String s, int start, int length, boolean lowerCaseOnly) {
-    long highOrderBits, lowOrderBits;
-    if (length > 16) {
-      int highOrderLength = length - 16;
-      highOrderBits =
-          LongStringUtils.parseUnsignedLongHexUnchecked(s, start, highOrderLength, lowerCaseOnly);
-      lowOrderBits =
-          LongStringUtils.parseUnsignedLongHexUnchecked(
-              s, start + highOrderLength, 16, lowerCaseOnly);
-    } else {
-      highOrderBits = 0;
-      lowOrderBits = LongStringUtils.parseUnsignedLongHexUnchecked(s, start, length, lowerCaseOnly);
-    }
-    String hexStr = null;
-    if (length == 32) {
-      hexStr = start == 0 ? s : s.substring(start, start + 32);
-      if (!lowerCaseOnly) {
-        hexStr = hexStr.toLowerCase(Locale.ROOT);
-      }
-    }
-    return new DD128bTraceId(highOrderBits, lowOrderBits, hexStr);
-  }
-
-  /**
    * Returns the lower-case zero-padded 32 hexadecimal characters {@link String} representation of
    * the {@link DD128bTraceId}.
    *

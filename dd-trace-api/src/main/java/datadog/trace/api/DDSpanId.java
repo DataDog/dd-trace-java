@@ -52,22 +52,6 @@ public final class DDSpanId {
   }
 
   /**
-   * Parse the span id from the given {@code String} hex representation of the unsigned 64 bit id,
-   * assuming the caller has already confirmed validity with {@link
-   * LongStringUtils#isValidUnsignedLongHex}. Behavior is undefined for an invalid representation.
-   * Intended for hot paths (e.g. header parsing) that need to avoid exceptions on malformed input.
-   *
-   * @param s String in hex of unsigned 64 bit id
-   * @param start the start index of the hex value
-   * @param len the len of the hex value
-   * @param lowerCaseOnly if the allowed hex characters are lower case only
-   * @return long
-   */
-  public static long fromHexUnchecked(String s, int start, int len, boolean lowerCaseOnly) {
-    return LongStringUtils.parseUnsignedLongHexUnchecked(s, start, len, lowerCaseOnly);
-  }
-
-  /**
    * Returns the decimal string representation of the unsigned 64 bit id. The {@code String} will
    * NOT be cached.
    *

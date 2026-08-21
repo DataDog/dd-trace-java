@@ -13,16 +13,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
-import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.TraceparentParser.TraceparentHandler;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -33,13 +32,7 @@ import org.slf4j.LoggerFactory;
 class W3CHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(W3CHttpCodec.class);
 
-  private static final int TRACE_PARENT_TID_START = 2 + 1;
-  private static final int TRACE_PARENT_TID_END = TRACE_PARENT_TID_START + 32;
-  private static final int TRACE_PARENT_SID_START = TRACE_PARENT_TID_END + 1;
-  private static final int TRACE_PARENT_SID_END = TRACE_PARENT_SID_START + 16;
-  private static final int TRACE_PARENT_FLAGS_START = TRACE_PARENT_SID_END + 1;
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
-  private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
 
   @VisibleForTesting static final String TRACE_PARENT_KEY = "traceparent";
   @VisibleForTesting static final String TRACE_STATE_KEY = "tracestate";
@@ -272,7 +265,7 @@ class W3CHttpCodec {
                 "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
           }
           // Now we know that we have at least a traceparent header
-          if (!parseTraceParentHeader(traceparentHeader)) {
+          if (!TraceparentParser.parse(traceparentHeader, this, INTO_CONTEXT)) {
             onlyTagContext();
             log.debug("Invalid traceparent header '{}'", traceparentHeader);
           } else {
@@ -286,55 +279,15 @@ class W3CHttpCodec {
       return super.build();
     }
 
-    /**
-     * Parses the traceparent header, returning {@code false} for any malformed input instead of
-     * throwing. Traceparent headers are attacker/misconfiguration-controlled and malformed input is
-     * common in practice, so this avoids paying for exception construction (and the resulting
-     * error-tracking noise) on what is effectively a validation failure, not an exceptional
-     * condition.
-     */
-    boolean parseTraceParentHeader(String tp) {
-      int length = tp == null ? 0 : tp.length();
-      if (length < TRACE_PARENT_LENGTH) {
-        return false;
-      }
-      if (!LongStringUtils.isValidUnsignedLongHex(tp, 0, 2, true)) {
-        return false;
-      }
-      long version = LongStringUtils.parseUnsignedLongHexUnchecked(tp, 0, 2, true);
-      if (version == 255) {
-        return false;
-      } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
-        return false;
-      }
-      if (!DD128bTraceId.isValidHex(tp, TRACE_PARENT_TID_START, 32, true)) {
-        return false;
-      }
-      DDTraceId traceId = DD128bTraceId.fromHexUnchecked(tp, TRACE_PARENT_TID_START, 32, true);
-      if (traceId.toLong() == 0) {
-        return false;
-      }
-      if (!LongStringUtils.isValidUnsignedLongHex(tp, TRACE_PARENT_SID_START, 16, true)) {
-        return false;
-      }
-      long spanId = DDSpanId.fromHexUnchecked(tp, TRACE_PARENT_SID_START, 16, true);
-      if (spanId == 0) {
-        return false;
-      }
-      if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
-        return false;
-      }
-      if (!LongStringUtils.isValidUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true)) {
-        return false;
-      }
-      long flags =
-          LongStringUtils.parseUnsignedLongHexUnchecked(tp, TRACE_PARENT_FLAGS_START, 2, true);
-      this.traceId = traceId;
-      this.spanId = spanId;
-      this.samplingPriority =
-          (flags & TRACE_PARENT_FLAGS_SAMPLED) != 0 ? SAMPLER_KEEP : SAMPLER_DROP;
-      return true;
-    }
+    // Static, non-capturing: a single monomorphic instance shared by every parse call, so
+    // TraceparentParser.parse's call to handler.onValid can devirtualize and inline.
+    private static final TraceparentHandler<W3CContextInterpreter> INTO_CONTEXT =
+        (ctx, traceIdHi, traceIdLo, spanId, flags) -> {
+          ctx.traceId = DD128bTraceId.from(traceIdHi, traceIdLo);
+          ctx.spanId = spanId;
+          ctx.samplingPriority =
+              (flags & TRACE_PARENT_FLAGS_SAMPLED) != 0 ? SAMPLER_KEEP : SAMPLER_DROP;
+        };
 
     void parseTraceStateHeader(String tracestate) {
       if (tracestate == null || tracestate.isEmpty()) {
