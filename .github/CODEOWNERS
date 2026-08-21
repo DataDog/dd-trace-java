@@ -26,36 +26,25 @@
 /communication/src/test/resources/                                          @DataDog/apm-java
 
 # Shared utility modules
-/utils/config-utils/                  @DataDog/apm-java
 /utils/filesystem-utils/              @DataDog/apm-java
-/utils/flare-utils/                   @DataDog/apm-java
 /utils/logging-utils/                 @DataDog/apm-java
 /utils/queue-utils/                   @DataDog/apm-java
 /utils/socket-utils/                  @DataDog/apm-java
-/utils/test-agent-utils/              @DataDog/apm-java
-/utils/test-junit-converter-utils/    @DataDog/apm-java
-/utils/test-junit-utils/              @DataDog/apm-java
-/utils/test-utils/                    @DataDog/apm-java
 /utils/time-utils/                    @DataDog/apm-java
 /utils/version-utils/                 @DataDog/apm-java
 
 # Core agent modules
 /dd-java-agent/README.md                             @DataDog/apm-java
-/dd-java-agent/agent-bootstrap/                      @DataDog/apm-java
-/dd-java-agent/agent-installer/                      @DataDog/apm-java
 /dd-java-agent/agent-jmxfetch/                       @DataDog/apm-java
 /dd-java-agent/agent-logging/                        @DataDog/apm-java
 /dd-java-agent/agent-logs-intake/                    @DataDog/apm-java
 /dd-java-agent/benchmark-integration/                @DataDog/apm-java
 /dd-java-agent/benchmark/                            @DataDog/apm-java
-/dd-java-agent/build.gradle                          @DataDog/apm-java
 /dd-java-agent/cws-tls/                              @DataDog/apm-java
 /dd-java-agent/gradle.lockfile                       @DataDog/apm-java
 /dd-java-agent/load-generator/                       @DataDog/apm-java
-/dd-java-agent/src/                                  @DataDog/apm-java
 
 # Core tracing API
-/dd-trace-api/build.gradle.kts                                  @DataDog/apm-java
 /dd-trace-api/gradle.lockfile                                   @DataDog/apm-java
 /dd-trace-api/src/*/*/datadog/trace/api/*.*                     @DataDog/apm-java
 /dd-trace-api/**/config/CwsConfig*                              @DataDog/apm-java
@@ -68,8 +57,8 @@
 /dd-trace-api/src/*/*/datadog/trace/payloadtags/                @DataDog/apm-java
 
 # Core tracer
-/dd-trace-core/build.gradle                                     @DataDog/apm-java
 /dd-trace-core/gradle.lockfile                                  @DataDog/apm-java
+/dd-trace-core/src/test/                                        @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/context/*.*                      @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/trace/api/naming/                @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/trace/api/remoteconfig/          @DataDog/apm-java
@@ -91,9 +80,9 @@
 /dd-trace-core/src/traceAgentTest/                              @DataDog/apm-java
 
 # Core internal API
-/internal-api/build.gradle.kts                                  @DataDog/apm-java
 /internal-api/gradle.lockfile                                   @DataDog/apm-java
 /internal-api/internal-api-9/                                   @DataDog/apm-java
+/internal-api/src/test/                                         @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/advice/                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/*.*                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/cache/                  @DataDog/apm-java
@@ -115,9 +104,7 @@
 
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
-/dd-java-agent/agent-tooling/                                                                    @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                                                                  @DataDog/apm-idm-java
-/dd-java-agent/instrumentation-annotation-processor/                                             @DataDog/apm-idm-java
 /dd-java-agent/instrumentation-testing/                                                          @DataDog/apm-idm-java
 /dd-java-agent/testing/                                                                          @DataDog/apm-idm-java
 /dd-smoke-tests/armeria-grpc/                                                                    @DataDog/apm-idm-java
@@ -169,6 +156,8 @@
 /dd-trace-api/**/config/OtlpConfig*                             @DataDog/apm-sdk-capabilities-java
 /internal-api/src/*/*/datadog/trace/api/telemetry/Otel*         @DataDog/apm-sdk-capabilities-java
 /internal-api/src/*/*/datadog/trace/api/telemetry/Otlp*         @DataDog/apm-sdk-capabilities-java
+/utils/config-utils/                                            @DataDog/apm-sdk-capabilities-java
+/utils/flare-utils/                                             @DataDog/apm-sdk-capabilities-java
 
 # @DataDog/apm-serverless
 /dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
@@ -192,8 +181,12 @@
 /build-logic/                           @DataDog/apm-lang-platform-java
 /buildSrc/                              @DataDog/apm-lang-platform-java
 /components/                            @DataDog/apm-lang-platform-java
-/dd-java-agent/instrumentation/java/    @DataDog/apm-lang-platform-java
-/dd-smoke-tests/build.gradle            @DataDog/apm-lang-platform-java
+/dd-java-agent/agent-bootstrap/                      @DataDog/apm-lang-platform-java
+/dd-java-agent/agent-installer/                      @DataDog/apm-lang-platform-java
+/dd-java-agent/agent-tooling/                        @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation-annotation-processor/ @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation/java/                 @DataDog/apm-lang-platform-java
+/dd-java-agent/src/                                  @DataDog/apm-lang-platform-java
 /dd-smoke-tests/concurrent/             @DataDog/apm-lang-platform-java
 /dd-smoke-tests/field-injection/        @DataDog/apm-lang-platform-java
 /dd-smoke-tests/jdk-tool-abort/         @DataDog/apm-lang-platform-java
@@ -216,11 +209,14 @@
 /telemetry/                             @DataDog/apm-lang-platform-java
 /test-published-dependencies/           @DataDog/apm-lang-platform-java
 /tooling/                               @DataDog/apm-lang-platform-java
-/build.gradle.kts                       @DataDog/apm-lang-platform-java
 /gradle/java_no_deps.gradle             @DataDog/apm-lang-platform-java
 /gradle/wrapper/                        @DataDog/apm-lang-platform-java
 /repository.datadog.yaml                @DataDog/apm-lang-platform-java
 /dd-trace-api/**/RemoteConfigConfig*    @DataDog/apm-lang-platform-java
+/utils/test-agent-utils/                @DataDog/apm-lang-platform-java
+/utils/test-junit-converter-utils/      @DataDog/apm-lang-platform-java
+/utils/test-junit-utils/                @DataDog/apm-lang-platform-java
+/utils/test-utils/                      @DataDog/apm-lang-platform-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                               @DataDog/asm-java
@@ -361,3 +357,7 @@
 /dd-smoke-tests/rum/                                 @DataDog/rum
 /telemetry/src/*/*/datadog/telemetry/rum/            @DataDog/rum
 /dd-trace-api/**/config/RumConfig*                   @DataDog/rum
+
+# Build configuration
+**/build.gradle      @DataDog/apm-lang-platform-java
+**/build.gradle.kts  @DataDog/apm-lang-platform-java
