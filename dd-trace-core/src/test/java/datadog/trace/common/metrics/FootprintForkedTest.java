@@ -12,7 +12,6 @@ import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.test.util.Flaky;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,8 +46,6 @@ class FootprintForkedTest {
     "10 ops 100 resources 0% errors | 10                   | 1                   | 100                     | 2                 | 0.00     ",
     "10 ops 100 resources 1% errors | 10                   | 1                   | 100                     | 2                 | 0.01     "
   })
-  @Flaky(
-      "High-cardinality cases occasionally exceed the 10MB footprint growth threshold on some environments/JVMs")
   void footprintLessThan10MB(
       int operationCardinality,
       int servicePerOperation,
@@ -75,8 +72,11 @@ class FootprintForkedTest {
             100,
             SECONDS,
             false);
-    // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
-    long baseline = footprint(aggregator, features);
+    // Measuring the AggregateTable directly (rather than the whole ClientStatsAggregator) avoids
+    // both the 'features' mock (mocks are heavyweight, e.g. around 22MiB) and the aggregator's
+    // background Thread, whose ThreadGroup transitively references every other live thread in the
+    // JVM (test runner, JUnit engine, etc.), pulling in a huge, non-deterministic object graph.
+    long baseline = footprint(aggregator.aggregator().aggregates());
     aggregator.start();
     try {
 
@@ -121,7 +121,7 @@ class FootprintForkedTest {
         assertTrue(attempts < 10, "aggregator failed to report within 10 attempts");
       }
       assertTrue(latch.await(30, SECONDS), "latch was not triggered within 30 seconds");
-      long after = footprint(aggregator, features);
+      long after = footprint(aggregator.aggregator().aggregates());
       assertTrue(after - baseline <= 10L * 1024 * 1024, "footprint growth exceeds 10MB");
     } finally {
       aggregator.close();
@@ -159,16 +159,10 @@ class FootprintForkedTest {
     return (long) (Math.log(RANDOM.nextDouble()) / Math.log(1 - intensity) + 1);
   }
 
-  private static long footprint(Object root, Object... excludedRootFieldInstances) {
+  private static long footprint(Object root) {
     GraphLayout layout = GraphLayout.parseInstance(root);
-    long size = layout.totalSize();
-    for (Object excluded : excludedRootFieldInstances) {
-      GraphLayout excludedLayout = GraphLayout.parseInstance(excluded);
-      layout = layout.subtract(excludedLayout);
-      size -= excludedLayout.totalSize();
-    }
     System.out.println(layout.toFootprint());
-    return size;
+    return layout.totalSize();
   }
 
   private static class ValidatingSink implements Sink {

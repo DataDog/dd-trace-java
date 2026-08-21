@@ -310,6 +310,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     return reportingIntervalTimeUnit;
   }
 
+  Aggregator aggregator() {
+    return aggregator;
+  }
+
   @Override
   public void start() {
     sink.register(this);
