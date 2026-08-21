@@ -85,6 +85,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     val suite = report.documentElement
     assertThat(suite.tagName).isEqualTo("testsuite")
     assertThat(suite.getAttribute("name")).isEqualTo(":dd-java-agent:instrumentation:demo")
+    assertThat(suite.getAttribute("file")).isEqualTo("dd-java-agent/instrumentation/demo")
     assertThat(suite.getAttribute("tests")).isEqualTo("1")
     assertThat(suite.getAttribute("failures")).isEqualTo("0")
 

@@ -17,6 +17,9 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   @get:Input
   abstract val startTimeMs: Property<Long>
 
+  @get:Input
+  abstract val sourceFile: Property<String>
+
   @get:InputFiles
   @get:PathSensitive(PathSensitivity.RELATIVE)
   abstract val muzzleResultFiles: ConfigurableFileCollection
@@ -69,6 +72,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
     return MuzzleJUnitReport(
       suiteName = project.path,
       module = project.path,
+      sourceFile = sourceFile.get(),
       className = "muzzle.${project.pathSlug}",
       durationSeconds = seconds,
       testCases = testCases
@@ -84,6 +88,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
         writeCharacters("\n")
         writeStartElement("testsuite")
         writeAttribute("name", report.suiteName)
+        writeAttribute("file", report.sourceFile)
         writeAttribute("tests", report.testCases.size.toString())
         writeAttribute("failures", report.failures.toString())
         writeAttribute("errors", "0")
@@ -148,6 +153,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   private data class MuzzleJUnitReport(
     val suiteName: String,
     val module: String,
+    val sourceFile: String,
     val className: String,
     val durationSeconds: Double,
     val testCases: List<MuzzleJUnitCase>
