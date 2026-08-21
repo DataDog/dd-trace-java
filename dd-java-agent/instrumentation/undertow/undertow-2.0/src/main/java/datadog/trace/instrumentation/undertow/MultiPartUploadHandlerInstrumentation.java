@@ -132,6 +132,8 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
             Flow.Action.RequestBlockingAction rba =
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            // tryCommitBlockingResponse is not idempotent in Undertow: guard t == null before
+            // calling it to avoid committing a second block response when body already blocked.
             if (brf != null && t == null) {
               boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
               if (success) {
