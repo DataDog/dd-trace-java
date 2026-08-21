@@ -3,16 +3,24 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpRequestHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
@@ -99,6 +107,57 @@ public class SpringWebHttpServerDecorator
   @Override
   protected int status(final HttpServletResponse httpServletResponse) {
     return httpServletResponse.getStatus();
+  }
+
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    // Walk the cause chain looking for a status the exception itself carries (@ResponseStatus,
+    // ResponseStatusException, or any other ErrorResponse such as NoResourceFoundException). If
+    // the mapped status isn't one of the configured "server error" statuses, this isn't really an
+    // error from the caller's point of view (e.g. a 404 mapping), even though a Java exception
+    // was thrown to get there.
+    Integer status = extractResponseStatus(throwable);
+    if (status == null) {
+      status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
+    }
+    if (status != null) {
+      span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
+      span.setError(
+          Config.get().getHttpServerErrorStatuses().get(status),
+          ErrorPriorities.HTTP_SERVER_DECORATOR);
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  private static Integer extractResponseStatus(final Throwable throwable) {
+    Throwable current = throwable;
+    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+      if (current instanceof ErrorResponse) {
+        HttpStatusCode statusCode = ((ErrorResponse) current).getStatusCode();
+        if (statusCode != null) {
+          return statusCode.value();
+        }
+      }
+      for (Class<?> type : new ClassHierarchyIterable(current.getClass())) {
+        ResponseStatus responseStatus = type.getAnnotation(ResponseStatus.class);
+        if (responseStatus != null) {
+          return responseStatusCode(responseStatus);
+        }
+      }
+    }
+    return null;
+  }
+
+  private static int responseStatusCode(final ResponseStatus responseStatus) {
+    // value() and code() are @AliasFor each other, but plain reflection doesn't resolve
+    // @AliasFor: if a caller only set code(), value() still reports its own default rather than
+    // the value mirrored from code(). Prefer code() whenever it was explicitly set.
+    HttpStatus code = responseStatus.code();
+    if (code != HttpStatus.INTERNAL_SERVER_ERROR) {
+      return code.value();
+    }
+    return responseStatus.value().value();
   }
 
   @Override

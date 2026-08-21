@@ -101,6 +101,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
@@ -1520,6 +1521,29 @@ class ConfigTest extends DDSpecification {
     ": : : : "                                                    | [:]
     "::::"                                                        | [:]
     "kEy1 :value1  \t keY2:  value2"                              | [:]
+    // spotless:on
+  }
+
+  def "verify response status exceptions config on tracer"() {
+    setup:
+    System.setProperty(PREFIX + RESPONSE_STATUS_EXCEPTIONS, propString)
+    def props = new Properties()
+    props.setProperty(RESPONSE_STATUS_EXCEPTIONS, propString)
+
+    when:
+    def config = new Config()
+    def propConfig = Config.get(props)
+
+    then:
+    config.responseStatusExceptionAccessors == expected
+    propConfig.responseStatusExceptionAccessors == expected
+
+    where:
+    // spotless:off
+    propString                                                              | expected
+    ""                                                                      | [:]
+    "some.pkg.MyException#httpCode"                                        | ["some.pkg.MyException": "httpCode"]
+    "some.pkg.MyException#httpCode,other.pkg.OtherException#getStatusCode" | ["some.pkg.MyException": "httpCode", "other.pkg.OtherException": "getStatusCode"]
     // spotless:on
   }
 
