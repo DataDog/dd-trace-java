@@ -46,6 +46,10 @@ stages:
 
 variables:
   APM_SDKS_BENCHMARKS_SHA: *apm_sdks_benchmarks_sha
+  # Test the OpenTelemetry Operator-compatible Java image jobs from one-pipeline.
+  OTEL_OPERATOR_IMAGES_ENABLED: "true"
+  OTEL_OPERATOR_LANGUAGE: java
+  OTEL_OPERATOR_IMAGE_NAME: dd-lib-java-otel-init
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1
