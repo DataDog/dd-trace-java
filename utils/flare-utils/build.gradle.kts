@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-  api(libs.okhttp)
+  api(libs.okhttp.datadog)
   api(libs.moshi)
 
   compileOnly(project(":communication"))

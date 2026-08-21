@@ -44,7 +44,7 @@ dependencies {
   compileOnly(project(":utils:container-utils"))
   testImplementation(project(":utils:container-utils"))
 
-  api(libs.okhttp)
+  api(libs.okhttp.datadog)
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))

@@ -7,8 +7,8 @@ excludedClassesCoverage += [// These classes are using only for testing
 
 dependencies {
   api libs.guava
-  api libs.okhttp
+  api libs.okhttp.datadog
   api group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
   api group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
-  api group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  api libs.okhttp3.mockwebserver
 }
