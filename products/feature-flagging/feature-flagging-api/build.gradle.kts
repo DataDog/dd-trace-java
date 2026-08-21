@@ -4,6 +4,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   idea
+  id("com.gradleup.shadow")
   id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
@@ -39,12 +40,23 @@ java {
 }
 
 dependencies {
+  modules {
+    module("com.squareup.okio:okio") {
+      replacedBy("com.datadoghq.okio:okio")
+    }
+  }
+
   api("dev.openfeature:sdk:1.20.1")
 
-  compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  compileOnly(project(":products:feature-flagging:feature-flagging-config"))
-  compileOnly(project(":utils:config-utils"))
+  implementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  implementation(project(":products:feature-flagging:feature-flagging-config"))
+  implementation(project(":products:feature-flagging:feature-flagging-lib"))
+  implementation(project(":utils:config-utils"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
+  // OpenFeature SDK classes retain @lombok.Generated in their bytecode. Supplying the annotation
+  // on the analysis classpath keeps SpotBugs from treating that optional SDK build detail as a
+  // missing class; Lombok is neither bundled nor published as a dependency.
+  compileOnly("org.projectlombok:lombok:1.18.38")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   testImplementation(project(":utils:config-utils"))
@@ -59,6 +71,60 @@ dependencies {
   jmhImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   jmhImplementation(project(":products:feature-flagging:feature-flagging-config"))
   jmhImplementation(project(":utils:config-utils"))
+}
+
+tasks.jar {
+  destinationDirectory = layout.buildDirectory.dir("libs-unbundled")
+  archiveClassifier = "unbundled"
+}
+
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+  archiveClassifier = ""
+
+  dependencies {
+    exclude(dependency("dev.openfeature:sdk:.*"))
+    exclude(dependency("io.opentelemetry:.*:.*"))
+    exclude(dependency("org.slf4j:.*:.*"))
+    // These are optional agent capabilities reachable from the shared Config/communication
+    // modules but not from standalone HTTP polling or direct EVP delivery.
+    exclude(dependency("cafe.cryptography:.*:.*"))
+    exclude(dependency("com.datadoghq:java-dogstatsd-client:.*"))
+    exclude(dependency("com.datadoghq:sketches-java:.*"))
+    exclude(dependency("com.github.jnr:.*:.*"))
+    exclude(dependency("org.ow2.asm:.*:.*"))
+  }
+
+  relocate("com.datadog.featureflag.", "datadog.openfeature.internal.featureflag.")
+  relocate("com.squareup.", "datadog.openfeature.internal.com.squareup.")
+  relocate("okhttp3.", "datadog.openfeature.internal.okhttp3.")
+  relocate("okio.", "datadog.openfeature.internal.okio.")
+  relocate("org.jctools.", "datadog.openfeature.internal.org.jctools.")
+  relocate("datadog.", "datadog.openfeature.internal.datadog.") {
+    exclude("datadog.trace.api.featureflag.*")
+    exclude("datadog.trace.api.openfeature.*")
+  }
+
+  // Keep the Feature Flagging implementation because DDEvaluator loads its standalone entrypoint
+  // reflectively. Minimize the rest of the agent dependency graph to the classes that runtime
+  // actually reaches instead of publishing unrelated agent products in dd-openfeature.
+  minimize {
+    exclude(project(":products:feature-flagging:feature-flagging-lib"))
+  }
+
+  duplicatesStrategy = DuplicatesStrategy.FAIL
+  exclude("**/META-INF/maven/**/pom.xml")
+  exclude("com/squareup/moshi/_MoshiKotlin*")
+  exclude("META-INF/proguard/")
+  exclude("META-INF/*.kotlin_module")
+}
+
+tasks.test {
+  dependsOn(tasks.named("shadowJar"))
+  doFirst {
+    val shadowJar =
+      tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").get()
+    systemProperty("datadog.test.dd-openfeature.jar", shadowJar.archiveFile.get().asFile.absolutePath)
+  }
 }
 
 jmh {

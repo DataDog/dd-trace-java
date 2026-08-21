@@ -24,7 +24,6 @@ dependencies {
   implementation(project(":utils:logging-utils"))
   api(project(":utils:queue-utils"))
 
-  compileOnly(project(":dd-trace-core")) // shading does not work with this one
   // Platform JSON writer for the ffe_* tag values.
   compileOnly(project(":components:json"))
 

@@ -1,7 +1,7 @@
 package com.datadog.featureflag;
 
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
-import datadog.trace.core.util.LRUCache;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -13,7 +13,13 @@ public class LRUExposureCache implements ExposureCache {
   private final Map<Key, Value> cache;
 
   public LRUExposureCache(final int capacity) {
-    cache = new LRUCache<>(capacity);
+    cache =
+        new LinkedHashMap<Key, Value>(16, 0.75f, true) {
+          @Override
+          protected boolean removeEldestEntry(final Map.Entry<Key, Value> eldest) {
+            return super.size() > capacity;
+          }
+        };
   }
 
   @Override
