@@ -88,7 +88,6 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
         writeCharacters("\n")
         writeStartElement("testsuite")
         writeAttribute("name", report.suiteName)
-        writeAttribute("file", report.sourceFile)
         writeAttribute("tests", report.testCases.size.toString())
         writeAttribute("failures", report.failures.toString())
         writeAttribute("errors", "0")
@@ -113,6 +112,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
           writeStartElement("testcase")
           writeAttribute("classname", report.className)
           writeAttribute("name", testCase.name)
+          writeAttribute("file", report.sourceFile)
           writeAttribute("time", "0")
           if (testCase.failureMessage != null) {
             writeCharacters("\n")
