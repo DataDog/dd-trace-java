@@ -78,8 +78,10 @@ class MuzzleEndTaskTest {
   }
 
   @Test
-  fun `junit report contains project source path`() {
-    assertThat(junitDoc.documentElement.getAttribute("file"))
+  fun `junit testcases contain project source path`() {
+    assertThat(findTestCaseByName(junitDoc, "muzzle-pass").getAttribute("file"))
+      .isEqualTo("lettuce-5.0")
+    assertThat(findTestCaseByName(junitDoc, "muzzle-fail").getAttribute("file"))
       .isEqualTo("lettuce-5.0")
   }
 
