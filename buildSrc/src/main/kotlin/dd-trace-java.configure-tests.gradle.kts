@@ -55,6 +55,7 @@ tasks.withType<Test>().configureEach {
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
+    useJUnitPlatform()
     setExcludes(emptyList())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
