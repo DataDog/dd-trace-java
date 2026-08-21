@@ -39,7 +39,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getStringNotEmpty
     AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | UserEventTrackingMode.EXTENDED.toString()
     // ConfigProvider.getStringExcludingSource
-    GeneralConfig.APPLICATION_KEY                              | "app-key"
+    DDTags.SERVICE                                             | "my-service"
     // ConfigProvider.getBoolean
     TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | "true"
     // ConfigProvider.getInteger
@@ -184,11 +184,11 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV, ABSENT_SEQ_ID)
+    ConfigCollector.get().put('api-key', 'sensitive data', ConfigOrigin.ENV, ABSENT_SEQ_ID)
 
     then:
     def collected = ConfigCollector.get().collect()
-    collected.get(ConfigOrigin.ENV).get('DD_API_KEY').stringValue() == '<hidden>'
+    collected.get(ConfigOrigin.ENV).get('api-key').stringValue() == '<hidden>'
   }
 
   def "collects common setting default values"() {
