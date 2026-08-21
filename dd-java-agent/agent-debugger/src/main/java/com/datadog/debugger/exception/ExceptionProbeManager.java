@@ -67,6 +67,10 @@ public class ExceptionProbeManager {
     return classNameFiltering;
   }
 
+  public void removeThrowableState(Throwable t) {
+    snapshotsByThrowable.remove(t);
+  }
+
   static class CreationResult {
     final int probesCreated;
     final int thirdPartyFrames;

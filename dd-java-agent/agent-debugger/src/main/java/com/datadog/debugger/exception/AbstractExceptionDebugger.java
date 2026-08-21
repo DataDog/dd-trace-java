@@ -79,7 +79,13 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
         return;
       }
       processSnapshotsAndSetTags(
-          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
+          t,
+          innerMostException,
+          span,
+          state,
+          chainedExceptionsList,
+          fingerprint,
+          maxCapturedFrames);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -125,6 +131,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
 
   private void processSnapshotsAndSetTags(
       Throwable t,
+      Throwable innerMostException,
       AgentSpan span,
       ExceptionProbeManager.ThrowableState state,
       List<Throwable> chainedExceptions,
@@ -189,9 +196,9 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
           state.getExceptionId());
       span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
-      // clear snapshot list to avoid growing indefinitely for singleton exception instances
-      // like the one generated for FastThrow optimization (OmitStackTraceInFastThrow)
-      state.getSnapshots().clear();
+      // Remove ThrowableState to avoid growing indefinitely for singleton exception instances
+      // like ones generated for FastThrow optimization (OmitStackTraceInFastThrow)
+      exceptionProbeManager.removeThrowableState(innerMostException);
     }
   }
 
