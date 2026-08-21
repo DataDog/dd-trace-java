@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_1_8
