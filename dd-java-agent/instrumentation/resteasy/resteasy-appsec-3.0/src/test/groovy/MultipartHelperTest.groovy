@@ -141,13 +141,310 @@ class MultipartHelperTest extends Specification {
     MultipartHelper.filenameFromContentDisposition("form-data; filename*=UTF-8''evil.php") == null
   }
 
-  // collectFilesContent
+  // header fixtures
 
   private static MultivaluedMapImpl<String, String> headers(String cd) {
     def h = new MultivaluedMapImpl<String, String>()
     h.add('Content-Disposition', cd)
     h
   }
+
+  private static MultivaluedMapImpl<String, String> headers(String cd, String contentType) {
+    def h = headers(cd)
+    h.add('Content-Type', contentType)
+    h
+  }
+
+  // contentTypeWithDefaultUtf8 (private, tested via reflection)
+  //
+  // Asserted directly rather than only through collectBodyMap's end-to-end decoding, because the
+  // resulting Charset.defaultCharset() fallback on a null/unrecognized charset happens to equal
+  // UTF-8 on JDK 18+ (JEP 400) test environments regardless of whether this method is correct,
+  // which would silently mask a regression here.
+
+  private static String contentTypeWithDefaultUtf8(String contentType) {
+    Method m = MultipartHelper.getDeclaredMethod('contentTypeWithDefaultUtf8', String)
+    m.setAccessible(true)
+    return (String) m.invoke(null, [contentType] as Object[])
+  }
+
+  def "contentTypeWithDefaultUtf8 includes a media type in the fallback for a null content-type"() {
+    expect: "the result must remain a value extractCharset() can parse, i.e. include a media type"
+    contentTypeWithDefaultUtf8(null) == 'text/plain; charset=UTF-8'
+  }
+
+  def "contentTypeWithDefaultUtf8 appends charset to an existing content-type without one"() {
+    expect:
+    contentTypeWithDefaultUtf8('text/plain') == 'text/plain; charset=UTF-8'
+  }
+
+  def "contentTypeWithDefaultUtf8 leaves a content-type with an already declared charset untouched"() {
+    expect:
+    contentTypeWithDefaultUtf8('text/plain; charset=ISO-8859-1') == 'text/plain; charset=ISO-8859-1'
+  }
+
+  // collectBodyMap
+
+  def "collectBodyMap collects text parts grouped by field name"() {
+    given:
+    def p1 = Mock(InputPart)
+    p1.getHeaders() >> headers('form-data; name="field"')
+    p1.getBody(_, _) >> new ByteArrayInputStream('value'.bytes)
+    def p2 = Mock(InputPart)
+    p2.getHeaders() >> headers('form-data; name="tag"')
+    p2.getBody(_, _) >> new ByteArrayInputStream('a'.bytes)
+    def p3 = Mock(InputPart)
+    p3.getHeaders() >> headers('form-data; name="tag"')
+    p3.getBody(_, _) >> new ByteArrayInputStream('b'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [p1], 'tag': [p2, p3]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result == ['field': ['value'], 'tag': ['a', 'b']]
+  }
+
+  def "collectBodyMap returns an empty map when there are no parts"() {
+    given:
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> [:]
+
+    expect:
+    MultipartHelper.collectBodyMap(ret).isEmpty()
+  }
+
+  def "collectBodyMap decodes using the part declared charset"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="field"', 'text/plain; charset=ISO-8859-1')
+    part.getBody(_, _) >> new ByteArrayInputStream('café'.getBytes('ISO-8859-1'))
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [part]]
+
+    expect:
+    MultipartHelper.collectBodyMap(ret) == ['field': ['café']]
+  }
+
+  def "collectBodyMap truncates a value longer than MAX_CONTENT_BYTES"() {
+    given:
+    def longValue = 'a' * (MultipartHelper.MAX_CONTENT_BYTES + 100)
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="field"')
+    part.getBody(_, _) >> new ByteArrayInputStream(longValue.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [part]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result['field'][0] == 'a' * MultipartHelper.MAX_CONTENT_BYTES
+  }
+
+  def "collectBodyMap caps total values across distinct field names"() {
+    given:
+    def entries = [:]
+    (1..MultipartHelper.MAX_FILES_TO_INSPECT + 3).each { i ->
+      def p = Mock(InputPart)
+      p.getHeaders() >> headers("form-data; name=\"field${i}\"")
+      p.getBody(_, _) >> new ByteArrayInputStream("value${i}".bytes)
+      entries["field${i}".toString()] = [p]
+    }
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> entries
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result.values().sum { it.size() } == MultipartHelper.MAX_FILES_TO_INSPECT
+  }
+
+  def "collectBodyMap caps total values even when every part reuses the same field name"() {
+    given: "all parts share a single field name, so the map only ever has one key"
+    def parts = (1..MultipartHelper.MAX_FILES_TO_INSPECT + 5).collect { i ->
+      def p = Mock(InputPart)
+      p.getHeaders() >> headers('form-data; name="same"')
+      p.getBody(_, _) >> new ByteArrayInputStream("value${i}".bytes)
+      p
+    }
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['same': parts]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the cap counts total values, not distinct keys"
+    result.size() == 1
+    result['same'].size() == MultipartHelper.MAX_FILES_TO_INSPECT
+  }
+
+  def "collectBodyMap keeps accumulating values for an already present field below the cap"() {
+    given:
+    def parts = (1..3).collect { i ->
+      def p = Mock(InputPart)
+      p.getHeaders() >> headers('form-data; name="tag"')
+      p.getBody(_, _) >> new ByteArrayInputStream("v${i}".bytes)
+      p
+    }
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['tag': parts]
+
+    expect:
+    MultipartHelper.collectBodyMap(ret) == ['tag': ['v1', 'v2', 'v3']]
+  }
+
+  def "collectBodyMap maps a part to an empty string when reading it fails"() {
+    given:
+    def failing = Mock(InputPart)
+    failing.getHeaders() >> headers('form-data; name="bad"')
+    failing.getBody(_, _) >> { throw new IOException('boom') }
+    def ok = Mock(InputPart)
+    ok.getHeaders() >> headers('form-data; name="good"')
+    ok.getBody(_, _) >> new ByteArrayInputStream('fine'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['bad': [failing], 'good': [ok]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result == ['bad': [''], 'good': ['fine']]
+    noExceptionThrown()
+  }
+
+  def "collectBodyMap maps a part to an empty string when reading it throws an unchecked exception"() {
+    given:
+    def failing = Mock(InputPart)
+    failing.getHeaders() >> headers('form-data; name="bad"')
+    failing.getBody(_, _) >> { throw new RuntimeException('no MessageBodyReader') }
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['bad': [failing]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result == ['bad': ['']]
+    noExceptionThrown()
+  }
+
+  def "collectBodyMap treats a part whose getHeaders() throws as having no content-type, without aborting"() {
+    given:
+    def broken = Mock(InputPart)
+    broken.getHeaders() >> { throw new IllegalStateException('boom') }
+    broken.getBody(_, _) >> new ByteArrayInputStream('value'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [broken]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then:
+    result == ['field': ['value']]
+    noExceptionThrown()
+  }
+
+  def "collectBodyMap treats a part whose getHeaders() returns null as having no content-type"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> null
+    part.getBody(_, _) >> new ByteArrayInputStream('value'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [part]]
+
+    expect:
+    MultipartHelper.collectBodyMap(ret) == ['field': ['value']]
+  }
+
+  def "collectBodyMap decodes an undeclared-charset value as UTF-8, not the JVM platform default"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="field"')
+    part.getBody(_, _) >> new ByteArrayInputStream('café'.getBytes('UTF-8'))
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [part]]
+
+    expect:
+    MultipartHelper.collectBodyMap(ret) == ['field': ['café']]
+  }
+
+  def "collectBodyMap excludes a non-text/plain part and does not consume the cap for it"() {
+    given: "a file part and a text part sharing the same request"
+    def file = Mock(InputPart)
+    file.getHeaders() >> headers('form-data; name="upload"; filename="a.bin"', 'application/octet-stream')
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [file], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the file part never reaches getBody() and is absent from the map"
+    result == ['q': ['<script>']]
+    0 * file.getBody(_, _)
+  }
+
+  def "collectBodyMap excludes a text/plain part that also declares a filename"() {
+    given: "a file uploaded with an explicit text/plain content-type, plus a real text field"
+    def textFile = Mock(InputPart)
+    textFile.getHeaders() >> headers('form-data; name="upload"; filename="notes.txt"', 'text/plain')
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [textFile], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the text/plain file part never reaches getBody() and does not consume the body-map cap"
+    result == ['q': ['<script>']]
+    0 * textFile.getBody(_, _)
+  }
+
+  def "collectBodyMap excludes a text/plain part that declares only an RFC 5987 filename*"() {
+    given: "a file uploaded with filename* only (no plain filename), plus a real text field"
+    def textFile = Mock(InputPart)
+    textFile.getHeaders() >> headers('form-data; name="upload"; filename*=UTF-8\'\'notes.txt', 'text/plain')
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [textFile], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the text/plain file part never reaches getBody() and does not consume the body-map cap"
+    result == ['q': ['<script>']]
+    0 * textFile.getBody(_, _)
+  }
+
+  def "collectBodyMap does not let dummy file parts exhaust the cap before a real text field"() {
+    given: "MAX_FILES_TO_INSPECT dummy text/plain file parts followed by one real text field"
+    def entries = [:]
+    (1..MultipartHelper.MAX_FILES_TO_INSPECT).each { i ->
+      def p = Mock(InputPart)
+      p.getHeaders() >> headers("form-data; name=\"file${i}\"; filename=\"f${i}.txt\"", 'text/plain')
+      entries["file${i}".toString()] = [p]
+    }
+    def q = Mock(InputPart)
+    q.getHeaders() >> headers('form-data; name="q"')
+    q.getBody(_, _) >> new ByteArrayInputStream('payload'.bytes)
+    entries['q'] = [q]
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> entries
+
+    expect:
+    MultipartHelper.collectBodyMap(ret) == ['q': ['payload']]
+  }
+
+  // collectFilesContent
 
   def "collectFilesContent includes part with non-empty filename"() {
     given:
@@ -177,6 +474,21 @@ class MultipartHelperTest extends Specification {
 
     then:
     result == ['anonymous']
+  }
+
+  def "collectFilesContent includes part with only an RFC 5987 filename* (security fix)"() {
+    given: "a file declaring filename* only, no plain filename"
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="upload"; filename*=UTF-8\'\'notes.txt', 'text/plain')
+    part.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [part]]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then: "content is still inspected here even though collectBodyMap now excludes this part"
+    result == ['<script>']
   }
 
   def "collectFilesContent skips part without filename attribute"() {
