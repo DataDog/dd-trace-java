@@ -152,6 +152,9 @@ public final class SpanMatcher {
    * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
    */
   public SpanMatcher childOfIndex(int parentSpanIndex) {
+    if (parentSpanIndex < 0) {
+      throw new AssertionFailedError("index  must be >= 0");
+    }
     this.parentIdMatcher = null;
     this.parentSpanIndex = parentSpanIndex;
     return this;
@@ -451,6 +454,7 @@ public final class SpanMatcher {
           .expected(expectedLinkCount)
           .actual(linkCount)
           .buildAndThrow();
+      return;
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[i];
