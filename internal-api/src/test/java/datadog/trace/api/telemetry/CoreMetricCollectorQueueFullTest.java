@@ -10,15 +10,13 @@ import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression guard for the queue-full delta-loss bug in {@link
- * CoreMetricCollector#prepareMetrics()}.
+ * Verifies {@link CoreMetricCollector#prepareMetrics()} never drops a counter's delta when the
+ * output queue is full.
  *
- * <p>Before the fix, the drain read a counter with {@code getValueAndReset()} — which clears the
- * counter's delta baseline — and only then tried to {@code offer()} it onto a fixed-capacity queue.
- * When the queue was already full the offer failed, so that already-reset delta was lost
- * permanently rather than being carried to the next cycle. The fix checks {@code
- * remainingCapacity()} before reading each counter and stops early, leaving the untouched counters
- * for next time.
+ * <p>The drain checks {@code remainingCapacity()} before reading each counter and stops early once
+ * the queue can't take any more, leaving the untouched counters' deltas intact for the next cycle.
+ * Reading a counter with {@code getValueAndReset()} clears its delta baseline, so that check has to
+ * happen before the read, not after a failed {@code offer()}.
  */
 class CoreMetricCollectorQueueFullTest {
 
@@ -30,9 +28,8 @@ class CoreMetricCollectorQueueFullTest {
    * so this test can't assume a clean registry. It stays robust by tagging its own instrumentations
    * with a unique prefix and counting only those, and it drains cycle-by-cycle until the queue
    * yields nothing at all (so it never terminates early just because a cycle happened to surface
-   * only unrelated counters left behind by other tests). With the fix the sum of our own metrics
-   * equals the number we created; with the bug the ones skipped while the queue was full are lost,
-   * so the sum comes up short.
+   * only unrelated counters left behind by other tests). The sum of our own metrics across all
+   * cycles must equal the number we created; a dropped delta would make the sum come up short.
    */
   @Test
   void skippedCountersRetainDeltaAcrossCycles() {
