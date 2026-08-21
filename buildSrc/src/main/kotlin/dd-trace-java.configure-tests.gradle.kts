@@ -2,7 +2,6 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 import org.gradle.kotlin.dsl.develocity
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
@@ -104,7 +103,7 @@ tasks.named("check") {
 
 tasks.withType<Test>().configureEach {
   // Flaky tests management for JUnit 5
-  (options as? JUnitPlatformOptions)?.apply {
+  useJUnitPlatform {
     if (skipFlakyTestsProvider.isPresent) {
       excludeTags("flaky")
     } else if (runFlakyTestsProvider.isPresent) {
