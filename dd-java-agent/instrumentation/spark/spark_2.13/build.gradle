@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
 }
 
 // Support for 2.13 added in 3.2.0 https://issues.apache.org/jira/browse/SPARK-25075
@@ -19,8 +20,6 @@ muzzle {
     javaVersion = 17
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark32')

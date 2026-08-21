@@ -1,3 +1,9 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -5,10 +11,6 @@ muzzle {
     versions = "[11,12)"
   }
 }
-
-apply plugin: 'java-test-fixtures'
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)

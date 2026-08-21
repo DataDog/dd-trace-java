@@ -7,10 +7,18 @@ forbiddenapis = "3.10"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
-spotbugs_annotations = "4.9.8"
+spotbugs_annotations = "4.10.3"
+
+# Source code formatters
+google-java-format = "1.36.1"
+greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
+ktlint = "1.8.0"
+scalafmt = "3.11.5"
+spotless = "8.10.0"
+tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.47.0"
+ddprof = "1.49.0"
 dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -56,7 +64,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.0"
+lz4 = "1.11.1"
 re2j = "1.8"
 
 # Logging
@@ -75,7 +83,7 @@ junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
 json-unit = "2.40.1"
-tabletest = "1.2.1"
+tabletest = "1.2.2"
 testcontainers = "1.21.4"
 
 [libraries]
@@ -194,3 +202,4 @@ spock = ["spock-core", "objenesis"]
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

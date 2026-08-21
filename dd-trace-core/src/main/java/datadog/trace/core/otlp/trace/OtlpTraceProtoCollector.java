@@ -56,10 +56,21 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       payloadStarted = true;
     }
 
-    // OtlpProtoBuffer collects spans in reverse
-    for (int i = spans.size() - 1; i >= 0; i--) {
-      visitSpan(spans.get(i));
+    try {
+      // OtlpProtoBuffer collects spans in reverse
+      for (int i = spans.size() - 1; i >= 0; i--) {
+        visitSpan(spans.get(i));
+      }
+    } catch (Throwable e) {
+      // reset the buffer for subsequent traces
+      stop();
+      throw e;
     }
+  }
+
+  @Override
+  public int sizeInBytes() {
+    return protobuf.sizeInBytes();
   }
 
   /**
@@ -78,7 +89,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   /** Prepare temporary elements to collect trace data. */
   private void start() {
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
 
@@ -109,18 +119,19 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   }
 
   private void visitSpan(CoreSpan<?> span) {
-    if (shouldExport(span)) {
-      if (currentSpan != null) {
-        // ensure last span written at trace boundary includes sampling tags
-        // payload buffer is prepending, so last span written appears first!
-        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-          metaWriter.includeSamplingTags();
-        }
-        completeSpan();
-      }
-      currentSpan = (DDSpan) span;
-      currentSpan.getLinks().forEach(this::visitSpanLink);
+    if (!shouldExport(span)) {
+      return;
     }
+    if (currentSpan != null) {
+      // ensure last span written at trace boundary includes sampling tags
+      // payload buffer is prepending, so last span written appears first!
+      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+        metaWriter.includeSamplingTags();
+      }
+      completeSpan();
+    }
+    currentSpan = (DDSpan) span;
+    currentSpan.getLinks().forEach(this::visitSpanLink);
   }
 
   private void visitSpanLink(AgentSpanLink spanLink) {

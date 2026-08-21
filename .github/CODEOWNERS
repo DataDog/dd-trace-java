@@ -49,7 +49,7 @@
 /dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
 /dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
 /dd-trace-core/src/main/java/datadog/trace/lambda/                      @DataDog/apm-serverless
-/dd-trace-core/src/test/groovy/datadog/trace/lambda/                    @DataDog/apm-serverless
+/dd-trace-core/src/test/*/datadog/trace/lambda/                         @DataDog/apm-serverless
 /utils/container-utils/                                                 @DataDog/apm-serverless
 **/InferredProxy*.java                                                  @DataDog/apm-serverless
 **/InferredProxy*.groovy                                                @DataDog/apm-serverless
@@ -78,6 +78,7 @@
 /dd-java-agent/instrumentation/snakeyaml-1.33/                  @DataDog/asm-java
 /dd-java-agent/instrumentation/velocity-1.5/                    @DataDog/asm-java
 /dd-java-agent/instrumentation/freemarker/                      @DataDog/asm-java
+/dd-java-agent/instrumentation/beanshell-2.0/                   @DataDog/asm-java
 /dd-java-agent/instrumentation/datadog/asm/                     @DataDog/asm-java
 /dd-smoke-tests/apm-tracing-disabled/                           @DataDog/asm-java
 /dd-smoke-tests/appsec/                                         @DataDog/asm-java
@@ -134,8 +135,8 @@
 /internal-api/src/main/java/datadog/trace/api/debugger/         @DataDog/debugger-java
 
 
-# @DataDog/data-jobs-monitoring
-/dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
+# @DataDog/data-observability
+/dd-java-agent/instrumentation/spark/           @DataDog/data-observability
 
 # @DataDog/data-streams-monitoring
 /dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/datastreams @DataDog/data-streams-monitoring

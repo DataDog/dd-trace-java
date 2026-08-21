@@ -713,6 +713,14 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_GRADLE_SOURCESETS": [
       {
         "version": "A",
@@ -1513,6 +1521,46 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "agentless",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "5",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
@@ -1532,6 +1580,14 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3185,6 +3241,38 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "524288",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_INTERVAL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3897,6 +3985,14 @@
         "aliases": []
       }
     ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_STACK_TRACE_LENGTH_LIMIT": [
       {
         "version": "A",
@@ -4062,6 +4158,14 @@
         "version": "A",
         "type": "decimal",
         "default": "10.0",
+        "aliases": []
+      }
+    ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -4975,6 +5079,14 @@
         "type": "array",
         "default": "[\"user.id\", \"session.id\", \"account.id\"]",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_BEANSHELL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
       }
     ],
     "DD_TRACE_CAFFEINE_ENABLED": [
@@ -10753,6 +10865,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",
@@ -11970,5 +12098,7 @@
       }
     ]
   },
-  "deprecations": {}
+  "deprecations": {
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+  }
 }
