@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 import datadog.metrics.api.statsd.StatsDClient;
@@ -16,7 +15,6 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import datadog.trace.test.util.Flaky;
 import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -40,14 +38,6 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
   @AfterEach
   void cleanup() throws Exception {
     tracer.close();
-  }
-
-  @Flaky("Temporary verification that flaky JUnit 5 tests are excluded from forkedTest")
-  @Test
-  void flakyMarkerIsHonoredForForkedTests() {
-    if ("false".equals(System.getProperty("run.flaky.tests"))) {
-      fail("Flaky test was executed even though -PskipFlakyTests was specified");
-    }
   }
 
   @Test
