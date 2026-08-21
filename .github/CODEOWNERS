@@ -60,7 +60,7 @@
 
 # Core tracer
 /dd-trace-core/gradle.lockfile                                  @DataDog/apm-java
-/dd-trace-core/src/test/                                        @DataDog/apm-java
+/dd-trace-core/src/test                                         @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/context/*.*                      @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/trace/api/naming/                @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/trace/api/remoteconfig/          @DataDog/apm-java
@@ -84,7 +84,7 @@
 # Core internal API
 /internal-api/gradle.lockfile                                   @DataDog/apm-java
 /internal-api/internal-api-9/                                   @DataDog/apm-java
-/internal-api/src/test/                                         @DataDog/apm-java
+/internal-api/src/test                                          @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/advice/                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/*.*                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/cache/                  @DataDog/apm-java
