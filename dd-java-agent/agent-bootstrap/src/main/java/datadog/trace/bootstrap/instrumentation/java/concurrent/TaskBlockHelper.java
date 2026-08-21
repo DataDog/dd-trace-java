@@ -3,13 +3,18 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.channels.Selector;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-/** Helper for synchronously bracketing untraced {@code Thread.sleep} intervals. */
+/**
+ * Helper for synchronously bracketing untraced blocking intervals ({@code Thread.sleep}, {@code
+ * Selector.select}) with a {@code datadog.TaskBlock} JFR event.
+ */
 public final class TaskBlockHelper {
   private static final LongAdder DROPPED_COMPLETIONS = new LongAdder();
 
@@ -24,7 +29,8 @@ public final class TaskBlockHelper {
     return DROPPED_COMPLETIONS.sum();
   }
 
-  static ProfilingContextIntegration profiling() {
+  /** Returns the active profiling context integration, or {@code null} when unavailable. */
+  public static ProfilingContextIntegration profiling() {
     try {
       return AgentTracer.get().getProfilingContext();
     } catch (Throwable ignored) {
@@ -32,7 +38,8 @@ public final class TaskBlockHelper {
     }
   }
 
-  static long begin(ProfilingContextIntegration profiling) {
+  /** Starts a TaskBlock interval, returning {@code 0} when the interval was not accepted. */
+  public static long begin(ProfilingContextIntegration profiling) {
     if (profiling == null) {
       return 0L;
     }
@@ -43,7 +50,8 @@ public final class TaskBlockHelper {
     }
   }
 
-  static void finish(ProfilingContextIntegration profiling, long token) {
+  /** Completes a TaskBlock interval previously accepted by {@link #begin}. */
+  public static void finish(ProfilingContextIntegration profiling, long token) {
     if (profiling == null || token == 0L) {
       return;
     }
@@ -108,6 +116,35 @@ public final class TaskBlockHelper {
     long token = begin(profiling);
     try {
       unit.sleep(timeout);
+    } finally {
+      finish(profiling, token);
+    }
+  }
+
+  /** Brackets {@link Selector#select()} with a synchronous TaskBlock interval. */
+  public static int select(Selector selector) throws IOException {
+    return select(profiling(), selector);
+  }
+
+  static int select(ProfilingContextIntegration profiling, Selector selector) throws IOException {
+    long token = begin(profiling);
+    try {
+      return selector.select();
+    } finally {
+      finish(profiling, token);
+    }
+  }
+
+  /** Brackets {@link Selector#select(long)} with a synchronous TaskBlock interval. */
+  public static int select(Selector selector, long timeout) throws IOException {
+    return select(profiling(), selector, timeout);
+  }
+
+  static int select(ProfilingContextIntegration profiling, Selector selector, long timeout)
+      throws IOException {
+    long token = begin(profiling);
+    try {
+      return selector.select(timeout);
     } finally {
       finish(profiling, token);
     }

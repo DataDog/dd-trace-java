@@ -1,0 +1,37 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "io.netty"
+    module = "netty-transport"
+    versions = "[4.1.0.Final,)"
+  }
+  pass {
+    group = "io.grpc"
+    module = "grpc-netty-shaded"
+    versions = "[,]"
+    assertInverse = false
+  }
+  pass {
+    coreJdk()
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'io.netty', name: 'netty-transport', version: '4.1.108.Final'
+  testImplementation group: 'io.netty', name: 'netty-transport-native-epoll', version: '4.1.108.Final', classifier: 'linux-x86_64'
+  testImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.58.0'
+
+  // Netty 4.2.x moved EpollEventLoop's wait methods to a new EpollIoHandler class; exercise the
+  // same forked tests against the latest Netty 4.x to cover both class layouts.
+  latestDepTestImplementation group: 'io.netty', name: 'netty-transport', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-transport-native-epoll', version: '4.+', classifier: 'linux-x86_64'
+  latestDepTestImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.+'
+}

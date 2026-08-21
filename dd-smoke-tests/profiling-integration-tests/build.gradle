@@ -33,6 +33,8 @@ dependencies {
   testImplementation libs.bundles.jmc
   testImplementation libs.aircompressor
   testImplementation libs.jackson.databind
+  testImplementation group: 'io.netty', name: 'netty-transport', version: '4.1.108.Final'
+  testImplementation group: 'io.netty', name: 'netty-transport-native-epoll', version: '4.1.108.Final', classifier: 'linux-x86_64'
 }
 
 tasks.withType(Test).configureEach {
