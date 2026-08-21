@@ -154,7 +154,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static boolean startStandaloneRuntime() throws Exception {
     final Class<?> runtime;
     try {
-      runtime = Class.forName(STANDALONE_RUNTIME_CLASS);
+      runtime = DDEvaluator.class.getClassLoader().loadClass(STANDALONE_RUNTIME_CLASS);
     } catch (final ClassNotFoundException ignored) {
       return false;
     }
@@ -163,7 +163,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private static void stopStandaloneRuntime() {
     try {
-      final Class<?> runtime = Class.forName(STANDALONE_RUNTIME_CLASS);
+      final Class<?> runtime =
+          DDEvaluator.class.getClassLoader().loadClass(STANDALONE_RUNTIME_CLASS);
       invokeRuntime(runtime, "stop");
     } catch (final ReflectiveOperationException ignored) {
       // The standalone runtime is best-effort during shutdown. Initialization already proved the
@@ -171,7 +172,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static boolean invokeRuntime(final Class<?> runtime, final String methodName)
+  static boolean invokeRuntime(final Class<?> runtime, final String methodName)
       throws ReflectiveOperationException {
     final Method method = runtime.getMethod(methodName);
     try {
@@ -644,7 +645,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return context.convertValue(resolved);
   }
 
-  private static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
+  static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
     if (variationType == null) {
       return true; // No type info — allow any
     }

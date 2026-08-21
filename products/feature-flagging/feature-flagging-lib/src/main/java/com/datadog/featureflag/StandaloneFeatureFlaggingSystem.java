@@ -10,6 +10,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,21 +71,19 @@ public final class StandaloneFeatureFlaggingSystem {
   }
 
   private static void initializeSystem(final Config config) {
-    final SharedCommunicationObjects communicationObjects = new SharedCommunicationObjects();
-    communicationObjects.createRemaining(config);
-    final ConfigurationSourceService configService = new AgentlessConfigurationSource(config);
-    final ExposureWriter exposureWriter =
-        new ExposureWriterImpl(communicationObjects, config, false);
+    DefaultRuntime.initialize(config);
+  }
+
+  static void initializeSystem(
+      final ConfigurationSourceService configService,
+      final ExposureWriter exposureWriter,
+      final Supplier<FlagEvaluationWriter> evalWriterFactory,
+      final boolean evalCountsEnabled) {
     initialize(configService, exposureWriter);
 
-    final boolean evalCountsEnabled =
-        config
-            .configProvider()
-            .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
-      final FlagEvaluationWriterImpl evalWriter =
-          new FlagEvaluationWriterImpl(communicationObjects, config, false);
+      final FlagEvaluationWriter evalWriter = evalWriterFactory.get();
       FLAG_EVAL_WRITER = evalWriter;
       evalWriter.start();
     } else {
@@ -139,6 +138,26 @@ public final class StandaloneFeatureFlaggingSystem {
         resource.close();
       } catch (final Exception ignored) {
       }
+    }
+  }
+
+  /** Composition root for the concrete standalone transports, validated by deployment tests. */
+  private static final class DefaultRuntime {
+    private static void initialize(final Config config) {
+      final SharedCommunicationObjects communicationObjects = new SharedCommunicationObjects();
+      communicationObjects.createRemaining(config);
+      final ConfigurationSourceService configService = new AgentlessConfigurationSource(config);
+      final ExposureWriter exposureWriter =
+          new ExposureWriterImpl(communicationObjects, config, false);
+      final boolean evalCountsEnabled =
+          config
+              .configProvider()
+              .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+      initializeSystem(
+          configService,
+          exposureWriter,
+          () -> new FlagEvaluationWriterImpl(communicationObjects, config, false),
+          evalCountsEnabled);
     }
   }
 }
