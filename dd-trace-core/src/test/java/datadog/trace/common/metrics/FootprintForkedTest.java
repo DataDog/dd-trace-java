@@ -78,53 +78,54 @@ class FootprintForkedTest {
     // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
     long baseline = footprint(aggregator, features);
     aggregator.start();
+    try {
 
-    // lots of traces are published
-    String[] operations = randomNames(operationCardinality);
-    Map<String, String[]> serviceNamesByOperation =
-        scopedRandomNames(operations, servicePerOperation);
-    Map<String, String[]> resourceNamesByService =
-        scopedRandomNames(serviceNamesByOperation.values(), resourceNamesPerService);
-    Map<String, String[]> typesByOperation = scopedRandomNames(operations, typesPerOperation);
-    int traceCount = 10_000;
-    int errorThreshold = (int) (errorRate * traceCount);
-    for (int i = 0; i < traceCount; ++i) {
-      String operation = operations[ThreadLocalRandom.current().nextInt(operations.length)];
-      String[] types = typesByOperation.get(operation);
-      String type = types[ThreadLocalRandom.current().nextInt(types.length)];
-      String[] serviceNames = serviceNamesByOperation.get(operation);
-      String serviceName = serviceNames[ThreadLocalRandom.current().nextInt(serviceNames.length)];
-      String[] resourceNames = resourceNamesByService.get(serviceName);
-      String resourceName =
-          resourceNames[ThreadLocalRandom.current().nextInt(resourceNames.length)];
-      boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold;
-      aggregator.publish(
-          Collections.singletonList(
-              new SimpleSpan(
-                  serviceName,
-                  operation,
-                  resourceName,
-                  type,
-                  true,
-                  true,
-                  isError,
-                  System.nanoTime(),
-                  isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
-                  200)));
-    }
-    if (!aggregator.report()) {
-      int attempts = 0;
-      while (++attempts < 10 && !aggregator.report()) {
-        Thread.sleep(10);
+      // lots of traces are published
+      String[] operations = randomNames(operationCardinality);
+      Map<String, String[]> serviceNamesByOperation =
+          scopedRandomNames(operations, servicePerOperation);
+      Map<String, String[]> resourceNamesByService =
+          scopedRandomNames(serviceNamesByOperation.values(), resourceNamesPerService);
+      Map<String, String[]> typesByOperation = scopedRandomNames(operations, typesPerOperation);
+      int traceCount = 10_000;
+      int errorThreshold = (int) (errorRate * traceCount);
+      for (int i = 0; i < traceCount; ++i) {
+        String operation = operations[ThreadLocalRandom.current().nextInt(operations.length)];
+        String[] types = typesByOperation.get(operation);
+        String type = types[ThreadLocalRandom.current().nextInt(types.length)];
+        String[] serviceNames = serviceNamesByOperation.get(operation);
+        String serviceName = serviceNames[ThreadLocalRandom.current().nextInt(serviceNames.length)];
+        String[] resourceNames = resourceNamesByService.get(serviceName);
+        String resourceName =
+            resourceNames[ThreadLocalRandom.current().nextInt(resourceNames.length)];
+        boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold;
+        aggregator.publish(
+            Collections.singletonList(
+                new SimpleSpan(
+                    serviceName,
+                    operation,
+                    resourceName,
+                    type,
+                    true,
+                    true,
+                    isError,
+                    System.nanoTime(),
+                    isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
+                    200)));
       }
-      assertTrue(attempts < 10, "aggregator failed to report within 10 attempts");
+      if (!aggregator.report()) {
+        int attempts = 0;
+        while (++attempts < 10 && !aggregator.report()) {
+          Thread.sleep(10);
+        }
+        assertTrue(attempts < 10, "aggregator failed to report within 10 attempts");
+      }
+      assertTrue(latch.await(30, SECONDS), "latch was not triggered within 30 seconds");
+      long after = footprint(aggregator, features);
+      assertTrue(after - baseline <= 10L * 1024 * 1024, "footprint growth exceeds 10MB");
+    } finally {
+      aggregator.close();
     }
-    assertTrue(latch.await(30, SECONDS), "latch was not triggered within 30 seconds");
-
-    long after = footprint(aggregator, features);
-    assertTrue(after - baseline <= 10L * 1024 * 1024, "footprint growth exceeds 10MB");
-
-    aggregator.close();
   }
 
   private static String[] randomNames(int cardinality) {

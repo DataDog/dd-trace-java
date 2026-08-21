@@ -80,6 +80,7 @@ class ClientStatsAggregatorTest {
         Collections.singletonList(
             new SimpleSpan("", "", "", "", false, false, false, 0, 0, HTTP_OK)));
 
+    waitUntilAggregatorIsEmpty(aggregator);
     clearInvocations(sink);
     aggregator.forceReport().get(2, SECONDS);
 
@@ -1977,6 +1978,7 @@ class ClientStatsAggregatorTest {
     verify(writer, times(1)).finishBucket();
 
     // second cycle - no updates at all
+    waitUntilAggregatorIsEmpty(aggregator);
     clearInvocations(writer);
     aggregator.forceReport().get(2, SECONDS);
 
@@ -2128,8 +2130,8 @@ class ClientStatsAggregatorTest {
 
     // writer should be reset if reporting fails
     assertTrue(latchTriggered);
-    verify(writer, atLeastOnce()).startBucket(anyInt(), anyLong(), anyLong());
-    verify(writer, times(1)).reset();
+    verify(writer).startBucket(anyInt(), anyLong(), anyLong());
+    verify(writer).reset();
 
     aggregator.close();
   }
@@ -2782,5 +2784,13 @@ class ClientStatsAggregatorTest {
     assertEquals(overflowServiceName, cycle2Entries.get(0).getService().toString());
 
     aggregator.close();
+  }
+
+  private void waitUntilAggregatorIsEmpty(ClientStatsAggregator aggregator)
+      throws InterruptedException {
+    int i = 0;
+    while (!aggregator.isEmpty() && i++ < 100) {
+      Thread.sleep(10);
+    }
   }
 }
