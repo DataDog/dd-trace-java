@@ -10,7 +10,9 @@ description = "Feature flagging remote config and exposure handling"
 extra["excludedClassesCoverage"] = listOf(
   // POJOs
   "com.datadog.featureflag.ExposureCache.Key",
-  "com.datadog.featureflag.ExposureCache.Value"
+  "com.datadog.featureflag.ExposureCache.Value",
+  // Concrete transport composition is exercised by standalone deployment tests.
+  "com.datadog.featureflag.StandaloneFeatureFlaggingSystem.DefaultRuntime"
 )
 
 dependencies {

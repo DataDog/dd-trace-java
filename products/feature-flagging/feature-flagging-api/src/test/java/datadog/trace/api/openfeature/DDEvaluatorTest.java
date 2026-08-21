@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
@@ -42,6 +43,7 @@ import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -92,6 +94,45 @@ public class DDEvaluatorTest {
     } finally {
       evaluator.shutdown();
       FeatureFlaggingGateway.removeActivationListener(listener);
+    }
+  }
+
+  @Test
+  public void testStandaloneRuntimeInvocation() throws Exception {
+    assertThat(DDEvaluator.invokeRuntime(RuntimeMethods.class, "returnsTrue"), equalTo(true));
+    assertThat(DDEvaluator.invokeRuntime(RuntimeMethods.class, "returnsFalse"), equalTo(false));
+    assertThat(DDEvaluator.invokeRuntime(RuntimeMethods.class, "returnsVoid"), equalTo(true));
+    assertThrows(
+        IllegalStateException.class,
+        () -> DDEvaluator.invokeRuntime(RuntimeMethods.class, "throwsRuntimeException"));
+    assertThrows(
+        AssertionError.class, () -> DDEvaluator.invokeRuntime(RuntimeMethods.class, "throwsError"));
+    assertThrows(
+        InvocationTargetException.class,
+        () -> DDEvaluator.invokeRuntime(RuntimeMethods.class, "throwsCheckedException"));
+  }
+
+  public static final class RuntimeMethods {
+    public static boolean returnsTrue() {
+      return true;
+    }
+
+    public static boolean returnsFalse() {
+      return false;
+    }
+
+    public static void returnsVoid() {}
+
+    public static void throwsRuntimeException() {
+      throw new IllegalStateException("runtime");
+    }
+
+    public static void throwsError() {
+      throw new AssertionError("error");
+    }
+
+    public static void throwsCheckedException() throws Exception {
+      throw new Exception("checked");
     }
   }
 
@@ -150,6 +191,29 @@ public class DDEvaluatorTest {
       final Object result = DDEvaluator.mapValue(target, value);
       assertThat(result, equalTo(expected));
     }
+  }
+
+  private static Arguments[] typeCompatibilityTestCases() {
+    return new Arguments[] {
+      Arguments.of(Boolean.class, ValueType.BOOLEAN, true),
+      Arguments.of(String.class, ValueType.BOOLEAN, false),
+      Arguments.of(String.class, ValueType.STRING, true),
+      Arguments.of(Boolean.class, ValueType.STRING, false),
+      Arguments.of(Integer.class, ValueType.INTEGER, true),
+      Arguments.of(String.class, ValueType.INTEGER, false),
+      Arguments.of(Double.class, ValueType.NUMERIC, true),
+      Arguments.of(String.class, ValueType.NUMERIC, false),
+      Arguments.of(Value.class, ValueType.JSON, true),
+      Arguments.of(String.class, ValueType.JSON, false),
+      Arguments.of(String.class, null, true),
+    };
+  }
+
+  @ParameterizedTest
+  @MethodSource("typeCompatibilityTestCases")
+  public void testTypeCompatibility(
+      final Class<?> target, final ValueType variationType, final boolean expected) {
+    assertThat(DDEvaluator.isTypeCompatible(target, variationType), equalTo(expected));
   }
 
   @Test
@@ -682,6 +746,78 @@ public class DDEvaluatorTest {
 
     assertThat(result.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
     assertThat(result.truncatedReason, equalTo("max_context_fields"));
+  }
+
+  @Test
+  public void testCopyPrunedContextHandlesEmptyAndScalarValues() {
+    assertThat(DDEvaluator.copyPrunedContext(null).attrs, equalTo(emptyMap()));
+    assertThat(DDEvaluator.copyPrunedContext(new MutableContext()).attrs, equalTo(emptyMap()));
+
+    final EvaluationContext nullContext = mock(EvaluationContext.class);
+    when(nullContext.keySet())
+        .thenReturn(new java.util.LinkedHashSet<>(asList("java-null", "openfeature-null")));
+    when(nullContext.getValue("java-null")).thenReturn(null);
+    when(nullContext.getValue("openfeature-null")).thenReturn(new Value());
+    final Map<String, Value> snapshot = DDEvaluator.snapshotValues(nullContext);
+    assertNull(snapshot.get("java-null"));
+    assertThat(snapshot.get("openfeature-null").isNull(), equalTo(true));
+    final DDEvaluator.CopyResult nullResult = DDEvaluator.copyPrunedContext(nullContext);
+    assertThat(nullResult.attrs, hasEntry("java-null", null));
+    assertThat(nullResult.attrs, hasEntry("openfeature-null", null));
+
+    final MutableContext scalarContext = new MutableContext();
+    scalarContext.add("boolean", true);
+    scalarContext.add("number", 42);
+    scalarContext.add("instant", Instant.parse("2026-08-20T00:00:00Z"));
+    final DDEvaluator.CopyResult scalarResult = DDEvaluator.copyPrunedContext(scalarContext);
+    assertThat(scalarResult.attrs, hasEntry("boolean", true));
+    assertThat(scalarResult.attrs, hasEntry("number", 42));
+    assertThat(scalarResult.attrs, hasEntry("instant", "2026-08-20T00:00:00Z"));
+  }
+
+  @Test
+  public void testContextCopyDetectsContainerCycles() {
+    final List<Value> cyclicList = new ArrayList<>();
+    final Value listValue = new Value(cyclicList);
+    cyclicList.add(listValue);
+    final EvaluationContext listContext = mock(EvaluationContext.class);
+    when(listContext.keySet()).thenReturn(java.util.Collections.singleton("list"));
+    when(listContext.getValue("list")).thenReturn(listValue);
+
+    final DDEvaluator.CopyResult listResult = DDEvaluator.copyPrunedContext(listContext);
+    assertThat(listResult.truncatedReason, equalTo("cycle"));
+
+    final dev.openfeature.sdk.MutableStructure cyclicStructure =
+        new dev.openfeature.sdk.MutableStructure();
+    final Value structureValue = new Value(cyclicStructure);
+    cyclicStructure.add("self", structureValue);
+    final EvaluationContext structureContext = mock(EvaluationContext.class);
+    when(structureContext.keySet()).thenReturn(java.util.Collections.singleton("structure"));
+    when(structureContext.getValue("structure")).thenReturn(structureValue);
+
+    final DDEvaluator.CopyResult structureResult = DDEvaluator.copyPrunedContext(structureContext);
+    assertThat(structureResult.truncatedReason, equalTo("cycle"));
+  }
+
+  @Test
+  public void testFlattenValuesHandlesJavaNullAndContainerCycles() {
+    final Map<String, Value> values = new HashMap<>();
+    values.put("null", null);
+
+    final List<Value> cyclicList = new ArrayList<>();
+    final Value listValue = new Value(cyclicList);
+    cyclicList.add(listValue);
+    values.put("list", listValue);
+
+    final dev.openfeature.sdk.MutableStructure cyclicStructure =
+        new dev.openfeature.sdk.MutableStructure();
+    final Value structureValue = new Value(cyclicStructure);
+    cyclicStructure.add("self", structureValue);
+    values.put("structure", structureValue);
+
+    final Map<String, Object> flattened = DDEvaluator.flattenValues(values);
+    assertThat(flattened, hasEntry("null", null));
+    assertThat(flattened.size(), equalTo(1));
   }
 
   @Test
