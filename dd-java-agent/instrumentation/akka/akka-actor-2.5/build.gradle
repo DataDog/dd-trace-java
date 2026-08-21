@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.scala'
 }
 
 def akkaVersion = '2.5.0'
@@ -14,8 +15,6 @@ muzzle {
     assertInverse = false
   }
 }
-
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuite('akka23Test')
 addTestSuiteExtendingForDir('akka23ForkedTest', 'akka23Test', 'akka23Test')
