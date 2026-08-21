@@ -20,25 +20,56 @@ final class FeatureFlagBackendApiFactory {
   private final Config config;
   private final BackendApiFactory backendApiFactory;
   private final FeatureFlagEventType eventType;
+  private final boolean agentProxyEnabled;
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final SharedCommunicationObjects sharedCommunicationObjects,
       final FeatureFlagEventType eventType) {
-    this(config, new BackendApiFactory(config, sharedCommunicationObjects), eventType);
+    this(config, new BackendApiFactory(config, sharedCommunicationObjects), eventType, true);
+  }
+
+  FeatureFlagBackendApiFactory(
+      final Config config,
+      final SharedCommunicationObjects sharedCommunicationObjects,
+      final FeatureFlagEventType eventType,
+      final boolean agentProxyEnabled) {
+    this(
+        config,
+        new BackendApiFactory(config, sharedCommunicationObjects),
+        eventType,
+        agentProxyEnabled);
   }
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final BackendApiFactory backendApiFactory,
       final FeatureFlagEventType eventType) {
+    this(config, backendApiFactory, eventType, true);
+  }
+
+  FeatureFlagBackendApiFactory(
+      final Config config,
+      final BackendApiFactory backendApiFactory,
+      final FeatureFlagEventType eventType,
+      final boolean agentProxyEnabled) {
     this.config = config;
     this.backendApiFactory = backendApiFactory;
     this.eventType = eventType;
+    this.agentProxyEnabled = agentProxyEnabled;
   }
 
   @Nullable
   BackendApi create() {
+    if (!agentProxyEnabled) {
+      final BackendApi directApi = createDirectApi();
+      if (directApi == null) {
+        LOGGER.warn(
+            "Feature Flagging {} delivery is disabled because direct intake credentials are unavailable",
+            eventType.logName());
+      }
+      return directApi;
+    }
     final boolean directFallbackAvailable =
         CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
             && hasDirectCredentials();

@@ -85,8 +85,12 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ## Requirements
 
 - Java 11+
-- `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` uses the Datadog agentless
-  backend. Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
+- `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` enables the provider's bundled standalone
+  runtime when no Datadog Java agent is present. The provider polls UFC configuration and sends
+  Feature Flagging events directly to Datadog; set `DD_API_KEY` for direct event delivery. When the
+  Datadog Java agent is present, the provider prefers the agent-owned runtime and transport instead
+  of starting a second poller.
+- Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
   different HTTP backend while keeping agentless delivery semantics. A bare
   host uses the standard rules-based server path; a URL with a path is used as
   the exact UFC endpoint. Configured URLs are opaque: the SDK does not add the
@@ -97,7 +101,7 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   and expects UFC under the JSON:API `data.attributes` response member. It is
   intended for supported commercial sites; use an explicit base URL elsewhere.
   Agentless responses do not have an SDK-imposed payload-size limit.
-  `remote_config` uses the existing Agent Remote
-  Configuration path. `offline` is reserved for startup-provided UFC bytes;
+- `remote_config` uses the existing Agent Remote Configuration path and therefore requires the
+  Datadog Java agent. `offline` is reserved for startup-provided UFC bytes;
   until those bytes are implemented, no network source starts and evaluations
   use defaults.

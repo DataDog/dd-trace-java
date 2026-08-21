@@ -25,6 +25,8 @@ import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -48,6 +50,9 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
+
+  private static final String STANDALONE_RUNTIME_CLASS =
+      "com.datadog.featureflag.StandaloneFeatureFlaggingSystem";
 
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
@@ -113,6 +118,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
+  private volatile boolean standaloneRuntimeStarted;
 
   public DDEvaluator(final Runnable configCallback) {
     this.configCallback = configCallback;
@@ -121,8 +127,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
-    FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
+    // Give an installed Java agent first refusal. Its activation listener claims AGENT
+    // synchronously, which keeps transport, lifecycle, and span enrichment in the agent. With no
+    // listener (the true standalone case), activation is a no-op and the bundled runtime claims
+    // STANDALONE below.
+    FeatureFlaggingGateway.activate();
+    standaloneRuntimeStarted = startStandaloneRuntime();
     return initializationLatch.await(timeout, unit) || hasConfiguration();
   }
 
@@ -134,6 +145,49 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public void shutdown() {
     FeatureFlaggingGateway.removeConfigListener(this);
+    if (standaloneRuntimeStarted) {
+      stopStandaloneRuntime();
+      standaloneRuntimeStarted = false;
+    }
+  }
+
+  private static boolean startStandaloneRuntime() throws Exception {
+    final Class<?> runtime;
+    try {
+      runtime = DDEvaluator.class.getClassLoader().loadClass(STANDALONE_RUNTIME_CLASS);
+    } catch (final ClassNotFoundException ignored) {
+      return false;
+    }
+    return invokeRuntime(runtime, "start");
+  }
+
+  private static void stopStandaloneRuntime() {
+    try {
+      final Class<?> runtime =
+          DDEvaluator.class.getClassLoader().loadClass(STANDALONE_RUNTIME_CLASS);
+      invokeRuntime(runtime, "stop");
+    } catch (final ReflectiveOperationException ignored) {
+      // The standalone runtime is best-effort during shutdown. Initialization already proved the
+      // class and method were available, so this only protects mixed-version classpaths.
+    }
+  }
+
+  static boolean invokeRuntime(final Class<?> runtime, final String methodName)
+      throws ReflectiveOperationException {
+    final Method method = runtime.getMethod(methodName);
+    try {
+      final Object result = method.invoke(null);
+      return !(result instanceof Boolean) || (Boolean) result;
+    } catch (final InvocationTargetException exception) {
+      final Throwable cause = exception.getCause();
+      if (cause instanceof RuntimeException) {
+        throw (RuntimeException) cause;
+      }
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      throw exception;
+    }
   }
 
   @Override
@@ -591,7 +645,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return context.convertValue(resolved);
   }
 
-  private static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
+  static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
     if (variationType == null) {
       return true; // No type info — allow any
     }
