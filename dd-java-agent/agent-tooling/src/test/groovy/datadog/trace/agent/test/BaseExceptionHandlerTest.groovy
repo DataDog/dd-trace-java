@@ -68,6 +68,14 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       .advice(
       isMethod().and(named("blockingException")),
       BlockingExceptionAdvice.getName()))
+      .type(named(BaseExceptionHandlerTest.getName() + '$SomeOtherClass'))
+      .transform(
+      new AgentBuilder.Transformer.ForAdvice()
+      .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BadAdvice.getName()))
+      .advice(
+      isMethod().and(named("isInstrumented")),
+      BadAdvice.getName()))
 
     ByteBuddyAgent.install()
     transformer = builder.installOn(ByteBuddyAgent.getInstrumentation())
@@ -150,9 +158,8 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       SomeClass.getProtectionDomain().getCodeSource().getLocation(),
       GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
     ]
-    // Fully isolated loader: unlike BlockingTestClassLoader, this does NOT special-case
-    // BlockingExceptionHandler/BlockingException, so neither is resolvable from here.
-    URLClassLoader loader = new URLClassLoader(classpath, null, null)
+    URLClassLoader loader = new AppSecInvisibleClassLoader(
+      classpath, BaseExceptionHandlerTest.getClassLoader(), SomeOtherClass.getName())
 
     when:
     loader.loadClass(BlockingException.getName())
@@ -160,12 +167,16 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     thrown ClassNotFoundException
 
     when:
-    Class<?> someClazz = loader.loadClass(SomeClass.getName())
+    Class<?> someClazz = loader.loadClass(SomeOtherClass.getName())
+    then:
+    someClazz.getClassLoader() == loader
+
+    when:
     someClazz.getMethod("isInstrumented").invoke(null)
     then:
     noExceptionThrown()
     testAppender.list.size() == initLogEvents + 1
-    exitStatus.get() == 0
+    exitStatus.get() == expectedFailureExitStatus()
   }
 
   def "exception handler sets the correct stack size"() {
@@ -215,6 +226,16 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
 
     static void blockingException() {
       // do nothing and throw from the advice
+    }
+  }
+
+  // Deliberately not instrumented with BlockingExceptionAdvice, unlike SomeClass: that advice's
+  // own bytecode constructs a real BlockingException, which would make the JVM verifier resolve
+  // BlockingException while linking the whole class - defeating the point of testing a
+  // classloader that can't see it.
+  static class SomeOtherClass {
+    static boolean isInstrumented() {
+      return false
     }
   }
 
