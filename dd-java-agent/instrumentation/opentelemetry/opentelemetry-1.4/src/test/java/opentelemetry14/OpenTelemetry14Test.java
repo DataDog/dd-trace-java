@@ -67,9 +67,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import opentelemetry14.context.propagation.TextMap;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -287,6 +289,52 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                     defaultTags(),
                     tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
                     tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+  }
+
+  @Test
+  void testConcurrentAddEvents() throws Exception {
+    // Regression test for the concurrent recording of span events. Events used to be stored in a
+    // plain ArrayList mutated without synchronization; recording events from multiple threads (as
+    // GraphQL DataLoaders do on virtual threads) corrupted the backing list, leaving null holes
+    // that
+    // triggered a NullPointerException in OtelSpanEvent.toTag when the span was finished. See trace
+    // b8b8e4edde47f90a92e832b63251a577.
+    int threadCount = 8;
+    int eventsPerThread = 2000;
+    Span span = this.otelTracer.spanBuilder("some-name").startSpan();
+
+    CountDownLatch start = new CountDownLatch(1);
+    List<Thread> threads = new ArrayList<>();
+    for (int t = 0; t < threadCount; t++) {
+      Thread thread =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                for (int i = 0; i < eventsPerThread; i++) {
+                  span.addEvent("event");
+                }
+              });
+      thread.start();
+      threads.add(thread);
+    }
+
+    start.countDown();
+    for (Thread thread : threads) {
+      thread.join();
+    }
+    span.end();
+
+    writer.waitForTraces(1);
+    List<DDSpan> firstTrace = writer.firstTrace();
+    assertEquals(1, firstTrace.size());
+    Object eventsTag = firstTrace.get(0).getTags().get(SPAN_EVENTS);
+    JSONArray events = new JSONArray((String) eventsTag);
+    assertEquals(threadCount * eventsPerThread, events.length());
   }
 
   @Test
