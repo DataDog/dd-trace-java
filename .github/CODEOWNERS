@@ -1,6 +1,8 @@
 # Automatically assign a member of the team as a reviewer.
 # https://help.github.com/en/articles/about-code-owners
 
+# CODEOWNERS syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
+
 # Shared tooling, tests, and documentation
 /.agents/                             @DataDog/apm-java
 /.claude/                             @DataDog/apm-java
