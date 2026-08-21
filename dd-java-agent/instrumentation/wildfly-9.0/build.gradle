@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository('redhat-ga', 'https://maven.repository.redhat.com/ga/')
   pass {
@@ -7,8 +11,6 @@ muzzle {
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   // Declared after java.gradle so Maven Central is tried first; this repo only acts as a

@@ -30,6 +30,30 @@ For example, the jedis 3.x instrumentation appears as:
 include(":dd-java-agent:instrumentation:jedis:jedis-3.0")
 ```
 
+Create the instrumentation `build.gradle` with the instrumentation module convention plugin:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "com.google.http-client"
+    module = "google-http-client"
+    versions = "[1.19.0,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0'
+}
+```
+
+> [!WARN]
+> Do not apply `gradle/java.gradle` directly in new instrumentation modules. Use the module plugin so shared
+> instrumentation setup stays centralized.
+
 ## Create the Instrumentation class
 
 1. Choose an appropriate package name for the instrumentation
