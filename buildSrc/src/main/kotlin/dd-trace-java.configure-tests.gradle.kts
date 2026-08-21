@@ -2,6 +2,7 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 import org.gradle.kotlin.dsl.develocity
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
@@ -54,6 +55,7 @@ tasks.withType<Test>().configureEach {
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
+    useJUnitPlatform()
     setExcludes(emptyList())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
@@ -103,7 +105,7 @@ tasks.named("check") {
 
 tasks.withType<Test>().configureEach {
   // Flaky tests management for JUnit 5
-  useJUnitPlatform {
+  (options as? JUnitPlatformOptions)?.apply {
     if (skipFlakyTestsProvider.isPresent) {
       excludeTags("flaky")
     } else if (runFlakyTestsProvider.isPresent) {
