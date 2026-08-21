@@ -250,6 +250,22 @@ class LockSupportHelperTest {
     }
   }
 
+  @Test
+  void unavailableStateMapDuringRecursiveInitializationIsNoOp() {
+    installActiveSpan(72L);
+
+    assertDoesNotThrow(() -> LockSupportHelper.recordUnpark(newTargetThread(), null));
+  }
+
+  @Test
+  void unavailableStateMapDuringParkExitIsNoOp() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+
+    assertDoesNotThrow(() -> LockSupportHelper.parkExit(profiling, 0L, null));
+
+    verify(profiling).parkExit(0L, 0L);
+  }
+
   private Thread newTargetThread() {
     Thread thread = new Thread(() -> {});
     targetThreads.add(thread);

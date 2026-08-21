@@ -96,6 +96,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return DDPROF.isUnparkAttributionEnabled();
   }
 
+  @Override
+  public long beginTaskBlock() {
+    return DDPROF.beginTaskBlock();
+  }
+
+  @Override
+  public boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    return DDPROF.endTaskBlock(token, blocker, unblockingSpanId);
+  }
+
   public void clearContext() {
     DDPROF.clearTraceContext();
   }
