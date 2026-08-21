@@ -39,6 +39,9 @@ dependencies {
   }
   testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+
   testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
 
