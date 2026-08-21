@@ -89,8 +89,7 @@ public abstract class FeatureFlaggingGateway {
    */
   public static boolean claimRuntime(final RuntimeMode runtime) {
     Objects.requireNonNull(runtime, "runtime");
-    final RuntimeMode active = ACTIVE_RUNTIME.get();
-    return active == runtime || (active == null && ACTIVE_RUNTIME.compareAndSet(null, runtime));
+    return ACTIVE_RUNTIME.compareAndSet(null, runtime) || ACTIVE_RUNTIME.get() == runtime;
   }
 
   /** Releases process-wide ownership when {@code runtime} is the current owner. */
