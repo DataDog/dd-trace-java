@@ -143,6 +143,31 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     exitStatus.get() == 0
   }
 
+  def "exception on classloader that cannot resolve BlockingException"() {
+    setup:
+    int initLogEvents = testAppender.list.size()
+    URL[] classpath = [
+      SomeClass.getProtectionDomain().getCodeSource().getLocation(),
+      GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
+    ]
+    // Fully isolated loader: unlike BlockingTestClassLoader, this does NOT special-case
+    // BlockingExceptionHandler/BlockingException, so neither is resolvable from here.
+    URLClassLoader loader = new URLClassLoader(classpath, null, null)
+
+    when:
+    loader.loadClass(BlockingException.getName())
+    then:
+    thrown ClassNotFoundException
+
+    when:
+    Class<?> someClazz = loader.loadClass(SomeClass.getName())
+    someClazz.getMethod("isInstrumented").invoke(null)
+    then:
+    noExceptionThrown()
+    testAppender.list.size() == initLogEvents + 1
+    exitStatus.get() == 0
+  }
+
   def "exception handler sets the correct stack size"() {
     when:
     SomeClass.smallStack()
