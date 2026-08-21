@@ -96,6 +96,10 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
@@ -163,6 +167,7 @@ public class InstrumenterConfig {
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
   private final boolean llmObsEnabled;
+  private final boolean featureFlaggingInstrumentationEnabled;
 
   private final String traceExtensionsPath;
 
@@ -262,6 +267,22 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
             DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    final Boolean featureFlaggingProviderEnabled = configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
+    final String featureFlaggingConfigurationSource =
+        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            : null;
+    final Boolean legacyFeatureFlaggingProviderEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+    featureFlaggingInstrumentationEnabled =
+        (featureFlaggingProviderEnabled != null
+                || featureFlaggingConfigurationSource != null
+                || legacyFeatureFlaggingProviderEnabled != null)
+            && resolveConfiguration(
+                    featureFlaggingProviderEnabled,
+                    featureFlaggingConfigurationSource,
+                    legacyFeatureFlaggingProviderEnabled)
+                .isEnabled();
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -455,6 +476,10 @@ public class InstrumenterConfig {
 
   public boolean isTraceEnabled() {
     return traceEnabled;
+  }
+
+  public boolean isFeatureFlaggingInstrumentationEnabled() {
+    return featureFlaggingInstrumentationEnabled;
   }
 
   public boolean isTraceOtelEnabled() {
