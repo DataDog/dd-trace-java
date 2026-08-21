@@ -25,6 +25,7 @@ public final class LLMObsMetricCollector
   }
 
   public static final String SPAN_FINISHED_METRIC = "span.finished";
+  public static final String USER_PROCESSOR_CALLED_METRIC = "user_processor_called";
   public static final String FEEDBACK_SUBMITTED_METRIC = "feedback_submitted";
   public static final String COUNT_METRIC_TYPE = "count";
 
@@ -83,6 +84,25 @@ public final class LLMObsMetricCollector
         new LLMObsMetric(METRIC_NAMESPACE, true, SPAN_FINISHED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {} for {}", SPAN_FINISHED_METRIC, integration);
+    }
+  }
+
+  /**
+   * Records that a user-provided LLM Observability span processor was called.
+   *
+   * @param error whether the processor failed
+   */
+  public void recordUserProcessorCalled(boolean error) {
+    LLMObsMetric metric =
+        new LLMObsMetric(
+            METRIC_NAMESPACE,
+            true,
+            USER_PROCESSOR_CALLED_METRIC,
+            COUNT_METRIC_TYPE,
+            1L,
+            Collections.singletonList(error ? ERROR_TRUE : ERROR_FALSE));
+    if (!metricsQueue.offer(metric)) {
+      log.debug("Unable to add telemetry metric {}", USER_PROCESSOR_CALLED_METRIC);
     }
   }
 
