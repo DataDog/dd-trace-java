@@ -1,12 +1,17 @@
 package datadog.trace.api.llmobs;
 
 import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
+import datadog.trace.api.llmobs.noop.NoOpLLMObsFeedbackProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class LLMObs {
@@ -14,6 +19,10 @@ public class LLMObs {
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
+  private static final Object SPAN_PROCESSOR_LOCK = new Object();
+  @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
+  protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
+      NoOpLLMObsFeedbackProcessor.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -63,6 +72,35 @@ public class LLMObs {
     return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
   }
 
+  /**
+   * Registers a processor to be called for each LLM Observability span before it is sent.
+   *
+   * <p>The processor can modify the span input and output, or return {@code null} to omit the span
+   * from LLM Observability. Only one processor can be registered at a time.
+   *
+   * @param processor the processor to register
+   * @throws NullPointerException if {@code processor} is {@code null}
+   * @throws IllegalStateException if a processor is already registered
+   */
+  public static void registerProcessor(LLMObsSpanProcessor processor) {
+    Objects.requireNonNull(processor, "processor");
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      if (SPAN_PROCESSOR != null) {
+        throw new IllegalStateException(
+            "An LLM Observability span processor is already registered. "
+                + "Deregister it before registering another.");
+      }
+      SPAN_PROCESSOR = processor;
+    }
+  }
+
+  /** Deregisters the current LLM Observability span processor, if one is registered. */
+  public static void deregisterProcessor() {
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      SPAN_PROCESSOR = null;
+    }
+  }
+
   public static void SubmitEvaluation(
       LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, tags);
@@ -89,6 +127,37 @@ public class LLMObs {
       String mlApp,
       Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, scoreValue, mlApp, tags);
+  }
+
+  /**
+   * Submits end-user feedback on a span, trace, session or customer-defined join key.
+   *
+   * <p>Unlike an evaluation, which scores a span from an automated or offline judge, feedback
+   * carries the identity of whoever submitted it and can target an entity the submitting process
+   * has no Datadog context for.
+   *
+   * <pre>{@code
+   * LLMObs.submitFeedback(
+   *     LLMObs.Feedback.builder()
+   *         .span(span)
+   *         .label("thumbs")
+   *         .booleanValue(true)
+   *         .submitter("user-123", "end_user")
+   *         .assessment(LLMObs.Feedback.Assessment.PASS)
+   *         .reasoning("answered the question")
+   *         .build());
+   * }</pre>
+   *
+   * <p>This is where the feedback is validated. When LLM Observability is disabled, or the agent is
+   * not attached, the call is a no-op and an invalid feedback goes unnoticed rather than breaking
+   * the host application.
+   *
+   * @param feedback the feedback to submit, built with {@link Feedback#builder()}
+   * @throws IllegalArgumentException if LLM Observability is enabled and the feedback is invalid,
+   *     e.g. no target, no value, no submitter, or a label containing a {@code '.'}
+   */
+  public static void submitFeedback(Feedback feedback) {
+    FEEDBACK_PROCESSOR.submitFeedback(feedback);
   }
 
   public interface LLMObsSpanFactory {
@@ -139,6 +208,576 @@ public class LLMObs {
         String categoricalValue,
         String mlApp,
         Map<String, Object> tags);
+  }
+
+  public interface LLMObsFeedbackProcessor {
+    void submitFeedback(Feedback feedback);
+  }
+
+  /**
+   * End-user feedback on a span, trace, session or customer-defined join key.
+   *
+   * <p>Instances are immutable and built through {@link #builder()}. Neither the builder nor {@link
+   * Builder#build()} ever throws: the first problem found is recorded and surfaced by {@link
+   * #validate()}, which {@link LLMObs#submitFeedback(Feedback)} runs. Validation therefore only
+   * fires when LLM Observability is actually enabled, matching dd-trace-py — instrumented code that
+   * runs without the agent attached never sees an exception it would not see in production.
+   */
+  public static class Feedback {
+
+    /** The kind of value carried by a feedback metric. */
+    public enum MetricType {
+      /** A value from a set of names, e.g. {@code "satisfied"}. */
+      CATEGORICAL,
+      /** A numeric value. */
+      SCORE,
+      /** A true/false value, e.g. a thumbs up or down. */
+      BOOLEAN,
+      /** A structured value. */
+      JSON,
+      /** Free-form text, e.g. a written comment. Feedback-only; evaluations reject it. */
+      TEXT;
+
+      /**
+       * Returns the wire representation of this metric type.
+       *
+       * @return the lower case name, as expected by the intake
+       */
+      @Override
+      public String toString() {
+        return name().toLowerCase(Locale.ROOT);
+      }
+    }
+
+    /** Whether the submitter considered the targeted operation a success. */
+    public enum Assessment {
+      /** The operation was satisfactory. */
+      PASS,
+      /** The operation was not satisfactory. */
+      FAIL;
+
+      /**
+       * Returns the wire representation of this assessment.
+       *
+       * @return the lower case name, as expected by the intake
+       */
+      @Override
+      public String toString() {
+        return name().toLowerCase(Locale.ROOT);
+      }
+    }
+
+    /** The entity a feedback is attached to. Exactly one is set on a given feedback. */
+    public enum TargetType {
+      /** A single span. */
+      SPAN_ID("span_id"),
+      /** A whole trace. */
+      TRACE_ID("trace_id"),
+      /** A session, spanning several traces. */
+      SESSION_ID("session_id"),
+      /** A customer-defined business entity key, opaque to the tracer. */
+      FEEDBACK_JOIN_KEY("feedback_join_key");
+
+      private final String wireKey;
+
+      TargetType(String wireKey) {
+        this.wireKey = wireKey;
+      }
+
+      public String getWireKey() {
+        return wireKey;
+      }
+    }
+
+    /** Who submitted a feedback. */
+    public static class Submitter {
+      @Nullable private final String id;
+      @Nullable private final String type;
+
+      /**
+       * Creates a submitter. An invalid id is not rejected here but by {@link Feedback#validate()}.
+       *
+       * @param id the identifier of the submitter, must not be null or empty
+       * @param type an optional free-form qualifier, e.g. {@code "end_user"}
+       */
+      public Submitter(@Nonnull String id, @Nullable String type) {
+        this.id = id;
+        this.type = type;
+      }
+
+      @Nullable
+      public String getId() {
+        return id;
+      }
+
+      @Nullable
+      public String getType() {
+        return type;
+      }
+    }
+
+    /**
+     * Why a feedback cannot be submitted. The code is a stable, low cardinality identifier reported
+     * as telemetry; the message is meant for humans.
+     */
+    public static final class ValidationError {
+      private final String code;
+      private final String message;
+
+      private ValidationError(String code, String message) {
+        this.code = code;
+        this.message = message;
+      }
+
+      @Nonnull
+      public String getCode() {
+        return code;
+      }
+
+      @Nonnull
+      public String getMessage() {
+        return message;
+      }
+    }
+
+    @Nullable private final TargetType targetType;
+    @Nullable private final String targetValue;
+    @Nullable private final String label;
+    @Nullable private final MetricType metricType;
+    @Nullable private final Object value;
+    @Nullable private final Submitter submitter;
+    @Nullable private final String mlApp;
+    @Nullable private final Assessment assessment;
+    @Nullable private final String reasoning;
+    private final long timestampMs;
+    @Nullable private final Map<String, Object> tags;
+    @Nullable private final ValidationError validationError;
+
+    private Feedback(Builder builder, long timestampMs, @Nullable ValidationError validationError) {
+      this.validationError = validationError;
+      this.timestampMs = timestampMs;
+      this.targetType = builder.targetType;
+      this.targetValue = builder.targetValue;
+      this.label = builder.label;
+      this.metricType = builder.metricType;
+      this.value = builder.value;
+      this.submitter = builder.submitter;
+      this.mlApp = builder.mlApp;
+      this.assessment = builder.assessment;
+      this.reasoning = builder.reasoning;
+      this.tags =
+          builder.tags == null ? null : Collections.unmodifiableMap(new HashMap<>(builder.tags));
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    /**
+     * Checks whether this feedback can be submitted. Called by {@link
+     * LLMObs#submitFeedback(Feedback)}; the getters below are only guaranteed non-null once it
+     * returned null.
+     *
+     * @return the first problem found while building this feedback, or null if it is valid
+     */
+    @Nullable
+    public ValidationError validate() {
+      return validationError;
+    }
+
+    @Nullable
+    public TargetType getTargetType() {
+      return targetType;
+    }
+
+    @Nullable
+    public String getTargetValue() {
+      return targetValue;
+    }
+
+    @Nullable
+    public String getLabel() {
+      return label;
+    }
+
+    @Nullable
+    public MetricType getMetricType() {
+      return metricType;
+    }
+
+    /** Returns the feedback value, whose runtime type matches {@link #getMetricType()}. */
+    @Nullable
+    public Object getValue() {
+      return value;
+    }
+
+    @Nullable
+    public Submitter getSubmitter() {
+      return submitter;
+    }
+
+    /** Returns the ML app, or null to fall back on the tracer configured one. */
+    @Nullable
+    public String getMlApp() {
+      return mlApp;
+    }
+
+    @Nullable
+    public Assessment getAssessment() {
+      return assessment;
+    }
+
+    @Nullable
+    public String getReasoning() {
+      return reasoning;
+    }
+
+    /**
+     * Returns the submission time in milliseconds since the epoch. This is the only ordering signal
+     * available to the backend when the same feedback is re-submitted with a new value.
+     */
+    public long getTimestampMs() {
+      return timestampMs;
+    }
+
+    /** Returns an unmodifiable view of the tags, or null if none were provided. */
+    @Nullable
+    public Map<String, Object> getTags() {
+      return tags;
+    }
+
+    /**
+     * Builds a {@link Feedback}. Exactly one target and exactly one value must be set; setting
+     * either twice, even to the same kind, is rejected so that a silently overwritten target cannot
+     * ship.
+     *
+     * <p>No method on this builder throws. The first problem found is remembered and reported by
+     * {@link Feedback#validate()} at submission time.
+     */
+    public static class Builder {
+      private TargetType targetType;
+      private String targetValue;
+      private String label;
+      private MetricType metricType;
+      private Object value;
+      private Submitter submitter;
+      private String mlApp;
+      private Assessment assessment;
+      private String reasoning;
+      private long timestampMs;
+      private Map<String, Object> tags;
+      private ValidationError error;
+
+      private Builder() {}
+
+      /**
+       * Targets the given span. Wire-equivalent to {@link #spanId(String)} with the span's id.
+       *
+       * @param span the span to attach the feedback to
+       * @return this builder
+       */
+      public Builder span(@Nonnull LLMObsSpan span) {
+        if (span == null) {
+          return fail("invalid_span", "span must not be null");
+        }
+        return target(TargetType.SPAN_ID, String.valueOf(span.getSpanId()));
+      }
+
+      /**
+       * Targets the span with the given id.
+       *
+       * @param spanId the span identifier
+       * @return this builder
+       */
+      public Builder spanId(@Nonnull String spanId) {
+        return target(TargetType.SPAN_ID, spanId);
+      }
+
+      /**
+       * Targets the trace with the given id.
+       *
+       * @param traceId the trace identifier
+       * @return this builder
+       */
+      public Builder traceId(@Nonnull String traceId) {
+        return target(TargetType.TRACE_ID, traceId);
+      }
+
+      /**
+       * Targets the session with the given id.
+       *
+       * @param sessionId the session identifier
+       * @return this builder
+       */
+      public Builder sessionId(@Nonnull String sessionId) {
+        return target(TargetType.SESSION_ID, sessionId);
+      }
+
+      /**
+       * Targets a customer-defined business entity, e.g. {@code "incident-123"}. The key is opaque
+       * to the tracer: it is emitted as-is and never matched against any span.
+       *
+       * @param feedbackJoinKey the business entity key
+       * @return this builder
+       */
+      public Builder feedbackJoinKey(@Nonnull String feedbackJoinKey) {
+        return target(TargetType.FEEDBACK_JOIN_KEY, feedbackJoinKey);
+      }
+
+      /**
+       * Sets the name of the feedback metric, e.g. {@code "thumbs"}.
+       *
+       * @param label the metric name, must not contain a {@code '.'}
+       * @return this builder
+       */
+      public Builder label(@Nonnull String label) {
+        this.label = label;
+        return this;
+      }
+
+      /**
+       * Sets a categorical value, e.g. {@code "satisfied"}.
+       *
+       * @param value the value
+       * @return this builder
+       */
+      public Builder categoricalValue(@Nonnull String value) {
+        return value(MetricType.CATEGORICAL, value);
+      }
+
+      /**
+       * Sets a numeric value.
+       *
+       * @param value the value, must be finite as JSON has no representation for NaN nor infinity
+       * @return this builder
+       */
+      public Builder scoreValue(double value) {
+        if (!Double.isFinite(value)) {
+          return fail("invalid_metric_value", "score value must be finite");
+        }
+        return value(MetricType.SCORE, value);
+      }
+
+      /**
+       * Sets a true/false value, e.g. a thumbs up or down.
+       *
+       * @param value the value
+       * @return this builder
+       */
+      public Builder booleanValue(boolean value) {
+        return value(MetricType.BOOLEAN, value);
+      }
+
+      /**
+       * Sets a structured value.
+       *
+       * @param value the value, serialized as a JSON object
+       * @return this builder
+       */
+      public Builder jsonValue(@Nonnull Map<String, Object> value) {
+        // Serialization happens later, on the submission worker, so the caller-owned map is
+        // snapshotted here to keep the submitted value stable, the same way tags are.
+        return value(
+            MetricType.JSON,
+            value == null ? null : Collections.unmodifiableMap(new HashMap<>(value)));
+      }
+
+      /**
+       * Sets a free-form text value, e.g. a written comment.
+       *
+       * @param value the value
+       * @return this builder
+       */
+      public Builder textValue(@Nonnull String value) {
+        return value(MetricType.TEXT, value);
+      }
+
+      /**
+       * Sets who submitted this feedback.
+       *
+       * @param id the identifier of the submitter
+       * @param type an optional qualifier, e.g. {@code "end_user"}
+       * @return this builder
+       */
+      public Builder submitter(@Nonnull String id, @Nullable String type) {
+        this.submitter = new Submitter(id, type);
+        return this;
+      }
+
+      /**
+       * Sets who submitted this feedback.
+       *
+       * @param submitter the submitter
+       * @return this builder
+       */
+      public Builder submitter(@Nonnull Submitter submitter) {
+        this.submitter = submitter;
+        return this;
+      }
+
+      /**
+       * Overrides the ML application this feedback belongs to.
+       *
+       * @param mlApp the ML app; when null or empty the tracer configured one is used
+       * @return this builder
+       */
+      public Builder mlApp(@Nullable String mlApp) {
+        this.mlApp = mlApp;
+        return this;
+      }
+
+      /**
+       * Sets whether the submitter considered the targeted operation a success.
+       *
+       * @param assessment the assessment
+       * @return this builder
+       */
+      public Builder assessment(@Nullable Assessment assessment) {
+        this.assessment = assessment;
+        return this;
+      }
+
+      /**
+       * Sets a free-form justification of this feedback.
+       *
+       * @param reasoning the reasoning
+       * @return this builder
+       */
+      public Builder reasoning(@Nullable String reasoning) {
+        this.reasoning = reasoning;
+        return this;
+      }
+
+      /**
+       * Overrides the submission time. Defaults to the time {@link #build()} is called.
+       *
+       * @param timestampMs the submission time, in milliseconds since the epoch
+       * @return this builder
+       */
+      public Builder timestampMs(long timestampMs) {
+        this.timestampMs = timestampMs;
+        return this;
+      }
+
+      /**
+       * Sets the tags attached to this feedback.
+       *
+       * @param tags a map of JSON serializable key-value pairs
+       * @return this builder
+       */
+      public Builder tags(@Nullable Map<String, Object> tags) {
+        this.tags = tags == null ? null : new HashMap<>(tags);
+        return this;
+      }
+
+      /**
+       * Adds a single tag to this feedback.
+       *
+       * @param key the tag key
+       * @param value the tag value
+       * @return this builder
+       */
+      public Builder tag(@Nonnull String key, @Nonnull Object value) {
+        if (this.tags == null) {
+          this.tags = new HashMap<>();
+        }
+        this.tags.put(key, value);
+        return this;
+      }
+
+      /**
+       * Builds the feedback. Never throws: any problem is carried by the returned instance and
+       * reported by {@link Feedback#validate()} when it is submitted.
+       *
+       * @return the built feedback
+       */
+      public Feedback build() {
+        return new Feedback(
+            this, timestampMs == 0 ? System.currentTimeMillis() : timestampMs, validationError());
+      }
+
+      /**
+       * Returns the first problem preventing submission, earlier builder errors taking priority.
+       */
+      @Nullable
+      private ValidationError validationError() {
+        if (error != null) {
+          return error;
+        }
+        if (targetType == null) {
+          return new ValidationError(
+              "invalid_target_count",
+              "exactly one of span, spanId, traceId, sessionId or feedbackJoinKey must be specified"
+                  + " to submit feedback");
+        }
+        if (label == null || label.isEmpty()) {
+          return new ValidationError(
+              "invalid_metric_label", "label must be the specified name of the feedback metric");
+        }
+        if (label.indexOf('.') >= 0) {
+          return new ValidationError("invalid_label_value", "label value must not contain a '.'");
+        }
+        if (metricType == null) {
+          return new ValidationError(
+              "invalid_metric_type",
+              "exactly one of categoricalValue, scoreValue, booleanValue, jsonValue or textValue"
+                  + " must be specified to submit feedback");
+        }
+        if (submitter == null) {
+          return new ValidationError(
+              "invalid_submitter", "submitter must be specified to submit feedback");
+        }
+        if (submitter.getId() == null || submitter.getId().isEmpty()) {
+          return new ValidationError(
+              "invalid_submitter", "submitter id must be a non-empty string");
+        }
+        if (timestampMs < 0) {
+          return new ValidationError(
+              "invalid_timestamp", "timestampMs must be a non-negative long");
+        }
+        return null;
+      }
+
+      private Builder fail(String code, String message) {
+        if (this.error == null) {
+          this.error = new ValidationError(code, message);
+        }
+        return this;
+      }
+
+      private Builder target(TargetType type, String value) {
+        if (targetType != null) {
+          return fail(
+              "invalid_target_count",
+              "a feedback target was already set to "
+                  + targetType.getWireKey()
+                  + ", exactly one target must be specified");
+        }
+        if (value == null || value.isEmpty()) {
+          return fail(
+              "invalid_" + type.getWireKey(), type.getWireKey() + " must be a non-empty string");
+        }
+        this.targetType = type;
+        this.targetValue = value;
+        return this;
+      }
+
+      private Builder value(MetricType type, Object value) {
+        if (metricType != null) {
+          return fail(
+              "invalid_metric_type",
+              "a feedback value was already set as "
+                  + metricType
+                  + ", exactly one value must be specified");
+        }
+        if (value == null) {
+          return fail("invalid_metric_value", "value must not be null for a " + type + " metric");
+        }
+        this.metricType = type;
+        this.value = value;
+        return this;
+      }
+    }
   }
 
   /** A prompt template and its associated attributes for an LLM call. */

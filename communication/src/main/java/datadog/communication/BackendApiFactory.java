@@ -64,13 +64,19 @@ public class BackendApiFactory {
         responseCompression);
   }
 
-  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
   public @Nullable BackendApi createEvpProxyApi(Intake intake) {
     return createEvpProxyApi(intake, true);
   }
 
   /** Creates an API client that sends data through a compatible local EVP proxy. */
   public @Nullable BackendApi createEvpProxyApi(Intake intake, boolean responseCompression) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory());
+  }
+
+  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  public @Nullable BackendApi createEvpProxyApi(
+      Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
@@ -91,7 +97,7 @@ public class BackendApiFactory {
         traceId,
         evpProxyUrl,
         subdomain,
-        retryPolicyFactory(),
+        retryPolicyFactory,
         sharedCommunicationObjects.agentHttpClient,
         responseCompression);
   }

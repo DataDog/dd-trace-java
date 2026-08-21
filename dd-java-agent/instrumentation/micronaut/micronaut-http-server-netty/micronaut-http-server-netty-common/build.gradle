@@ -1,8 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 /*
  * Classes that are common to all versions of the Micronaut instrumentation.
  */
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {

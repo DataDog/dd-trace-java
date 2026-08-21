@@ -9,11 +9,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -30,8 +36,11 @@ import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.featureflag.exposure.Flag;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayInputStream;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -50,12 +59,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okio.Buffer;
 import okio.Okio;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
@@ -155,10 +167,11 @@ class ExposureWriterTests {
             HttpRetryPolicy.Factory.NEVER_RETRY,
             new OkHttpClient.Builder().build(),
             false);
-    when(backendApiFactory.createDirectIntakeApi(datadog.trace.api.intake.Intake.EVENT_PLATFORM))
+    when(backendApiFactory.createDirectIntakeApi(
+            datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
         .thenReturn(directApi);
-    ExposureBackendApiFactory exposureBackendApiFactory =
-        new ExposureBackendApiFactory(config, backendApiFactory);
+    FeatureFlagBackendApiFactory exposureBackendApiFactory =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
     List<ExposureEvent> exposures = buildExposures(5);
 
     try (ExposureWriterImpl writer =
@@ -284,6 +297,58 @@ class ExposureWriterTests {
       writer.accept(validExposure);
 
       poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
+    }
+  }
+
+  @Test
+  void testAmbiguousExposureBatchIsNotRetriedOrReplayedDirectly() throws Exception {
+    final Config config = mockConfig("test-service");
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
+    when(config.getApiKey()).thenReturn(API_KEY);
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+    final BackendApi proxyApi = mock(BackendApi.class);
+    final BackendApi directApi = mock(BackendApi.class);
+    when(backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY))
+        .thenReturn(proxyApi);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, true))
+        .thenReturn(directApi);
+    when(proxyApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenThrow(new SocketTimeoutException("ambiguous timeout"))
+        .thenThrow(new ConnectException("definitive refusal"));
+    final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
+    final List<ExposureEvent> exposures = buildExposures(2);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, featureFlagBackendApiFactory, config)) {
+      writer.init();
+      writer.accept(exposures.get(0));
+
+      poll.eventually(
+          () ->
+              verify(proxyApi)
+                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+      MILLISECONDS.sleep(300);
+      verify(proxyApi, times(1))
+          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+      verify(directApi, never())
+          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+
+      writer.accept(exposures.get(1));
+      poll.eventually(
+          () ->
+              verify(directApi)
+                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+
+      final ArgumentCaptor<RequestBody> directBody = ArgumentCaptor.forClass(RequestBody.class);
+      verify(directApi).post(eq("exposures"), directBody.capture(), any(), any(), eq(false));
+      final Buffer buffer = new Buffer();
+      directBody.getValue().writeTo(buffer);
+      final ExposuresRequest directRequest =
+          new Moshi.Builder().build().adapter(ExposuresRequest.class).fromJson(buffer.readUtf8());
+      assertNotNull(directRequest);
+      assertExposures(directRequest.exposures, singletonList(exposures.get(1)));
     }
   }
 

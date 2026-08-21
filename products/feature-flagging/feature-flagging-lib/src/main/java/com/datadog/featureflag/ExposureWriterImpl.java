@@ -41,14 +41,19 @@ public class ExposureWriterImpl implements ExposureWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
-    this(capacity, flushInterval, timeUnit, new ExposureBackendApiFactory(config, sco), config);
+    this(
+        capacity,
+        flushInterval,
+        timeUnit,
+        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.EXPOSURE),
+        config);
   }
 
   ExposureWriterImpl(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final ExposureBackendApiFactory backendApiFactory,
+      final FeatureFlagBackendApiFactory backendApiFactory,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final ExposureSerializingHandler serializer =
@@ -104,7 +109,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final Runnable errorCallback;
 
     ExposureSerializingHandler(
-        final ExposureBackendApiFactory backendApiFactory,
+        final FeatureFlagBackendApiFactory backendApiFactory,
         final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -182,9 +187,12 @@ public class ExposureWriterImpl implements ExposureWriter {
         }
         try {
           evpPublisher.post(EXPOSURES_ROUTE, payload);
-          this.buffer.clear();
         } catch (Exception e) {
           LOGGER.debug("Could not submit exposures", e);
+        } finally {
+          // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
+          // proxy rejection could otherwise replay the same exposures through direct intake.
+          this.buffer.clear();
         }
       }
     }

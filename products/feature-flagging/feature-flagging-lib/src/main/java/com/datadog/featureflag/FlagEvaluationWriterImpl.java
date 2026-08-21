@@ -6,7 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
-import datadog.communication.BackendApiFactory;
+import datadog.communication.BackendApi;
 import datadog.communication.EvpProxy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +31,8 @@ import org.slf4j.LoggerFactory;
  * EVP flagevaluation writer for Java.
  *
  * <p>Uses the same EVP publisher path as ExposureWriterImpl, with two-tier aggregation replacing
- * the single-exposure buffer. Routes to the Agent-advertised EVP proxy endpoint for
- * /api/v2/flagevaluation.
+ * the single-exposure buffer. Uses a local EVP proxy when available. Agentless mode can use direct
+ * intake when no compatible local route is available.
  *
  * <p>Two-tier aggregation contract: Full key: (flagKey, variant, allocationKey, runtimeDefault,
  * errorMessage, targetingKey, canonical-context-key). Degraded key: (flagKey, variant,
@@ -99,36 +100,32 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       new ConcurrentHashMap<>();
 
   public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
-    this(DEFAULT_CAPACITY, FLUSH_INTERVAL_SECONDS, SECONDS, sco, config);
+    this(
+        DEFAULT_CAPACITY,
+        FLUSH_INTERVAL_SECONDS,
+        SECONDS,
+        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.FLAG_EVALUATION)::create,
+        config);
   }
 
   FlagEvaluationWriterImpl(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SharedCommunicationObjects sco,
-      final Config config) {
-    this(capacity, flushInterval, timeUnit, new BackendApiFactory(config, sco), config);
-  }
-
-  /** Package-private constructor allowing a BackendApiFactory to be injected for tests. */
-  FlagEvaluationWriterImpl(
-      final int capacity,
-      final long flushInterval,
-      final TimeUnit timeUnit,
-      final BackendApiFactory backendApiFactory,
+      final Supplier<BackendApi> backendApiSupplier,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     this.serializer =
         new FlagEvaluationSerializingHandler(
-            backendApiFactory,
+            backendApiSupplier,
             queue,
             flushInterval,
             timeUnit,
             FeatureFlagEvpContext.from(config),
             droppedQueueOverflow,
             contextTruncatedCounts,
-            this::close);
+            this::close,
+            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
   }
 
@@ -309,28 +306,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     private final CountDownLatch finalFlushDone = new CountDownLatch(1);
 
     FlagEvaluationSerializingHandler(
-        final BackendApiFactory backendApiFactory,
-        final MessagePassingBlockingQueue<FlagEvalEvent> queue,
-        final long flushInterval,
-        final TimeUnit timeUnit,
-        final Map<String, String> context,
-        final AtomicLong droppedQueueOverflow,
-        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
-        final Runnable errorCallback) {
-      this(
-          backendApiFactory,
-          queue,
-          flushInterval,
-          timeUnit,
-          context,
-          droppedQueueOverflow,
-          contextTruncatedCounts,
-          errorCallback,
-          FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
-    }
-
-    FlagEvaluationSerializingHandler(
-        final BackendApiFactory backendApiFactory,
+        final Supplier<BackendApi> backendApiSupplier,
         final MessagePassingBlockingQueue<FlagEvalEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -342,7 +318,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       this.queue = queue;
       this.evpPublisher =
           new FeatureFlagEvpPublisher<>(
-              backendApiFactory, FlagEvaluationPayloads.FlagEvaluationsRequest.class, false);
+              backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
       this.contextTruncatedCounts = contextTruncatedCounts;
@@ -545,16 +521,17 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    */
   static class SerializingHandlerForTest extends FlagEvaluationSerializingHandler {
 
-    SerializingHandlerForTest(final BackendApiFactory factory, final Map<String, String> context) {
-      this(factory, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    SerializingHandlerForTest(
+        final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
+      this(backendApiSupplier, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     }
 
     SerializingHandlerForTest(
-        final BackendApiFactory factory,
+        final Supplier<BackendApi> backendApiSupplier,
         final Map<String, String> context,
         final int payloadSizeLimitBytes) {
       super(
-          factory,
+          backendApiSupplier,
           Queues.mpscBlockingConsumerArrayQueue(DEFAULT_CAPACITY),
           Long.MAX_VALUE, // effectively never auto-flush
           TimeUnit.NANOSECONDS,
@@ -618,14 +595,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   /** Factory method for test use - creates a SerializingHandlerForTest. */
   static SerializingHandlerForTest createHandlerForTest(
-      final BackendApiFactory factory, final Map<String, String> context) {
-    return new SerializingHandlerForTest(factory, context);
+      final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
+    return new SerializingHandlerForTest(backendApiSupplier, context);
   }
 
   static SerializingHandlerForTest createHandlerForTest(
-      final BackendApiFactory factory,
+      final Supplier<BackendApi> backendApiSupplier,
       final Map<String, String> context,
       final int payloadSizeLimitBytes) {
-    return new SerializingHandlerForTest(factory, context, payloadSizeLimitBytes);
+    return new SerializingHandlerForTest(backendApiSupplier, context, payloadSizeLimitBytes);
   }
 }
