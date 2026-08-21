@@ -59,7 +59,6 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       }
       return;
     }
-
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
       LOGGER.debug("Unable to fingerprint exception", t);
@@ -190,6 +189,9 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
           state.getExceptionId());
       span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
+      // clear snapshot list to avoid growing indefinitely for singleton exception instances
+      // like the one generated for FastThrow optimization (OmitStackTraceInFastThrow)
+      state.getSnapshots().clear();
     }
   }
 

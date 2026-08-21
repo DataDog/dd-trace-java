@@ -198,6 +198,10 @@ public class ExceptionProbeManager {
     }
 
     public void addSnapshot(Snapshot snapshot) {
+      if (snapshots.size() > 256) {
+        LOGGER.debug("Too many (256) snapshots for exceptionId={}, dropping snapshot", exceptionId);
+        return;
+      }
       snapshots.add(snapshot);
     }
 
