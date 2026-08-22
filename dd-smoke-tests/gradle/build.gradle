@@ -23,6 +23,9 @@ tasks.named("test", Test) {
   // Overriding the default timeout as Gradle smoke tests might run for a longer duration.
   timeout = Duration.of(25, ChronoUnit.MINUTES)
 
+  // Share distributions across test classes through the cached Gradle user home.
+  systemProperty 'datadog.smoketest.gradle.distributionCache', gradle.gradleUserHomeDir.absolutePath
+
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
     environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")

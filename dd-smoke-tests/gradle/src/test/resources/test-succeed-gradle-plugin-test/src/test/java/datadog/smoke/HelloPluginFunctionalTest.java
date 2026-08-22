@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,13 +32,13 @@ class HelloPluginFunctionalTest {
 
   @Test
   void pluginPrintsHelloMessageOnGradle85() {
-    String gradleDistributionUrl =
-        requireNonNull(System.getenv("GRADLE_DISTRIBUTION_URL"), "GRADLE_DISTRIBUTION_URL");
+    String gradleInstallationDir =
+        requireNonNull(System.getenv("GRADLE_INSTALLATION_DIR"), "GRADLE_INSTALLATION_DIR");
     BuildResult result =
         GradleRunner.create()
             .withProjectDir(testProjectDir.toFile())
             .withPluginClasspath()
-            .withGradleDistribution(URI.create(gradleDistributionUrl))
+            .withGradleInstallation(new File(gradleInstallationDir))
             .withArguments("hello", "--stacktrace")
             .withEnvironment(sanitizedGradleEnvironment(testProjectDir.resolve("gradle-user-home")))
             .forwardOutput()

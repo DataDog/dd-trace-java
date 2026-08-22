@@ -15,21 +15,25 @@ ext {
 }
 
 repositories {
-  ivy {
-    url = mass.artifactUrl('github.com/wildfly/wildfly/releases/download/')
-    // Restrict this repository to WildFly distribution artifacts only.
-    // Without this filter, Gradle may probe this host for unrelated dependencies
-    // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
-    content {
-      includeGroup 'wildfly'
-    }
-    patternLayout {
-      // GitHub release assets are published under /<version>/wildfly-<version>.zip
-      // while the dependency coordinates keep the "wildfly" group/module.
-      artifact '/[revision]/[module]-[revision].[ext]'
-    }
-    metadataSources {
-      it.artifact()
+  // Try MASS first, then upstream on a cache miss.
+  mass.artifactUrls('github.com/wildfly/wildfly/releases/download/').eachWithIndex { repositoryUrl, index ->
+    ivy {
+      name = "wildflyDistribution$index"
+      url = repositoryUrl
+      // Restrict this repository to WildFly distribution artifacts only.
+      // Without this filter, Gradle may probe this host for unrelated dependencies
+      // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
+      content {
+        includeGroup 'wildfly'
+      }
+      patternLayout {
+        // GitHub release assets are published under /<version>/wildfly-<version>.zip
+        // while the dependency coordinates keep the "wildfly" group/module.
+        artifact '/[revision]/[module]-[revision].[ext]'
+      }
+      metadataSources {
+        it.artifact()
+      }
     }
   }
 }

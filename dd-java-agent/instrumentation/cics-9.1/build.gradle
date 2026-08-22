@@ -10,13 +10,20 @@ ext {
 }
 
 repositories {
-  ivy {
-    url = mass.artifactUrl('public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/')
-    patternLayout {
-      artifact '[module].[ext]'
-    }
-    metadataSources {
-      it.artifact()
+  // Try MASS first, then upstream on a cache miss.
+  mass.artifactUrls('public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/').eachWithIndex { repositoryUrl, index ->
+    ivy {
+      name = "cicsSdkDistribution$index"
+      url = repositoryUrl
+      content {
+        includeGroup cicsSdkName
+      }
+      patternLayout {
+        artifact '[module].[ext]'
+      }
+      metadataSources {
+        it.artifact()
+      }
     }
   }
 }

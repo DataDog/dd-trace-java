@@ -12,16 +12,20 @@ def serverVersion = '9.0.120'
 def serverExtension = 'zip'
 
 repositories {
-  ivy {
-    url = mass.artifactUrl('dlcdn.apache.org')
-    content {
-      includeGroup serverName
-    }
-    patternLayout {
-      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
-    }
-    metadataSources {
-      it.artifact()
+  // Try MASS first, then upstream on a cache miss.
+  mass.artifactUrls('dlcdn.apache.org').eachWithIndex { repositoryUrl, index ->
+    ivy {
+      name = "tomcatDistribution$index"
+      url = repositoryUrl
+      content {
+        includeGroup serverName
+      }
+      patternLayout {
+        artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
+      }
+      metadataSources {
+        it.artifact()
+      }
     }
   }
 }

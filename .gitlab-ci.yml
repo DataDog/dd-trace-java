@@ -252,11 +252,6 @@ default:
     # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
     # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
     - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
-    # Route Gradle distribution download through MASS pull-through cache
-    - |
-      mass_read_host="${MASS_READ_URL#https://}"
-      mass_read_host="${mass_read_host%/}"
-      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - mkdir -p .mvn/caches
     # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
     # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
@@ -272,6 +267,8 @@ default:
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
+    # Bootstrap Gradle through MASS with upstream fallback.
+    - bootstrap_gradle_distribution
   after_script:
     - *cgroup_info
     - *container_info
@@ -819,6 +816,7 @@ muzzle-dep-report:
         - dependency-lib
       unprotect: true
   before_script:
+    - source .gitlab/gitlab-utils.sh
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
@@ -839,17 +837,13 @@ muzzle-dep-report:
     # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
     # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
     - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
-    # Route Gradle distribution download through MASS pull-through cache
-    - |
-      mass_read_host="${MASS_READ_URL#https://}"
-      mass_read_host="${mass_read_host%/}"
-      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
-    - ./gradlew --version
+    # Bootstrap Gradle through MASS with upstream fallback.
+    - bootstrap_gradle_distribution
   script:
     - *gitlab_base_ref_params
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
