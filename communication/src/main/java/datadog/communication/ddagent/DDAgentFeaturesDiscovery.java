@@ -4,7 +4,7 @@ import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
-import static datadog.trace.api.ProtocolVersion.V0_4;
+import static datadog.trace.api.ProtocolVersion.V1_0;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -118,7 +118,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
     this.ignoreAgentVersionForStats = ignoreAgentVersionForStats;
-    this.protocolVersion = protocolVersion != null ? protocolVersion : V0_4;
+    this.protocolVersion = protocolVersion != null ? protocolVersion : V1_0;
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
