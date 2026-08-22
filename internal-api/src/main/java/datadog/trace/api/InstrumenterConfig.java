@@ -14,6 +14,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATE_CONTEXT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -68,6 +69,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.PROPAGATE_CONTEXT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
@@ -151,6 +153,7 @@ public class InstrumenterConfig {
   private final boolean codeOriginEnabled;
   private final boolean codeOriginInterfaceSupport;
   private final boolean traceEnabled;
+  private final boolean propagateContextEnabled;
   private final boolean traceOtelEnabled;
   private final boolean metricsOtelEnabled;
   private final boolean logsOtelEnabled;
@@ -262,6 +265,8 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
             DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    propagateContextEnabled =
+        configProvider.getBoolean(PROPAGATE_CONTEXT, DEFAULT_PROPAGATE_CONTEXT);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -455,6 +460,14 @@ public class InstrumenterConfig {
 
   public boolean isTraceEnabled() {
     return traceEnabled;
+  }
+
+  /**
+   * Whether context propagation (tracecontext, baggage, etc.) must stay active even when tracing is
+   * disabled. See {@code TraceInstrumentationConfig.PROPAGATE_CONTEXT}.
+   */
+  public boolean isPropagateContextEnabled() {
+    return propagateContextEnabled;
   }
 
   public boolean isTraceOtelEnabled() {
@@ -767,6 +780,8 @@ public class InstrumenterConfig {
         + integrationsEnabled
         + ", traceEnabled="
         + traceEnabled
+        + ", propagateContextEnabled="
+        + propagateContextEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
         + ", metricsOtelEnabled="
