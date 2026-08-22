@@ -6,6 +6,8 @@
 
 **Write Groovy/Spock tests for instrumentation tests** (per `AGENTS.md`: "Only use Groovy / Spock tests for instrumentation and smoke tests"). Full Java instrumentation test support is not yet available. Adding new `.groovy` files to a PR will trigger the `Enforce Groovy Migration` bot — add the `tag: override groovy enforcement` label to bypass it.
 
+**Match the sibling module's test DSL — do NOT introduce Java/JUnit tests into a Groovy family.** Before writing tests, `ls src/test/` on the master module you're regenerating AND on its version-sibling modules (e.g. `jedis-1.4/`, `jedis-4.0/` for `jedis-3.0`). Write the SAME DSL they use. If the siblings use `src/test/groovy/` (Spock), write Groovy — even though this file also shows Java `AbstractInstrumentationTest` examples below. Those Java examples exist ONLY to illustrate style rules (no-banner-comments, error-path coverage) for modules that are ALREADY on the Java/JUnit DSL; they are NOT a license to migrate a Groovy family to Java. Introducing a `src/test/java/**` test into a module whose siblings are `src/test/groovy/**` diverges from master's style, adds review burden, and trips the Java DSL's stricter default-tag matcher (`TagsMatcher.defaultTags()` currently omits some tags the Groovy DSL tolerates, e.g. `_dd.svc_src`), producing spurious CI failures that are NOT instrumentation defects. When in doubt, the master module's own test DSL wins.
+
 - Groovy/Spock test class in `src/test/groovy/datadog/trace/instrumentation/<framework>/`
 - Verify: spans created, tags set, errors propagated, resource names correct
 - Use `assertTraces(N) { trace(N) { span { ... } } }` for span assertions (Spock DSL from `InstrumentationSpecification`)
@@ -129,7 +131,7 @@ Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (
 
 Do NOT insert banner-style separator comments (e.g. `// --------- Successful completion ---------`) inside test files to group related test methods. Banner comments have unclear scope, don't render usefully in IDEs, and add review burden without a benefit that justifies the noise.
 
-**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc:
+**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc. (The examples below are shown in Java for modules already on the Java/JUnit DSL; the same no-banner / focused-class rule applies to Groovy/Spock — do NOT read these Java snippets as instruction to write Java tests for a Groovy-family module. See the "Match the sibling module's test DSL" rule above.)
 
 ```java
 // ❌ Banner comments
