@@ -104,6 +104,13 @@
 /internal-api/src/test/java/constructors/                       @DataDog/apm-java
 /internal-api/src/test/resources/                               @DataDog/apm-java
 
+# Shared trace protocol
+/utils/test-agent-utils/                                                    @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/dd-trace-api/src/**/*ProtocolVersion*                                      @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/**/*TraceMapper*                                         @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/PayloadVerifiers* @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+/dd-trace-core/src/**/datadog/trace/common/writer/ddagent/V1PayloadReader*  @DataDog/apm-lang-platform-java @DataDog/apm-sdk-capabilities-java
+
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                                                                  @DataDog/apm-idm-java
@@ -215,7 +222,6 @@
 /gradle/wrapper/                        @DataDog/apm-lang-platform-java
 /repository.datadog.yaml                @DataDog/apm-lang-platform-java
 /dd-trace-api/**/RemoteConfigConfig*    @DataDog/apm-lang-platform-java
-/utils/test-agent-utils/                @DataDog/apm-lang-platform-java
 /utils/test-junit-converter-utils/      @DataDog/apm-lang-platform-java
 /utils/test-junit-utils/                @DataDog/apm-lang-platform-java
 /utils/test-utils/                      @DataDog/apm-lang-platform-java
