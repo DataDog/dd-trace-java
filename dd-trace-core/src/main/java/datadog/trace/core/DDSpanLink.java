@@ -119,7 +119,9 @@ public class DDSpanLink extends SpanLink {
     SpanLinkJson toSpanLinkJson(AgentSpanLink link) {
       SpanLinkJson json = new SpanLinkJson();
       json.trace_id = link.traceId().toHexString();
-      json.span_id = DDSpanId.toHexString(link.spanId());
+      // Zero-padded: consumers parse this as a fixed-width 16-character hex string, and
+      // Long.toHexString would strip the leading zeros of a span id below 2^60.
+      json.span_id = DDSpanId.toHexStringPadded(link.spanId());
       json.flags = link.traceFlags() == 0 ? null : link.traceFlags();
       json.tracestate = link.traceState().isEmpty() ? null : link.traceState();
       if (!link.attributes().isEmpty()) {
