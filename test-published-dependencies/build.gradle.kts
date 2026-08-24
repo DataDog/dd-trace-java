@@ -29,9 +29,16 @@ allprojects {
         ),
       )
     }
-    java {
-      target("src/**/*.java")
-      googleJavaFormat(libs.versions.google.java.format.get())
+  }
+
+  pluginManager.withPlugin("java") {
+    spotless {
+      java {
+        target("src/**/*.java")
+        removeUnusedImports()
+        forbidWildcardImports()
+        googleJavaFormat(libs.versions.google.java.format.get())
+      }
     }
   }
 }

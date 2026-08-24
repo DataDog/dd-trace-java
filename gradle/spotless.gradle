@@ -51,6 +51,8 @@ spotless {
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
+      removeUnusedImports()
+      forbidWildcardImports()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
       googleJavaFormat(libs.versions.google.java.format.get())
     }
