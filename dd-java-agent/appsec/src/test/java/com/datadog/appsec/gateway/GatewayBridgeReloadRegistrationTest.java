@@ -93,6 +93,35 @@ class GatewayBridgeReloadRegistrationTest {
     assertNull(callbackProvider.getCallback(EVENTS.requestFilesContent()));
   }
 
+  @Test
+  void enabledInactiveRegistersCallbacksOnActivation() {
+    // ENABLED_INACTIVE: the WAF module has no ruleset loaded, so it exposes no data subscription
+    // and no address at all is subscribed at startup
+    producerService.subscribedAddresses = emptyList();
+    bridge.init();
+
+    assertNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
+    assertNull(callbackProvider.getCallback(EVENTS.requestBodyProcessed()));
+    assertNull(callbackProvider.getCallback(EVENTS.requestFilesFilenames()));
+    assertNull(callbackProvider.getCallback(EVENTS.requestFilesContent()));
+
+    // activation: Remote Config delivers a ruleset requiring every conditional address, plus the
+    // raw request body, whose events are already registered unconditionally by init()
+    producerService.subscribedAddresses =
+        asList(
+            KnownAddresses.REQUEST_PATH_PARAMS,
+            KnownAddresses.REQUEST_BODY_OBJECT,
+            KnownAddresses.REQUEST_FILES_FILENAMES,
+            KnownAddresses.REQUEST_FILES_CONTENT,
+            KnownAddresses.REQUEST_BODY_RAW);
+    assertDoesNotThrow(this::reload);
+
+    assertNotNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
+    assertNotNull(callbackProvider.getCallback(EVENTS.requestBodyProcessed()));
+    assertNotNull(callbackProvider.getCallback(EVENTS.requestFilesFilenames()));
+    assertNotNull(callbackProvider.getCallback(EVENTS.requestFilesContent()));
+  }
+
   private void reload() {
     bridge.registerAdditionalIGCallbacksIfNeeded(
         GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()));
