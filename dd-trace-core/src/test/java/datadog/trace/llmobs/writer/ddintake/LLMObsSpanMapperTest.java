@@ -881,15 +881,16 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     return spans.get(0);
   }
 
-  // The _dd sub-map is hand-sized msgpack, so an off-by-one in the sampling branch corrupts the
-  // stream rather than failing loudly. These three cases pin the decoded map for every combination
-  // the writer can produce.
+  // The _dd sub-map is hand-sized msgpack, so an off-by-one corrupts the stream rather than failing
+  // loudly. These three cases pin the decoded map for every combination the writer can produce.
 
   @Test
-  void testSamplingFieldsAbsentWhenNotSampled() throws Exception {
+  void testSamplingFieldsDefaultToRetainWhenTheSpanCarriesNoDecision() throws Exception {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
+    // DDLLMObsSpan stamps a decision on every span, so this shape should not occur in practice;
+    // the mapper still has to emit a well-formed _dd map if it ever does.
     AgentSpan span =
         tracer
             .buildSpan("datadog", "chat-completion")
@@ -900,9 +901,9 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
     Map<String, Object> spanData = serializeSingleSpan(mapper, span);
     Map<String, Object> dd = (Map<String, Object>) spanData.get("_dd");
-    assertEquals(3, dd.size());
-    assertFalse(dd.containsKey("sampling_decision"));
-    assertFalse(dd.containsKey("sample_rate"));
+    assertEquals(5, dd.size());
+    assertEquals("1", dd.get("sampling_decision"));
+    assertEquals("1", dd.get("sample_rate"));
 
     tracer.close();
   }

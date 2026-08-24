@@ -8,13 +8,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 public final class LLMObsContext {
   public static final String ROOT_SPAN_ID = "undefined";
 
-  /** Sampling decision value meaning "retain this span". Matches dd-trace-py and dd-trace-js. */
+  /** Sampling decision value meaning "retain this span". */
   public static final String SAMPLING_DECISION_SAMPLED = "1";
 
-  /**
-   * Sampling decision value meaning "drop this span". The LLM Observability intake drops spans
-   * carrying this value; any other value, including an absent one, is retained.
-   */
+  /** Sampling decision value meaning "drop this span". */
   public static final String SAMPLING_DECISION_DROPPED = "0";
 
   private LLMObsContext() {

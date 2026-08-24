@@ -112,6 +112,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String SAMPLING_DECISION_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + "sampling_decision";
 
+  /**
+   * Fallback pair meaning "retain", used if a span reaches the mapper without a stamped decision.
+   */
+  private static final String SAMPLING_DECISION_SAMPLED = "1";
+
+  private static final String SAMPLE_RATE_ALL = "1";
+
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
 
@@ -171,15 +178,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
-      // Same read-before-startMap reason as session_id: the enclosing _dd map is hand-sized.
-      // Guarded the same way against a non-string value set through a generic tag API.
+      // DDLLMObsSpan stamps both of these on every span at every rate, so the _dd map below always
+      // carries them. Guarded against a non-string value set through a generic tag API, falling
+      // back to the retain-everything pair the intake assumes when the fields are absent.
       Object rawSamplingDecision = span.getTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
       Object rawSampleRate = span.getTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
-      String samplingDecision =
-          rawSamplingDecision instanceof String && rawSampleRate instanceof String
-              ? (String) rawSamplingDecision
-              : null;
-      String sampleRate = samplingDecision == null ? null : (String) rawSampleRate;
+      boolean stamped = rawSamplingDecision instanceof String && rawSampleRate instanceof String;
+      String samplingDecision = stamped ? (String) rawSamplingDecision : SAMPLING_DECISION_SAMPLED;
+      String sampleRate = stamped ? (String) rawSampleRate : SAMPLE_RATE_ALL;
 
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
@@ -213,23 +219,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 8
       writable.writeUTF8(DD);
-      // The sampling fields are written only when a rate below 1.0 is configured, so the payload
-      // of an unsampled tracer is byte-identical to what it was before sampling existed. Both
-      // values are stamped together by DDLLMObsSpan or neither is, so one check covers both.
-      boolean hasSampling = samplingDecision != null;
-      writable.startMap(hasSampling ? 5 : 3);
+      writable.startMap(5);
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
       writable.writeUTF8(TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
-      if (hasSampling) {
-        writable.writeUTF8(SAMPLING_DECISION);
-        writable.writeString(samplingDecision, null);
-        writable.writeUTF8(SAMPLE_RATE);
-        writable.writeString(sampleRate, null);
-      }
+      writable.writeUTF8(SAMPLING_DECISION);
+      writable.writeString(samplingDecision, null);
+      writable.writeUTF8(SAMPLE_RATE);
+      writable.writeString(sampleRate, null);
       // Remove unconditionally: the generic _ml_obs_tag. sweep below would otherwise surface these
       // internal fields in the user-visible tags[] array.
       span.removeTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);

@@ -1,8 +1,6 @@
 package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
@@ -50,26 +48,13 @@ class DDLLMObsSpanSamplingTest {
   }
 
   @Test
-  void stampsNothingAtTheDefaultRate() throws IllegalAccessException {
+  void stampsRetainedDecisionAtTheDefaultRate() throws IllegalAccessException {
+    // The fields are stamped at every rate, including 1.0, matching dd-trace-py.
     DDLLMObsSpan llmObsSpan = newSpan(new LLMObsSampler(1.0));
     try {
       AgentSpan span = spanOf(llmObsSpan);
-      assertNull(span.getTag(SAMPLING_DECISION_TAG));
-      assertNull(span.getTag(SAMPLE_RATE_TAG));
-    } finally {
-      llmObsSpan.finish();
-    }
-  }
-
-  @Test
-  void stampsRetainedDecisionOnRoot() throws IllegalAccessException {
-    DDLLMObsSpan llmObsSpan = newSpan(new LLMObsSampler(1.0 - Math.ulp(1.0)));
-    try {
-      AgentSpan span = spanOf(llmObsSpan);
-      // A rate just under 1.0 is "configured" but keeps every trace, so the decision is
-      // deterministic without depending on the generated trace ID.
       assertEquals("1", span.getTag(SAMPLING_DECISION_TAG));
-      assertNotNull(span.getTag(SAMPLE_RATE_TAG));
+      assertEquals("1", span.getTag(SAMPLE_RATE_TAG));
     } finally {
       llmObsSpan.finish();
     }
@@ -91,7 +76,7 @@ class DDLLMObsSpanSamplingTest {
   void childInheritsTheRootDecisionInsteadOfRecomputingIt() throws IllegalAccessException {
     // The child's sampler drops everything. If the decision were recomputed per span, the child
     // would report "0" and the trace would be torn in half at the intake.
-    DDLLMObsSpan root = newSpan(new LLMObsSampler(1.0 - Math.ulp(1.0)));
+    DDLLMObsSpan root = newSpan(new LLMObsSampler(1.0));
     try {
       AgentSpan rootSpan = spanOf(root);
       // Inheritance is gated on the two spans sharing an APM trace, so the root's APM span has to
@@ -115,19 +100,17 @@ class DDLLMObsSpanSamplingTest {
   }
 
   @Test
-  void childOfAnUnsampledRootStaysUnsampled() throws IllegalAccessException {
-    // Symmetric case, at the single rate a process actually runs at: nothing is stamped anywhere in
-    // the trace. Note that an absent parent decision is by construction the same signal as "I am
-    // the root", so a child under a differently-configured sampler would decide for itself — that
-    // cannot arise in practice because the sampler is resolved once per process.
-    DDLLMObsSpan root = newSpan(new LLMObsSampler(1.0));
+  void childOfADroppedRootStaysDropped() throws IllegalAccessException {
+    // Symmetric case. Because a decision is stamped at every rate, "the context carries a decision"
+    // is an unambiguous signal, so a child never mistakes an inherited drop for being a root.
+    DDLLMObsSpan root = newSpan(new LLMObsSampler(0.0));
     try {
       try (AgentScope ignored = AgentTracer.activateSpan(spanOf(root))) {
         DDLLMObsSpan child = newSpan(new LLMObsSampler(1.0));
         try {
           AgentSpan childSpan = spanOf(child);
-          assertNull(childSpan.getTag(SAMPLING_DECISION_TAG));
-          assertNull(childSpan.getTag(SAMPLE_RATE_TAG));
+          assertEquals("0", childSpan.getTag(SAMPLING_DECISION_TAG));
+          assertEquals("0", childSpan.getTag(SAMPLE_RATE_TAG));
         } finally {
           child.finish();
         }

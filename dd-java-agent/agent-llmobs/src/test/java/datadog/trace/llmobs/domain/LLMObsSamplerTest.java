@@ -15,7 +15,7 @@ class LLMObsSamplerTest {
   @Test
   void keepsEverythingAtRateOne() {
     LLMObsSampler sampler = new LLMObsSampler(1.0);
-    assertFalse(sampler.isConfigured());
+    assertEquals("1", sampler.formattedRate());
     for (long id : new long[] {0L, 1L, -1L, Long.MAX_VALUE, Long.MIN_VALUE, 1234567890123L}) {
       assertTrue(sampler.sample(id));
     }
@@ -24,7 +24,7 @@ class LLMObsSamplerTest {
   @Test
   void dropsEverythingAtRateZero() {
     LLMObsSampler sampler = new LLMObsSampler(0.0);
-    assertTrue(sampler.isConfigured());
+    assertEquals("0", sampler.formattedRate());
     // 0 is the one sampling id whose Knuth product is the minimum value, so it sits exactly on the
     // cutoff at rate 0. Every other id must be dropped.
     for (long id : new long[] {1L, -1L, Long.MAX_VALUE, 1234567890123L}) {
@@ -41,7 +41,7 @@ class LLMObsSamplerTest {
       assertEquals("0", sampler.formattedRate());
     } else {
       assertEquals("1", sampler.formattedRate());
-      assertFalse(sampler.isConfigured());
+      assertTrue(sampler.sample(1234567890123L));
     }
   }
 
