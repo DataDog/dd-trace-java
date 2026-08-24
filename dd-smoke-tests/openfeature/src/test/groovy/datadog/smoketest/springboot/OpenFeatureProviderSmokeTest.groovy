@@ -100,6 +100,9 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       span.parentId == 0 &&
         span.meta['ffe_runtime_defaults'] == '{"flag-that-does-not-exist":"fallback"}'
     }
+
+    cleanup:
+    response.close()
   }
 
   void 'test open feature exposures'() {
