@@ -50,9 +50,6 @@ class ParsedSemverTest {
     return Stream.of(
         "",
         "x",
-        "1",
-        "1.2",
-        "1.2.3.4",
         "v1.2.3",
         "01.2.3",
         "1.02.3",
@@ -94,6 +91,16 @@ class ParsedSemverTest {
     "1.1.0",
     "2.0.0",
   };
+
+  @Test
+  void normalizesMissingCorePartsAndComparesExtendedCoreParts() {
+    assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18"), ParsedSemver.parse("18.0.0")));
+    assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18.0"), ParsedSemver.parse("18.0.0")));
+    assertTrue(
+        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
+    assertTrue(
+        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
+  }
 
   @Test
   void testCompareSemverOrdering() {

@@ -33,6 +33,8 @@ import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
@@ -550,7 +552,7 @@ public class DDEvaluatorTest {
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
       // Invalid attribute does not match
       Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
       Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
       Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
       // Non-string attribute does not match
@@ -886,7 +888,7 @@ public class DDEvaluatorTest {
       if (flag.allocations == null) {
         continue;
       }
-      boolean invalid = false;
+      boolean invalid = hasInvalidStructure(flag);
       for (final Allocation allocation : flag.allocations) {
         if (allocation.rules == null) {
           continue;
@@ -925,7 +927,7 @@ public class DDEvaluatorTest {
       }
       if (invalid) {
         flagsToRemove.put(flagKey, flag);
-        invalidFlags.put(flagKey, "invalid_semver_comparand");
+        invalidFlags.put(flagKey, "invalid_flag");
       }
     }
     for (final String flagKey : flagsToRemove.keySet()) {
@@ -934,6 +936,59 @@ public class DDEvaluatorTest {
     if (!invalidFlags.isEmpty()) {
       config.invalidFlags = invalidFlags;
     }
+  }
+
+  private static boolean hasInvalidStructure(final Flag flag) {
+    for (final Allocation allocation : flag.allocations) {
+      if (allocation == null) {
+        return true;
+      }
+      if (allocation.splits != null) {
+        for (final Split split : allocation.splits) {
+          if (split == null || split.shards == null) {
+            return true;
+          }
+          for (final Shard shard : split.shards) {
+            if (shard == null
+                || shard.totalShards <= 0
+                || shard.totalShards > 0xFFFFFFFFL
+                || shard.ranges == null) {
+              return true;
+            }
+            for (final ShardRange range : shard.ranges) {
+              if (range == null || range.start < 0 || range.end < 0) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      if (allocation.rules != null) {
+        for (final Rule rule : allocation.rules) {
+          if (rule.conditions == null) {
+            continue;
+          }
+          for (final ConditionConfiguration condition : rule.conditions) {
+            if (condition == null || condition.operator == null) {
+              return true;
+            }
+            if ((condition.operator == ConditionOperator.IS_NULL
+                    && !(condition.value instanceof Boolean))
+                || ((condition.operator == ConditionOperator.ONE_OF
+                        || condition.operator == ConditionOperator.NOT_ONE_OF)
+                    && !(condition.value instanceof Iterable))
+                || ((condition.operator == ConditionOperator.GTE
+                        || condition.operator == ConditionOperator.GT
+                        || condition.operator == ConditionOperator.LTE
+                        || condition.operator == ConditionOperator.LT)
+                    && !(condition.value instanceof Number))) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private static List<FixtureCase> canonicalTestCases() throws IOException {
@@ -1079,10 +1134,10 @@ public class DDEvaluatorTest {
         final Object rawFlag = reader.readJsonValue();
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
-          if (flag != null) {
-            validateFlag(flagKey, flag);
-            flags.put(flagKey, flag);
+          if (flag == null || hasInvalidStructure(flag)) {
+            throw new IllegalArgumentException("flag \"" + flagKey + "\" could not be parsed");
           }
+          flags.put(flagKey, flag);
         } catch (JsonDataException | IllegalArgumentException ignored) {
           INVALID_FLAGS_HOLDER.get().put(flagKey, "invalid_flag");
           // A malformed flag must not prevent valid flags in the same configuration from loading.

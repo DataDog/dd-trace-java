@@ -1,5 +1,7 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
+import java.util.Arrays;
+
 /**
  * ParsedSemver is the language-neutral representation of the SemVer subset used by FFE. Owning this
  * parser and comparator keeps behavior consistent across SDKs and lets configuration preprocessing
@@ -15,15 +17,11 @@ public final class ParsedSemver {
   /** Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version. */
   public static final ParsedSemver INVALID = null;
 
-  private final long major; // unsigned
-  private final long minor; // unsigned
-  private final long patch; // unsigned
+  private final long[] core; // unsigned, with omitted minor and patch normalized to zero
   private final String prerelease;
 
-  ParsedSemver(final long major, final long minor, final long patch, final String prerelease) {
-    this.major = major;
-    this.minor = minor;
-    this.patch = patch;
+  ParsedSemver(final long[] core, final String prerelease) {
+    this.core = core;
     this.prerelease = prerelease;
   }
 
@@ -35,45 +33,32 @@ public final class ParsedSemver {
    *     version
    */
   public static ParsedSemver parse(final String version) {
-    // Parse major
-    final long[] majorResult = parseCoreIdentifier(version, 0);
-    if (majorResult == null) {
-      return INVALID;
+    long[] parsedCore = new long[3];
+    int coreSize = 0;
+    int next = 0;
+    while (true) {
+      final long[] component = parseCoreIdentifier(version, next);
+      if (component == null) {
+        return INVALID;
+      }
+      if (coreSize == parsedCore.length) {
+        parsedCore = Arrays.copyOf(parsedCore, parsedCore.length * 2);
+      }
+      parsedCore[coreSize++] = component[0];
+      next = (int) component[1];
+      if (next == version.length() || version.charAt(next) != '.') {
+        break;
+      }
+      next++;
     }
-    final long major = majorResult[0];
-    int next = (int) majorResult[1];
-    if (next >= version.length() || version.charAt(next) != '.') {
-      return INVALID;
-    }
-
-    // Parse minor
-    final long[] minorResult = parseCoreIdentifier(version, next + 1);
-    if (minorResult == null) {
-      return INVALID;
-    }
-    final long minor = minorResult[0];
-    next = (int) minorResult[1];
-    if (next >= version.length() || version.charAt(next) != '.') {
-      return INVALID;
-    }
-
-    // Parse patch
-    final long[] patchResult = parseCoreIdentifier(version, next + 1);
-    if (patchResult == null) {
-      return INVALID;
-    }
-    final long patch = patchResult[0];
-    next = (int) patchResult[1];
-
-    final ParsedSemver parsed = new ParsedSemver(major, minor, patch, "");
+    final long[] core = Arrays.copyOf(parsedCore, Math.max(3, coreSize));
     if (next == version.length()) {
-      return parsed;
+      return new ParsedSemver(core, "");
     }
 
-    // Parse prerelease and/or build metadata
+    // Parse prerelease and/or build metadata.
     String remainder = version.substring(next);
     String prerelease = "";
-
     if (remainder.charAt(0) == '-') {
       remainder = remainder.substring(1);
       final int buildStart = remainder.indexOf('+');
@@ -81,10 +66,8 @@ public final class ParsedSemver {
         if (!validSemverIdentifiers(remainder, false)) {
           return INVALID;
         }
-        prerelease = remainder;
-        return new ParsedSemver(major, minor, patch, prerelease);
+        return new ParsedSemver(core, remainder);
       }
-
       prerelease = remainder.substring(0, buildStart);
       if (!validSemverIdentifiers(prerelease, false)) {
         return INVALID;
@@ -95,11 +78,10 @@ public final class ParsedSemver {
     } else {
       return INVALID;
     }
-
     if (!validSemverIdentifiers(remainder, true)) {
       return INVALID;
     }
-    return new ParsedSemver(major, minor, patch, prerelease);
+    return new ParsedSemver(core, prerelease);
   }
 
   /**
@@ -111,17 +93,14 @@ public final class ParsedSemver {
    *     {@code right}, zero if they have equal precedence
    */
   public static int compare(final ParsedSemver left, final ParsedSemver right) {
-    int cmp = Long.compareUnsigned(left.major, right.major);
-    if (cmp != 0) {
-      return cmp;
-    }
-    cmp = Long.compareUnsigned(left.minor, right.minor);
-    if (cmp != 0) {
-      return cmp;
-    }
-    cmp = Long.compareUnsigned(left.patch, right.patch);
-    if (cmp != 0) {
-      return cmp;
+    final int coreLength = Math.max(left.core.length, right.core.length);
+    for (int i = 0; i < coreLength; i++) {
+      final long leftComponent = i < left.core.length ? left.core[i] : 0;
+      final long rightComponent = i < right.core.length ? right.core[i] : 0;
+      final int cmp = Long.compareUnsigned(leftComponent, rightComponent);
+      if (cmp != 0) {
+        return cmp;
+      }
     }
     return comparePrerelease(left.prerelease, right.prerelease);
   }
@@ -269,15 +248,15 @@ public final class ParsedSemver {
   // --- Accessors for testing ---
 
   long getMajor() {
-    return major;
+    return core[0];
   }
 
   long getMinor() {
-    return minor;
+    return core[1];
   }
 
   long getPatch() {
-    return patch;
+    return core[2];
   }
 
   String getPrerelease() {
@@ -293,23 +272,23 @@ public final class ParsedSemver {
       return false;
     }
     final ParsedSemver that = (ParsedSemver) o;
-    return major == that.major
-        && minor == that.minor
-        && patch == that.patch
-        && prerelease.equals(that.prerelease);
+    return Arrays.equals(core, that.core) && prerelease.equals(that.prerelease);
   }
 
   @Override
   public int hashCode() {
-    int result = Long.hashCode(major);
-    result = 31 * result + Long.hashCode(minor);
-    result = 31 * result + Long.hashCode(patch);
-    result = 31 * result + prerelease.hashCode();
-    return result;
+    return 31 * Arrays.hashCode(core) + prerelease.hashCode();
   }
 
   @Override
   public String toString() {
-    return major + "." + minor + "." + patch + (prerelease.isEmpty() ? "" : "-" + prerelease);
+    final StringBuilder value = new StringBuilder();
+    for (int i = 0; i < core.length; i++) {
+      if (i > 0) {
+        value.append('.');
+      }
+      value.append(Long.toUnsignedString(core[i]));
+    }
+    return value.append(prerelease.isEmpty() ? "" : "-" + prerelease).toString();
   }
 }

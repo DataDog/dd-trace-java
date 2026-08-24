@@ -9,10 +9,13 @@ import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -89,23 +92,89 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     reader.peek();
   }
 
-  /** Validates the required nested UFC fields and SemVer comparands for a flag. */
+  /** Validates the required nested UFC fields and condition operands for a flag. */
   private static void validateFlag(final String flagKey, final Flag flag) {
     if (flag.allocations == null) {
       return;
     }
     for (final Allocation allocation : flag.allocations) {
-      if (allocation == null || allocation.splits == null) {
+      if (allocation == null) {
+        throw new InvalidFlagException("flag \"" + flagKey + "\" contains a null allocation");
+      }
+      if (allocation.splits == null) {
         continue;
       }
       for (final Split split : allocation.splits) {
-        if (split != null && split.shards == null) {
+        if (split == null || split.shards == null) {
           throw new InvalidFlagException(
               "flag \"" + flagKey + "\" contains a split with missing shards");
         }
+        for (final Shard shard : split.shards) {
+          if (shard == null
+              || shard.totalShards <= 0
+              || shard.totalShards > 0xFFFFFFFFL
+              || shard.ranges == null) {
+            throw new InvalidFlagException("flag \"" + flagKey + "\" contains an invalid shard");
+          }
+          for (final ShardRange range : shard.ranges) {
+            if (range == null || range.start < 0 || range.end < 0) {
+              throw new InvalidFlagException(
+                  "flag \"" + flagKey + "\" contains an invalid shard range");
+            }
+          }
+        }
       }
     }
+    validateConditionOperands(flagKey, flag);
     validateAndCacheSemverComparands(flagKey, flag);
+  }
+
+  private static void validateConditionOperands(final String flagKey, final Flag flag) {
+    for (final Allocation allocation : flag.allocations) {
+      if (allocation.rules == null) {
+        continue;
+      }
+      for (final Rule rule : allocation.rules) {
+        if (rule.conditions == null) {
+          continue;
+        }
+        for (final ConditionConfiguration condition : rule.conditions) {
+          if (condition == null || condition.operator == null) {
+            throw new InvalidFlagException("flag \"" + flagKey + "\" contains an unknown operator");
+          }
+          final Object value = condition.value;
+          switch (condition.operator) {
+            case IS_NULL:
+              if (!(value instanceof Boolean)) {
+                throw invalidConditionOperand(flagKey, condition.operator);
+              }
+              break;
+            case ONE_OF:
+            case NOT_ONE_OF:
+              if (!(value instanceof Iterable)) {
+                throw invalidConditionOperand(flagKey, condition.operator);
+              }
+              break;
+            case GTE:
+            case GT:
+            case LTE:
+            case LT:
+              if (!(value instanceof Number)) {
+                throw invalidConditionOperand(flagKey, condition.operator);
+              }
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  private static InvalidFlagException invalidConditionOperand(
+      final String flagKey, final ConditionOperator operator) {
+    return new InvalidFlagException(
+        "flag \"" + flagKey + "\" has an invalid operand for operator \"" + operator + "\"");
   }
 
   /**
@@ -223,10 +292,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         final Object rawFlag = reader.readJsonValue();
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
-          if (flag != null) {
-            validateFlag(flagKey, flag);
-            flags.put(flagKey, flag);
+          if (flag == null) {
+            throw new InvalidFlagException("flag \"" + flagKey + "\" could not be parsed");
           }
+          validateFlag(flagKey, flag);
+          flags.put(flagKey, flag);
         } catch (JsonDataException | IllegalArgumentException error) {
           INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_FLAG);
           if (error instanceof InvalidSemverComparandException) {
