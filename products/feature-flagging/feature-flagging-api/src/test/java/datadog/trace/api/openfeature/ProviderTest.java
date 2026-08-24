@@ -1,12 +1,11 @@
 package datadog.trace.api.openfeature;
 
 import static datadog.trace.api.openfeature.Provider.METADATA;
-import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +38,7 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -47,18 +47,13 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 public class ProviderTest {
 
-  @Captor private ArgumentCaptor<EventDetails> eventDetailsCaptor;
+  private static final long EVENT_TIMEOUT_SECONDS = 10;
 
   private ExecutorService executor;
 
@@ -77,15 +72,18 @@ public class ProviderTest {
   }
 
   @Test
-  public void testSetProvider() {
+  public void testSetProvider() throws Exception {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    api.onProviderReady(readyEvent::complete);
     api.setProvider(new Provider());
 
     final Client client = api.getClient();
     assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
+    readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
   }
 
   @Test
@@ -97,35 +95,29 @@ public class ProviderTest {
     assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
-    provider.get(1, SECONDS);
+    provider.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
   }
 
   @Test
-  public void testSetProviderAndWaitTimeoutRecoversWhenConfigurationArrives() {
-    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
+  public void testSetProviderAndWaitTimeoutRecoversWhenConfigurationArrives() throws Exception {
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     final Client client = api.getClient();
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    client.on(ProviderEvent.PROVIDER_READY, readyEvent::complete);
 
     assertThrows(
         ProviderNotReadyError.class,
         () -> api.setProviderAndWait(new Provider(new Options().initTimeout(10, MILLISECONDS))));
 
     assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
-    verify(readyEvent, times(0)).accept(any());
+    assertFalse(readyEvent.isDone());
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
 
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.READY));
-              verify(readyEvent, times(1)).accept(eventDetailsCaptor.capture());
-              final EventDetails eventDetails = eventDetailsCaptor.getValue();
-              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
-            });
+    final EventDetails eventDetails = readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+    assertThat(eventDetails.getProviderName(), equalTo(METADATA));
   }
 
   @Test
@@ -266,49 +258,35 @@ public class ProviderTest {
   }
 
   @Test
-  public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() {
+  public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() throws Exception {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-    api.setProvider(new Provider());
-    final Client client = api.getClient();
-
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
+    api.setProviderAndWait(new Provider());
+    final Client client = api.getClient();
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
-    final Consumer<EventDetails> errorEvent = mock(Consumer.class);
-    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
-    final Consumer<EventDetails> configChangedEvent = mock(Consumer.class);
-    client.on(ProviderEvent.PROVIDER_ERROR, errorEvent);
-    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent);
+    final CompletableFuture<EventDetails> errorEvent = new CompletableFuture<>();
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    final CompletableFuture<EventDetails> configChangedEvent = new CompletableFuture<>();
+    client.on(ProviderEvent.PROVIDER_ERROR, errorEvent::complete);
+    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent::complete);
 
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
-              verify(errorEvent, times(1)).accept(eventDetailsCaptor.capture());
-              final EventDetails eventDetails = eventDetailsCaptor.getValue();
-              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
-            });
+    final EventDetails eventDetails = errorEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
+    assertThat(eventDetails.getProviderName(), equalTo(METADATA));
 
     final FlagEvaluationDetails<String> evalDetails = client.getStringDetails("missing", "default");
     assertThat(evalDetails.getValue(), equalTo("default"));
     assertThat(evalDetails.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
 
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    client.on(ProviderEvent.PROVIDER_READY, readyEvent::complete);
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.READY));
-              verify(readyEvent, times(1)).accept(any());
-            });
+    readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(() -> verify(configChangedEvent, times(1)).accept(any()));
+    configChangedEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
   }
 
   @Test
