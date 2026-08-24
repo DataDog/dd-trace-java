@@ -96,6 +96,14 @@ class ParsedSemverTest {
   void normalizesMissingCorePartsAndComparesExtendedCoreParts() {
     assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18"), ParsedSemver.parse("18.0.0")));
     assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18.0"), ParsedSemver.parse("18.0.0")));
+    assertEquals(
+        0, ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0")));
+    assertEquals(
+        0, ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0.0")));
+    assertTrue(
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4"), ParsedSemver.parse("1.2.3.5")) < 0);
+    assertTrue(
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5"), ParsedSemver.parse("1.2.3.4.6")) < 0);
     assertTrue(
         ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
     assertTrue(

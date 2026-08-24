@@ -88,6 +88,7 @@ class JsonApiUfcResponseParserTest {
                     booleanFlag(
                         "null-split",
                         ",\"allocations\":[{\"key\":\"null-split\",\"rules\":[],\"splits\":[null]}]"),
+                    booleanFlag("null-rule", allocation("null-rule", "[null]")),
                     booleanFlag("no-rules", allocation("no-rules", "")),
                     booleanFlag("no-conditions", allocation("no-conditions", "[{}]")),
                     booleanFlag(
@@ -101,12 +102,12 @@ class JsonApiUfcResponseParserTest {
                         "valid-semver",
                         allocation(
                             "valid-semver",
-                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2.3\"}]}]")),
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
                     booleanFlag(
                         "invalid-semver",
                         allocation(
                             "invalid-semver",
-                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.02\"}]}]")),
                     booleanFlag(
                         "non-string-semver",
                         allocation(
@@ -117,16 +118,21 @@ class JsonApiUfcResponseParserTest {
     assertNotNull(configuration);
     assertTrue(configuration.flags.containsKey("no-allocations"));
     assertTrue(configuration.flags.containsKey("no-splits"));
-    assertTrue(configuration.flags.containsKey("null-split"));
+    assertFalse(configuration.flags.containsKey("null-split"));
+    assertFalse(configuration.flags.containsKey("null-rule"));
     assertTrue(configuration.flags.containsKey("no-rules"));
     assertTrue(configuration.flags.containsKey("no-conditions"));
-    assertTrue(configuration.flags.containsKey("no-operator"));
+    assertFalse(configuration.flags.containsKey("no-operator"));
     assertTrue(configuration.flags.containsKey("non-semver"));
     assertTrue(configuration.flags.containsKey("valid-semver"));
     assertFalse(configuration.flags.containsKey("invalid-semver"));
     assertFalse(configuration.flags.containsKey("non-string-semver"));
     assertFalse(configuration.flags.containsKey("null-flag"));
-    assertEquals(2, configuration.invalidFlags.size());
+    assertEquals(6, configuration.invalidFlags.size());
+    assertEquals("invalid_flag", configuration.invalidFlags.get("null-flag"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("null-split"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("null-rule"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("no-operator"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("non-string-semver"));
 
@@ -158,6 +164,55 @@ class JsonApiUfcResponseParserTest {
     assertFalse(configuration.flags.containsKey("missing-shards"));
     assertTrue(configuration.flags.containsKey("valid-sibling"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("missing-shards"));
+  }
+
+  @Test
+  void preservesUnsigned32BitShardRangeBounds() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "unsigned-shard-range",
+                        ",\"allocations\":[{\"key\":\"unsigned-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":4294967295,\"ranges\":[{\"start\":2147483648,\"end\":4294967295}]}]}]}]"),
+                    booleanFlag(
+                        "overflow-shard-range",
+                        ",\"allocations\":[{\"key\":\"overflow-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":4294967295,\"ranges\":[{\"start\":0,\"end\":4294967296}]}]}]}]"),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertTrue(configuration.flags.containsKey("unsigned-shard-range"));
+    assertEquals(
+        2147483648L,
+        configuration
+            .flags
+            .get("unsigned-shard-range")
+            .allocations
+            .get(0)
+            .splits
+            .get(0)
+            .shards
+            .get(0)
+            .ranges
+            .get(0)
+            .start);
+    assertEquals(
+        4294967295L,
+        configuration
+            .flags
+            .get("unsigned-shard-range")
+            .allocations
+            .get(0)
+            .splits
+            .get(0)
+            .shards
+            .get(0)
+            .ranges
+            .get(0)
+            .end);
+    assertFalse(configuration.flags.containsKey("overflow-shard-range"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("overflow-shard-range"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
   }
 
   @Test

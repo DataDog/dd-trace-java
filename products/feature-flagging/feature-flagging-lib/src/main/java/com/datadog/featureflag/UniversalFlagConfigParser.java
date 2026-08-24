@@ -40,6 +40,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
+  private static final long MAX_UNSIGNED_INT = 0xFFFFFFFFL;
 
   /**
    * Side-channel for tracking flags that failed semver comparand validation during parsing. Cleared
@@ -117,7 +118,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains an invalid shard");
           }
           for (final ShardRange range : shard.ranges) {
-            if (range == null || range.start < 0 || range.end < 0) {
+            if (range == null
+                || range.start < 0
+                || range.start > MAX_UNSIGNED_INT
+                || range.end < 0
+                || range.end > MAX_UNSIGNED_INT) {
               throw new InvalidFlagException(
                   "flag \"" + flagKey + "\" contains an invalid shard range");
             }
@@ -135,6 +140,9 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         continue;
       }
       for (final Rule rule : allocation.rules) {
+        if (rule == null) {
+          throw new InvalidFlagException("flag \"" + flagKey + "\" contains a null rule");
+        }
         if (rule.conditions == null) {
           continue;
         }
@@ -191,7 +199,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         continue;
       }
       for (final Rule rule : allocation.rules) {
-        if (rule.conditions == null) {
+        if (rule == null || rule.conditions == null) {
           continue;
         }
         for (final ConditionConfiguration condition : rule.conditions) {

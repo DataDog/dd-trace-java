@@ -894,7 +894,7 @@ public class DDEvaluatorTest {
           continue;
         }
         for (final Rule rule : allocation.rules) {
-          if (rule.conditions == null) {
+          if (rule == null || rule.conditions == null) {
             continue;
           }
           for (final ConditionConfiguration condition : rule.conditions) {
@@ -956,7 +956,11 @@ public class DDEvaluatorTest {
               return true;
             }
             for (final ShardRange range : shard.ranges) {
-              if (range == null || range.start < 0 || range.end < 0) {
+              if (range == null
+                  || range.start < 0
+                  || range.start > 0xFFFFFFFFL
+                  || range.end < 0
+                  || range.end > 0xFFFFFFFFL) {
                 return true;
               }
             }
@@ -965,8 +969,8 @@ public class DDEvaluatorTest {
       }
       if (allocation.rules != null) {
         for (final Rule rule : allocation.rules) {
-          if (rule.conditions == null) {
-            continue;
+          if (rule == null || rule.conditions == null) {
+            return true;
           }
           for (final ConditionConfiguration condition : rule.conditions) {
             if (condition == null || condition.operator == null) {
