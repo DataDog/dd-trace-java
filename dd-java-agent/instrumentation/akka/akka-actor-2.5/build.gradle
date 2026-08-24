@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 def akkaVersion = '2.5.0'
 def scalaVersion = '2.11'
@@ -12,7 +15,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuite('akka23Test')

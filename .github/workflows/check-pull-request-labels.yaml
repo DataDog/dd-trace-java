@@ -22,8 +22,8 @@ jobs:
         with:
           scope: DataDog/dd-trace-java
           policy: self.check-pull-request-labels
-      - name: Flag AI-generated pull requests
-        id: flag_ai_generated
+      - name: Clean up tool labels
+        id: clean_up_labels
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
@@ -35,101 +35,102 @@ jobs:
             const prNumber = context.payload.pull_request.number
             const owner = context.repo.owner
             const repo = context.repo.repo
-            const aiGeneratedLabel = 'tag: ai generated'
-            let isAiGenerated = false
-            let labelsStale = false
-
-            /*
-             * Check for 'Bits AI' label and remove it.
-             */
-            const bitsAiLabel = 'Bits AI'
+            // Labels applied by external tooling that are never allowed on a pull request
+            const toolLabels = [
+              'Bits AI',                    // Applied by the Bits AI tooling
+              'campaigner-automated-change' // Applied by the Campaigner tooling
+            ]
             const prLabels = context.payload.pull_request.labels.map(l => l.name)
-            if (prLabels.includes(bitsAiLabel)) {
-              isAiGenerated = true
+            const cleanedLabels = toolLabels.filter(label => prLabels.includes(label))
+            for (const label of cleanedLabels) {
               // Remove label from the PR
               try {
                 await github.rest.issues.removeLabel({
                   owner, repo,
                   issue_number: prNumber,
-                  name: bitsAiLabel
+                  name: label
                 })
               } catch (e) {
-                core.warning(`Could not remove '${bitsAiLabel}' label from PR: ${e.message}`)
+                core.warning(`Could not remove '${label}' label from PR: ${e.message}`)
               }
-              labelsStale = true
-              // Delete label from the repository
+              // Delete label from the repository as the tooling applying it also recreates it
               try {
-                await github.rest.issues.deleteLabel({ owner, repo, name: bitsAiLabel })
+                await github.rest.issues.deleteLabel({ owner, repo, name: label })
               } catch (e) {
-                core.warning(`Could not delete '${bitsAiLabel}' label from repo: ${e.message}`)
+                core.warning(`Could not delete '${label}' label from repo: ${e.message}`)
               }
             }
+            core.setOutput('cleaned_labels', JSON.stringify(cleanedLabels))
 
-            /*
-             * Inspect commits for AI authorship signals.
-             */
-            if (context.payload.pull_request.labels.some(l => l.name === aiGeneratedLabel)) {
-              core.info(`PR #${prNumber} is already labeled as AI-generated, skipping commit scan.`)
-              core.setOutput('labels_stale', String(labelsStale))
+      - name: Flag AI-generated pull requests
+        id: flag_ai_generated
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
+        env:
+          CLEANED_LABELS: ${{ steps.clean_up_labels.outputs.cleaned_labels }}
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          script: |
+            // Skip draft pull requests
+            if (context.payload.pull_request.draft) {
               return
             }
-            const aiRegex = /\b(anthropic|chatgpt|codex|copilot|cursor|openai)\b/i
-            const commits = await github.paginate(github.rest.pulls.listCommits, {
-              owner, repo,
-              pull_number: prNumber,
-              per_page: 100
-            })
-            for (const { commit } of commits) {
-              const authorName = commit.author?.name ?? ''
-              const authorEmail = commit.author?.email ?? ''
-              const committerName = commit.committer?.name ?? ''
-              const committerEmail = commit.committer?.email ?? ''
-              // Extract Co-authored-by trailer lines from commit message
-              const coAuthors = (commit.message ?? '').split('\n')
-                .filter(line => /^co-authored-by:/i.test(line.trim()))
-              const fieldsToCheck = [authorName, authorEmail]
-              // Skip GitHub's generic noreply for committer
-              if (committerEmail !== 'noreply@github.com') {
-                fieldsToCheck.push(committerName, committerEmail)
-              }
-              fieldsToCheck.push(...coAuthors)
-              if (fieldsToCheck.some(field => aiRegex.test(field))) {
-                isAiGenerated = true
-                break
-              }
+            const prNumber = context.payload.pull_request.number
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            // Skip if the PR is already labeled as AI-generated
+            const aiGeneratedLabel = 'tag: ai generated'
+            if (context.payload.pull_request.labels.some(l => l.name === aiGeneratedLabel)) {
+              core.info(`PR #${prNumber} is already labeled as AI-generated, skipping commit scan.`)
+              return
             }
-
-            /*
-             * Add 'tag: ai generated' label if AI-generated.
-             */
-            if (isAiGenerated) {
-              // Re-fetch labels only if they were modified above (Bits AI removal)
-              let currentLabels
-              if (labelsStale) {
-                const { data: currentPr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber })
-                currentLabels = currentPr.labels.map(l => l.name)
-              } else {
-                currentLabels = context.payload.pull_request.labels.map(l => l.name)
-              }
-              if (!currentLabels.includes(aiGeneratedLabel)) {
-                try {
-                  await github.rest.issues.addLabels({
-                    owner, repo,
-                    issue_number: prNumber,
-                    labels: [aiGeneratedLabel]
-                  })
-                  core.info(`Added '${aiGeneratedLabel}' label to PR #${prNumber}`)
-                } catch (e) {
-                  core.setFailed(`Could not add '${aiGeneratedLabel}' label to PR #${prNumber}: ${e.message}`)
+            // The cleaned up 'Bits AI' label flags an AI-generated pull request
+            let isAiGenerated = JSON.parse(process.env.CLEANED_LABELS || '[]').includes('Bits AI')
+            // Inspect commits for AI authorship signals
+            if (!isAiGenerated) {
+              const aiRegex = /\b(anthropic|chatgpt|codex|copilot|cursor|openai)\b/i
+              const commits = await github.paginate(github.rest.pulls.listCommits, {
+                owner, repo,
+                pull_number: prNumber,
+                per_page: 100
+              })
+              for (const { commit } of commits) {
+                const authorName = commit.author?.name ?? ''
+                const authorEmail = commit.author?.email ?? ''
+                const committerName = commit.committer?.name ?? ''
+                const committerEmail = commit.committer?.email ?? ''
+                // Extract Co-authored-by trailer lines from commit message
+                const coAuthors = (commit.message ?? '').split('\n')
+                  .filter(line => /^co-authored-by:/i.test(line.trim()))
+                const fieldsToCheck = [authorName, authorEmail]
+                // Skip GitHub's generic noreply for committer
+                if (committerEmail !== 'noreply@github.com') {
+                  fieldsToCheck.push(committerName, committerEmail)
+                }
+                fieldsToCheck.push(...coAuthors)
+                if (fieldsToCheck.some(field => aiRegex.test(field))) {
+                  isAiGenerated = true
+                  break
                 }
               }
             }
-            core.setOutput('labels_stale', String(labelsStale))
+            // Add 'tag: ai generated' label if AI-generated
+            if (isAiGenerated) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner, repo,
+                  issue_number: prNumber,
+                  labels: [aiGeneratedLabel]
+                })
+                core.info(`Added '${aiGeneratedLabel}' label to PR #${prNumber}`)
+              } catch (e) {
+                core.setFailed(`Could not add '${aiGeneratedLabel}' label to PR #${prNumber}: ${e.message}`)
+              }
+            }
 
       - name: Check pull request labels
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
         env:
-          LABELS_STALE: ${{ steps.flag_ai_generated.outputs.labels_stale }}
+          CLEANED_LABELS: ${{ steps.clean_up_labels.outputs.cleaned_labels }}
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
           script: |
@@ -143,19 +144,12 @@ jobs:
               'comp:',
               'inst:',
               'tag:',
-              'mergequeue-status:',
-              'team:',
               'performance:',  // To refactor to 'ci: ' in the future
               'run-tests:'     // Unused since GitLab migration
             ]
-            // Exact-match labels that don't fit a category prefix (e.g. labels applied
-            // by external automation tooling).
-            const exactAllowlist = [
-              'campaigner-automated-change'
-            ]
-            // Re-fetch labels only if the previous step modified them (ex: "Bits AI" removal)
+            // Re-fetch labels only if the clean up step removed some of them
             let prLabels
-            if (process.env.LABELS_STALE === 'true') {
+            if (JSON.parse(process.env.CLEANED_LABELS || '[]').length > 0) {
               const { data: currentPr } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -168,10 +162,7 @@ jobs:
             // Look for invalid labels
             const invalidLabels = prLabels
               .map(label => label.name)
-              .filter(label =>
-                !exactAllowlist.includes(label) &&
-                validCategories.every(prefix => !label.startsWith(prefix))
-              )
+              .filter(label => validCategories.every(prefix => !label.startsWith(prefix)))
             const hasInvalidLabels = invalidLabels.length > 0
             // Get existing comments to check for blocking comment
             const comments = await github.rest.issues.listComments({

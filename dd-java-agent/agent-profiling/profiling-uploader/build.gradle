@@ -1,8 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
+
 // Set properties before any plugins get loaded
 ext {
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.80
 
@@ -41,4 +43,3 @@ dependencies {
   testImplementation libs.jackson.databind
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
-

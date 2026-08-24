@@ -13,13 +13,21 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.BuildTask;
 import org.gradle.testkit.runner.GradleRunner;
@@ -42,6 +50,12 @@ import org.tabletest.junit.TypeConverterSources;
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service";
+  private static final Path GRADLE_DAEMON_DIAGNOSTICS_DIR =
+      Paths.get(
+          System.getProperty("datadog.smoketest.builddir", "build"),
+          "reports",
+          "gradle-daemon-diagnostics");
+  private static final Pattern DAEMON_LOG_PATTERN = Pattern.compile("daemon-(.+)\\.out\\.log");
 
   // Gradle's default timeout is 10s
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000;
@@ -346,6 +360,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     effectiveAdditionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
     List<String> arguments =
         buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, effectiveAdditionalArgs);
+    addCrashDiagnostics(arguments);
 
     String gradleProperties = "org.gradle.jvmargs=" + String.join(" ", arguments);
     // Write to projectFolder (per-test) instead of testKitFolder (shared), so each
@@ -430,20 +445,168 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     try {
       return successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
     } catch (Exception e) {
-      Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
-      Path daemonLog =
-          Files.exists(daemonLogDir)
-              ? Files.list(daemonLogDir)
-                  .filter(p -> p.toString().endsWith("log"))
-                  .findAny()
-                  .orElse(null)
-              : null;
-      if (daemonLog != null) {
-        System.out.println("==============================================================");
-        System.out.println("Gradle Daemon log:\n" + new String(Files.readAllBytes(daemonLog)));
-        System.out.println("==============================================================");
+      try {
+        collectDaemonDiagnostics(gradleVersion, e);
+      } catch (Exception diagnosticsError) {
+        System.err.println("Failed to collect Gradle daemon diagnostics: " + diagnosticsError);
       }
       throw new RuntimeException(e);
+    }
+  }
+
+  private static void addCrashDiagnostics(List<String> arguments) {
+    try {
+      Files.createDirectories(GRADLE_DAEMON_DIAGNOSTICS_DIR);
+      if (JavaVirtualMachine.isJ9()) {
+        arguments.add("-Xdump:directory=" + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath());
+      } else {
+        arguments.add(
+            "-XX:ErrorFile="
+                + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath()
+                + "/hs_err_pid%p.log");
+      }
+    } catch (IOException e) {
+      System.err.println("Failed to configure Gradle daemon crash diagnostics: " + e);
+    }
+  }
+
+  private void collectDaemonDiagnostics(String gradleVersion, Exception failure)
+      throws IOException {
+    Path failureDir =
+        GRADLE_DAEMON_DIAGNOSTICS_DIR.resolve(
+            gradleVersion + "-" + projectFolder.getFileName().toString());
+    Files.createDirectories(failureDir);
+
+    List<String> summary = new ArrayList<>();
+    Throwable cause = failure;
+    int causeIndex = 0;
+    while (cause != null) {
+      String message = cause.getMessage();
+      int lineBreak = message != null ? message.indexOf('\n') : -1;
+      if (lineBreak >= 0) {
+        message = message.substring(0, lineBreak);
+      }
+      summary.add("failure[" + causeIndex++ + "]=" + cause.getClass().getName() + ": " + message);
+      cause = cause.getCause();
+    }
+    summary.add("gradleVersion=" + gradleVersion);
+
+    Path cgroupMembership = Paths.get("/proc/self/cgroup");
+    Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
+    Path daemonLog = newestDaemonLog(daemonLogDir);
+    if (daemonLog != null) {
+      copyIfExists(daemonLog, failureDir.resolve(daemonLog.getFileName()), summary);
+      summary.add("daemonLog=" + daemonLog);
+
+      Matcher matcher = DAEMON_LOG_PATTERN.matcher(daemonLog.getFileName().toString());
+      if (matcher.matches()) {
+        String daemonIdentifier = matcher.group(1);
+        summary.add("daemonIdentifier=" + daemonIdentifier);
+        if (daemonIdentifier.matches("\\d+")) {
+          summary.add("daemonPid=" + daemonIdentifier);
+          Path procRoot = Paths.get("/proc");
+          if (Files.isDirectory(procRoot)) {
+            Path processDir = procRoot.resolve(daemonIdentifier);
+            summary.add("daemonProcessPresent=" + Files.isDirectory(processDir));
+            copyIfExists(processDir.resolve("status"), failureDir.resolve("proc-status"), summary);
+            copyIfExists(processDir.resolve("limits"), failureDir.resolve("proc-limits"), summary);
+            Path daemonCgroupMembership = processDir.resolve("cgroup");
+            copyIfExists(daemonCgroupMembership, failureDir.resolve("proc-cgroup"), summary);
+            if (Files.isRegularFile(daemonCgroupMembership)) {
+              cgroupMembership = daemonCgroupMembership;
+            }
+          } else {
+            summary.add("daemonProcessPresent=unknown");
+          }
+        }
+      }
+
+      try {
+        System.out.println("==============================================================");
+        System.out.println(
+            "Gradle Daemon log:\n"
+                + new String(Files.readAllBytes(daemonLog), StandardCharsets.UTF_8));
+        System.out.println("==============================================================");
+      } catch (IOException e) {
+        summary.add("daemonLogReadFailed=" + e);
+      }
+    } else {
+      summary.add("daemonLog=not found");
+    }
+
+    summary.add("cgroupMembership=" + cgroupMembership);
+    Path cgroupDirectory = resolveCgroupV2Directory(cgroupMembership, summary);
+    summary.add("cgroupDirectory=" + cgroupDirectory);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.events"),
+        failureDir.resolve("cgroup-memory.events"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.current"),
+        failureDir.resolve("cgroup-memory.current"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("memory.peak"), failureDir.resolve("cgroup-memory.peak"), summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.events"), failureDir.resolve("cgroup-pids.events"), summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.current"),
+        failureDir.resolve("cgroup-pids.current"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.max"), failureDir.resolve("cgroup-pids.max"), summary);
+
+    Files.write(failureDir.resolve("summary.txt"), summary, StandardCharsets.UTF_8);
+    System.out.println("Gradle daemon diagnostics written to " + failureDir);
+  }
+
+  private static Path resolveCgroupV2Directory(Path cgroupMembership, List<String> summary) {
+    Path cgroupRoot = Paths.get("/sys/fs/cgroup");
+    if (!Files.isRegularFile(cgroupMembership)) {
+      return cgroupRoot;
+    }
+
+    try {
+      for (String line : Files.readAllLines(cgroupMembership, StandardCharsets.UTF_8)) {
+        if (line.startsWith("0::")) {
+          String relativePath = line.substring(3);
+          if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+          }
+          Path cgroupDirectory = cgroupRoot.resolve(relativePath);
+          if (Files.isDirectory(cgroupDirectory)) {
+            return cgroupDirectory;
+          }
+          summary.add("cgroupDirectoryNotFound=" + cgroupDirectory);
+          break;
+        }
+      }
+    } catch (IOException e) {
+      summary.add("cgroupMembershipReadFailed[" + cgroupMembership + "]=" + e);
+    }
+    return cgroupRoot;
+  }
+
+  private static Path newestDaemonLog(Path daemonLogDir) throws IOException {
+    if (!Files.isDirectory(daemonLogDir)) {
+      return null;
+    }
+    try (Stream<Path> daemonLogs = Files.list(daemonLogDir)) {
+      return daemonLogs
+          .filter(path -> DAEMON_LOG_PATTERN.matcher(path.getFileName().toString()).matches())
+          .max(Comparator.comparingLong(path -> path.toFile().lastModified()))
+          .orElse(null);
+    }
+  }
+
+  private static void copyIfExists(Path source, Path destination, List<String> summary) {
+    if (!Files.exists(source)) {
+      return;
+    }
+    try {
+      Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      summary.add("copyFailed[" + source + "]=" + e);
     }
   }
 
