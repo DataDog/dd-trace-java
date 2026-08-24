@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.springframework.boot'
@@ -11,8 +15,6 @@ muzzle {
     javaVersion = "17"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir("boot1LatestDepTest", "test")
 addTestSuiteForDir("boot2Test", "test")

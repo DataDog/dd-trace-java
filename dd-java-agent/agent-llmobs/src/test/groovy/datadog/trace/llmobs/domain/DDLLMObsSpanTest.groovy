@@ -59,9 +59,12 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
   // internal tags to be prefixed
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input"
+  private static final String INPUT_PROMPT = LLMOBS_TAG_PREFIX + "input_prompt"
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
+  private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
+  LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method"
 
 
   def "test span simple"() {
@@ -336,6 +339,199 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+  }
+
+  def "test llm span with prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def messages = [LLMObs.LLMMessage.from("user", "What is the weather in Paris?")]
+    def prompt = LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .version("1.0.0")
+      .template("What is the weather in {{city}}?")
+      .variables([city: "Paris"])
+      .tags([team: "weather"])
+      .contextVariables(["forecast"])
+      .queryVariables(["city"])
+      .build()
+    test.annotateIO(messages, null)
+
+    when:
+    test.annotatePrompt(prompt)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT) == messages
+    innerSpan.getTag(INPUT_PROMPT) == [
+      id: "weather-prompt",
+      version: "1.0.0",
+      template: "What is the weather in {{city}}?",
+      variables: [city: "Paris"],
+      tags: [team: "weather"],
+      _dd_context_variable_keys: ["forecast"],
+      _dd_query_variable_keys: ["city"]
+    ]
+    innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == "annotated"
+  }
+
+  def "test llm span with chat prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def chatTemplate = [
+      LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+      LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?")
+    ]
+    def prompt = LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .template(chatTemplate)
+      .build()
+
+    when:
+    test.annotatePrompt(prompt)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT_PROMPT) == [
+      id: "weather-prompt",
+      chat_template: [
+        [role: "system", content: "You are a weather assistant."],
+        [role: "user", content: "What is the weather in {{city}}?"]
+      ],
+      _dd_context_variable_keys: ["context"],
+      _dd_query_variable_keys: ["question"]
+    ]
+  }
+
+  def "input messages added after a prompt preserve the prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def prompt = LLMObs.Prompt.builder().id("weather-prompt").build()
+    def messages = [LLMObs.LLMMessage.from("user", "What is the weather?")]
+    test.annotatePrompt(prompt)
+
+    when:
+    test.annotateIO(messages, null)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT_PROMPT).id == "weather-prompt"
+    innerSpan.getTag(INPUT) == messages
+  }
+
+  def "prompt annotations merge with prior prompt attributes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(
+      LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .template("Weather in {{city}}")
+      .variables([city: "Paris"])
+      .build())
+
+    when:
+    test.annotatePrompt(
+      LLMObs.Prompt.builder()
+      .version("2.0.0")
+      .tags([team: "weather"])
+      .build())
+
+    then:
+    def prompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    prompt.id == "weather-prompt"
+    prompt.version == "2.0.0"
+    prompt.template == "Weather in {{city}}"
+    prompt.variables == [city: "Paris"]
+    prompt.tags == [team: "weather"]
+  }
+
+  def "later prompt template replaces the prior template representation"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Weather in {{city}}").build())
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template([LLMObs.LLMMessage.from("user", "Weather in {{city}}")]).build())
+
+    then:
+    def chatPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    chatPrompt.template == null
+    chatPrompt.chat_template == [[role: "user", content: "Weather in {{city}}"]]
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Forecast for {{city}}").build())
+
+    then:
+    def textPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    textPrompt.template == "Forecast for {{city}}"
+    textPrompt.chat_template == null
+  }
+
+  def "prompt without an id uses the ml app default"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Hello").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+  }
+
+  def "empty prompt id is treated as missing"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("weather-prompt").build())
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").version("2.0.0").build())
+
+    then:
+    def prompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    prompt.id == "weather-prompt"
+    prompt.version == "2.0.0"
+  }
+
+  def "prompts are ignored on non-LLM spans"() {
+    setup:
+    def test = llmObsSpan(spanKind, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("weather-prompt").build())
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT) == null
+    innerSpan.getTag(INPUT_PROMPT) == null
+    innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == null
+
+    where:
+    spanKind << [
+      Tags.LLMOBS_AGENT_SPAN_KIND,
+      Tags.LLMOBS_TOOL_SPAN_KIND,
+      Tags.LLMOBS_TASK_SPAN_KIND,
+      Tags.LLMOBS_WORKFLOW_SPAN_KIND,
+      Tags.LLMOBS_EMBEDDING_SPAN_KIND,
+      Tags.LLMOBS_RETRIEVAL_SPAN_KIND
+    ]
+  }
+
+  def "prompts cannot be annotated after the span finishes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(LLMObs.Prompt.builder().id("first").build())
+    test.finish()
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("second").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "first"
   }
 
   def "test llm span with tool definitions"() {

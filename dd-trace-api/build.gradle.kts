@@ -1,16 +1,13 @@
 plugins {
-  `java-library`
+  id("dd-trace-java.module.distributable.api")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/publish.gradle")
+val minimumBranchCoverage by extra(0.8)
 
 configure<datadog.gradle.plugin.jardiff.JardiffExtension> {
   // jar is not cacheable, and may differ
   ignoreHashCheck = true
 }
-
-extra["minimumBranchCoverage"] = 0.8
 
 // These are tested outside of this module since this module mainly just defines 'API'
 extra["excludedClassesCoverage"] = listOf(
@@ -56,6 +53,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.llmobs.LLMObs.ToolCall",
   "datadog.trace.api.llmobs.LLMObs.ToolResult",
   "datadog.trace.api.llmobs.LLMObsSpan",
+  "datadog.trace.api.llmobs.LLMObsSpanData",
+  "datadog.trace.api.llmobs.LLMObsSpanProcessor",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpan",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor",
