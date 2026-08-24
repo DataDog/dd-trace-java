@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'ognl'
@@ -5,8 +9,6 @@ muzzle {
     versions = '[2.1.4,)'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'ognl', name: 'ognl', version: '3.3.2'

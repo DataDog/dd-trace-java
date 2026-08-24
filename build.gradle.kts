@@ -12,9 +12,9 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
   id("me.champeau.gradle.japicmp") version "0.4.3"
-  id("com.github.spotbugs") version "6.5.6"
+  id("com.github.spotbugs") version "6.5.10"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   alias(libs.plugins.shadow) apply false
@@ -39,24 +39,23 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   java {
     removeUnusedImports()
 
-    googleJavaFormat("1.35.0")
-    tableTestFormatter("1.1.1")
+    googleJavaFormat(libs.versions.google.java.format.get())
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
-    greclipse()
+    greclipse(libs.versions.greclipse.get())
   }
   groovy {
-    greclipse()
+    greclipse(libs.versions.greclipse.get())
   }
   kotlinGradle {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   kotlin {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   scala {
-    // TODO: For some reason Scala format is working correctly with this version only.
-    scalafmt("3.8.6")
+    scalafmt(libs.versions.scalafmt.get())
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))

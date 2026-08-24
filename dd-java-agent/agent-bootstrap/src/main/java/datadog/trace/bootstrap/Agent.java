@@ -524,14 +524,16 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
+    // Before telemetry: the feature flagging writers queue drop/degradation metrics during their
+    // final flush, and only a still-running telemetry worker can drain and transmit them.
+    if (featureFlaggingEnabled) {
+      shutdownFeatureFlagging(AGENT_CLASSLOADER);
+    }
     if (telemetryEnabled) {
       stopTelemetry();
     }
     if (flareEnabled) {
       stopFlarePoller();
-    }
-    if (featureFlaggingEnabled) {
-      shutdownFeatureFlagging(AGENT_CLASSLOADER);
     }
 
     if (agentlessLogSubmissionEnabled) {
