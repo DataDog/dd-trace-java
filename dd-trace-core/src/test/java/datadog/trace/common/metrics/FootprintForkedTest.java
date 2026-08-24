@@ -22,11 +22,11 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.openjdk.jol.info.GraphLayout;
 import org.tabletest.junit.TableTest;
 
-@DisabledIfSystemProperty(named = "java.vendor", matches = "(?i).*IBM.*")
+@DisabledIf("datadog.environment.JavaVirtualMachine#isIbm")
 class FootprintForkedTest {
 
   private static final Random RANDOM = new Random(0);
