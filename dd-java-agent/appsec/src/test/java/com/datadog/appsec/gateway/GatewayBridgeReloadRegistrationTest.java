@@ -1,10 +1,13 @@
 package com.datadog.appsec.gateway;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.data.Address;
@@ -56,6 +59,43 @@ class GatewayBridgeReloadRegistrationTest {
         GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()));
 
     assertNotNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
+  }
+
+  @Test
+  void consecutiveReloadsDoNotRegisterCallbacksTwice() {
+    // startup: no ruleset requires the conditional addresses
+    producerService.subscribedAddresses = emptyList();
+    bridge.init();
+
+    // reload: the new ruleset requires request path params and the request body object
+    producerService.subscribedAddresses =
+        asList(KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT);
+    reload();
+
+    Object pathParamsCallback = callbackProvider.getCallback(EVENTS.requestPathParams());
+    Object bodyProcessedCallback = callbackProvider.getCallback(EVENTS.requestBodyProcessed());
+    assertNotNull(pathParamsCallback);
+    assertNotNull(bodyProcessedCallback);
+
+    // AppSec triggers the reload twice per Remote Config update (WAFModule and
+    // AppSecConfigServiceImpl), this time with a growing address set
+    producerService.subscribedAddresses =
+        asList(
+            KnownAddresses.REQUEST_PATH_PARAMS,
+            KnownAddresses.REQUEST_BODY_OBJECT,
+            KnownAddresses.REQUEST_FILES_FILENAMES);
+    assertDoesNotThrow(this::reload);
+
+    // already registered callbacks are left untouched, the new one is registered
+    assertSame(pathParamsCallback, callbackProvider.getCallback(EVENTS.requestPathParams()));
+    assertSame(bodyProcessedCallback, callbackProvider.getCallback(EVENTS.requestBodyProcessed()));
+    assertNotNull(callbackProvider.getCallback(EVENTS.requestFilesFilenames()));
+    assertNull(callbackProvider.getCallback(EVENTS.requestFilesContent()));
+  }
+
+  private void reload() {
+    bridge.registerAdditionalIGCallbacksIfNeeded(
+        GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()));
   }
 
   /**
