@@ -55,7 +55,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public void handleException(Throwable t, AgentSpan span) {
     if (!shouldHandleException(t, span)) {
       if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling error: {}", t.toString());
+        LOGGER.debug("Skip handling exception: {}", t.toString());
       }
       return;
     }
