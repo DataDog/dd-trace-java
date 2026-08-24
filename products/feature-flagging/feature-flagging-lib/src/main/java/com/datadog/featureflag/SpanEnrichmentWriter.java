@@ -46,12 +46,8 @@ public final class SpanEnrichmentWriter
 
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 
-  // The one instance used by the agent. Persisting it across FeatureFlaggingSystem start/stop keeps
-  // the single registered interceptor (and its state) alive, so a restart never re-registers.
-  private static final SpanEnrichmentWriter INSTANCE = new SpanEnrichmentWriter();
-
   public static SpanEnrichmentWriter getInstance() {
-    return INSTANCE;
+    return SingletonHolder.INSTANCE;
   }
 
   /**
@@ -84,6 +80,12 @@ public final class SpanEnrichmentWriter
 
   private static final InterceptorRegistrar DEFAULT_REGISTRAR =
       interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor);
+
+  private static final class SingletonHolder {
+    // Persisting this instance across FeatureFlaggingSystem start/stop keeps the single registered
+    // interceptor (and its state) alive, so a restart never re-registers.
+    private static final SpanEnrichmentWriter INSTANCE = new SpanEnrichmentWriter();
+  }
 
   private final RootSpanResolver rootSpanResolver;
   private final InterceptorRegistrar registrar;
@@ -192,5 +194,13 @@ public final class SpanEnrichmentWriter
 
   SpanEnrichmentInterceptor interceptor() {
     return interceptor;
+  }
+
+  RootSpanResolver rootSpanResolver() {
+    return rootSpanResolver;
+  }
+
+  InterceptorRegistrar registrar() {
+    return registrar;
   }
 }
