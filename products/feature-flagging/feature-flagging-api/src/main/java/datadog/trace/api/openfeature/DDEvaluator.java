@@ -454,9 +454,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final long assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+    final long assignedShard = getShard(shard.salt, targetingKey, shard.unsignedTotalShards());
     for (final ShardRange range : shard.ranges) {
-      if (assignedShard >= range.start && assignedShard < range.end) {
+      if (assignedShard >= range.unsignedStart() && assignedShard < range.unsignedEnd()) {
         return true;
       }
     }

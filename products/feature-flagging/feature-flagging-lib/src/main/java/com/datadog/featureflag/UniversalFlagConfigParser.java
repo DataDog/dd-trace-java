@@ -23,6 +23,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,8 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       new Moshi.Builder()
           .add(Instant.class, new InstantAdapter())
           .add(AllocationAdapter.FACTORY)
+          .add(ShardAdapter.FACTORY)
+          .add(ShardRangeAdapter.FACTORY)
           .add(FlagMapAdapter.FACTORY)
           .add(LenientBooleanAdapter.FACTORY)
           .build();
@@ -112,17 +115,15 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         }
         for (final Shard shard : split.shards) {
           if (shard == null
-              || shard.totalShards <= 0
-              || shard.totalShards > 0xFFFFFFFFL
+              || shard.unsignedTotalShards() == 0
+              || shard.unsignedTotalShards() > MAX_UNSIGNED_INT
               || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains an invalid shard");
           }
           for (final ShardRange range : shard.ranges) {
             if (range == null
-                || range.start < 0
-                || range.start > MAX_UNSIGNED_INT
-                || range.end < 0
-                || range.end > MAX_UNSIGNED_INT) {
+                || range.unsignedStart() > MAX_UNSIGNED_INT
+                || range.unsignedEnd() > MAX_UNSIGNED_INT) {
               throw new InvalidFlagException(
                   "flag \"" + flagKey + "\" contains an invalid shard range");
             }
@@ -325,6 +326,137 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         throws IOException {
       throw new UnsupportedOperationException("Reading only adapter");
     }
+  }
+
+  /**
+   * Preserves the binary-compatible {@code int} representation of shard values while accepting
+   * their unsigned 32-bit JSON form.
+   */
+  static final class ShardAdapter extends JsonAdapter<Shard> {
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || type != Shard.class) {
+              return null;
+            }
+            return new ShardAdapter(moshi.adapter(ShardRange.class));
+          }
+        };
+
+    private final JsonAdapter<ShardRange> rangeAdapter;
+
+    ShardAdapter(final JsonAdapter<ShardRange> rangeAdapter) {
+      this.rangeAdapter = rangeAdapter;
+    }
+
+    @Nullable
+    @Override
+    public Shard fromJson(@Nonnull final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      String salt = null;
+      List<ShardRange> ranges = null;
+      int totalShards = 0;
+      reader.beginObject();
+      while (reader.hasNext()) {
+        switch (reader.nextName()) {
+          case "salt":
+            salt = reader.peek() == JsonReader.Token.NULL ? reader.nextNull() : reader.nextString();
+            break;
+          case "ranges":
+            if (reader.peek() == JsonReader.Token.NULL) {
+              ranges = reader.nextNull();
+              break;
+            }
+            ranges = new ArrayList<>();
+            reader.beginArray();
+            while (reader.hasNext()) {
+              ranges.add(rangeAdapter.fromJson(reader));
+            }
+            reader.endArray();
+            break;
+          case "totalShards":
+            totalShards = readUnsignedInt(reader, "totalShards");
+            break;
+          default:
+            reader.skipValue();
+        }
+      }
+      reader.endObject();
+      return new Shard(salt, ranges, totalShards);
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Shard value)
+        throws IOException {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  /** Preserves the binary-compatible {@code int} representation of unsigned shard range bounds. */
+  static final class ShardRangeAdapter extends JsonAdapter<ShardRange> {
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || type != ShardRange.class) {
+              return null;
+            }
+            return new ShardRangeAdapter();
+          }
+        };
+
+    @Nullable
+    @Override
+    public ShardRange fromJson(@Nonnull final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      int start = 0;
+      int end = 0;
+      reader.beginObject();
+      while (reader.hasNext()) {
+        switch (reader.nextName()) {
+          case "start":
+            start = readUnsignedInt(reader, "start");
+            break;
+          case "end":
+            end = readUnsignedInt(reader, "end");
+            break;
+          default:
+            reader.skipValue();
+        }
+      }
+      reader.endObject();
+      return new ShardRange(start, end);
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final ShardRange value)
+        throws IOException {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static int readUnsignedInt(final JsonReader reader, final String field)
+      throws IOException {
+    final long value = reader.nextLong();
+    if (value < 0 || value > MAX_UNSIGNED_INT) {
+      throw new JsonDataException(field + " must be an unsigned 32-bit integer");
+    }
+    return (int) value;
   }
 
   /**

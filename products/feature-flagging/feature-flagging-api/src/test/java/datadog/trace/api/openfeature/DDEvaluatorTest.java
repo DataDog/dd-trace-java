@@ -61,6 +61,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -71,7 +73,11 @@ public class DDEvaluatorTest {
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
   private static final Moshi MOSHI =
-      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
+      new Moshi.Builder()
+          .add(Date.class, new DateAdapter())
+          .add(Shard.class, new UnsignedShardAdapter())
+          .add(FlagMapAdapter.FACTORY)
+          .build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
@@ -950,17 +956,15 @@ public class DDEvaluatorTest {
           }
           for (final Shard shard : split.shards) {
             if (shard == null
-                || shard.totalShards <= 0
-                || shard.totalShards > 0xFFFFFFFFL
+                || shard.unsignedTotalShards() == 0
+                || shard.unsignedTotalShards() > 0xFFFFFFFFL
                 || shard.ranges == null) {
               return true;
             }
             for (final ShardRange range : shard.ranges) {
               if (range == null
-                  || range.start < 0
-                  || range.start > 0xFFFFFFFFL
-                  || range.end < 0
-                  || range.end > 0xFFFFFFFFL) {
+                  || range.unsignedStart() > 0xFFFFFFFFL
+                  || range.unsignedEnd() > 0xFFFFFFFFL) {
                 return true;
               }
             }
@@ -1105,6 +1109,61 @@ public class DDEvaluatorTest {
     String errorCode;
     String variant;
     Map<String, Object> flagMetadata = emptyMap();
+  }
+
+  /**
+   * Parses unsigned 32-bit shard values into their binary-compatible {@code int} representation.
+   */
+  private static final class UnsignedShardAdapter extends JsonAdapter<Shard> {
+    @Nullable
+    @Override
+    @SuppressWarnings("unchecked")
+    public Shard fromJson(@Nonnull final JsonReader reader) throws IOException {
+      final Object rawShard = reader.readJsonValue();
+      if (rawShard == null) {
+        return null;
+      }
+      if (!(rawShard instanceof Map)) {
+        throw new JsonDataException("Shard must be an object");
+      }
+      final Map<String, Object> shard = (Map<String, Object>) rawShard;
+      final Object rawRanges = shard.get("ranges");
+      if (!(rawRanges instanceof List)) {
+        throw new JsonDataException("Shard ranges must be an array");
+      }
+      final List<ShardRange> ranges = new ArrayList<>();
+      for (final Object rawRange : (List<?>) rawRanges) {
+        if (!(rawRange instanceof Map)) {
+          throw new JsonDataException("Shard range must be an object");
+        }
+        final Map<String, Object> range = (Map<String, Object>) rawRange;
+        ranges.add(
+            new ShardRange(
+                unsignedInt(range.get("start"), "start"), unsignedInt(range.get("end"), "end")));
+      }
+      final Object rawSalt = shard.get("salt");
+      return new Shard(
+          rawSalt == null ? null : String.valueOf(rawSalt),
+          ranges,
+          unsignedInt(shard.get("totalShards"), "totalShards"));
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Shard value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+
+    private static int unsignedInt(final Object rawValue, final String field) {
+      if (!(rawValue instanceof Number)) {
+        throw new JsonDataException(field + " must be an unsigned 32-bit integer");
+      }
+      final Number number = (Number) rawValue;
+      final long value = number.longValue();
+      if (number.doubleValue() != value || value < 0 || value > 0xFFFFFFFFL) {
+        throw new JsonDataException(field + " must be an unsigned 32-bit integer");
+      }
+      return (int) value;
+    }
   }
 
   /** Reads the flags map with per-flag failure isolation, matching the production parser. */

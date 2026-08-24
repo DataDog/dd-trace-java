@@ -5,11 +5,15 @@ import java.util.List;
 public class Shard {
   public final String salt;
   public final List<ShardRange> ranges;
-  public final long totalShards;
+  public final int totalShards;
 
-  public Shard(final String salt, final List<ShardRange> ranges, final long totalShards) {
+  public Shard(final String salt, final List<ShardRange> ranges, final int totalShards) {
     this.salt = salt;
     this.ranges = ranges;
     this.totalShards = totalShards;
+  }
+
+  public long unsignedTotalShards() {
+    return Integer.toUnsignedLong(totalShards);
   }
 }

@@ -195,7 +195,7 @@ class JsonApiUfcResponseParserTest {
             .get(0)
             .ranges
             .get(0)
-            .start);
+            .unsignedStart());
     assertEquals(
         4294967295L,
         configuration
@@ -209,7 +209,7 @@ class JsonApiUfcResponseParserTest {
             .get(0)
             .ranges
             .get(0)
-            .end);
+            .unsignedEnd());
     assertFalse(configuration.flags.containsKey("overflow-shard-range"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("overflow-shard-range"));
     assertTrue(configuration.flags.containsKey("valid-sibling"));
