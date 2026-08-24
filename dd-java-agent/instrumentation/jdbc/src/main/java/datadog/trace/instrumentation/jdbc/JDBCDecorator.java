@@ -6,7 +6,10 @@ import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
