@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -102,9 +103,10 @@ public class ProviderTest {
   @Test
   public void testSetProviderAndWaitTimeoutRecoversWhenConfigurationArrives() throws Exception {
     final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    final Consumer<EventDetails> readyEventHandler = completingHandler(readyEvent);
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     final Client client = api.getClient();
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent::complete);
+    client.on(ProviderEvent.PROVIDER_READY, readyEventHandler);
 
     assertThrows(
         ProviderNotReadyError.class,
@@ -118,6 +120,7 @@ public class ProviderTest {
     final EventDetails eventDetails = readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
     assertThat(client.getProviderState(), equalTo(ProviderState.READY));
     assertThat(eventDetails.getProviderName(), equalTo(METADATA));
+    verify(readyEventHandler, times(1)).accept(any());
   }
 
   @Test
@@ -268,8 +271,11 @@ public class ProviderTest {
     final CompletableFuture<EventDetails> errorEvent = new CompletableFuture<>();
     final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
     final CompletableFuture<EventDetails> configChangedEvent = new CompletableFuture<>();
-    client.on(ProviderEvent.PROVIDER_ERROR, errorEvent::complete);
-    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent::complete);
+    final Consumer<EventDetails> errorEventHandler = completingHandler(errorEvent);
+    final Consumer<EventDetails> readyEventHandler = completingHandler(readyEvent);
+    final Consumer<EventDetails> configChangedEventHandler = completingHandler(configChangedEvent);
+    client.on(ProviderEvent.PROVIDER_ERROR, errorEventHandler);
+    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEventHandler);
 
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
     final EventDetails eventDetails = errorEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
@@ -280,13 +286,16 @@ public class ProviderTest {
     assertThat(evalDetails.getValue(), equalTo("default"));
     assertThat(evalDetails.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
 
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent::complete);
+    client.on(ProviderEvent.PROVIDER_READY, readyEventHandler);
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
     assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     configChangedEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    verify(errorEventHandler, times(1)).accept(any());
+    verify(readyEventHandler, times(1)).accept(any());
+    verify(configChangedEventHandler, times(1)).accept(any());
   }
 
   @Test
@@ -455,6 +464,20 @@ public class ProviderTest {
     stateField.setAccessible(true);
     final AtomicReference<?> state = (AtomicReference<?>) stateField.get(provider);
     return state.get().toString();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Consumer<EventDetails> completingHandler(
+      final CompletableFuture<EventDetails> event) {
+    final Consumer<EventDetails> handler = mock(Consumer.class);
+    doAnswer(
+            invocation -> {
+              event.complete(invocation.getArgument(0));
+              return null;
+            })
+        .when(handler)
+        .accept(any());
+    return handler;
   }
 
   private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
