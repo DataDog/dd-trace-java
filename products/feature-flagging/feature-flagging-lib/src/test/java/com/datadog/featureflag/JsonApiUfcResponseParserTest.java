@@ -216,6 +216,73 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void dropsFlagsWithInvalidNestedAllocationsShardsAndOperands() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag("null-allocation", ",\"allocations\":[null]"),
+                    booleanFlag(
+                        "zero-total-shards",
+                        ",\"allocations\":[{\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
+                    booleanFlag(
+                        "null-shard",
+                        ",\"allocations\":[{\"key\":\"null-shard\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[null]}]}]"),
+                    booleanFlag(
+                        "overflow-total-shards",
+                        ",\"allocations\":[{\"key\":\"overflow-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":4294967296,\"ranges\":[]}]}]}]"),
+                    booleanFlag(
+                        "missing-ranges",
+                        ",\"allocations\":[{\"key\":\"missing-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":1}]}]}]"),
+                    booleanFlag(
+                        "invalid-is-null",
+                        allocation(
+                            "invalid-is-null",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"IS_NULL\",\"value\":\"true\"}]}]")),
+                    booleanFlag(
+                        "invalid-one-of",
+                        allocation(
+                            "invalid-one-of",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"ONE_OF\",\"value\":\"1\"}]}]")),
+                    booleanFlag(
+                        "invalid-gte",
+                        allocation(
+                            "invalid-gte",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"GTE\",\"value\":\"1\"}]}]")),
+                    booleanFlag(
+                        "valid-is-null",
+                        allocation(
+                            "valid-is-null",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"IS_NULL\",\"value\":true}]}]")),
+                    booleanFlag(
+                        "valid-one-of",
+                        allocation(
+                            "valid-one-of",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"ONE_OF\",\"value\":[\"1\"]}]}]")),
+                    booleanFlag(
+                        "valid-gte",
+                        allocation(
+                            "valid-gte",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"GTE\",\"value\":1}]}]")),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("null-allocation"));
+    assertFalse(configuration.flags.containsKey("zero-total-shards"));
+    assertFalse(configuration.flags.containsKey("null-shard"));
+    assertFalse(configuration.flags.containsKey("overflow-total-shards"));
+    assertFalse(configuration.flags.containsKey("missing-ranges"));
+    assertFalse(configuration.flags.containsKey("invalid-is-null"));
+    assertFalse(configuration.flags.containsKey("invalid-one-of"));
+    assertFalse(configuration.flags.containsKey("invalid-gte"));
+    assertTrue(configuration.flags.containsKey("valid-is-null"));
+    assertTrue(configuration.flags.containsKey("valid-one-of"));
+    assertTrue(configuration.flags.containsKey("valid-gte"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals(8, configuration.invalidFlags.size());
+  }
+
+  @Test
   void nullAttributesAreRejectedWithoutInvokingTheFlagParser() throws Exception {
     assertNull(parse("{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":null}}"));
   }
