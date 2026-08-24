@@ -134,11 +134,18 @@ public class WriterFactory {
       }
     }
 
-    Writer remoteWriter;
+    RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
       final RemoteApi remoteApi =
           createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, trackType);
+
+      // In a serverless environment the execution environment can freeze as soon as the handler
+      // returns, before this writer's periodic flush timer next fires -- flush synchronously so
+      // buffered events (e.g. LLM Observability spans) aren't lost when that happens.
+      boolean alwaysFlush =
+          config.isAgentConfiguredUsingDefault()
+              && ServerlessInfo.get().isRunningInServerlessEnvironment();
 
       DDIntakeWriter.DDIntakeWriterBuilder builder =
           DDIntakeWriter.builder()
@@ -147,6 +154,7 @@ public class WriterFactory {
               .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
+              .alwaysFlush(alwaysFlush)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
@@ -215,25 +223,6 @@ public class WriterFactory {
       }
 
       remoteWriter = builder.build();
-
-      // DDAgentWriter only speaks the regular trace protocol, so LLM Observability spans
-      // (tagged with DDSpanTypes.LLMOBS) need their own track sent via the EVP proxy -- without
-      // this, they're silently dropped by the agent/extension instead of reaching LLM Obs
-      // intake. Flush this track synchronously too when the primary writer is (i.e. in a
-      // serverless environment), so spans aren't lost when the execution environment freezes.
-      if (config.isLlmObsEnabled()) {
-        final RemoteApi llmObsApi =
-            createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
-        final DDIntakeWriter llmObsWriter =
-            DDIntakeWriter.builder()
-                .addTrack(TrackType.LLMOBS, llmObsApi)
-                .healthMetrics(healthMetrics)
-                .monitoring(commObjects.monitoring)
-                .alwaysFlush(alwaysFlush)
-                .flushIntervalMilliseconds(flushIntervalMilliseconds)
-                .build();
-        remoteWriter = new MultiWriter(new Writer[] {remoteWriter, llmObsWriter});
-      }
     }
 
     return remoteWriter;
