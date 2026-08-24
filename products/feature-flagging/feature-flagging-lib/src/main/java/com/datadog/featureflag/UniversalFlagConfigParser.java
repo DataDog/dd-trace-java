@@ -57,8 +57,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       new Moshi.Builder()
           .add(Instant.class, new InstantAdapter())
           .add(AllocationAdapter.FACTORY)
-          .add(ShardAdapter.FACTORY)
-          .add(ShardRangeAdapter.FACTORY)
+          .add(Shard.class, new ShardAdapter())
           .add(FlagMapAdapter.FACTORY)
           .add(LenientBooleanAdapter.FACTORY)
           .build();
@@ -114,16 +113,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
               "flag \"" + flagKey + "\" contains a split with missing shards");
         }
         for (final Shard shard : split.shards) {
-          if (shard == null
-              || shard.unsignedTotalShards() == 0
-              || shard.unsignedTotalShards() > MAX_UNSIGNED_INT
-              || shard.ranges == null) {
+          if (shard == null || shard.unsignedTotalShards() == 0 || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains an invalid shard");
           }
           for (final ShardRange range : shard.ranges) {
-            if (range == null
-                || range.unsignedStart() > MAX_UNSIGNED_INT
-                || range.unsignedEnd() > MAX_UNSIGNED_INT) {
+            if (range == null) {
               throw new InvalidFlagException(
                   "flag \"" + flagKey + "\" contains an invalid shard range");
             }
@@ -334,27 +328,6 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
    */
   static final class ShardAdapter extends JsonAdapter<Shard> {
 
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || type != Shard.class) {
-              return null;
-            }
-            return new ShardAdapter(moshi.adapter(ShardRange.class));
-          }
-        };
-
-    private final JsonAdapter<ShardRange> rangeAdapter;
-
-    ShardAdapter(final JsonAdapter<ShardRange> rangeAdapter) {
-      this.rangeAdapter = rangeAdapter;
-    }
-
     @Nullable
     @Override
     public Shard fromJson(@Nonnull final JsonReader reader) throws IOException {
@@ -378,7 +351,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
             ranges = new ArrayList<>();
             reader.beginArray();
             while (reader.hasNext()) {
-              ranges.add(rangeAdapter.fromJson(reader));
+              ranges.add(readRange(reader));
             }
             reader.endArray();
             break;
@@ -393,34 +366,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       return new Shard(salt, ranges, totalShards);
     }
 
-    @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Shard value)
-        throws IOException {
-      throw new UnsupportedOperationException("Reading only adapter");
-    }
-  }
-
-  /** Preserves the binary-compatible {@code int} representation of unsigned shard range bounds. */
-  static final class ShardRangeAdapter extends JsonAdapter<ShardRange> {
-
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || type != ShardRange.class) {
-              return null;
-            }
-            return new ShardRangeAdapter();
-          }
-        };
-
-    @Nullable
-    @Override
-    public ShardRange fromJson(@Nonnull final JsonReader reader) throws IOException {
+    private static ShardRange readRange(final JsonReader reader) throws IOException {
       if (reader.peek() == JsonReader.Token.NULL) {
         return reader.nextNull();
       }
@@ -444,7 +390,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     }
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final ShardRange value)
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Shard value)
         throws IOException {
       throw new UnsupportedOperationException("Reading only adapter");
     }

@@ -216,6 +216,27 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void acceptsUnknownShardFieldsAndDropsNullShardRanges() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "unknown-shard-fields",
+                        ",\"allocations\":[{\"key\":\"unknown-shard-fields\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":null,\"totalShards\":1,\"ranges\":[{\"start\":0,\"end\":1,\"ignored\":true}],\"ignored\":true}]}]}]"),
+                    booleanFlag(
+                        "null-ranges",
+                        ",\"allocations\":[{\"key\":\"null-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":1,\"ranges\":null}]}]}]"),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertTrue(configuration.flags.containsKey("unknown-shard-fields"));
+    assertFalse(configuration.flags.containsKey("null-ranges"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("null-ranges"));
+  }
+
+  @Test
   void dropsFlagsWithInvalidNestedAllocationsShardsAndOperands() throws Exception {
     final ServerConfiguration configuration =
         parse(
