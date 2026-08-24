@@ -118,6 +118,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
@@ -477,6 +478,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_SAMPLE_RATE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
@@ -1155,6 +1157,7 @@ public class Config {
   private final boolean llmObsAgentlessEnabled;
   private final String llmObsAgentlessUrl;
   private final String llmObsMlApp;
+  private final double llmObsSampleRate;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -2684,6 +2687,17 @@ public class Config {
     final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
     llmObsMlApp =
         tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
+    // Clamp rather than reject: an out-of-range rate should degrade to "sample everything" or
+    // "sample nothing" instead of disabling LLM Observability at startup.
+    final double configuredLlmObsSampleRate =
+        configProvider.getDouble(LLMOBS_SAMPLE_RATE, DEFAULT_LLM_OBS_SAMPLE_RATE);
+    if (configuredLlmObsSampleRate < 0.0 || configuredLlmObsSampleRate > 1.0) {
+      log.warn(
+          "Invalid value {} for {}: expected a rate between 0.0 and 1.0, clamping.",
+          configuredLlmObsSampleRate,
+          LLMOBS_SAMPLE_RATE);
+    }
+    llmObsSampleRate = Math.min(1.0, Math.max(0.0, configuredLlmObsSampleRate));
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -4459,6 +4473,16 @@ public class Config {
 
   public String getLlmObsMlApp() {
     return llmObsMlApp;
+  }
+
+  /**
+   * The fraction of LLM Observability traces retained by the backend, in {@code [0.0, 1.0]}.
+   *
+   * <p>Independent of APM sampling: the decision made with this rate never affects an APM sampling
+   * priority, and an APM decision never affects it.
+   */
+  public double getLlmObsSampleRate() {
+    return llmObsSampleRate;
   }
 
   public boolean isCiVisibilityEnabled() {

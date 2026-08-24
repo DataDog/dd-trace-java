@@ -48,6 +48,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
+  private static final String SAMPLE_RATE_TAG_INTERNAL = "sample_rate";
+  private static final String SAMPLING_DECISION_TAG_INTERNAL = "sampling_decision";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
@@ -57,6 +59,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
+
+  /** Resolved once: the LLMObs sample rate is fixed for the lifetime of the process. */
+  private static final LLMObsSampler CONFIGURED_SAMPLER = LLMObsSampler.fromConfig();
 
   private final AgentSpan span;
   private final String spanKind;
@@ -73,6 +78,17 @@ public class DDLLMObsSpan implements LLMObsSpan {
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags) {
+    this(kind, spanName, mlApp, sessionId, serviceName, wellKnownTags, CONFIGURED_SAMPLER);
+  }
+
+  DDLLMObsSpan(
+      @Nonnull String kind,
+      String spanName,
+      @Nonnull String mlApp,
+      String sessionId,
+      @Nonnull String serviceName,
+      WellKnownTags wellKnownTags,
+      @Nonnull LLMObsSampler sampler) {
 
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
@@ -101,11 +117,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
     spanKind = kind;
     this.mlApp = mlApp;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    // Resolve effective parent_id and session_id from the LLMObs context, both gated on
-    // trace-id consistency. A stale context from a different trace (e.g. async boundary
-    // leakage) must not contribute either tag.
+    // Resolve effective parent_id, session_id and sampling decision from the LLMObs context, all
+    // gated on trace-id consistency. A stale context from a different trace (e.g. async boundary
+    // leakage) must not contribute any of them.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
+    String sampleRate = null;
+    String samplingDecision = null;
     if (null != parent) {
       if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
@@ -125,7 +143,26 @@ public class DDLLMObsSpan implements LLMObsSpan {
             sessionId = inherited;
           }
         }
+        // Inherit the sampling decision unchanged, never recompute it: a trace must be retained
+        // or dropped as a whole. An absent decision identifies this span as an LLMObs root.
+        sampleRate = LLMObsContext.currentSampleRate();
+        samplingDecision = LLMObsContext.currentSamplingDecision();
       }
+    }
+
+    // Root of an LLMObs trace: decide once, keyed on the APM trace ID so that this decision is
+    // reproducible in any other service that observes the same trace at the same rate. Skipped
+    // entirely at the default rate of 1.0, leaving the payload identical to an unsampled tracer.
+    if (samplingDecision == null && sampler.isConfigured()) {
+      sampleRate = sampler.formattedRate();
+      samplingDecision =
+          sampler.sample(span.getTraceId().toLong())
+              ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+              : LLMObsContext.SAMPLING_DECISION_DROPPED;
+    }
+    if (samplingDecision != null) {
+      span.setTag(LLMOBS_TAG_PREFIX + SAMPLE_RATE_TAG_INTERNAL, sampleRate);
+      span.setTag(LLMOBS_TAG_PREFIX + SAMPLING_DECISION_TAG_INTERNAL, samplingDecision);
     }
 
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
@@ -133,8 +170,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    // Propagate the effective sessionId to descendant LLMObs spans via the context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId);
+    // Propagate the effective sessionId and sampling decision to descendant LLMObs spans via the
+    // context. The context copy is what descendants inherit; the tags set above are what the
+    // serializer reads, on a different thread and after this scope has closed.
+    scope = LLMObsContext.attach(span.spanContext(), sessionId, sampleRate, samplingDecision);
   }
 
   @Override

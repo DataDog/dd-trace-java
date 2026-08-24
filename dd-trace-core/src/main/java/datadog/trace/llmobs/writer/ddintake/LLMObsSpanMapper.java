@@ -69,6 +69,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] APM_TRACE_ID = "apm_trace_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PARENT_ID = "parent_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SESSION_ID = "session_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SAMPLE_RATE = "sample_rate".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SAMPLING_DECISION =
+      "sampling_decision".getBytes(StandardCharsets.UTF_8);
   private static final byte[] NAME = "name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] DURATION = "duration".getBytes(StandardCharsets.UTF_8);
   private static final byte[] START_NS = "start_ns".getBytes(StandardCharsets.UTF_8);
@@ -105,6 +108,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
+  private static final String SAMPLE_RATE_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "sample_rate";
+  private static final String SAMPLING_DECISION_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + "sampling_decision";
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -165,6 +171,16 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
+      // Same read-before-startMap reason as session_id: the enclosing _dd map is hand-sized.
+      // Guarded the same way against a non-string value set through a generic tag API.
+      Object rawSamplingDecision = span.getTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
+      Object rawSampleRate = span.getTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
+      String samplingDecision =
+          rawSamplingDecision instanceof String && rawSampleRate instanceof String
+              ? (String) rawSamplingDecision
+              : null;
+      String sampleRate = samplingDecision == null ? null : (String) rawSampleRate;
+
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
@@ -197,13 +213,27 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 8
       writable.writeUTF8(DD);
-      writable.startMap(3);
+      // The sampling fields are written only when a rate below 1.0 is configured, so the payload
+      // of an unsampled tracer is byte-identical to what it was before sampling existed. Both
+      // values are stamped together by DDLLMObsSpan or neither is, so one check covers both.
+      boolean hasSampling = samplingDecision != null;
+      writable.startMap(hasSampling ? 5 : 3);
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
       writable.writeUTF8(TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
+      if (hasSampling) {
+        writable.writeUTF8(SAMPLING_DECISION);
+        writable.writeString(samplingDecision, null);
+        writable.writeUTF8(SAMPLE_RATE);
+        writable.writeString(sampleRate, null);
+      }
+      // Remove unconditionally: the generic _ml_obs_tag. sweep below would otherwise surface these
+      // internal fields in the user-visible tags[] array.
+      span.removeTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
+      span.removeTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
 
       // 9 — optional top-level session_id field. Required by the LLMObs HTTP intake schema
       // and by the LLM Trace Explorer's Sessions filter, which keys off this field.

@@ -2329,6 +2329,14 @@
         "aliases": []
       }
     ],
+    "DD_LLMOBS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": []
+      }
+    ],
     "DD_LOGS_INJECTION": [
       {
         "version": "B",
