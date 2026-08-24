@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -27,9 +27,9 @@ public class UndertowDecorator
       InstanceStore.of(AttachmentKey.class);
 
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<AgentScope.Continuation> DATADOG_UNDERTOW_CONTINUATION =
+  public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
       attachmentStore.putIfAbsent(
-          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(AgentScope.Continuation.class));
+          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =

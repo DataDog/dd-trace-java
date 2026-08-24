@@ -6,9 +6,9 @@ plugins {
   id 'com.gradleup.shadow'
   id 'org.jetbrains.kotlin.jvm'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.product-subsystem'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
@@ -46,16 +46,6 @@ tasks.named("shadowJar", ShadowJar) {
 
 tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
-}
-
-tasks.named("compileTestGroovy") {
-  configureCompiler(
-    it,
-    8,
-    JavaVersion.VERSION_1_8,
-    "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
-    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
-    )
 }
 
 kotlin {

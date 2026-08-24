@@ -24,6 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,7 @@ public class AgentTracer {
    *     asynchronous propagation is disabled.
    */
   @Nonnull
-  public static AgentScope.Continuation captureActiveSpan() {
+  public static ContextContinuation captureActiveSpan() {
     return get().captureActiveSpan();
   }
 
@@ -105,7 +106,7 @@ public class AgentTracer {
    * @return Continuation of the given span.
    */
   @Nonnull
-  public static AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public static ContextContinuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
 
@@ -224,30 +225,6 @@ public class AgentTracer {
     return NoopSpanContext.INSTANCE;
   }
 
-  /**
-   * Returns the noop scope instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop scope instance.
-   */
-  public static AgentScope noopScope() {
-    return NoopScope.INSTANCE;
-  }
-
-  /**
-   * Returns the noop continuation instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop continuation instance.
-   */
-  public static AgentScope.Continuation noopContinuation() {
-    return NoopContinuation.INSTANCE;
-  }
-
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
   private static volatile TracerAPI provider = NOOP_TRACER;
@@ -256,12 +233,18 @@ public class AgentTracer {
     return provider != NOOP_TRACER;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void registerIfAbsent(final TracerAPI tracer) {
     if (tracer != null && tracer != NOOP_TRACER) {
       provider = tracer;
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void forceRegister(TracerAPI tracer) {
     if (tracer == null) {
       throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
@@ -333,9 +316,10 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
+    @SuppressWarnings("deprecation")
     AgentScope.Continuation captureActiveSpan();
 
-    AgentScope.Continuation captureSpan(AgentSpan span);
+    ContextContinuation captureSpan(AgentSpan span);
 
     void checkpointActiveForRollback();
 
@@ -501,12 +485,13 @@ public class AgentTracer {
     public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
+    @SuppressWarnings("deprecation")
     public AgentScope.Continuation captureActiveSpan() {
       return NoopContinuation.INSTANCE;
     }
 
     @Override
-    public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    public ContextContinuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
@@ -680,7 +665,7 @@ public class AgentTracer {
 
     @Override
     public ContextScope attach(Context context) {
-      return noopScope();
+      return NoopScope.INSTANCE;
     }
 
     @Override
@@ -690,7 +675,7 @@ public class AgentTracer {
 
     @Override
     public ContextContinuation capture(Context context) {
-      return noopContinuation();
+      return NoopContinuation.INSTANCE;
     }
   }
 
@@ -698,10 +683,10 @@ public class AgentTracer {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
     @Override
-    public void registerContinuation(final AgentScope.Continuation continuation) {}
+    public void registerContinuation(final ContextContinuation continuation) {}
 
     @Override
-    public void removeContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final ContextContinuation continuation) {}
   }
 
   /** TraceConfig when there is no tracer; this is not the same as a default config. */

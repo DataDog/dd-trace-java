@@ -13,9 +13,9 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -54,9 +54,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
 
     ContextScope parentScope = null;
-    final AgentScope.Continuation continuation = takeConnectParentContinuation(ctx);
+    final ContextContinuation continuation = takeConnectParentContinuation(ctx);
     if (continuation != null) {
-      parentScope = continuation.activate();
+      parentScope = continuation.resume();
     }
 
     final HttpRequest request = (HttpRequest) msg;
@@ -111,10 +111,10 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
   }
 
-  private static AgentScope.Continuation takeConnectParentContinuation(
+  private static ContextContinuation takeConnectParentContinuation(
       final ChannelHandlerContext ctx) {
     final Channel channel = ctx.channel();
-    AgentScope.Continuation continuation =
+    ContextContinuation continuation =
         channel.attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
     if (continuation == null && channel.parent() != null) {
       continuation =

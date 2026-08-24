@@ -42,6 +42,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
     final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
     builder.environment().put('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED', 'true')
+    builder.environment().put('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'remote_config')
     return builder
   }
 
@@ -205,8 +206,12 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   private static Map<String, Boolean> buildLoggedAllocations(final Map<String, Object> config) {
     final logged = [:]
     (config.flags as Map<String, Object>).each { flag, definition ->
-      (definition.allocations ?: []).each { allocation ->
-        logged["${flag}\u0000${allocation.key}"] = allocation.doLog == true
+      if (definition.allocations instanceof List) {
+        definition.allocations.each { allocation ->
+          if (allocation instanceof Map) {
+            logged["${flag}\u0000${allocation.key}"] = allocation.doLog == true
+          }
+        }
       }
     }
     return logged

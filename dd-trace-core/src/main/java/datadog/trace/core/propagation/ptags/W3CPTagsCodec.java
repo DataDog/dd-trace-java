@@ -100,6 +100,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < ddMemberValueEnd) {
+      tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
+      if (tagPos >= ddMemberValueEnd) {
+        break;
+      }
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
               value,
@@ -108,10 +112,11 @@ public class W3CPTagsCodec extends PTagsCodec {
               KEY_VALUE_SEPARATOR,
               false,
               W3CPTagsCodec::isAllowedKeyChar);
-      if (tagKeyEndsAt < 0 || tagKeyEndsAt == ddMemberValueEnd) {
-        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
-        // TODO drop parts?
-        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+      if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
+        int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
+        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        tagPos = nextTagPos;
+        continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt =
@@ -123,9 +128,10 @@ public class W3CPTagsCodec extends PTagsCodec {
               true,
               W3CPTagsCodec::isAllowedValueChar);
       if (tagValueEndsAt < 0) {
-        log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
-        // TODO drop parts?
-        return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+        int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
+        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        tagPos = nextTagPos;
+        continue;
       }
       int nextTagPos = tagValueEndsAt + 1;
       if (tagValueEndsAt == ddMemberValueEnd) {
@@ -152,7 +158,6 @@ public class W3CPTagsCodec extends PTagsCodec {
               if (tagKey.equals(TRACE_ID_TAG)) {
                 return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
-              // TODO drop parts?
               return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
@@ -226,6 +231,11 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
+    return appendPrefix(sb, ptags, null);
+  }
+
+  @Override
+  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
     if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
@@ -246,7 +256,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
     // append last ParentId (p)
-    CharSequence lastParent = ptags.getLastParentId();
+    CharSequence lastParent =
+        lastParentIdOverride != null ? lastParentIdOverride : ptags.getLastParentId();
     if (lastParent != null) {
       if (sb.length() > EMPTY_SIZE) {
         sb.append(';');
@@ -345,10 +356,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       pos++;
       if (pos < end) {
         c = s.charAt(pos);
-        // It's not allowed to have the separator as the last character so only check
-        // if there is something after the separator
-        if (pos < end - 1 && c == separator) {
-          break;
+        if (c == separator) {
+          break; // trailing separator allowed; caller resumes parsing from here
         }
       }
     } while (pos < end);
@@ -359,7 +368,10 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static boolean isAllowedKeyChar(int c) {
     // We already know that the segments have been validated against the valid chars for
     // the general tracestate header
-    return c > MIN_ALLOWED_CHAR && c <= MAX_ALLOWED_CHAR && c != KEY_VALUE_SEPARATOR;
+    return c > MIN_ALLOWED_CHAR
+        && c <= MAX_ALLOWED_CHAR
+        && c != KEY_VALUE_SEPARATOR
+        && c != ELEMENT_SEPARATOR;
   }
 
   private static boolean isAllowedValueChar(int c) {
@@ -607,12 +619,37 @@ public class W3CPTagsCodec extends PTagsCodec {
     return c == ' ' || c == '\t';
   }
 
-  private static int stripTrailingOWC(String original, int start, int end) {
-    char c = original.charAt(--end);
-    while (isOWC(c) && end > start) {
-      c = original.charAt(--end);
+  private static int stripTrailingOWC(String value, int start, int end) {
+    while (end > start + 1 && isOWC(value.charAt(end - 1))) {
+      end--;
     }
-    return ++end;
+    return end;
+  }
+
+  private static int skipMalformedElement(String value, int start, int end) {
+    log.warn(
+        "Invalid datadog tags header value: '{}' dropping malformed element at {}", value, start);
+    int pos = start;
+    while (pos < end) {
+      char c = value.charAt(pos++);
+      if (c == ELEMENT_SEPARATOR) {
+        return pos;
+      }
+    }
+    return end;
+  }
+
+  private static int skipEmptyElements(String value, int start, int end) {
+    int pos = start;
+    while (pos < end) {
+      char c = value.charAt(pos++);
+      if (c == ELEMENT_SEPARATOR) {
+        start = pos;
+      } else if (!isOWC(c)) {
+        return start;
+      }
+    }
+    return end;
   }
 
   private static int cleanUpAndAppendUnknown(StringBuilder sb, W3CPTags w3CPTags, int size) {
@@ -625,16 +662,21 @@ public class W3CPTagsCodec extends PTagsCodec {
     int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
+      elementStart = skipEmptyElements(original, elementStart, w3CPTags.ddMemberValueEnd);
+      if (elementStart == w3CPTags.ddMemberValueEnd) {
+        break;
+      }
       okSize = size;
       int elementEnd = original.indexOf(ELEMENT_SEPARATOR, elementStart);
-      if (elementEnd < 0) {
+      if (elementEnd < 0 || elementEnd > w3CPTags.ddMemberValueEnd) {
         elementEnd = w3CPTags.ddMemberValueEnd;
       }
       if (!original.startsWith(Encoding.W3C.getPrefix(), elementStart)) {
         char first = original.charAt(elementStart);
-        char second = original.charAt(elementStart + 1);
-        if (second != KEY_VALUE_SEPARATOR || (first != 'o' && first != 's')) {
-          // only append elements that we don't know about or are not tags
+        // ignore known o:, s:, and p: elements because we always add them back in appendPrefix
+        if ((first != 'o' && first != 's' && first != 'p')
+            || elementStart + 1 >= elementEnd
+            || original.charAt(elementStart + 1) != KEY_VALUE_SEPARATOR) {
           if (sb.length() > EMPTY_SIZE) {
             sb.append(ELEMENT_SEPARATOR);
             size++;
