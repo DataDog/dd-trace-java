@@ -214,13 +214,10 @@ public class ConfigManager {
     File cfgFile = computeCfgFile(scriptFile);
     ConfigManager.cfgFile = cfgFile;
     writeConfigToFile(Config.get(), cfgFile, additionalEntries);
-    if (!pendingEntries.isEmpty()) {
-      Map<String, String> pending = new LinkedHashMap<>(pendingEntries);
-      pendingEntries.clear();
-      for (Map.Entry<String, String> entry : pending.entrySet()) {
-        updateCrashConfigEntry(entry.getKey(), entry.getValue());
-      }
+    for (Map.Entry<String, String> entry : pendingEntries.entrySet()) {
+      updateCrashConfigEntry(entry.getKey(), entry.getValue());
     }
+    pendingEntries.clear();
   }
 
   /**
