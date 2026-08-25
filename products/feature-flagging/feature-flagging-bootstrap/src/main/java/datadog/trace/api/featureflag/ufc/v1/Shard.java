@@ -13,6 +13,10 @@ public class Shard {
     this.totalShards = totalShards;
   }
 
+  /**
+   * Returns {@link #totalShards} as the unsigned 32-bit value used in FFE configurations. The
+   * {@code int}-backed field remains public for compatibility with existing UFC model consumers.
+   */
   public long unsignedTotalShards() {
     return Integer.toUnsignedLong(totalShards);
   }

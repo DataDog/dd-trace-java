@@ -59,6 +59,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -999,7 +1001,10 @@ public class DDEvaluatorTest {
                         || condition.operator == ConditionOperator.GT
                         || condition.operator == ConditionOperator.LTE
                         || condition.operator == ConditionOperator.LT)
-                    && !(condition.value instanceof Number))) {
+                    && !(condition.value instanceof Number))
+                || ((condition.operator == ConditionOperator.MATCHES
+                        || condition.operator == ConditionOperator.NOT_MATCHES)
+                    && !isValidRegex(condition.value))) {
               return true;
             }
           }
@@ -1007,6 +1012,28 @@ public class DDEvaluatorTest {
       }
     }
     return false;
+  }
+
+  private static boolean isValidRegex(final Object value) {
+    if (!(value instanceof String)) {
+      return false;
+    }
+    try {
+      Pattern.compile(normalizeRegex((String) value));
+      return true;
+    } catch (final PatternSyntaxException ignored) {
+      return false;
+    }
+  }
+
+  private static String normalizeRegex(final String regex) {
+    return regex
+        .replace("[:alnum:]", "\\p{Alnum}")
+        .replace("[:alpha:]", "\\p{Alpha}")
+        .replace("[:digit:]", "\\p{Digit}")
+        .replace("[:lower:]", "\\p{Lower}")
+        .replace("[:upper:]", "\\p{Upper}")
+        .replace("[:space:]", "\\p{Space}");
   }
 
   private static List<FixtureCase> canonicalTestCases() throws IOException {

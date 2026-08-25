@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okio.BufferedSource;
@@ -169,6 +171,17 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
                 throw invalidConditionOperand(flagKey, condition.operator);
               }
               break;
+            case MATCHES:
+            case NOT_MATCHES:
+              if (!(value instanceof String)) {
+                throw invalidConditionOperand(flagKey, condition.operator);
+              }
+              try {
+                Pattern.compile(normalizeRegex((String) value));
+              } catch (final PatternSyntaxException ignored) {
+                throw invalidConditionOperand(flagKey, condition.operator);
+              }
+              break;
             default:
               break;
           }
@@ -181,6 +194,16 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       final String flagKey, final ConditionOperator operator) {
     return new InvalidFlagException(
         "flag \"" + flagKey + "\" has an invalid operand for operator \"" + operator + "\"");
+  }
+
+  private static String normalizeRegex(final String regex) {
+    return regex
+        .replace("[:alnum:]", "\\p{Alnum}")
+        .replace("[:alpha:]", "\\p{Alpha}")
+        .replace("[:digit:]", "\\p{Digit}")
+        .replace("[:lower:]", "\\p{Lower}")
+        .replace("[:upper:]", "\\p{Upper}")
+        .replace("[:space:]", "\\p{Space}");
   }
 
   /**
@@ -326,8 +349,8 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   }
 
   /**
-   * Preserves the binary-compatible {@code int} representation of shard values while accepting
-   * their unsigned 32-bit JSON form.
+   * Preserves the existing public {@code int}-backed UFC model fields while accepting their
+   * unsigned 32-bit JSON form.
    */
   static final class ShardAdapter extends JsonAdapter<Shard> {
 

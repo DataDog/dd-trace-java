@@ -104,6 +104,16 @@ class JsonApiUfcResponseParserTest {
                             "valid-semver",
                             "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
                     booleanFlag(
+                        "invalid-matches-regex",
+                        allocation(
+                            "invalid-matches-regex",
+                            "[{\"conditions\":[{\"attribute\":\"name\",\"operator\":\"MATCHES\",\"value\":\"[\"}]}]")),
+                    booleanFlag(
+                        "non-string-not-matches-regex",
+                        allocation(
+                            "non-string-not-matches-regex",
+                            "[{\"conditions\":[{\"attribute\":\"name\",\"operator\":\"NOT_MATCHES\",\"value\":1}]}]")),
+                    booleanFlag(
                         "invalid-semver",
                         allocation(
                             "invalid-semver",
@@ -125,14 +135,18 @@ class JsonApiUfcResponseParserTest {
     assertFalse(configuration.flags.containsKey("no-operator"));
     assertTrue(configuration.flags.containsKey("non-semver"));
     assertTrue(configuration.flags.containsKey("valid-semver"));
+    assertFalse(configuration.flags.containsKey("invalid-matches-regex"));
+    assertFalse(configuration.flags.containsKey("non-string-not-matches-regex"));
     assertFalse(configuration.flags.containsKey("invalid-semver"));
     assertFalse(configuration.flags.containsKey("non-string-semver"));
     assertFalse(configuration.flags.containsKey("null-flag"));
-    assertEquals(6, configuration.invalidFlags.size());
+    assertEquals(8, configuration.invalidFlags.size());
     assertEquals("invalid_flag", configuration.invalidFlags.get("null-flag"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("null-split"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("null-rule"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("no-operator"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("invalid-matches-regex"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("non-string-not-matches-regex"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("non-string-semver"));
 
