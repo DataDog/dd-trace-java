@@ -1171,12 +1171,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  @SuppressWarnings("deprecation")
-  public AgentScope.Continuation captureActiveSpan() {
-    return scopeManager.captureActiveSpan();
-  }
-
-  @Override
   public boolean isAsyncPropagationEnabled() {
     return scopeManager.isAsyncPropagationEnabled();
   }

@@ -108,30 +108,6 @@ public final class ContinuableScopeManager {
     return activate(span, MANUAL, false, /* ignored */ false);
   }
 
-  @SuppressWarnings("deprecation")
-  public AgentScope.Continuation captureActiveSpan() {
-    ContinuableScope activeScope = scopeStack().active();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
-      AgentSpan span = activeScope.span();
-      if (span != null) {
-        return captureSpan(activeScope.context, activeScope.source(), span);
-      }
-    }
-    return ROOT_CONTINUATION;
-  }
-
-  public ContextContinuation captureSpan(final AgentSpan span) {
-    ContinuableScope top = scopeStack().top;
-    Context context = top != null ? top.context.with(span) : span;
-    return captureSpan(context, INSTRUMENTATION, span);
-  }
-
-  @SuppressWarnings("deprecation")
-  private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
-    AgentTraceCollector traceCollector = span.spanContext().getTraceCollector();
-    return new ScopeContinuation(this, context, source, traceCollector).register();
-  }
-
   private AgentScope activate(
       final AgentSpan span,
       final byte source,

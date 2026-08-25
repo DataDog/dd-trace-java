@@ -9,7 +9,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.context.Context;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
@@ -80,7 +79,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
   void traceStillReportedWhenUnfinishedContinuationDiscarded()
       throws InterruptedException, TimeoutException {
     AgentScope scope = tracer.activateSpan(rootSpan);
-    Context.current().capture();
+    tracer.capture(rootSpan);
     scope.close();
 
     rootSpan.finish();
