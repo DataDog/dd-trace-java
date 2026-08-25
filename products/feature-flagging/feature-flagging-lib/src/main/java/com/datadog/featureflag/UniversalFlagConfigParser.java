@@ -91,6 +91,45 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     reader.peek();
   }
 
+  /** Rejects raw shard counts that exceed the bootstrap model's signed-int range. */
+  private static void validateRawShardTotals(final Object rawFlag) {
+    if (!(rawFlag instanceof Map)) {
+      return;
+    }
+    final Object allocations = ((Map<?, ?>) rawFlag).get("allocations");
+    if (!(allocations instanceof List)) {
+      return;
+    }
+    for (final Object allocation : (List<?>) allocations) {
+      if (!(allocation instanceof Map)) {
+        continue;
+      }
+      final Object splits = ((Map<?, ?>) allocation).get("splits");
+      if (!(splits instanceof List)) {
+        continue;
+      }
+      for (final Object split : (List<?>) splits) {
+        if (!(split instanceof Map)) {
+          continue;
+        }
+        final Object shards = ((Map<?, ?>) split).get("shards");
+        if (!(shards instanceof List)) {
+          continue;
+        }
+        for (final Object shard : (List<?>) shards) {
+          if (!(shard instanceof Map)) {
+            continue;
+          }
+          final Object totalShards = ((Map<?, ?>) shard).get("totalShards");
+          if (totalShards instanceof Number
+              && ((Number) totalShards).longValue() > Integer.MAX_VALUE) {
+            throw new InvalidFlagException("flag contains an oversized totalShards value");
+          }
+        }
+      }
+    }
+  }
+
   /** Validates the required nested UFC fields and SemVer comparands for a flag. */
   private static void validateFlag(final String flagKey, final Flag flag) {
     if (flag.allocations == null) {
@@ -115,7 +154,6 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         for (final Shard shard : split.shards) {
           if (shard == null
               || shard.totalShards <= 0
-              || shard.totalShards > Integer.MAX_VALUE
               || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains invalid shards");
           }
@@ -286,6 +324,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
+          validateRawShardTotals(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);
