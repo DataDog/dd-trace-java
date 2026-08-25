@@ -25,6 +25,8 @@
 - Declare `contextStore()` entries if context stores are needed (key class → value class)
 - **Null-check before every `ContextStore` key** — `ContextStore` does not support null keys. Always guard with a null check before calling `store.put(obj, ...)` or `store.get(obj)`. Passing null throws at runtime; with `suppress = Throwable.class` this silently drops the span.
 - Keep method matchers as narrow as possible (name, parameter types, visibility)
+- **Hook a single dispatch chokepoint, not each public operation, when a client funnels all operations through one method.** Many clients expose dozens of public operation methods (`get`, `set`, `query`, `send`, …) that all delegate to one low-level dispatch/send/execute method. Instrument that one chokepoint and read the operation name from its argument for the resource — do NOT add advice to each public method. One chokepoint hook covers every operation (including ones you didn't enumerate) and avoids duplicate/nested spans from a call that passes through several instrumented methods.
+  - *Worked example:* a Redis client's `get`/`set`/`hget`/… all call one `dispatch(RedisCommand)` (or `sendCommand(...)`) on a base client class. Hook `dispatch` once, matched by name + first-argument type, and derive the resource from the command object — rather than matching each command method. Confirm the chokepoint by tracing a couple of the public operations to the shared method they delegate to.
 
 ## Must NOT do in InstrumenterModule
 
