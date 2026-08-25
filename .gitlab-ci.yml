@@ -190,6 +190,12 @@ default:
     KUBERNETES_MEMORY_REQUEST: 20Gi
     KUBERNETES_MEMORY_LIMIT: 20Gi
 
+.tier_xl:
+  variables: &tier_xl_variables
+    <<: *tier_l_variables
+    KUBERNETES_MEMORY_REQUEST: 32Gi
+    KUBERNETES_MEMORY_LIMIT: 32Gi
+
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
     export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
@@ -373,6 +379,7 @@ build_tests:
         CACHE_TYPE: "profiling"
       - GRADLE_TARGET: ":instrumentationTest"
         CACHE_TYPE: "inst"
+        <<: *tier_xl_variables
       - GRADLE_TARGET: ":instrumentationLatestDepTest"
         CACHE_TYPE: "latestdep"
       - GRADLE_TARGET: ":smokeTest"
@@ -609,6 +616,7 @@ muzzle:
         matrix:
           - GRADLE_TARGET: ":instrumentationTest"
             CACHE_TYPE: "inst"
+            <<: *tier_xl_variables
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
