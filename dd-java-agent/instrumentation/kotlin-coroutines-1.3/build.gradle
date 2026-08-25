@@ -5,6 +5,7 @@ plugins {
   id 'java-test-fixtures'
   id 'org.jetbrains.kotlin.jvm'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.kotlin'
 }
 
 muzzle {
@@ -26,8 +27,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
-
 kotlin {
   compilerOptions {
     jvmTarget = JvmTarget.JVM_1_8
@@ -40,10 +39,6 @@ addTestSuite('latestDepTest')
 
 tasks.named("compileTestFixturesGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileTestFixturesKotlin').map { it.destinationDirectory })
-}
-
-tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileTestKotlin').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {

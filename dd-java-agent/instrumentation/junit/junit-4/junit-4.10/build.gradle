@@ -5,9 +5,8 @@ plugins {
   id 'org.jetbrains.kotlin.jvm'
   id 'dd-trace-java.instrumentation.testing-framework-tests'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.kotlin'
 }
-
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 muzzle {
   pass {
