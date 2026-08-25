@@ -44,37 +44,69 @@ import org.openjdk.jmh.annotations.Warmup;
  *       indirection cost of the wrapper.
  * </ul>
  *
- * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
- * and never present.
+ * <p>Hit lookups come in two flavors, because reusing the exact same key instances for both
+ * building a structure and measuring lookups against it is its own validity bug, independent of
+ * hash-dispatch pollution: {@link String#equals} takes an {@code ==} fast path, and {@link
+ * String#hashCode()} caches its result in a field on first call, so a key instance that was already
+ * inserted (or previously looked up) pays neither real cost again.
  *
- * <p>JDK 17 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}; M ops/s =
- * millions):
+ * <ul>
+ *   <li>{@code hit} -- looks up the same interned {@link #STRINGS} literals used to build every
+ *       structure. This is realistic and worth keeping (fixed header/config-key lookups commonly
+ *       are interned literals), but identity with the stored element is inherent to interning, not
+ *       a choice this benchmark makes -- two equal literals are always the same instance.
+ *   <li>{@code hitFresh} -- looks up {@link #FRESH_STRINGS}, separate {@code new String(..)}
+ *       instances never touched by {@link #setUp}, so each carries an uncached hash and forces a
+ *       real {@code equals()} beyond the {@code ==} check. Models keys arriving from
+ *       parsing/concatenation/deserialization rather than literals. Only meaningful for the
+ *       hash-based structures ({@code hashSet}, {@code tracerImmutableSet}, {@code stringIndex},
+ *       {@code stringIndex_embedded}); not measured for {@code array}/{@code sortedArray}/{@code
+ *       treeSet}.
+ * </ul>
+ *
+ * <p>Misses are already representative of both effects for free: {@link #MISSES} is built via
+ * concatenation (never interned) and never touched by {@link #setUp}.
+ *
+ * <p>Full re-run, all six structures across {@code hit}/{@code hitFresh}/{@code miss} together,
+ * with {@link BenchmarkUtils#polluteHashDispatch()} in effect (Apple M1, Java 8u382 -- the
+ * repo-default {@code jmh} test launcher, no {@code -PtestJvm} override --, {@code @Fork(5)},
+ * {@code @Threads(8)}; M ops/s = millions):
  *
  * <pre>{@code
- * Structure                           hit    miss
- * stringIndex_embedded (static)      2320    2159    (fastest)
- * hashSet                            2198    2134
- * stringIndex (inst)                 2098  1548 *    (* miss bimodal -- see caveat)
- * tracerImmutableSet                 1914    1663    (Set.copyOf / SetN)
- * array                               941     589
- * sortedArray                         685     610
- * treeSet                             657     610
+ * Structure                    hit   hitFresh    miss
+ * stringIndex_embedded (static) 2098      1563    2030    (fastest hit and miss)
+ * hashSet                       1723      1276    1823
+ * stringIndex (inst)            1883      1184 *  1700 *  (* bimodal -- see caveat)
+ * tracerImmutableSet            1632      1232    1625    (Set.copyOf / SetN)
+ * array                          854         -     495
+ * sortedArray                    713         -     613
+ * treeSet                        646         -     544
  * }</pre>
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>The static {@code EmbeddingSupport} path is the fastest — it beats {@code HashSet} on hit
- *       and miss and crushes the scan/search/tree forms.
+ *   <li>The static {@code EmbeddingSupport} path is the fastest on both hit and miss -- it beats
+ *       {@code HashSet} on both and crushes the scan/search/tree forms.
  *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
- *       field-load indirection (~10% on hit), landing near {@code HashSet} — fine off the hot path,
- *       prefer {@code EmbeddingSupport} on it.
- *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) is ~1.2x
- *       behind {@code EmbeddingSupport} on hit but the most <i>compact</i> (~27% smaller — no
- *       cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed + the {@code
- *       indexOf}-&gt;parallel-array capability, not footprint; over {@code HashSet} it wins both.
- *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail the hashed structures, most on
+ *       field-load indirection, but on this run actually leads {@code HashSet} on hit; miss is
+ *       noisy (see bimodal caveat below) and not a reliable comparison point. Prefer {@code
+ *       EmbeddingSupport} on the hot path regardless.
+ *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) trails
+ *       {@code EmbeddingSupport} on every scenario but remains the most <i>compact</i> (~27%
+ *       smaller -- no cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed
+ *       + the {@code indexOf}-&gt;parallel-array capability, not footprint.
+ *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail every hashed structure, most on
  *       miss.
+ *   <li>{@code hitFresh} is the <i>slowest</i> of the three scenarios for every hash-based
+ *       structure -- clearly below both {@code hit} and {@code miss}, not merely below {@code hit}
+ *       as previously guessed. This makes sense once the two failure shapes are compared: a miss
+ *       usually short-circuits on the first hash mismatch during probing and rarely reaches {@code
+ *       equals()}, while a {@code hitFresh} lookup must probe until it finds the match and pay a
+ *       real, uncached {@code equals()} there -- so it is not simply "the honest version of hit",
+ *       it exercises a genuinely more expensive path than either {@code hit} (cached hash + {@code
+ *       ==}) or {@code miss} (hash-only rejection). Superseded an earlier partial-data guess that
+ *       {@code hitFresh} would land at the same cost as {@code miss}.
  * </ul>
  *
  * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
@@ -99,6 +131,21 @@ public class ImmutableSetBenchmark {
 
   /** Distinct String instances that are never present, for the miss path. */
   static final String[] MISSES = newMisses();
+
+  /**
+   * Equal-content, non-interned, never-before-hashed copies of {@link #STRINGS}, built once here
+   * and never touched by {@link #setUp} -- so a lookup against them can't ride the {@code ==} fast
+   * path or a hash cached during set construction. See {@code hitFresh} in the class javadoc.
+   */
+  static final String[] FRESH_STRINGS = newFreshStrings();
+
+  static String[] newFreshStrings() {
+    String[] fresh = new String[STRINGS.length];
+    for (int i = 0; i < STRINGS.length; ++i) {
+      fresh[i] = new String(STRINGS[i]);
+    }
+    return fresh;
+  }
 
   static String[] newMisses() {
     String[] misses = new String[STRINGS.length * 4];
@@ -131,6 +178,8 @@ public class ImmutableSetBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     array = STRINGS;
     sortedArray = Arrays.copyOf(STRINGS, STRINGS.length);
     Arrays.sort(sortedArray);
@@ -144,6 +193,7 @@ public class ImmutableSetBenchmark {
   @State(Scope.Thread)
   public static class Cursor {
     int hitIndex = 0;
+    int hitFreshIndex = 0;
     int missIndex = 0;
 
     String nextHit() {
@@ -153,6 +203,16 @@ public class ImmutableSetBenchmark {
       }
       hitIndex = i;
       return STRINGS[i];
+    }
+
+    /** See {@code hitFresh} in the class javadoc. */
+    String nextHitFresh() {
+      int i = hitFreshIndex + 1;
+      if (i >= FRESH_STRINGS.length) {
+        i = 0;
+      }
+      hitFreshIndex = i;
+      return FRESH_STRINGS[i];
     }
 
     String nextMiss() {
@@ -200,6 +260,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean hashSet_hitFresh(Cursor cursor) {
+    return hashSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean hashSet_miss(Cursor cursor) {
     return hashSet.contains(cursor.nextMiss());
   }
@@ -220,6 +285,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean tracerImmutableSet_hitFresh(Cursor cursor) {
+    return tracerImmutableSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean tracerImmutableSet_miss(Cursor cursor) {
     return tracerImmutableSet.contains(cursor.nextMiss());
   }
@@ -230,17 +300,27 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean stringIndex_hitFresh(Cursor cursor) {
+    return stringIndex.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean stringIndex_miss(Cursor cursor) {
     return stringIndex.contains(cursor.nextMiss());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_hit(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHit());
+  }
+
+  @Benchmark
+  public boolean stringIndex_embedded_hitFresh(Cursor cursor) {
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHitFresh());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_miss(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextMiss());
   }
 }
