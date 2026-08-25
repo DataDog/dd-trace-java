@@ -31,7 +31,7 @@ addTestSuiteForDir('jetty11Test', 'test')
 addTestSuiteForDir('jetty10LatestDepTest', 'test')
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
 }
 
 dependencies {

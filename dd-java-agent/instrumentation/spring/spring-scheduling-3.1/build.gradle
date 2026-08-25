@@ -23,15 +23,9 @@ addTestSuiteExtendingForDir('latestDepForkedTest','latestDepTest', 'latestDepTes
 addTestSuiteForDir('spring6Test', 'test')
 addTestSuiteForDir('latestSpring5Test', 'test')
 
-["compileSpring6TestJava", "compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
-  }
-}
-
 ["compileSpring6TestGroovy", "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 17)
+    configureCompiler(it, 25, JavaVersion.VERSION_17)
   }
 }
 
@@ -56,7 +50,6 @@ dependencies {
   testImplementation group: 'com.h2database', name: 'h2', version: '1.4.199'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.4.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: '2.4.0'
-
 
   latestSpring5TestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 

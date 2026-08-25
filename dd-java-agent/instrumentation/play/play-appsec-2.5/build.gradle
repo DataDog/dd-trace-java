@@ -65,7 +65,7 @@ repositories {
 }
 
 tasks.withType(ScalaCompile).configureEach {
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

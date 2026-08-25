@@ -16,11 +16,14 @@ sourceSets {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Need access to jdk.jfr.internal.*")
+  // Do not lift this offset: this adapter runs on Java 8 JFR backports and needs JDK 11 internals.
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Needs JDK-11 jdk.jfr.internal API removed in later JDKs")
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_9)
+  // Do not lift this to Java 11 while JFR-capable Java 9/10 distributions remain supported;
+  // --release 9 cannot expose the public JFR API introduced in Java 11.
+  configureCompiler(it, 25, JavaVersion.VERSION_1_9, "Uses public jdk.jfr APIs (Java 11+) at Java 9 bytecode")
 }
 
 dependencies {

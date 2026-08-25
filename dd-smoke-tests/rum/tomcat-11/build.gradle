@@ -32,7 +32,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 17, JavaVersion.VERSION_17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 tasks.withType(Test).configureEach {

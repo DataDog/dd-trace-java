@@ -13,7 +13,7 @@ tasks.named("jar", Jar) {
 }
 
 tasks.withType(JavaCompile).configureEach { JavaCompile jc ->
-  configureCompiler(jc, 11, JavaVersion.VERSION_1_9, "Need Java module support")
+  configureCompiler(jc, 25, JavaVersion.VERSION_1_9, "Need Java module support")
   // read up classpath lazily to avoid early locking of gradle settings
   jc.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override

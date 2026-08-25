@@ -16,9 +16,8 @@ tasks.named("jar", Jar) {
   }
 }
 
-// Use Java 17 to build application
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(delegate, 17)
+  configureCompiler(delegate, 25, JavaVersion.VERSION_17)
 }
 
 dependencies {
