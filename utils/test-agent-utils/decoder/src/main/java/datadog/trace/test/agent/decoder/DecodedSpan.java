@@ -1,5 +1,6 @@
 package datadog.trace.test.agent.decoder;
 
+import java.util.List;
 import java.util.Map;
 
 public interface DecodedSpan {
@@ -9,6 +10,11 @@ public interface DecodedSpan {
 
   String getResource();
 
+  /**
+   * Returns the span 64-bit trace identifier, dropping high-order bits if present.
+   *
+   * @return The span 64-bit trace identifier.
+   */
   long getTraceId();
 
   long getSpanId();
@@ -28,4 +34,11 @@ public interface DecodedSpan {
   Map<String, Number> getMetrics();
 
   String getType();
+
+  /**
+   * Returns the links.
+   *
+   * @return The span links, empty when the span carries none.
+   */
+  List<DecodedSpanLink> getLinks();
 }

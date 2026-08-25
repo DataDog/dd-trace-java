@@ -2,12 +2,16 @@ package datadog.smoketest.trace;
 
 import static datadog.smoketest.trace.SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES;
 import static datadog.smoketest.trace.SmokeTraceAssertions.assertTraces;
+import static datadog.smoketest.trace.SpanLinkMatcher.any;
+import static datadog.smoketest.trace.SpanLinkMatcher.to;
+import static datadog.smoketest.trace.SpanLinkMatcher.toIndex;
 import static datadog.smoketest.trace.SpanMatcher.span;
 import static datadog.smoketest.trace.TraceMatcher.SORT_BY_ANCESTRY;
 import static datadog.smoketest.trace.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.smoketest.trace.TraceMatcher.trace;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -261,6 +265,191 @@ class SmokeMatcherTest {
         + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":"
         + error
         + ",\"meta\":{},\"metrics\":{}}]]";
+  }
+
+  // --- Span links ---
+
+  @Test
+  void matchesLinksByTargetSpanIndexPositionally() {
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    assertTraces(
+        traces,
+        trace(
+            span().operationName("root").root(),
+            span().operationName("shard-a").childOfIndex(0),
+            span().operationName("shard-b").childOfIndex(0),
+            span().operationName("merge").childOfIndex(0).links(toIndex(1), toIndex(2))));
+  }
+
+  @Test
+  void matchesLinksByRawIdentifiersAndWildcard() {
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    assertTraces(
+        traces,
+        trace(
+            span().operationName("root").root(),
+            span().operationName("shard-a").childOfIndex(0),
+            span().operationName("shard-b").childOfIndex(0),
+            span().operationName("merge").childOfIndex(0).links(to(1L, 20L), any())));
+  }
+
+  @Test
+  void wrongLinkOrderFails() {
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    assertThrows(
+        AssertionError.class,
+        () ->
+            assertTraces(
+                traces,
+                trace(
+                    span().operationName("root").root(),
+                    span().operationName("shard-a").childOfIndex(0),
+                    span().operationName("shard-b").childOfIndex(0),
+                    span().operationName("merge").childOfIndex(0).links(toIndex(2), toIndex(1)))),
+        "links are matched positionally");
+  }
+
+  @Test
+  void wrongLinkCountFails() {
+    // A single-span trace, so a link-count mismatch is the only thing that can fail.
+    List<DecodedTrace> traces = Decoder.decodeJson(mergeOnlyTrace(20, 30)).getTraces();
+    assertTraces(traces, trace(span().operationName("merge").root().links(any(), any())));
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(traces, trace(span().operationName("merge").root().links(any()))),
+        "too few matchers");
+    assertThrows(
+        AssertionError.class,
+        () ->
+            assertTraces(
+                traces, trace(span().operationName("merge").root().links(any(), any(), any()))),
+        "too many matchers");
+  }
+
+  @Test
+  void emptyLinksAssertsNoLinkAndAbsentLinksAssertNothing() {
+    List<DecodedTrace> withLinks = Decoder.decodeJson(mergeOnlyTrace(20)).getTraces();
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(withLinks, trace(span().operationName("merge").root().links())),
+        "links() requires zero links");
+    // Not calling links(...) asserts nothing, even though the span does carry links.
+    assertTraces(withLinks, trace(span().operationName("merge").root()));
+    // A span with no link satisfies links().
+    List<DecodedTrace> withoutLinks =
+        Decoder.decodeJson("[[" + spanJson("plain", 10, 0, 10) + "]]").getTraces();
+    assertTraces(withoutLinks, trace(span().operationName("plain").root().links()));
+  }
+
+  @Test
+  void matchesLinkFlagsStateAndAttributes() {
+    List<DecodedTrace> traces = Decoder.decodeJson(refinedLinkTrace()).getTraces();
+    assertTraces(
+        traces,
+        trace(
+            span()
+                .operationName("merge")
+                .root()
+                .links(
+                    to(99L, 99L)
+                        .traceFlags((byte) 1)
+                        .traceState("dd=s:1")
+                        .attributes(singletonMap("link.kind", "span-pointer")))));
+    assertThrows(
+        AssertionError.class,
+        () ->
+            assertTraces(
+                traces,
+                trace(
+                    span().operationName("merge").root().links(to(99L, 99L).traceFlags((byte) 0)))),
+        "wrong trace flags");
+    // The matcher form covers a value that depends on whether the target had been sampled.
+    assertTraces(
+        traces,
+        trace(
+            span()
+                .operationName("merge")
+                .root()
+                .links(
+                    to(99L, 99L)
+                        .traceFlags(isNonNull())
+                        .traceState(isNonNull())
+                        .attributes(isNonNull()))));
+  }
+
+  @Test
+  void negativeLinkTargetIndexIsRejected() {
+    assertThrows(IllegalArgumentException.class, () -> toIndex(-1));
+  }
+
+  @Test
+  void linkTargetsDoNotLeakAcrossCandidates() {
+    // The first candidate resolves toIndex(0) against its own spans and then fails on the link
+    // ids. The valid trace that follows uses different ids and must still match.
+    String broken = "[" + spanJson("root", 10, 0, 10) + "," + linkingSpanJson(11, 10, 777) + "]";
+    String valid = "[" + spanJson("root", 40, 0, 10) + "," + linkingSpanJson(41, 40, 40) + "]";
+    List<DecodedTrace> traces = Decoder.decodeJson("[" + broken + "," + valid + "]").getTraces();
+    assertTraces(
+        traces,
+        options -> options.unorder().ignoreAdditionalTraces(),
+        trace(
+            span().operationName("root").root(), span().operationName("merge").links(toIndex(0))));
+  }
+
+  /** A single-span trace whose root {@code merge} span links to the given span ids. */
+  private static String mergeOnlyTrace(long... linkedSpanIds) {
+    return "[[" + linkingSpanJson(40, 0, linkedSpanIds) + "]]";
+  }
+
+  /** One trace: a root, two shards, and a merge span linking to both shards. */
+  private static String linkedTrace(long shardA, long shardB) {
+    return "[["
+        + spanJson("root", 10, 0, 10)
+        + ","
+        + spanJson("shard-a", shardA, 10, 20)
+        + ","
+        + spanJson("shard-b", shardB, 10, 30)
+        + ","
+        + linkingSpanJson(40, 10, shardA, shardB)
+        + "]]";
+  }
+
+  /** A single-span trace whose link carries flags, a trace state and attributes. */
+  private static String refinedLinkTrace() {
+    return "[[{\"service\":\"s\",\"name\":\"merge\",\"resource\":\"merge\","
+        + "\"trace_id\":1,\"span_id\":40,\"parent_id\":0,\"start\":40,\"duration\":1,"
+        + "\"error\":0,\"metrics\":{},\"meta\":{\"_dd.span_links\":\""
+        + "[{\\\"trace_id\\\":\\\"00000000000000000000000000000063\\\","
+        + "\\\"span_id\\\":\\\"63\\\",\\\"flags\\\":1,"
+        + "\\\"tracestate\\\":\\\"dd=s:1\\\","
+        + "\\\"attributes\\\":{\\\"link.kind\\\":\\\"span-pointer\\\"}}]"
+        + "\"}}]]";
+  }
+
+  /** A {@code merge} span linking to the given span ids, all within trace 1. */
+  private static String linkingSpanJson(long id, long parent, long... linkedSpanIds) {
+    StringBuilder links = new StringBuilder("[");
+    for (int i = 0; i < linkedSpanIds.length; i++) {
+      if (i > 0) {
+        links.append(',');
+      }
+      links
+          .append("{\\\"trace_id\\\":\\\"")
+          .append(String.format("%032x", 1))
+          .append("\\\",\\\"span_id\\\":\\\"")
+          .append(Long.toHexString(linkedSpanIds[i]))
+          .append("\\\"}");
+    }
+    links.append(']');
+    return "{\"service\":\"s\",\"name\":\"merge\",\"resource\":\"merge\","
+        + "\"trace_id\":1,\"span_id\":"
+        + id
+        + ",\"parent_id\":"
+        + parent
+        + ",\"start\":40,\"duration\":1,\"error\":0,\"metrics\":{},"
+        + "\"meta\":{\"_dd.span_links\":\""
+        + links
+        + "\"}}";
   }
 
   private static String spanJson(String name, long id, long parent, long start) {
