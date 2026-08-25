@@ -46,8 +46,10 @@ public class LLMObs {
    * <p>The version is set as an {@code agent_version} tag on this span and propagated to every
    * descendant LLMObs span started under it.
    *
-   * <p>Setting {@code agent_version} directly via {@link LLMObsSpan#setTag} on a span other than
-   * the one returned here does not propagate to that span's descendants.
+   * <p>Propagation only happens via this {@code version} parameter, evaluated once when this span
+   * is created. Calling {@link LLMObsSpan#setTag} with {@code agent_version} afterwards — including
+   * on the span returned here — only sets that span's own tag and does not propagate to
+   * descendants.
    *
    * @param version the version of this agent, or {@code null}/empty to leave it untagged
    */
