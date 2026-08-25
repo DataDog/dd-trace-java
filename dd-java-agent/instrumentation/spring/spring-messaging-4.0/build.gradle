@@ -31,10 +31,6 @@ addTestSuiteForDir('latestDepTest', 'test')
   }
 }
 
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named("compileLatestDepTestKotlin").map { it.destinationDirectory })
-}
-
 kotlin {
   compilerOptions {
     jvmTarget = JvmTarget.JVM_1_8

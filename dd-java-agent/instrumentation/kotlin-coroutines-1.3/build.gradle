@@ -37,14 +37,6 @@ kotlin {
 
 addTestSuite('latestDepTest')
 
-tasks.named("compileTestFixturesGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileTestFixturesKotlin').map { it.destinationDirectory })
-}
-
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
-}
-
 dependencies {
   api project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   compileOnly libs.kotlin
