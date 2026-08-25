@@ -152,9 +152,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
               "flag \"" + flagKey + "\" contains a split with missing shards");
         }
         for (final Shard shard : split.shards) {
-          if (shard == null
-              || shard.totalShards <= 0
-              || shard.ranges == null) {
+          if (shard == null || shard.totalShards <= 0 || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains invalid shards");
           }
           for (final ShardRange range : shard.ranges) {
