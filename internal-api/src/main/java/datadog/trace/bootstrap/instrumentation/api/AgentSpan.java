@@ -270,7 +270,10 @@ public interface AgentSpan
    * this when you want to temporarily suppress any surrounding custom context during the span's
    * continuation.
    *
-   * @return a continuation capturing only this span.
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing only this span; no-op continuation if async propagation
+   *     disabled
    */
   @Override
   default ContextContinuation capture() {
@@ -282,7 +285,10 @@ public interface AgentSpan
    * another execution unit. Use this when you want to maintain any surrounding custom context
    * during the span's continuation
    *
-   * @return a continuation capturing this span and any custom context.
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing this span and any custom context; no-op continuation if async
+   *     propagation disabled
    */
   default ContextContinuation captureWithContext() {
     return storeInto(Context.current()).capture();
