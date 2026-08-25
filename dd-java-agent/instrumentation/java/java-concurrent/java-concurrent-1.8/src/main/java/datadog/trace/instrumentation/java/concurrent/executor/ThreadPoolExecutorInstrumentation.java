@@ -106,8 +106,13 @@ public final class ThreadPoolExecutorInstrumentation
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.wrap(task);
+        } else if (TPEHelper.capture(
+            InstrumentationContext.get(Runnable.class, State.class), task)) {
+          // This same instance is already queued with a pending continuation, and its single State
+          // slot cannot hold ours as well. Fall back to wrapping so this submission carries its own
+          // context instead of silently running under the root context.
+          task = Wrapper.wrap(task);
         } else {
-          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task);
           // queue time needs to be handled separately because there are RunnableFutures which are
           // excluded as
           // Runnables but it is not until now that they will be put on the executor's queue

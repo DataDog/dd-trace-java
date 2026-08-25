@@ -71,7 +71,17 @@ public class AdviceUtils {
     return (span == null || span.isValid()) && isAsyncPropagationEnabled();
   }
 
-  public static <T> void capture(ContextStore<T, State> contextStore, T task) {
+  /**
+   * Captures the current context into the task's {@link State}.
+   *
+   * <p>A {@link State} holds a single continuation, so if the same task instance is submitted again
+   * while an earlier submission is still pending, the second capture cannot be stored. Callers that
+   * are able to give the submission its own carrier should use the return value to detect that and
+   * do so; callers with no such option may ignore it.
+   *
+   * @return {@code true} if the slot was already taken and this capture was dropped
+   */
+  public static <T> boolean capture(ContextStore<T, State> contextStore, T task) {
     Context context = Context.current();
     if (shouldCapture(context)) {
       State state = contextStore.get(task);
@@ -79,7 +89,8 @@ public class AdviceUtils {
         state = State.FACTORY.create();
         contextStore.put(task, state);
       }
-      state.captureAndSetContinuation(context);
+      return !state.captureAndSetContinuation(context);
     }
+    return false;
   }
 }

@@ -63,10 +63,16 @@ public final class TPEHelper {
         && PROPAGATE.get(executor.getClass());
   }
 
-  public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {
+  /**
+   * @return {@code true} if this task instance already had a pending continuation, so this
+   *     submission's context was dropped and needs its own carrier. See {@link
+   *     AdviceUtils#capture}.
+   */
+  public static boolean capture(ContextStore<Runnable, State> contextStore, Runnable task) {
     if (task != null && !exclude(RUNNABLE, task)) {
-      AdviceUtils.capture(contextStore, task);
+      return AdviceUtils.capture(contextStore, task);
     }
+    return false;
   }
 
   public static ContextScope startScope(ContextStore<Runnable, State> contextStore, Runnable task) {
