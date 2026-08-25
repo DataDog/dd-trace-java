@@ -521,6 +521,8 @@ public class DDEvaluatorTest {
       // Equal
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3.4.5.6", "1.2.3.4.5.6", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.2.3.4.5.7", "1.2.3.4.5.6", true),
       // Not equal
       Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
       Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
