@@ -214,6 +214,7 @@ public class WellKnownClasses {
           Arrays.asList(
               // Maps with synchronized methods can lead to deadlock
               "java.util.Hashtable",
+              "java.util.Properties",
               "java.util.Collections$SynchronizedMap",
               "java.util.Collections$SynchronizedSortedMap",
               "java.util.Collections$SynchronizedNavigableMap"));
@@ -226,8 +227,6 @@ public class WellKnownClasses {
           "it.unimi.dsi.fastutil.", // fastutil
           "org.agrona.collections." // Agrona
           );
-
-  private static final String SYNCHRONIZED_WRAPPER_PREFIX = "java.util.Collections$Synchronized";
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
