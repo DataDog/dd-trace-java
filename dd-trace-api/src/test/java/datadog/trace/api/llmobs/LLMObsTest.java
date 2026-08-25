@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -28,23 +29,48 @@ class LLMObsTest {
 
   private static Object originalSpanFactory;
   private static Object originalEvalProcessor;
+  private static Object originalSpanProcessor;
 
   @BeforeAll
   static void setupSpec() throws Exception {
     originalSpanFactory = getStaticField("SPAN_FACTORY");
     originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
+    originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
   }
 
   @AfterAll
   static void cleanupSpec() throws Exception {
     setStaticField("SPAN_FACTORY", originalSpanFactory);
     setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
+    setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
   }
 
   @AfterEach
   void cleanup() throws Exception {
     setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
     setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
+    LLMObs.deregisterProcessor();
+  }
+
+  @Test
+  void testRegisterAndDeregisterProcessor() throws Exception {
+    LLMObsSpanData span = mock(LLMObsSpanData.class);
+    LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
+
+    LLMObs.registerProcessor(processor);
+
+    assertSame(processor, getStaticField("SPAN_PROCESSOR"));
+    assertSame(span, processor.process(span));
+    assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
+
+    LLMObs.deregisterProcessor();
+
+    assertNull(getStaticField("SPAN_PROCESSOR"));
+  }
+
+  @Test
+  void testRegisterNullProcessor() {
+    assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
   }
 
   @Test
@@ -127,6 +153,59 @@ class LLMObsTest {
   @Test
   void testSetToolDefinitionsIsCompatibilityPreservingDefaultMethod() throws Exception {
     assertTrue(LLMObsSpan.class.getMethod("setToolDefinitions", List.class).isDefault());
+  }
+
+  @Test
+  void testAnnotatePromptIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(LLMObsSpan.class.getMethod("annotatePrompt", LLMObs.Prompt.class).isDefault());
+  }
+
+  @Test
+  void testPromptBuilderWithTextTemplate() {
+    Map<String, String> variables = new HashMap<>();
+    variables.put("city", "Paris");
+    Map<String, String> tags = new HashMap<>();
+    tags.put("team", "weather");
+    List<String> contextVariables = Arrays.asList("forecast", "history");
+    List<String> queryVariables = Collections.singletonList("city");
+
+    LLMObs.Prompt prompt =
+        LLMObs.Prompt.builder()
+            .id("weather-prompt")
+            .version("1.0.0")
+            .template("What is the weather in {{city}}?")
+            .variables(variables)
+            .tags(tags)
+            .contextVariables(contextVariables)
+            .queryVariables(queryVariables)
+            .build();
+
+    assertEquals("weather-prompt", prompt.getId());
+    assertEquals("1.0.0", prompt.getVersion());
+    assertEquals("What is the weather in {{city}}?", prompt.getTemplate());
+    assertNull(prompt.getChatTemplate());
+    assertEquals(variables, prompt.getVariables());
+    assertEquals(tags, prompt.getTags());
+    assertEquals(contextVariables, prompt.getContextVariables());
+    assertEquals(queryVariables, prompt.getQueryVariables());
+    assertNotSame(variables, prompt.getVariables());
+    assertNotSame(tags, prompt.getTags());
+    assertNotSame(contextVariables, prompt.getContextVariables());
+    assertNotSame(queryVariables, prompt.getQueryVariables());
+  }
+
+  @Test
+  void testPromptBuilderWithChatTemplate() {
+    List<LLMObs.LLMMessage> chatTemplate =
+        Arrays.asList(
+            LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+            LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
+
+    LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
+
+    assertNull(prompt.getTemplate());
+    assertEquals(chatTemplate, prompt.getChatTemplate());
+    assertNotSame(chatTemplate, prompt.getChatTemplate());
   }
 
   @Test
