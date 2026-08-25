@@ -176,6 +176,37 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void dropsFlagsWithInvalidConditionOperandsAndShardBounds() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "non-numeric-gt",
+                        allocation(
+                            "non-numeric-gt",
+                            "[{\"conditions\":[{\"attribute\":\"age\",\"operator\":\"GT\",\"value\":\"bad\"}]}]")),
+                    booleanFlag(
+                        "non-list-one-of",
+                        allocation(
+                            "non-list-one-of",
+                            "[{\"conditions\":[{\"attribute\":\"role\",\"operator\":\"ONE_OF\",\"value\":\"admin\"}]}]")),
+                    booleanFlag(
+                        "negative-shard-range",
+                        ",\"allocations\":[{\"key\":\"negative-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":100,\"ranges\":[{\"start\":-1,\"end\":1}]}]}]}]"),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("non-numeric-gt"));
+    assertFalse(configuration.flags.containsKey("non-list-one-of"));
+    assertFalse(configuration.flags.containsKey("negative-shard-range"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("non-numeric-gt"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("non-list-one-of"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("negative-shard-range"));
+  }
+
+  @Test
   void nullAttributesAreRejectedWithoutInvokingTheFlagParser() throws Exception {
     assertNull(parse("{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":null}}"));
   }

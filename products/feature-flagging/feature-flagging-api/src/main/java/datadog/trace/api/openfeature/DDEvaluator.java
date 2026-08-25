@@ -463,7 +463,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return false;
   }
 
-  private static int getShard(final String salt, final String targetingKey, final int totalShards) {
+  private static int getShard(
+      final String salt, final String targetingKey, final long totalShards) {
     final String hashKey = salt + "-" + targetingKey;
     final String md5Hash = getMD5Hash(hashKey);
     final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));

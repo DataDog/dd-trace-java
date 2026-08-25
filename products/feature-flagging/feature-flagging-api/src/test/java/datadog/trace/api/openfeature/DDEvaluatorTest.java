@@ -33,6 +33,8 @@ import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
@@ -1117,13 +1119,78 @@ public class DDEvaluatorTest {
         return;
       }
       for (final Allocation allocation : flag.allocations) {
-        if (allocation == null || allocation.splits == null) {
+        if (allocation == null) {
+          continue;
+        }
+        validateConditionOperands(flagKey, allocation);
+        if (allocation.splits == null) {
           continue;
         }
         for (final Split split : allocation.splits) {
-          if (split != null && split.shards == null) {
+          if (split == null) {
+            continue;
+          }
+          if (split.shards == null) {
             throw new IllegalArgumentException(
                 "flag \"" + flagKey + "\" contains a split with missing shards");
+          }
+          for (final Shard shard : split.shards) {
+            if (shard == null
+                || shard.totalShards <= 0
+                || shard.totalShards > Integer.MAX_VALUE
+                || shard.ranges == null) {
+              throw new IllegalArgumentException(
+                  "flag \"" + flagKey + "\" contains invalid shards");
+            }
+            for (final ShardRange range : shard.ranges) {
+              if (range == null || range.start < 0 || range.end < 0) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" contains an invalid shard range");
+              }
+            }
+          }
+        }
+      }
+    }
+
+    private static void validateConditionOperands(
+        final String flagKey, final Allocation allocation) {
+      if (allocation.rules == null) {
+        return;
+      }
+      for (final Rule rule : allocation.rules) {
+        if (rule == null || rule.conditions == null) {
+          continue;
+        }
+        for (final ConditionConfiguration condition : rule.conditions) {
+          if (condition == null || condition.operator == null) {
+            continue;
+          }
+          switch (condition.operator) {
+            case LT:
+            case LTE:
+            case GT:
+            case GTE:
+              if (!(condition.value instanceof Number)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-numeric condition");
+              }
+              break;
+            case ONE_OF:
+            case NOT_ONE_OF:
+              if (!(condition.value instanceof List)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-list condition");
+              }
+              break;
+            case IS_NULL:
+              if (!(condition.value instanceof Boolean)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-boolean condition");
+              }
+              break;
+            default:
+              break;
           }
         }
       }
