@@ -291,8 +291,6 @@ public class AgentTracer {
     @SuppressWarnings("deprecation")
     AgentScope.Continuation captureActiveSpan();
 
-    ContextContinuation captureSpan(AgentSpan span);
-
     void checkpointActiveForRollback();
 
     void rollbackActiveToCheckpoint();
@@ -459,11 +457,6 @@ public class AgentTracer {
     @Override
     @SuppressWarnings("deprecation")
     public AgentScope.Continuation captureActiveSpan() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
-    public ContextContinuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
