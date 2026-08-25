@@ -126,9 +126,7 @@ public class OpenAiDecorator extends ClientDecorator {
           span.setTag(CommonTags.SESSION_ID, sessionId);
         }
 
-        // Inherit agent_version from the active LLMObs parent (e.g. a manual agent span), so the
-        // auto-instrumented openai.request span is included when filtering/grouping the agent's
-        // subtree by version.
+        // Inherit agent_version from the active LLMObs parent.
         String agentVersion = LLMObsContext.currentAgentVersion();
         if (agentVersion != null && !agentVersion.isEmpty()) {
           span.setTag(CommonTags.AGENT_VERSION, agentVersion);

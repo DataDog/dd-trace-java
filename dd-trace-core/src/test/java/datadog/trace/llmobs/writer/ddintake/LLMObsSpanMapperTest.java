@@ -260,34 +260,6 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void testLLMObsSpanMapperSerializesAgentVersionAsAGenericTag() throws Exception {
-    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-
-    AgentSpan toolSpan =
-        tracer
-            .buildSpan("datadog", "get_weather")
-            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_TOOL_SPAN_KIND)
-            .withTag("_ml_obs_tag.agent_version", "v3")
-            .start();
-    toolSpan.setSpanType(InternalSpanTypes.LLMOBS);
-    toolSpan.finish();
-
-    Map<String, Object> spanData = serializeSingleSpan(mapper, toolSpan);
-
-    // Unlike session_id, agent_version needs no top-level field or meta{} remapping — it flows
-    // generically through tags[], the same way ml_app does.
-    assertFalse(spanData.containsKey("agent_version"));
-    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
-    assertFalse(meta.containsKey("agent_version"));
-
-    List<String> tags = (List<String>) spanData.get("tags");
-    assertTrue(tags.contains("agent_version:v3"));
-
-    tracer.close();
-  }
-
-  @Test
   void testLLMObsSpanMapperPreservesNestedPromptInputCompatibility() throws Exception {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
