@@ -18,26 +18,15 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmark for {@link LettuceInstrumentationUtil#expectsResponse(RedisCommand)} -- the per-command
- * hot-path check that decides whether a span finishes early.
+ * Compares the old {@code HashSet<String>} lookup in {@link
+ * LettuceInstrumentationUtil#expectsResponse(RedisCommand)} against the new {@code
+ * EnumSet<CommandType>} lookup. The win is lookup strategy (bit-set test vs. string hash/equals),
+ * not avoided allocation -- these {@code CommandType} names have no whitespace, so {@code
+ * toString().trim()} never allocates. {@code oldExpectsResponse} reproduces the removed
+ * implementation for comparison.
  *
- * <p><b>What we're measuring.</b> The production code used to look up {@code
- * command.getType().toString()} (a fresh, trimmed {@code String}) in a {@code HashSet<String>}. It
- * now checks {@code command.getType() instanceof CommandType} and looks the enum constant up
- * directly in an {@code EnumSet<CommandType>}, avoiding both the {@code toString()}/{@code trim()}
- * allocation and the string hashing. {@code oldExpectsResponse} below is a byte-for-byte
- * reproduction of the removed {@code Set<String>} implementation, kept only for this comparison.
- *
- * <p>The {@code toString()}/{@code trim()} allocation happens on every call, hit or miss, so it is
- * split into two explicit traffic shapes rather than one blended mix:
- *
- * <ul>
- *   <li>{@code Miss} -- ordinary data commands (GET/SET/EXISTS/...), never in {@code
- *       NON_INSTRUMENTING_COMMANDS}. This is ~100% of real production traffic; DEBUG/SHUTDOWN-style
- *       admin commands are effectively never sent on the hot path.
- *   <li>{@code Hit} -- only DEBUG/SHUTDOWN, always in {@code NON_INSTRUMENTING_COMMANDS}. Included
- *       for completeness, not because it is representative.
- * </ul>
+ * <p>Split into two traffic shapes: {@code Miss} (ordinary data commands, ~100% of real traffic)
+ * and {@code Hit} (DEBUG/SHUTDOWN, rare but exercises the matching path).
  *
  * <pre>
  *   ./gradlew :dd-java-agent:instrumentation:lettuce:lettuce-5.0:jmh   # add -prof gc

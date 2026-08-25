@@ -3,15 +3,21 @@ package datadog.trace.instrumentation.lettuce5;
 import io.lettuce.core.protocol.CommandType;
 import io.lettuce.core.protocol.ProtocolKeyword;
 import io.lettuce.core.protocol.RedisCommand;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Set;
 
 public class LettuceInstrumentationUtil {
 
-  // DEBUG covers both `DEBUG OOM` and `DEBUG SEGFAULT`: Lettuce always encodes those as a command
-  // of type DEBUG with "OOM"/SEGFAULT passed as an argument, never as the command type itself.
+  // DEBUG covers `DEBUG OOM`/`DEBUG SEGFAULT`: Lettuce sends those as command type DEBUG with
+  // "OOM"/SEGFAULT as an argument, not as the command type.
   public static final Set<CommandType> NON_INSTRUMENTING_COMMANDS =
       EnumSet.of(CommandType.SHUTDOWN, CommandType.DEBUG);
+
+  // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
+  private static final Set<String> NON_INSTRUMENTING_COMMAND_NAMES =
+      new HashSet<>(Arrays.asList("SHUTDOWN", "DEBUG"));
 
   public static final Set<CommandType> AGENT_CRASHING_COMMANDS =
       EnumSet.of(
@@ -21,6 +27,10 @@ public class LettuceInstrumentationUtil {
           CommandType.CONFIG,
           CommandType.DEBUG,
           CommandType.SCRIPT);
+
+  // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
+  private static final Set<String> AGENT_CRASHING_COMMAND_NAMES =
+      new HashSet<>(Arrays.asList("CLIENT", "CLUSTER", "COMMAND", "CONFIG", "DEBUG", "SCRIPT"));
 
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
@@ -37,7 +47,13 @@ public class LettuceInstrumentationUtil {
       return true;
     }
     final ProtocolKeyword type = command.getType();
-    return !(type instanceof CommandType && NON_INSTRUMENTING_COMMANDS.contains(type));
+    if (type == null) {
+      return true;
+    }
+    if (type instanceof CommandType) {
+      return !NON_INSTRUMENTING_COMMANDS.contains(type);
+    }
+    return !NON_INSTRUMENTING_COMMAND_NAMES.contains(type.toString().trim());
   }
 
   /**
@@ -54,7 +70,11 @@ public class LettuceInstrumentationUtil {
   public static String getCommandResourceName(final RedisCommand command) {
     final String commandName = getCommandName(command);
     final ProtocolKeyword type = command == null ? null : command.getType();
-    if (type instanceof CommandType && AGENT_CRASHING_COMMANDS.contains(type)) {
+    final boolean crashesAgent =
+        type instanceof CommandType
+            ? AGENT_CRASHING_COMMANDS.contains(type)
+            : type != null && AGENT_CRASHING_COMMAND_NAMES.contains(commandName);
+    if (crashesAgent) {
       return AGENT_CRASHING_COMMAND_PREFIX + commandName;
     }
     return commandName;
