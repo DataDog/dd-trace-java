@@ -175,8 +175,12 @@ public class ConfigManager {
 
   private ConfigManager() {}
 
+  // Guards cfgFile/pendingEntries below. A private lock (rather than `static synchronized`)
+  // avoids exposing the class's intrinsic lock to untrusted code sharing the classloader.
+  private static final Object CFG_LOCK = new Object();
+
   // Cached: the path can't be recomputed later (HotSpot temp dir vs J9 -Xdump:tool path differ).
-  @Nullable private static volatile File cfgFile;
+  @Nullable private static File cfgFile;
 
   // Entries requested before the .cfg file was cached (e.g. the bundled WAF ruleset version
   // arriving before Java 9+'s deferred crash-tracking init finishes) - applied once it is.
@@ -210,14 +214,16 @@ public class ConfigManager {
     writer.newLine();
   }
 
-  public static synchronized void writeConfigToPath(File scriptFile, String... additionalEntries) {
-    File cfgFile = computeCfgFile(scriptFile);
-    ConfigManager.cfgFile = cfgFile;
-    writeConfigToFile(Config.get(), cfgFile, additionalEntries);
-    for (Map.Entry<String, String> entry : pendingEntries.entrySet()) {
-      updateCrashConfigEntry(entry.getKey(), entry.getValue());
+  public static void writeConfigToPath(File scriptFile, String... additionalEntries) {
+    synchronized (CFG_LOCK) {
+      File cfgFile = computeCfgFile(scriptFile);
+      ConfigManager.cfgFile = cfgFile;
+      writeConfigToFile(Config.get(), cfgFile, additionalEntries);
+      for (Map.Entry<String, String> entry : pendingEntries.entrySet()) {
+        updateCrashConfigEntry(entry.getKey(), entry.getValue());
+      }
+      pendingEntries.clear();
     }
-    pendingEntries.clear();
   }
 
   /**
@@ -245,43 +251,45 @@ public class ConfigManager {
    * on this process/platform, or the deferred Java 9+ init hasn't run yet) - applied once {@link
    * #writeConfigToPath} caches the file. This is a normal condition, not an error.
    */
-  public static synchronized void updateCrashConfigEntry(String key, String value) {
+  public static void updateCrashConfigEntry(String key, String value) {
     if (key == null || value == null) {
       return;
     }
-    File cfgFile = ConfigManager.cfgFile;
-    if (cfgFile == null) {
-      pendingEntries.put(key, value);
-      return;
-    }
-    try {
-      Map<String, String> entries = readRawEntries(cfgFile);
-      entries.put(key, value);
-
-      File tmpFile = File.createTempFile(getBaseName(cfgFile), ".tmp", cfgFile.getParentFile());
+    synchronized (CFG_LOCK) {
+      File cfgFile = ConfigManager.cfgFile;
+      if (cfgFile == null) {
+        pendingEntries.put(key, value);
+        return;
+      }
       try {
-        try (BufferedWriter bw =
-            new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8))) {
-          for (Map.Entry<String, String> entry : entries.entrySet()) {
-            writeEntry(bw, entry.getKey(), entry.getValue());
+        Map<String, String> entries = readRawEntries(cfgFile);
+        entries.put(key, value);
+
+        File tmpFile = File.createTempFile(getBaseName(cfgFile), ".tmp", cfgFile.getParentFile());
+        try {
+          try (BufferedWriter bw =
+              new BufferedWriter(
+                  new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8))) {
+            for (Map.Entry<String, String> entry : entries.entrySet()) {
+              writeEntry(bw, entry.getKey(), entry.getValue());
+            }
           }
-        }
-        // renameTo does not reliably replace an existing target on Windows (unlike POSIX) -
-        // deleting the stale target first lets the retry succeed there.
-        if (!tmpFile.renameTo(cfgFile) && !(cfgFile.delete() && tmpFile.renameTo(cfgFile))) {
-          LOGGER.debug("Failed to replace config file: {}", cfgFile);
+          // renameTo does not reliably replace an existing target on Windows (unlike POSIX) -
+          // deleting the stale target first lets the retry succeed there.
+          if (!tmpFile.renameTo(cfgFile) && !(cfgFile.delete() && tmpFile.renameTo(cfgFile))) {
+            LOGGER.debug("Failed to replace config file: {}", cfgFile);
+            tmpFile.delete(); // best-effort cleanup; failure is acceptable here
+          }
+        } catch (IOException | SecurityException e) {
           tmpFile.delete(); // best-effort cleanup; failure is acceptable here
+          throw e;
         }
       } catch (IOException | SecurityException e) {
-        tmpFile.delete(); // best-effort cleanup; failure is acceptable here
-        throw e;
+        // Best-effort: crash-config patching must never break the caller (e.g. AppSec
+        // initialization) - a restrictive SecurityManager can throw SecurityException on any of
+        // the file operations above, which is not an IOException.
+        LOGGER.debug("Failed to update config file entry {}: {}", key, cfgFile, e);
       }
-    } catch (IOException | SecurityException e) {
-      // Best-effort: crash-config patching must never break the caller (e.g. AppSec
-      // initialization) - a restrictive SecurityManager can throw SecurityException on any of
-      // the file operations above, which is not an IOException.
-      LOGGER.debug("Failed to update config file entry {}: {}", key, cfgFile, e);
     }
   }
 
