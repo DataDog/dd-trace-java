@@ -29,8 +29,7 @@ public final class LLMObsContext {
    * Attach an LLMObs span context, optionally propagating a session_id to descendant LLMObs spans.
    * When sessionId is non-null and non-empty, child LLMObs spans started under this context that do
    * not specify their own sessionId will inherit it via {@link #currentSessionId()}. A null or
-   * empty sessionId clears any session_id inherited from an enclosing scope. agent_version is left
-   * untouched either way.
+   * empty sessionId clears any session_id inherited from an enclosing scope.
    */
   public static ContextScope attach(AgentSpanContext ctx, String sessionId) {
     return Context.current()
@@ -43,9 +42,9 @@ public final class LLMObsContext {
    * Attach an LLMObs span context, optionally propagating a session_id and an agent_version to
    * descendant LLMObs spans. See {@link #attach(AgentSpanContext, String)}. Same
    * clears-if-null-or-empty semantics apply to agentVersion via {@link #currentAgentVersion()} —
-   * callers (e.g. {@code DDLLMObsSpan}) are expected to pass the already-resolved effective value
-   * (inherited-and-possibly-overridden), not a raw per-span override, so that a stale value from an
-   * unrelated context is always cleared rather than silently carried forward.
+   * callers (e.g. {@code DDLLMObsSpan}) are expected to pass the already-resolved effective value,
+   * so that a stale value from an unrelated context is always cleared rather than silently carried
+   * forward.
    */
   public static ContextScope attach(AgentSpanContext ctx, String sessionId, String agentVersion) {
     return Context.current()
