@@ -173,18 +173,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
-          if ("invalid_semver_comparand".equals(config.invalidFlags.get(key))) {
-            return error(
-                defaultValue,
-                ErrorCode.PARSE_ERROR,
-                "invalid configuration for flag " + key,
-                observeFullEvaluationData);
-          }
-          return ProviderEvaluation.<T>builder()
-              .value(defaultValue)
-              .reason(Reason.DEFAULT.name())
-              .flagMetadata(consentMetadata(observeFullEvaluationData))
-              .build();
+          return error(
+              defaultValue,
+              ErrorCode.PARSE_ERROR,
+              "invalid configuration for flag " + key,
+              observeFullEvaluationData);
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }

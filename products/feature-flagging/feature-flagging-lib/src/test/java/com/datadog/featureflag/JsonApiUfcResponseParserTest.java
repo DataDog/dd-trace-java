@@ -101,12 +101,12 @@ class JsonApiUfcResponseParserTest {
                         "valid-semver",
                         allocation(
                             "valid-semver",
-                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2.3\"}]}]")),
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
                     booleanFlag(
                         "invalid-semver",
                         allocation(
                             "invalid-semver",
-                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.02\"}]}]")),
                     booleanFlag(
                         "non-string-semver",
                         allocation(
@@ -141,6 +141,21 @@ class JsonApiUfcResponseParserTest {
             .conditions
             .get(0)
             .semverComparand);
+  }
+
+  @Test
+  void dropsFlagWithMalformedAllocationsWithoutRejectingConfig() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag("malformed-allocations", ",\"allocations\":\"not-a-list\""),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("malformed-allocations"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("malformed-allocations"));
   }
 
   @Test

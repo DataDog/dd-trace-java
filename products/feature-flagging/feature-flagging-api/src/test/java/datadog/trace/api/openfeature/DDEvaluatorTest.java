@@ -550,7 +550,7 @@ public class DDEvaluatorTest {
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
       // Invalid attribute does not match
       Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
       Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
       Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
       // Non-string attribute does not match
@@ -610,6 +610,24 @@ public class DDEvaluatorTest {
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "invalid-semver", false, semverContext("1.2.3"));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+  }
+
+  @Test
+  public void testEvaluateMalformedFlagReturnsParseError() {
+    final Map<String, Flag> flags = new HashMap<>();
+    final Map<String, String> invalidFlags = new HashMap<>();
+    invalidFlags.put("malformed-flag", "invalid_flag");
+    final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
+    config.invalidFlags = invalidFlags;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(config);
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "malformed-flag", false, new MutableContext());
 
     assertThat(details.getValue(), equalTo(false));
     assertThat(details.getReason(), equalTo(ERROR.name()));
