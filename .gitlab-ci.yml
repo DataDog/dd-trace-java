@@ -365,30 +365,37 @@ build:
     reports:
       dotenv: build.env
 
-build_tests:
+.build_tests:
   extends: .gradle_build
   variables:
     <<: *tier_l_variables
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
+  script:
+    - *gitlab_base_ref_params
+    - ./gradlew --version
+    - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
+
+build_tests:
+  extends: .build_tests
   parallel:
     matrix:
       - GRADLE_TARGET: ":baseTest"
         CACHE_TYPE: "base"
       - GRADLE_TARGET: ":profilingTest"
         CACHE_TYPE: "profiling"
-      - GRADLE_TARGET: ":instrumentationTest"
-        CACHE_TYPE: "inst"
-        <<: *tier_xl_variables
       - GRADLE_TARGET: ":instrumentationLatestDepTest"
         CACHE_TYPE: "latestdep"
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
         MAVEN_OPTS: "-Xms256M -Xmx1024M"
-  script:
-    - *gitlab_base_ref_params
-    - ./gradlew --version
-    - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
+
+"build_tests: [:instrumentationTest, inst]":
+  extends: .build_tests
+  variables:
+    <<: *tier_xl_variables
+    GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
 
 populate_dep_cache:
   extends: build_tests
@@ -607,16 +614,8 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
-  # needs:parallel:matrix limits this job to a specific build_tests combination.
-  # Keep matrix vars exact and in build_tests declaration order:
-  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
   needs: &needs_build_tests_inst
-    - job: build_tests
-      parallel:
-        matrix:
-          - GRADLE_TARGET: ":instrumentationTest"
-            CACHE_TYPE: "inst"
-            <<: *tier_xl_variables
+    - job: "build_tests: [:instrumentationTest, inst]"
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
