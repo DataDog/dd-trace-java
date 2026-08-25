@@ -1,7 +1,5 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
-import java.util.Arrays;
-
 /**
  * ParsedSemver is the language-neutral representation of the SemVer subset used by FFE. Owning this
  * parser and comparator keeps behavior consistent across SDKs and lets configuration preprocessing
@@ -17,11 +15,30 @@ public final class ParsedSemver {
   /** Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version. */
   public static final ParsedSemver INVALID = null;
 
-  private final long[] core; // unsigned, with omitted minor and patch normalized to zero
+  private static final int MAX_CORE_PARTS = 5;
+
+  private final long major; // unsigned
+  private final long minor; // unsigned
+  private final long patch; // unsigned
+  private final long fourth; // unsigned
+  private final long fifth; // unsigned
+  private final int coreLength;
   private final String prerelease;
 
-  ParsedSemver(final long[] core, final String prerelease) {
-    this.core = core;
+  ParsedSemver(
+      final long major,
+      final long minor,
+      final long patch,
+      final long fourth,
+      final long fifth,
+      final int coreLength,
+      final String prerelease) {
+    this.major = major;
+    this.minor = minor;
+    this.patch = patch;
+    this.fourth = fourth;
+    this.fifth = fifth;
+    this.coreLength = coreLength;
     this.prerelease = prerelease;
   }
 
@@ -33,27 +50,55 @@ public final class ParsedSemver {
    *     version
    */
   public static ParsedSemver parse(final String version) {
-    long[] parsedCore = new long[3];
+    long major = 0;
+    long minor = 0;
+    long patch = 0;
+    long fourth = 0;
+    long fifth = 0;
     int coreSize = 0;
     int next = 0;
     while (true) {
-      final long[] component = parseCoreIdentifier(version, next);
-      if (component == null) {
+      final int end = coreIdentifierEnd(version, next);
+      if (end == -1) {
         return INVALID;
       }
-      if (coreSize == parsedCore.length) {
-        parsedCore = Arrays.copyOf(parsedCore, parsedCore.length * 2);
+      final long component;
+      try {
+        component = Long.parseUnsignedLong(version.substring(next, end));
+      } catch (final NumberFormatException e) {
+        return INVALID; // overflow
       }
-      parsedCore[coreSize++] = component[0];
-      next = (int) component[1];
+      switch (coreSize++) {
+        case 0:
+          major = component;
+          break;
+        case 1:
+          minor = component;
+          break;
+        case 2:
+          patch = component;
+          break;
+        case 3:
+          fourth = component;
+          break;
+        case 4:
+          fifth = component;
+          break;
+        default:
+          return INVALID;
+      }
+      next = end;
       if (next == version.length() || version.charAt(next) != '.') {
         break;
       }
+      if (coreSize == MAX_CORE_PARTS) {
+        return INVALID;
+      }
       next++;
     }
-    final long[] core = Arrays.copyOf(parsedCore, Math.max(3, coreSize));
+    final int coreLength = Math.max(3, coreSize);
     if (next == version.length()) {
-      return new ParsedSemver(core, "");
+      return new ParsedSemver(major, minor, patch, fourth, fifth, coreLength, "");
     }
 
     // Parse prerelease and/or build metadata.
@@ -66,7 +111,7 @@ public final class ParsedSemver {
         if (!validSemverIdentifiers(remainder, false)) {
           return INVALID;
         }
-        return new ParsedSemver(core, remainder);
+        return new ParsedSemver(major, minor, patch, fourth, fifth, coreLength, remainder);
       }
       prerelease = remainder.substring(0, buildStart);
       if (!validSemverIdentifiers(prerelease, false)) {
@@ -81,7 +126,7 @@ public final class ParsedSemver {
     if (!validSemverIdentifiers(remainder, true)) {
       return INVALID;
     }
-    return new ParsedSemver(core, prerelease);
+    return new ParsedSemver(major, minor, patch, fourth, fifth, coreLength, prerelease);
   }
 
   /**
@@ -93,11 +138,9 @@ public final class ParsedSemver {
    *     {@code right}, zero if they have equal precedence
    */
   public static int compare(final ParsedSemver left, final ParsedSemver right) {
-    final int coreLength = Math.max(left.core.length, right.core.length);
+    final int coreLength = Math.max(left.coreLength, right.coreLength);
     for (int i = 0; i < coreLength; i++) {
-      final long leftComponent = i < left.core.length ? left.core[i] : 0;
-      final long rightComponent = i < right.core.length ? right.core[i] : 0;
-      final int cmp = Long.compareUnsigned(leftComponent, rightComponent);
+      final int cmp = Long.compareUnsigned(left.coreComponent(i), right.coreComponent(i));
       if (cmp != 0) {
         return cmp;
       }
@@ -106,28 +149,38 @@ public final class ParsedSemver {
   }
 
   /**
-   * Parses a core version identifier (major, minor, or patch). Enforces the unsigned 64-bit bound
-   * without accepting leading zeros (except for the value zero itself).
-   *
-   * @return a two-element array {@code {value, nextIndex}}, or {@code null} on failure
+   * Finds the end of a core version identifier (major, minor, or patch), rejecting leading zeros
+   * except for the value zero itself.
    */
-  private static long[] parseCoreIdentifier(final String version, final int start) {
+  private static int coreIdentifierEnd(final String version, final int start) {
     if (start >= version.length() || !isASCIIDigit(version.charAt(start))) {
-      return null;
+      return -1;
     }
     if (version.charAt(start) == '0') {
-      return new long[] {0, start + 1};
+      return start + 1;
     }
 
     int end = start;
     while (end < version.length() && isASCIIDigit(version.charAt(end))) {
       end++;
     }
-    try {
-      final long value = Long.parseUnsignedLong(version.substring(start, end));
-      return new long[] {value, end};
-    } catch (final NumberFormatException e) {
-      return null; // overflow
+    return end;
+  }
+
+  private long coreComponent(final int index) {
+    switch (index) {
+      case 0:
+        return major;
+      case 1:
+        return minor;
+      case 2:
+        return patch;
+      case 3:
+        return fourth;
+      case 4:
+        return fifth;
+      default:
+        return 0;
     }
   }
 
@@ -248,15 +301,15 @@ public final class ParsedSemver {
   // --- Accessors for testing ---
 
   long getMajor() {
-    return core[0];
+    return major;
   }
 
   long getMinor() {
-    return core[1];
+    return minor;
   }
 
   long getPatch() {
-    return core[2];
+    return patch;
   }
 
   String getPrerelease() {
@@ -272,22 +325,34 @@ public final class ParsedSemver {
       return false;
     }
     final ParsedSemver that = (ParsedSemver) o;
-    return Arrays.equals(core, that.core) && prerelease.equals(that.prerelease);
+    return major == that.major
+        && minor == that.minor
+        && patch == that.patch
+        && fourth == that.fourth
+        && fifth == that.fifth
+        && coreLength == that.coreLength
+        && prerelease.equals(that.prerelease);
   }
 
   @Override
   public int hashCode() {
-    return 31 * Arrays.hashCode(core) + prerelease.hashCode();
+    int result = Long.hashCode(major);
+    result = 31 * result + Long.hashCode(minor);
+    result = 31 * result + Long.hashCode(patch);
+    result = 31 * result + Long.hashCode(fourth);
+    result = 31 * result + Long.hashCode(fifth);
+    result = 31 * result + coreLength;
+    return 31 * result + prerelease.hashCode();
   }
 
   @Override
   public String toString() {
     final StringBuilder value = new StringBuilder();
-    for (int i = 0; i < core.length; i++) {
+    for (int i = 0; i < coreLength; i++) {
       if (i > 0) {
         value.append('.');
       }
-      value.append(Long.toUnsignedString(core[i]));
+      value.append(Long.toUnsignedString(coreComponent(i)));
     }
     return value.append(prerelease.isEmpty() ? "" : "-" + prerelease).toString();
   }

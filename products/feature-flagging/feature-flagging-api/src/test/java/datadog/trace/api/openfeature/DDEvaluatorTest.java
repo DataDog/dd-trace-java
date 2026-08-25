@@ -894,7 +894,12 @@ public class DDEvaluatorTest {
       if (flag.allocations == null) {
         continue;
       }
-      boolean invalid = hasInvalidStructure(flag);
+      if (hasInvalidStructure(flag)) {
+        flagsToRemove.put(flagKey, flag);
+        invalidFlags.put(flagKey, "invalid_flag");
+        continue;
+      }
+      boolean invalid = false;
       for (final Allocation allocation : flag.allocations) {
         if (allocation.rules == null) {
           continue;
@@ -964,7 +969,9 @@ public class DDEvaluatorTest {
             for (final ShardRange range : shard.ranges) {
               if (range == null
                   || range.unsignedStart() > 0xFFFFFFFFL
-                  || range.unsignedEnd() > 0xFFFFFFFFL) {
+                  || range.unsignedEnd() > 0xFFFFFFFFL
+                  || range.unsignedStart() >= range.unsignedEnd()
+                  || range.unsignedEnd() > shard.unsignedTotalShards()) {
                 return true;
               }
             }
@@ -973,8 +980,11 @@ public class DDEvaluatorTest {
       }
       if (allocation.rules != null) {
         for (final Rule rule : allocation.rules) {
-          if (rule == null || rule.conditions == null) {
+          if (rule == null) {
             return true;
+          }
+          if (rule.conditions == null) {
+            continue;
           }
           for (final ConditionConfiguration condition : rule.conditions) {
             if (condition == null || condition.operator == null) {

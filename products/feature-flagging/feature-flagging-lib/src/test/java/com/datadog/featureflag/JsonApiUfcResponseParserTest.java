@@ -178,6 +178,12 @@ class JsonApiUfcResponseParserTest {
                     booleanFlag(
                         "overflow-shard-range",
                         ",\"allocations\":[{\"key\":\"overflow-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":4294967295,\"ranges\":[{\"start\":0,\"end\":4294967296}]}]}]}]"),
+                    booleanFlag(
+                        "out-of-bounds-shard-range",
+                        ",\"allocations\":[{\"key\":\"out-of-bounds-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":10,\"ranges\":[{\"start\":0,\"end\":4294967295}]}]}]}]"),
+                    booleanFlag(
+                        "empty-shard-range",
+                        ",\"allocations\":[{\"key\":\"empty-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"test\",\"totalShards\":10,\"ranges\":[{\"start\":4,\"end\":4}]}]}]}]"),
                     booleanFlag("valid-sibling", ""))));
 
     assertNotNull(configuration);
@@ -212,6 +218,10 @@ class JsonApiUfcResponseParserTest {
             .unsignedEnd());
     assertFalse(configuration.flags.containsKey("overflow-shard-range"));
     assertEquals("invalid_flag", configuration.invalidFlags.get("overflow-shard-range"));
+    assertFalse(configuration.flags.containsKey("out-of-bounds-shard-range"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("out-of-bounds-shard-range"));
+    assertFalse(configuration.flags.containsKey("empty-shard-range"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("empty-shard-range"));
     assertTrue(configuration.flags.containsKey("valid-sibling"));
   }
 

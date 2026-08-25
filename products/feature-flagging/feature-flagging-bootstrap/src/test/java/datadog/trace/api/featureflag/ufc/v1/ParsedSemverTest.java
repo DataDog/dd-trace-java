@@ -64,6 +64,7 @@ class ParsedSemverTest {
         "1.2.3-01",
         "1.2.3-alpha_1",
         "1.2.3-alpha+build+other",
+        "1.2.3.4.5.6",
         "1.2.3-α",
         " 1.2.3",
         "1.2.3 ");

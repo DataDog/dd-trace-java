@@ -116,8 +116,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
           if (shard == null || shard.unsignedTotalShards() == 0 || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains an invalid shard");
           }
+          final long totalShards = shard.unsignedTotalShards();
           for (final ShardRange range : shard.ranges) {
-            if (range == null) {
+            if (range == null
+                || range.unsignedStart() >= range.unsignedEnd()
+                || range.unsignedEnd() > totalShards) {
               throw new InvalidFlagException(
                   "flag \"" + flagKey + "\" contains an invalid shard range");
             }
