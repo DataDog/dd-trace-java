@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -26,6 +27,11 @@ dependencies {
   testImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  // JOL, for LettuceCommandSetFootprintTest
+  testImplementation libs.jol.core
+
+  // Main declares lettuce-core compileOnly, so the jmh source set needs its own copy.
+  jmhImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
 
 
   latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '+'
