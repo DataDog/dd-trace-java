@@ -42,15 +42,18 @@ public final class MultipartHelper {
   /**
    * Builds the {@code server.request.body} map out of the multipart parts.
    *
-   * <p>Only text/plain parts with no {@code filename} attribute are collected, matching the intent
-   * of the Jersey reference: file parts (including a file declared with a {@code text/plain}
-   * content-type) are reported separately via {@link #collectFilenames} / {@link
-   * #collectFilesContent} and must not also consume the body-map budget, or a request could pad out
-   * the cap with disposable text-file parts and push a real form field out of the map. The number
-   * of collected values is capped by {@link #MAX_FILES_TO_INSPECT}. The cap counts the total
-   * accumulated values across all field names, not the distinct keys: {@code getFormDataMap()}
-   * already groups parts by field name, so a per-key cap would be trivially bypassed by repeating
-   * the same field name on every part.
+   * <p>Every part with no {@code filename} attribute is collected, regardless of its declared
+   * content-type: a part with a filename is a file upload, reported separately via {@link
+   * #collectFilenames} / {@link #collectFilesContent}, and must not also consume the body-map
+   * budget, or a request could pad out the cap with disposable text-file parts and push a real form
+   * field out of the map. Filename-less parts are always genuine form fields regardless of their
+   * declared media type (e.g. a JSON or XML {@code @RequestPart}), so they must stay in the body
+   * map even when not {@code text/plain} - filtering those out would silently drop their content
+   * from AppSec inspection entirely, since {@link #collectFilesContent} also skips filename-less
+   * parts. The number of collected values is capped by {@link #MAX_FILES_TO_INSPECT}. The cap
+   * counts the total accumulated values across all field names, not the distinct keys: {@code
+   * getFormDataMap()} already groups parts by field name, so a per-key cap would be trivially
+   * bypassed by repeating the same field name on every part.
    */
   public static Map<String, List<String>> collectBodyMap(MultipartFormDataInput ret) {
     Map<String, List<String>> bodyMap = new HashMap<>();
@@ -58,13 +61,13 @@ public final class MultipartHelper {
     for (Map.Entry<String, List<InputPart>> e : ret.getFormDataMap().entrySet()) {
       for (InputPart inputPart : e.getValue()) {
         Map<String, List<String>> headers = headersOf(inputPart);
-        String contentType = contentTypeOf(headers);
-        if (!isTextPlain(contentType) || hasFilename(headers)) {
+        if (hasFilename(headers)) {
           continue;
         }
         if (total >= MAX_FILES_TO_INSPECT) {
           return bodyMap;
         }
+        String contentType = contentTypeOf(headers);
         bodyMap
             .computeIfAbsent(e.getKey(), k -> new ArrayList<>())
             .add(readContent(inputPart, contentTypeWithDefaultUtf8(contentType)));
@@ -72,17 +75,6 @@ public final class MultipartHelper {
       }
     }
     return bodyMap;
-  }
-
-  // No Content-Type header means RESTEasy defaults the part to text/plain (see InputPart's own
-  // javadoc), so a null contentType is treated as text/plain here as well.
-  private static boolean isTextPlain(String contentType) {
-    if (contentType == null) {
-      return true;
-    }
-    int semi = contentType.indexOf(';');
-    String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim();
-    return mediaType.equalsIgnoreCase("text/plain");
   }
 
   // Used for the body-map/text-field path only: matches Jersey's own getValue(), which decodes
@@ -123,8 +115,8 @@ public final class MultipartHelper {
 
   // A part with a filename attribute (present, even if empty) is a file upload, not a form field,
   // regardless of its declared content-type: a file can be declared text/plain and would otherwise
-  // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Uses
-  // hasFilenameParam() rather than rawFilenameFromContentDisposition(), which deliberately ignores
+  // consume the body-map budget meant for genuine form fields. Uses hasFilenameParam() rather than
+  // rawFilenameFromContentDisposition(), which deliberately ignores
   // the RFC 5987 "filename*" form: a part carrying only "filename*" must still be excluded here.
   // collectFilesContent() uses the same hasFilenameParam() gate, so such a part is still inspected
   // there even though this file never decodes its filename* value.

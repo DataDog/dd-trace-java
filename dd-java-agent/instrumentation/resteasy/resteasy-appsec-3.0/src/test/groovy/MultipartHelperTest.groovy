@@ -371,7 +371,7 @@ class MultipartHelperTest extends Specification {
     MultipartHelper.collectBodyMap(ret) == ['field': ['café']]
   }
 
-  def "collectBodyMap excludes a non-text/plain part and does not consume the cap for it"() {
+  def "collectBodyMap excludes a non-text/plain file part (has a filename) and does not consume the cap for it"() {
     given: "a file part and a text part sharing the same request"
     def file = Mock(InputPart)
     file.getHeaders() >> headers('form-data; name="upload"; filename="a.bin"', 'application/octet-stream')
@@ -387,6 +387,24 @@ class MultipartHelperTest extends Specification {
     then: "the file part never reaches getBody() and is absent from the map"
     result == ['q': ['<script>']]
     0 * file.getBody(_, _)
+  }
+
+  def "collectBodyMap includes a filename-less non-text/plain part, e.g. a JSON @RequestPart"() {
+    given: "a JSON form field with no filename attribute, alongside a plain text field"
+    def json = Mock(InputPart)
+    json.getHeaders() >> headers('form-data; name="payload"', 'application/json')
+    json.getBody(_, _) >> new ByteArrayInputStream('{"a":1}'.bytes)
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('hello'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['payload': [json], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the filename-less JSON part is inspected just like any other form field"
+    result == ['payload': ['{"a":1}'], 'q': ['hello']]
   }
 
   def "collectBodyMap excludes a text/plain part that also declares a filename"() {
