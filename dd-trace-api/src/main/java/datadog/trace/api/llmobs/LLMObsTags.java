@@ -4,6 +4,7 @@ package datadog.trace.api.llmobs;
 public class LLMObsTags {
   public static final String ML_APP = "ml_app";
   public static final String SESSION_ID = "session_id";
+  public static final String AGENT_VERSION = "agent_version";
 
   // meta
   public static final String METADATA = "metadata";

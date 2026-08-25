@@ -14,6 +14,8 @@ public final class LLMObsContext {
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
+  private static final ContextKey<String> AGENT_VERSION_KEY =
+      ContextKey.named("llmobs_agent_version");
 
   public static ContextScope attach(AgentSpanContext ctx) {
     return attach(ctx, null);
@@ -25,9 +27,21 @@ public final class LLMObsContext {
    * not specify their own sessionId will inherit it via {@link #currentSessionId()}.
    */
   public static ContextScope attach(AgentSpanContext ctx, String sessionId) {
+    return attach(ctx, sessionId, null);
+  }
+
+  /**
+   * Attach an LLMObs span context, optionally propagating a session_id and an agent_version to
+   * descendant LLMObs spans. See {@link #attach(AgentSpanContext, String)}. Same inherit-if-absent,
+   * explicit-value-wins semantics apply to agentVersion via {@link #currentAgentVersion()}.
+   */
+  public static ContextScope attach(AgentSpanContext ctx, String sessionId, String agentVersion) {
     Context updated = Context.current().with(CONTEXT_KEY, ctx);
     if (sessionId != null && !sessionId.isEmpty()) {
       updated = updated.with(SESSION_ID_KEY, sessionId);
+    }
+    if (agentVersion != null && !agentVersion.isEmpty()) {
+      updated = updated.with(AGENT_VERSION_KEY, agentVersion);
     }
     return updated.attach();
   }
@@ -41,5 +55,13 @@ public final class LLMObsContext {
    */
   public static String currentSessionId() {
     return Context.current().get(SESSION_ID_KEY);
+  }
+
+  /**
+   * Return the agent_version propagated from an enclosing agent span, or null if no ancestor set
+   * one.
+   */
+  public static String currentAgentVersion() {
+    return Context.current().get(AGENT_VERSION_KEY);
   }
 }
