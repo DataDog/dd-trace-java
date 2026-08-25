@@ -282,10 +282,9 @@ tasks.withType(ScalaCompile).configureEach {
   options.forkOptions.memoryMaximumSize = "256M"
 }
 
-if (project.plugins.hasPlugin('kotlin')) {
-  ['compileKotlin', 'compileTestKotlin'].each {
-    type ->
-    tasks.named(type) {
+project.pluginManager.withPlugin('kotlin') {
+  ['compileKotlin', 'compileTestKotlin'].each { name ->
+    tasks.named(name) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
   }
