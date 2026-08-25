@@ -207,6 +207,52 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void dropsFlagsWithInvalidShardBoundsAndConditionOperands() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "zero-total-shards",
+                        ",\"allocations\":[{\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
+                    booleanFlag(
+                        "too-many-shards",
+                        ",\"allocations\":[{\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[]}]}]}]"),
+                    booleanFlag(
+                        "missing-ranges",
+                        ",\"allocations\":[{\"key\":\"missing-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1}]}]}]"),
+                    booleanFlag(
+                        "null-shard",
+                        ",\"allocations\":[{\"key\":\"null-shard\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[null]}]}]"),
+                    booleanFlag(
+                        "null-range",
+                        ",\"allocations\":[{\"key\":\"null-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[null]}]}]}]"),
+                    booleanFlag(
+                        "negative-range-end",
+                        ",\"allocations\":[{\"key\":\"negative-range-end\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[{\"start\":0,\"end\":-1}]}]}]}]"),
+                    booleanFlag(
+                        "non-boolean-is-null",
+                        allocation(
+                            "non-boolean-is-null",
+                            "[{\"conditions\":[{\"attribute\":\"enabled\",\"operator\":\"IS_NULL\",\"value\":\"false\"}]}]")),
+                    booleanFlag(
+                        "valid-condition-operands",
+                        allocation(
+                            "valid-condition-operands",
+                            "[{\"conditions\":[{\"attribute\":\"age\",\"operator\":\"LT\",\"value\":1},{\"attribute\":\"role\",\"operator\":\"ONE_OF\",\"value\":[\"admin\"]},{\"attribute\":\"enabled\",\"operator\":\"IS_NULL\",\"value\":true}]}]")))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("zero-total-shards"));
+    assertFalse(configuration.flags.containsKey("too-many-shards"));
+    assertFalse(configuration.flags.containsKey("missing-ranges"));
+    assertFalse(configuration.flags.containsKey("null-shard"));
+    assertFalse(configuration.flags.containsKey("null-range"));
+    assertFalse(configuration.flags.containsKey("negative-range-end"));
+    assertFalse(configuration.flags.containsKey("non-boolean-is-null"));
+    assertTrue(configuration.flags.containsKey("valid-condition-operands"));
+  }
+
+  @Test
   void nullAttributesAreRejectedWithoutInvokingTheFlagParser() throws Exception {
     assertNull(parse("{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":null}}"));
   }
