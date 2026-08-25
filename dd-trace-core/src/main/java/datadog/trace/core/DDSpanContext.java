@@ -62,7 +62,10 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext,
+    implements AgentSpanContext,
+        RequestContext,
+        TraceSegment,
+        ProfilerContext,
         LLMObsPropagationAccess {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 

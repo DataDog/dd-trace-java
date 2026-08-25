@@ -399,6 +399,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue newValue = value == null ? null : TagValue.from(value);
       if (!Objects.equals(this.parentAgentSpanIdTagValue, newValue)) {
         clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
         this.parentAgentSpanIdTagValue = newValue;
       }
     }
@@ -408,6 +409,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue newValue = value == null ? null : TagValue.from(value);
       if (!Objects.equals(this.parentAgentNameTagValue, newValue)) {
         clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
         this.parentAgentNameTagValue = newValue;
       }
     }

@@ -73,8 +73,7 @@ abstract class PTagsCodec {
                 sb, PARENT_AGENT_SPAN_ID_TAG, ptags.getParentAgentSpanIdTagValue(), size);
       }
       if (ptags.getParentAgentNameTagValue() != null) {
-        size =
-            codec.appendTag(sb, PARENT_AGENT_NAME_TAG, ptags.getParentAgentNameTagValue(), size);
+        size = codec.appendTag(sb, PARENT_AGENT_NAME_TAG, ptags.getParentAgentNameTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {

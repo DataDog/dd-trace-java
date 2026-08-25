@@ -111,9 +111,7 @@ public final class LLMObsContext {
     return Context.current().get(PAGENT_SPAN_ID_KEY);
   }
 
-  /**
-   * Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null.
-   */
+  /** Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null. */
   public static String currentParentAgentName() {
     return Context.current().get(PAGENT_NAME_KEY);
   }

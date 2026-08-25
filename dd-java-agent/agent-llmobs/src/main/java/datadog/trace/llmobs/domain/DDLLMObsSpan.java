@@ -51,8 +51,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
-  private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
-      LLMOBS_TAG_PREFIX + "pagent_span_id";
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_span_id";
   private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_name";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
@@ -70,6 +69,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final ContextScope scope;
   private final boolean hasSessionId;
   private final boolean hasAgentVersion;
+  // Saved propagation values to restore when an agent span finishes (nested agent support).
+  private final String previousPagentSpanId;
+  private final String previousPagentName;
 
   private boolean finished = false;
 
@@ -175,7 +177,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
       resolvedPagentSpanId = String.valueOf(span.getSpanId());
       resolvedPagentName = agentNameWireSafe(spanName) ? spanName : null;
     } else {
-      // Inherit from in-process LLMObs parent (set by a parent agent span via context).
+      // Inherit from in-process LLMObs parent. LLMObsContext scopes are explicitly closed in
+      // finish(), so cross-trace leakage is not a concern here (unlike parent_id/session_id
+      // which are APM-trace concepts that require the trace-ID gate above).
       resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
       resolvedPagentName = LLMObsContext.currentParentAgentName();
 
@@ -198,16 +202,26 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // If this span is an agent, stamp the pagent propagation tags for outgoing distributed calls.
+    // If this span is an agent, stamp the root trace's propagation tags for outgoing distributed
+    // calls. Save the previous values first so finish() can restore them — this supports nested
+    // agent spans where an inner agent must not permanently overwrite the outer agent's
+    // attribution.
     if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
       AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
       if (rootCtx instanceof LLMObsPropagationAccess) {
         LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+        previousPagentSpanId = access.getParentAgentSpanId();
+        previousPagentName = access.getParentAgentName();
         access.setParentAgentSpanId(resolvedPagentSpanId);
-        if (resolvedPagentName != null) {
-          access.setParentAgentName(resolvedPagentName);
-        }
+        // Always call setParentAgentName (even null) to clear a stale name from a previous agent.
+        access.setParentAgentName(resolvedPagentName);
+      } else {
+        previousPagentSpanId = null;
+        previousPagentName = null;
       }
+    } else {
+      previousPagentSpanId = null;
+      previousPagentName = null;
     }
 
     // Propagate sessionId, agent_version, and agent attribution to descendant LLMObs spans.
@@ -218,10 +232,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   /**
-   * Returns true if the agent name is safe to include in the x-datadog-tags header:
-   * printable ASCII only (0x20–0x7E), no commas (delimiter), no semicolons.
-   * Max 256 UTF-8 bytes. Since the loop rejects all non-ASCII (c > 0x7E), every character that
-   * passes is single-byte in UTF-8, so length() is an exact byte-count proxy.
+   * Returns true if the agent name is safe to include in the x-datadog-tags header: printable ASCII
+   * only (0x20–0x7E), no commas (delimiter), no semicolons. Max 256 UTF-8 bytes. Since the loop
+   * rejects all non-ASCII (c > 0x7E), every character that passes is single-byte in UTF-8, so
+   * length() is an exact byte-count proxy.
    */
   private static boolean agentNameWireSafe(String name) {
     if (name == null || name.length() > 256) {
@@ -672,6 +686,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     span.finish();
     scope.close();
+    // Restore the propagation tags saved before this agent span overwrote them, so that an outer
+    // agent span's attribution is reinstated once this inner agent span finishes.
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
+      AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
+      if (rootCtx instanceof LLMObsPropagationAccess) {
+        LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
+        access.setParentAgentSpanId(previousPagentSpanId);
+        access.setParentAgentName(previousPagentName);
+      }
+    }
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
     LLMObsMetricCollector.get()
