@@ -145,12 +145,21 @@ class DDLLMObsSpanAgentVersionTest {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "stale-agent", "stale-v1");
     try {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
-      try {
+      try (AgentScope childScope = AgentTracer.activateSpan(spanOf(child))) {
         assertNotEquals(
             spanOf(agent).getTraceId(),
             spanOf(child).getTraceId(),
             "sanity: traces must differ for this scenario to be meaningful");
         assertNull(spanOf(child).getTag(AGENT_VERSION_TAG));
+
+        DDLLMObsSpan grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm1", null);
+        try {
+          assertNull(
+              spanOf(grandchild).getTag(AGENT_VERSION_TAG),
+              "the stale agent_version must not leak transitively into a grandchild either");
+        } finally {
+          grandchild.finish();
+        }
       } finally {
         child.finish();
       }
