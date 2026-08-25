@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.r2dbc.spi.Result;
 import io.r2dbc.spi.Statement;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.reactivestreams.Publisher;
 
 public class StatementExecuteAdvice {
@@ -40,7 +41,8 @@ public class StatementExecuteAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
       @Advice.Enter AgentScope scope,
-      @Advice.Return(readOnly = false) Publisher<? extends Result> publisher,
+      @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC)
+          Publisher<? extends Result> publisher,
       @Advice.Thrown Throwable throwable) {
     CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
     if (scope == null) {
