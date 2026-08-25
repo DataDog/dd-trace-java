@@ -140,9 +140,9 @@ public class WriterFactory {
       final RemoteApi remoteApi =
           createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, trackType);
 
-      // In a serverless environment the execution environment can freeze as soon as the handler
-      // returns, before this writer's periodic flush timer next fires -- flush synchronously so
-      // buffered events (e.g. LLM Observability spans) aren't lost when that happens.
+      // In Lambda the execution environment can freeze as soon as the handler returns, before
+      // this writer's periodic flush timer next fires -- flush synchronously so buffered events
+      // (e.g. LLM Observability spans) aren't lost when that happens.
       boolean alwaysFlush =
           config.isAgentConfiguredUsingDefault()
               && ServerlessInfo.get().isRunningInServerlessEnvironment();
