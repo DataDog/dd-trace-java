@@ -273,11 +273,14 @@ public class ConfigManager {
           LOGGER.debug("Failed to replace config file: {}", cfgFile);
           tmpFile.delete(); // best-effort cleanup; failure is acceptable here
         }
-      } catch (IOException e) {
+      } catch (IOException | SecurityException e) {
         tmpFile.delete(); // best-effort cleanup; failure is acceptable here
         throw e;
       }
-    } catch (IOException e) {
+    } catch (IOException | SecurityException e) {
+      // Best-effort: crash-config patching must never break the caller (e.g. AppSec
+      // initialization) - a restrictive SecurityManager can throw SecurityException on any of
+      // the file operations above, which is not an IOException.
       LOGGER.debug("Failed to update config file entry {}: {}", key, cfgFile, e);
     }
   }
