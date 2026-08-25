@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import kotlin.coroutines.CoroutineContext;
@@ -37,7 +36,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
       // record context to use for this coroutine
       datadog.context = Context.current();
       // stop enclosing trace from finishing early
-      datadog.continuation = AgentTracer.captureActiveSpan();
+      datadog.continuation = datadog.context.capture();
     }
   }
 
@@ -55,7 +54,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
       // record context to use for this coroutine
       context = Context.current();
       // stop enclosing trace from finishing early
-      continuation = AgentTracer.captureActiveSpan();
+      continuation = context.capture();
     }
     return context.swap();
   }

@@ -83,34 +83,6 @@ public class AgentTracer {
   }
 
   /**
-   * When asynchronous propagation is enabled, prevent the currently active trace from reporting
-   * until the returned Continuation is either activated (and the returned scope is closed) or the
-   * continuation is canceled.
-   *
-   * <p>Should be called on the parent thread.
-   *
-   * @return Continuation of the active span, no-op continuation if there's no active span or
-   *     asynchronous propagation is disabled.
-   */
-  @Nonnull
-  public static ContextContinuation captureActiveSpan() {
-    return get().captureActiveSpan();
-  }
-
-  /**
-   * Prevent the trace of the given span from reporting until the returned Continuation is either
-   * activated (and the returned scope is closed) or the continuation is canceled.
-   *
-   * <p>Should be called on the parent thread.
-   *
-   * @return Continuation of the given span.
-   */
-  @Nonnull
-  public static ContextContinuation captureSpan(final AgentSpan span) {
-    return get().captureSpan(span);
-  }
-
-  /**
    * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
    * outstanding scopes up to but not including the most recent checkpointed scope.
    *
