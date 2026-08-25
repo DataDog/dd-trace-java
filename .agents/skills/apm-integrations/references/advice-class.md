@@ -31,6 +31,34 @@ Exit method:
 6. `scope.close()`
 7. `span.finish()`
 
+### Batch-consume operations: one span per item, not one span for the whole batch
+
+Some client APIs return a batch of items from a single call — a message broker's poll returning N records, a search client returning a page of hits, a bulk API returning multiple results. If the caller iterates the batch and does further per-item work (deserializing, dispatching to a handler, downstream calls), a single span around the whole batch call is wrong: it cannot attach any of that follow-on work to the specific item that triggered it, and it does not reflect where the actual work happens or ends.
+
+**The pattern**: wrap the returned `Iterable`/`Iterator`/`List` so that advancing to the next item closes the previous item's span and opens a new one for the current item. Do not span the method that returns the batch; span the act of consuming each item from it.
+
+```java
+// WRONG — one span covers the whole batch; no way to attach per-item follow-on work
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Return Iterable<Record> records) {
+  AgentSpan span = startSpan(DECORATE.operationName(), ...);
+  // ... consume the whole Iterable under one span — individual item work has no span of its own
+}
+
+// CORRECT — wrap the Iterable so each item gets its own span, started on next() and
+// closed when the following item starts (or when iteration ends)
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return(readOnly = false) Iterable<Record> records) {
+  if (records != null) {
+    records = new TracingIterable(records, DECORATE.operationName(), DECORATE);
+  }
+}
+```
+
+The wrapping iterator's `next()` starts the span for the item it returns, after first closing whichever span was opened for the previous item. Its `hasNext()` closes the last open span when the delegate has no more items — this is what closes out the final item's span if the caller finishes iterating normally, since there's no explicit "close" call for the last item otherwise. If the caller abandons the iteration partway through (stops calling `next()`/`hasNext()` before reaching the end), the last opened span is left unclosed by this mechanism alone — this is an accepted, known gap (spans opened this way are not finished by a background timeout), not something the advice needs to additionally guard.
+
+**How to discover the right hook point**: don't span the accessor that *returns* the batch (e.g. a `records()`/`poll()` method returning `Iterable<T>` or `List<T>`) — span the iteration over it. If the batch is returned as an `Iterable`, wrap the `Iterable` (whose `iterator()` produces a wrapping `Iterator`). If it's returned as a `List`, the same wrapping applies to `List.iterator()`/`listIterator()`. See `dd-java-agent/instrumentation/kafka/kafka-clients-0.11/src/main/java/datadog/trace/instrumentation/kafka_clients/{TracingIterable,TracingIterator,TracingList,TracingListIterator}.java` for the canonical implementation — this is the reference pattern for any future batch-consume instrumentation (message queues, but not limited to them).
+
 ### onExit handling when the target method throws
 
 The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls whether the exit advice fires when the **instrumented target method** throws. You **must** set it explicitly to `Throwable.class` for any exit advice that closes a scope or finishes a span — the default skips exceptional termination, which leaks active scopes when the instrumented method throws.
