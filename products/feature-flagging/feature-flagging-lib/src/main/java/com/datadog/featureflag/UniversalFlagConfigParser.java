@@ -39,6 +39,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
+  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
   /**
    * Side-channel for tracking flags that failed semver comparand validation during parsing. Cleared
@@ -91,8 +92,8 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     reader.peek();
   }
 
-  /** Rejects raw shard counts that exceed the bootstrap model's signed-int range. */
-  private static void validateRawShardTotals(final Object rawFlag) {
+  /** Rejects shard values that exceed the UFC unsigned 32-bit range. */
+  private static void validateRawShardBounds(final Object rawFlag) {
     if (!(rawFlag instanceof Map)) {
       return;
     }
@@ -120,13 +121,27 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
           if (!(shard instanceof Map)) {
             continue;
           }
-          final Object totalShards = ((Map<?, ?>) shard).get("totalShards");
-          if (totalShards instanceof Number
-              && ((Number) totalShards).longValue() > Integer.MAX_VALUE) {
-            throw new InvalidFlagException("flag contains an oversized totalShards value");
+          final Map<?, ?> rawShard = (Map<?, ?>) shard;
+          validateUnsignedInt(rawShard.get("totalShards"), "totalShards");
+          final Object ranges = rawShard.get("ranges");
+          if (!(ranges instanceof List)) {
+            continue;
+          }
+          for (final Object range : (List<?>) ranges) {
+            if (range instanceof Map) {
+              final Map<?, ?> rawRange = (Map<?, ?>) range;
+              validateUnsignedInt(rawRange.get("start"), "range start");
+              validateUnsignedInt(rawRange.get("end"), "range end");
+            }
           }
         }
       }
+    }
+  }
+
+  private static void validateUnsignedInt(final Object value, final String fieldName) {
+    if (value instanceof Number && ((Number) value).longValue() > MAX_UNSIGNED_INT) {
+      throw new InvalidFlagException("flag contains an oversized " + fieldName + " value");
     }
   }
 
@@ -322,7 +337,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
-          validateRawShardTotals(rawFlag);
+          validateRawShardBounds(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);

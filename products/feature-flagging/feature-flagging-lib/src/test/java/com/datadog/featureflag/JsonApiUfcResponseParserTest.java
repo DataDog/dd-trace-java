@@ -216,8 +216,11 @@ class JsonApiUfcResponseParserTest {
                         "zero-total-shards",
                         ",\"allocations\":[{\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
                     booleanFlag(
+                        "unsigned-total-shards",
+                        ",\"allocations\":[{\"key\":\"unsigned-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[]}]}]}]"),
+                    booleanFlag(
                         "too-many-shards",
-                        ",\"allocations\":[{\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[]}]}]}]"),
+                        ",\"allocations\":[{\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":4294967296,\"ranges\":[]}]}]}]"),
                     booleanFlag(
                         "missing-ranges",
                         ",\"allocations\":[{\"key\":\"missing-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1}]}]}]"),
@@ -243,6 +246,19 @@ class JsonApiUfcResponseParserTest {
 
     assertNotNull(configuration);
     assertFalse(configuration.flags.containsKey("zero-total-shards"));
+    assertTrue(configuration.flags.containsKey("unsigned-total-shards"));
+    assertEquals(
+        2_147_483_648L,
+        configuration
+            .flags
+            .get("unsigned-total-shards")
+            .allocations
+            .get(0)
+            .splits
+            .get(0)
+            .shards
+            .get(0)
+            .totalShards);
     assertFalse(configuration.flags.containsKey("too-many-shards"));
     assertFalse(configuration.flags.containsKey("missing-ranges"));
     assertFalse(configuration.flags.containsKey("null-shard"));

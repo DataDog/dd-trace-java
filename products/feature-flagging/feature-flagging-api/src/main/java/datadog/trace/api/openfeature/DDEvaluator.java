@@ -454,7 +454,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final int assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+    final long assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
     for (final ShardRange range : shard.ranges) {
       if (assignedShard >= range.start && assignedShard < range.end) {
         return true;
@@ -463,13 +463,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return false;
   }
 
-  private static int getShard(
+  private static long getShard(
       final String salt, final String targetingKey, final long totalShards) {
     final String hashKey = salt + "-" + targetingKey;
     final String md5Hash = getMD5Hash(hashKey);
     final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
     final long intFromHash = Long.parseLong(first8Chars, 16);
-    return (int) (intFromHash % totalShards);
+    return intFromHash % totalShards;
   }
 
   private static String getMD5Hash(final String input) {

@@ -80,6 +80,7 @@ public class DDEvaluatorTest {
       MOSHI.adapter(FIXTURE_LIST_TYPE);
   private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
       ThreadLocal.withInitial(HashMap::new);
+  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -226,6 +227,34 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testEvaluateUnsignedShardRange() {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Shard shard =
+        new Shard(
+            "salt",
+            singletonList(new ShardRange(3_699_531_192L, 3_699_531_193L)),
+            MAX_UNSIGNED_INT);
+    final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+
+    final EvaluationContext context =
+        new MutableContext("target").setTargetingKey("high-shard-user");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, context);
+
+    assertThat(details.getValue(), equalTo(1));
+    assertThat(details.getReason(), equalTo("SPLIT"));
+    assertThat(details.getVariant(), equalTo("on"));
   }
 
   // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
@@ -1100,7 +1129,7 @@ public class DDEvaluatorTest {
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
-          validateRawShardTotals(rawFlag);
+          validateRawShardBounds(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);
@@ -1115,7 +1144,7 @@ public class DDEvaluatorTest {
       return flags;
     }
 
-    private static void validateRawShardTotals(final Object rawFlag) {
+    private static void validateRawShardBounds(final Object rawFlag) {
       if (!(rawFlag instanceof Map)) {
         return;
       }
@@ -1143,13 +1172,27 @@ public class DDEvaluatorTest {
             if (!(shard instanceof Map)) {
               continue;
             }
-            final Object totalShards = ((Map<?, ?>) shard).get("totalShards");
-            if (totalShards instanceof Number
-                && ((Number) totalShards).longValue() > Integer.MAX_VALUE) {
-              throw new IllegalArgumentException("flag contains an oversized totalShards value");
+            final Map<?, ?> rawShard = (Map<?, ?>) shard;
+            validateUnsignedInt(rawShard.get("totalShards"));
+            final Object ranges = rawShard.get("ranges");
+            if (!(ranges instanceof List)) {
+              continue;
+            }
+            for (final Object range : (List<?>) ranges) {
+              if (range instanceof Map) {
+                final Map<?, ?> rawRange = (Map<?, ?>) range;
+                validateUnsignedInt(rawRange.get("start"));
+                validateUnsignedInt(rawRange.get("end"));
+              }
             }
           }
         }
+      }
+    }
+
+    private static void validateUnsignedInt(final Object value) {
+      if (value instanceof Number && ((Number) value).longValue() > MAX_UNSIGNED_INT) {
+        throw new IllegalArgumentException("flag contains an oversized shard value");
       }
     }
 
