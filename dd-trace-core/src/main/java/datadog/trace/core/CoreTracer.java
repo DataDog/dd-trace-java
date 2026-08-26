@@ -1034,13 +1034,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
-      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
-        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
-      }
+      correctCounterDrift(computedNanoTime);
       lastSyncTicks = nanoTicks;
     }
     return computedNanoTime + counterDrift;
+  }
+
+  /**
+   * Computes {@link #counterDrift} corrected against {@code computedNanoTime}, gated by a 1ms
+   * threshold to avoid regressing the clock on {@link SystemTimeSource}'s millisecond precision.
+   */
+  private void correctCounterDrift(long computedNanoTime) {
+    long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
+    if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
+      counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+    }
   }
 
   /**
@@ -1059,9 +1067,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * <p>Rather than reset {@link #startTimeNano}/{@link #startNanoTicks} themselves - which would
    * require making those fields {@code volatile}, since they're read on every {@link
    * #getTimeWithNanoTicks} call from arbitrary tracing threads - this folds the entire observed
-   * drift into {@link #counterDrift} directly, the same field (already {@code volatile}) that the
-   * periodic self-correction in {@link #getTimeWithNanoTicks} uses, just without that correction's
-   * 1ms drift threshold, since here the drift can be hours or days.
+   * drift into {@link #counterDrift} via the same {@link #correctCounterDrift} used by the periodic
+   * self-correction in {@link #getTimeWithNanoTicks}.
    *
    * <p>Rather than reacting to the restore event itself (which would need a JVM-level
    * checkpoint/restore hook), this is called from {@link #notifyLambdaStart} - already invoked once
@@ -1083,7 +1090,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
     long nanoTicks = timeSource.getNanoTicks();
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
-    counterDrift = timeSource.getCurrentTimeNanos() - computedNanoTime;
+    correctCounterDrift(computedNanoTime);
     lastSyncTicks = nanoTicks;
   }
 
