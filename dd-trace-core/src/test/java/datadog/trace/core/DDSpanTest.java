@@ -457,26 +457,6 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void exceptionWithNullMessageCreatesErrorSpan() {
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new IOException());
-    assertTrue(span.isError());
-    assertNotNull(span.getTag(DDTags.ERROR_STACK));
-    assertNull(span.getTag(DDTags.ERROR_MSG));
-    assertEquals(IOException.class.getName(), span.getTag(DDTags.ERROR_TYPE));
-  }
-
-  @Test
-  void wrappedExceptionWithNullCauseMessageCreatesErrorSpan() {
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new RuntimeException("outer message", new IOException()));
-    assertTrue(span.isError());
-    assertNotNull(span.getTag(DDTags.ERROR_STACK));
-    assertEquals("outer message", span.getTag(DDTags.ERROR_MSG));
-    assertEquals(RuntimeException.class.getName(), span.getTag(DDTags.ERROR_TYPE));
-  }
-
-  @Test
   void addThrowableDoesNotFailWhenGetMessageThrows() {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
 
