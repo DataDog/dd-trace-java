@@ -162,13 +162,8 @@ final class LambdaEventParser {
         if (bodyString != null) {
           String contentType = headers.get("content-type");
 
-          // If JSON content-type or unknown, attempt JSON parsing
-          // Normalise casing: media type tokens are case-insensitive per RFC 7231
-          String contentTypeLower =
-              contentType == null ? null : contentType.toLowerCase(Locale.ROOT);
-          if (contentTypeLower == null
-              || contentTypeLower.contains("json")
-              || contentTypeLower.contains("javascript")) {
+          // If JSON content-type or unknown, attempt JSON parsing.
+          if (contentType == null || ContentTypeBodyParser.isJsonLike(contentType)) {
             Object parsed = parseBodyAsJson(bodyString);
             body = parsed != null ? parsed : bodyString;
           } else {
@@ -247,7 +242,7 @@ final class LambdaEventParser {
     if (queryParameters.isEmpty()) {
       queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     }
-    Object body = extractBody(event);
+    Object body = extractBody(event, headers);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
     String method = (String) requestContext.get("httpMethod");
@@ -283,7 +278,7 @@ final class LambdaEventParser {
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     Map<String, List<String>> queryParameters =
         extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
+    Object body = extractBody(event, headers);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
     Map<?, ?> http = (Map<?, ?>) requestContext.get("http");
@@ -337,7 +332,7 @@ final class LambdaEventParser {
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     Map<String, List<String>> queryParameters =
         extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
+    Object body = extractBody(event, headers);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
 
@@ -418,7 +413,7 @@ final class LambdaEventParser {
       queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     }
 
-    Object body = extractBody(event);
+    Object body = extractBody(event, headers);
 
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
@@ -674,7 +669,7 @@ final class LambdaEventParser {
   }
 
   /** Helper method to extract and parse body from event */
-  private static Object extractBody(Map<String, Object> event) {
+  private static Object extractBody(Map<String, Object> event, Map<String, String> headers) {
     Object bodyObj = event.get("body");
     if (bodyObj == null) {
       return null;
@@ -693,20 +688,11 @@ final class LambdaEventParser {
       }
     }
 
-    // Try to parse as JSON
-    Object parsedBody = parseBodyAsJson(bodyString);
-    if (parsedBody != null) {
-      log.debug("Body parsed as JSON successfully");
-      return parsedBody;
-    }
-
-    // If not JSON, return the raw string
-    log.debug("Body is not JSON, returning raw string");
-    return bodyString;
+    return ContentTypeBodyParser.parseBody(bodyString, headers.get("content-type"));
   }
 
   /** Helper method to parse body as JSON */
-  private static Object parseBodyAsJson(String body) {
+  static Object parseBodyAsJson(String body) {
     if (body == null || body.isEmpty() || "null".equals(body)) {
       return null;
     }

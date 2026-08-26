@@ -701,6 +701,57 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void parsesUrlEncodedBodyIntoAMultimap() {
+    String eventJson =
+        "{"
+            + "\"body\": \"user=admin&role=root\","
+            + "\"headers\": {\"Content-Type\": \"application/x-www-form-urlencoded\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedBody = {null};
+
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertInstanceOf(Map.class, capturedBody[0]);
+    Map<String, List<String>> parameters = (Map<String, List<String>>) capturedBody[0];
+    assertEquals(Arrays.asList("admin"), parameters.get("user"));
+    assertEquals(Arrays.asList("root"), parameters.get("role"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void appliesContentTypeDispatchToBase64DecodedBodies() {
+    String base64Body =
+        Base64.getEncoder().encodeToString("user=admin".getBytes(StandardCharsets.UTF_8));
+    String eventJson =
+        "{"
+            + "\"body\": \""
+            + base64Body
+            + "\","
+            + "\"isBase64Encoded\": true,"
+            + "\"headers\": {\"Content-Type\": \"application/x-www-form-urlencoded\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedBody = {null};
+
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertInstanceOf(Map.class, capturedBody[0]);
+    assertEquals(Arrays.asList("admin"), ((Map<String, List<String>>) capturedBody[0]).get("user"));
+  }
+
+  @Test
   void handlesPathWithQueryStringCorrectly() {
     String eventJson =
         "{"
