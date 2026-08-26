@@ -807,6 +807,61 @@ public final class Hashtable {
     return null;
   }
 
+  /** Live entry count of {@code state}. */
+  public static int size(@Nonnull State<?> state) {
+    return state.sizeManager.size();
+  }
+
+  /** {@code true} when {@code state} holds no entries. */
+  public static boolean isEmpty(@Nonnull State<?> state) {
+    return state.sizeManager.size() == 0;
+  }
+
+  /**
+   * Head entry of the bucket {@code keyHash} maps to in {@code state}, typed to the state's entry
+   * type so the chain walk at the call site needs no cast or witness.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry bucketFor(
+      @Nonnull State<TEntry> state, long keyHash) {
+    return bucketFor(state.buckets, keyHash);
+  }
+
+  /**
+   * Splices {@code entry} in as the new head of its bucket <em>without</em> touching the count,
+   * because the caller already holds a reservation for it -- from {@link #tryReserveOrEvict} or a
+   * bare {@link SizeManager#tryReserve()}. Pairing those is the shape of a miss path that wants to
+   * refuse before it allocates:
+   *
+   * <pre>{@code
+   * if (!tryReserveOrEvict(state, STALE)) {
+   *   return null;                       // refused -- no entry was built
+   * }
+   * insertReserved(state, keyHash, buildEntry());
+   * }</pre>
+   *
+   * <p>Distinct from {@link #insertHeadEntryFor(State, long, Entry)}, which reserves as it inserts;
+   * calling that one here would count the entry twice.
+   */
+  public static <TEntry extends Entry> void insertReserved(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+    insertHeadEntryFor(state.buckets, keyHash, entry);
+  }
+
+  /** {@link #forEach(Hashtable.Entry[], Consumer)} over a {@link State}. */
+  public static <TEntry extends Entry> void forEach(
+      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> consumer) {
+    Hashtable.<TEntry>forEach(state.buckets, consumer);
+  }
+
+  /** {@link #forEach(Hashtable.Entry[], Object, BiConsumer)} over a {@link State}. */
+  public static <C, TEntry extends Entry> void forEach(
+      @Nonnull State<TEntry> state,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+    Hashtable.<C, TEntry>forEach(state.buckets, context, consumer);
+  }
+
   /**
    * Reserves a slot in {@code state} for a fresh insert, evicting one entry matching {@code
    * evictable} if the table is full. {@code false} means full with nothing evictable -- the caller
