@@ -138,15 +138,13 @@ public final class Hashtable {
     // Package-private so iterator tests in the same package can drive the Hashtable static
     // building blocks directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
-    private int size;
-    private final int limit; // hard cap on size
+    private final SizeTracker sizeTracker;
 
     public D1(int capacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
       // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
       this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
-      this.size = 0;
-      this.limit = capacity;
+      this.sizeTracker = new SizeTracker(capacity);
     }
 
     /**
@@ -164,7 +162,7 @@ public final class Hashtable {
     }
 
     public int size() {
-      return this.size;
+      return this.sizeTracker.size();
     }
 
     @Nullable
@@ -190,7 +188,7 @@ public final class Hashtable {
 
         if (curEntry.matches(key)) {
           iter.remove();
-          this.size -= 1;
+          this.sizeTracker.decrement();
           return curEntry;
         }
       }
@@ -204,11 +202,10 @@ public final class Hashtable {
      * shadowed behind the existing entry.
      */
     public boolean insert(@Nonnull TEntry newEntry) {
-      if (this.size >= this.limit) {
+      if (!this.sizeTracker.tryReserve()) {
         return false;
       }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
       return true;
     }
 
@@ -233,11 +230,11 @@ public final class Hashtable {
         }
       }
 
-      if (this.size >= this.limit) {
-        throw new IllegalStateException("Hashtable.D1 is at capacity (" + this.limit + ")");
+      if (!this.sizeTracker.tryReserve()) {
+        throw new IllegalStateException(
+            "Hashtable.D1 is at capacity (" + this.sizeTracker.capacity() + ")");
       }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
       return null;
     }
 
@@ -265,18 +262,18 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      if (this.size >= this.limit) {
+      if (this.sizeTracker.isFull()) {
         return null;
       }
       TEntry newEntry = creator.apply(key);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+      this.sizeTracker.increment();
       return newEntry;
     }
 
     public void clear() {
       Hashtable.clear(this.buckets);
-      this.size = 0;
+      this.sizeTracker.reset();
     }
 
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
@@ -366,15 +363,13 @@ public final class Hashtable {
 
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
     final Hashtable.Entry[] buckets;
-    private int size;
-    private final int limit; // hard cap on size
+    private final SizeTracker sizeTracker;
 
     public D2(int capacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
       // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
       this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
-      this.size = 0;
-      this.limit = capacity;
+      this.sizeTracker = new SizeTracker(capacity);
     }
 
     /**
@@ -392,7 +387,7 @@ public final class Hashtable {
     }
 
     public int size() {
-      return this.size;
+      return this.sizeTracker.size();
     }
 
     @Nullable
@@ -418,7 +413,7 @@ public final class Hashtable {
 
         if (curEntry.matches(key1, key2)) {
           iter.remove();
-          this.size -= 1;
+          this.sizeTracker.decrement();
           return curEntry;
         }
       }
@@ -428,11 +423,10 @@ public final class Hashtable {
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
     public boolean insert(@Nonnull TEntry newEntry) {
-      if (this.size >= this.limit) {
+      if (!this.sizeTracker.tryReserve()) {
         return false;
       }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
       return true;
     }
 
@@ -450,11 +444,11 @@ public final class Hashtable {
         }
       }
 
-      if (this.size >= this.limit) {
-        throw new IllegalStateException("Hashtable.D2 is at capacity (" + this.limit + ")");
+      if (!this.sizeTracker.tryReserve()) {
+        throw new IllegalStateException(
+            "Hashtable.D2 is at capacity (" + this.sizeTracker.capacity() + ")");
       }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
       return null;
     }
 
@@ -477,18 +471,18 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      if (this.size >= this.limit) {
+      if (this.sizeTracker.isFull()) {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.size += 1;
+      this.sizeTracker.increment();
       return newEntry;
     }
 
     public void clear() {
       Hashtable.clear(this.buckets);
-      this.size = 0;
+      this.sizeTracker.reset();
     }
 
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
