@@ -2,6 +2,7 @@ package datadog.trace.api.telemetry;
 
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.util.TagsHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -303,6 +304,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * admitted, this raw lookup hits directly and skips {@link #normalizeFramework}'s allocation (via
    * {@link TagsHelper#sanitize}) on every subsequent call for that framework.
    */
+  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   private static AtomicLong counterFor(
       final ConcurrentHashMap<String, AtomicLong> counters, final String framework) {
     if (framework != null) {
