@@ -82,7 +82,11 @@ class LambdaMetafactoryInstrumentationTest {
             mv -> {
               mv.visitInsn(ACONST_NULL);
               mv.visitMethodInsn(
-                  INVOKEVIRTUAL, "net/bytebuddy/jar/asm/ClassWriter", "toByteArray", "()[B", false);
+                  INVOKEVIRTUAL,
+                  "jdk/internal/org/objectweb/asm/ClassWriter",
+                  "toByteArray",
+                  "()[B",
+                  false);
               mv.visitInsn(POP);
               mv.visitInsn(ACONST_NULL);
               mv.visitInsn(ARETURN);
@@ -98,7 +102,11 @@ class LambdaMetafactoryInstrumentationTest {
             mv -> {
               mv.visitInsn(ACONST_NULL);
               mv.visitMethodInsn(
-                  INVOKEVIRTUAL, "net/bytebuddy/jar/asm/ClassWriter", "toByteArray", "()[B", false);
+                  INVOKEVIRTUAL,
+                  "jdk/internal/org/objectweb/asm/ClassWriter",
+                  "toByteArray",
+                  "()[B",
+                  false);
               mv.visitInsn(POP);
               mv.visitInsn(ACONST_NULL);
               mv.visitInsn(ARETURN);
@@ -106,7 +114,7 @@ class LambdaMetafactoryInstrumentationTest {
   }
 
   @Test
-  void injectsAfterBuildOnJdk24() {
+  void injectsAfterBuildOnClassFileApi() {
     assertTrue(
         injectsTransformCall(
             "spinInnerClass",
@@ -117,7 +125,9 @@ class LambdaMetafactoryInstrumentationTest {
                   INVOKEINTERFACE,
                   "java/lang/classfile/ClassFile",
                   "build",
-                  "(Ljava/lang/constant/ClassDesc;Ljava/util/function/Consumer;)[B",
+                  "(Ljava/lang/classfile/constantpool/ClassEntry;"
+                      + "Ljava/lang/classfile/constantpool/ConstantPoolBuilder;"
+                      + "Ljava/util/function/Consumer;)[B",
                   true);
               mv.visitInsn(POP);
               mv.visitInsn(ACONST_NULL);
@@ -134,7 +144,27 @@ class LambdaMetafactoryInstrumentationTest {
             mv -> {
               mv.visitInsn(ACONST_NULL);
               mv.visitMethodInsn(
-                  INVOKEVIRTUAL, "net/bytebuddy/jar/asm/ClassWriter", "toByteArray", "()[B", false);
+                  INVOKEVIRTUAL,
+                  "jdk/internal/org/objectweb/asm/ClassWriter",
+                  "toByteArray",
+                  "()[B",
+                  false);
+              mv.visitInsn(POP);
+              mv.visitInsn(ACONST_NULL);
+              mv.visitInsn(ARETURN);
+            }));
+  }
+
+  @Test
+  void doesNotInjectOnUnrelatedToByteArrayOwner() {
+    assertFalse(
+        injectsTransformCall(
+            "spinInnerClass",
+            "()Ljava/lang/Class;",
+            mv -> {
+              mv.visitInsn(ACONST_NULL);
+              mv.visitMethodInsn(
+                  INVOKEVIRTUAL, "java/io/ByteArrayOutputStream", "toByteArray", "()[B", false);
               mv.visitInsn(POP);
               mv.visitInsn(ACONST_NULL);
               mv.visitInsn(ARETURN);
