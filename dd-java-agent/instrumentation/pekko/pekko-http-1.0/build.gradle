@@ -45,6 +45,10 @@ sourceSets {
   latestPekko10Test.scala.srcDir sourceSets.baseTest.scala
 }
 
+['baseTest', 'latestPekko10Test', 'latestDepTest'].each {
+  addForkedTestTask(it)
+}
+
 dependencies {
   compileOnly libs.scala212
   compileOnly group: 'org.apache.pekko', name: 'pekko-http-core_2.12', version: '1.0.0'

@@ -10,6 +10,7 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator
+import datadog.trace.instrumentation.pekkohttp.PekkoHttpSingleRequestInstrumentation.SingleRequestContextPropagationAdvice
 import scala.compat.java8.FutureConverters
 import scala.concurrent.Future
 import spock.lang.Shared
@@ -61,6 +62,14 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
     return false
   }
 
+  def "does not inject context into a null request"() {
+    when:
+    SingleRequestContextPropagationAdvice.methodEnter(null)
+
+    then:
+    noExceptionThrown()
+  }
+
   def "singleRequest exception trace"() {
     when:
     // Passing null causes NPE in singleRequest
@@ -73,14 +82,14 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
         span {
           parent()
           operationName operation()
-          resourceName "pekko-http.client.request"
+          resourceName operation() // resource name is not set so defaults to operationName
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
           tags {
             "$Tags.COMPONENT" "pekko-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(exception)
-            defaultTags()
+            defaultTags(false, false)
           }
         }
       }
