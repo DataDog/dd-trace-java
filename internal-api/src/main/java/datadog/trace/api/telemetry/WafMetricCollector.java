@@ -297,9 +297,20 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * already-tracked key is lock-free; admission of a never-seen key is synchronized on {@code
    * counters} so the size check and the insertion happen atomically, closing the race where
    * concurrent first-seen frameworks could otherwise all pass the check and overshoot the cap.
+   *
+   * <p>Before normalizing, we first probe {@code counters} with the raw, unsanitized {@code
+   * framework} value. Well-known frameworks (e.g. "netty") are already in sanitized form, so once
+   * admitted, this raw lookup hits directly and skips {@link #normalizeFramework}'s allocation (via
+   * {@link TagsHelper#sanitize}) on every subsequent call for that framework.
    */
   private static AtomicLong counterFor(
       final ConcurrentHashMap<String, AtomicLong> counters, final String framework) {
+    if (framework != null) {
+      final AtomicLong rawHit = counters.get(framework);
+      if (rawHit != null) {
+        return rawHit;
+      }
+    }
     final String key = normalizeFramework(framework);
     final AtomicLong existing = counters.get(key);
     if (existing != null) {
