@@ -54,6 +54,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD1Benchmark.iterate_hashMap    thrpt    6    20.043 ±   0.752  ops/us
  * HashtableD1Benchmark.iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
  * </code>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D1State.setUp()} (same
+ * machine/JVM/config): every number moved down somewhat (add_hashMap 188→101, update_hashtable
+ * 1810→1465, iterate_hashtable 22→17 ops/us), including {@code *_hashtable}, which doesn't touch
+ * {@code java.util.HashMap}/{@code HashSet} at all and so shouldn't be affected by this pollution
+ * mechanism. That points to session-to-session machine variance (not controlled for here) rather
+ * than a genuine pollution effect for this particular file — unlike {@code
+ * ImmutableSetBenchmark}/{@code ImmutableMapBenchmark}, where pollution measurably changed the
+ * comparison. The <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on
+ * {@code add}, ties on {@code iterate}) is unchanged either way.
  */
 @Fork(2)
 @Warmup(iterations = 2)
