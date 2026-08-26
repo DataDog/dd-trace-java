@@ -76,6 +76,19 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final ConcurrentHashMap<String, LongAdder> apiSecurityMissingRouteCounters =
       new ConcurrentHashMap<>();
 
+  /**
+   * Per-framework counters for sampled requests with/without an extracted API Security schema.
+   * Aggregated in-memory and drained on {@link #prepareMetrics()} for the same reason as {@link
+   * #apiSecurityMissingRouteCounters}: a burst of sampled requests across many distinct routes
+   * between telemetry heartbeats could otherwise saturate {@link #rawMetricsQueue} one request at a
+   * time.
+   */
+  private static final ConcurrentHashMap<String, LongAdder> apiSecurityRequestSchemaCounters =
+      new ConcurrentHashMap<>();
+
+  private static final ConcurrentHashMap<String, LongAdder> apiSecurityRequestNoSchemaCounters =
+      new ConcurrentHashMap<>();
+
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
 
@@ -235,12 +248,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   /** Reports a sampled request for which at least one API Security schema was extracted. */
   public void apiSecurityRequestSchema(final String framework) {
-    rawMetricsQueue.offer(new ApiSecurityRequestSchema(1L, normalizeFramework(framework)));
+    apiSecurityRequestSchemaCounters
+        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
+        .increment();
   }
 
   /** Reports a sampled request for which no API Security schema was extracted. */
   public void apiSecurityRequestNoSchema(final String framework) {
-    rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(1L, normalizeFramework(framework)));
+    apiSecurityRequestNoSchemaCounters
+        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
+        .increment();
   }
 
   /** Normalizes a framework (span component) value, mapping null or blank values to "unknown". */
@@ -478,6 +495,26 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       final long count = entry.getValue().sumThenReset();
       if (count > 0) {
         if (!rawMetricsQueue.offer(new ApiSecurityMissingRoute(count, entry.getKey()))) {
+          return;
+        }
+      }
+    }
+
+    // API Security request schema, per framework
+    for (final Map.Entry<String, LongAdder> entry : apiSecurityRequestSchemaCounters.entrySet()) {
+      final long count = entry.getValue().sumThenReset();
+      if (count > 0) {
+        if (!rawMetricsQueue.offer(new ApiSecurityRequestSchema(count, entry.getKey()))) {
+          return;
+        }
+      }
+    }
+
+    // API Security request no schema, per framework
+    for (final Map.Entry<String, LongAdder> entry : apiSecurityRequestNoSchemaCounters.entrySet()) {
+      final long count = entry.getValue().sumThenReset();
+      if (count > 0) {
+        if (!rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(count, entry.getKey()))) {
           return;
         }
       }
