@@ -1,21 +1,24 @@
 package datadog.trace.api.openfeature;
 
 import static datadog.trace.api.openfeature.Provider.METADATA;
-import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
@@ -25,6 +28,8 @@ import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
+import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.ProviderEvent;
@@ -34,6 +39,7 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -42,18 +48,13 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 public class ProviderTest {
 
-  @Captor private ArgumentCaptor<EventDetails> eventDetailsCaptor;
+  private static final long EVENT_TIMEOUT_SECONDS = 10;
 
   private ExecutorService executor;
 
@@ -67,18 +68,23 @@ public class ProviderTest {
     executor.shutdownNow();
     OpenFeatureAPI.getInstance().shutdown();
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @Test
-  public void testSetProvider() {
+  public void testSetProvider() throws Exception {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    api.onProviderReady(readyEvent::complete);
     api.setProvider(new Provider());
 
     final Client client = api.getClient();
     assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
+    readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
   }
 
   @Test
@@ -90,35 +96,31 @@ public class ProviderTest {
     assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
-    provider.get(1, SECONDS);
+    provider.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
   }
 
   @Test
-  public void testSetProviderAndWaitTimeoutRecoversWhenConfigurationArrives() {
-    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
+  public void testSetProviderAndWaitTimeoutRecoversWhenConfigurationArrives() throws Exception {
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    final Consumer<EventDetails> readyEventHandler = completingHandler(readyEvent);
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     final Client client = api.getClient();
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    client.on(ProviderEvent.PROVIDER_READY, readyEventHandler);
 
     assertThrows(
         ProviderNotReadyError.class,
         () -> api.setProviderAndWait(new Provider(new Options().initTimeout(10, MILLISECONDS))));
 
     assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
-    verify(readyEvent, times(0)).accept(any());
+    assertFalse(readyEvent.isDone());
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
 
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.READY));
-              verify(readyEvent, times(1)).accept(eventDetailsCaptor.capture());
-              final EventDetails eventDetails = eventDetailsCaptor.getValue();
-              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
-            });
+    final EventDetails eventDetails = readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+    assertThat(eventDetails.getProviderName(), equalTo(METADATA));
+    verify(readyEventHandler, times(1)).accept(any());
   }
 
   @Test
@@ -259,49 +261,41 @@ public class ProviderTest {
   }
 
   @Test
-  public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() {
+  public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() throws Exception {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-    api.setProvider(new Provider());
-    final Client client = api.getClient();
-
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
+    api.setProviderAndWait(new Provider());
+    final Client client = api.getClient();
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
-    final Consumer<EventDetails> errorEvent = mock(Consumer.class);
-    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
-    final Consumer<EventDetails> configChangedEvent = mock(Consumer.class);
-    client.on(ProviderEvent.PROVIDER_ERROR, errorEvent);
-    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent);
+    final CompletableFuture<EventDetails> errorEvent = new CompletableFuture<>();
+    final CompletableFuture<EventDetails> readyEvent = new CompletableFuture<>();
+    final CompletableFuture<EventDetails> configChangedEvent = new CompletableFuture<>();
+    final Consumer<EventDetails> errorEventHandler = completingHandler(errorEvent);
+    final Consumer<EventDetails> readyEventHandler = completingHandler(readyEvent);
+    final Consumer<EventDetails> configChangedEventHandler = completingHandler(configChangedEvent);
+    client.on(ProviderEvent.PROVIDER_ERROR, errorEventHandler);
+    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEventHandler);
 
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
-              verify(errorEvent, times(1)).accept(eventDetailsCaptor.capture());
-              final EventDetails eventDetails = eventDetailsCaptor.getValue();
-              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
-            });
+    final EventDetails eventDetails = errorEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
+    assertThat(eventDetails.getProviderName(), equalTo(METADATA));
 
     final FlagEvaluationDetails<String> evalDetails = client.getStringDetails("missing", "default");
     assertThat(evalDetails.getValue(), equalTo("default"));
     assertThat(evalDetails.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
 
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    client.on(ProviderEvent.PROVIDER_READY, readyEventHandler);
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(
-            () -> {
-              assertThat(client.getProviderState(), equalTo(ProviderState.READY));
-              verify(readyEvent, times(1)).accept(any());
-            });
+    readyEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
-    await()
-        .atMost(ofSeconds(1))
-        .untilAsserted(() -> verify(configChangedEvent, times(1)).accept(any()));
+    configChangedEvent.get(EVENT_TIMEOUT_SECONDS, SECONDS);
+    verify(errorEventHandler, times(1)).accept(any());
+    verify(readyEventHandler, times(1)).accept(any());
+    verify(configChangedEventHandler, times(1)).accept(any());
   }
 
   @Test
@@ -326,26 +320,103 @@ public class ProviderTest {
   }
 
   @Test
-  public void testGetProviderHooksReturnsFlagEvalHook() {
+  public void testGetProviderHooksReturnsFlagEvalMetricsHook() {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
     List<Hook> hooks = provider.getProviderHooks();
-    assertThat(hooks.size(), equalTo(1));
-    assertThat(hooks.get(0) instanceof FlagEvalHook, equalTo(true));
+    // Two hooks: OTel FlagEvalMetricsHook (index 0) + FlagEvalLoggingHook (index 1)
+    assertThat(hooks.size(), equalTo(2));
+    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+    assertThat(hooks.get(1) instanceof FlagEvalLoggingHook, equalTo(true));
   }
 
   @Test
-  public void testShutdownCleansUpMetrics() throws Exception {
-    Evaluator evaluator = mock(Evaluator.class);
+  public void testGetProviderHooksSkipsFlagEvalLoggingHookOnLinkageFailure() {
+    Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class)) {
+          @Override
+          Hook buildFlagEvalLoggingHook() {
+            throw new NoClassDefFoundError("old bootstrap");
+          }
+        };
+
+    List<Hook> hooks = provider.getProviderHooks();
+
+    assertThat(hooks.size(), equalTo(1));
+    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+  }
+
+  @Test
+  public void testClientEvaluationRoutesThroughFlagEvalLoggingHook() throws Exception {
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    FeatureFlaggingGateway.setFlagEvalWriter(capturingWriter(captured));
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
+    when(evaluator.evaluate(eq(String.class), eq("logged-flag"), eq("default"), any()))
+        .thenReturn(
+            ProviderEvaluation.<String>builder()
+                .value("value")
+                .reason("STATIC")
+                .variant("variant-1")
+                .flagMetadata(
+                    ImmutableMetadata.builder()
+                        .addString("allocationKey", "allocation-1")
+                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+                        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+                        .build())
+                .build());
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+
+    final FlagEvaluationDetails<String> details =
+        api.getClient().getStringDetails("logged-flag", "default", context);
+
+    assertThat(details.getValue(), equalTo("value"));
+    final FlagEvalEvent event = captured.get();
+    assertThat(event.flagKey, equalTo("logged-flag"));
+    assertThat(event.variant, equalTo("variant-1"));
+    assertThat(event.allocationKey, equalTo("allocation-1"));
+    assertThat(event.targetingKey, equalTo("user-1"));
+    assertThat(event.evalTimeMs, equalTo(1_700_000_000_000L));
+    assertThat(event.attrs.get("region"), equalTo("us-east-1"));
+  }
+
+  @Test
+  public void testGetProviderHooksReturnsFlagEvalMetricsHookWithAndWithoutSpanEnrichment() {
+    final Evaluator evaluator = mock(Evaluator.class);
+    final Provider providerWithoutSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.FALSE);
+    final Provider providerWithSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.TRUE);
+
+    assertHasFlagEvalMetricsHook(providerWithoutSpanEnrichment);
+    assertHasFlagEvalMetricsHook(providerWithSpanEnrichment);
+  }
+
+  @Test
+  public void testShutdownCleansUpEvaluator() throws Exception {
+    final Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
-    Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+    final Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator, Boolean.FALSE);
+
     provider.initialize(null);
     provider.shutdown();
+
     verify(evaluator).shutdown();
-    // After shutdown, getProviderHooks still returns a list (hook is still present but metrics is
-    // shut down)
-    assertThat(provider.getProviderHooks().size(), equalTo(1));
+    // After shutdown, getProviderHooks still returns a list with both OTel + logging hooks
+    assertThat(provider.getProviderHooks().size(), equalTo(2));
+  }
+
+  private static void assertHasFlagEvalMetricsHook(final Provider provider) {
+    assertTrue(
+        provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
+        "flag evaluation metrics hook should be registered");
   }
 
   public interface EvaluateMethod<E> {
@@ -393,5 +464,45 @@ public class ProviderTest {
     stateField.setAccessible(true);
     final AtomicReference<?> state = (AtomicReference<?>) stateField.get(provider);
     return state.get().toString();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Consumer<EventDetails> completingHandler(
+      final CompletableFuture<EventDetails> event) {
+    final Consumer<EventDetails> handler = mock(Consumer.class);
+    doAnswer(
+            invocation -> {
+              event.complete(invocation.getArgument(0));
+              return null;
+            })
+        .when(handler)
+        .accept(any());
+    return handler;
+  }
+
+  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
+    return new FlagEvaluationWriter() {
+      @Override
+      public void enqueue(final FlagEvalEvent event) {
+        ref.set(event);
+      }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
+      public void countContextTruncated(final String reason) {}
+
+      @Override
+      public void start() {}
+
+      @Override
+      public void close() {}
+    };
   }
 }

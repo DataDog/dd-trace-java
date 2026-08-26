@@ -5,19 +5,19 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: 'main'
+    ref: &apm_sdks_benchmarks_sha '90cf5c67a3e68ce369d31c0d7a750016f97f61a0' # pinned by "Update apm-sdks-benchmarks reference" workflow
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
-    ref: 'main'
+    ref: *apm_sdks_benchmarks_sha
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-startup-parallel.yml'
-    ref: 'main'
+    ref: *apm_sdks_benchmarks_sha
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
-    ref: 'main'
+    ref: *apm_sdks_benchmarks_sha
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: 'main'
+    ref: *apm_sdks_benchmarks_sha
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
@@ -45,6 +45,7 @@ stages:
   - generate-signing-key
 
 variables:
+  APM_SDKS_BENCHMARKS_SHA: *apm_sdks_benchmarks_sha
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1
@@ -52,7 +53,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.6.1" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.7.0" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -684,35 +685,18 @@ muzzle-dep-report:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
-.test_job:
+.test_job_common:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
-  tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
-  needs: [ build_tests ]
-  stage: tests
   variables:
     <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
+    TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     JETTY_AVAILABLE_PROCESSORS: 4 # Jetty incorrectly calculates processor count in containers
-  rules:
-    # Protected branches (master/mq/gh-readonly): all JVMs run unconditionally
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: on_success
-    # Enable for default test JVMs or for NON_DEFAULT_JVMS
-    - if: '$NON_DEFAULT_JVMS == "true"'
-      when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
-      when: on_success
-    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
-      when: on_success
   script:
     - *gitlab_base_ref_params
     - >
@@ -721,7 +705,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='$TEST_JVM_ARGS -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
@@ -766,24 +750,44 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
+.test_job_amd64:
+  extends: .test_job_common
+  tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
+  needs: [ build_tests ]
+  stage: tests
+  rules:
+    # Protected branches (master/mq/gh-readonly): all JVMs run unconditionally
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
+    # Enable for default test JVMs or for NON_DEFAULT_JVMS
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: on_success
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+      when: on_success
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
+      when: on_success
+
 .test_job_arm64:
-  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
+  extends: .test_job_common
   tags: [ "docker-in-docker:arm64" ]
   stage: tests-arm64
-  needs: []
+  # Use the amd64 build only as a compilation gate. Do not download its platform-specific artifacts.
+  needs:
+    - job: build
+      artifacts: false
   variables:
-    <<: *tier_m_variables
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
-    GRADLE_PARAMS: "-PskipFlakyTests"
-    TESTCONTAINERS_CHECKS_DISABLE: "true"
-    TESTCONTAINERS_RYUK_DISABLED: "true"
-    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
-    JETTY_AVAILABLE_PROCESSORS: 4
-    GIT_SUBMODULE_STRATEGY: normal
-    GIT_SUBMODULE_DEPTH: 1
+    TEST_JVM_ARGS: "-Xshare:off"
   rules:
-    # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
-    - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
+    # IBM 8 has no arm64 image published upstream.
+    - if: '$testJvm == "ibm8"'
+      when: never
+    # Oracle 8 is available on arm64 but too flaky to run in CI.
+    - if: '$testJvm == "oracle8"'
       when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
@@ -802,6 +806,7 @@ muzzle-dep-report:
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
       when: on_success
       allow_failure: true
+    # Keep the default JVM subset available for manual runs on feature branches/PRs.
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -819,113 +824,38 @@ muzzle-dep-report:
       unprotect: true
   before_script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
-    # Akka token added to SSM from https://account.akka.io/token
-    - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
-    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
-    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
-    - |
-      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
-      cat >> gradle.properties <<EOF
-      org.gradle.java.installations.auto-detect=false
-      org.gradle.java.installations.auto-download=false
-      org.gradle.java.installations.fromEnv=$JAVA_HOMES
-      EOF
-    - mkdir -p .gradle .mvn/caches
-    # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
-    # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
-    - sudo chown -R 1001:1001 .gradle
-    - export GRADLE_USER_HOME=$(pwd)/.gradle
-    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
-    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
-    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
-    # Route Gradle distribution download through MASS pull-through cache
-    - |
-      mass_read_host="${MASS_READ_URL#https://}"
-      mass_read_host="${mass_read_host%/}"
-      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
-    - *normalize_node_index
-    - *prepare_test_env
-    # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
-    - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
-    - ./gradlew --version
+    - !reference [.gradle_build, before_script]
+
+.test_job_with_test_agent_common:
+  variables:
+    CI_USE_TEST_AGENT: "true"
+    CI_AGENT_HOST: local-agent
+  services:
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.64.1
+      alias: local-agent
+      variables:
+        LOG_LEVEL: "DEBUG"
+        TRACE_LANGUAGE: "java"
+        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
+        DD_POOL_TRACE_CHECK_FAILURES: "true"
+        DD_DISABLE_ERROR_RESPONSES: "true"
+        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
   script:
-    - *gitlab_base_ref_params
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
-  after_script:
-    - *restore_pretest_env
-    - *set_datadog_api_keys
-    - *container_info
-    - *cgroup_info
-    - source .gitlab/gitlab-utils.sh
-    - gitlab_section_start "collect-reports" "Collecting reports"
-    - .gitlab/collect_reports.sh
-    - .gitlab/collect_results.sh
-    - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
-    - gitlab_section_end "collect-reports"
-    - .gitlab/count_tests.sh "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
-    - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
-    - echo -e "${TEXT_BOLD}${TEXT_YELLOW}See test results in Datadog:${TEXT_CLEAR} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}%20%40ci.job.name%3A%22${URL_ENCODED_JOB_NAME}%22"
-  artifacts:
-    when: always
-    paths:
-      - ./reports.tar
-      - ./profiles.tar
-      - ./results
-      - './test_counts_*.json'
-      - '.gradle/daemon/*/*.out.log'
-    reports:
-      junit: results/*.xml
-  retry:
-    max: 2
-    when:
-      - unknown_failure
-      - stuck_or_timeout_failure
-      - runner_system_failure
-      - unmet_prerequisites
-      - scheduler_failure
-      - data_integrity_failure
+    - !reference [.test_job_common, script]
+    - .gitlab/check_test_agent_results.sh
+
+.test_job_amd64_with_test_agent:
+  extends:
+    - .test_job_amd64
+    - .test_job_with_test_agent_common
 
 .test_job_arm64_with_test_agent:
-  extends: .test_job_arm64
-  variables:
-    CI_USE_TEST_AGENT: "true"
-    CI_AGENT_HOST: local-agent
-  services:
-    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
-      alias: local-agent
-      variables:
-        LOG_LEVEL: "DEBUG"
-        TRACE_LANGUAGE: "java"
-        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
-        DD_POOL_TRACE_CHECK_FAILURES: "true"
-        DD_DISABLE_ERROR_RESPONSES: "true"
-        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
-  script:
-    - !reference [.test_job_arm64, script]
-    - .gitlab/check_test_agent_results.sh
-
-.test_job_with_test_agent:
-  extends: .test_job
-  variables:
-    CI_USE_TEST_AGENT: "true"
-    CI_AGENT_HOST: local-agent
-  services:
-    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
-      alias: local-agent
-      variables:
-        LOG_LEVEL: "DEBUG"
-        TRACE_LANGUAGE: "java"
-        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
-        DD_POOL_TRACE_CHECK_FAILURES: "true"
-        DD_DISABLE_ERROR_RESPONSES: "true"
-        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
-  script:
-    - !reference [.test_job, script]
-    - .gitlab/check_test_agent_results.sh
+  extends:
+    - .test_job_arm64
+    - .test_job_with_test_agent_common
 
 agent_integration_tests:
-  extends: .test_job
+  extends: .test_job_amd64
   tags: [ "arch:amd64" ]
   variables:
     testJvm: "8"
@@ -942,7 +872,7 @@ agent_integration_tests:
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
 test_base:
-  extends: .test_job
+  extends: .test_job_amd64
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -959,7 +889,7 @@ test_base:
     matrix: *test_matrix_4
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-    - !reference [.test_job, script]
+    - !reference [.test_job_common, script]
 
 test_base_arm64:
   extends: .test_job_arm64
@@ -971,10 +901,10 @@ test_base_arm64:
   # run coverage only on JVM 8, mirroring the amd64 test_base job
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
-    - !reference [.test_job_arm64, script]
+    - !reference [.test_job_common, script]
 
 test_inst:
-  extends: .test_job_with_test_agent
+  extends: .test_job_amd64_with_test_agent
   needs: *needs_build_tests_inst
   variables:
     <<: *tier_l_variables
@@ -993,7 +923,7 @@ test_inst_arm64:
     matrix: *test_matrix_8
 
 test_inst_latest:
-  extends: .test_job_with_test_agent
+  extends: .test_job_amd64_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1028,7 +958,7 @@ test_inst_latest_arm64:
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 test_flaky:
-  extends: .test_job_with_test_agent
+  extends: .test_job_amd64_with_test_agent
   variables:
     GRADLE_PARAMS: "-PrunFlakyTests"
     CACHE_TYPE: "smoke"
@@ -1046,7 +976,7 @@ test_flaky:
         CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_flaky_inst:
-  extends: .test_job
+  extends: .test_job_amd64
   needs: *needs_build_tests_inst
   variables:
     GRADLE_TARGET: ":instrumentationTest"
@@ -1061,7 +991,7 @@ test_flaky_inst:
   parallel: 6
 
 test_profiling:
-  extends: .test_job
+  extends: .test_job_amd64
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1088,7 +1018,7 @@ test_profiling_arm64:
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
 test_debugger:
-  extends: .test_job
+  extends: .test_job_amd64
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
@@ -1099,7 +1029,7 @@ test_debugger:
   # exepected coverage
   script:
     - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" && "$testJvm" != "ibm8" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
-    - !reference [.test_job, script]
+    - !reference [.test_job_common, script]
 
 test_debugger_arm64:
   extends: .test_job_arm64
@@ -1112,10 +1042,10 @@ test_debugger_arm64:
   # expected coverage (ibm8/oracle8 never run on arm64)
   script:
     - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
-    - !reference [.test_job_arm64, script]
+    - !reference [.test_job_common, script]
 
 test_smoke:
-  extends: .test_job
+  extends: .test_job_amd64_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1135,7 +1065,7 @@ test_smoke:
     matrix: *test_matrix_8
 
 test_smoke_arm64:
-  extends: .test_job_arm64
+  extends: .test_job_arm64_with_test_agent
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
@@ -1145,7 +1075,7 @@ test_smoke_arm64:
     matrix: *test_matrix_8
 
 test_ssi_smoke:
-  extends: .test_job
+  extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -1175,7 +1105,7 @@ test_ssi_smoke_arm64:
     matrix: *test_matrix_8
 
 test_smoke_graalvm:
-  extends: .test_job
+  extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
@@ -1202,7 +1132,7 @@ test_smoke_graalvm_arm64:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
-  extends: .test_job
+  extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
@@ -1438,12 +1368,10 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
       )
-      # Try once immediately (fast path on job retry), then wait 5 mins for initial propagation,
-      # then try 4 more times with a minute delay between each retry.
+      # Try once immediately (fast path on job retry), then every 5 mins for 45 mins.
       TRY=0
-      MAX_TRIES=6
-      INITIAL_DELAY=300
-      RETRY_DELAY=60
+      MAX_TRIES=10
+      RETRY_DELAY=300
       while [ $TRY -lt $MAX_TRIES ]; do
         ARTIFACTS_AVAILABLE=true
         for URL in "${ARTIFACT_URLS[@]}"; do
@@ -1457,14 +1385,10 @@ verify_maven_central_deployment:
         fi
         TRY=$((TRY + 1))
         if [ $TRY -eq $MAX_TRIES ]; then
-          echo "The release was not available after 10 mins. Manually re-run the job to try again."
+          echo "The release was not available after 45 mins. Manually re-run the job to try again."
           exit 1
         fi
-        if [ $TRY -eq 1 ]; then
-          sleep $INITIAL_DELAY
-        else
-          sleep $RETRY_DELAY
-        fi
+        sleep $RETRY_DELAY
       done
 
 publishing-gate:

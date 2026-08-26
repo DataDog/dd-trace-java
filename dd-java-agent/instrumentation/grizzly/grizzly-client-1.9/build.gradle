@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   pass {
@@ -20,7 +23,6 @@ repositories {
     url = "https://repository.mulesoft.org/releases/"
   }
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latest5DepTest', 'test')
