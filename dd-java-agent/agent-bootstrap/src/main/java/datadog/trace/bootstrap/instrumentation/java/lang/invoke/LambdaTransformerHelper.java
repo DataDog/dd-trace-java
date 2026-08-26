@@ -5,9 +5,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Entry point invoked from instrumented {@code java.lang.invoke.InnerClassLambdaMetafactory}. The
- * metafactory instrumentation injects a call to {@link #transform(byte[], String, Class)} right
- * after the lambda class bytes are generated and before the class is defined, so the generated
- * lambda gets the agent's field-injection and advice applied like an ordinary class.
+ * metafactory instrumentation injects a call to {@link #transform(byte[], String, Class, Class)}
+ * right after the lambda class bytes are generated and before the class is defined, so eligible
+ * lambdas get the agent's field-injection and advice applied like ordinary classes.
  *
  * <p>The JVM still defines the lambda as a hidden/anonymous class; only the bytes it defines are
  * replaced. This never throws: any problem returns the original bytes (mirroring how {@code
@@ -26,10 +26,20 @@ public final class LambdaTransformerHelper {
    * @param classBytes the generated lambda class bytes (on the stack from {@code toByteArray()})
    * @param lambdaClassName internal (slash-separated) name of the generated lambda class
    * @param targetClass the class declaring the lambda
+   * @param interfaceClass the functional interface implemented by the lambda
    * @return possibly transformed bytes; the original bytes on any failure
    */
-  public static byte[] transform(byte[] classBytes, String lambdaClassName, Class<?> targetClass) {
+  public static byte[] transform(
+      byte[] classBytes,
+      String lambdaClassName,
+      Class<?> targetClass,
+      Class<?> interfaceClass) {
     try {
+      // Only Runnable lambdas benefit from field-backed executor context propagation. Avoid sending
+      // every other lambda through the agent's full matching and transformation pipeline.
+      if (interfaceClass == null || !Runnable.class.isAssignableFrom(interfaceClass)) {
+        return classBytes;
+      }
       LambdaTransformer transformer = LambdaTransformerHolder.get();
       if (transformer == null) {
         log.debug("Lambda {} skipped: no transformer registered", lambdaClassName);

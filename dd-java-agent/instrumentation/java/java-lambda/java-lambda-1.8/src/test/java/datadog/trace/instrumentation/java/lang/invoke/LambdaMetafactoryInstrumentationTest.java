@@ -11,10 +11,14 @@ import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
 import static net.bytebuddy.jar.asm.Opcodes.POP;
 import static net.bytebuddy.jar.asm.Opcodes.V1_8;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import datadog.trace.instrumentation.java.lang.invoke.LambdaMetafactoryInstrumentation.MetafactoryVisitorWrapper;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
@@ -62,7 +66,8 @@ class LambdaMetafactoryInstrumentationTest {
                     if (opcode == INVOKESTATIC
                         && HELPER.equals(owner)
                         && "transform".equals(name)
-                        && "([BLjava/lang/String;Ljava/lang/Class;)[B".equals(desc)) {
+                        && "([BLjava/lang/String;Ljava/lang/Class;Ljava/lang/Class;)[B"
+                            .equals(desc)) {
                       found.set(true);
                     }
                   }
@@ -172,9 +177,10 @@ class LambdaMetafactoryInstrumentationTest {
   }
 
   /**
-   * Guards the {@code GETFIELD}s emitted by the visitor: if a JDK renames or drops either field
-   * this fails here rather than as a {@code NoSuchFieldError} in every lambda linkage. {@code
-   * targetClass} is declared by the superclass, so this also covers the hierarchy walk.
+   * Guards the {@code GETFIELD}s emitted by the visitor: if a JDK renames or drops any field this
+   * fails here rather than as a {@code NoSuchFieldError} in every lambda linkage. {@code
+   * targetClass} and {@code interfaceClass} are declared by the superclass, so this also covers the
+   * hierarchy walk.
    */
   @Test
   void structureMatcherAcceptsTheRealMetafactory() throws Exception {
@@ -191,6 +197,27 @@ class LambdaMetafactoryInstrumentationTest {
         new LambdaMetafactoryInstrumentation()
             .structureMatcher()
             .matches(TypeDescription.ForLoadedType.of(Object.class)));
+  }
+
+  @Test
+  void nonRunnableLambdaBypassesTransformer() {
+    byte[] originalBytes = new byte[0];
+    AtomicBoolean transformed = new AtomicBoolean();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes) -> {
+          transformed.set(true);
+          return classBytes;
+        });
+    try {
+      byte[] result =
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Supplier.class);
+
+      assertSame(originalBytes, result);
+      assertFalse(transformed.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
   }
 
   @FunctionalInterface
