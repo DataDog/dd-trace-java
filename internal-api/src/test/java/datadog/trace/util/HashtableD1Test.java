@@ -4,9 +4,12 @@ import static datadog.trace.util.HashtableTestEntries.CollidingKey;
 import static datadog.trace.util.HashtableTestEntries.CollidingKeyEntry;
 import static datadog.trace.util.HashtableTestEntries.StringIntEntry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -237,5 +240,45 @@ class HashtableD1Test {
     assertEquals(7, created.value);
     assertSame(created, table.getOrCreate(null, k -> new StringIntEntry(k, 999)));
     assertEquals(1, table.size());
+  }
+
+  @Test
+  void insertReturnsFalseOnceAtCapacity() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    assertTrue(table.insert(new StringIntEntry("a", 1)));
+    assertTrue(table.insert(new StringIntEntry("b", 2)));
+    assertFalse(table.insert(new StringIntEntry("c", 3)));
+    assertEquals(2, table.size());
+    assertNull(table.get("c"));
+  }
+
+  @Test
+  void getOrCreateReturnsNullOnceAtCapacityButStillReturnsHits() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+
+    assertNull(table.getOrCreate("c", k -> new StringIntEntry(k, 3)));
+    assertEquals(2, table.size());
+
+    StringIntEntry hit = table.getOrCreate("a", k -> new StringIntEntry(k, 999));
+    assertEquals(1, hit.value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void insertOrReplaceStillReplacesAtCapacityButThrowsOnFreshInsert() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+
+    StringIntEntry replacement = new StringIntEntry("a", 99);
+    StringIntEntry prior = table.insertOrReplace(replacement);
+    assertEquals(1, prior.value);
+    assertSame(replacement, table.get("a"));
+    assertEquals(2, table.size());
+
+    assertThrows(
+        IllegalStateException.class, () -> table.insertOrReplace(new StringIntEntry("c", 3)));
+    assertEquals(2, table.size());
   }
 }

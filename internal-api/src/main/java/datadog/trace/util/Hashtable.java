@@ -76,8 +76,12 @@ public final class Hashtable {
    * Long>} and produces effectively zero GC pressure.
    *
    * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
-   * for choosing a capacity appropriate to the working set. Actual bucket-array length is rounded
-   * up to the next power of two.
+   * for choosing a capacity appropriate to the working set. Once {@link #size()} reaches that
+   * capacity, {@link #insert} returns {@code false} and {@link #getOrCreate} returns {@code null}
+   * rather than adding more entries -- a lookup hit is still always returned even at capacity, the
+   * cap only blocks new entries. Want your own eviction policy instead of a hard cap? Drop down to
+   * {@link Hashtable.Support} and manage the bucket array yourself. Actual bucket-array length is
+   * rounded up to the next power of two.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -134,10 +138,14 @@ public final class Hashtable {
     // building blocks directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
     private int size;
+    private final int limit; // hard cap on size
 
     public D1(int capacity) {
-      this.buckets = new Hashtable.Entry[sizeFor(capacity)];
+      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
+      // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
+      this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
       this.size = 0;
+      this.limit = capacity;
     }
 
     /**
@@ -189,11 +197,28 @@ public final class Hashtable {
       return null;
     }
 
-    public void insert(@Nonnull TEntry newEntry) {
+    /**
+     * Unconditionally adds {@code newEntry} ({@code true}), or {@code false} if the table is
+     * already at capacity. Caller-responsible: {@code newEntry}'s key must be absent, else it lands
+     * shadowed behind the existing entry.
+     */
+    public boolean insert(@Nonnull TEntry newEntry) {
+      if (this.size >= this.limit) {
+        return false;
+      }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
+      return true;
     }
 
+    /**
+     * Replaces the existing entry for {@code newEntry}'s key (returning the prior entry), or
+     * inserts it fresh (returning {@code null}) if absent. Replacing never grows {@link #size()},
+     * so it always succeeds even on a full table; only a fresh insert can hit the cap, in which
+     * case this throws {@link IllegalStateException} -- unlike {@link #insert} and {@link
+     * #getOrCreate}, there is no spare return-value slot free to signal refusal without colliding
+     * with the existing "freshly inserted" {@code null}.
+     */
     @Nullable
     public TEntry insertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
@@ -207,6 +232,9 @@ public final class Hashtable {
         }
       }
 
+      if (this.size >= this.limit) {
+        throw new IllegalStateException("Hashtable.D1 is at capacity (" + this.limit + ")");
+      }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
@@ -221,6 +249,9 @@ public final class Hashtable {
      * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
      * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
      * bucket that future {@link #get} calls won't probe.
+     *
+     * <p>Returns {@code null} once the table is at capacity and {@code key} is absent -- a hit is
+     * always returned even at capacity, the cap only blocks new entries.
      */
     @Nonnull
     public TEntry getOrCreate(
@@ -232,6 +263,9 @@ public final class Hashtable {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
           return curEntry;
         }
+      }
+      if (this.size >= this.limit) {
+        return null;
       }
       TEntry newEntry = creator.apply(key);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
@@ -268,8 +302,8 @@ public final class Hashtable {
    * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
    * counter-style workloads.
    *
-   * <p>Capacity is fixed at construction; the table does not resize. Actual bucket-array length is
-   * rounded up to the next power of two.
+   * <p>Capacity is fixed at construction; the table does not resize. Same strict-cap semantics as
+   * {@link D1} once {@link #size()} reaches capacity.
    *
    * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils}; see {@link
    * D2.Entry#hash(Object, Object)}.
@@ -332,10 +366,14 @@ public final class Hashtable {
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
     final Hashtable.Entry[] buckets;
     private int size;
+    private final int limit; // hard cap on size
 
     public D2(int capacity) {
-      this.buckets = new Hashtable.Entry[sizeFor(capacity)];
+      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
+      // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
+      this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
       this.size = 0;
+      this.limit = capacity;
     }
 
     /**
@@ -387,11 +425,17 @@ public final class Hashtable {
       return null;
     }
 
-    public void insert(@Nonnull TEntry newEntry) {
+    /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
+    public boolean insert(@Nonnull TEntry newEntry) {
+      if (this.size >= this.limit) {
+        return false;
+      }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
+      return true;
     }
 
+    /** Two-key analogue of {@link D1#insertOrReplace}, with the same refusal contract. */
     @Nullable
     public TEntry insertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
@@ -405,6 +449,9 @@ public final class Hashtable {
         }
       }
 
+      if (this.size >= this.limit) {
+        throw new IllegalStateException("Hashtable.D2 is at capacity (" + this.limit + ")");
+      }
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
@@ -413,7 +460,8 @@ public final class Hashtable {
     /**
      * Two-key analogue of {@link D1#getOrCreate}. Computes the combined hash once and reuses it for
      * both lookup and (on miss) insert. The {@code creator} is expected to build an entry whose
-     * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}. Same
+     * strict-cap refusal contract as {@link D1#getOrCreate}.
      */
     @Nonnull
     public TEntry getOrCreate(
@@ -427,6 +475,9 @@ public final class Hashtable {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
           return curEntry;
         }
+      }
+      if (this.size >= this.limit) {
+        return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
