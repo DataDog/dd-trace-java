@@ -684,6 +684,31 @@ class WafMetricCollectorTest extends DDSpecification {
     metric.tags.toSet() == ['framework:netty'].toSet()
   }
 
+  void 'test api security missing route metric aggregates multiple calls per framework'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when: 'the same framework is hit twice and a different framework once, before a single drain'
+    collector.apiSecurityMissingRoute('netty')
+    collector.apiSecurityMissingRoute('netty')
+    collector.apiSecurityMissingRoute('tomcat')
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'one aggregated metric per framework is emitted, not one per call'
+    metrics.size() == 2
+    metrics.find { it.tags.contains('framework:netty') }?.value == 2
+    metrics.find { it.tags.contains('framework:tomcat') }?.value == 1
+
+    when: 'a further drain cycle happens with no new calls'
+    collector.prepareMetrics()
+    final secondDrainMetrics =
+      collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'the per-framework counters were reset and nothing is re-emitted'
+    secondDrainMetrics.isEmpty()
+  }
+
   void 'test api security request schema metric'() {
     given:
     final collector = WafMetricCollector.get()
