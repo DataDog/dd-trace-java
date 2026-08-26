@@ -58,7 +58,7 @@ final class CardinalityLimitReporter {
   /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
   void record(String tag, long count) {
     if (count > 0) {
-      TagBlockEntry entry = blockedByTag.getOrCreate(tag, TagBlockEntry::new);
+      TagBlockEntry entry = blockedByTag.tryGetOrCreate(tag, TagBlockEntry::new);
       if (entry != null) {
         entry.count += count;
       }

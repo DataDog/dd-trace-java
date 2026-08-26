@@ -78,10 +78,10 @@ public final class Hashtable {
    *
    * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
    * for choosing a capacity appropriate to the working set. Once {@link #size()} reaches that
-   * capacity, {@link #insert} returns {@code false} and {@link #getOrCreate} returns {@code null}
-   * rather than adding more entries -- a lookup hit is still always returned even at capacity, the
-   * cap only blocks new entries. Want your own eviction policy instead of a hard cap? Drop down to
-   * the static building blocks and drive the bucket array yourself -- {@link
+   * capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreate} returns {@code
+   * null} rather than adding more entries -- a lookup hit is still always returned even at
+   * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
+   * Drop down to the static building blocks and drive the bucket array yourself -- {@link
    * Hashtable#createCappedTable(int)} hands you a spine, a {@link SizeTracker}, and an {@link
    * EvictionCursor} already matched to each other. Actual bucket-array length is rounded up to the
    * next power of two.
@@ -151,8 +151,8 @@ public final class Hashtable {
 
     /**
      * A <em>capped</em> single-key table: it holds at most {@code maxCapacity} live entries, after
-     * which {@link #insert} returns {@code false} and {@link #getOrCreate} returns {@code null}. A
-     * lookup hit is still always returned at capacity -- the cap only blocks new entries.
+     * which {@link #insert} returns {@code false} and {@link #tryGetOrCreate} returns {@code null}.
+     * A lookup hit is still always returned at capacity -- the cap only blocks new entries.
      *
      * <p>"Capped" names the promise, not the mechanism: the bucket array is sized once from {@code
      * maxCapacity} via {@link Hashtable#capacityFor(int)} and never resized, but that is an
@@ -239,8 +239,8 @@ public final class Hashtable {
      * inserts it fresh (returning {@code null}) if absent. Replacing never grows {@link #size()},
      * so it always succeeds even on a full table; only a fresh insert can hit the cap, in which
      * case this throws {@link IllegalStateException} -- unlike {@link #insert} and {@link
-     * #getOrCreate}, there is no spare return-value slot free to signal refusal without colliding
-     * with the existing "freshly inserted" {@code null}.
+     * #tryGetOrCreate}, there is no spare return-value slot free to signal refusal without
+     * colliding with the existing "freshly inserted" {@code null}.
      */
     @Nullable
     public TEntry insertOrReplace(@Nonnull TEntry newEntry) {
@@ -285,7 +285,7 @@ public final class Hashtable {
      * bucket that future {@link #get} calls won't probe.
      */
     @Nullable
-    public TEntry getOrCreate(
+    public TEntry tryGetOrCreate(
         @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       for (TEntry curEntry = bucketFor(this.buckets, keyHash);
@@ -428,8 +428,8 @@ public final class Hashtable {
     /**
      * Composite-key analogue of {@link D1#createCapped}: a <em>capped</em> table holding at most
      * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
-     * {@link #getOrCreate} returns {@code null}, with lookup hits still always returned. See {@link
-     * D1#createCapped} for what "capped" promises and why it is the default posture.
+     * {@link #tryGetOrCreate} returns {@code null}, with lookup hits still always returned. See
+     * {@link D1#createCapped} for what "capped" promises and why it is the default posture.
      *
      * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
      * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
@@ -511,18 +511,18 @@ public final class Hashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#getOrCreate}: returns the entry for {@code (key1, key2)},
+     * Two-key analogue of {@link D1#tryGetOrCreate}: returns the entry for {@code (key1, key2)},
      * building one via {@code creator} if absent -- or {@code null} if the pair is absent and the
      * table is <b>at capacity</b>. Like the single-key form it is not total despite the name, and
-     * refusal is a designed steady state rather than an exceptional one; see {@link D1#getOrCreate}
-     * for the full contract and what to do about a refused create.
+     * refusal is a designed steady state rather than an exceptional one; see {@link
+     * D1#tryGetOrCreate} for the full contract and what to do about a refused create.
      *
      * <p>Computes the combined hash once and reuses it for both lookup and (on miss) insert. The
      * {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
      * Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
      */
     @Nullable
-    public TEntry getOrCreate(
+    public TEntry tryGetOrCreate(
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
@@ -935,8 +935,8 @@ public final class Hashtable {
      * Reserves a slot for a fresh insert: increments and returns {@code true}, or leaves the count
      * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
      * is already fully built (nothing between the check and the increment can fail) -- e.g. {@link
-     * D1#insert}. When building the entry is itself fallible (e.g. {@link D1#getOrCreate}'s {@code
-     * creator}), check {@link #isFull()} first, do the fallible work, then call {@link
+     * D1#insert}. When building the entry is itself fallible (e.g. {@link D1#tryGetOrCreate}'s
+     * {@code creator}), check {@link #isFull()} first, do the fallible work, then call {@link
      * #increment()} only once linking actually succeeds.
      *
      * <p>Returning {@code false} here is not a final refusal -- it's the caller's cue to either

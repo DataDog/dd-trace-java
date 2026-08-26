@@ -167,7 +167,7 @@ class FlatHashtableD2Test {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(8);
     int[] createCount = {0};
     PairEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             1,
             (k1, k2) -> {
@@ -190,7 +190,7 @@ class FlatHashtableD2Test {
     table.insert(seeded);
     int[] createCount = {0};
     PairEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             1,
             (k1, k2) -> {
@@ -217,13 +217,13 @@ class FlatHashtableD2Test {
   @Test
   void fixedGetOrCreateCapsWhenFull() {
     FlatHashtable.D2<String, Integer, PairEntry> table = fixed(2);
-    assertNotNull(table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1)));
-    assertNotNull(table.getOrCreate("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2)));
+    assertNotNull(table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1)));
+    assertNotNull(table.tryGetOrCreate("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2)));
     assertEquals(2, table.size());
-    assertNull(table.getOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)));
+    assertNull(table.tryGetOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)));
     assertEquals(2, table.size());
     PairEntry a = table.get("a", 1);
-    assertSame(a, table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99)));
+    assertSame(a, table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99)));
   }
 
   @Test
@@ -258,7 +258,7 @@ class FlatHashtableD2Test {
   void growableGetOrCreateGrowsPastInitialCapacity() {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      PairEntry e = table.getOrCreate("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
+      PairEntry e = table.tryGetOrCreate("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
       assertNotNull(e);
     }
     assertEquals(50, table.size());

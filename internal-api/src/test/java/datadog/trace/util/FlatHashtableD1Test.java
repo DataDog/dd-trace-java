@@ -188,7 +188,7 @@ class FlatHashtableD1Test {
     FlatHashtable.D1<String, StringIntEntry> table = growable(8);
     int[] createCount = {0};
     StringIntEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             k -> {
               createCount[0]++;
@@ -209,7 +209,7 @@ class FlatHashtableD1Test {
     table.insert(seeded);
     int[] createCount = {0};
     StringIntEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             k -> {
               createCount[0]++;
@@ -237,7 +237,7 @@ class FlatHashtableD1Test {
   void growableGetOrCreateNeverReturnsNull() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      StringIntEntry e = table.getOrCreate("k" + i, k -> new StringIntEntry(k, 0));
+      StringIntEntry e = table.tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0));
       assertNotNull(e);
     }
     assertEquals(50, table.size());
@@ -246,15 +246,15 @@ class FlatHashtableD1Test {
   @Test
   void fixedGetOrCreateCapsWhenFull() {
     FlatHashtable.D1<String, StringIntEntry> table = fixed(2);
-    assertNotNull(table.getOrCreate("a", k -> new StringIntEntry(k, 1)));
-    assertNotNull(table.getOrCreate("b", k -> new StringIntEntry(k, 2)));
+    assertNotNull(table.tryGetOrCreate("a", k -> new StringIntEntry(k, 1)));
+    assertNotNull(table.tryGetOrCreate("b", k -> new StringIntEntry(k, 2)));
     assertEquals(2, table.size());
     // At capacity, a new key can't be created -> null (caller's overflow default).
-    assertNull(table.getOrCreate("c", k -> new StringIntEntry(k, 3)));
+    assertNull(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)));
     assertEquals(2, table.size());
     // ...but an existing key still resolves even at capacity (cap blocks creation, not lookup).
     StringIntEntry a = table.get("a");
-    assertSame(a, table.getOrCreate("a", k -> new StringIntEntry(k, 99)));
+    assertSame(a, table.tryGetOrCreate("a", k -> new StringIntEntry(k, 99)));
   }
 
   @Test

@@ -85,7 +85,7 @@ class HashtableD2Test {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
     int[] createCount = {0};
     PairEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "a",
             1,
             (k1, k2) -> {
@@ -108,7 +108,7 @@ class HashtableD2Test {
     table.insert(seeded);
     int[] createCount = {0};
     PairEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "a",
             1,
             (k1, k2) -> {
@@ -199,10 +199,10 @@ class HashtableD2Test {
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
-    assertNull(table.getOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 300)));
+    assertNull(table.tryGetOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 300)));
     assertEquals(2, table.size());
 
-    PairEntry hit = table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 999));
+    PairEntry hit = table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 999));
     assertEquals(100, hit.value, "existing entry is still returned even at capacity");
   }
 

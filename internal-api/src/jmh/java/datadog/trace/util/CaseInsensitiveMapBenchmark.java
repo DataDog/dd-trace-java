@@ -274,7 +274,8 @@ public class CaseInsensitiveMapBenchmark {
       }
     }
     // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
-    // insensitive collisions. getOrCreate finds the already-present lower-case entry (a hit -> the
+    // insensitive collisions. tryGetOrCreate finds the already-present lower-case entry (a hit ->
+    // the
     // create never fires, nothing allocates) and then the value is overwritten explicitly -- getOr-
     // Create itself never updates an existing entry, so without this the FlatHashtable arm would do
     // less work (and end up with different final values) than the maps' overwriting put(), a false
@@ -284,7 +285,8 @@ public class CaseInsensitiveMapBenchmark {
       for (String prefix : UPPER_PREFIXES) {
         String key = prefix + "-" + suffix;
         CIEntry entry =
-            FlatHashtable.getOrCreate(table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+            FlatHashtable.tryGetOrCreate(
+                table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
         entry.value = suffix + 1;
       }
     }
