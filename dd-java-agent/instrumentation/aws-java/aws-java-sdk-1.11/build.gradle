@@ -26,13 +26,13 @@ muzzle {
 // We test older version in separate test set to test newer version and latest deps in the 'default'
 // test dir. Otherwise we get strange warnings in Idea.
 addTestSuite('test_before_1_11_106')
-addTestSuiteExtendingForDir('test_before_1_11_106ForkedTest', 'test_before_1_11_106', 'test_before_1_11_106')
+addForkedTestTask('test_before_1_11_106')
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 addTestSuite('dsmTest')
-addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addForkedTestTask('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 

@@ -17,12 +17,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 // addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 addTestSuite('dsmTest')
-addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addForkedTestTask('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
 addTestSuite('payloadTaggingTest')
-addTestSuiteExtendingForDir('payloadTaggingForkedTest', 'payloadTaggingTest', 'payloadTaggingTest')
+addForkedTestTask('payloadTaggingTest')
 addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
 addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
 
