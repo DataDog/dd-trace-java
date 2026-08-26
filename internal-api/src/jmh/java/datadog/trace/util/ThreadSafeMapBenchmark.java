@@ -8,8 +8,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -92,6 +94,11 @@ public class ThreadSafeMapBenchmark {
   // per-thread. A shared counter's cache-line ping-pong would otherwise floor the fastest reads
   // (e.g. FlatHashtable's lock-free probe), hiding exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
 
   String nextLookupKey() {
     return nextLookupKey(EQUAL_KEYS);

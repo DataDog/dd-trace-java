@@ -138,6 +138,8 @@ public class HashtableD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
+
       table = new Hashtable.D2<>(CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;

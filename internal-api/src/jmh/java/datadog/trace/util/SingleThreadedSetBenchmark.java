@@ -94,6 +94,8 @@ public class SingleThreadedSetBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     hashSet = new HashSet<>(Arrays.asList(ELEMENTS));
     synchronizedSet = Collections.synchronizedSet(new HashSet<>(hashSet));
     treeSet = new TreeSet<>(Arrays.asList(ELEMENTS));
