@@ -13,7 +13,6 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
 import javax.annotation.Nonnull;
@@ -57,9 +56,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
         return;
       }
       log.debug("Request sampled, processing API security post-processing");
-      final Object component = span.getLocalRootSpan().getTag(Tags.COMPONENT);
-      final String framework = component != null ? component.toString() : null;
-      extractSchemas(ctx, ctx_.getTraceSegment(), framework);
+      extractSchemas(ctx, ctx_.getTraceSegment(), ctx.getApiSecurityFramework());
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
       try {

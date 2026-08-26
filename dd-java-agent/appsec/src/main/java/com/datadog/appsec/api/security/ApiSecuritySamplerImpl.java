@@ -93,6 +93,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       return false;
     }
     if (counter.tryAcquire()) {
+      ctx.setApiSecurityFramework(framework);
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
       if (!Config.get().isApmTracingEnabled()) {
         boolean sampled = updateApiAccessIfExpired(hash);

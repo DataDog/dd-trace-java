@@ -124,6 +124,7 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private String savedRawURI;
   private String route;
   private String httpUrl;
+  private String apiSecurityFramework;
   private String endpoint;
   private boolean endpointComputed = false;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
@@ -469,6 +470,20 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
 
   public void setRoute(String route) {
     this.route = route;
+  }
+
+  /**
+   * The web framework component (e.g. netty, tomcat) captured at request-end, when the request was
+   * sampled for API Security schema extraction. Read by the deferred post-processing step instead
+   * of the span's local root, since the local root can be an inferred-proxy span (e.g.
+   * aws-apigateway) rather than the actual web framework.
+   */
+  public String getApiSecurityFramework() {
+    return apiSecurityFramework;
+  }
+
+  public void setApiSecurityFramework(String apiSecurityFramework) {
+    this.apiSecurityFramework = apiSecurityFramework;
   }
 
   public String getHttpUrl() {
