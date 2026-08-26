@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.scala'
 }
-
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 // Up to 20.7 where the server structure changes
 addTestSuiteForDir('latestPre207Test', 'test')
