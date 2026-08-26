@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.scala'
 }
 
 def pekkoVersion = '1.0.0'
@@ -21,8 +22,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
