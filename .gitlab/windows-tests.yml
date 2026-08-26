@@ -9,7 +9,7 @@ variables:
 build-windows-ci-image:
   stage: build
   timeout: 2h
-  tags: [ "windows-v2:2022" ]
+  tags: [ "windows-v2:2025" ]
   when: manual
   allow_failure: true
   hooks:
@@ -48,7 +48,7 @@ build-windows-ci-image:
 test-base-windows:
   stage: tests-windows
   timeout: 2h
-  tags: [ "windows-v2:2022" ]
+  tags: [ "windows-v2:2025" ]
   hooks:
     pre_get_sources_script:
       - git config --system core.longpaths true
