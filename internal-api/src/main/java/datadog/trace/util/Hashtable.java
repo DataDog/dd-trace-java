@@ -264,17 +264,25 @@ public final class Hashtable {
     }
 
     /**
-     * Returns the entry for {@code key}, building one via {@code creator} if absent. Computes the
-     * hash once and reuses it for both the lookup and (on miss) the insert -- avoids the
-     * double-hash that "{@code get}; if null then {@code insert}" would incur.
+     * Returns the entry for {@code key}, building one via {@code creator} if absent -- or {@code
+     * null} if the key is absent and the table is <b>at capacity</b>. This method can refuse:
+     * despite the name it is not total, and a caller that dereferences the result without a null
+     * check will NPE the first time the cap is reached. A lookup hit is always returned even at
+     * capacity, so only the create half can fail. Check {@link #isFull()} beforehand if you want to
+     * distinguish "refused" from "created" without inspecting the result.
+     *
+     * <p>Refusal is a designed steady state for a capped table, not an exceptional condition -- see
+     * {@link #createCapped}. Decide deliberately what a refused create should do (drop the sample,
+     * fall back, make room); silently ignoring the {@code null} turns the cap into data loss you
+     * cannot see.
+     *
+     * <p>Computes the hash once and reuses it for both the lookup and (on miss) the insert --
+     * avoids the double-hash that "{@code get}; if null then {@code insert}" would incur.
      *
      * <p>The {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
      * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
      * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
      * bucket that future {@link #get} calls won't probe.
-     *
-     * <p>Returns {@code null} once the table is at capacity and {@code key} is absent -- a hit is
-     * always returned even at capacity, the cap only blocks new entries.
      */
     @Nullable
     public TEntry getOrCreate(
@@ -503,10 +511,15 @@ public final class Hashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#getOrCreate}. Computes the combined hash once and reuses it for
-     * both lookup and (on miss) insert. The {@code creator} is expected to build an entry whose
-     * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}. Same
-     * strict-cap refusal contract as {@link D1#getOrCreate}.
+     * Two-key analogue of {@link D1#getOrCreate}: returns the entry for {@code (key1, key2)},
+     * building one via {@code creator} if absent -- or {@code null} if the pair is absent and the
+     * table is <b>at capacity</b>. Like the single-key form it is not total despite the name, and
+     * refusal is a designed steady state rather than an exceptional one; see {@link D1#getOrCreate}
+     * for the full contract and what to do about a refused create.
+     *
+     * <p>Computes the combined hash once and reuses it for both lookup and (on miss) insert. The
+     * {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
+     * Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
      */
     @Nullable
     public TEntry getOrCreate(
