@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -698,8 +697,7 @@ class FlagEvaluationWriterImplTest {
                 HttpRetryPolicy.Factory.NEVER_RETRY,
                 client,
                 false);
-        when(backendApiFactory.createDirectIntakeApi(
-                eq(Intake.EVENT_PLATFORM), eq(false), anyMap()))
+        when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(false)))
             .thenReturn(directApi);
         final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
             new FeatureFlagBackendApiFactory(
