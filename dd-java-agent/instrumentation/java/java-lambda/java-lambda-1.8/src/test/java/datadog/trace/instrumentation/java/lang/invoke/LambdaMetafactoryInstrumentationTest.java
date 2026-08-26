@@ -141,6 +141,28 @@ class LambdaMetafactoryInstrumentationTest {
             }));
   }
 
+  /**
+   * Guards the {@code GETFIELD}s emitted by the visitor: if a JDK renames or drops either field
+   * this fails here rather than as a {@code NoSuchFieldError} in every lambda linkage. {@code
+   * targetClass} is declared by the superclass, so this also covers the hierarchy walk.
+   */
+  @Test
+  void structureMatcherAcceptsTheRealMetafactory() throws Exception {
+    TypeDescription metafactory =
+        TypeDescription.ForLoadedType.of(
+            Class.forName("java.lang.invoke.InnerClassLambdaMetafactory"));
+
+    assertTrue(new LambdaMetafactoryInstrumentation().structureMatcher().matches(metafactory));
+  }
+
+  @Test
+  void structureMatcherRejectsTypeWithoutTheFields() {
+    assertFalse(
+        new LambdaMetafactoryInstrumentation()
+            .structureMatcher()
+            .matches(TypeDescription.ForLoadedType.of(Object.class)));
+  }
+
   @FunctionalInterface
   private interface ClassBody {
     void write(MethodVisitor mv);
