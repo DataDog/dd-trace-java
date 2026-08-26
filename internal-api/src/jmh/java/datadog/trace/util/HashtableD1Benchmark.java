@@ -147,7 +147,7 @@ public class HashtableD1Benchmark {
     public void setUp() {
       BenchmarkUtils.polluteHashDispatch();
 
-      table = new Hashtable.D1<>(CAPACITY);
+      table = Hashtable.D1.createCapped(D1Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;
       for (int i = 0; i < N_KEYS; ++i) {

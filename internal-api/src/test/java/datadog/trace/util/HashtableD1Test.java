@@ -19,14 +19,14 @@ class HashtableD1Test {
 
   @Test
   void emptyTableLookupReturnsNull() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     assertNull(table.get("missing"));
     assertEquals(0, table.size());
   }
 
   @Test
   void insertedEntryIsRetrievable() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     StringIntEntry e = new StringIntEntry("foo", 1);
     table.insert(e);
     assertEquals(1, table.size());
@@ -41,7 +41,8 @@ class HashtableD1Test {
 
   @Test
   void multipleInsertsRetrievableSeparately() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(16);
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createCapped(StringIntEntry.class, 16);
     StringIntEntry a = new StringIntEntry("alpha", 1);
     StringIntEntry b = new StringIntEntry("beta", 2);
     StringIntEntry c = new StringIntEntry("gamma", 3);
@@ -56,7 +57,7 @@ class HashtableD1Test {
 
   @Test
   void inPlaceMutationVisibleViaSubsequentGet() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("counter", 0));
     for (int i = 0; i < 10; i++) {
       StringIntEntry e = table.get("counter");
@@ -67,7 +68,7 @@ class HashtableD1Test {
 
   @Test
   void removeUnlinksEntryAndDecrementsSize() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
     assertEquals(2, table.size());
@@ -82,7 +83,7 @@ class HashtableD1Test {
 
   @Test
   void removeNonexistentReturnsNullAndDoesNotChangeSize() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     assertNull(table.remove("nope"));
     assertEquals(1, table.size());
@@ -90,7 +91,7 @@ class HashtableD1Test {
 
   @Test
   void insertOrReplaceReturnsPriorEntryOrNullOnInsert() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     StringIntEntry first = new StringIntEntry("k", 1);
     assertNull(table.insertOrReplace(first), "fresh insert returns null");
     assertEquals(1, table.size());
@@ -103,7 +104,7 @@ class HashtableD1Test {
 
   @Test
   void clearEmptiesTheTable() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
     table.clear();
@@ -116,7 +117,7 @@ class HashtableD1Test {
 
   @Test
   void forEachVisitsEveryInsertedEntry() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
     table.insert(new StringIntEntry("c", 3));
@@ -130,7 +131,7 @@ class HashtableD1Test {
 
   @Test
   void forEachWithContextPassesContextToConsumer() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 10));
     table.insert(new StringIntEntry("b", 20));
     table.insert(new StringIntEntry("c", 30));
@@ -144,7 +145,7 @@ class HashtableD1Test {
 
   @Test
   void forEachWithContextOnEmptyTableDoesNothing() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     Map<String, Integer> seen = new HashMap<>();
     table.forEach(seen, (ctx, e) -> ctx.put(e.key, e.value));
     assertEquals(0, seen.size());
@@ -152,7 +153,7 @@ class HashtableD1Test {
 
   @Test
   void nullKeyIsPermittedAndDistinctFromAbsent() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     assertNull(table.get(null));
     StringIntEntry nullKeyed = new StringIntEntry(null, 7);
     table.insert(nullKeyed);
@@ -166,7 +167,8 @@ class HashtableD1Test {
   void hashCollisionsResolveByEquality() {
     // Force two distinct keys with the same hashCode -- the chain must still distinguish them
     // via matches().
-    Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(4);
+    Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
+        Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
     CollidingKey k1 = new CollidingKey("first", 17);
     CollidingKey k2 = new CollidingKey("second", 17);
     CollidingKeyEntry e1 = new CollidingKeyEntry(k1, 100);
@@ -180,7 +182,8 @@ class HashtableD1Test {
 
   @Test
   void hashCollisionsThenRemoveLeavesOtherIntact() {
-    Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(4);
+    Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
+        Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
     CollidingKey k1 = new CollidingKey("first", 17);
     CollidingKey k2 = new CollidingKey("second", 17);
     CollidingKey k3 = new CollidingKey("third", 17);
@@ -196,7 +199,7 @@ class HashtableD1Test {
 
   @Test
   void getOrCreateOnMissBuildsEntryViaCreator() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     int[] createCount = {0};
     StringIntEntry created =
         table.getOrCreate(
@@ -215,7 +218,7 @@ class HashtableD1Test {
 
   @Test
   void getOrCreateOnHitSkipsCreator() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     StringIntEntry seeded = new StringIntEntry("foo", 1);
     table.insert(seeded);
     int[] createCount = {0};
@@ -233,7 +236,7 @@ class HashtableD1Test {
 
   @Test
   void getOrCreateNullKeyIsPermitted() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     StringIntEntry created = table.getOrCreate(null, k -> new StringIntEntry(k, 7));
     assertNotNull(created);
     assertNull(created.key);
@@ -244,7 +247,7 @@ class HashtableD1Test {
 
   @Test
   void insertReturnsFalseOnceAtCapacity() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     assertTrue(table.insert(new StringIntEntry("a", 1)));
     assertTrue(table.insert(new StringIntEntry("b", 2)));
     assertFalse(table.insert(new StringIntEntry("c", 3)));
@@ -254,7 +257,7 @@ class HashtableD1Test {
 
   @Test
   void getOrCreateReturnsNullOnceAtCapacityButStillReturnsHits() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
 
@@ -267,7 +270,7 @@ class HashtableD1Test {
 
   @Test
   void insertOrReplaceStillReplacesAtCapacityButThrowsOnFreshInsert() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
 
@@ -284,7 +287,7 @@ class HashtableD1Test {
 
   @Test
   void isFullReflectsCapacity() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(2);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     assertFalse(table.isFull());
     table.insert(new StringIntEntry("a", 1));
     assertFalse(table.isFull());
@@ -296,7 +299,7 @@ class HashtableD1Test {
 
   @Test
   void drainVisitsEveryEntryThenEmptiesTable() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
     Map<String, Integer> drained = new HashMap<>();
@@ -318,7 +321,7 @@ class HashtableD1Test {
 
   @Test
   void drainWithContextPassesContextToSink() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
     Map<String, Integer> drained = new HashMap<>();
@@ -331,7 +334,7 @@ class HashtableD1Test {
 
   @Test
   void drainOnEmptyTableDoesNothing() {
-    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     Map<String, Integer> drained = new HashMap<>();
     table.drain(e -> drained.put(e.key, e.value));
     assertEquals(0, drained.size());

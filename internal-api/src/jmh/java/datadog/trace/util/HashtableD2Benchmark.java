@@ -183,7 +183,7 @@ public class HashtableD2Benchmark {
     public void setUp() {
       BenchmarkUtils.polluteHashDispatch();
 
-      table = new Hashtable.D2<>(CAPACITY);
+      table = Hashtable.D2.createCapped(D2Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;
       k2s = SOURCE_K2;

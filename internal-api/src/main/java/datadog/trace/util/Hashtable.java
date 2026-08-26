@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -30,7 +31,7 @@ import javax.annotation.Nullable;
  *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
- * building blocks on this class (see {@link #createFixedBuckets(Class, int)}, {@link
+ * building blocks on this class (see {@link #create(Class, int)}, {@link
  * #bucketFor(Hashtable.Entry[], long)}, {@link #insertHeadEntryAt(Hashtable.Entry[], int,
  * Hashtable.Entry)}, and friends). The deprecated {@link Support} class is a thin facade over those
  * same statics, retained for source compatibility.
@@ -140,25 +141,45 @@ public final class Hashtable {
     final Hashtable.Entry[] buckets;
     private final SizeTracker sizeTracker;
 
-    public D1(int capacity) {
+    private D1(int maxCapacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
-      // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
-      this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
-      this.sizeTracker = new SizeTracker(capacity);
+      // short even when the table is full; see Hashtable#capacityFor.
+      this.buckets = Hashtable.create(capacityFor(maxCapacity));
+      this.sizeTracker = new SizeTracker(maxCapacity);
     }
 
     /**
-     * Creates a single-key table with a fixed bucket count sized for {@code capacity} entries. The
-     * {@code entryClass} pins the concrete entry type so the compiler infers both {@code K} and
-     * {@code TEntry} at the call site -- e.g. {@code D1.createFixedBuckets(MyEntry.class, 64)} --
-     * keeping the factory symmetric with the rest of the flat-collections family (see {@link
-     * Hashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise consumed).
-     * Capacity is fixed; the table does not resize.
+     * A <em>capped</em> single-key table: it holds at most {@code maxCapacity} live entries, after
+     * which {@link #insert} returns {@code false} and {@link #getOrCreate} returns {@code null}. A
+     * lookup hit is still always returned at capacity -- the cap only blocks new entries.
+     *
+     * <p>"Capped" names the promise, not the mechanism: the bucket array is sized once from {@code
+     * maxCapacity} via {@link Hashtable#capacityFor(int)} and never resized, but that is an
+     * implementation detail. What the caller is choosing here is a bounded entry count and, with
+     * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
+     * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
+     * SizeTracker} with an {@link EvictionCursor} over the static building blocks (see {@link
+     * Hashtable#createCappedTable(int)}) rather than reaching for an uncapped table.
+     *
+     * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
+     * -- the bucket array is sized from it, so it is read as both the limit and a rough estimate.
+     * Nothing assumes you will reach the cap, but a cap set as a paranoid safety valve far above
+     * typical usage over-allocates the spine for a fill that never arrives. When the limit and the
+     * expectation genuinely differ by a lot, size the two independently with the low-level API:
+     * {@code Hashtable.create(capacityFor(expected))} paired with {@code new SizeTracker(limit)}.
+     *
+     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
+     * infers both {@code K} and {@code TEntry} at the call site (e.g. {@code
+     * D1.createCapped(MyEntry.class, 64)}), keeping the factory symmetric with the rest of the
+     * collections family. Unlike {@link Hashtable#create(Class, int)} it is not reflectively
+     * allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally, matching the
+     * static building blocks ({@link Hashtable#bucketFor}, {@link Hashtable#insertHeadEntryFor},
+     * etc.) that {@link #get}, {@link #insert}, and friends delegate to.
      */
     @Nonnull
-    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createFixedBuckets(
-        @Nonnull Class<TEntry> entryClass, int capacity) {
-      return new D1<>(capacity);
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createCapped(
+        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+      return new D1<>(maxCapacity);
     }
 
     public int size() {
@@ -186,19 +207,7 @@ public final class Hashtable {
     @Nullable
     public TEntry remove(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
-
-      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
-        TEntry curEntry = iter.next();
-
-        if (curEntry.matches(key)) {
-          iter.remove();
-          this.sizeTracker.decrement();
-          return curEntry;
-        }
-      }
-
-      return null;
+      return removeMatching(this.buckets, keyHash, e -> e.matches(key), this.sizeTracker);
     }
 
     /**
@@ -207,11 +216,7 @@ public final class Hashtable {
      * shadowed behind the existing entry.
      */
     public boolean insert(@Nonnull TEntry newEntry) {
-      if (!this.sizeTracker.tryReserve()) {
-        return false;
-      }
-      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      return true;
+      return insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry, this.sizeTracker);
     }
 
     /**
@@ -390,25 +395,30 @@ public final class Hashtable {
     final Hashtable.Entry[] buckets;
     private final SizeTracker sizeTracker;
 
-    public D2(int capacity) {
+    private D2(int maxCapacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
-      // short even at capacity; see Hashtable#createFixedBuckets's javadoc for the same idiom.
-      this.buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
-      this.sizeTracker = new SizeTracker(capacity);
+      // short even when the table is full; see Hashtable#capacityFor.
+      this.buckets = Hashtable.create(capacityFor(maxCapacity));
+      this.sizeTracker = new SizeTracker(maxCapacity);
     }
 
     /**
-     * Creates a composite-key table with a fixed bucket count sized for {@code capacity} entries.
-     * The {@code entryClass} pins the concrete entry type so the compiler infers {@code K1}, {@code
-     * K2}, and {@code TEntry} at the call site -- e.g. {@code D2.createFixedBuckets(MyEntry.class,
-     * 64)} -- keeping the factory symmetric with the rest of the flat-collections family (see
-     * {@link Hashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise consumed).
-     * Capacity is fixed; the table does not resize.
+     * Composite-key analogue of {@link D1#createCapped}: a <em>capped</em> table holding at most
+     * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
+     * {@link #getOrCreate} returns {@code null}, with lookup hits still always returned. See {@link
+     * D1#createCapped} for what "capped" promises and why it is the default posture.
+     *
+     * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
+     * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
+     * D2.createCapped(MyEntry.class, 64)}). Unlike {@link Hashtable#create(Class, int)} it is not
+     * reflectively allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally,
+     * matching the static building blocks that {@link #get}, {@link #insert}, and friends delegate
+     * to.
      */
     @Nonnull
-    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createFixedBuckets(
-        @Nonnull Class<TEntry> entryClass, int capacity) {
-      return new D2<>(capacity);
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createCapped(
+        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+      return new D2<>(maxCapacity);
     }
 
     public int size() {
@@ -436,28 +446,12 @@ public final class Hashtable {
     @Nullable
     public TEntry remove(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-
-      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
-        TEntry curEntry = iter.next();
-
-        if (curEntry.matches(key1, key2)) {
-          iter.remove();
-          this.sizeTracker.decrement();
-          return curEntry;
-        }
-      }
-
-      return null;
+      return removeMatching(this.buckets, keyHash, e -> e.matches(key1, key2), this.sizeTracker);
     }
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
     public boolean insert(@Nonnull TEntry newEntry) {
-      if (!this.sizeTracker.tryReserve()) {
-        return false;
-      }
-      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      return true;
+      return insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry, this.sizeTracker);
     }
 
     /** Two-key analogue of {@link D1#insertOrReplace}, with the same refusal contract. */
@@ -573,22 +567,77 @@ public final class Hashtable {
    * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
    * rounded up to the next power of two.
    *
-   * <p>Returns a concrete {@code Hashtable.Entry[]} (chain heads are stored at the base type), so
-   * the array assigns directly to a caller's {@code Hashtable.Entry[]} field. As with the
-   * concurrent variant's {@code createFixedBuckets}, {@code entryClass} is <b>not</b> consumed to
-   * allocate -- the array is a heterogeneous {@code Entry[]}, not a reflectively-allocated {@code
-   * TEntry[]}. It is accepted only to keep the factory call-shape symmetric across the
-   * flat-collections family ({@code createFixedBuckets(MyEntry.class, n)}). Capacity is fixed; the
-   * table does not resize.
+   * <p>Unlike the concurrent variant's {@code createFixedBuckets} (whose {@code
+   * AtomicReferenceArray} spine has an erased element type), this class's spine is a genuine {@code
+   * E[]}, so {@code entryClass} is reflectively allocated into it via {@link Array#newInstance} --
+   * same idiom as {@code FlatHashtable#create(Class, int)}. That gives the returned array a real
+   * {@code TEntry} component type rather than the base {@code Entry[]}: typed reads, real
+   * array-store checks, and a monomorphic element type for the JIT. Capacity is fixed; the table
+   * does not resize.
    *
-   * <p>For load-factor headroom over a target working-set size, size {@code capacity} yourself
-   * (e.g. {@code createFixedBuckets(MyEntry.class, (int) (n * 4 / 3f))}); the deprecated {@link
-   * Support#create(int, float)} bundled that scaling but has no blessed equivalent.
+   * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
+   * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
+   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link
+   * #createCappedTable} size themselves), pass {@link #capacityFor(int)} instead: {@code
+   * create(MyEntry.class, capacityFor(cardinalityLimit))}.
+   */
+  @SuppressWarnings("unchecked")
+  @Nonnull
+  public static <TEntry extends Entry> TEntry[] create(
+      @Nonnull Class<TEntry> entryClass, int capacity) {
+    return (TEntry[]) Array.newInstance(entryClass, sizeFor(capacity));
+  }
+
+  /**
+   * Untyped sibling of {@link #create(Class, int)}: allocates a bucket array of {@code buckets}
+   * rounded up to the next power of two, with the base {@code Hashtable.Entry[]} component type.
+   *
+   * <p>Use this when the spine is driven purely through the static building blocks, which all take
+   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link
+   * #createCappedTable} allocate internally. Prefer {@link #create(Class, int)} when you own the
+   * array and want a real {@code TEntry} component type (typed reads, array-store checks, a
+   * monomorphic element type for the JIT); prefer this one when a typed spine would only buy you
+   * covariant array-store checks on every insert. Capacity is fixed; the table does not resize.
+   *
+   * <p>{@code buckets} is a bucket count, not an entry cap -- see {@link #capacityFor(int)} to
+   * derive one from a target cap on live entries.
    */
   @Nonnull
-  public static <TEntry extends Entry> Hashtable.Entry[] createFixedBuckets(
-      @Nonnull Class<TEntry> entryClass, int capacity) {
-    return new Entry[sizeFor(capacity)];
+  public static Hashtable.Entry[] create(int buckets) {
+    return new Hashtable.Entry[sizeFor(buckets)];
+  }
+
+  /**
+   * Balanced default load factor for a chained bucket array: at this target fill, chains from a
+   * well-spread hash stay short (average chain length {@code ~1/DEFAULT_LOAD_FACTOR}) without
+   * over-provisioning the array. Mirrors {@code FlatHashtable#DEFAULT_LOAD_FACTOR} in spirit,
+   * though the two aren't comparable numerically -- chaining degrades gracefully past 1.0 fill
+   * (longer chains, not failure), unlike open addressing, so this class can run a higher target
+   * fill than {@code FlatHashtable}'s.
+   */
+  public static final float DEFAULT_LOAD_FACTOR = 0.75f;
+
+  /**
+   * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
+   * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
+   * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
+   * {@link #createCappedTable} all size themselves this way). Pair with a {@link SizeTracker} of
+   * {@code cardinalityLimit} for the matching strict cap; this method only sizes the array.
+   */
+  public static int capacityFor(int cardinalityLimit) {
+    return capacityFor(cardinalityLimit, DEFAULT_LOAD_FACTOR);
+  }
+
+  /**
+   * {@link #capacityFor(int)} at an explicit {@code loadFactor} in {@code (0, 1)}: the bucket-array
+   * length for a strict cap of {@code cardinalityLimit} live entries, rounded up to a power of two
+   * via {@link #sizeFor(int)}.
+   */
+  public static int capacityFor(int cardinalityLimit, float loadFactor) {
+    if (!(loadFactor > 0f && loadFactor < 1f)) {
+      throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
+    }
+    return sizeFor((int) (cardinalityLimit / loadFactor));
   }
 
   /**
@@ -658,6 +707,54 @@ public final class Hashtable {
   public static void insertHeadEntryFor(
       @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
     insertHeadEntryAt(buckets, bucketIndex(buckets, keyHash), entry);
+  }
+
+  /**
+   * {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}, but folding in the
+   * strict-cap check that every unconditional insert needs: reserves a slot from {@code
+   * sizeTracker} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
+   * false} (without touching {@code buckets}) once {@code sizeTracker} is at capacity. Lets a
+   * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
+   * caller-owned table like client-side stats' {@code AggregateTable}) get the same one-call
+   * insert-with-cap-check contract that {@link D1}/{@link D2} give their own callers.
+   */
+  public static boolean insertHeadEntryFor(
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash,
+      @Nonnull Hashtable.Entry entry,
+      @Nonnull SizeTracker sizeTracker) {
+    if (!sizeTracker.tryReserve()) {
+      return false;
+    }
+    insertHeadEntryFor(buckets, keyHash, entry);
+    return true;
+  }
+
+  /**
+   * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
+   * it, decrements {@code sizeTracker}, and returns it -- or returns {@code null} (leaving {@code
+   * buckets} and {@code sizeTracker} untouched) if nothing in the chain matches. Mirrors {@link
+   * #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry, SizeTracker)} on the removal
+   * side: the one-call, size-tracked shape that {@link D1#remove} and {@link D2#remove} delegate
+   * to, so a composer driving the static building blocks directly gets the same bookkeeping without
+   * hand-rolling the mutating-iterator loop.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry removeMatching(
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash,
+      @Nonnull Predicate<? super TEntry> matches,
+      @Nonnull SizeTracker sizeTracker) {
+    for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(buckets, keyHash);
+        iter.hasNext(); ) {
+      TEntry curEntry = iter.next();
+      if (matches.test(curEntry)) {
+        iter.remove();
+        sizeTracker.decrement();
+        return curEntry;
+      }
+    }
+    return null;
   }
 
   public static void clear(@Nonnull Hashtable.Entry[] buckets) {
@@ -930,16 +1027,16 @@ public final class Hashtable {
    * EvictionCursor}.
    */
   @Nonnull
-  public static Table createTable(int capacity) {
-    Hashtable.Entry[] buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
-    return new Table(buckets, capacity);
+  public static Table createCappedTable(int maxCapacity) {
+    Hashtable.Entry[] buckets = create(capacityFor(maxCapacity));
+    return new Table(buckets, maxCapacity);
   }
 
   /**
    * Deprecated facade over the static building blocks that are now methods on {@link Hashtable}
-   * itself (mirroring the concurrent variant). Each method here delegates to its {@code
-   * Hashtable.*} counterpart; the two sizing helpers with no blessed equivalent -- {@link
-   * #create(int, float)} and {@link #MAX_RATIO} -- keep their real bodies here.
+   * itself (mirroring the concurrent variant). Every member here delegates to its {@code
+   * Hashtable.*} counterpart -- no real logic lives in this class, so it can be deleted outright
+   * once the last caller migrates.
    *
    * <p>Retained only for source compatibility with existing callers (e.g. client-side statistics).
    * New code should call the {@code Hashtable.*} statics directly.
@@ -951,12 +1048,13 @@ public final class Hashtable {
     private Support() {}
 
     /**
-     * @deprecated use {@link Hashtable#createFixedBuckets(Class, int)}.
+     * @deprecated use {@link Hashtable#create(int)} (or {@link Hashtable#create(Class, int)} for a
+     *     typed spine).
      */
     @Deprecated
     @Nonnull
     public static Hashtable.Entry[] create(int requestedSize) {
-      return new Entry[sizeFor(requestedSize)];
+      return Hashtable.create(requestedSize);
     }
 
     /**
@@ -970,23 +1068,28 @@ public final class Hashtable {
      * float fuzz pushes the result across a power-of-two boundary -- {@code ceil} would then double
      * the array size for no reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
      *
-     * <p>No blessed equivalent: callers wanting load-factor headroom size the capacity themselves
-     * and call {@link Hashtable#createFixedBuckets(Class, int)}.
-     *
-     * @deprecated size the capacity yourself and use {@link Hashtable#createFixedBuckets(Class,
-     *     int)}.
+     * @deprecated use {@link Hashtable#capacityFor(int)} (or {@link Hashtable#capacityFor(int,
+     *     float)} for a load factor other than {@link Hashtable#DEFAULT_LOAD_FACTOR}), then {@link
+     *     Hashtable#create(Class, int)} with the result.
      */
     @Deprecated
     @Nonnull
     public static Hashtable.Entry[] create(int requestedSize, float scale) {
-      return new Entry[sizeFor((int) (requestedSize * scale))];
+      // Deliberately multiplies by `scale` rather than routing through
+      // Hashtable#capacityFor(int, float), which divides by a load factor: `n * MAX_RATIO` and
+      // `n / DEFAULT_LOAD_FACTOR` are not bit-identical in float, and this deprecated path keeps
+      // its exact legacy sizing. Only the allocation itself is inverted onto the blessed API.
+      return Hashtable.create((int) (requestedSize * scale));
     }
 
     /**
      * Inverse of a 75% load factor. Callers that size their bucket array from a target working-set
      * size {@code n} should pass {@code create(n, MAX_RATIO)} to leave ~25% headroom in the array.
+     *
+     * @deprecated equivalent to {@code 1f / Hashtable#DEFAULT_LOAD_FACTOR}; prefer {@link
+     *     Hashtable#capacityFor(int)}, which applies that load factor directly.
      */
-    @Deprecated public static final float MAX_RATIO = 4.0f / 3.0f;
+    @Deprecated public static final float MAX_RATIO = 1.0f / Hashtable.DEFAULT_LOAD_FACTOR;
 
     /**
      * @deprecated use {@link Hashtable#sizeFor(int)}.
@@ -1121,7 +1224,7 @@ public final class Hashtable {
 
     BucketIterator(@Nonnull Hashtable.Entry[] buckets, long keyHash) {
       this.keyHash = keyHash;
-      Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
+      Hashtable.Entry cur = buckets[Hashtable.bucketIndex(buckets, keyHash)];
       while (cur != null && cur.keyHash != keyHash) {
         cur = cur.next();
       }
@@ -1186,7 +1289,7 @@ public final class Hashtable {
       this.buckets = buckets;
       this.keyHash = keyHash;
 
-      int bucketIndex = Support.bucketIndex(buckets, keyHash);
+      int bucketIndex = Hashtable.bucketIndex(buckets, keyHash);
       Hashtable.Entry headEntry = this.buckets[bucketIndex];
       if (headEntry == null) {
         this.nextEntry = null;
@@ -1284,7 +1387,7 @@ public final class Hashtable {
     void setPrevNext(@Nullable Hashtable.Entry nextEntry) {
       if (this.curPrevEntry == null) {
         Hashtable.Entry[] buckets = this.buckets;
-        buckets[Support.bucketIndex(buckets, this.keyHash)] = nextEntry;
+        buckets[Hashtable.bucketIndex(buckets, this.keyHash)] = nextEntry;
       } else {
         this.curPrevEntry.setNext(nextEntry);
       }
