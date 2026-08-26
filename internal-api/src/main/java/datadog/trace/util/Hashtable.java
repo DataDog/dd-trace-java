@@ -334,8 +334,7 @@ public final class Hashtable {
      * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
-      Hashtable.drain(this.buckets, sink);
-      this.sizeManager.reset();
+      Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
     }
 
     /**
@@ -344,8 +343,7 @@ public final class Hashtable {
      * allocation.
      */
     public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-      Hashtable.drain(this.buckets, context, sink);
-      this.sizeManager.reset();
+      Hashtable.<C, TEntry>drain(this.sizeManager, this.buckets, context, sink);
     }
   }
 
@@ -570,8 +568,7 @@ public final class Hashtable {
      * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
-      Hashtable.drain(this.buckets, sink);
-      this.sizeManager.reset();
+      Hashtable.<TEntry>drain(this.sizeManager, this.buckets, sink);
     }
 
     /**
@@ -580,8 +577,7 @@ public final class Hashtable {
      * allocation.
      */
     public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-      Hashtable.drain(this.buckets, context, sink);
-      this.sizeManager.reset();
+      Hashtable.<C, TEntry>drain(this.sizeManager, this.buckets, context, sink);
     }
   }
 
@@ -805,6 +801,44 @@ public final class Hashtable {
       }
     }
     return null;
+  }
+
+  /**
+   * {@link #drain(Hashtable.Entry[], Consumer)} plus the matching bookkeeping: empties the table
+   * into {@code sink} and resets {@code sizeManager} to zero. Draining without resetting leaves the
+   * cap permanently consumed, so the two belong in one call rather than as a pair the caller has to
+   * remember -- same reasoning as {@link #clear(SizeManager, Hashtable.Entry[])}.
+   */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Consumer<? super TEntry> sink) {
+    Hashtable.<TEntry>drain(buckets, sink);
+    sizeManager.reset();
+  }
+
+  /** Context-passing form of {@link #drain(SizeManager, Hashtable.Entry[], Consumer)}. */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    Hashtable.<C, TEntry>drain(buckets, context, sink);
+    sizeManager.reset();
+  }
+
+  /** {@link #drain(SizeManager, Hashtable.Entry[], Consumer)} over a {@link State}. */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> sink) {
+    drain(state.sizeManager, state.buckets, sink);
+  }
+
+  /** Context-passing form of {@link #drain(State, Consumer)}. */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull State<TEntry> state,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    drain(state.sizeManager, state.buckets, context, sink);
   }
 
   /** Live entry count of {@code state}. */

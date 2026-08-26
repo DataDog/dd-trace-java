@@ -143,6 +143,9 @@ public class HashtableD1Benchmark {
     int cursor;
     final BhD1Consumer consumer = new BhD1Consumer();
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters. The
+    // pollution call rides along -- it is idempotent and untimed, so repeating it costs nothing.
     @Setup(Level.Iteration)
     public void setUp() {
       BenchmarkUtils.polluteHashDispatch();
