@@ -51,6 +51,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
 
   private static final String LAMBDA_CLASS_NAME_FIELD = "lambdaClassName";
   private static final String TARGET_CLASS_FIELD = "targetClass";
+  private static final String INTERFACE_CLASS_FIELD = "interfaceClass";
 
   public LambdaMetafactoryInstrumentation() {
     super("lambda");
@@ -73,10 +74,11 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
   }
 
   /**
-   * The injected bytecode reads {@code lambdaClassName} and {@code targetClass} directly. If a JDK
-   * renames or drops either, the resulting {@code NoSuchFieldError} would break every lambda
-   * linkage in the JVM, so the type is only transformed when both resolve. {@code targetClass} is
-   * declared by the superclass, hence the hierarchy walk.
+   * The injected bytecode reads {@code lambdaClassName}, {@code targetClass}, and {@code
+   * interfaceClass} directly. If a JDK renames or drops any of them, the resulting {@code
+   * NoSuchFieldError} would break every lambda linkage in the JVM, so the type is only transformed
+   * when all three resolve. The class fields are declared across the hierarchy, hence the hierarchy
+   * walk.
    */
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
@@ -93,7 +95,8 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
     @Override
     public boolean matches(TypeDescription target) {
       return declaresField(target, LAMBDA_CLASS_NAME_FIELD, String.class.getName())
-          && declaresField(target, TARGET_CLASS_FIELD, Class.class.getName());
+          && declaresField(target, TARGET_CLASS_FIELD, Class.class.getName())
+          && declaresField(target, INTERFACE_CLASS_FIELD, Class.class.getName());
     }
 
     private static boolean declaresField(TypeDescription type, String name, String fieldType) {
@@ -210,11 +213,15 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
         // targetClass yields the ClassLoader where the lambda class will be defined.
         super.visitFieldInsn(
             Opcodes.GETFIELD, slashClassName, TARGET_CLASS_FIELD, "Ljava/lang/Class;");
+        super.visitVarInsn(Opcodes.ALOAD, 0);
+        // interfaceClass lets the helper cheaply reject non-Runnable lambdas before matching.
+        super.visitFieldInsn(
+            Opcodes.GETFIELD, slashClassName, INTERFACE_CLASS_FIELD, "Ljava/lang/Class;");
         super.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             Type.getInternalName(LambdaTransformerHelper.class),
             "transform",
-            "([BLjava/lang/String;Ljava/lang/Class;)[B",
+            "([BLjava/lang/String;Ljava/lang/Class;Ljava/lang/Class;)[B",
             false);
         // stack: ..., byte[] (transformed)
         declaringVisitor.injected = true;

@@ -3,6 +3,7 @@ package testdog.trace.instrumentation.lambda;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -37,6 +39,15 @@ public class LambdaMetafactoryIntegrationTest extends AbstractInstrumentationTes
         "lambda Runnable should be field-injected via the metafactory instrumentation");
     // because it is field-injected, wrapping must be skipped and identity preserved
     assertSame(lambda, RunnableWrapper.wrapIfNeeded(lambda));
+  }
+
+  @Test
+  void nonRunnableLambdaIsNotTransformed() {
+    Supplier<Object> lambda = Object::new;
+
+    assertFalse(
+        lambda instanceof FieldBackedContextAccessor,
+        "non-Runnable lambda should bypass the agent transformer");
   }
 
   @Test
