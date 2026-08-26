@@ -70,15 +70,18 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>* = error bar about a quarter of the mean at {@code @Fork(2)} — directional only.
  *
  * <p>Every number here is 9-29% below the Java 17 table above, with no clear split between the
- * TagMap paths and the HashMap paths this pollution should affect — the same broad slowdown pattern
- * seen across {@link datadog.trace.util.HashtableD1Benchmark}, {@link
- * datadog.trace.util.HashtableD2Benchmark}, and {@link
- * datadog.trace.util.CaseInsensitiveMapBenchmark} in the same session, so treat it as
- * session-to-session machine/JDK variance rather than a pollution-driven regression. The relative
- * story survives: {@code insert_hashMap} (48M) still beats {@code insert} (37M) for plain
- * insertion, and {@code insert_via_ledger} (37M) still clearly beats the HashMap builder-style path
- * (20M); {@code insert_via_ledger} landing roughly level with {@code insert} here (vs. clearly
- * behind it in the table above) is within that path's own wide error bar, not a new finding.
+ * TagMap paths and the HashMap paths this pollution should affect. The table above is Java 17; this
+ * rerun is JDK 8, whose C2 backend for Apple Silicon (AArch64) is far less mature than JDK 17+'s —
+ * a broad-based slowdown across every entry is expected from that JDK gap alone, independent of
+ * pollution — the same JDK-crossing explanation applies to {@link
+ * datadog.trace.util.CaseInsensitiveMapBenchmark}'s rerun. ({@link
+ * datadog.trace.util.HashtableD1Benchmark} and {@link datadog.trace.util.HashtableD2Benchmark} saw
+ * a similar broad drop despite holding the JDK constant — that one is same-session run-to-run
+ * noise, not a JDK effect.) The relative story survives: {@code insert_hashMap} (48M) still beats
+ * {@code insert} (37M) for plain insertion, and {@code insert_via_ledger} (37M) still clearly beats
+ * the HashMap builder-style path (20M); {@code insert_via_ledger} landing roughly level with {@code
+ * insert} here (vs. clearly behind it in the table above) is within that path's own wide error bar,
+ * not a new finding.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
