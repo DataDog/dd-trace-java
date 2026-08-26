@@ -1,0 +1,190 @@
+variables:
+  WINDOWS_BUILD_IMAGE_BASE: "registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build"
+
+.windows_gradle_cache_paths: &windows_gradle_cache_paths
+  - .gradle/wrapper/
+  - .gradle/caches/
+  - .gradle/notifications/
+
+build-windows-ci-image:
+  stage: build
+  timeout: 2h
+  tags: [ "windows-v2:2025" ]
+  when: manual
+  allow_failure: true
+  hooks:
+    pre_get_sources_script:
+      - git config --system core.longpaths true
+  script:
+    - |
+      . .gitlab/windows/ci-common.ps1
+
+      $image = Get-WindowsCiImage
+      Write-Output "Target image: $image"
+
+      if (Test-WindowsCiImage $image) {
+        Write-Output "Image $image already exists; skipping rebuild."
+        exit 0
+      }
+
+      $buildArguments = @(
+        "build",
+        "--file", ".gitlab/windows/image/Dockerfile",
+        "--tag", $image,
+        "--tag", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest"
+      )
+
+      Invoke-Native docker @("pull", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
+      if ($LASTEXITCODE -eq 0) {
+        $buildArguments += @("--cache-from", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
+      } else {
+        Write-Output "No existing latest image found; building without a registry layer cache."
+      }
+
+      $buildArguments += ".gitlab/windows/image"
+      Invoke-Native docker $buildArguments
+      if ($LASTEXITCODE -ne 0) { throw "docker build failed" }
+
+      Invoke-Native docker @("push", $image)
+      if ($LASTEXITCODE -ne 0) { throw "docker push $image failed" }
+
+      Invoke-Native docker @("push", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
+      if ($LASTEXITCODE -ne 0) { throw "docker push latest failed" }
+  id_tokens:
+    CI_IDENTITIES_GITLAB_ID_TOKEN:
+      aud: ci-identities
+
+test-base-windows:
+  stage: tests-windows
+  timeout: 2h
+  tags: [ "windows-v2:2025" ]
+  hooks:
+    pre_get_sources_script:
+      - git config --system core.longpaths true
+  needs:
+    - job: build
+      artifacts: false
+  # Reads the content-addressed image from registry.ddbuild.io, so it needs the
+  # same CI identity as the job that publishes it.
+  id_tokens:
+    CI_IDENTITIES_GITLAB_ID_TOKEN:
+      aud: ci-identities
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
+    GRADLE_TARGET: ":baseTest"
+    CACHE_TYPE: "base"
+    # Feature branches only read the shared dependency seed; protected refs
+    # refresh it (overridden in rules below).
+    WINDOWS_SEED_CACHE_POLICY: pull
+  parallel:
+    matrix:
+      - testJvm: [ "21" ]
+        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - if: '$CI_COMMIT_BRANCH'
+      when: manual
+      allow_failure: true
+  cache:
+    # Shared dependency seed. Only protected refs write it, so a new feature
+    # branch does not resolve every dependency from scratch on all four
+    # partitions. unprotect:true is what makes the seed readable from
+    # unprotected refs; the pull-only policy keeps them from poisoning it.
+    - key:
+        files:
+          - gradle/wrapper/gradle-wrapper.properties
+          - settings.gradle.kts
+        prefix: "windows-gradle-seed-$CI_NODE_INDEX"
+      paths: *windows_gradle_cache_paths
+      policy: $WINDOWS_SEED_CACHE_POLICY
+      unprotect: true
+    # Per-branch, per-partition cache. Restored after the seed, so it wins.
+    - key:
+        files:
+          - gradle/wrapper/gradle-wrapper.properties
+          - settings.gradle.kts
+        prefix: "windows-gradle-$CI_COMMIT_REF_SLUG-$CI_NODE_INDEX"
+      paths: *windows_gradle_cache_paths
+      policy: pull-push
+  script:
+    - |
+      . .gitlab/windows/ci-common.ps1
+
+      $image = Get-WindowsCiImage
+      Write-Output "Expected Windows test image: $image"
+      if (-not (Test-WindowsCiImage $image)) {
+        Write-Host "ERROR: Windows test image not found at $image."
+        Write-Host "Manually run build-windows-ci-image, wait for it to finish, then retry this job."
+        exit 1
+      }
+
+      $diagnosticsDir = Join-Path $env:CI_PROJECT_DIR ".tmp"
+      New-Item -ItemType Directory -Force -Path $diagnosticsDir, ".gradle" | Out-Null
+
+      $containerName = "dd-trace-java-windows-$($env:CI_JOB_ID)"
+      $dockerArguments = @(
+        "run", "--rm",
+        "--name", $containerName,
+        "--memory", "20g",
+        # Windows reports the host's logical processors unless the count is
+        # capped, which makes thread-pool-sized assertions non-deterministic.
+        "--cpu-count", "4",
+        "--workdir", "C:\work",
+        "--mount", "type=bind,source=$($env:CI_PROJECT_DIR),target=C:\work",
+        "--mount", "type=bind,source=$diagnosticsDir,target=C:\tmp",
+        "--env", "CI=true",
+        "--env", "GITLAB_CI=true",
+        "--env", "CI_JOB_ID=$($env:CI_JOB_ID)",
+        "--env", "CI_PIPELINE_ID=$($env:CI_PIPELINE_ID)",
+        "--env", "CI_COMMIT_SHA=$($env:CI_COMMIT_SHA)",
+        "--env", "CI_COMMIT_BRANCH=$($env:CI_COMMIT_BRANCH)",
+        "--env", "CI_SPLIT=$($env:CI_SPLIT)",
+        "--env", "GRADLE_TARGET=$($env:GRADLE_TARGET)",
+        "--env", "testJvm=$($env:testJvm)",
+        "--env", "MAVEN_REPOSITORY_PROXY=$($env:MAVEN_REPOSITORY_PROXY)",
+        "--env", "GRADLE_PLUGIN_PROXY=$($env:GRADLE_PLUGIN_PROXY)",
+        "--env", "MASS_READ_URL=$($env:MASS_READ_URL)",
+        # Parity with .test_job_common on Linux: both runtimes size pools from
+        # availableProcessors(), which is unreliable in containers.
+        "--env", "RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE=4",
+        "--env", "JETTY_AVAILABLE_PROCESSORS=4",
+        "--env", "TESTCONTAINERS_CHECKS_DISABLE=true",
+        "--env", "TESTCONTAINERS_RYUK_DISABLED=true",
+        "--env", "TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=registry.ddbuild.io/images/mirror/",
+        $image,
+        "powershell", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", "C:\work\.gitlab\windows\run-base-tests.ps1"
+      )
+
+      Invoke-Native docker $dockerArguments
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  after_script:
+    - |
+      $containerName = "dd-trace-java-windows-$($env:CI_JOB_ID)"
+      docker rm --force $containerName 2>$null
+      exit 0
+  artifacts:
+    when: always
+    paths:
+      - workspace/**/build/test-results/**
+      - workspace/**/build/reports/tests/**
+      - buildSrc/build/test-results/**
+      - buildSrc/build/reports/tests/**
+      - .gradle/daemon/*/*.out.log
+      - .tmp/**
+    reports:
+      junit:
+        - workspace/**/build/test-results/**/*.xml
+        - buildSrc/build/test-results/**/*.xml
