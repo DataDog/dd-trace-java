@@ -74,10 +74,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>All four {@code lookup_*} numbers sit 17-23% below the table above (415 vs 537 flatHashtable,
  * 367 vs 442 hashMap, 209 vs 251 treeMap) despite {@code flatHashtable} and {@code treeMap} using
  * neither {@code java.util.HashMap} nor {@code hashCode()}/{@code equals()} dispatch — so this drop
- * isn't attributable to pollution. Combined with the same pattern in {@link HashtableD1Benchmark}
- * and {@link HashtableD2Benchmark}, this looks like session-to-session machine variance (different
- * JDK, different run) rather than a real regression. The <b>relative</b> ranking — {@code
- * flatHashtable} > {@code hashMap} > {@code treeMap} — is unchanged.
+ * isn't attributable to pollution. The likelier explanation: the table above is Zulu 21, this rerun
+ * is JDK 8, and JDK 8's C2 backend for Apple Silicon (AArch64) is far less mature than JDK 17+'s —
+ * a broad-based slowdown across every entry, pollution-affected or not, is expected from that JDK
+ * gap alone on this machine. The <b>relative</b> ranking — {@code flatHashtable} > {@code hashMap}
+ * > {@code treeMap} — is unchanged.
  */
 @Fork(2)
 @Warmup(iterations = 2)
