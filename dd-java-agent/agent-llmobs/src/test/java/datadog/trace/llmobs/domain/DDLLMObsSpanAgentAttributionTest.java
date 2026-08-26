@@ -55,93 +55,115 @@ class DDLLMObsSpanAgentAttributionTest {
     return (AgentSpan) SPAN_FIELD.get(llmObsSpan);
   }
 
+  /** Starts a root APM span and activates it, so all LLMObs spans created within share a trace. */
+  private static AgentScope startRootApmScope() {
+    AgentSpan root = AgentTracer.get().buildSpan("apm", "http.server.request").start();
+    return AgentTracer.activateSpan(root);
+  }
+
   @Test
   void agentSpanStoresOwnIdAndNameAsPagent() throws Exception {
-    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent");
-    try {
-      AgentSpan inner = innerSpan(agentSpan);
-      String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
-      String pagentName = (String) inner.getTag(PAGENT_NAME_TAG);
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent");
+      try {
+        AgentSpan inner = innerSpan(agentSpan);
+        String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
+        String pagentName = (String) inner.getTag(PAGENT_NAME_TAG);
 
-      assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
-      assertEquals("my-agent", pagentName);
-    } finally {
-      agentSpan.finish();
+        assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
+        assertEquals("my-agent", pagentName);
+      } finally {
+        agentSpan.finish();
+        apmScope.span().finish();
+      }
     }
   }
 
   @Test
   void agentSpanWithUnsafeNameStoresIdButNullName() throws Exception {
     // Comma is a separator in x-datadog-tags header — disallowed
-    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "bad,agent");
-    try {
-      AgentSpan inner = innerSpan(agentSpan);
-      String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
-      Object pagentName = inner.getTag(PAGENT_NAME_TAG);
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "bad,agent");
+      try {
+        AgentSpan inner = innerSpan(agentSpan);
+        String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
+        Object pagentName = inner.getTag(PAGENT_NAME_TAG);
 
-      assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
-      assertNull(pagentName);
-    } finally {
-      agentSpan.finish();
+        assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
+        assertNull(pagentName);
+      } finally {
+        agentSpan.finish();
+        apmScope.span().finish();
+      }
     }
   }
 
   @Test
   void nonAgentChildUnderAgentInheritsAttribution() throws Exception {
-    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "parent-agent");
-    try {
-      AgentSpan agentInner = innerSpan(agentSpan);
-      String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
-
-      // Created while agentSpan's ContextScope is active — should inherit attribution
-      DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
+    // All LLMObs spans share the same APM trace so the trace-ID consistency gate passes.
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "parent-agent");
       try {
-        AgentSpan toolInner = innerSpan(toolSpan);
-        assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
-        assertEquals("parent-agent", toolInner.getTag(PAGENT_NAME_TAG));
+        AgentSpan agentInner = innerSpan(agentSpan);
+        String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
+
+        // Created while agentSpan's ContextScope is active — should inherit attribution
+        DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
+        try {
+          AgentSpan toolInner = innerSpan(toolSpan);
+          assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
+          assertEquals("parent-agent", toolInner.getTag(PAGENT_NAME_TAG));
+        } finally {
+          toolSpan.finish();
+        }
       } finally {
-        toolSpan.finish();
+        agentSpan.finish();
+        apmScope.span().finish();
       }
-    } finally {
-      agentSpan.finish();
     }
   }
 
   @Test
   void transitiveInheritanceAgentToLlmToTool() throws Exception {
-    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "root-agent");
-    try {
-      AgentSpan agentInner = innerSpan(agentSpan);
-      String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
-
-      DDLLMObsSpan llmSpan = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "intermediate-llm");
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "root-agent");
       try {
-        DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "leaf-tool");
+        AgentSpan agentInner = innerSpan(agentSpan);
+        String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
+
+        DDLLMObsSpan llmSpan = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "intermediate-llm");
         try {
-          AgentSpan toolInner = innerSpan(toolSpan);
-          // Tool must point to the original agent, not the intermediate LLM span
-          assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
-          assertEquals("root-agent", toolInner.getTag(PAGENT_NAME_TAG));
+          DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "leaf-tool");
+          try {
+            AgentSpan toolInner = innerSpan(toolSpan);
+            // Tool must point to the original agent, not the intermediate LLM span
+            assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
+            assertEquals("root-agent", toolInner.getTag(PAGENT_NAME_TAG));
+          } finally {
+            toolSpan.finish();
+          }
         } finally {
-          toolSpan.finish();
+          llmSpan.finish();
         }
       } finally {
-        llmSpan.finish();
+        agentSpan.finish();
+        apmScope.span().finish();
       }
-    } finally {
-      agentSpan.finish();
     }
   }
 
   @Test
   void noAgentAncestorProducesNoPagentTags() throws Exception {
-    DDLLMObsSpan workflowSpan = newSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "standalone-workflow");
-    try {
-      AgentSpan inner = innerSpan(workflowSpan);
-      assertNull(inner.getTag(PAGENT_SPAN_ID_TAG));
-      assertNull(inner.getTag(PAGENT_NAME_TAG));
-    } finally {
-      workflowSpan.finish();
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan workflowSpan = newSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "standalone-workflow");
+      try {
+        AgentSpan inner = innerSpan(workflowSpan);
+        assertNull(inner.getTag(PAGENT_SPAN_ID_TAG));
+        assertNull(inner.getTag(PAGENT_NAME_TAG));
+      } finally {
+        workflowSpan.finish();
+        apmScope.span().finish();
+      }
     }
   }
 

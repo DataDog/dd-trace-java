@@ -177,11 +177,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
       resolvedPagentSpanId = String.valueOf(span.getSpanId());
       resolvedPagentName = agentNameWireSafe(spanName) ? spanName : null;
     } else {
-      // Inherit from in-process LLMObs parent. LLMObsContext scopes are explicitly closed in
-      // finish(), so cross-trace leakage is not a concern here (unlike parent_id/session_id
-      // which are APM-trace concepts that require the trace-ID gate above).
-      resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
-      resolvedPagentName = LLMObsContext.currentParentAgentName();
+      // Inherit from in-process LLMObs parent only when the context belongs to the same trace.
+      // Matches the gate applied to parent_id and session_id above: a stale LLMObsContext
+      // leaked across an async boundary would otherwise attribute a span to an agent from a
+      // different trace. In production the DD agent always establishes a root APM scope, so
+      // all LLMObs spans within a request share one trace and this check passes.
+      if (null != parent && parent.getTraceId() == span.getTraceId()) {
+        resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
+        resolvedPagentName = LLMObsContext.currentParentAgentName();
+      }
 
       // Fall back to distributed propagated tags on the root APM span context.
       if (resolvedPagentSpanId == null) {
