@@ -50,12 +50,10 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
   private static final String PATH = "/native-broken-pipe";
   private static final String NATIVE_IO_EXCEPTION =
       "io.netty.channel.unix.Errors$NativeIoException";
-  private static final String BROKEN_PIPE_MESSAGE =
-      "writevAddresses(..) failed with error(-32): Broken pipe";
-  private static final String SYSCALL_BROKEN_PIPE_MESSAGE =
-      "syscall:writev(..) failed: Broken pipe";
-  private static final String CONNECTION_RESET_MESSAGE =
-      "writevAddresses(..) failed: Connection reset by peer";
+  private static final String WRITEV_ADDRESSES_FAILURE_PREFIX = "writevAddresses(..) failed";
+  private static final String WRITEV_SYSCALL_FAILURE_PREFIX = "syscall:writev(..) failed";
+  private static final String BROKEN_PIPE_MESSAGE_SUFFIX = ": Broken pipe";
+  private static final String CONNECTION_RESET_MESSAGE_SUFFIX = ": Connection reset by peer";
 
   @Test
   void nativeBrokenPipeFromCancelledResponseDoesNotMarkServerSpanError() throws Exception {
@@ -123,9 +121,11 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
   }
 
   private static boolean isExpectedClientAbortMessage(String message) {
-    return BROKEN_PIPE_MESSAGE.equals(message)
-        || SYSCALL_BROKEN_PIPE_MESSAGE.equals(message)
-        || CONNECTION_RESET_MESSAGE.equals(message);
+    return message != null
+        && (message.startsWith(WRITEV_ADDRESSES_FAILURE_PREFIX)
+            || message.startsWith(WRITEV_SYSCALL_FAILURE_PREFIX))
+        && (message.endsWith(BROKEN_PIPE_MESSAGE_SUFFIX)
+            || message.endsWith(CONNECTION_RESET_MESSAGE_SUFFIX));
   }
 
   @ChannelHandler.Sharable

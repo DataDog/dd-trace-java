@@ -36,12 +36,14 @@ public class NettyHttpServerDecorator
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
   private static final CharSequence NETTY_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
-  private static final String NETTY_NATIVE_BROKEN_PIPE_MESSAGE =
-      "writevAddresses(..) failed with error(-32): Broken pipe";
-  private static final String NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE =
-      "syscall:writev(..) failed: Broken pipe";
-  private static final String NETTY_NATIVE_CONNECTION_RESET_MESSAGE =
-      "writevAddresses(..) failed: Connection reset by peer";
+  private static final String NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME =
+      "io.netty.channel.unix.Errors$NativeIoException";
+  private static final String NETTY_NATIVE_WRITEV_ADDRESSES_FAILURE_PREFIX =
+      "writevAddresses(..) failed";
+  private static final String NETTY_NATIVE_WRITEV_SYSCALL_FAILURE_PREFIX =
+      "syscall:writev(..) failed";
+  private static final String BROKEN_PIPE_MESSAGE_SUFFIX = ": Broken pipe";
+  private static final String CONNECTION_RESET_MESSAGE_SUFFIX = ": Connection reset by peer";
 
   @Override
   protected String[] instrumentationNames() {
@@ -127,13 +129,16 @@ public class NettyHttpServerDecorator
   }
 
   private static boolean isNettyNativeClientAbort(final Throwable throwable) {
-    if (throwable == null) {
+    if (throwable == null
+        || !NETTY_NATIVE_IO_EXCEPTION_CLASS_NAME.equals(throwable.getClass().getName())) {
       return false;
     }
     final String message = safeMessage(throwable);
-    return NETTY_NATIVE_BROKEN_PIPE_MESSAGE.equals(message)
-        || NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE.equals(message)
-        || NETTY_NATIVE_CONNECTION_RESET_MESSAGE.equals(message);
+    return message != null
+        && (message.startsWith(NETTY_NATIVE_WRITEV_ADDRESSES_FAILURE_PREFIX)
+            || message.startsWith(NETTY_NATIVE_WRITEV_SYSCALL_FAILURE_PREFIX))
+        && (message.endsWith(BROKEN_PIPE_MESSAGE_SUFFIX)
+            || message.endsWith(CONNECTION_RESET_MESSAGE_SUFFIX));
   }
 
   private static String safeMessage(final Throwable throwable) {
