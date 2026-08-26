@@ -8,6 +8,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -690,6 +691,179 @@ public final class Hashtable {
       MutatingTableIterator<TEntry> mutatingTableIterator(
           @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
     return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
+  }
+
+  /**
+   * Tracks a live entry count against a fixed capacity. {@link D1} and {@link D2} use this
+   * internally for their strict entry-count cap; other composers of the static building blocks
+   * above -- e.g. client-side stats' {@code AggregateTable}, which drives a {@code
+   * Hashtable.Entry[]} directly -- can reuse it instead of hand-rolling the same
+   * increment/decrement/cap-check bookkeeping.
+   *
+   * <p>Not thread-safe, matching the rest of this class.
+   */
+  public static final class SizeTracker {
+    private final int capacity;
+    private int size;
+
+    public SizeTracker(int capacity) {
+      this.capacity = capacity;
+    }
+
+    public int size() {
+      return this.size;
+    }
+
+    public int capacity() {
+      return this.capacity;
+    }
+
+    /** {@code true} once {@link #size()} has reached {@link #capacity()}. */
+    public boolean isFull() {
+      return this.size >= this.capacity;
+    }
+
+    /**
+     * Reserves a slot for a fresh insert: increments and returns {@code true}, or leaves the count
+     * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
+     * is already fully built (nothing between the check and the increment can fail) -- e.g. {@link
+     * D1#insert}. When building the entry is itself fallible (e.g. {@link D1#getOrCreate}'s {@code
+     * creator}), check {@link #isFull()} first, do the fallible work, then call {@link #increment()}
+     * only once linking actually succeeds.
+     *
+     * <p>Returning {@code false} here is not a final refusal -- it's the caller's cue to either
+     * refuse the insert, or make room (e.g. evict a stale entry via {@link EvictionCursor}) and
+     * retry.
+     */
+    public boolean tryReserve() {
+      if (isFull()) {
+        return false;
+      }
+      this.size += 1;
+      return true;
+    }
+
+    /** Call after successfully linking a new entry. */
+    public void increment() {
+      this.size += 1;
+    }
+
+    /** Call after successfully unlinking an entry. */
+    public void decrement() {
+      this.size -= 1;
+    }
+
+    public void reset() {
+      this.size = 0;
+    }
+  }
+
+  /**
+   * Resumable cursor for scanning a bucket array to evict entries under a caller-supplied {@link
+   * Predicate}, without repeatedly re-scanning the same already-checked prefix on a sustained
+   * eviction stream.
+   *
+   * <p>Pairs with {@link SizeTracker}: when {@link SizeTracker#tryReserve()} refuses because the
+   * table is full, a composer can call {@link #evictOne} to make room and retry, or give up if
+   * nothing was evictable. Factored out of client-side stats' {@code AggregateTable}, which
+   * originally hand-rolled this same cursor-resumed two-pass scan.
+   *
+   * <p>Not thread-safe, matching the rest of this class.
+   */
+  public static final class EvictionCursor {
+    private int cursor;
+
+    /**
+     * Scans {@code buckets} for the first entry matching {@code evictable}, starting at the cursor
+     * and wrapping all the way around back to the cursor if needed. Unlinks and returns the
+     * evicted entry, resuming the next call's scan from just past it; returns {@code null} if no
+     * entry matched anywhere in the table.
+     */
+    @Nullable
+    public Entry evictOne(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+      Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length);
+      if (evicted == null && this.cursor != 0) {
+        evicted = evictOneInRange(buckets, evictable, 0, this.cursor);
+      }
+      return evicted;
+    }
+
+    @Nullable
+    private Entry evictOneInRange(
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Predicate<? super Entry> evictable,
+        int startBucket,
+        int endBucket) {
+      MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets, startBucket, endBucket);
+      while (iter.hasNext()) {
+        Entry candidate = iter.next();
+        if (evictable.test(candidate)) {
+          int bucket = iter.currentBucket();
+          iter.remove();
+          this.cursor = bucket;
+          return candidate;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Unlinks every entry matching {@code evictable} in a single full pass over {@code buckets},
+     * regardless of the cursor's current position, and returns how many were removed. Resets the
+     * cursor to the start, since a full pass leaves nothing later to resume from.
+     */
+    public int drain(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+      int count = 0;
+      MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets);
+      while (iter.hasNext()) {
+        Entry candidate = iter.next();
+        if (evictable.test(candidate)) {
+          iter.remove();
+          count++;
+        }
+      }
+      this.cursor = 0;
+      return count;
+    }
+
+    public void reset() {
+      this.cursor = 0;
+    }
+  }
+
+  /**
+   * Bundles a bucket array together with a {@link SizeTracker} and {@link EvictionCursor} sized
+   * and matched to it, so a composer driving the static building blocks directly (e.g.
+   * client-side stats' {@code AggregateTable}) gets everything it needs to store from one factory
+   * call, instead of separately sizing an array and a tracker that must stay in sync with it. Same
+   * headroom idiom as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict cap on
+   * live entries, and the backing array is sized with load-factor headroom over it.
+   *
+   * <p>Store the pieces of this bundle into your own fields; nothing here is meant to be held onto
+   * as a {@code Table} itself.
+   */
+  public static final class Table {
+    public final Hashtable.Entry[] buckets;
+    public final SizeTracker size;
+    public final EvictionCursor evictionCursor = new EvictionCursor();
+
+    private Table(Hashtable.Entry[] buckets, int capacity) {
+      this.buckets = buckets;
+      this.size = new SizeTracker(capacity);
+    }
+  }
+
+  /**
+   * Creates a {@link Table}: a bucket array sized with load-factor headroom over {@code capacity},
+   * paired with a {@link SizeTracker} capped at the strict {@code capacity} and a fresh {@link
+   * EvictionCursor}.
+   */
+  @Nonnull
+  public static Table createTable(int capacity) {
+    Hashtable.Entry[] buckets = new Hashtable.Entry[sizeFor((int) (capacity * 4 / 3f))];
+    return new Table(buckets, capacity);
   }
 
   /**
