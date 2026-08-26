@@ -718,6 +718,31 @@ class HashtableTest {
     }
 
     @Test
+    void stateAccessorsAndInsertReservedRoundTrip() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      assertTrue(Hashtable.isEmpty(table));
+      assertEquals(0, Hashtable.size(table));
+
+      // Reserve first, build second -- a refused reservation must cost no allocation.
+      assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
+      StringIntEntry a = new StringIntEntry("a", 1);
+      Hashtable.insertReserved(table, a.keyHash, a);
+
+      assertEquals(1, Hashtable.size(table), "insertReserved must not count the entry twice");
+      assertFalse(Hashtable.isEmpty(table));
+      assertSame(a, Hashtable.bucketFor(table, a.keyHash), "typed, no witness needed");
+
+      Set<String> seen = new HashSet<>();
+      Hashtable.forEach(table, e -> seen.add(e.key));
+      assertEquals(1, seen.size());
+      assertTrue(seen.contains("a"));
+
+      Set<String> viaContext = new HashSet<>();
+      Hashtable.forEach(table, viaContext, (ctx, e) -> ctx.add(e.key));
+      assertTrue(viaContext.contains("a"));
+    }
+
+    @Test
     void clearOverStateEmptiesSpineAndResetsCount() {
       Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       StringIntEntry a = new StringIntEntry("a", 1);
