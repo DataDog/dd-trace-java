@@ -212,6 +212,32 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     aiGuardTruncated.incrementAndGet(type.ordinal());
   }
 
+  /**
+   * Reports a request for which API Security could not resolve a route, and therefore could not be
+   * considered for schema extraction sampling.
+   */
+  public void apiSecurityMissingRoute(final String framework) {
+    rawMetricsQueue.offer(new ApiSecurityMissingRoute(1L, normalizeFramework(framework)));
+  }
+
+  /** Reports a sampled request for which at least one API Security schema was extracted. */
+  public void apiSecurityRequestSchema(final String framework) {
+    rawMetricsQueue.offer(new ApiSecurityRequestSchema(1L, normalizeFramework(framework)));
+  }
+
+  /** Reports a sampled request for which no API Security schema was extracted. */
+  public void apiSecurityRequestNoSchema(final String framework) {
+    rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(1L, normalizeFramework(framework)));
+  }
+
+  /** Normalizes a framework (span component) value, mapping null or blank values to "unknown". */
+  static String normalizeFramework(final String framework) {
+    if (framework == null || framework.trim().isEmpty()) {
+      return "unknown";
+    }
+    return framework.trim();
+  }
+
   @Override
   public Collection<WafMetric> drain() {
     if (!rawMetricsQueue.isEmpty()) {
@@ -690,6 +716,24 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public static class AIGuardTruncated extends WafMetric {
     public AIGuardTruncated(final long count, final AIGuardTruncationType type) {
       super("ai_guard.truncated", count, "type:" + type.tagValue);
+    }
+  }
+
+  public static class ApiSecurityMissingRoute extends WafMetric {
+    public ApiSecurityMissingRoute(final long counter, final String framework) {
+      super("api_security.missing_route", counter, "framework:" + framework);
+    }
+  }
+
+  public static class ApiSecurityRequestSchema extends WafMetric {
+    public ApiSecurityRequestSchema(final long counter, final String framework) {
+      super("api_security.request.schema", counter, "framework:" + framework);
+    }
+  }
+
+  public static class ApiSecurityRequestNoSchema extends WafMetric {
+    public ApiSecurityRequestNoSchema(final long counter, final String framework) {
+      super("api_security.request.no_schema", counter, "framework:" + framework);
     }
   }
 

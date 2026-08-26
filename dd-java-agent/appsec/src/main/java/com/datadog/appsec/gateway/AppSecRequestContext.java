@@ -1055,7 +1055,7 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   // Mainly used for testing and logging
-  Set<String> getDerivativeKeys() {
+  public Set<String> getDerivativeKeys() {
     Map<String, Object> current = derivatives.get();
     return current == null ? emptySet() : new HashSet<>(current.keySet());
   }

@@ -2,6 +2,7 @@ package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -56,7 +57,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   }
 
   @Override
-  public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
+  public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx, final String framework) {
     String route = ctx.getRoute();
 
     // If route is absent, use http.endpoint as fallback (RFC-1076)
@@ -73,6 +74,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       // Try to get or compute the endpoint
       route = ctx.getOrComputeEndpoint();
       if (route == null) {
+        WafMetricCollector.get().apiSecurityMissingRoute(framework);
         return false;
       }
     }

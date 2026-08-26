@@ -284,6 +284,7 @@ dependencies {
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.jol.core)
+  testImplementation(libs.tabletest)
 }
 
 jmh {

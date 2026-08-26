@@ -10,8 +10,10 @@ import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
 import javax.annotation.Nonnull;
@@ -21,6 +23,7 @@ import org.slf4j.LoggerFactory;
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSpanPostProcessor.class);
+  private static final String SCHEMA_DERIVATIVE_PREFIX = "_dd.appsec.s.";
   private final ApiSecuritySampler sampler;
   private final EventProducerService producerService;
 
@@ -54,7 +57,9 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
         return;
       }
       log.debug("Request sampled, processing API security post-processing");
-      extractSchemas(ctx, ctx_.getTraceSegment());
+      final Object component = span.getTag(Tags.COMPONENT);
+      final String framework = component != null ? component.toString() : null;
+      extractSchemas(ctx, ctx_.getTraceSegment(), framework);
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
       try {
@@ -70,7 +75,8 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     }
   }
 
-  private void extractSchemas(final AppSecRequestContext ctx, final TraceSegment traceSegment) {
+  private void extractSchemas(
+      final AppSecRequestContext ctx, final TraceSegment traceSegment, final String framework) {
     final EventProducerService.DataSubscriberInfo sub =
         producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     if (sub == null || sub.isEmpty()) {
@@ -84,9 +90,24 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     try {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
+      // NOTE: must be checked before committing derivatives, as that clears the derivatives map
+      if (hasSchemaDerivative(ctx)) {
+        WafMetricCollector.get().apiSecurityRequestSchema(framework);
+      } else {
+        WafMetricCollector.get().apiSecurityRequestNoSchema(framework);
+      }
       ctx.commitDerivatives(traceSegment);
     } catch (ExpiredSubscriberInfoException e) {
       log.debug("Subscriber info expired", e);
     }
+  }
+
+  private static boolean hasSchemaDerivative(final AppSecRequestContext ctx) {
+    for (String key : ctx.getDerivativeKeys()) {
+      if (key != null && key.startsWith(SCHEMA_DERIVATIVE_PREFIX)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
