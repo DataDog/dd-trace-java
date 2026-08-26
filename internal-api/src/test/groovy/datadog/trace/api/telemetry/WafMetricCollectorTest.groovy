@@ -709,6 +709,20 @@ class WafMetricCollectorTest extends DDSpecification {
     secondDrainMetrics.isEmpty()
   }
 
+  void 'test api security missing route metric caps distinct framework cardinality'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when: 'more distinct frameworks than the cardinality cap are reported'
+    (1..100).each { collector.apiSecurityMissingRoute("framework-${it}") }
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'the number of distinct framework tags emitted never exceeds the cap'
+    metrics.size() <= 64
+    metrics.find { it.tags.contains('framework:unknown') }.value >= 100 - 64
+  }
+
   void 'test api security request schema metric'() {
     given:
     final collector = WafMetricCollector.get()

@@ -89,6 +89,15 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final ConcurrentHashMap<String, LongAdder> apiSecurityRequestNoSchemaCounters =
       new ConcurrentHashMap<>();
 
+  /**
+   * Cap on distinct framework keys tracked per counter map. {@code framework} is read from the
+   * span's {@code component} tag, which is not guaranteed to come from a bounded, known set (e.g.
+   * custom/manual instrumentation could set it per-request) — without a cap the maps would never
+   * shrink, since {@link #prepareMetrics()} only resets counters to zero, it never removes keys.
+   * Frameworks beyond the cap are folded into the {@code "unknown"} bucket.
+   */
+  private static final int MAX_FRAMEWORK_CARDINALITY = 64;
+
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
 
@@ -241,23 +250,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * considered for schema extraction sampling.
    */
   public void apiSecurityMissingRoute(final String framework) {
-    apiSecurityMissingRouteCounters
-        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
-        .increment();
+    counterFor(apiSecurityMissingRouteCounters, framework).increment();
   }
 
   /** Reports a sampled request for which at least one API Security schema was extracted. */
   public void apiSecurityRequestSchema(final String framework) {
-    apiSecurityRequestSchemaCounters
-        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
-        .increment();
+    counterFor(apiSecurityRequestSchemaCounters, framework).increment();
   }
 
   /** Reports a sampled request for which no API Security schema was extracted. */
   public void apiSecurityRequestNoSchema(final String framework) {
-    apiSecurityRequestNoSchemaCounters
-        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
-        .increment();
+    counterFor(apiSecurityRequestNoSchemaCounters, framework).increment();
   }
 
   /** Normalizes a framework (span component) value, mapping null or blank values to "unknown". */
@@ -266,6 +269,24 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       return "unknown";
     }
     return framework.trim();
+  }
+
+  /**
+   * Returns the counter for {@code framework} in {@code counters}, capping the map at {@link
+   * #MAX_FRAMEWORK_CARDINALITY} distinct keys. Once the cap is reached, any framework not already
+   * tracked is folded into the {@code "unknown"} bucket instead of growing the map further.
+   */
+  private static LongAdder counterFor(
+      final ConcurrentHashMap<String, LongAdder> counters, final String framework) {
+    final String key = normalizeFramework(framework);
+    final LongAdder existing = counters.get(key);
+    if (existing != null) {
+      return existing;
+    }
+    if (counters.size() >= MAX_FRAMEWORK_CARDINALITY) {
+      return counters.computeIfAbsent("unknown", f -> new LongAdder());
+    }
+    return counters.computeIfAbsent(key, f -> new LongAdder());
   }
 
   @Override
