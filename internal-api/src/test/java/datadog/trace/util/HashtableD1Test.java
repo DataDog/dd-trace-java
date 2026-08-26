@@ -202,7 +202,7 @@ class HashtableD1Test {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     int[] createCount = {0};
     StringIntEntry created =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             k -> {
               createCount[0]++;
@@ -223,7 +223,7 @@ class HashtableD1Test {
     table.insert(seeded);
     int[] createCount = {0};
     StringIntEntry got =
-        table.getOrCreate(
+        table.tryGetOrCreate(
             "foo",
             k -> {
               createCount[0]++;
@@ -237,11 +237,11 @@ class HashtableD1Test {
   @Test
   void getOrCreateNullKeyIsPermitted() {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
-    StringIntEntry created = table.getOrCreate(null, k -> new StringIntEntry(k, 7));
+    StringIntEntry created = table.tryGetOrCreate(null, k -> new StringIntEntry(k, 7));
     assertNotNull(created);
     assertNull(created.key);
     assertEquals(7, created.value);
-    assertSame(created, table.getOrCreate(null, k -> new StringIntEntry(k, 999)));
+    assertSame(created, table.tryGetOrCreate(null, k -> new StringIntEntry(k, 999)));
     assertEquals(1, table.size());
   }
 
@@ -261,10 +261,10 @@ class HashtableD1Test {
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
 
-    assertNull(table.getOrCreate("c", k -> new StringIntEntry(k, 3)));
+    assertNull(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)));
     assertEquals(2, table.size());
 
-    StringIntEntry hit = table.getOrCreate("a", k -> new StringIntEntry(k, 999));
+    StringIntEntry hit = table.tryGetOrCreate("a", k -> new StringIntEntry(k, 999));
     assertEquals(1, hit.value, "existing entry is still returned even at capacity");
   }
 
