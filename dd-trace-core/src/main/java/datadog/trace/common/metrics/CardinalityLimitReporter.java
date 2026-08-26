@@ -44,7 +44,8 @@ final class CardinalityLimitReporter {
 
   private final RatelimitedLogger rlLog;
   // Tag name -> blocked count accumulated since the last emitted summary.
-  private final Hashtable.D1<String, TagBlockEntry> blockedByTag = new Hashtable.D1<>(TAG_CAPACITY);
+  private final Hashtable.D1<String, TagBlockEntry> blockedByTag =
+      Hashtable.D1.createCapped(TagBlockEntry.class, TAG_CAPACITY);
 
   CardinalityLimitReporter() {
     this(new RatelimitedLogger(log, 5, MINUTES));
