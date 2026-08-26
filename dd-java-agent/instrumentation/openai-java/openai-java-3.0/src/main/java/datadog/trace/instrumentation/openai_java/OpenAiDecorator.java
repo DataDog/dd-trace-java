@@ -124,6 +124,18 @@ public class OpenAiDecorator extends ClientDecorator {
       if (sessionId != null && !sessionId.isEmpty()) {
         span.setTag(CommonTags.SESSION_ID, sessionId);
       }
+
+      // Inherit the head-based sampling decision from the active LLMObs parent, gated on the two
+      // spans belonging to the same APM trace so a stale context cannot contribute a verdict
+      // computed from a different trace ID.
+      if (parent != null && parent.getTraceId().equals(span.getTraceId())) {
+        String samplingDecision = LLMObsContext.currentSamplingDecision();
+        String sampleRate = LLMObsContext.currentSampleRate();
+        if (samplingDecision != null && sampleRate != null) {
+          span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
+          span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
+        }
+      }
     }
     super.doAfterStart(span);
   }

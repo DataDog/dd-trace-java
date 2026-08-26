@@ -889,8 +889,9 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
-    // DDLLMObsSpan stamps a decision on every span, so this shape should not occur in practice;
-    // the mapper still has to emit a well-formed _dd map if it ever does.
+    // This is the shape auto-instrumented spans produce when they have no LLMObs parent to inherit
+    // from (OpenAiDecorator does not compute a verdict of its own), so the mapper has to emit a
+    // well-formed _dd map and default to retaining the span.
     AgentSpan span =
         tracer
             .buildSpan("datadog", "chat-completion")
