@@ -1,6 +1,7 @@
 package datadog.trace.api.telemetry;
 
 import datadog.trace.api.aiguard.AIGuard;
+import datadog.trace.util.TagsHelper;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -274,12 +275,18 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     counterFor(apiSecurityRequestNoSchemaCounters, framework).incrementAndGet();
   }
 
-  /** Normalizes a framework (span component) value, mapping null or blank values to "unknown". */
+  /**
+   * Normalizes a framework (span component) value, mapping null or blank values to "unknown" and
+   * sanitizing the rest via {@link TagsHelper#sanitize}, which also bounds its length. {@code
+   * framework} can originate from manual/custom instrumentation setting the {@code component} tag
+   * per request, so without this the retained-but-cardinality-capped keys could still consume
+   * unbounded heap in bytes even though their count is bounded.
+   */
   static String normalizeFramework(final String framework) {
     if (framework == null || framework.trim().isEmpty()) {
       return UNKNOWN_FRAMEWORK;
     }
-    return framework.trim();
+    return TagsHelper.sanitize(framework.trim());
   }
 
   /**

@@ -769,12 +769,15 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.normalizeFramework(framework) == expectedFramework
 
     where:
-    scenario                     | framework   || expectedFramework
-    'null framework'             | null        || 'unknown'
-    'empty framework'            | ''          || 'unknown'
-    'blank framework'            | '   '       || 'unknown'
-    'normal framework'           | 'netty'     || 'netty'
-    'framework with whitespace'  | '  netty  ' || 'netty'
+    scenario                     | framework            || expectedFramework
+    'null framework'             | null                 || 'unknown'
+    'empty framework'            | ''                   || 'unknown'
+    'blank framework'            | '   '                || 'unknown'
+    'normal framework'           | 'netty'              || 'netty'
+    'framework with whitespace'  | '  netty  '          || 'netty'
+    'framework with mixed case'  | 'Netty'              || 'netty'
+    'framework with bad chars'   | 'my framework!'      || 'my_framework_'
+    'framework over 200 chars'   | 'a' * 300            || 'a' * 200
   }
 
   /**
