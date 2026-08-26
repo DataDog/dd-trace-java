@@ -33,8 +33,7 @@ import javax.annotation.Nullable;
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
  * building blocks on this class (see {@link #create(Class, int)}, {@link
  * #bucketFor(Hashtable.Entry[], long)}, {@link #insertHeadEntryAt(Hashtable.Entry[], int,
- * Hashtable.Entry)}, and friends). The deprecated {@link Support} class is a thin facade over those
- * same statics, retained for source compatibility.
+ * Hashtable.Entry)}, and friends).
  */
 public final class Hashtable {
   private Hashtable() {}
@@ -82,8 +81,10 @@ public final class Hashtable {
    * capacity, {@link #insert} returns {@code false} and {@link #getOrCreate} returns {@code null}
    * rather than adding more entries -- a lookup hit is still always returned even at capacity, the
    * cap only blocks new entries. Want your own eviction policy instead of a hard cap? Drop down to
-   * {@link Hashtable.Support} and manage the bucket array yourself. Actual bucket-array length is
-   * rounded up to the next power of two.
+   * the static building blocks and drive the bucket array yourself -- {@link
+   * Hashtable#createCappedTable(int)} hands you a spine, a {@link SizeTracker}, and an {@link
+   * EvictionCursor} already matched to each other. Actual bucket-array length is rounded up to the
+   * next power of two.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -579,10 +580,6 @@ public final class Hashtable {
   //
   // Not thread-safe: there is no locking here. Concurrent access, including mixing reads with
   // writes, requires external synchronization.
-  //
-  // These were previously nested under the Support class; that class is now a deprecated facade
-  // delegating here (retained for source compatibility with existing callers such as client-side
-  // statistics).
   // ============================================================================================
 
   /** Upper bound on the bucket-array length returned by {@link #sizeFor(int)}. */
