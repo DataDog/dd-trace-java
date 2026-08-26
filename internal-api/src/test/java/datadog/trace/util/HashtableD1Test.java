@@ -281,4 +281,48 @@ class HashtableD1Test {
         IllegalStateException.class, () -> table.insertOrReplace(new StringIntEntry("c", 3)));
     assertEquals(2, table.size());
   }
+
+  @Test
+  void drainVisitsEveryEntryThenEmptiesTable() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+    Map<String, Integer> drained = new HashMap<>();
+
+    table.drain(e -> drained.put(e.key, e.value));
+
+    assertEquals(2, drained.size());
+    assertEquals(1, drained.get("a"));
+    assertEquals(2, drained.get("b"));
+    assertEquals(0, table.size());
+    assertNull(table.get("a"));
+    assertNull(table.get("b"));
+
+    // Table is reusable after drain.
+    table.insert(new StringIntEntry("c", 3));
+    assertEquals(1, table.size());
+    assertEquals(3, table.get("c").value);
+  }
+
+  @Test
+  void drainWithContextPassesContextToSink() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+    Map<String, Integer> drained = new HashMap<>();
+
+    table.drain(drained, (ctx, e) -> ctx.put(e.key, e.value));
+
+    assertEquals(2, drained.size());
+    assertEquals(0, table.size());
+  }
+
+  @Test
+  void drainOnEmptyTableDoesNothing() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Map<String, Integer> drained = new HashMap<>();
+    table.drain(e -> drained.put(e.key, e.value));
+    assertEquals(0, drained.size());
+    assertEquals(0, table.size());
+  }
 }

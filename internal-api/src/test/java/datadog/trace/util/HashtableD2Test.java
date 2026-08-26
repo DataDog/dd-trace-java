@@ -223,6 +223,45 @@ class HashtableD2Test {
     assertEquals(2, table.size());
   }
 
+  @Test
+  void drainVisitsEveryEntryThenEmptiesTable() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    Set<String> drained = new HashSet<>();
+
+    table.drain(e -> drained.add(e.key1 + ":" + e.key2));
+
+    assertEquals(2, drained.size());
+    assertTrue(drained.contains("a:1"));
+    assertTrue(drained.contains("b:2"));
+    assertEquals(0, table.size());
+    assertNull(table.get("a", 1));
+    assertNull(table.get("b", 2));
+  }
+
+  @Test
+  void drainWithContextPassesContextToSink() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    Set<String> drained = new HashSet<>();
+
+    table.drain(drained, (ctx, e) -> ctx.add(e.key1 + ":" + e.key2));
+
+    assertEquals(2, drained.size());
+    assertEquals(0, table.size());
+  }
+
+  @Test
+  void drainOnEmptyTableDoesNothing() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    Set<String> drained = new HashSet<>();
+    table.drain(e -> drained.add(e.key1 + ":" + e.key2));
+    assertEquals(0, drained.size());
+    assertEquals(0, table.size());
+  }
+
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
     int value;
 
