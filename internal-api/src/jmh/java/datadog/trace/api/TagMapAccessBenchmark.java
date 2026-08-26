@@ -130,6 +130,11 @@ public class TagMapAccessBenchmark {
    * Pre-populated read map, PER-THREAD ({@code Scope.Thread}): each thread owns its own map so
    * reads don't contend on shared mutable state under {@code @Threads(8)}.
    */
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
+
   @State(Scope.Thread)
   public static class ReadMap {
     TagMap map;
