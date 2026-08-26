@@ -178,11 +178,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
-      // Both LLMObs span producers stamp these on every span at every rate: DDLLMObsSpan for the
-      // manual SDK, OpenAiDecorator for auto-instrumentation. Neither leaves a span unstamped, so
-      // the fallback below is a defensive default rather than a live path — it covers a value set
-      // to a non-string through a generic tag API, and any future producer that forgets to stamp.
-      // Retain-everything is the pair the intake assumes when the fields are absent.
+      // Fallback to set default sampling tags when the fields are absent.
       Object rawSamplingDecision = span.getTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
       Object rawSampleRate = span.getTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
       boolean stamped = rawSamplingDecision instanceof String && rawSampleRate instanceof String;
@@ -232,8 +228,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeString(samplingDecision, null);
       writable.writeUTF8(SAMPLE_RATE);
       writable.writeString(sampleRate, null);
-      // Remove unconditionally: the generic _ml_obs_tag. sweep below would otherwise surface these
-      // internal fields in the user-visible tags[] array.
       span.removeTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
       span.removeTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
 

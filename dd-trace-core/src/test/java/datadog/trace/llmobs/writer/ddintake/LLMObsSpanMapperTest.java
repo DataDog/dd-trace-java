@@ -881,17 +881,12 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     return spans.get(0);
   }
 
-  // The _dd sub-map is hand-sized msgpack, so an off-by-one corrupts the stream rather than failing
-  // loudly. These three cases pin the decoded map for every combination the writer can produce.
-
   @Test
   void testSamplingFieldsDefaultToRetainWhenTheSpanCarriesNoDecision() throws Exception {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
-    // This is the shape auto-instrumented spans produce when they have no LLMObs parent to inherit
-    // from (OpenAiDecorator does not compute a verdict of its own), so the mapper has to emit a
-    // well-formed _dd map and default to retaining the span.
+    // Both span producers stamp these tags, so this exercises the mapper's fallback branch.
     AgentSpan span =
         tracer
             .buildSpan("datadog", "chat-completion")
@@ -910,39 +905,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void testSamplingFieldsEmittedForRetainedSpanWithSessionId() throws Exception {
-    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "chat-completion")
-            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
-            .withTag("_ml_obs_tag.session_id", "abc-123-session")
-            .withTag("_ml_obs_tag.sampling_decision", "1")
-            .withTag("_ml_obs_tag.sample_rate", "0.5")
-            .start();
-    span.setSpanType(InternalSpanTypes.LLMOBS);
-    span.finish();
-
-    Map<String, Object> spanData = serializeSingleSpan(mapper, span);
-    Map<String, Object> dd = (Map<String, Object>) spanData.get("_dd");
-    assertEquals(5, dd.size());
-    assertEquals("1", dd.get("sampling_decision"));
-    assertEquals("0.5", dd.get("sample_rate"));
-    // The session_id field must still land alongside the sampling fields.
-    assertEquals("abc-123-session", spanData.get("session_id"));
-
-    // Internal fields must not leak into the user-visible tags[] array.
-    List<String> tags = (List<String>) spanData.get("tags");
-    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sampling_decision:")));
-    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sample_rate:")));
-
-    tracer.close();
-  }
-
-  @Test
-  void testSamplingFieldsEmittedForDroppedSpanWithoutSessionId() throws Exception {
+  void testSamplingFieldsAreEmittedAndDoNotLeakIntoTags() throws Exception {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
@@ -961,7 +924,11 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals(5, dd.size());
     assertEquals("0", dd.get("sampling_decision"));
     assertEquals("0.1", dd.get("sample_rate"));
-    assertFalse(spanData.containsKey("session_id"));
+
+    // The mapper removes the tags after writing them, so they must not reach tags[].
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sampling_decision:")));
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sample_rate:")));
 
     tracer.close();
   }

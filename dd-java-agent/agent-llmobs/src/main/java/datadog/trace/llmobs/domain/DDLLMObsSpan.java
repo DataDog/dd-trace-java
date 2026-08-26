@@ -149,9 +149,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // Root of an LLMObs trace: decide once, keyed on the APM trace ID so that this decision is
-    // reproducible in any other service that observes the same trace at the same rate. Stamped at
-    // every rate, including the default of 1.0, matching dd-trace-py.
     if (samplingDecision == null) {
       sampleRate = sampler.formattedRate();
       samplingDecision =

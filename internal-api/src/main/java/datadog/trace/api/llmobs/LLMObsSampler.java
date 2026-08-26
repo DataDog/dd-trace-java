@@ -5,10 +5,6 @@ import datadog.trace.api.Config;
 /**
  * Head-based retention sampler for LLM Observability traces.
  *
- * <p>Lives in {@code internal-api} so both span producers can share it: the manual SDK in {@code
- * agent-llmobs}, which is packaged as an isolated product jar, and auto-instrumentation, which can
- * only see the bootstrap-visible modules.
- *
  * <p>Duplicates the arithmetic in {@code DeterministicSampler} because neither of those modules
  * depends on {@code dd-trace-core}; {@code ApiSecurityDownstreamSamplerImpl} does the same.
  */
