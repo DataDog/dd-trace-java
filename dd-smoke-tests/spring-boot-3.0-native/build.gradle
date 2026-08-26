@@ -3,9 +3,8 @@ import java.util.regex.Pattern
 
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Spring Boot 3.0 Native Smoke Tests.'
 

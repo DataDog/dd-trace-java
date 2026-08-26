@@ -3,6 +3,8 @@ import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.call-site-instrumentation'
 }
 
 muzzle {
@@ -12,9 +14,6 @@ muzzle {
     versions = "[5.0.0,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and
 // the gradle muzzle tasks uses the JVM gradle is running with
