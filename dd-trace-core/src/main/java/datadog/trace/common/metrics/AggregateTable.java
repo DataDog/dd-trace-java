@@ -29,7 +29,7 @@ final class AggregateTable {
    * Stale means "not used in this reporting cycle". Held as a {@code static final} so it is a
    * non-capturing singleton rather than a fresh lambda per eviction.
    */
-  private static final Predicate<AggregateEntry> STALE = entry -> entry.getHitCount() == 0;
+  private static final Predicate<AggregateEntry> STALE = AggregateEntry::isStale;
 
   /**
    * Bucket spine plus the manager that keeps it within {@code maxAggregates} -- the manager also

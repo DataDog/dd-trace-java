@@ -244,6 +244,17 @@ public final class AggregateEntry extends Hashtable.Entry {
     return hitCount;
   }
 
+  /**
+   * {@code true} if nothing hit this entry in the current reporting cycle, making it the first
+   * thing worth evicting when the table is full. Encapsulates the staleness rule on the entry so
+   * the table doesn't have to know it is spelled {@code hitCount == 0}, and reads as {@code
+   * AggregateEntry::isStale} at an eviction call site -- an unbound method reference, so it is
+   * non-capturing and costs no allocation.
+   */
+  public boolean isStale() {
+    return hitCount == 0;
+  }
+
   public int getErrorCount() {
     return errorCount;
   }
