@@ -206,8 +206,22 @@ public final class Hashtable {
 
     @Nullable
     public TEntry remove(@Nullable K key) {
+      // Walks the chain directly rather than delegating to Hashtable#removeMatching: a
+      // `e -> e.matches(key)` predicate captures `key`, so it allocates a fresh Predicate on every
+      // call. This class ships context-passing forEach/drain overloads precisely so callers can
+      // avoid capturing lambdas -- the write paths follow the same discipline. Same loop shape as
+      // insertOrReplace below.
       long keyHash = D1.Entry.hash(key);
-      return removeMatching(this.buckets, keyHash, e -> e.matches(key), this.sizeTracker);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+        if (curEntry.matches(key)) {
+          iter.remove();
+          this.sizeTracker.decrement();
+          return curEntry;
+        }
+      }
+      return null;
     }
 
     /**
@@ -445,8 +459,19 @@ public final class Hashtable {
 
     @Nullable
     public TEntry remove(@Nullable K1 key1, @Nullable K2 key2) {
+      // Chain walked directly rather than via Hashtable#removeMatching -- see D1#remove for why a
+      // capturing predicate is avoided on this path.
       long keyHash = D2.Entry.hash(key1, key2);
-      return removeMatching(this.buckets, keyHash, e -> e.matches(key1, key2), this.sizeTracker);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+        if (curEntry.matches(key1, key2)) {
+          iter.remove();
+          this.sizeTracker.decrement();
+          return curEntry;
+        }
+      }
+      return null;
     }
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */

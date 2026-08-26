@@ -94,6 +94,58 @@ class HashtableTest {
       assertThrows(IllegalArgumentException.class, () -> Hashtable.capacityFor(10, -0.5f));
     }
 
+    // removeMatching and the size-tracked insertHeadEntryFor are blessed building blocks for
+    // external composers (e.g. client-side stats) rather than something D1/D2 delegate to, so they
+    // are covered directly here.
+
+    @Test
+    void insertHeadEntryForTracksSizeAndRefusesAtCapacity() {
+      Hashtable.Entry[] buckets = Hashtable.create(2);
+      Hashtable.SizeTracker size = new Hashtable.SizeTracker(2);
+
+      StringIntEntry a = new StringIntEntry("a", 1);
+      StringIntEntry b = new StringIntEntry("b", 2);
+      StringIntEntry c = new StringIntEntry("c", 3);
+
+      assertTrue(Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size));
+      assertTrue(Hashtable.insertHeadEntryFor(buckets, b.keyHash, b, size));
+      assertEquals(2, size.size());
+
+      assertFalse(
+          Hashtable.insertHeadEntryFor(buckets, c.keyHash, c, size),
+          "refused once the tracker is at capacity");
+      assertEquals(2, size.size(), "a refused insert must not consume a slot");
+    }
+
+    @Test
+    void removeMatchingUnlinksAndDecrements() {
+      Hashtable.Entry[] buckets = Hashtable.create(8);
+      Hashtable.SizeTracker size = new Hashtable.SizeTracker(8);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size);
+
+      StringIntEntry removed =
+          Hashtable.removeMatching(buckets, a.keyHash, e -> e.matches("a"), size);
+
+      assertSame(a, removed);
+      assertEquals(0, size.size());
+      assertNull(Hashtable.bucketFor(buckets, a.keyHash));
+    }
+
+    @Test
+    void removeMatchingReturnsNullAndLeavesStateWhenNothingMatches() {
+      Hashtable.Entry[] buckets = Hashtable.create(8);
+      Hashtable.SizeTracker size = new Hashtable.SizeTracker(8);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size);
+
+      assertNull(
+          Hashtable.<StringIntEntry>removeMatching(
+              buckets, a.keyHash, e -> e.matches("nope"), size));
+      assertEquals(1, size.size(), "a non-matching scan must not decrement");
+      assertSame(a, Hashtable.bucketFor(buckets, a.keyHash));
+    }
+
     @Test
     void bucketIndexIsBoundedByArrayLength() {
       Hashtable.Entry[] buckets = Hashtable.create(StringIntEntry.class, 16);
