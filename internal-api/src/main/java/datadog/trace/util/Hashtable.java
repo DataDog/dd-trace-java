@@ -256,7 +256,7 @@ public final class Hashtable {
      * <p>Returns {@code null} once the table is at capacity and {@code key} is absent -- a hit is
      * always returned even at capacity, the cap only blocks new entries.
      */
-    @Nonnull
+    @Nullable
     public TEntry getOrCreate(
         @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
@@ -488,7 +488,7 @@ public final class Hashtable {
      * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}. Same
      * strict-cap refusal contract as {@link D1#getOrCreate}.
      */
-    @Nonnull
+    @Nullable
     public TEntry getOrCreate(
         @Nullable K1 key1,
         @Nullable K2 key2,
