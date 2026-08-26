@@ -80,6 +80,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
+  private static final long SNAPSTART_CONSTRUCTION_TIME_NANOS = TimeUnit.SECONDS.toNanos(1000);
+
   @Test
   void
       getTimeWithNanoTicks_whenNanoTicksStaleAfterSimulatedRestore_thenTimestampStaysAnchoredToConstructionTime() {
@@ -88,7 +90,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     // with right after restore is (almost) unchanged from construction (snapshot creation) time,
     // even though wall-clock time has moved on by hours. Without a resync, span timestamps
     // computed from that near-frozen nanoTicks stay anchored to construction time.
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
@@ -98,7 +100,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       assertEquals(
-          TimeUnit.SECONDS.toNanos(1000), tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+          SNAPSTART_CONSTRUCTION_TIME_NANOS,
+          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
     } finally {
       tracer.close();
     }
@@ -108,12 +111,12 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
   void
       maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
-      long postRestoreNanos = TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2);
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+      long postRestoreNanos = timeSource.getCurrentTimeNanos();
 
       tracer.maybeResyncClockForLambdaInvocation();
 
@@ -133,11 +136,11 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
     // created - the actual trigger point for the resync in production, not just the extracted
     // maybeResyncClockForLambdaInvocation() logic exercised directly above.
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
-      long postRestoreNanos = TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2);
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+      long postRestoreNanos = timeSource.getCurrentTimeNanos();
 
       tracer.notifyLambdaStart(new Object(), "lambda-request-123");
 
@@ -152,7 +155,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   @Test
   void
       notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
-    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
@@ -162,7 +165,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       tracer.notifyLambdaStart(new Object(), "lambda-request-123");
 
       assertEquals(
-          TimeUnit.SECONDS.toNanos(1000), tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+          SNAPSTART_CONSTRUCTION_TIME_NANOS,
+          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
     } finally {
       tracer.close();
     }
