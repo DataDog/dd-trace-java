@@ -2,9 +2,9 @@ package datadog.trace.common.metrics;
 
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
-import datadog.trace.util.Hashtable.MutatingTableIterator;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The {@link AggregateEntry} store of the consuming aggregator thread, keyed on the canonical
@@ -25,17 +25,20 @@ import java.util.function.Consumer;
  */
 final class AggregateTable {
 
-  private final Hashtable.Entry[] buckets;
-  private final int maxAggregates;
-  private final AggregateEntry.Canonical canonical;
-  private int size;
+  /**
+   * Stale means "not used in this reporting cycle". Held as a {@code static final} so it is a
+   * non-capturing singleton rather than a fresh lambda per eviction.
+   */
+  private static final Predicate<AggregateEntry> STALE = entry -> entry.getHitCount() == 0;
 
   /**
-   * Bucket index where the last {@link #evictOneStale} successfully removed an entry. The next call
-   * resumes from this bucket so a fast-evicting workload doesn't repeatedly re-walk the same hot
-   * entries clustered near bucket 0. Reset to {@code 0} by {@link #clear}.
+   * Bucket spine plus the manager that keeps it within {@code maxAggregates} -- the manager also
+   * owns the resumable eviction scan, so consecutive evictions don't re-walk the same hot entries
+   * clustered near bucket 0.
    */
-  private int evictCursor;
+  private final Hashtable.State<AggregateEntry> state;
+
+  private final AggregateEntry.Canonical canonical;
 
   AggregateTable(int maxAggregates) {
     this(maxAggregates, AdditionalTagsSchema.EMPTY);
@@ -47,8 +50,7 @@ final class AggregateTable {
 
   AggregateTable(
       int maxAggregates, CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
-    this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
-    this.maxAggregates = maxAggregates;
+    this.state = Hashtable.createCapped(maxAggregates);
     this.canonical = new AggregateEntry.Canonical(handlers, additionalTagsSchema);
   }
 
@@ -57,11 +59,11 @@ final class AggregateTable {
   }
 
   int size() {
-    return size;
+    return state.sizeManager.size();
   }
 
   boolean isEmpty() {
-    return size == 0;
+    return state.sizeManager.size() == 0;
   }
 
   /**
@@ -72,20 +74,20 @@ final class AggregateTable {
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
-    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
+    for (AggregateEntry candidate = Hashtable.bucketFor(state.buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
         return candidate;
       }
     }
-    // Miss path.
-    if (size >= maxAggregates && !evictOneStale()) {
+    // Miss path. Reserve before building the entry so a refused insert costs no allocation; the
+    // reservation evicts a stale entry to make room if the table is already full.
+    if (!Hashtable.tryReserveOrEvict(state, STALE)) {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
-    Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);
-    size++;
+    Hashtable.insertHeadEntryFor(state.buckets, keyHash, entry);
     return entry;
   }
 
@@ -106,32 +108,8 @@ final class AggregateTable {
    * still drive the entry count to {@code maxAggregates}, so this cursor-resumed scan remains the
    * backstop.
    */
-  private boolean evictOneStale() {
-    // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The
-    // second pass is naturally empty when cursor==0, so no extra check needed.
-    return evictOneStaleInRange(evictCursor, buckets.length)
-        || evictOneStaleInRange(0, evictCursor);
-  }
-
-  /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
-  private boolean evictOneStaleInRange(int startBucket, int endBucket) {
-    MutatingTableIterator<AggregateEntry> iter =
-        Hashtable.Support.mutatingTableIterator(buckets, startBucket, endBucket);
-    while (iter.hasNext()) {
-      AggregateEntry e = iter.next();
-      if (e.getHitCount() == 0) {
-        int bucket = iter.currentBucket();
-        iter.remove();
-        size--;
-        evictCursor = bucket;
-        return true;
-      }
-    }
-    return false;
-  }
-
   void forEach(Consumer<AggregateEntry> consumer) {
-    Hashtable.Support.forEach(buckets, consumer);
+    Hashtable.forEach(state.buckets, consumer);
   }
 
   /**
@@ -139,26 +117,16 @@ final class AggregateTable {
    * each invocation -- pass a non-capturing {@link BiConsumer} (typically a {@code static final})
    * plus whatever side-band state it needs as {@code context}.
    */
-  <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
-    Hashtable.Support.forEach(buckets, context, consumer);
+  <C> void forEach(C context, BiConsumer<C, AggregateEntry> consumer) {
+    Hashtable.forEach(state.buckets, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> iter =
-            Hashtable.Support.mutatingTableIterator(buckets);
-        iter.hasNext(); ) {
-      AggregateEntry e = iter.next();
-      if (e.getHitCount() == 0) {
-        iter.remove();
-        size--;
-      }
-    }
+    Hashtable.evictAll(state, STALE);
   }
 
   void clear() {
-    Hashtable.Support.clear(buckets);
-    size = 0;
-    evictCursor = 0;
+    Hashtable.clear(state);
   }
 }
