@@ -82,8 +82,12 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
     return HasMetafactoryFields.INSTANCE;
   }
 
-  private static final class HasMetafactoryFields implements ElementMatcher<TypeDescription> {
-    static final HasMetafactoryFields INSTANCE = new HasMetafactoryFields();
+  /**
+   * Public because the agent loads {@code *Instrumentation} classes in a child class-loader of the
+   * one that loads this nested class; package-private access across the two is denied.
+   */
+  public static final class HasMetafactoryFields implements ElementMatcher<TypeDescription> {
+    public static final HasMetafactoryFields INSTANCE = new HasMetafactoryFields();
 
     @Override
     public boolean matches(TypeDescription target) {
