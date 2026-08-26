@@ -44,40 +44,50 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
  *
- * <p>JDK 17 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}; M ops/s).
- * {@code get} uses distinct keys (exercises {@code equals()}); {@code sameKey} reuses the interned
- * key (the {@code ==} fast path — the common tracer case):
+ * <p>{@link BenchmarkUtils#polluteHashDispatch()} runs in {@link #setUp}, for the same reason as
+ * {@link ImmutableSetBenchmark}: {@code Object.hashCode()}/{@code equals()} are JVM-wide shared
+ * call sites, hit by every hash-based structure in the process (this benchmark's {@code HashMap},
+ * {@code LinkedHashMap}, and {@code Map.copyOf}/{@code MapN} all dispatch through them for their
+ * {@code String} keys) — realistically almost always megamorphic, so leaving them monomorphic for
+ * the whole run would understate real dispatch cost.
+ *
+ * <p>JDK 8 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}, with {@link
+ * BenchmarkUtils#polluteHashDispatch()} in effect; M ops/s). {@code get} uses distinct keys
+ * (exercises {@code equals()}); {@code sameKey} reuses the interned key (the {@code ==} fast path —
+ * the common tracer case):
  *
  * <pre>{@code
- * Structure                           get sameKey
- * stringIndex_embedded (static)      1498    2081    (fastest)
- * stringIndex (inst)                 1363    1900
- * hashMap                            1216    1850
- * linkedHashMap                      1214       -
- * tagMap                             1167    1386
- * tracerImmutableMap                 1049    1364    (MapN)
- * treeMap                             656       -
- * }</pre>
- *
- * <p>{@code iterate} (full traversal):
- *
- * <pre>{@code
- * tagMap.forEach        148    (fastest)
- * linkedHashMap         136
- * tracerImmutableMap    135    (MapN)
- * treeMap               134
- * hashMap               104
- * tagMap (iterator)      96
+ * Structure                get sameKey iterate iterate_forEach
+ * hashMap                 1202    1438     120        -
+ * linkedHashMap           1097       -     127        -
+ * treeMap                  487       -     121        -
+ * tagMap                  1005    1235     109       121
+ * tracerImmutableMap      1052    1249     123        -   (MapN)
+ * stringIndex             1366    1724       -        -
+ * stringIndex_embedded    1479    1846       -        -   (fastest get)
  * }</pre>
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>StringIndex-as-map ({@code EmbeddingSupport}) is the fastest {@code get} — beating {@code
- *       HashMap} and {@code Map.copyOf}/{@code MapN}, most on the interned path; the instance
- *       wrapper trails it by ~10%. (vs {@code MapN} the edge is speed + the slot/parallel-array
- *       capability, not footprint — see {@link ImmutableSetBenchmark}.)
- *   <li>{@code TagMap.forEach} (148) beats its own {@code iterator} (96) by ~1.5x: TagMap's
+ *   <li>StringIndex-as-map is a reliable {@code get} win, and it holds up under type-profile
+ *       pollution: {@code stringIndex_embedded} (the {@code static final}-array form) and {@code
+ *       stringIndex} (the instance wrapper) both beat every {@code Map} here by a wide margin, on
+ *       both the {@code equals()} and identity-fast-path lookups. Unlike {@link
+ *       ImmutableSetBenchmark}'s {@code hitFresh} case, there's no bimodality here — this win is
+ *       unconditional, not access-pattern-dependent.
+ *   <li>This table still compares boxed {@code Integer} values ({@code hashMap}/{@code
+ *       linkedHashMap}/{@code treeMap}/{@code tracerImmutableMap} all return {@code Integer};
+ *       {@code tagMap}/{@code stringIndex} happen to expose primitive {@code int} accessors, but
+ *       that's not exercised as a differentiator here). StringIndex's edge should widen further
+ *       against a {@code Map<String, Integer>} once the comparison is against genuinely autoboxed
+ *       reads on both sides — not yet measured.
+ *   <li>{@code treeMap}'s {@code get} has a wide error bar (±129, one fork's measurement iterations
+ *       dropped to ~230-300, the rest sit around 490-610) — a known {@code TreeMap} comparison
+ *       characteristic (uses {@code compareTo} not {@code hashCode}/{@code equals}, so it's
+ *       unaffected by dispatch pollution), not the same warmup-race bimodality investigated in
+ *       {@link ImmutableSetBenchmark}.
+ *   <li>{@code TagMap.forEach} (121) beats its own {@code iterator} (109) by ~10%: TagMap's
  *       structure makes a faithful external {@code Iterator} expensive (externalized cursor +
  *       skip-empty + per-call re-entry + the iterator allocation) — all of which internal {@code
  *       forEach} avoids. Traverse TagMap via {@code forEach}, never its iterator; that gap only
@@ -145,6 +155,8 @@ public class ImmutableMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     hashMap = new HashMap<>();
     fill(hashMap);
     linkedHashMap = new LinkedHashMap<>();
