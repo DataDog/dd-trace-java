@@ -89,9 +89,15 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>The static {@code EmbeddingSupport} path is the fastest on both hit and miss -- it beats
  *       {@code HashSet} on both and crushes the scan/search/tree forms.
  *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
- *       field-load indirection, but on this run actually leads {@code HashSet} on hit; miss is
- *       noisy (see bimodal caveat below) and not a reliable comparison point. Prefer {@code
- *       EmbeddingSupport} on the hot path regardless.
+ *       field-load indirection. It reliably beats {@code HashSet} on {@code hit} (its actual design
+ *       case: repeated lookups of a known, fixed name set). On {@code miss} and {@code hitFresh} it
+ *       is <i>not</i> a reliable win -- both are bimodal across forks (see caveat below) and the
+ *       mean in each case already sits at or below {@code HashSet}'s steady figure. For miss- or
+ *       fresh-key-heavy membership use, prefer {@link StringIndex.EmbeddingSupport} directly rather
+ *       than assuming the wrapper is strictly better than a plain {@code Set}. This doesn't apply
+ *       to {@code StringIndex}'s parallel-value (map) use case ({@code mapValues}/{@code lookup})
+ *       -- that win comes from avoiding boxing and node overhead entirely and is unaffected by any
+ *       of this.
  *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) trails
  *       {@code EmbeddingSupport} on every scenario but remains the most <i>compact</i> (~27%
  *       smaller -- no cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed
