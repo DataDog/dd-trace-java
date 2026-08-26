@@ -205,12 +205,12 @@ class HaystackHttpCodec {
               // baggage: the injector reads them back to reproduce the original 128-bit ids, so
               // they must not be evicted by caller-supplied Baggage-* headers
               case TRACE_ID:
-                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(value));
-                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
+                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
+                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
                 break;
               case SPAN_ID:
-                spanId = DDSpanId.fromHex(convertUUIDToHexString(value));
-                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
+                spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
+                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
                 break;
               case PARENT_ID:
                 // Nothing reads this back when injecting, so it is ordinary caller-supplied

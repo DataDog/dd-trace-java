@@ -77,6 +77,26 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @Test
+  void extractUsesFirstConcatenatedHaystackIdHeaderValue() {
+    String traceUuid = "44617461-646f-6721-0000-000000000001";
+    String spanUuid = "44617461-646f-6721-0000-000000000002";
+    Map<String, String> headers =
+        headers(
+            TRACE_ID_KEY,
+            traceUuid + ",44617461-646f-6721-0000-000000000003",
+            SPAN_ID_KEY,
+            spanUuid + ",44617461-646f-6721-0000-000000000004");
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(DDTraceId.from(1), context.getTraceId());
+    assertEquals(DDSpanId.from("2"), context.getSpanId());
+    assertEquals(traceUuid, context.getBaggage().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
+    assertEquals(spanUuid, context.getBaggage().get(HAYSTACK_SPAN_ID_BAGGAGE_KEY));
+  }
+
+  @Test
   void extractRetainsParentIdAsBaggage() {
     // Parent-ID is not read back when injecting, so it is kept as ordinary caller baggage and
     // still propagated downstream as Baggage-Haystack-Parent-ID
