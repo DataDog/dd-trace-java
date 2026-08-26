@@ -82,9 +82,9 @@ public final class Hashtable {
    * null} rather than adding more entries -- a lookup hit is still always returned even at
    * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
    * Drop down to the static building blocks and drive the bucket array yourself -- {@link
-   * Hashtable#createCappedTable(int)} hands you a spine and a {@link SizeManager} already matched
-   * to each other, and the manager evicts as well as counts. Actual bucket-array length is rounded
-   * up to the next power of two.
+   * Hashtable#createCapped(int)} hands you a spine and a {@link SizeManager} already matched to
+   * each other, and the manager evicts as well as counts. Actual bucket-array length is rounded up
+   * to the next power of two.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -160,7 +160,7 @@ public final class Hashtable {
      * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
      * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
      * SizeManager}'s eviction half over the static building blocks (see {@link
-     * Hashtable#createCappedTable(int)}) rather than reaching for an uncapped table.
+     * Hashtable#createCapped(int)}) rather than reaching for an uncapped table.
      *
      * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
      * -- the bucket array is sized from it, so it is read as both the limit and a rough estimate.
@@ -612,9 +612,9 @@ public final class Hashtable {
    *
    * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
    * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
-   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link
-   * #createCappedTable} size themselves), pass {@link #capacityFor(int)} instead: {@code
-   * create(MyEntry.class, capacityFor(cardinalityLimit))}.
+   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link #createCapped}
+   * size themselves), pass {@link #capacityFor(int)} instead: {@code create(MyEntry.class,
+   * capacityFor(cardinalityLimit))}.
    */
   @SuppressWarnings("unchecked")
   @Nonnull
@@ -628,11 +628,11 @@ public final class Hashtable {
    * rounded up to the next power of two, with the base {@code Hashtable.Entry[]} component type.
    *
    * <p>Use this when the spine is driven purely through the static building blocks, which all take
-   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link
-   * #createCappedTable} allocate internally. Prefer {@link #create(Class, int)} when you own the
-   * array and want a real {@code TEntry} component type (typed reads, array-store checks, a
-   * monomorphic element type for the JIT); prefer this one when a typed spine would only buy you
-   * covariant array-store checks on every insert. Capacity is fixed; the table does not resize.
+   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link #createCapped}
+   * allocate internally. Prefer {@link #create(Class, int)} when you own the array and want a real
+   * {@code TEntry} component type (typed reads, array-store checks, a monomorphic element type for
+   * the JIT); prefer this one when a typed spine would only buy you covariant array-store checks on
+   * every insert. Capacity is fixed; the table does not resize.
    *
    * <p>{@code buckets} is a bucket count, not an entry cap -- see {@link #capacityFor(int)} to
    * derive one from a target cap on live entries.
@@ -655,8 +655,8 @@ public final class Hashtable {
    * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
    * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
    * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
-   * {@link #createCappedTable} all size themselves this way). Pair with a {@link SizeManager} of
-   * {@code cardinalityLimit} for the matching strict cap; this method only sizes the array.
+   * {@link #createCapped} all size themselves this way). Pair with a {@link SizeManager} of {@code
+   * cardinalityLimit} for the matching strict cap; this method only sizes the array.
    */
   public static int capacityFor(int cardinalityLimit) {
     return capacityFor(cardinalityLimit, DEFAULT_LOAD_FACTOR);
@@ -1084,33 +1084,37 @@ public final class Hashtable {
   }
 
   /**
-   * Bundles a bucket array together with a {@link SizeManager} sized and matched to it, so a
-   * composer driving the static building blocks directly gets everything it needs to store from one
-   * factory call, instead of separately sizing an array and a manager that must stay in sync with
-   * it. Same headroom idiom as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict
-   * cap on live entries, and the backing array is sized with load-factor headroom over it.
+   * The mutable state of a caller-driven table: a bucket array and the {@link SizeManager} sized
+   * and matched to it. Both halves are stateful and neither is much use without the other, which is
+   * what the name is getting at -- the spine holds the entries, the manager holds how many there
+   * are and where the last eviction looked.
    *
-   * <p>Store the pieces of this bundle into your own fields; nothing here is meant to be held onto
-   * as a {@code Table} itself.
+   * <p><b>Hold this, rather than unpacking it.</b> Keeping one field instead of two is not just
+   * tidier: an array and a manager stored separately can drift apart, which is the mistake this
+   * type exists to prevent. Composers reach through it -- {@code state.buckets}, {@code
+   * state.sizeManager} -- when calling the static building blocks.
+   *
+   * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the strict cap on live
+   * entries, and the backing array is sized with load-factor headroom over it.
    */
-  public static final class Table {
+  public static final class State {
     public final Hashtable.Entry[] buckets;
     public final SizeManager sizeManager;
 
-    private Table(Hashtable.Entry[] buckets, int maxCapacity) {
+    private State(Hashtable.Entry[] buckets, int maxCapacity) {
       this.buckets = buckets;
       this.sizeManager = new SizeManager(maxCapacity);
     }
   }
 
   /**
-   * Creates a {@link Table}: a bucket array sized with load-factor headroom over {@code
+   * Creates a {@link State}: a bucket array sized with load-factor headroom over {@code
    * maxCapacity}, paired with a {@link SizeManager} capped at the strict {@code maxCapacity}.
    */
   @Nonnull
-  public static Table createCappedTable(int maxCapacity) {
+  public static State createCapped(int maxCapacity) {
     Hashtable.Entry[] buckets = create(capacityFor(maxCapacity));
-    return new Table(buckets, maxCapacity);
+    return new State(buckets, maxCapacity);
   }
 
   /**
