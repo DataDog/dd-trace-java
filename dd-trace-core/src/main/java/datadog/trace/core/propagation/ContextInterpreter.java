@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
+import okio.Utf8;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -252,11 +253,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
       return false;
     }
-    // Charge the encoded character count rather than the UTF-8 byte count. The two only differ for
-    // non-ASCII input, which the baggage spec excludes by mandating percent-encoding, and the
-    // difference is a small constant factor either way.
-    final int itemBytes = key.length() + value.length();
-    final int projectedBytes = baggageBytes - (newItem ? 0 : previousItemBytes) + itemBytes;
+    // Charge the raw key and value before URL decoding so percent-encoded input keeps its size.
+    final long itemBytes = Utf8.size(key) + Utf8.size(value);
+    final long projectedBytes = (long) baggageBytes - (newItem ? 0 : previousItemBytes) + itemBytes;
     if (projectedBytes > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
       return false;
@@ -267,11 +266,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       baggageItemBytes = new TreeMap<>();
     }
     baggage.put(key, decodedValue);
-    baggageItemBytes.put(key, itemBytes);
+    // Accepted baggage is bounded by the int-valued baggageMaxBytes configuration.
+    baggageItemBytes.put(key, (int) itemBytes);
     if (newItem) {
       baggageItems++;
     }
-    baggageBytes = projectedBytes;
+    baggageBytes = (int) projectedBytes;
     return true;
   }
 

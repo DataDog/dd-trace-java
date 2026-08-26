@@ -416,6 +416,18 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
     assertEquals(singletonMap("a", "b"), context.getBaggage());
   }
 
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "4")
+  void extractOtBaggageCountsLiteralUtf8Bytes() {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(OT_BAGGAGE_PREFIX + "a", "♥"); // 1-byte key + 3-byte UTF-8 value
+    headers.put(OT_BAGGAGE_PREFIX + "b", "c"); // does not fit after the first item
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap("a", "♥"), context.getBaggage());
+  }
+
   private static Map<String, String> otBaggageHeaders(int count) {
     Map<String, String> headers = new HashMap<>();
     for (int i = 0; i < count; i++) {
