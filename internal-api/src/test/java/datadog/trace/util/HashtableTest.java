@@ -87,6 +87,21 @@ class HashtableTest {
     }
 
     @Test
+    void drainVisitsEveryEntryThenClears() {
+      Hashtable.Entry[] buckets = Hashtable.createFixedBuckets(StringIntEntry.class, 4);
+      buckets[0] = new StringIntEntry("x", 1);
+      buckets[1] = new StringIntEntry("y", 2);
+      Set<String> drained = new HashSet<>();
+      Hashtable.<StringIntEntry>drain(buckets, e -> drained.add(e.key));
+      assertEquals(2, drained.size());
+      assertTrue(drained.contains("x"));
+      assertTrue(drained.contains("y"));
+      for (Hashtable.Entry b : buckets) {
+        assertNull(b);
+      }
+    }
+
+    @Test
     void insertHeadEntrySplicesAsNewHead() {
       Hashtable.Entry[] buckets = Hashtable.createFixedBuckets(StringIntEntry.class, 4);
       StringIntEntry a = new StringIntEntry("a", 1);

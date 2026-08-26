@@ -288,6 +288,26 @@ public final class Hashtable {
     public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, context, consumer);
     }
+
+    /**
+     * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
+     * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     */
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+      Hashtable.drain(this.buckets, sink);
+      this.sizeTracker.reset();
+    }
+
+    /**
+     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
+     * a {@code static final}) plus the accumulator as {@code context} to avoid a capturing-lambda
+     * allocation.
+     */
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      Hashtable.drain(this.buckets, context, sink);
+      this.sizeTracker.reset();
+    }
   }
 
   /**
@@ -497,6 +517,26 @@ public final class Hashtable {
     public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, context, consumer);
     }
+
+    /**
+     * Removes every entry, passing each to {@code sink} as it is unlinked -- the read-and-reset
+     * primitive for flush/publish workflows (drain the table into a telemetry batch, an event
+     * emitter, etc.). Equivalent to {@link #forEach} then {@link #clear} in a single call.
+     */
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+      Hashtable.drain(this.buckets, sink);
+      this.sizeTracker.reset();
+    }
+
+    /**
+     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
+     * a {@code static final}) plus the accumulator as {@code context} to avoid a capturing-lambda
+     * allocation.
+     */
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      Hashtable.drain(this.buckets, context, sink);
+      this.sizeTracker.reset();
+    }
   }
 
   // ============================================================================================
@@ -646,6 +686,31 @@ public final class Hashtable {
     }
   }
 
+  /**
+   * Removes every entry, passing each removed entry to {@code sink} as it is unlinked -- the
+   * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
+   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
+   * call so composers don't have to spell out both steps.
+   */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
+    Hashtable.<TEntry>forEach(buckets, sink);
+    clear(buckets);
+  }
+
+  /**
+   * Context-passing variant of {@link #drain(Hashtable.Entry[], Consumer)}. Pass a non-capturing
+   * {@link BiConsumer} (typically a {@code static final}) plus the accumulator as {@code context}
+   * (e.g. the target list or event builder) to avoid a capturing-lambda allocation.
+   */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    Hashtable.<C, TEntry>forEach(buckets, context, sink);
+    clear(buckets);
+  }
+
   @Nonnull
   public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
       @Nonnull Hashtable.Entry[] buckets, long keyHash) {
@@ -722,8 +787,8 @@ public final class Hashtable {
      * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
      * is already fully built (nothing between the check and the increment can fail) -- e.g. {@link
      * D1#insert}. When building the entry is itself fallible (e.g. {@link D1#getOrCreate}'s {@code
-     * creator}), check {@link #isFull()} first, do the fallible work, then call {@link #increment()}
-     * only once linking actually succeeds.
+     * creator}), check {@link #isFull()} first, do the fallible work, then call {@link
+     * #increment()} only once linking actually succeeds.
      *
      * <p>Returning {@code false} here is not a final refusal -- it's the caller's cue to either
      * refuse the insert, or make room (e.g. evict a stale entry via {@link EvictionCursor}) and
@@ -769,9 +834,9 @@ public final class Hashtable {
 
     /**
      * Scans {@code buckets} for the first entry matching {@code evictable}, starting at the cursor
-     * and wrapping all the way around back to the cursor if needed. Unlinks and returns the
-     * evicted entry, resuming the next call's scan from just past it; returns {@code null} if no
-     * entry matched anywhere in the table.
+     * and wrapping all the way around back to the cursor if needed. Unlinks and returns the evicted
+     * entry, resuming the next call's scan from just past it; returns {@code null} if no entry
+     * matched anywhere in the table.
      */
     @Nullable
     public Entry evictOne(
@@ -828,12 +893,12 @@ public final class Hashtable {
   }
 
   /**
-   * Bundles a bucket array together with a {@link SizeTracker} and {@link EvictionCursor} sized
-   * and matched to it, so a composer driving the static building blocks directly (e.g.
-   * client-side stats' {@code AggregateTable}) gets everything it needs to store from one factory
-   * call, instead of separately sizing an array and a tracker that must stay in sync with it. Same
-   * headroom idiom as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict cap on
-   * live entries, and the backing array is sized with load-factor headroom over it.
+   * Bundles a bucket array together with a {@link SizeTracker} and {@link EvictionCursor} sized and
+   * matched to it, so a composer driving the static building blocks directly (e.g. client-side
+   * stats' {@code AggregateTable}) gets everything it needs to store from one factory call, instead
+   * of separately sizing an array and a tracker that must stay in sync with it. Same headroom idiom
+   * as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict cap on live entries,
+   * and the backing array is sized with load-factor headroom over it.
    *
    * <p>Store the pieces of this bundle into your own fields; nothing here is meant to be held onto
    * as a {@code Table} itself.
