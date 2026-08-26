@@ -82,9 +82,9 @@ public final class Hashtable {
    * null} rather than adding more entries -- a lookup hit is still always returned even at
    * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
    * Drop down to the static building blocks and drive the bucket array yourself -- {@link
-   * Hashtable#createCappedTable(int)} hands you a spine, a {@link SizeTracker}, and an {@link
-   * EvictionCursor} already matched to each other. Actual bucket-array length is rounded up to the
-   * next power of two.
+   * Hashtable#createCappedTable(int)} hands you a spine and a {@link SizeManager} already matched
+   * to each other, and the manager evicts as well as counts. Actual bucket-array length is rounded
+   * up to the next power of two.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -140,13 +140,13 @@ public final class Hashtable {
     // Package-private so iterator tests in the same package can drive the Hashtable static
     // building blocks directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
-    private final SizeTracker sizeTracker;
+    private final SizeManager sizeManager;
 
     private D1(int maxCapacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
       // short even when the table is full; see Hashtable#capacityFor.
       this.buckets = Hashtable.create(capacityFor(maxCapacity));
-      this.sizeTracker = new SizeTracker(maxCapacity);
+      this.sizeManager = new SizeManager(maxCapacity);
     }
 
     /**
@@ -159,7 +159,7 @@ public final class Hashtable {
      * implementation detail. What the caller is choosing here is a bounded entry count and, with
      * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
      * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
-     * SizeTracker} with an {@link EvictionCursor} over the static building blocks (see {@link
+     * SizeManager}'s eviction half over the static building blocks (see {@link
      * Hashtable#createCappedTable(int)}) rather than reaching for an uncapped table.
      *
      * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
@@ -167,7 +167,7 @@ public final class Hashtable {
      * Nothing assumes you will reach the cap, but a cap set as a paranoid safety valve far above
      * typical usage over-allocates the spine for a fill that never arrives. When the limit and the
      * expectation genuinely differ by a lot, size the two independently with the low-level API:
-     * {@code Hashtable.create(capacityFor(expected))} paired with {@code new SizeTracker(limit)}.
+     * {@code Hashtable.create(capacityFor(expected))} paired with {@code new SizeManager(limit)}.
      *
      * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
      * infers both {@code K} and {@code TEntry} at the call site (e.g. {@code
@@ -184,12 +184,12 @@ public final class Hashtable {
     }
 
     public int size() {
-      return this.sizeTracker.size();
+      return this.sizeManager.size();
     }
 
     /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
     public boolean isFull() {
-      return this.sizeTracker.isFull();
+      return this.sizeManager.isFull();
     }
 
     @Nullable
@@ -218,7 +218,7 @@ public final class Hashtable {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key)) {
           iter.remove();
-          this.sizeTracker.decrement();
+          this.sizeManager.decrement();
           return curEntry;
         }
       }
@@ -231,7 +231,7 @@ public final class Hashtable {
      * shadowed behind the existing entry.
      */
     public boolean insert(@Nonnull TEntry newEntry) {
-      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -263,7 +263,7 @@ public final class Hashtable {
         }
       }
 
-      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -299,15 +299,15 @@ public final class Hashtable {
         }
       }
       // Deliberately isFull() -> create -> increment, rather than the one-call tracked
-      // insertHeadEntryFor(sizeTracker, ...) that insert/tryInsertOrReplace use: `creator` runs
+      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: `creator` runs
       // between the check and the link and may throw, so a slot reserved up front could leak. See
-      // SizeTracker#tryReserve.
-      if (this.sizeTracker.isFull()) {
+      // SizeManager#tryReserve.
+      if (this.sizeManager.isFull()) {
         return null;
       }
       TEntry newEntry = creator.apply(key);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.sizeTracker.increment();
+      this.sizeManager.increment();
       return newEntry;
     }
 
@@ -325,8 +325,7 @@ public final class Hashtable {
     }
 
     public void clear() {
-      Hashtable.clear(this.buckets);
-      this.sizeTracker.reset();
+      Hashtable.clear(this.sizeManager, this.buckets);
     }
 
     /**
@@ -336,7 +335,7 @@ public final class Hashtable {
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       Hashtable.drain(this.buckets, sink);
-      this.sizeTracker.reset();
+      this.sizeManager.reset();
     }
 
     /**
@@ -346,7 +345,7 @@ public final class Hashtable {
      */
     public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       Hashtable.drain(this.buckets, context, sink);
-      this.sizeTracker.reset();
+      this.sizeManager.reset();
     }
   }
 
@@ -423,13 +422,13 @@ public final class Hashtable {
 
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
     final Hashtable.Entry[] buckets;
-    private final SizeTracker sizeTracker;
+    private final SizeManager sizeManager;
 
     private D2(int maxCapacity) {
       // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
       // short even when the table is full; see Hashtable#capacityFor.
       this.buckets = Hashtable.create(capacityFor(maxCapacity));
-      this.sizeTracker = new SizeTracker(maxCapacity);
+      this.sizeManager = new SizeManager(maxCapacity);
     }
 
     /**
@@ -452,12 +451,12 @@ public final class Hashtable {
     }
 
     public int size() {
-      return this.sizeTracker.size();
+      return this.sizeManager.size();
     }
 
     /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
     public boolean isFull() {
-      return this.sizeTracker.isFull();
+      return this.sizeManager.isFull();
     }
 
     @Nullable
@@ -483,7 +482,7 @@ public final class Hashtable {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key1, key2)) {
           iter.remove();
-          this.sizeTracker.decrement();
+          this.sizeManager.decrement();
           return curEntry;
         }
       }
@@ -492,7 +491,7 @@ public final class Hashtable {
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
     public boolean insert(@Nonnull TEntry newEntry) {
-      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /** Two-key analogue of {@link D1#tryInsertOrReplace}, with the same refusal contract. */
@@ -508,7 +507,7 @@ public final class Hashtable {
         }
       }
 
-      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
+      return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -536,15 +535,15 @@ public final class Hashtable {
         }
       }
       // Deliberately isFull() -> create -> increment, rather than the one-call tracked
-      // insertHeadEntryFor(sizeTracker, ...) that insert/tryInsertOrReplace use: `creator` runs
+      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: `creator` runs
       // between the check and the link and may throw, so a slot reserved up front could leak. See
-      // SizeTracker#tryReserve.
-      if (this.sizeTracker.isFull()) {
+      // SizeManager#tryReserve.
+      if (this.sizeManager.isFull()) {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      this.sizeTracker.increment();
+      this.sizeManager.increment();
       return newEntry;
     }
 
@@ -562,8 +561,7 @@ public final class Hashtable {
     }
 
     public void clear() {
-      Hashtable.clear(this.buckets);
-      this.sizeTracker.reset();
+      Hashtable.clear(this.sizeManager, this.buckets);
     }
 
     /**
@@ -573,7 +571,7 @@ public final class Hashtable {
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       Hashtable.drain(this.buckets, sink);
-      this.sizeTracker.reset();
+      this.sizeManager.reset();
     }
 
     /**
@@ -583,7 +581,7 @@ public final class Hashtable {
      */
     public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       Hashtable.drain(this.buckets, context, sink);
-      this.sizeTracker.reset();
+      this.sizeManager.reset();
     }
   }
 
@@ -657,7 +655,7 @@ public final class Hashtable {
    * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
    * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
    * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
-   * {@link #createCappedTable} all size themselves this way). Pair with a {@link SizeTracker} of
+   * {@link #createCappedTable} all size themselves this way). Pair with a {@link SizeManager} of
    * {@code cardinalityLimit} for the matching strict cap; this method only sizes the array.
    */
   public static int capacityFor(int cardinalityLimit) {
@@ -746,24 +744,24 @@ public final class Hashtable {
   /**
    * {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}, but folding in the
    * strict-cap check that every unconditional insert needs: reserves a slot from {@code
-   * sizeTracker} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
-   * false} (without touching {@code buckets}) once {@code sizeTracker} is at capacity. Lets a
+   * sizeManager} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
+   * false} (without touching {@code buckets}) once {@code sizeManager} is at capacity. Lets a
    * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
    * caller-owned table of higher key arity) get the same one-call insert-with-cap-check contract
    * that {@link D1}/{@link D2} give their own callers.
    *
-   * <p>{@code sizeTracker} leads, per this class's parameter order for the size-tracked statics:
+   * <p>{@code sizeManager} leads, per this class's parameter order for the size-tracked statics:
    * mutated bookkeeping, then the spine, then the key, then callbacks. Putting it first (rather
    * than appending it) makes the tracked and untracked forms visibly different at the head of the
    * call instead of differing only in a trailing argument -- forgetting the tracker leaks the cap
    * silently, so the distinction should be hard to overlook at the call site and in review.
    */
   public static boolean insertHeadEntryFor(
-      @Nonnull SizeTracker sizeTracker,
+      @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
       @Nonnull Hashtable.Entry entry) {
-    if (!sizeTracker.tryReserve()) {
+    if (!sizeManager.tryReserve()) {
       return false;
     }
     insertHeadEntryFor(buckets, keyHash, entry);
@@ -772,17 +770,17 @@ public final class Hashtable {
 
   /**
    * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
-   * it, decrements {@code sizeTracker}, and returns it -- or returns {@code null} (leaving {@code
-   * buckets} and {@code sizeTracker} untouched) if nothing in the chain matches. Mirrors {@link
-   * #insertHeadEntryFor(SizeTracker, Hashtable.Entry[], long, Hashtable.Entry)} on the removal
+   * it, decrements {@code sizeManager}, and returns it -- or returns {@code null} (leaving {@code
+   * buckets} and {@code sizeManager} untouched) if nothing in the chain matches. Mirrors {@link
+   * #insertHeadEntryFor(SizeManager, Hashtable.Entry[], long, Hashtable.Entry)} on the removal
    * side: the one-call, size-tracked shape a composer driving the static building blocks directly
    * can use instead of hand-rolling the mutating-iterator loop and remembering to decrement.
    *
-   * <p>{@code sizeTracker} leads for the same reason it does on the insert side.
+   * <p>{@code sizeManager} leads for the same reason it does on the insert side.
    */
   @Nullable
   public static <TEntry extends Entry> TEntry removeMatching(
-      @Nonnull SizeTracker sizeTracker,
+      @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
       @Nonnull Predicate<? super TEntry> matches) {
@@ -791,7 +789,7 @@ public final class Hashtable {
       TEntry curEntry = iter.next();
       if (matches.test(curEntry)) {
         iter.remove();
-        sizeTracker.decrement();
+        sizeManager.decrement();
         return curEntry;
       }
     }
@@ -856,7 +854,7 @@ public final class Hashtable {
   /**
    * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
    * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. the
-   * cursor-based eviction in {@link EvictionCursor} -- where one call drives {@code [cursor,
+   * cursor-based eviction in {@link SizeManager#evictOne} -- where one call drives {@code [cursor,
    * length)} and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap
    * around within a single instance; callers compose two iterators when wrap-around is desired. An
    * empty range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
@@ -873,6 +871,19 @@ public final class Hashtable {
 
   public static void clear(@Nonnull Hashtable.Entry[] buckets) {
     Arrays.fill(buckets, null);
+  }
+
+  /**
+   * {@link #clear(Hashtable.Entry[])} plus the matching bookkeeping: empties {@code buckets} and
+   * resets {@code sizeManager} to zero. Emptying a table without resetting its tracker leaves the
+   * cap permanently consumed, so the two belong in one call rather than as a pair a caller has to
+   * remember.
+   *
+   * <p>{@code sizeManager} leads, per this class's parameter order for the size-tracked statics.
+   */
+  public static void clear(@Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets) {
+    clear(buckets);
+    sizeManager.reset();
   }
 
   /**
@@ -901,18 +912,37 @@ public final class Hashtable {
   }
 
   /**
-   * Tracks a live entry count against a fixed capacity. {@link D1} and {@link D2} use this
-   * internally for their strict entry-count cap; other composers of the static building blocks
-   * above -- those driving a {@code Hashtable.Entry[]} directly -- can reuse it instead of
-   * hand-rolling the same increment/decrement/cap-check bookkeeping.
+   * Manages a table's occupancy against a fixed cap -- both directions. Reserving a slot for an
+   * insert and evicting to make room are two halves of the same policy, so they live on one object:
+   * a caller never has to remember to decrement after unlinking, and there is no second object to
+   * wire up (or mis-wire) alongside the count.
+   *
+   * <p>{@link D1} and {@link D2} use one internally for their strict entry-count cap; composers
+   * driving a {@code Hashtable.Entry[]} through the static building blocks can reuse it instead of
+   * hand-rolling the same increment/decrement/cap-check bookkeeping. A table that never evicts
+   * simply never calls the eviction half.
+   *
+   * <pre>{@code
+   * // miss path of a capped, self-evicting table
+   * if (!sizeManager.tryReserveOrEvict(buckets, STALE)) {
+   *   return null;                       // full, and nothing was evictable -- drop the datum
+   * }
+   * insertHeadEntryFor(buckets, keyHash, newEntry);   // slot already reserved
+   * }</pre>
    *
    * <p>Not thread-safe, matching the rest of this class.
    */
-  public static final class SizeTracker {
+  public static final class SizeManager {
     private final int capacity;
     private int size;
 
-    public SizeTracker(int capacity) {
+    /**
+     * Bucket index the last eviction removed from. The next scan resumes here, so a sustained
+     * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
+     */
+    private int cursor;
+
+    public SizeManager(int capacity) {
       this.capacity = capacity;
     }
 
@@ -932,19 +962,40 @@ public final class Hashtable {
     /**
      * Reserves a slot for a fresh insert: increments and returns {@code true}, or leaves the count
      * unchanged and returns {@code false} if already at capacity. Use this when the entry to link
-     * is already fully built (nothing between the check and the increment can fail) -- e.g. {@link
-     * D1#insert}. When building the entry is itself fallible (e.g. {@link D1#tryGetOrCreate}'s
-     * {@code creator}), check {@link #isFull()} first, do the fallible work, then call {@link
-     * #increment()} only once linking actually succeeds.
+     * is already fully built (nothing between the check and the increment can fail). When building
+     * the entry is itself fallible, check {@link #isFull()} first, do the fallible work, then call
+     * {@link #increment()} only once linking actually succeeds.
      *
-     * <p>Returning {@code false} here is not a final refusal -- it's the caller's cue to either
-     * refuse the insert, or make room (e.g. evict a stale entry via {@link EvictionCursor}) and
-     * retry.
+     * <p>Returning {@code false} is not a final refusal -- it is the caller's cue to either refuse
+     * the insert or make room. {@link #tryReserveOrEvict} folds those two steps into one call.
      */
     public boolean tryReserve() {
       if (isFull()) {
         return false;
       }
+      this.size += 1;
+      return true;
+    }
+
+    /**
+     * {@link #tryReserve()}, falling back to evicting one entry matching {@code evictable} when the
+     * table is full. Returns {@code true} with a slot reserved, or {@code false} if the table was
+     * full and nothing was evictable -- in which case {@code buckets} is untouched and the caller
+     * should drop the datum.
+     *
+     * <p>The whole capacity decision of a self-evicting table's miss path, in one call. Pass a
+     * non-capturing {@code evictable} (typically a {@code static final}) to keep it
+     * allocation-free.
+     */
+    public boolean tryReserveOrEvict(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+      if (tryReserve()) {
+        return true;
+      }
+      if (evictOne(buckets, evictable) == null) {
+        return false;
+      }
+      // evictOne decremented; the slot it freed is ours.
       this.size += 1;
       return true;
     }
@@ -959,30 +1010,20 @@ public final class Hashtable {
       this.size -= 1;
     }
 
+    /** Zeroes both the live count and the eviction scan position. */
     public void reset() {
       this.size = 0;
+      this.cursor = 0;
     }
-  }
-
-  /**
-   * Resumable cursor for scanning a bucket array to evict entries under a caller-supplied {@link
-   * Predicate}, without repeatedly re-scanning the same already-checked prefix on a sustained
-   * eviction stream.
-   *
-   * <p>Pairs with {@link SizeTracker}: when {@link SizeTracker#tryReserve()} refuses because the
-   * table is full, a composer can call {@link #evictOne} to make room and retry, or give up if
-   * nothing was evictable.
-   *
-   * <p>Not thread-safe, matching the rest of this class.
-   */
-  public static final class EvictionCursor {
-    private int cursor;
 
     /**
-     * Scans {@code buckets} for the first entry matching {@code evictable}, starting at the cursor
-     * and wrapping all the way around back to the cursor if needed. Unlinks and returns the evicted
-     * entry, resuming the next call's scan from just past it; returns {@code null} if no entry
-     * matched anywhere in the table.
+     * Scans {@code buckets} for the first entry matching {@code evictable}, starting where the last
+     * eviction left off and wrapping around if needed. Unlinks and returns the evicted entry,
+     * decrementing the count; returns {@code null} (count untouched) if nothing matched anywhere.
+     *
+     * <p>Resuming from the previous position is what keeps a sustained eviction stream amortized:
+     * the worst case for a single call is still O(N) when nearly every entry is hot, but N
+     * evictions never re-scan the hot prefix more than twice.
      */
     @Nullable
     public Entry evictOne(
@@ -990,6 +1031,9 @@ public final class Hashtable {
       Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length);
       if (evicted == null && this.cursor != 0) {
         evicted = evictOneInRange(buckets, evictable, 0, this.cursor);
+      }
+      if (evicted != null) {
+        this.size -= 1;
       }
       return evicted;
     }
@@ -1014,11 +1058,15 @@ public final class Hashtable {
     }
 
     /**
-     * Unlinks every entry matching {@code evictable} in a single full pass over {@code buckets},
-     * regardless of the cursor's current position, and returns how many were removed. Resets the
-     * cursor to the start, since a full pass leaves nothing later to resume from.
+     * Unlinks every entry matching {@code evictable} in one full pass, decrementing the count for
+     * each, and returns how many were removed. Resets the scan position, since a full pass leaves
+     * nothing later to resume from.
+     *
+     * <p>Named {@code evictAll} rather than {@code drain} to keep it distinct from {@link
+     * Hashtable#drain(Hashtable.Entry[], Consumer)}, which empties the whole table into a sink.
+     * This one removes only what matches, and hands back a count rather than the entries.
      */
-    public int drain(
+    public int evictAll(
         @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
       int count = 0;
       MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets);
@@ -1029,41 +1077,35 @@ public final class Hashtable {
           count++;
         }
       }
+      this.size -= count;
       this.cursor = 0;
       return count;
-    }
-
-    public void reset() {
-      this.cursor = 0;
     }
   }
 
   /**
-   * Bundles a bucket array together with a {@link SizeTracker} and {@link EvictionCursor} sized and
-   * matched to it, so a composer driving the static building blocks directly gets everything it
-   * needs to store from one factory call, instead of separately sizing an array and a tracker that
-   * must stay in sync with it. Same headroom idiom as {@link D1}/{@link D2}'s constructors: {@code
-   * capacity} is the strict cap on live entries, and the backing array is sized with load-factor
-   * headroom over it.
+   * Bundles a bucket array together with a {@link SizeManager} sized and matched to it, so a
+   * composer driving the static building blocks directly gets everything it needs to store from one
+   * factory call, instead of separately sizing an array and a manager that must stay in sync with
+   * it. Same headroom idiom as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict
+   * cap on live entries, and the backing array is sized with load-factor headroom over it.
    *
    * <p>Store the pieces of this bundle into your own fields; nothing here is meant to be held onto
    * as a {@code Table} itself.
    */
   public static final class Table {
     public final Hashtable.Entry[] buckets;
-    public final SizeTracker size;
-    public final EvictionCursor evictionCursor = new EvictionCursor();
+    public final SizeManager sizeManager;
 
-    private Table(Hashtable.Entry[] buckets, int capacity) {
+    private Table(Hashtable.Entry[] buckets, int maxCapacity) {
       this.buckets = buckets;
-      this.size = new SizeTracker(capacity);
+      this.sizeManager = new SizeManager(maxCapacity);
     }
   }
 
   /**
-   * Creates a {@link Table}: a bucket array sized with load-factor headroom over {@code capacity},
-   * paired with a {@link SizeTracker} capped at the strict {@code capacity} and a fresh {@link
-   * EvictionCursor}.
+   * Creates a {@link Table}: a bucket array sized with load-factor headroom over {@code
+   * maxCapacity}, paired with a {@link SizeManager} capped at the strict {@code maxCapacity}.
    */
   @Nonnull
   public static Table createCappedTable(int maxCapacity) {
