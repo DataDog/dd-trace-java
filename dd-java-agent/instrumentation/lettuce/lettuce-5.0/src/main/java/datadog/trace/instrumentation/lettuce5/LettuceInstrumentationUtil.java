@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.lettuce5;
 import io.lettuce.core.protocol.CommandType;
 import io.lettuce.core.protocol.ProtocolKeyword;
 import io.lettuce.core.protocol.RedisCommand;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,10 +14,6 @@ public class LettuceInstrumentationUtil {
   public static final Set<CommandType> NON_INSTRUMENTING_COMMANDS =
       EnumSet.of(CommandType.SHUTDOWN, CommandType.DEBUG);
 
-  // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
-  private static final Set<String> NON_INSTRUMENTING_COMMAND_NAMES =
-      new HashSet<>(Arrays.asList("SHUTDOWN", "DEBUG"));
-
   public static final Set<CommandType> AGENT_CRASHING_COMMANDS =
       EnumSet.of(
           CommandType.CLIENT,
@@ -29,10 +24,19 @@ public class LettuceInstrumentationUtil {
           CommandType.SCRIPT);
 
   // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
-  private static final Set<String> AGENT_CRASHING_COMMAND_NAMES =
-      new HashSet<>(Arrays.asList("CLIENT", "CLUSTER", "COMMAND", "CONFIG", "DEBUG", "SCRIPT"));
+  private static final Set<String> NON_INSTRUMENTING_COMMAND_NAMES =
+      commandNames(NON_INSTRUMENTING_COMMANDS);
 
-  public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
+  private static final Set<String> AGENT_CRASHING_COMMAND_NAMES =
+      commandNames(AGENT_CRASHING_COMMANDS);
+
+  private static Set<String> commandNames(final Set<CommandType> commands) {
+    final Set<String> names = new HashSet<>();
+    for (final CommandType command : commands) {
+      names.add(command.toString());
+    }
+    return names;
+  }
 
   /**
    * Determines whether a redis command should finish its relevant span early (as soon as tags are
