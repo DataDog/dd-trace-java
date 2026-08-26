@@ -27,12 +27,14 @@ ARG MINGIT_VERSION="2.55.0.5"
 ARG MINGIT_RELEASE="v2.55.0.windows.5"
 ARG MINGIT_SHA256="56d7b226b7693196cfc71fef26568f536c4a021ab6c37ff2db4287bed908e96e"
 
+# The classic Windows Docker builder consumes nested double quotes in shell-form
+# RUN commands. Use PowerShell single-quoted strings and -f formatting here.
 RUN $archive = 'C:\mingit.zip'; `
-    $url = "https://github.com/git-for-windows/git/releases/download/$env:MINGIT_RELEASE/MinGit-$env:MINGIT_VERSION-64-bit.zip"; `
+    $url = 'https://github.com/git-for-windows/git/releases/download/{0}/MinGit-{1}-64-bit.zip' -f $env:MINGIT_RELEASE, $env:MINGIT_VERSION; `
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
     (New-Object System.Net.WebClient).DownloadFile($url, $archive); `
     $actual = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant(); `
-    if ($actual -ne $env:MINGIT_SHA256) { throw "MinGit checksum mismatch: expected $env:MINGIT_SHA256, got $actual" }; `
+    if ($actual -ne $env:MINGIT_SHA256) { throw ('MinGit checksum mismatch: expected {0}, got {1}' -f $env:MINGIT_SHA256, $actual) }; `
     Expand-Archive -Path $archive -DestinationPath C:\MinGit -Force; `
     Remove-Item $archive -Force
 
@@ -51,9 +53,10 @@ RUN Set-ItemProperty `
 # terminating error under the base image's $ErrorActionPreference = 'Stop'.
 # Capture the output and gate on the exit code instead.
 RUN foreach ($javaHome in @($env:JAVA_8_HOME, $env:JAVA_11_HOME, $env:JAVA_17_HOME, $env:JAVA_21_HOME, $env:JAVA_25_HOME)) { `
-        $output = (& "$javaHome\bin\java.exe" -version 2>&1 | Out-String).Trim(); `
-        if ($LASTEXITCODE -ne 0) { throw "java -version failed for $javaHome" }; `
-        Write-Host "$javaHome -> $output"; `
+        $java = Join-Path $javaHome 'bin\java.exe'; `
+        $output = (& $java -version 2>&1 | Out-String).Trim(); `
+        if ($LASTEXITCODE -ne 0) { throw ('java -version failed for {0}' -f $javaHome) }; `
+        Write-Host ('{0} -> {1}' -f $javaHome, $output); `
     }; `
     $gitVersion = (git --version 2>&1 | Out-String).Trim(); `
     if ($LASTEXITCODE -ne 0) { throw 'git --version failed' }; `
