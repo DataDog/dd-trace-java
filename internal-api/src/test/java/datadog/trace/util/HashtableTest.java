@@ -157,7 +157,7 @@ class HashtableTest {
 
     @Test
     void clearNullsAllBuckets() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -169,7 +169,7 @@ class HashtableTest {
 
     @Test
     void drainVisitsEveryEntryThenClears() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -185,7 +185,7 @@ class HashtableTest {
 
     @Test
     void insertHeadEntrySplicesAsNewHead() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
@@ -654,14 +654,11 @@ class HashtableTest {
 
     @Test
     void evictOneRemovesFirstMatchAndAdvancesCursor() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
-      Hashtable.SizeManager cursor = table.sizeManager;
-
-      StringIntEntry evicted =
-          (StringIntEntry) cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 2);
+      StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 2);
 
       assertEquals("b", evicted.key);
       assertNull(buckets[1]);
@@ -669,46 +666,104 @@ class HashtableTest {
     }
 
     @Test
+    void tryReserveOrEvictReservesWhileRoomRemains() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(2);
+
+      assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
+      assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
+      assertEquals(2, table.sizeManager.size());
+    }
+
+    @Test
+    void tryReserveOrEvictMakesRoomWhenFull() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(2);
+      StringIntEntry stale = new StringIntEntry("stale", 0);
+      StringIntEntry hot = new StringIntEntry("hot", 1);
+      assertTrue(Hashtable.insertHeadEntryFor(table, stale.keyHash, stale));
+      assertTrue(Hashtable.insertHeadEntryFor(table, hot.keyHash, hot));
+      assertTrue(table.sizeManager.isFull());
+
+      // Full, but one entry is evictable -- the slot it frees becomes the reservation.
+      assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
+      assertEquals(2, table.sizeManager.size(), "one out, one reserved");
+      Set<String> remaining = new HashSet<>();
+      Hashtable.<StringIntEntry>forEach(table.buckets, e -> remaining.add(e.key));
+      assertFalse(remaining.contains("stale"), "the evictable entry is gone");
+      assertTrue(remaining.contains("hot"), "the hot entry survived");
+    }
+
+    @Test
+    void tryReserveOrEvictRefusesWhenFullAndNothingEvictable() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(1);
+      StringIntEntry hot = new StringIntEntry("hot", 1);
+      assertTrue(Hashtable.insertHeadEntryFor(table, hot.keyHash, hot));
+
+      assertFalse(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
+      assertEquals(1, table.sizeManager.size(), "a refused reservation consumes nothing");
+      Set<String> remaining = new HashSet<>();
+      Hashtable.<StringIntEntry>forEach(table.buckets, e -> remaining.add(e.key));
+      assertTrue(remaining.contains("hot"), "nothing was evicted");
+    }
+
+    @Test
+    void removeMatchingOverStateNeedsNoTypeWitness() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      Hashtable.insertHeadEntryFor(table, a.keyHash, a);
+
+      StringIntEntry removed = Hashtable.removeMatching(table, a.keyHash, e -> e.matches("a"));
+
+      assertSame(a, removed);
+      assertEquals(0, table.sizeManager.size());
+    }
+
+    @Test
+    void clearOverStateEmptiesSpineAndResetsCount() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      Hashtable.insertHeadEntryFor(table, a.keyHash, a);
+      assertEquals(1, table.sizeManager.size());
+
+      Hashtable.clear(table);
+
+      assertEquals(0, table.sizeManager.size());
+      assertNull(table.buckets[Hashtable.bucketIndex(table.buckets, a.keyHash)]);
+    }
+
+    @Test
     void evictOneReturnsNullWhenNothingMatches() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
-      Hashtable.SizeManager cursor = table.sizeManager;
-
-      assertNull(cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 999));
+      assertNull(Hashtable.evictOne(table, e -> e.value == 999));
       assertNotNull(buckets[0]);
     }
 
     @Test
     void evictOneWrapsAroundToStartOfTable() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[3] = new StringIntEntry("d", 4);
-      Hashtable.SizeManager cursor = table.sizeManager;
-
       // First eviction matches bucket 3, advancing the cursor there.
-      StringIntEntry first =
-          (StringIntEntry) cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 4);
+      StringIntEntry first = Hashtable.evictOne(table, e -> e.value == 4);
       assertEquals("d", first.key);
 
       // Only remaining candidate is bucket 0, before the cursor -- requires wrap-around.
-      StringIntEntry second =
-          (StringIntEntry) cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 1);
+      StringIntEntry second = Hashtable.evictOne(table, e -> e.value == 1);
       assertEquals("a", second.key);
     }
 
     @Test
     void drainRemovesAllMatchesAndResetsCursor() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
       buckets[2] = new StringIntEntry("c", 3);
-      Hashtable.SizeManager cursor = table.sizeManager;
-      cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 3);
+      Hashtable.evictOne(table, e -> e.value == 3);
 
-      int removed = cursor.evictAll(buckets, e -> ((StringIntEntry) e).value < 3);
+      int removed = Hashtable.evictAll(table, e -> e.value < 3);
 
       assertEquals(2, removed);
       assertNull(buckets[0]);
@@ -716,24 +771,21 @@ class HashtableTest {
 
       // drain resets the cursor to the start, so a fresh scan finds bucket 0 without wrapping.
       buckets[0] = new StringIntEntry("a2", 1);
-      StringIntEntry evicted =
-          (StringIntEntry) cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 1);
+      StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 1);
       assertEquals("a2", evicted.key);
     }
 
     @Test
     void resetZeroesCursor() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[3] = new StringIntEntry("d", 4);
-      Hashtable.SizeManager cursor = table.sizeManager;
-      cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 4);
+      Hashtable.evictOne(table, e -> e.value == 4);
 
-      cursor.reset();
+      table.sizeManager.reset();
 
       buckets[0] = new StringIntEntry("a", 1);
-      StringIntEntry evicted =
-          (StringIntEntry) cursor.evictOne(buckets, e -> ((StringIntEntry) e).value == 1);
+      StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 1);
       assertEquals("a", evicted.key);
     }
   }
@@ -745,7 +797,7 @@ class HashtableTest {
 
     @Test
     void createTableSizesBucketsWithHeadroomAndCapsSize() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
 
       int len = table.buckets.length;
       assertTrue(len >= 4, "backing array must have load-factor headroom over capacity");
@@ -758,7 +810,7 @@ class HashtableTest {
 
     @Test
     void tableSizeTrackerRespectsCapacity() {
-      Hashtable.State table = Hashtable.createCapped(1);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(1);
 
       assertTrue(table.sizeManager.tryReserve());
       assertTrue(table.sizeManager.isFull());
@@ -767,7 +819,7 @@ class HashtableTest {
 
     @Test
     void tableSizeManagerOperatesOnItsOwnBuckets() {
-      Hashtable.State table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       table.buckets[0] = new StringIntEntry("a", 1);
 
       StringIntEntry evicted =
