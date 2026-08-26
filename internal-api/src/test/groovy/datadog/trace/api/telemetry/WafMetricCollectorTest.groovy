@@ -749,6 +749,7 @@ class WafMetricCollectorTest extends DDSpecification {
     metric.tags.toSet() == ['framework:netty'].toSet()
   }
 
+  @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'test normalize framework: #scenario'() {
     expect:
     WafMetricCollector.normalizeFramework(framework) == expectedFramework
