@@ -1,8 +1,8 @@
 package datadog.trace.util;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Set;
 
 /** Shared setup helpers for JMH benchmarks in this module. */
 public final class BenchmarkUtils {
@@ -45,15 +45,35 @@ public final class BenchmarkUtils {
   }
 
   public static void polluteHashDispatch(Object... decoyKeys) {
-    HashSet<Object> scratchHashSet = new HashSet<>();
-    for (Object key : decoyKeys) {
-      scratchHashSet.add(key);
-      scratchHashSet.contains(key);
-    }
+    populateTypeProfileMutable(new HashSet<>(), decoyKeys);
+    populateTypeProfile(CollectionUtils.tryMakeImmutableSet(Arrays.asList(decoyKeys)), decoyKeys);
+  }
 
-    Set<Object> scratchImmutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(decoyKeys));
+  /**
+   * The entry point most benchmarks should reach for: pass the same kind of collection instance
+   * under test (or an equivalent scratch instance). Works for both mutable and immutable
+   * collections since it only drives {@code contains()} -- the operation every {@link
+   * java.util.Set} supports, and the one these lookup benchmarks actually measure.
+   */
+  public static void populateTypeProfile(Collection<Object> populated) {
+    populateTypeProfile(populated, DEFAULT_DECOY_KEYS);
+  }
+
+  public static void populateTypeProfile(Collection<Object> populated, Object... decoyKeys) {
     for (Object key : decoyKeys) {
-      scratchImmutableSet.contains(key);
+      populated.contains(key);
+    }
+  }
+
+  /**
+   * Lower-level control: also drives {@code add()} dispatch, so {@code scratch} must genuinely
+   * support mutation, and lets the caller pick the decoy keys. Reach for this only when {@code
+   * add()} dispatch matters too, or the default decoys aren't the right shape.
+   */
+  public static void populateTypeProfileMutable(Collection<Object> scratch, Object... decoyKeys) {
+    for (Object key : decoyKeys) {
+      scratch.add(key);
+      scratch.contains(key);
     }
   }
 }
