@@ -54,6 +54,13 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("resource")
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, SelfScopedContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
+  private static final String BROKEN_PIPE_MESSAGE = "broken pipe";
+  private static final String NETTY_NATIVE_BROKEN_PIPE_MESSAGE =
+      "writevAddresses(..) failed with error(-32): Broken pipe";
+  private static final String NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE =
+      "syscall:writev(..) failed: Broken pipe";
+  private static final String NETTY_NATIVE_CONNECTION_RESET_MESSAGE =
+      "writevAddresses(..) failed: Connection reset by peer";
 
   static DDSpan create(
       final String instrumentationName,
@@ -357,10 +364,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
       String message = StackTraces.safeGetMessage(error);
-      if (!"broken pipe".equalsIgnoreCase(message)
+      if (!isClientAbortMessage(message)
           && (error.getCause() == null
-              || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
-        // broken pipes happen when clients abort connections,
+              || !isClientAbortMessage(StackTraces.safeGetMessage(error.getCause())))) {
+        // Broken pipes and Netty native write resets happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
@@ -377,6 +384,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       }
     }
     return this;
+  }
+
+  private static boolean isClientAbortMessage(@Nullable String message) {
+    if (message == null) {
+      return false;
+    }
+    return BROKEN_PIPE_MESSAGE.equalsIgnoreCase(message)
+        || NETTY_NATIVE_BROKEN_PIPE_MESSAGE.equals(message)
+        || NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE.equals(message)
+        || NETTY_NATIVE_CONNECTION_RESET_MESSAGE.equals(message);
   }
 
   private boolean isExceptionReplayEnabled() {

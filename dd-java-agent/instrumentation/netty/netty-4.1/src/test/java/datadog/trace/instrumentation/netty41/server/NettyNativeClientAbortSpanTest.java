@@ -52,6 +52,10 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
       "io.netty.channel.unix.Errors$NativeIoException";
   private static final String BROKEN_PIPE_MESSAGE =
       "writevAddresses(..) failed with error(-32): Broken pipe";
+  private static final String SYSCALL_BROKEN_PIPE_MESSAGE =
+      "syscall:writev(..) failed: Broken pipe";
+  private static final String CONNECTION_RESET_MESSAGE =
+      "writevAddresses(..) failed: Connection reset by peer";
 
   @Test
   void nativeBrokenPipeFromCancelledResponseDoesNotMarkServerSpanError() throws Exception {
@@ -94,14 +98,16 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
       Throwable failure = handler.awaitFailure();
       assertEquals(NATIVE_IO_EXCEPTION, failure.getClass().getName());
-      assertEquals(BROKEN_PIPE_MESSAGE, failure.getMessage());
+      assertTrue(
+          isExpectedClientAbortMessage(failure.getMessage()),
+          () -> "unexpected native write failure message: " + failure.getMessage());
 
       writer.waitForTraces(1);
       DDSpan span = writer.firstTrace().get(0);
-      assertFalse(span.isError(), "broken-pipe should result in a non-error span");
+      assertFalse(span.isError(), "client abort should result in a non-error span");
       assertEquals(200, span.getTag(Tags.HTTP_STATUS));
       assertEquals(NATIVE_IO_EXCEPTION, span.getTag(DDTags.ERROR_TYPE));
-      assertEquals(BROKEN_PIPE_MESSAGE, span.getTag(DDTags.ERROR_MSG));
+      assertEquals(failure.getMessage(), span.getTag(DDTags.ERROR_MSG));
       assertNull(span.getTag(DDTags.ERROR_STACK));
     } finally {
       if (server != null) {
@@ -114,6 +120,12 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
   private static String request() {
     return "GET " + PATH + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
+  }
+
+  private static boolean isExpectedClientAbortMessage(String message) {
+    return BROKEN_PIPE_MESSAGE.equals(message)
+        || SYSCALL_BROKEN_PIPE_MESSAGE.equals(message)
+        || CONNECTION_RESET_MESSAGE.equals(message);
   }
 
   @ChannelHandler.Sharable
