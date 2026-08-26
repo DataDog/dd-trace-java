@@ -11,8 +11,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
-import java.util.concurrent.atomic.LongAdder;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
@@ -73,8 +73,21 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * since this call site has no sampling gate and could otherwise saturate {@link #rawMetricsQueue}
    * under load (e.g. scanner traffic hitting unresolvable routes).
    */
-  private static final ConcurrentHashMap<String, LongAdder> apiSecurityMissingRouteCounters =
-      new ConcurrentHashMap<>();
+  private static final String UNKNOWN_FRAMEWORK = "unknown";
+
+  /**
+   * Cap on distinct framework keys tracked per counter map, {@link #UNKNOWN_FRAMEWORK} included.
+   * {@code framework} is read from the span's {@code component} tag, which is not guaranteed to
+   * come from a bounded, known set (e.g. custom/manual instrumentation could set it per-request) —
+   * without a cap the maps would never shrink, since {@link #prepareMetrics()} only resets counters
+   * to zero, it never removes keys. Frameworks beyond the cap are folded into {@link
+   * #UNKNOWN_FRAMEWORK}. Admission is synchronized per-map in {@link #counterFor} so the cap is
+   * enforced atomically instead of racing on {@code size()}.
+   */
+  private static final int MAX_FRAMEWORK_CARDINALITY = 64;
+
+  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityMissingRouteCounters =
+      newFrameworkCounters();
 
   /**
    * Per-framework counters for sampled requests with/without an extracted API Security schema.
@@ -83,20 +96,18 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * between telemetry heartbeats could otherwise saturate {@link #rawMetricsQueue} one request at a
    * time.
    */
-  private static final ConcurrentHashMap<String, LongAdder> apiSecurityRequestSchemaCounters =
-      new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestSchemaCounters =
+      newFrameworkCounters();
 
-  private static final ConcurrentHashMap<String, LongAdder> apiSecurityRequestNoSchemaCounters =
-      new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestNoSchemaCounters =
+      newFrameworkCounters();
 
-  /**
-   * Cap on distinct framework keys tracked per counter map. {@code framework} is read from the
-   * span's {@code component} tag, which is not guaranteed to come from a bounded, known set (e.g.
-   * custom/manual instrumentation could set it per-request) — without a cap the maps would never
-   * shrink, since {@link #prepareMetrics()} only resets counters to zero, it never removes keys.
-   * Frameworks beyond the cap are folded into the {@code "unknown"} bucket.
-   */
-  private static final int MAX_FRAMEWORK_CARDINALITY = 64;
+  /** Reserves the {@link #UNKNOWN_FRAMEWORK} bucket within the cardinality cap up front. */
+  private static ConcurrentHashMap<String, AtomicLong> newFrameworkCounters() {
+    final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
+    counters.put(UNKNOWN_FRAMEWORK, new AtomicLong());
+    return counters;
+  }
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -250,43 +261,55 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * considered for schema extraction sampling.
    */
   public void apiSecurityMissingRoute(final String framework) {
-    counterFor(apiSecurityMissingRouteCounters, framework).increment();
+    counterFor(apiSecurityMissingRouteCounters, framework).incrementAndGet();
   }
 
   /** Reports a sampled request for which at least one API Security schema was extracted. */
   public void apiSecurityRequestSchema(final String framework) {
-    counterFor(apiSecurityRequestSchemaCounters, framework).increment();
+    counterFor(apiSecurityRequestSchemaCounters, framework).incrementAndGet();
   }
 
   /** Reports a sampled request for which no API Security schema was extracted. */
   public void apiSecurityRequestNoSchema(final String framework) {
-    counterFor(apiSecurityRequestNoSchemaCounters, framework).increment();
+    counterFor(apiSecurityRequestNoSchemaCounters, framework).incrementAndGet();
   }
 
   /** Normalizes a framework (span component) value, mapping null or blank values to "unknown". */
   static String normalizeFramework(final String framework) {
     if (framework == null || framework.trim().isEmpty()) {
-      return "unknown";
+      return UNKNOWN_FRAMEWORK;
     }
     return framework.trim();
   }
 
   /**
    * Returns the counter for {@code framework} in {@code counters}, capping the map at {@link
-   * #MAX_FRAMEWORK_CARDINALITY} distinct keys. Once the cap is reached, any framework not already
-   * tracked is folded into the {@code "unknown"} bucket instead of growing the map further.
+   * #MAX_FRAMEWORK_CARDINALITY} distinct keys ({@link #UNKNOWN_FRAMEWORK} pre-reserved by {@link
+   * #newFrameworkCounters()}). Once the cap is reached, any framework not already tracked is folded
+   * into {@link #UNKNOWN_FRAMEWORK} instead of growing the map further. The fast path for an
+   * already-tracked key is lock-free; admission of a never-seen key is synchronized on {@code
+   * counters} so the size check and the insertion happen atomically, closing the race where
+   * concurrent first-seen frameworks could otherwise all pass the check and overshoot the cap.
    */
-  private static LongAdder counterFor(
-      final ConcurrentHashMap<String, LongAdder> counters, final String framework) {
+  private static AtomicLong counterFor(
+      final ConcurrentHashMap<String, AtomicLong> counters, final String framework) {
     final String key = normalizeFramework(framework);
-    final LongAdder existing = counters.get(key);
+    final AtomicLong existing = counters.get(key);
     if (existing != null) {
       return existing;
     }
-    if (counters.size() >= MAX_FRAMEWORK_CARDINALITY) {
-      return counters.computeIfAbsent("unknown", f -> new LongAdder());
+    synchronized (counters) {
+      final AtomicLong existingSync = counters.get(key);
+      if (existingSync != null) {
+        return existingSync;
+      }
+      if (counters.size() >= MAX_FRAMEWORK_CARDINALITY) {
+        return counters.get(UNKNOWN_FRAMEWORK);
+      }
+      final AtomicLong created = new AtomicLong();
+      counters.put(key, created);
+      return created;
     }
-    return counters.computeIfAbsent(key, f -> new LongAdder());
   }
 
   @Override
@@ -512,8 +535,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // API Security missing route, per framework
-    for (final Map.Entry<String, LongAdder> entry : apiSecurityMissingRouteCounters.entrySet()) {
-      final long count = entry.getValue().sumThenReset();
+    for (final Map.Entry<String, AtomicLong> entry : apiSecurityMissingRouteCounters.entrySet()) {
+      final long count = entry.getValue().getAndSet(0);
       if (count > 0) {
         if (!rawMetricsQueue.offer(new ApiSecurityMissingRoute(count, entry.getKey()))) {
           return;
@@ -522,8 +545,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // API Security request schema, per framework
-    for (final Map.Entry<String, LongAdder> entry : apiSecurityRequestSchemaCounters.entrySet()) {
-      final long count = entry.getValue().sumThenReset();
+    for (final Map.Entry<String, AtomicLong> entry : apiSecurityRequestSchemaCounters.entrySet()) {
+      final long count = entry.getValue().getAndSet(0);
       if (count > 0) {
         if (!rawMetricsQueue.offer(new ApiSecurityRequestSchema(count, entry.getKey()))) {
           return;
@@ -532,8 +555,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // API Security request no schema, per framework
-    for (final Map.Entry<String, LongAdder> entry : apiSecurityRequestNoSchemaCounters.entrySet()) {
-      final long count = entry.getValue().sumThenReset();
+    for (final Map.Entry<String, AtomicLong> entry :
+        apiSecurityRequestNoSchemaCounters.entrySet()) {
+      final long count = entry.getValue().getAndSet(0);
       if (count > 0) {
         if (!rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(count, entry.getKey()))) {
           return;
