@@ -224,6 +224,18 @@ class HashtableD2Test {
   }
 
   @Test
+  void isFullReflectsCapacity() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(2);
+    assertFalse(table.isFull());
+    table.insert(new PairEntry("a", 1, 100));
+    assertFalse(table.isFull());
+    table.insert(new PairEntry("b", 2, 200));
+    assertTrue(table.isFull());
+    table.remove("a", 1);
+    assertFalse(table.isFull());
+  }
+
+  @Test
   void drainVisitsEveryEntryThenEmptiesTable() {
     Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
     table.insert(new PairEntry("a", 1, 100));
