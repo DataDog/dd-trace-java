@@ -91,7 +91,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes) {
     if (this.recording) {
-      addEvent(new OtelSpanEvent(name, attributes));
+      doAddEvent(new OtelSpanEvent(name, attributes));
     }
     return this;
   }
@@ -99,12 +99,12 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     if (this.recording) {
-      addEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
+      doAddEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
     }
     return this;
   }
 
-  private synchronized void addEvent(OtelSpanEvent event) {
+  private synchronized void doAddEvent(OtelSpanEvent event) {
     if (this.events == null) {
       this.events = new ArrayList<>();
     }
@@ -132,7 +132,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
     if (this.recording) {
       additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
       applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
-      addEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
+      doAddEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
     }
     return this;
   }
