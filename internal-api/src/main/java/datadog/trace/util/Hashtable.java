@@ -769,6 +769,17 @@ public final class Hashtable {
   }
 
   /**
+   * {@link #insertHeadEntryFor(SizeManager, Hashtable.Entry[], long, Hashtable.Entry)} over a
+   * {@link State}, which carries the spine and its manager together -- so there is no way to pass a
+   * manager that belongs to a different table, and {@code TEntry} is inferred rather than needing a
+   * witness at the call site.
+   */
+  public static <TEntry extends Entry> boolean insertHeadEntryFor(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+    return insertHeadEntryFor(state.sizeManager, state.buckets, keyHash, entry);
+  }
+
+  /**
    * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
    * it, decrements {@code sizeManager}, and returns it -- or returns {@code null} (leaving {@code
    * buckets} and {@code sizeManager} untouched) if nothing in the chain matches. Mirrors {@link
@@ -794,6 +805,42 @@ public final class Hashtable {
       }
     }
     return null;
+  }
+
+  /**
+   * Reserves a slot in {@code state} for a fresh insert, evicting one entry matching {@code
+   * evictable} if the table is full. {@code false} means full with nothing evictable -- the caller
+   * should drop the datum. The whole capacity decision of a self-evicting table's miss path in one
+   * call; pass a non-capturing {@code evictable} (typically a {@code static final}) to keep it
+   * allocation-free.
+   */
+  public static <TEntry extends Entry> boolean tryReserveOrEvict(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
+  }
+
+  /**
+   * Unlinks the first entry in {@code state} matching {@code evictable}, resuming from where the
+   * last eviction looked, and decrements the count. {@code null} if nothing matched anywhere.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry evictOne(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.evictOne(state.buckets, evictable);
+  }
+
+  /**
+   * Unlinks every entry in {@code state} matching {@code evictable}, decrementing per removal, and
+   * returns how many went.
+   */
+  public static <TEntry extends Entry> int evictAll(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+    return state.sizeManager.evictAll(state.buckets, evictable);
+  }
+
+  /** {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}. */
+  public static void clear(@Nonnull State<?> state) {
+    clear(state.sizeManager, state.buckets);
   }
 
   /**
@@ -867,6 +914,16 @@ public final class Hashtable {
       MutatingTableIterator<TEntry> mutatingTableIterator(
           @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
     return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
+  }
+
+  /**
+   * {@link #removeMatching(SizeManager, Hashtable.Entry[], long, Predicate)} over a {@link State}.
+   * The predicate is typed to {@code TEntry}, so a caller matching on entry fields needs no cast.
+   */
+  @Nullable
+  public static <TEntry extends Entry> TEntry removeMatching(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull Predicate<? super TEntry> matches) {
+    return removeMatching(state.sizeManager, state.buckets, keyHash, matches);
   }
 
   public static void clear(@Nonnull Hashtable.Entry[] buckets) {
@@ -987,8 +1044,8 @@ public final class Hashtable {
      * non-capturing {@code evictable} (typically a {@code static final}) to keep it
      * allocation-free.
      */
-    public boolean tryReserveOrEvict(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+    public <TEntry extends Entry> boolean tryReserveOrEvict(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
       if (tryReserve()) {
         return true;
       }
@@ -1025,9 +1082,10 @@ public final class Hashtable {
      * the worst case for a single call is still O(N) when nearly every entry is hot, but N
      * evictions never re-scan the hot prefix more than twice.
      */
+    @SuppressWarnings("unchecked")
     @Nullable
-    public Entry evictOne(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+    public <TEntry extends Entry> TEntry evictOne(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
       Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length);
       if (evicted == null && this.cursor != 0) {
         evicted = evictOneInRange(buckets, evictable, 0, this.cursor);
@@ -1035,19 +1093,20 @@ public final class Hashtable {
       if (evicted != null) {
         this.size -= 1;
       }
-      return evicted;
+      return (TEntry) evicted;
     }
 
+    @SuppressWarnings("unchecked")
     @Nullable
-    private Entry evictOneInRange(
+    private <TEntry extends Entry> Entry evictOneInRange(
         @Nonnull Hashtable.Entry[] buckets,
-        @Nonnull Predicate<? super Entry> evictable,
+        @Nonnull Predicate<? super TEntry> evictable,
         int startBucket,
         int endBucket) {
       MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets, startBucket, endBucket);
       while (iter.hasNext()) {
         Entry candidate = iter.next();
-        if (evictable.test(candidate)) {
+        if (evictable.test((TEntry) candidate)) {
           int bucket = iter.currentBucket();
           iter.remove();
           this.cursor = bucket;
@@ -1066,13 +1125,14 @@ public final class Hashtable {
      * Hashtable#drain(Hashtable.Entry[], Consumer)}, which empties the whole table into a sink.
      * This one removes only what matches, and hands back a count rather than the entries.
      */
-    public int evictAll(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super Entry> evictable) {
+    @SuppressWarnings("unchecked")
+    public <TEntry extends Entry> int evictAll(
+        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
       int count = 0;
       MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets);
       while (iter.hasNext()) {
         Entry candidate = iter.next();
-        if (evictable.test(candidate)) {
+        if (evictable.test((TEntry) candidate)) {
           iter.remove();
           count++;
         }
@@ -1097,7 +1157,7 @@ public final class Hashtable {
    * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the strict cap on live
    * entries, and the backing array is sized with load-factor headroom over it.
    */
-  public static final class State {
+  public static final class State<TEntry extends Entry> {
     public final Hashtable.Entry[] buckets;
     public final SizeManager sizeManager;
 
@@ -1112,9 +1172,9 @@ public final class Hashtable {
    * maxCapacity}, paired with a {@link SizeManager} capped at the strict {@code maxCapacity}.
    */
   @Nonnull
-  public static State createCapped(int maxCapacity) {
+  public static <TEntry extends Entry> State<TEntry> createCapped(int maxCapacity) {
     Hashtable.Entry[] buckets = create(capacityFor(maxCapacity));
-    return new State(buckets, maxCapacity);
+    return new State<>(buckets, maxCapacity);
   }
 
   /**
