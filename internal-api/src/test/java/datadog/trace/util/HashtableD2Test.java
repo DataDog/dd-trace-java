@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -180,6 +181,46 @@ class HashtableD2Test {
     assertEquals(0, table.size());
     assertNull(table.get("a", 1));
     assertNull(table.get("b", 2));
+  }
+
+  @Test
+  void insertReturnsFalseOnceAtCapacity() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(2);
+    assertTrue(table.insert(new PairEntry("a", 1, 100)));
+    assertTrue(table.insert(new PairEntry("b", 2, 200)));
+    assertFalse(table.insert(new PairEntry("c", 3, 300)));
+    assertEquals(2, table.size());
+    assertNull(table.get("c", 3));
+  }
+
+  @Test
+  void getOrCreateReturnsNullOnceAtCapacityButStillReturnsHits() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(2);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+
+    assertNull(table.getOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 300)));
+    assertEquals(2, table.size());
+
+    PairEntry hit = table.getOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 999));
+    assertEquals(100, hit.value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void insertOrReplaceStillReplacesAtCapacityButThrowsOnFreshInsert() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(2);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+
+    PairEntry replacement = new PairEntry("a", 1, 999);
+    PairEntry prior = table.insertOrReplace(replacement);
+    assertEquals(100, prior.value);
+    assertSame(replacement, table.get("a", 1));
+    assertEquals(2, table.size());
+
+    assertThrows(
+        IllegalStateException.class, () -> table.insertOrReplace(new PairEntry("c", 3, 300)));
+    assertEquals(2, table.size());
   }
 
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
