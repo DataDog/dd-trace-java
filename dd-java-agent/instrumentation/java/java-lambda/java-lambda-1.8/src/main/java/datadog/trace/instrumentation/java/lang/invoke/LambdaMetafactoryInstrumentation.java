@@ -21,6 +21,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
+import net.bytebuddy.utility.OpenedClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,7 +144,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
     private boolean injected;
 
     MetafactoryClassVisitor(ClassVisitor cv, String slashClassName) {
-      super(Opcodes.ASM7, cv);
+      super(OpenedClassReader.ASM_API, cv);
       this.slashClassName = slashClassName;
     }
 
