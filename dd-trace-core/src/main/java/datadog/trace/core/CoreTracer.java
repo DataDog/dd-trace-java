@@ -1052,34 +1052,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /**
-   * AWS Lambda SnapStart checkpoints the JVM at snapshot-creation time and later restores it,
-   * potentially much later (a restored snapshot can go {@code Inactive} and be restored again after
-   * 14 days of no invocations). {@link System#nanoTime()} does not account for the frozen duration
-   * across that restore, so {@link #startTimeNano}/{@link #startNanoTicks} - captured once at
-   * construction time, i.e. at snapshot-creation time - go stale, and the periodic self-correction
-   * in {@link #getTimeWithNanoTicks} may never trigger to fix it: that correction is gated on
-   * {@code nanoTicks - lastSyncTicks >= clockSyncPeriod} (monotonic ticks elapsed), which a
-   * short-lived restore-then-invoke sequence can easily never reach even though wall-clock time has
-   * moved on by hours or days. Left uncorrected, every span timestamp computed via {@link
-   * #getTimeWithNanoTicks} stays anchored near the original snapshot-creation instant instead of
-   * the real restore/invocation time.
-   *
-   * <p>Rather than reset {@link #startTimeNano}/{@link #startNanoTicks} themselves - which would
-   * require making those fields {@code volatile}, since they're read on every {@link
-   * #getTimeWithNanoTicks} call from arbitrary tracing threads - this folds the entire observed
-   * drift into {@link #counterDrift} via the same {@link #correctCounterDrift} used by the periodic
-   * self-correction in {@link #getTimeWithNanoTicks}.
-   *
-   * <p>Rather than reacting to the restore event itself (which would need a JVM-level
-   * checkpoint/restore hook), this is called from {@link #notifyLambdaStart} - already invoked once
-   * per Lambda invocation, before any span for that invocation is created. Any real restore is
-   * always followed by an invocation, so resyncing there catches it with no extra dependency. Doing
-   * this on every invocation (not just ones following a restore) is deliberate: outside SnapStart,
-   * {@link System#nanoTime()} correctly tracks elapsed time across a warm container's normal
-   * freeze/thaw between invocations (same continuously-executing process, unlike SnapStart's
-   * restore-into-a-new-context), so this is a correct no-op there - just a couple of field reads
-   * and a subtraction, negligible next to the HTTP round-trip {@link #notifyLambdaStart} already
-   * makes.
+   * AWS Lambda SnapStart restores a checkpointed JVM, potentially hours or days later, without
+   * {@link System#nanoTime()} accounting for the frozen duration. That can leave the computed time
+   * stale for longer than {@link #getTimeWithNanoTicks}'s periodic self-correction can catch, as
+   * that's gated on ticks elapsed rather than wall-clock time. Called once per Lambda invocation,
+   * before any span for it is created, so it's a cheap no-op outside SnapStart.
    *
    * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
    */
