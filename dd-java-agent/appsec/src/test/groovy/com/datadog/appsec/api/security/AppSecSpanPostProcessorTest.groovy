@@ -37,6 +37,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
+    def rootSpan = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
@@ -54,7 +55,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
     1 * subInfo.isEmpty() >> false
-    1 * span.getTag(Tags.COMPONENT) >> FRAMEWORK
+    1 * span.getLocalRootSpan() >> rootSpan
+    1 * rootSpan.getTag(Tags.COMPONENT) >> FRAMEWORK
     1 * producer.publishDataEvent(_, ctx, _, _)
     1 * ctx.getDerivativeKeys() >> ([SCHEMA_DERIVATIVE_KEY] as Set)
     1 * wafMetricCollector.apiSecurityRequestSchema(FRAMEWORK)
@@ -96,6 +98,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
+    def rootSpan = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
@@ -110,7 +113,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
-    1 * span.getTag(Tags.COMPONENT) >> FRAMEWORK
+    1 * span.getLocalRootSpan() >> rootSpan
+    1 * rootSpan.getTag(Tags.COMPONENT) >> FRAMEWORK
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> null
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
@@ -218,6 +222,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
+    def rootSpan = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
@@ -232,7 +237,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
-    1 * span.getTag(Tags.COMPONENT) >> FRAMEWORK
+    1 * span.getLocalRootSpan() >> rootSpan
+    1 * rootSpan.getTag(Tags.COMPONENT) >> FRAMEWORK
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> true
@@ -249,6 +255,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
+    def rootSpan = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
@@ -263,7 +270,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
-    1 * span.getTag(Tags.COMPONENT) >> FRAMEWORK
+    1 * span.getLocalRootSpan() >> rootSpan
+    1 * rootSpan.getTag(Tags.COMPONENT) >> FRAMEWORK
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> false
@@ -281,6 +289,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
+    def rootSpan = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
@@ -295,7 +304,8 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
-    1 * span.getTag(Tags.COMPONENT) >> framework
+    1 * span.getLocalRootSpan() >> rootSpan
+    1 * rootSpan.getTag(Tags.COMPONENT) >> framework
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
     1 * subInfo.isEmpty() >> false

@@ -57,7 +57,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
         return;
       }
       log.debug("Request sampled, processing API security post-processing");
-      final Object component = span.getTag(Tags.COMPONENT);
+      final Object component = span.getLocalRootSpan().getTag(Tags.COMPONENT);
       final String framework = component != null ? component.toString() : null;
       extractSchemas(ctx, ctx_.getTraceSegment(), framework);
     } finally {
