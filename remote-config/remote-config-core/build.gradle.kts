@@ -1,19 +1,20 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["minimumBranchCoverage"] = 0.6
-extra["minimumInstructionCoverage"] = 0.8
-extra["excludedClassesCoverage"] = listOf(
-  // not used yet
-  "datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.AgentInfo",
-  // only half the adapter interface used
-  "datadog.remoteconfig.tuf.InstantJsonAdapter",
-  // idem
-  "datadog.remoteconfig.tuf.RawJsonAdapter",
-  "datadog.remoteconfig.ExceptionHelper",
+val minimumBranchCoverage by extra(0.6)
+val minimumInstructionCoverage by extra(0.8)
+val excludedClassesCoverage by extra(
+  listOf(
+    // not used yet
+    "datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.AgentInfo",
+    // only half the adapter interface used
+    "datadog.remoteconfig.tuf.InstantJsonAdapter",
+    // idem
+    "datadog.remoteconfig.tuf.RawJsonAdapter",
+    "datadog.remoteconfig.ExceptionHelper",
+  )
 )
 extra["excludedClassesBranchCoverage"] = listOf(
   "datadog.remoteconfig.tuf.FeaturesConfig",

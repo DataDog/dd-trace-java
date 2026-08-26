@@ -7,6 +7,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.intake.Intake;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +91,13 @@ public class FlagEvaluationEnqueueContentionBenchmark {
     final Config config = Config.get();
     final BackendApiFactory factory = new BackendApiFactory(config, null);
     // Capacity well above what the batch-draining consumer should ever let build up.
-    writer = new FlagEvaluationWriterImpl(1 << 20, Long.MAX_VALUE, NANOSECONDS, factory, config);
+    writer =
+        new FlagEvaluationWriterImpl(
+            1 << 20,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+            config);
   }
 
   /**

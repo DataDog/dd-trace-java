@@ -77,6 +77,95 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void preprocessesSemverComparandsAndDropsMalformedFlags() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag("no-allocations", ""),
+                    booleanFlag(
+                        "no-splits", ",\"allocations\":[{\"key\":\"no-splits\",\"rules\":[]}]"),
+                    booleanFlag(
+                        "null-split",
+                        ",\"allocations\":[{\"key\":\"null-split\",\"rules\":[],\"splits\":[null]}]"),
+                    booleanFlag("no-rules", allocation("no-rules", "")),
+                    booleanFlag("no-conditions", allocation("no-conditions", "[{}]")),
+                    booleanFlag(
+                        "no-operator", allocation("no-operator", "[{\"conditions\":[{}]}]")),
+                    booleanFlag(
+                        "non-semver",
+                        allocation(
+                            "non-semver",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"MATCHES\",\"value\":\"1\"}]}]")),
+                    booleanFlag(
+                        "valid-semver",
+                        allocation(
+                            "valid-semver",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2.3\"}]}]")),
+                    booleanFlag(
+                        "invalid-semver",
+                        allocation(
+                            "invalid-semver",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"1.2\"}]}]")),
+                    booleanFlag(
+                        "non-string-semver",
+                        allocation(
+                            "non-string-semver",
+                            "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":1}]}]")),
+                    "\"null-flag\":null")));
+
+    assertNotNull(configuration);
+    assertTrue(configuration.flags.containsKey("no-allocations"));
+    assertTrue(configuration.flags.containsKey("no-splits"));
+    assertTrue(configuration.flags.containsKey("null-split"));
+    assertTrue(configuration.flags.containsKey("no-rules"));
+    assertTrue(configuration.flags.containsKey("no-conditions"));
+    assertTrue(configuration.flags.containsKey("no-operator"));
+    assertTrue(configuration.flags.containsKey("non-semver"));
+    assertTrue(configuration.flags.containsKey("valid-semver"));
+    assertFalse(configuration.flags.containsKey("invalid-semver"));
+    assertFalse(configuration.flags.containsKey("non-string-semver"));
+    assertFalse(configuration.flags.containsKey("null-flag"));
+    assertEquals(2, configuration.invalidFlags.size());
+    assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
+    assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("non-string-semver"));
+
+    assertNotNull(
+        configuration
+            .flags
+            .get("valid-semver")
+            .allocations
+            .get(0)
+            .rules
+            .get(0)
+            .conditions
+            .get(0)
+            .semverComparand);
+  }
+
+  @Test
+  void dropsFlagWithMissingSplitShards() throws Exception {
+    final ServerConfiguration configuration =
+        parse(
+            wrap(
+                configWithFlags(
+                    booleanFlag(
+                        "missing-shards",
+                        ",\"allocations\":[{\"key\":\"missing-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\"}]}]"),
+                    booleanFlag("valid-sibling", ""))));
+
+    assertNotNull(configuration);
+    assertFalse(configuration.flags.containsKey("missing-shards"));
+    assertTrue(configuration.flags.containsKey("valid-sibling"));
+    assertEquals("invalid_flag", configuration.invalidFlags.get("missing-shards"));
+  }
+
+  @Test
+  void nullAttributesAreRejectedWithoutInvokingTheFlagParser() throws Exception {
+    assertNull(parse("{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":null}}"));
+  }
+
+  @Test
   void observeFullEvaluationDataDefaultsToFalseWhenAbsent() throws Exception {
     // Absent → Moshi leaves the boxed field null; the read site's Boolean.TRUE.equals(...) then
     // resolves to the privacy-preserving default (consent-off). Either null-or-false is the
@@ -169,6 +258,35 @@ class JsonApiUfcResponseParserTest {
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{}"
         + "}";
+  }
+
+  private static String configWithFlags(final String... flags) {
+    return "{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + String.join(",", flags)
+        + "}}";
+  }
+
+  private static String booleanFlag(final String key, final String allocations) {
+    return "\""
+        + key
+        + "\":{"
+        + "\"key\":\""
+        + key
+        + "\",\"enabled\":true,\"variationType\":\"BOOLEAN\","
+        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":true}}"
+        + allocations
+        + "}";
+  }
+
+  private static String allocation(final String key, final String rules) {
+    return ",\"allocations\":[{\"key\":\""
+        + key
+        + "\""
+        + (rules.isEmpty() ? "" : ",\"rules\":" + rules)
+        + ",\"splits\":[]}]";
   }
 
   private static String emptyConfig() {

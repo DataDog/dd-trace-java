@@ -11,8 +11,10 @@ spotbugs_annotations = "4.10.3"
 
 # Source code formatters
 google-java-format = "1.36.1"
+greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
+spotless = "8.10.0"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
@@ -49,6 +51,7 @@ jmh = "1.37"
 # Profiling
 jmc = "8.1.0"
 jafar = "0.16.0"
+jol = "0.17"
 
 # Web & Network
 jnr-unixsocket = "0.38.25"
@@ -134,6 +137,7 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
+jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
 
 # Web & Network
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
@@ -207,3 +211,4 @@ spock = ["spock-core", "objenesis"]
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
