@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.LongAdder;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
@@ -64,6 +66,15 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicInteger aiGuardErrors = new AtomicInteger();
   private static final AtomicLongArray aiGuardTruncated =
       new AtomicLongArray(AIGuardTruncationType.values().length);
+
+  /**
+   * Per-framework counters for requests where API Security could not resolve a route. Aggregated
+   * in-memory and drained on {@link #prepareMetrics()} instead of enqueueing on every request,
+   * since this call site has no sampling gate and could otherwise saturate {@link #rawMetricsQueue}
+   * under load (e.g. scanner traffic hitting unresolvable routes).
+   */
+  private static final ConcurrentHashMap<String, LongAdder> apiSecurityMissingRouteCounters =
+      new ConcurrentHashMap<>();
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -217,7 +228,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    * considered for schema extraction sampling.
    */
   public void apiSecurityMissingRoute(final String framework) {
-    rawMetricsQueue.offer(new ApiSecurityMissingRoute(1L, normalizeFramework(framework)));
+    apiSecurityMissingRouteCounters
+        .computeIfAbsent(normalizeFramework(framework), f -> new LongAdder())
+        .increment();
   }
 
   /** Reports a sampled request for which at least one API Security schema was extracted. */
@@ -455,6 +468,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       final long count = aiGuardTruncated.getAndSet(type.ordinal(), 0);
       if (count > 0) {
         if (!rawMetricsQueue.offer(new AIGuardTruncated(count, type))) {
+          return;
+        }
+      }
+    }
+
+    // API Security missing route, per framework
+    for (final Map.Entry<String, LongAdder> entry : apiSecurityMissingRouteCounters.entrySet()) {
+      final long count = entry.getValue().sumThenReset();
+      if (count > 0) {
+        if (!rawMetricsQueue.offer(new ApiSecurityMissingRoute(count, entry.getKey()))) {
           return;
         }
       }

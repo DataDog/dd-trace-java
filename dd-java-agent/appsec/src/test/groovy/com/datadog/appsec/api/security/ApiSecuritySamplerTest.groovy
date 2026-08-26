@@ -12,7 +12,9 @@ class ApiSecuritySamplerTest extends DDSpecification {
   private static final String MISSING_ROUTE_METRIC = 'api_security.missing_route'
 
   void setup() {
-    // the raw metrics queue is a static singleton, drain it so each test starts from a clean state
+    // the raw metrics queue and its backing counters are a static singleton, flush and drain
+    // so each test starts from a clean state
+    WafMetricCollector.get().prepareMetrics()
     WafMetricCollector.get().drain()
   }
 
@@ -662,6 +664,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
   /** Returns the {@code api_security.missing_route} metrics reported so far. */
   private static List<WafMetricCollector.WafMetric> missingRouteMetrics() {
+    WafMetricCollector.get().prepareMetrics()
     WafMetricCollector.get().drain().findAll { it.metricName == MISSING_ROUTE_METRIC }
   }
 
