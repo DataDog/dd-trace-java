@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -168,7 +169,7 @@ class ExposureWriterTests {
             new OkHttpClient.Builder().build(),
             false);
     when(backendApiFactory.createDirectIntakeApi(
-            datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
+            eq(datadog.trace.api.intake.Intake.EVENT_PLATFORM), eq(true), anyMap()))
         .thenReturn(directApi);
     FeatureFlagBackendApiFactory exposureBackendApiFactory =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
@@ -311,7 +312,7 @@ class ExposureWriterTests {
     when(backendApiFactory.createEvpProxyApi(
             Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(proxyApi);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, true))
+    when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), anyMap()))
         .thenReturn(directApi);
     when(proxyApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
         .thenThrow(new SocketTimeoutException("ambiguous timeout"))

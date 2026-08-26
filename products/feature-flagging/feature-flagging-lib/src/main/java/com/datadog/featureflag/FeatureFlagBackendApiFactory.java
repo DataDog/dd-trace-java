@@ -8,6 +8,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
+import java.util.Collections;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
+  private static final String DD_API_KEY_FINGERPRINT_HEADER = "DD-API-KEY-FINGERPRINT";
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
@@ -89,8 +91,15 @@ final class FeatureFlagBackendApiFactory {
       return null;
     }
     try {
+      final String apiKey = config.getApiKey();
+      if (apiKey == null || apiKey.isEmpty()) {
+        return null;
+      }
       return backendApiFactory.createDirectIntakeApi(
-          Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
+          Intake.EVENT_PLATFORM,
+          eventType.responseCompressionEnabled(),
+          Collections.singletonMap(
+              DD_API_KEY_FINGERPRINT_HEADER, ApiKeyFingerprint.create(apiKey)));
     } catch (final IllegalArgumentException exception) {
       LOGGER.debug(
           "Cannot configure direct Feature Flagging {} delivery", eventType.logName(), exception);

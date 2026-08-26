@@ -3577,12 +3577,20 @@
         "aliases": []
       }
     ],
+    "DD_PROXY_HTTPS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": ["HTTPS_PROXY", "https_proxy"]
+      }
+    ],
     "DD_PROXY_NO_PROXY": [
       {
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": ["NO_PROXY", "no_proxy"]
       }
     ],
     "DD_RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE": [

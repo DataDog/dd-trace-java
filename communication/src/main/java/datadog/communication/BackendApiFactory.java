@@ -6,6 +6,8 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.util.Collections;
+import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -48,6 +50,12 @@ public class BackendApiFactory {
 
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
+    return createDirectIntakeApi(intake, responseCompression, Collections.emptyMap());
+  }
+
+  /** Creates an authenticated API client with additional request headers. */
+  public BackendApi createDirectIntakeApi(
+      Intake intake, boolean responseCompression, Map<String, String> additionalHeaders) {
     HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
@@ -61,7 +69,8 @@ public class BackendApiFactory {
         traceId,
         retryPolicyFactory(),
         sharedCommunicationObjects.getIntakeHttpClient(),
-        responseCompression);
+        responseCompression,
+        additionalHeaders);
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */

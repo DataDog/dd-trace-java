@@ -1389,6 +1389,34 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "what actually wants"
   }
 
+  def "https proxy configuration accepts Datadog and standard environment names"() {
+    setup:
+    environmentVariables.set(envName, "http://proxy.example:8080")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.httpsProxy == "http://proxy.example:8080"
+
+    where:
+    envName << ["DD_PROXY_HTTPS", "HTTPS_PROXY", "https_proxy"]
+  }
+
+  def "no-proxy configuration accepts Datadog and standard environment names"() {
+    setup:
+    environmentVariables.set(envName, "event-platform-intake.example, .internal.example local.example")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.noProxyHosts == ["event-platform-intake.example", ".internal.example", "local.example"] as Set
+
+    where:
+    envName << ["DD_PROXY_NO_PROXY", "NO_PROXY", "no_proxy"]
+  }
+
   def "verify mapping configs on tracer for #mapString"() {
     setup:
     System.setProperty(PREFIX + HEADER_TAGS + ".legacy.parsing.enabled", "true")

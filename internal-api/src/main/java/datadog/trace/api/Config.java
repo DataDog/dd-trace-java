@@ -660,6 +660,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.config.TracerConfig.PROXY_HTTPS;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
@@ -920,6 +921,7 @@ public class Config {
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
+  private final String httpsProxy;
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
@@ -1684,8 +1686,14 @@ public class Config {
     forceClearTextHttpForIntakeClient =
         configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
 
-    // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
-    noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
+    httpsProxy = configProvider.getString(PROXY_HTTPS);
+
+    // DD_PROXY_NO_PROXY historically accepted spaces; standard NO_PROXY aliases use commas.
+    final String configuredNoProxyHosts = configProvider.getString(PROXY_NO_PROXY);
+    noProxyHosts =
+        configuredNoProxyHosts == null
+            ? Collections.emptySet()
+            : tryMakeImmutableSet(Arrays.asList(configuredNoProxyHosts.split("[,\\s]+")));
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -3624,6 +3632,10 @@ public class Config {
 
   public boolean isForceClearTextHttpForIntakeClient() {
     return forceClearTextHttpForIntakeClient;
+  }
+
+  public String getHttpsProxy() {
+    return httpsProxy;
   }
 
   public Set<String> getNoProxyHosts() {
