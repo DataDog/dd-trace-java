@@ -65,6 +65,7 @@ public class IntakeApi implements BackendApi {
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
     }

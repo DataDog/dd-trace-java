@@ -20,6 +20,7 @@ import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlagBackendApiFactoryTest {
+
   @Test
   void remoteConfigUsesOnlyLocalEvpProxy() {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
