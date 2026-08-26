@@ -105,10 +105,11 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   }
 
   private synchronized void doAddEvent(OtelSpanEvent event) {
-    if (this.events == null) {
-      this.events = new ArrayList<>();
+    List<OtelSpanEvent> eventsSnapshot = this.events;
+    if (eventsSnapshot == null) {
+      this.events = eventsSnapshot = new ArrayList<>();
     }
-    this.events.add(event);
+    eventsSnapshot.add(event);
   }
 
   @Override
@@ -183,11 +184,13 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public void onSpanFinished() {
     applyNamingConvention(this.delegate);
-    // Fast path: skip the lock when there are no events (the common case).
+    // Fast path: skip the lock when there are no events (the common case)
     if (this.events != null) {
       List<OtelSpanEvent> eventsSnapshot;
       synchronized (this) {
-        eventsSnapshot = new ArrayList<>(this.events);
+        // detach events for serialization
+        eventsSnapshot = this.events;
+        this.events = null;
       }
       setEventsAsTag(this.delegate, eventsSnapshot);
     }
