@@ -230,7 +230,7 @@ public final class Hashtable {
      * shadowed behind the existing entry.
      */
     public boolean insert(@Nonnull TEntry newEntry) {
-      return insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry, this.sizeTracker);
+      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -476,7 +476,7 @@ public final class Hashtable {
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
     public boolean insert(@Nonnull TEntry newEntry) {
-      return insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry, this.sizeTracker);
+      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /** Two-key analogue of {@link D1#insertOrReplace}, with the same refusal contract. */
@@ -742,12 +742,18 @@ public final class Hashtable {
    * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
    * caller-owned table like client-side stats' {@code AggregateTable}) get the same one-call
    * insert-with-cap-check contract that {@link D1}/{@link D2} give their own callers.
+   *
+   * <p>{@code sizeTracker} leads, per this class's parameter order for the size-tracked statics:
+   * mutated bookkeeping, then the spine, then the key, then callbacks. Putting it first (rather
+   * than appending it) makes the tracked and untracked forms visibly different at the head of the
+   * call instead of differing only in a trailing argument -- forgetting the tracker leaks the cap
+   * silently, so the distinction should be hard to overlook at the call site and in review.
    */
   public static boolean insertHeadEntryFor(
+      @Nonnull SizeTracker sizeTracker,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
-      @Nonnull Hashtable.Entry entry,
-      @Nonnull SizeTracker sizeTracker) {
+      @Nonnull Hashtable.Entry entry) {
     if (!sizeTracker.tryReserve()) {
       return false;
     }
@@ -759,17 +765,18 @@ public final class Hashtable {
    * Scans the bucket chain at {@code keyHash} for the first entry matching {@code matches}, unlinks
    * it, decrements {@code sizeTracker}, and returns it -- or returns {@code null} (leaving {@code
    * buckets} and {@code sizeTracker} untouched) if nothing in the chain matches. Mirrors {@link
-   * #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry, SizeTracker)} on the removal
-   * side: the one-call, size-tracked shape that {@link D1#remove} and {@link D2#remove} delegate
-   * to, so a composer driving the static building blocks directly gets the same bookkeeping without
-   * hand-rolling the mutating-iterator loop.
+   * #insertHeadEntryFor(SizeTracker, Hashtable.Entry[], long, Hashtable.Entry)} on the removal
+   * side: the one-call, size-tracked shape a composer driving the static building blocks directly
+   * can use instead of hand-rolling the mutating-iterator loop and remembering to decrement.
+   *
+   * <p>{@code sizeTracker} leads for the same reason it does on the insert side.
    */
   @Nullable
   public static <TEntry extends Entry> TEntry removeMatching(
+      @Nonnull SizeTracker sizeTracker,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
-      @Nonnull Predicate<? super TEntry> matches,
-      @Nonnull SizeTracker sizeTracker) {
+      @Nonnull Predicate<? super TEntry> matches) {
     for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(buckets, keyHash);
         iter.hasNext(); ) {
       TEntry curEntry = iter.next();

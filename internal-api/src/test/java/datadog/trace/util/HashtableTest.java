@@ -107,12 +107,12 @@ class HashtableTest {
       StringIntEntry b = new StringIntEntry("b", 2);
       StringIntEntry c = new StringIntEntry("c", 3);
 
-      assertTrue(Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size));
-      assertTrue(Hashtable.insertHeadEntryFor(buckets, b.keyHash, b, size));
+      assertTrue(Hashtable.insertHeadEntryFor(size, buckets, a.keyHash, a));
+      assertTrue(Hashtable.insertHeadEntryFor(size, buckets, b.keyHash, b));
       assertEquals(2, size.size());
 
       assertFalse(
-          Hashtable.insertHeadEntryFor(buckets, c.keyHash, c, size),
+          Hashtable.insertHeadEntryFor(size, buckets, c.keyHash, c),
           "refused once the tracker is at capacity");
       assertEquals(2, size.size(), "a refused insert must not consume a slot");
     }
@@ -122,10 +122,10 @@ class HashtableTest {
       Hashtable.Entry[] buckets = Hashtable.create(8);
       Hashtable.SizeTracker size = new Hashtable.SizeTracker(8);
       StringIntEntry a = new StringIntEntry("a", 1);
-      Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size);
+      Hashtable.insertHeadEntryFor(size, buckets, a.keyHash, a);
 
       StringIntEntry removed =
-          Hashtable.removeMatching(buckets, a.keyHash, e -> e.matches("a"), size);
+          Hashtable.removeMatching(size, buckets, a.keyHash, e -> e.matches("a"));
 
       assertSame(a, removed);
       assertEquals(0, size.size());
@@ -137,11 +137,11 @@ class HashtableTest {
       Hashtable.Entry[] buckets = Hashtable.create(8);
       Hashtable.SizeTracker size = new Hashtable.SizeTracker(8);
       StringIntEntry a = new StringIntEntry("a", 1);
-      Hashtable.insertHeadEntryFor(buckets, a.keyHash, a, size);
+      Hashtable.insertHeadEntryFor(size, buckets, a.keyHash, a);
 
       assertNull(
           Hashtable.<StringIntEntry>removeMatching(
-              buckets, a.keyHash, e -> e.matches("nope"), size));
+              size, buckets, a.keyHash, e -> e.matches("nope")));
       assertEquals(1, size.size(), "a non-matching scan must not decrement");
       assertSame(a, Hashtable.bucketFor(buckets, a.keyHash));
     }
