@@ -48,15 +48,21 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       return selectedApi.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
+      if (selectedApi != proxyApi) {
         throw exception;
       }
 
-      final BackendApi directApi = getOrCreateDirectApi();
-      if (directApi == null) {
-        throw exception;
+      if (isDefinitiveRejection(exception)) {
+        final BackendApi directApi = getOrCreateDirectApi();
+        if (directApi != null) {
+          return directApi.post(
+              uri, requestBody, responseParser, requestListener, requestCompression);
+        }
+      } else if (isAmbiguousTransportFailure(exception)) {
+        // The local receiver may have accepted this batch, so only switch future batches.
+        getOrCreateDirectApi();
       }
-      return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
+      throw exception;
     }
   }
 
@@ -97,5 +103,9 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       return statusCode == 403 || statusCode == 404 || statusCode == 405;
     }
     return false;
+  }
+
+  private static boolean isAmbiguousTransportFailure(final IOException exception) {
+    return !(exception instanceof HttpResponseException);
   }
 }
