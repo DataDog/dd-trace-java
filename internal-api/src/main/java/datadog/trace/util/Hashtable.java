@@ -311,11 +311,6 @@ public final class Hashtable {
       return newEntry;
     }
 
-    public void clear() {
-      Hashtable.clear(this.buckets);
-      this.sizeTracker.reset();
-    }
-
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, consumer);
     }
@@ -327,6 +322,11 @@ public final class Hashtable {
      */
     public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, context, consumer);
+    }
+
+    public void clear() {
+      Hashtable.clear(this.buckets);
+      this.sizeTracker.reset();
     }
 
     /**
@@ -548,11 +548,6 @@ public final class Hashtable {
       return newEntry;
     }
 
-    public void clear() {
-      Hashtable.clear(this.buckets);
-      this.sizeTracker.reset();
-    }
-
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, consumer);
     }
@@ -564,6 +559,11 @@ public final class Hashtable {
      */
     public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, context, consumer);
+    }
+
+    public void clear() {
+      Hashtable.clear(this.buckets);
+      this.sizeTracker.reset();
     }
 
     /**
@@ -591,9 +591,7 @@ public final class Hashtable {
   // Static building blocks over a caller-owned bucket array.
   //
   // Use these to assemble a custom table (higher arity, primitive keys, extra value fields) when
-  // D1/D2 don't fit; D1/D2 delegate to them internally. This is the same "static functions over a
-  // caller-owned array" shape as the concurrent variant (ConcurrentHashtable); see how
-  // AggregateTable drives a Hashtable.Entry[] with these. The calling class owns the array and
+  // D1/D2 don't fit; D1/D2 delegate to them internally. The calling class owns the array and
   // exposes whatever operations it needs.
   //
   // Not thread-safe: there is no locking here. Concurrent access, including mixing reads with
@@ -607,13 +605,12 @@ public final class Hashtable {
    * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
    * rounded up to the next power of two.
    *
-   * <p>Unlike the concurrent variant's {@code createFixedBuckets} (whose {@code
-   * AtomicReferenceArray} spine has an erased element type), this class's spine is a genuine {@code
-   * E[]}, so {@code entryClass} is reflectively allocated into it via {@link Array#newInstance} --
-   * same idiom as {@code FlatHashtable#create(Class, int)}. That gives the returned array a real
-   * {@code TEntry} component type rather than the base {@code Entry[]}: typed reads, real
-   * array-store checks, and a monomorphic element type for the JIT. Capacity is fixed; the table
-   * does not resize.
+   * <p>Erasure stops a caller writing {@code new TEntry[n]}, so {@code entryClass} is allocated
+   * reflectively via {@link Array#newInstance}. That buys a real {@code TEntry} component type
+   * rather than the base {@code Entry[]}: typed reads, real array-store checks, and a monomorphic
+   * element type for the JIT. The one reflective call happens at construction, off any hot path.
+   * Capacity is fixed; the table does not resize. Use {@link #create(int)} when the spine is driven
+   * purely through the static building blocks and the base component type is enough.
    *
    * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
    * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
@@ -650,10 +647,9 @@ public final class Hashtable {
   /**
    * Balanced default load factor for a chained bucket array: at this target fill, chains from a
    * well-spread hash stay short (average chain length {@code ~1/DEFAULT_LOAD_FACTOR}) without
-   * over-provisioning the array. Mirrors {@code FlatHashtable#DEFAULT_LOAD_FACTOR} in spirit,
-   * though the two aren't comparable numerically -- chaining degrades gracefully past 1.0 fill
-   * (longer chains, not failure), unlike open addressing, so this class can run a higher target
-   * fill than {@code FlatHashtable}'s.
+   * over-provisioning the array. Chaining tolerates a high target fill: past 1.0 it degrades
+   * gradually into longer chains rather than failing, so there is no cliff to stay clear of and no
+   * reason to over-allocate the spine.
    */
   public static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
@@ -683,8 +679,7 @@ public final class Hashtable {
   /**
    * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}, and
    * returns the bucket-array length to allocate. Throws {@link IllegalArgumentException} for
-   * negative inputs or inputs above the cap. The concurrent variant shares this so the two families
-   * round identically.
+   * negative inputs or inputs above the cap.
    */
   public static int sizeFor(int requestedSize) {
     if (requestedSize < 0) {
@@ -709,11 +704,10 @@ public final class Hashtable {
    * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
    * doesn't need to thread a raw {@link Entry} variable through.
    *
-   * <p>Named to match {@link ConcurrentHashtable#bucketFor} rather than {@code bucket}: this class
-   * has no competing {@code int}-index overload today, but naming it {@code bucketFor} up front
-   * keeps the two classes' static building blocks aligned and avoids reintroducing the {@code
-   * bucket}/{@code insertHeadEntry} int-vs-long overload ambiguity that {@link ConcurrentHashtable}
-   * had to rename its way out of.
+   * <p>Named {@code bucketFor} rather than {@code bucket}: there is no competing {@code int}-index
+   * overload today, but the {@code For} suffix marks "derives the index from a key hash" up front,
+   * so adding an index-taking sibling later cannot reintroduce the int-vs-long overload ambiguity
+   * described on {@link #insertHeadEntryFor(Hashtable.Entry[], long, Hashtable.Entry)}.
    */
   @SuppressWarnings("unchecked")
   @Nullable
@@ -738,11 +732,11 @@ public final class Hashtable {
    * been computed for another reason, prefer {@link #insertHeadEntryAt} to avoid the redundant
    * mask.
    *
-   * <p>Named distinctly from {@link #insertHeadEntryAt} (rather than overloaded on {@code long} vs.
-   * {@code int}) for the same reason {@link ConcurrentHashtable#insertHeadEntryFor} is: a caller
-   * with a primitive {@code int}-typed key hash calling an overloaded {@code
-   * insertHeadEntry(buckets, intHash, entry)} would silently bind to the {@code int}-index overload
-   * instead of widening to this one, treating the raw hash as an array index.
+   * <p>Named distinctly from {@link #insertHeadEntryAt} rather than overloaded on {@code long} vs.
+   * {@code int}, because the overloaded form is a trap: a caller with a primitive {@code int}-typed
+   * key hash calling an overloaded {@code insertHeadEntry(buckets, intHash, entry)} would silently
+   * bind to the {@code int}-index overload instead of widening to this one, treating the raw hash
+   * as an array index.
    */
   public static void insertHeadEntryFor(
       @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
@@ -755,8 +749,8 @@ public final class Hashtable {
    * sizeTracker} first, splicing {@code entry} in only if the reservation succeeds. Returns {@code
    * false} (without touching {@code buckets}) once {@code sizeTracker} is at capacity. Lets a
    * composer working directly against the static building blocks (e.g. {@link D1#insert}, or a
-   * caller-owned table like client-side stats' {@code AggregateTable}) get the same one-call
-   * insert-with-cap-check contract that {@link D1}/{@link D2} give their own callers.
+   * caller-owned table of higher key arity) get the same one-call insert-with-cap-check contract
+   * that {@link D1}/{@link D2} give their own callers.
    *
    * <p>{@code sizeTracker} leads, per this class's parameter order for the size-tracked statics:
    * mutated bookkeeping, then the spine, then the key, then callbacks. Putting it first (rather
@@ -804,10 +798,6 @@ public final class Hashtable {
     return null;
   }
 
-  public static void clear(@Nonnull Hashtable.Entry[] buckets) {
-    Arrays.fill(buckets, null);
-  }
-
   /**
    * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast to
    * {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to sprinkle it
@@ -840,31 +830,6 @@ public final class Hashtable {
     }
   }
 
-  /**
-   * Removes every entry, passing each removed entry to {@code sink} as it is unlinked -- the
-   * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
-   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
-   * call so composers don't have to spell out both steps.
-   */
-  public static <TEntry extends Entry> void drain(
-      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
-    Hashtable.<TEntry>forEach(buckets, sink);
-    clear(buckets);
-  }
-
-  /**
-   * Context-passing variant of {@link #drain(Hashtable.Entry[], Consumer)}. Pass a non-capturing
-   * {@link BiConsumer} (typically a {@code static final}) plus the accumulator as {@code context}
-   * (e.g. the target list or event builder) to avoid a capturing-lambda allocation.
-   */
-  public static <C, TEntry extends Entry> void drain(
-      @Nonnull Hashtable.Entry[] buckets,
-      C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-    Hashtable.<C, TEntry>forEach(buckets, context, sink);
-    clear(buckets);
-  }
-
   @Nonnull
   public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
       @Nonnull Hashtable.Entry[] buckets, long keyHash) {
@@ -890,11 +855,11 @@ public final class Hashtable {
 
   /**
    * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
-   * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. cursor-based
-   * eviction in {@code AggregateTable} -- where one call drives {@code [cursor, length)} and a
-   * wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap around within a
-   * single instance; callers compose two iterators when wrap-around is desired. An empty range
-   * ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
+   * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. the
+   * cursor-based eviction in {@link EvictionCursor} -- where one call drives {@code [cursor,
+   * length)} and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap
+   * around within a single instance; callers compose two iterators when wrap-around is desired. An
+   * empty range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
    *
    * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
    * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
@@ -906,12 +871,40 @@ public final class Hashtable {
     return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
   }
 
+  public static void clear(@Nonnull Hashtable.Entry[] buckets) {
+    Arrays.fill(buckets, null);
+  }
+
+  /**
+   * Removes every entry, passing each removed entry to {@code sink} as it is unlinked -- the
+   * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
+   * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
+   * call so composers don't have to spell out both steps.
+   */
+  public static <TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
+    Hashtable.<TEntry>forEach(buckets, sink);
+    clear(buckets);
+  }
+
+  /**
+   * Context-passing variant of {@link #drain(Hashtable.Entry[], Consumer)}. Pass a non-capturing
+   * {@link BiConsumer} (typically a {@code static final}) plus the accumulator as {@code context}
+   * (e.g. the target list or event builder) to avoid a capturing-lambda allocation.
+   */
+  public static <C, TEntry extends Entry> void drain(
+      @Nonnull Hashtable.Entry[] buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    Hashtable.<C, TEntry>forEach(buckets, context, sink);
+    clear(buckets);
+  }
+
   /**
    * Tracks a live entry count against a fixed capacity. {@link D1} and {@link D2} use this
    * internally for their strict entry-count cap; other composers of the static building blocks
-   * above -- e.g. client-side stats' {@code AggregateTable}, which drives a {@code
-   * Hashtable.Entry[]} directly -- can reuse it instead of hand-rolling the same
-   * increment/decrement/cap-check bookkeeping.
+   * above -- those driving a {@code Hashtable.Entry[]} directly -- can reuse it instead of
+   * hand-rolling the same increment/decrement/cap-check bookkeeping.
    *
    * <p>Not thread-safe, matching the rest of this class.
    */
@@ -978,8 +971,7 @@ public final class Hashtable {
    *
    * <p>Pairs with {@link SizeTracker}: when {@link SizeTracker#tryReserve()} refuses because the
    * table is full, a composer can call {@link #evictOne} to make room and retry, or give up if
-   * nothing was evictable. Factored out of client-side stats' {@code AggregateTable}, which
-   * originally hand-rolled this same cursor-resumed two-pass scan.
+   * nothing was evictable.
    *
    * <p>Not thread-safe, matching the rest of this class.
    */
@@ -1048,11 +1040,11 @@ public final class Hashtable {
 
   /**
    * Bundles a bucket array together with a {@link SizeTracker} and {@link EvictionCursor} sized and
-   * matched to it, so a composer driving the static building blocks directly (e.g. client-side
-   * stats' {@code AggregateTable}) gets everything it needs to store from one factory call, instead
-   * of separately sizing an array and a tracker that must stay in sync with it. Same headroom idiom
-   * as {@link D1}/{@link D2}'s constructors: {@code capacity} is the strict cap on live entries,
-   * and the backing array is sized with load-factor headroom over it.
+   * matched to it, so a composer driving the static building blocks directly gets everything it
+   * needs to store from one factory call, instead of separately sizing an array and a tracker that
+   * must stay in sync with it. Same headroom idiom as {@link D1}/{@link D2}'s constructors: {@code
+   * capacity} is the strict cap on live entries, and the backing array is sized with load-factor
+   * headroom over it.
    *
    * <p>Store the pieces of this bundle into your own fields; nothing here is meant to be held onto
    * as a {@code Table} itself.
@@ -1081,12 +1073,11 @@ public final class Hashtable {
 
   /**
    * Deprecated facade over the static building blocks that are now methods on {@link Hashtable}
-   * itself (mirroring the concurrent variant). Every member here delegates to its {@code
-   * Hashtable.*} counterpart -- no real logic lives in this class, so it can be deleted outright
-   * once the last caller migrates.
+   * itself. Every member here delegates to its {@code Hashtable.*} counterpart -- no real logic
+   * lives in this class, so it can be deleted outright once the last caller migrates.
    *
-   * <p>Retained only for source compatibility with existing callers (e.g. client-side statistics).
-   * New code should call the {@code Hashtable.*} statics directly.
+   * <p>Retained only for source compatibility with existing callers. New code should call the
+   * {@code Hashtable.*} statics directly.
    *
    * @deprecated use the static building blocks on {@link Hashtable} directly.
    */
