@@ -283,7 +283,8 @@ tasks.withType(ScalaCompile).configureEach {
 }
 
 project.pluginManager.withPlugin('kotlin') {
-  ['compileKotlin', 'compileTestKotlin'].each { name ->
+  ['compileKotlin', 'compileTestKotlin'].each {
+    name ->
     tasks.named(name) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
