@@ -84,19 +84,18 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void
       getTimeWithNanoTicks_whenNanoTicksStaleAfterSimulatedRestore_thenTimestampStaysAnchoredToConstructionTime() {
     // Characterizes the AWS Lambda SnapStart bug this fix addresses: System.nanoTime() does not
-    // account for the frozen duration across a checkpoint/restore, so a nanoTicks reading taken
-    // right after restore can be indistinguishable from one taken at construction (snapshot
-    // creation) time, even though wall-clock time has moved on by hours. Without a resync, span
-    // timestamps computed from that stale nanoTicks stay anchored to construction time.
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(TimeUnit.SECONDS.toNanos(1000));
+    // accumulate the frozen checkpoint/restore duration, so the nanoTicks a span is timestamped
+    // with right after restore is (almost) unchanged from construction (snapshot creation) time,
+    // even though wall-clock time has moved on by hours. Without a resync, span timestamps
+    // computed from that near-frozen nanoTicks stay anchored to construction time.
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
 
-      // Wall-clock time moves on by 2 hours (the restore happens much later), but the nanoTicks
-      // value a span would be timestamped with right after restore hasn't advanced.
-      timeSource.set(TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2));
+      // The restore happens much later: wall-clock jumps forward by 2 hours, but nanoTicks - tied
+      // to monotonic JVM uptime, which does not advance while the snapshot is frozen - does not.
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       assertEquals(
           TimeUnit.SECONDS.toNanos(1000), tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
@@ -109,18 +108,19 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
   void
       maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
-      // The restore happens: wall-clock/tick source jumps forward by 2 hours.
+      // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
       long postRestoreNanos = TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2);
-      timeSource.set(postRestoreNanos);
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       tracer.maybeResyncClockForLambdaInvocation();
 
-      // A span timestamped right after resync now reflects the real post-restore time, not the
-      // stale construction-time (pre-restore) anchor.
+      // A span timestamped with the near-frozen, post-restore nanoTicks reading now reflects the
+      // real post-restore time, not the stale construction-time anchor - proving the resync
+      // actually corrected counterDrift rather than the assertion just re-deriving the same
+      // reading.
       assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
     } finally {
       tracer.close();
@@ -133,15 +133,16 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
     // created - the actual trigger point for the resync in production, not just the extracted
     // maybeResyncClockForLambdaInvocation() logic exercised directly above.
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long postRestoreNanos = TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2);
-      timeSource.set(postRestoreNanos);
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       tracer.notifyLambdaStart(new Object(), "lambda-request-123");
 
+      // Same near-frozen-nanoTicks check as above: proves notifyLambdaStart's resync corrected
+      // the drift, rather than the assertion re-deriving the answer independently.
       assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
     } finally {
       tracer.close();
@@ -151,12 +152,11 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   @Test
   void
       notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(TimeUnit.SECONDS.toNanos(1000));
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(TimeUnit.SECONDS.toNanos(1000));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
-      timeSource.set(TimeUnit.SECONDS.toNanos(1000) + TimeUnit.HOURS.toNanos(2));
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
 
       // No @WithConfig override here - this is an opt-in feature, off by default.
       tracer.notifyLambdaStart(new Object(), "lambda-request-123");
@@ -165,6 +165,46 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
           TimeUnit.SECONDS.toNanos(1000), tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
     } finally {
       tracer.close();
+    }
+  }
+
+  /**
+   * A {@link datadog.trace.api.time.TimeSource} that decouples wall-clock time from nanoTicks, to
+   * simulate an AWS Lambda SnapStart checkpoint/restore: while frozen, monotonic nanoTicks do not
+   * advance but wall-clock time does. {@link ControllableTimeSource} can't simulate this because it
+   * derives both from the same underlying counter.
+   */
+  private static final class SnapStartTimeSource implements datadog.trace.api.time.TimeSource {
+    private final long nanoTicks;
+    private long currentTimeNanos;
+
+    SnapStartTimeSource(long initialNanos) {
+      this.nanoTicks = initialNanos;
+      this.currentTimeNanos = initialNanos;
+    }
+
+    void simulateSnapStartRestore(long wallClockJumpNanos) {
+      currentTimeNanos += wallClockJumpNanos;
+    }
+
+    @Override
+    public long getNanoTicks() {
+      return nanoTicks;
+    }
+
+    @Override
+    public long getCurrentTimeMillis() {
+      return TimeUnit.NANOSECONDS.toMillis(currentTimeNanos);
+    }
+
+    @Override
+    public long getCurrentTimeMicros() {
+      return TimeUnit.NANOSECONDS.toMicros(currentTimeNanos);
+    }
+
+    @Override
+    public long getCurrentTimeNanos() {
+      return currentTimeNanos;
     }
   }
 

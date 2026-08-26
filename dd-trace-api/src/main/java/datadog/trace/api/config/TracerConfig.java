@@ -136,9 +136,9 @@ public final class TracerConfig {
 
   /**
    * Opt-in (defaults to disabled). When enabled, resyncs the tracer's cached clock reference on
-   * every AWS Lambda invocation, before any span for that invocation is created, instead of
-   * relying on the periodic {@link #CLOCK_SYNC_PERIOD} check - which is gated on monotonic ticks
-   * elapsed and may never trigger following an AWS Lambda SnapStart restore, since a short-lived
+   * every AWS Lambda invocation, before any span for that invocation is created, instead of relying
+   * on the periodic {@link #CLOCK_SYNC_PERIOD} check - which is gated on monotonic ticks elapsed
+   * and may never trigger following an AWS Lambda SnapStart restore, since a short-lived
    * restore-then-invoke sequence can leave that reference stale for hours or days. Only takes
    * effect inside an instrumented AWS Lambda handler invocation; a no-op everywhere else.
    */
