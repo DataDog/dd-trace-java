@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -90,15 +89,15 @@ class HashtableD1Test {
   }
 
   @Test
-  void insertOrReplaceReturnsPriorEntryOrNullOnInsert() {
+  void tryInsertOrReplaceInsertsThenReplacesWithoutGrowing() {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
     StringIntEntry first = new StringIntEntry("k", 1);
-    assertNull(table.insertOrReplace(first), "fresh insert returns null");
+    assertTrue(table.tryInsertOrReplace(first), "fresh insert accepted");
     assertEquals(1, table.size());
 
     StringIntEntry second = new StringIntEntry("k", 2);
-    assertSame(first, table.insertOrReplace(second), "replace returns the prior entry");
-    assertEquals(1, table.size());
+    assertTrue(table.tryInsertOrReplace(second), "replace accepted");
+    assertEquals(1, table.size(), "replacing an existing key does not grow the table");
     assertSame(second, table.get("k"), "new entry visible after replace");
   }
 
@@ -269,20 +268,22 @@ class HashtableD1Test {
   }
 
   @Test
-  void insertOrReplaceStillReplacesAtCapacityButThrowsOnFreshInsert() {
+  void tryInsertOrReplaceStillReplacesAtCapacityButRefusesFreshInsert() {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     table.insert(new StringIntEntry("a", 1));
     table.insert(new StringIntEntry("b", 2));
 
     StringIntEntry replacement = new StringIntEntry("a", 99);
-    StringIntEntry prior = table.insertOrReplace(replacement);
-    assertEquals(1, prior.value);
+    assertTrue(
+        table.tryInsertOrReplace(replacement), "replacing an existing key succeeds when full");
     assertSame(replacement, table.get("a"));
     assertEquals(2, table.size());
 
-    assertThrows(
-        IllegalStateException.class, () -> table.insertOrReplace(new StringIntEntry("c", 3)));
+    assertFalse(
+        table.tryInsertOrReplace(new StringIntEntry("c", 3)),
+        "a fresh insert is refused, not thrown");
     assertEquals(2, table.size());
+    assertNull(table.get("c"));
   }
 
   @Test

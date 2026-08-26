@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -44,15 +43,16 @@ class HashtableD2Test {
   }
 
   @Test
-  void insertOrReplaceMatchesOnBothKeys() {
+  void tryInsertOrReplaceMatchesOnBothKeys() {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
     PairEntry first = new PairEntry("k", 7, 1);
-    assertNull(table.insertOrReplace(first));
+    assertTrue(table.tryInsertOrReplace(first));
     PairEntry second = new PairEntry("k", 7, 2);
-    assertSame(first, table.insertOrReplace(second));
+    assertTrue(table.tryInsertOrReplace(second));
+    assertSame(second, table.get("k", 7), "same key pair replaced in place");
     // Different second-key: should insert new, not replace
     PairEntry third = new PairEntry("k", 8, 3);
-    assertNull(table.insertOrReplace(third));
+    assertTrue(table.tryInsertOrReplace(third));
     assertEquals(2, table.size());
   }
 
@@ -207,20 +207,22 @@ class HashtableD2Test {
   }
 
   @Test
-  void insertOrReplaceStillReplacesAtCapacityButThrowsOnFreshInsert() {
+  void tryInsertOrReplaceStillReplacesAtCapacityButRefusesFreshInsert() {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
     PairEntry replacement = new PairEntry("a", 1, 999);
-    PairEntry prior = table.insertOrReplace(replacement);
-    assertEquals(100, prior.value);
+    assertTrue(
+        table.tryInsertOrReplace(replacement), "replacing an existing key succeeds when full");
     assertSame(replacement, table.get("a", 1));
     assertEquals(2, table.size());
 
-    assertThrows(
-        IllegalStateException.class, () -> table.insertOrReplace(new PairEntry("c", 3, 300)));
+    assertFalse(
+        table.tryInsertOrReplace(new PairEntry("c", 3, 300)),
+        "a fresh insert is refused, not thrown");
     assertEquals(2, table.size());
+    assertNull(table.get("c", 3));
   }
 
   @Test
