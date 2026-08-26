@@ -32,9 +32,10 @@ final class CardinalityLimitReporter {
 
   // Distinct blocked tag names in a window: 9 property fields + the configured peer tags + up to
   // AdditionalTagsSchema.MAX_ADDITIONAL_TAG_KEYS + base.service, with headroom for the brief
-  // overlap
-  // of old and new peer names across a schema rebuild. Fixed capacity; the table chains on overflow
-  // rather than dropping, so an underestimate only adds chain depth on this cold path.
+  // overlap of old and new peer names across a schema rebuild. Fixed, strict-cap capacity: if this
+  // is ever underestimated, excess distinct tags are silently dropped from the summary rather than
+  // recorded (see the null-check in record()) -- this is a cold, best-effort logging path, not a
+  // correctness-sensitive one.
   private static final int TAG_CAPACITY = 64;
 
   // Rough width of one "<tag>=<count>, " entry, used to pre-size the summary builder. Cold path, so
@@ -56,7 +57,10 @@ final class CardinalityLimitReporter {
   /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
   void record(String tag, long count) {
     if (count > 0) {
-      blockedByTag.getOrCreate(tag, TagBlockEntry::new).count += count;
+      TagBlockEntry entry = blockedByTag.getOrCreate(tag, TagBlockEntry::new);
+      if (entry != null) {
+        entry.count += count;
+      }
     }
   }
 
