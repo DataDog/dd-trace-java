@@ -1,4 +1,4 @@
-package datadog.trace.llmobs.domain;
+package datadog.trace.api.llmobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

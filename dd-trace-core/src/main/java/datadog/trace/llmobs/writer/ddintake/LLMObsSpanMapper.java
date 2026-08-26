@@ -178,10 +178,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
-      // DDLLMObsSpan stamps both of these on every span at every rate, and auto-instrumented spans
-      // inherit them from an enclosing LLMObs parent, so a span only arrives here unstamped when it
-      // had no such parent to inherit from. Guarded against a non-string value set through a
-      // generic tag API, falling back to the retain-everything pair the intake assumes when absent.
+      // Both LLMObs span producers stamp these on every span at every rate: DDLLMObsSpan for the
+      // manual SDK, OpenAiDecorator for auto-instrumentation. Neither leaves a span unstamped, so
+      // the fallback below is a defensive default rather than a live path — it covers a value set
+      // to a non-string through a generic tag API, and any future producer that forgets to stamp.
+      // Retain-everything is the pair the intake assumes when the fields are absent.
       Object rawSamplingDecision = span.getTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
       Object rawSampleRate = span.getTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
       boolean stamped = rawSamplingDecision instanceof String && rawSampleRate instanceof String;

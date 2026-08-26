@@ -10,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -44,6 +45,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
+  private final LLMObsSampler sampler = LLMObsSampler.fromConfig();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INTEGRATION, SPAN_NAME);
@@ -128,14 +130,22 @@ public class OpenAiDecorator extends ClientDecorator {
       // Inherit the head-based sampling decision from the active LLMObs parent, gated on the two
       // spans belonging to the same APM trace so a stale context cannot contribute a verdict
       // computed from a different trace ID.
+      String samplingDecision = null;
+      String sampleRate = null;
       if (parent != null && parent.getTraceId().equals(span.getTraceId())) {
-        String samplingDecision = LLMObsContext.currentSamplingDecision();
-        String sampleRate = LLMObsContext.currentSampleRate();
-        if (samplingDecision != null && sampleRate != null) {
-          span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
-          span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
-        }
+        samplingDecision = LLMObsContext.currentSamplingDecision();
+        sampleRate = LLMObsContext.currentSampleRate();
       }
+      // Compute the sampling decision if none was inherited (no LLMObs parent).
+      if (samplingDecision == null || sampleRate == null) {
+        sampleRate = sampler.formattedRate();
+        samplingDecision =
+            sampler.sample(span.getTraceId().toLong())
+                ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+                : LLMObsContext.SAMPLING_DECISION_DROPPED;
+      }
+      span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
+      span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
     }
     super.doAfterStart(span);
   }
