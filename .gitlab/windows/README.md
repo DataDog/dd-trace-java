@@ -11,22 +11,22 @@ job, so that the execution model can be validated before moving the image to
 
 1. Push the branch and open its GitLab pipeline.
 2. Manually run `build-windows-ci-image`.
-3. Wait for the content-addressed image to be pushed to
-   `registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build`.
+3. Wait for the image to be pushed to
+   `registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build:prototype-alexeyk-gitlab-windows-tests`.
 4. Run or retry the four `test-base-windows` matrix jobs.
 
-The image producer also publishes `latest`, but that tag is used only to seed the next
-Docker layer cache. Test jobs always recompute and use the content-addressed tag.
+The image producer always overwrites this single mutable prototype tag and uses the
+previous image as its Docker layer cache. Test jobs explicitly pull the tag before use,
+so a long-lived Windows runner does not reuse a stale local copy.
 
 The test job is manual and non-blocking on feature branches. It runs automatically but
 remains non-blocking on merge-queue branches and `master`.
 
 ## Updating the image
 
-Any change under `image/`, including the hashing script itself, produces a new image tag.
-The test job fails with an instruction to run `build-windows-ci-image` when that tag does
-not exist yet. `ci-common.ps1` lives outside `image/` on purpose: it runs on the host, not
-in the container, so it must not change the image tag.
+Run `build-windows-ci-image` after changing anything under `image/`. The same prototype
+tag is replaced after a successful build, which avoids accumulating per-experiment tags.
+The test job fails with an instruction to run the producer when it cannot pull that tag.
 
 ## Caching
 

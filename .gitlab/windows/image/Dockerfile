@@ -49,10 +49,10 @@ RUN Set-ItemProperty `
         -Name 'LongPathsEnabled' -Value 1 -Type DWord; `
     git config --system core.longpaths true
 
-# java -version and git --version write to stderr, which PowerShell turns into a
-# terminating error under the base image's $ErrorActionPreference = 'Stop'.
-# Capture the output and gate on the exit code instead.
-RUN foreach ($javaHome in @($env:JAVA_8_HOME, $env:JAVA_11_HOME, $env:JAVA_17_HOME, $env:JAVA_21_HOME, $env:JAVA_25_HOME)) { `
+# Native tools can write version information to stderr. Run them with non-terminating
+# native error handling, capture their output, and gate each call on its exit code.
+RUN $ErrorActionPreference = 'Continue'; `
+    foreach ($javaHome in @($env:JAVA_8_HOME, $env:JAVA_11_HOME, $env:JAVA_17_HOME, $env:JAVA_21_HOME, $env:JAVA_25_HOME)) { `
         $java = Join-Path $javaHome 'bin\java.exe'; `
         $output = (& $java -version 2>&1 | Out-String).Trim(); `
         if ($LASTEXITCODE -ne 0) { throw ('java -version failed for {0}' -f $javaHome) }; `

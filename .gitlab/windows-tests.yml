@@ -1,5 +1,5 @@
 variables:
-  WINDOWS_BUILD_IMAGE_BASE: "registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build"
+  WINDOWS_BUILD_IMAGE: "registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build:prototype-alexeyk-gitlab-windows-tests"
 
 .windows_gradle_cache_paths: &windows_gradle_cache_paths
   - .gradle/wrapper/
@@ -22,23 +22,17 @@ build-windows-ci-image:
       $image = Get-WindowsCiImage
       Write-Output "Target image: $image"
 
-      if (Test-WindowsCiImage $image) {
-        Write-Output "Image $image already exists; skipping rebuild."
-        exit 0
-      }
-
       $buildArguments = @(
         "build",
         "--file", ".gitlab/windows/image/Dockerfile",
-        "--tag", $image,
-        "--tag", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest"
+        "--tag", $image
       )
 
-      Invoke-Native docker @("pull", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
+      Invoke-Native docker @("pull", $image)
       if ($LASTEXITCODE -eq 0) {
-        $buildArguments += @("--cache-from", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
+        $buildArguments += @("--cache-from", $image)
       } else {
-        Write-Output "No existing latest image found; building without a registry layer cache."
+        Write-Output "No existing prototype image found; building without a registry layer cache."
       }
 
       $buildArguments += ".gitlab/windows/image"
@@ -47,9 +41,6 @@ build-windows-ci-image:
 
       Invoke-Native docker @("push", $image)
       if ($LASTEXITCODE -ne 0) { throw "docker push $image failed" }
-
-      Invoke-Native docker @("push", "${env:WINDOWS_BUILD_IMAGE_BASE}:latest")
-      if ($LASTEXITCODE -ne 0) { throw "docker push latest failed" }
   id_tokens:
     CI_IDENTITIES_GITLAB_ID_TOKEN:
       aud: ci-identities
@@ -64,8 +55,8 @@ test-base-windows:
   needs:
     - job: build
       artifacts: false
-  # Reads the content-addressed image from registry.ddbuild.io, so it needs the
-  # same CI identity as the job that publishes it.
+  # Reads the prototype image from registry.ddbuild.io, so it needs the same CI
+  # identity as the job that publishes it.
   id_tokens:
     CI_IDENTITIES_GITLAB_ID_TOKEN:
       aud: ci-identities
@@ -124,8 +115,9 @@ test-base-windows:
 
       $image = Get-WindowsCiImage
       Write-Output "Expected Windows test image: $image"
-      if (-not (Test-WindowsCiImage $image)) {
-        Write-Host "ERROR: Windows test image not found at $image."
+      Invoke-Native docker @("pull", $image)
+      if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Could not pull Windows test image $image."
         Write-Host "Manually run build-windows-ci-image, wait for it to finish, then retry this job."
         exit 1
       }

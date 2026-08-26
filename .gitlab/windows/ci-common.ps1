@@ -2,7 +2,6 @@
 # Dot-source this file at the top of a job script: . .gitlab/windows/ci-common.ps1
 
 $ErrorActionPreference = "Stop"
-$WindowsCiRoot = $PSScriptRoot
 
 # Runs a native command with its stderr merged into stdout.
 #
@@ -25,18 +24,10 @@ function Invoke-Native {
     & $Command @Arguments 2>&1 | ForEach-Object { Write-Host "$_" }
 }
 
-# Resolves the content-addressed tag for the image described by .gitlab/windows/image.
+# Resolves the mutable image tag used by this personal prototype.
 function Get-WindowsCiImage {
-    $hash = & (Join-Path $WindowsCiRoot "image\compute-image-hash.ps1")
-    if ($LASTEXITCODE -ne 0 -or $hash -notmatch '^[0-9a-f]{16}$') {
-        throw "compute-image-hash.ps1 did not produce a valid hash (exit=$LASTEXITCODE, output='$hash')"
+    if ([string]::IsNullOrWhiteSpace($env:WINDOWS_BUILD_IMAGE)) {
+        throw "WINDOWS_BUILD_IMAGE is not set"
     }
-    return "${env:WINDOWS_BUILD_IMAGE_BASE}:${hash}"
-}
-
-function Test-WindowsCiImage {
-    param([Parameter(Mandatory = $true)][string] $Image)
-
-    Invoke-Native docker @("manifest", "inspect", $Image)
-    return $LASTEXITCODE -eq 0
+    return $env:WINDOWS_BUILD_IMAGE
 }
