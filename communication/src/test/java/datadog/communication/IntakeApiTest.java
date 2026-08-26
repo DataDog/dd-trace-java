@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.communication.http.HttpRetryPolicy;
 import java.io.IOException;
-import java.util.Collections;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -44,26 +43,6 @@ class IntakeApiTest {
   @Test
   void requestsIdentityResponseEncodingWhenCompressionIsDisabled() throws Exception {
     assertEquals("identity", postAndReadAcceptEncoding(false));
-  }
-
-  @Test
-  void sendsAdditionalAuthenticatedRequestHeaders() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    final IntakeApi api =
-        new IntakeApi(
-            server.url("/api/v2/"),
-            "api-key",
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            false,
-            Collections.singletonMap("DD-API-KEY-FINGERPRINT", "rijn_fingerprint"));
-
-    api.post("flagevaluation", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
-
-    final RecordedRequest request = server.takeRequest();
-    assertEquals("api-key", request.getHeader("DD-API-KEY"));
-    assertEquals("rijn_fingerprint", request.getHeader("DD-API-KEY-FINGERPRINT"));
   }
 
   private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {

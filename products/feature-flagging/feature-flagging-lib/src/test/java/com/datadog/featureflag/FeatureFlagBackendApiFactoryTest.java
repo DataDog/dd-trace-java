@@ -17,14 +17,9 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
-import java.util.Collections;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlagBackendApiFactoryTest {
-  private static final Map<String, String> DIRECT_HEADERS =
-      Collections.singletonMap("DD-API-KEY-FINGERPRINT", ApiKeyFingerprint.create("api-key"));
-
   @Test
   void remoteConfigUsesOnlyLocalEvpProxy() {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
@@ -36,8 +31,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(proxyApi, selected);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -50,8 +44,7 @@ class FeatureFlagBackendApiFactoryTest {
 
     assertNull(selected);
     verify(backendApiFactory).createEvpProxyApi(Intake.EVENT_PLATFORM, true);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, true, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
   }
 
   @Test
@@ -61,7 +54,7 @@ class FeatureFlagBackendApiFactoryTest {
     when(backendApiFactory.createEvpProxyApi(
             Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(mock(BackendApi.class));
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenReturn(mock(BackendApi.class));
 
     final BackendApi selected =
@@ -70,8 +63,7 @@ class FeatureFlagBackendApiFactoryTest {
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory)
         .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -79,7 +71,7 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenReturn(directApi);
 
     final BackendApi selected =
@@ -99,8 +91,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(proxyApi, selected);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
@@ -123,8 +114,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, true, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
   }
 
   @Test
@@ -135,22 +125,21 @@ class FeatureFlagBackendApiFactoryTest {
     when(backendApiFactory.createEvpProxyApi(
             Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(proxyApi);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
-    verify(backendApiFactory, never())
-        .createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
   @Test
   void agentlessDisablesDeliveryWhenDirectUrlIsInvalidAndLocalRouteIsUnavailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, DIRECT_HEADERS))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
