@@ -6,9 +6,6 @@ import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import datadog.metrics.api.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.net.URI
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 
