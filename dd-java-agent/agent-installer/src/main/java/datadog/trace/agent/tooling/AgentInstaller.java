@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
@@ -38,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
@@ -267,26 +269,58 @@ public class AgentInstaller {
   /**
    * Exposes the installed transformer to the {@code InnerClassLambdaMetafactory} instrumentation so
    * generated lambda classes can be run through the same matching + field-injection pipeline before
-   * they are defined. Uses an anonymous class (not a lambda) so this bootstrapping code does not
-   * itself depend on the metafactory we just instrumented.
+   * they are defined. Leaving the holder unset disables lambda field-injection, which is always
+   * safe: tasks then fall back to being wrapped.
    */
   private static void registerLambdaTransformer(final ClassFileTransformer classFileTransformer) {
-    LambdaTransformerHolder.set(
-        new LambdaTransformer() {
-          @Override
-          public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
-            try {
-              return classFileTransformer.transform(
-                  targetClass.getClassLoader(),
-                  slashClassName,
-                  null,
-                  targetClass.getProtectionDomain(),
-                  classBytes);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          }
-        });
+    LambdaTransformer lambdaTransformer = newLambdaTransformer(classFileTransformer);
+    if (null != lambdaTransformer) {
+      LambdaTransformerHolder.set(lambdaTransformer);
+    }
+  }
+
+  /**
+   * On Java 9+ the transformer must be given the module declaring the lambda, otherwise ByteBuddy
+   * skips the read edge that field-injected classes need and lambdas in named modules become
+   * undefinable. If that transformer cannot be loaded we return {@code null} rather than falling
+   * back to the module-less one, which would be the very defect we are avoiding.
+   *
+   * <p>Uses an anonymous class (not a lambda) so this bootstrapping code does not itself depend on
+   * the metafactory we just instrumented.
+   */
+  @SuppressWarnings("unchecked")
+  private static LambdaTransformer newLambdaTransformer(
+      final ClassFileTransformer classFileTransformer) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        Function<ClassFileTransformer, LambdaTransformer> factory =
+            (Function<ClassFileTransformer, LambdaTransformer>)
+                Instrumenter.class
+                    .getClassLoader()
+                    .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava9LambdaTransformer")
+                    .getField("FACTORY")
+                    .get(null);
+        return factory.apply(classFileTransformer);
+      } catch (Throwable e) {
+        log.debug("Problem loading Java 9 lambda transformer, disabling lambda field-injection", e);
+        return null;
+      }
+    }
+    return new LambdaTransformer() {
+      @Override
+      public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
+        try {
+          return classFileTransformer.transform(
+              targetClass.getClassLoader(),
+              slashClassName,
+              null,
+              targetClass.getProtectionDomain(),
+              classBytes);
+        } catch (Throwable ignored) {
+          return null;
+        }
+      }
+    };
   }
 
   /** Returns an iterable that combines the original sequence with any discovered extensions. */
