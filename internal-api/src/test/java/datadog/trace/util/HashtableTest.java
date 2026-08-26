@@ -157,7 +157,7 @@ class HashtableTest {
 
     @Test
     void clearNullsAllBuckets() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -169,7 +169,7 @@ class HashtableTest {
 
     @Test
     void drainVisitsEveryEntryThenClears() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -185,7 +185,7 @@ class HashtableTest {
 
     @Test
     void insertHeadEntrySplicesAsNewHead() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
@@ -654,7 +654,7 @@ class HashtableTest {
 
     @Test
     void evictOneRemovesFirstMatchAndAdvancesCursor() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
@@ -670,7 +670,7 @@ class HashtableTest {
 
     @Test
     void evictOneReturnsNullWhenNothingMatches() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       Hashtable.SizeManager cursor = table.sizeManager;
@@ -681,7 +681,7 @@ class HashtableTest {
 
     @Test
     void evictOneWrapsAroundToStartOfTable() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[3] = new StringIntEntry("d", 4);
@@ -700,7 +700,7 @@ class HashtableTest {
 
     @Test
     void drainRemovesAllMatchesAndResetsCursor() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
@@ -723,7 +723,7 @@ class HashtableTest {
 
     @Test
     void resetZeroesCursor() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[3] = new StringIntEntry("d", 4);
       Hashtable.SizeManager cursor = table.sizeManager;
@@ -741,11 +741,11 @@ class HashtableTest {
   // ============ Table ============
 
   @Nested
-  class TableTests {
+  class StateTests {
 
     @Test
     void createTableSizesBucketsWithHeadroomAndCapsSize() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
 
       int len = table.buckets.length;
       assertTrue(len >= 4, "backing array must have load-factor headroom over capacity");
@@ -758,7 +758,7 @@ class HashtableTest {
 
     @Test
     void tableSizeTrackerRespectsCapacity() {
-      Hashtable.Table table = Hashtable.createCappedTable(1);
+      Hashtable.State table = Hashtable.createCapped(1);
 
       assertTrue(table.sizeManager.tryReserve());
       assertTrue(table.sizeManager.isFull());
@@ -767,7 +767,7 @@ class HashtableTest {
 
     @Test
     void tableSizeManagerOperatesOnItsOwnBuckets() {
-      Hashtable.Table table = Hashtable.createCappedTable(4);
+      Hashtable.State table = Hashtable.createCapped(4);
       table.buckets[0] = new StringIntEntry("a", 1);
 
       StringIntEntry evicted =
