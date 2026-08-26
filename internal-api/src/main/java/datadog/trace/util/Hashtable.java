@@ -165,6 +165,11 @@ public final class Hashtable {
       return this.sizeTracker.size();
     }
 
+    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    public boolean isFull() {
+      return this.sizeTracker.isFull();
+    }
+
     @Nullable
     public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
@@ -408,6 +413,11 @@ public final class Hashtable {
 
     public int size() {
       return this.sizeTracker.size();
+    }
+
+    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    public boolean isFull() {
+      return this.sizeTracker.isFull();
     }
 
     @Nullable
