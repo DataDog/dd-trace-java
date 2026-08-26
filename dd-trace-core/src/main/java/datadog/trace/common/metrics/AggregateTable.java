@@ -31,11 +31,6 @@ final class AggregateTable {
    */
   private static final Predicate<AggregateEntry> STALE = AggregateEntry::isStale;
 
-  /**
-   * Bucket spine plus the manager that keeps it within {@code maxAggregates} -- the manager also
-   * owns the resumable eviction scan, so consecutive evictions don't re-walk the same hot entries
-   * clustered near bucket 0.
-   */
   private final Hashtable.State<AggregateEntry> state;
 
   private final AggregateEntry.Canonical canonical;
@@ -59,11 +54,11 @@ final class AggregateTable {
   }
 
   int size() {
-    return state.sizeManager.size();
+    return Hashtable.size(state);
   }
 
   boolean isEmpty() {
-    return state.sizeManager.size() == 0;
+    return Hashtable.isEmpty(state);
   }
 
   /**
@@ -74,7 +69,7 @@ final class AggregateTable {
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
-    for (AggregateEntry candidate = Hashtable.bucketFor(state.buckets, keyHash);
+    for (AggregateEntry candidate = Hashtable.bucketFor(state, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
@@ -87,7 +82,7 @@ final class AggregateTable {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
-    Hashtable.insertHeadEntryFor(state.buckets, keyHash, entry);
+    Hashtable.insertReserved(state, keyHash, entry);
     return entry;
   }
 
@@ -109,7 +104,7 @@ final class AggregateTable {
    * backstop.
    */
   void forEach(Consumer<AggregateEntry> consumer) {
-    Hashtable.forEach(state.buckets, consumer);
+    Hashtable.forEach(state, consumer);
   }
 
   /**
@@ -118,7 +113,7 @@ final class AggregateTable {
    * plus whatever side-band state it needs as {@code context}.
    */
   <C> void forEach(C context, BiConsumer<C, AggregateEntry> consumer) {
-    Hashtable.forEach(state.buckets, context, consumer);
+    Hashtable.forEach(state, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
