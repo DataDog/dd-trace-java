@@ -23,6 +23,8 @@ public class LettuceInstrumentationUtil {
           CommandType.DEBUG,
           CommandType.SCRIPT);
 
+  public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
+
   // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
   private static final Set<String> NON_INSTRUMENTING_COMMAND_NAMES =
       commandNames(NON_INSTRUMENTING_COMMANDS);
