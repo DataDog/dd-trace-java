@@ -393,11 +393,9 @@ public final class ContinuableScopeManager {
       return ROOT_CONTINUATION;
     }
 
-    // respect async propagation flag for Context.current().capture()
+    // respect async propagation flag for any capture requests
     ContinuableScope activeScope = scopeStack().active();
-    if (activeScope != null
-        && !activeScope.isAsyncPropagating()
-        && activeScope.context == context) {
+    if (activeScope != null && !activeScope.isAsyncPropagating()) {
       return ROOT_CONTINUATION;
     }
     AgentSpan span = AgentSpan.fromContext(context);
