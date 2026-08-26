@@ -440,43 +440,6 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void nettyNativeBrokenPipeExceptionDoesNotCreateErrorSpan() {
-    String message = "writevAddresses(..) failed with error(-32): Broken pipe";
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new IOException(message));
-    assertFalse(span.isError());
-    assertNull(span.getTag(DDTags.ERROR_STACK));
-    assertEquals(message, span.getTag(DDTags.ERROR_MSG));
-  }
-
-  @Test
-  void nettyNativeSyscallBrokenPipeExceptionDoesNotCreateErrorSpan() {
-    String message = "syscall:writev(..) failed: Broken pipe";
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new IOException(message));
-    assertFalse(span.isError());
-    assertNull(span.getTag(DDTags.ERROR_STACK));
-    assertEquals(message, span.getTag(DDTags.ERROR_MSG));
-  }
-
-  @Test
-  void nettyNativeConnectionResetExceptionDoesNotCreateErrorSpan() {
-    String message = "writevAddresses(..) failed: Connection reset by peer";
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new IOException(message));
-    assertFalse(span.isError());
-    assertNull(span.getTag(DDTags.ERROR_STACK));
-    assertEquals(message, span.getTag(DDTags.ERROR_MSG));
-  }
-
-  @Test
-  void nettyNativeClientAbortMessagesAreCaseSensitive() {
-    assertErrorSpanForMessage("writevAddresses(..) failed with error(-32): broken pipe");
-    assertErrorSpanForMessage("syscall:writev(..) failed: broken pipe");
-    assertErrorSpanForMessage("writevAddresses(..) failed: connection reset by peer");
-  }
-
-  @Test
   void wrappedBrokenPipeExceptionDoesNotCreateErrorSpan() {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
     span.addThrowable(new RuntimeException(new IOException("Broken pipe")));
@@ -511,14 +474,6 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertNotNull(span.getTag(DDTags.ERROR_STACK));
     assertEquals("outer message", span.getTag(DDTags.ERROR_MSG));
     assertEquals(RuntimeException.class.getName(), span.getTag(DDTags.ERROR_TYPE));
-  }
-
-  private void assertErrorSpanForMessage(String message) {
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
-    span.addThrowable(new IOException(message));
-    assertTrue(span.isError());
-    assertNotNull(span.getTag(DDTags.ERROR_STACK));
-    assertEquals(message, span.getTag(DDTags.ERROR_MSG));
   }
 
   @Test

@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.netty41.server;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
@@ -34,6 +36,12 @@ public class NettyHttpServerDecorator
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
   private static final CharSequence NETTY_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
+  private static final String NETTY_NATIVE_BROKEN_PIPE_MESSAGE =
+      "writevAddresses(..) failed with error(-32): Broken pipe";
+  private static final String NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE =
+      "syscall:writev(..) failed: Broken pipe";
+  private static final String NETTY_NATIVE_CONNECTION_RESET_MESSAGE =
+      "writevAddresses(..) failed: Connection reset by peer";
 
   @Override
   protected String[] instrumentationNames() {
@@ -106,6 +114,34 @@ public class NettyHttpServerDecorator
   @Override
   protected boolean isAppSecOnResponseSeparate() {
     return true;
+  }
+
+  @Override
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    if (isNettyNativeClientAbort(throwable)) {
+      span.setTag(DDTags.ERROR_MSG, safeMessage(throwable));
+      span.setTag(DDTags.ERROR_TYPE, throwable.getClass().getName());
+      return;
+    }
+    super.doOnError(span, throwable, errorPriority);
+  }
+
+  private static boolean isNettyNativeClientAbort(final Throwable throwable) {
+    if (throwable == null) {
+      return false;
+    }
+    final String message = safeMessage(throwable);
+    return NETTY_NATIVE_BROKEN_PIPE_MESSAGE.equals(message)
+        || NETTY_NATIVE_SYSCALL_BROKEN_PIPE_MESSAGE.equals(message)
+        || NETTY_NATIVE_CONNECTION_RESET_MESSAGE.equals(message);
+  }
+
+  private static String safeMessage(final Throwable throwable) {
+    try {
+      return throwable.getMessage();
+    } catch (Throwable ignored) {
+      return null;
+    }
   }
 
   @Override
