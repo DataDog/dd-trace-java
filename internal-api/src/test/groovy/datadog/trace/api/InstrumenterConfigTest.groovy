@@ -192,4 +192,22 @@ class InstrumenterConfigTest extends DDSpecification {
     "1"        | ProductActivation.FULLY_ENABLED
     "inactive" | ProductActivation.ENABLED_INACTIVE
   }
+
+  def "data streams enabled = #input"() {
+    setup:
+    if (input != null) {
+      injectSysConfig("data.streams.enabled", input)
+    }
+
+    expect:
+    InstrumenterConfig.get().isDataStreamsEnabled() == expected
+
+    where:
+    input   | expected
+    null    | false
+    "false" | false
+    "true"  | true
+    "1"     | true
+    "0"     | false
+  }
 }
