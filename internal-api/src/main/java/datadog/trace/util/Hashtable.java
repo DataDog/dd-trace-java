@@ -211,7 +211,7 @@ public final class Hashtable {
       // `e -> e.matches(key)` predicate captures `key`, so it allocates a fresh Predicate on every
       // call. This class ships context-passing forEach/drain overloads precisely so callers can
       // avoid capturing lambdas -- the write paths follow the same discipline. Same loop shape as
-      // insertOrReplace below.
+      // tryInsertOrReplace below.
       long keyHash = D1.Entry.hash(key);
       for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
           iter.hasNext(); ) {
@@ -235,15 +235,23 @@ public final class Hashtable {
     }
 
     /**
-     * Replaces the existing entry for {@code newEntry}'s key (returning the prior entry), or
-     * inserts it fresh (returning {@code null}) if absent. Replacing never grows {@link #size()},
-     * so it always succeeds even on a full table; only a fresh insert can hit the cap, in which
-     * case this throws {@link IllegalStateException} -- unlike {@link #insert} and {@link
-     * #tryGetOrCreate}, there is no spare return-value slot free to signal refusal without
-     * colliding with the existing "freshly inserted" {@code null}.
+     * Makes {@code newEntry} the entry for its key: replaces the existing entry for that key if one
+     * is present, otherwise inserts it fresh. Returns {@code false} only when the key is absent
+     * <em>and</em> the table is at capacity -- a replacement swaps one entry for another without
+     * growing {@link #size()}, so it always succeeds, even on a full table.
+     *
+     * <p>Does not hand back the entry it displaced. Callers that need it can {@link #get} first;
+     * that is rare enough (the same way {@code Map.put}'s return value is rarely read) not to be
+     * worth the cost of the alternative, which was throwing {@link IllegalStateException} on
+     * refusal because {@code null} was already spoken for by "inserted fresh". Refusal at a cap is
+     * ordinary steady-state behaviour, not a programming error, and an exception would allocate a
+     * throwable plus stack trace exactly when the table is under the most pressure.
+     *
+     * <p>Note this swaps the entry <em>object</em>. Where the goal is to change values on an entry
+     * that may or may not exist yet, prefer looking it up once and mutating in place -- that is the
+     * allocation-free path this class exists for.
      */
-    @Nullable
-    public TEntry insertOrReplace(@Nonnull TEntry newEntry) {
+    public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
               mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
@@ -251,16 +259,11 @@ public final class Hashtable {
 
         if (curEntry.matches(newEntry.key)) {
           iter.replace(newEntry);
-          return curEntry;
+          return true;
         }
       }
 
-      if (!this.sizeTracker.tryReserve()) {
-        throw new IllegalStateException(
-            "Hashtable.D1 is at capacity (" + this.sizeTracker.capacity() + ")");
-      }
-      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      return null;
+      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -295,6 +298,10 @@ public final class Hashtable {
           return curEntry;
         }
       }
+      // Deliberately isFull() -> create -> increment, rather than the one-call tracked
+      // insertHeadEntryFor(sizeTracker, ...) that insert/tryInsertOrReplace use: `creator` runs
+      // between the check and the link and may throw, so a slot reserved up front could leak. See
+      // SizeTracker#tryReserve.
       if (this.sizeTracker.isFull()) {
         return null;
       }
@@ -349,7 +356,7 @@ public final class Hashtable {
    * <p>The user supplies a {@link D2.Entry} subclass carrying both key parts and any value fields.
    * Compared to {@code HashMap<Pair, V>} this avoids the per-lookup {@code Pair} (or record)
    * allocation: both key parts are passed directly through {@link #get}, {@link #remove}, {@link
-   * #insert}, and {@link #insertOrReplace}. Combined with in-place value mutation, this makes
+   * #insert}, and {@link #tryInsertOrReplace}. Combined with in-place value mutation, this makes
    * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
    * counter-style workloads.
    *
@@ -488,9 +495,8 @@ public final class Hashtable {
       return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
     }
 
-    /** Two-key analogue of {@link D1#insertOrReplace}, with the same refusal contract. */
-    @Nullable
-    public TEntry insertOrReplace(@Nonnull TEntry newEntry) {
+    /** Two-key analogue of {@link D1#tryInsertOrReplace}, with the same refusal contract. */
+    public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
               mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
@@ -498,16 +504,11 @@ public final class Hashtable {
 
         if (curEntry.matches(newEntry.key1, newEntry.key2)) {
           iter.replace(newEntry);
-          return curEntry;
+          return true;
         }
       }
 
-      if (!this.sizeTracker.tryReserve()) {
-        throw new IllegalStateException(
-            "Hashtable.D2 is at capacity (" + this.sizeTracker.capacity() + ")");
-      }
-      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
-      return null;
+      return insertHeadEntryFor(this.sizeTracker, this.buckets, newEntry.keyHash, newEntry);
     }
 
     /**
@@ -534,6 +535,10 @@ public final class Hashtable {
           return curEntry;
         }
       }
+      // Deliberately isFull() -> create -> increment, rather than the one-call tracked
+      // insertHeadEntryFor(sizeTracker, ...) that insert/tryInsertOrReplace use: `creator` runs
+      // between the check and the link and may throw, so a slot reserved up front could leak. See
+      // SizeTracker#tryReserve.
       if (this.sizeTracker.isFull()) {
         return null;
       }
