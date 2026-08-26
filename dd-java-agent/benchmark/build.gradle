@@ -38,8 +38,16 @@ jmh {
   jmhVersion = libs.versions.jmh.get()
 }
 
+// Copy the agent to a fixed, version-independent path so benchmarks that attach it can name it
+// with a compile-time constant (JMH's @Fork annotation cannot read a system property).
+def agentJarForBenchmarks = tasks.register('agentJarForBenchmarks', Copy) {
+  from project(':dd-java-agent').tasks.named('shadowJar')
+  into layout.buildDirectory.dir('agent')
+  rename { 'dd-java-agent.jar' }
+}
+
 tasks.named('jmh') {
-  dependsOn ':dd-java-agent:shadowJar'
+  dependsOn agentJarForBenchmarks
 }
 
 /*

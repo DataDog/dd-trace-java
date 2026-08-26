@@ -28,10 +28,10 @@ import org.openjdk.jmh.annotations.TearDown;
  * removed. Lives outside the {@code datadog.*} package on purpose — {@code LambdaTransformerHelper}
  * skips agent-owned lambdas, and a real application's lambdas are not under {@code datadog.*}.
  */
-public class LambdaExecutorBenchmark {
+public abstract class LambdaExecutorBenchmark {
 
-  private static final String AGENT =
-      "-javaagent:/Users/andrea.marziali/go/src/github.com/DataDog/dd-trace-java/dd-java-agent/build/libs/dd-java-agent-1.64.0-SNAPSHOT.jar";
+  // Relative to the JMH working directory, which Gradle sets to this project's directory.
+  private static final String AGENT = "-javaagent:build/agent/dd-java-agent.jar";
 
   @State(Scope.Benchmark)
   public static class ExecutorState {
