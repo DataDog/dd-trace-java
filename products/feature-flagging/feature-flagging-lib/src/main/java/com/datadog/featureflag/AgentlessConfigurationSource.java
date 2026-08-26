@@ -41,6 +41,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  private static final String DD_API_KEY_FINGERPRINT_HEADER = "DD-API-KEY-FINGERPRINT";
   private static final int MAX_ATTEMPTS = 3;
   private static final int MINUTES_BETWEEN_WARNINGS = 5;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
@@ -363,9 +364,14 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       if (etag != null) {
         headers.put("If-None-Match", etag);
       }
+      final boolean datadogManagedEndpoint = isDatadogManagedEndpoint(endpoint, config);
+      final String apiKey = config.getApiKey();
+      if (datadogManagedEndpoint && apiKey != null && !apiKey.isEmpty()) {
+        headers.put(DD_API_KEY_FINGERPRINT_HEADER, ApiKeyFingerprint.create(apiKey));
+      }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
       final Request request =
-          prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
+          prepareRequest(endpoint, headers, config, datadogManagedEndpoint)
               .get()
               .build();
       if (!fetching.compareAndSet(false, true)) {
