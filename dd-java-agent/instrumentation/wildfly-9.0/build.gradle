@@ -8,6 +8,7 @@ muzzle {
     group = 'org.wildfly'
     module = 'wildfly-ee'
     versions = '[9.0.0.Final,)'
+    skipVersions += '41.0.1.Final' // TODO - remove once fixed: wildfly-core-parent 33.0.1.Final unavailable via Depot
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
