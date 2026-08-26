@@ -42,6 +42,6 @@ everything four times over.
   and docker writes progress and "manifest unknown" to stderr.
 - The container gets `LongPathsEnabled` and `core.longpaths`; the deepest relocated build
   outputs under `C:\work\workspace\...` exceed the 260-character `MAX_PATH` default.
-- Temurin publishes no JDK 21 newer than `21.0.12+8` for `windowsservercore-ltsc2025`,
+- Temurin publishes no JDK 21 newer than `21.0.12+8` for `windowsservercore-ltsc2022`,
   while 8, 11, 17, and 25 are current. Expect some failures on the Java 21 matrix to be
   JDK-version artifacts rather than Windows-specific.

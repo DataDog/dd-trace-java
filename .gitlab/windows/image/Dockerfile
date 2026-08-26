@@ -1,11 +1,11 @@
 # escape=`
 
-FROM eclipse-temurin:8-jdk-windowsservercore-ltsc2025@sha256:0ce93c7ea851ec5ea7d35393d106bd717697865b6111a681964f6eb7147f14c8 AS temurin8
-FROM eclipse-temurin:11-jdk-windowsservercore-ltsc2025@sha256:f58946540fe9ae7c685b9d2b40e58746b2332fa9bd8546ec4d2881143d9da99e AS temurin11
-FROM eclipse-temurin:17-jdk-windowsservercore-ltsc2025@sha256:aa7cfb793cd567a3bb2178600c7179249e6058f7a0b9b9e3b44be4cb12bde11b AS temurin17
-FROM eclipse-temurin:25-jdk-windowsservercore-ltsc2025@sha256:28a4b5421e4c03e4a86c900971fd835c1b343564a972da324bdabf666766952b AS temurin25
+FROM eclipse-temurin:8-jdk-windowsservercore-ltsc2022@sha256:eabbefd4cede69e8127cc87507a690f76c1a953d1eb7d9495c22d645751d4848 AS temurin8
+FROM eclipse-temurin:11-jdk-windowsservercore-ltsc2022@sha256:b28aa578a01b67fa30eddc71615369d71560458636f0f74dc39ededbdb9b9a67 AS temurin11
+FROM eclipse-temurin:17-jdk-windowsservercore-ltsc2022@sha256:d3e4b6058da8b3b54acb97b708b141650fdb5234b7b5dac92017263e1cf530b3 AS temurin17
+FROM eclipse-temurin:25-jdk-windowsservercore-ltsc2022@sha256:ef8836e0ec8a43d98a0d0d0ef7accec7e466e3f67533649b0887ba77cf295a9e AS temurin25
 
-FROM eclipse-temurin:21-jdk-windowsservercore-ltsc2025@sha256:8828b43d3c6be114c39da1696c48d3b76ee46ab4bf08b5afeaf057174b60a9f5
+FROM eclipse-temurin:21-jdk-windowsservercore-ltsc2022@sha256:1ef9cebf526129fea284f8b92b4736b6ffcdaaee151603820a787047af13625f
 
 SHELL ["powershell", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
