@@ -112,7 +112,9 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
     input["key"] == "value"
     input["_datadog"]["x-datadog-trace-id"] != null
     input["_datadog"]["x-datadog-parent-id"] != null
-    input["_datadog"]["x-datadog-tags"] != null
+    input["_datadog"]["x-datadog-sampling-priority"] != null
+    input["_datadog"]["x-datadog-tags"] instanceof String
+    input["_datadog"]["x-datadog-tags"].contains("_dd.p.")
   }
 
   def "datadog context is not injected when SfnInjectDatadogAttribute is disabled"() {

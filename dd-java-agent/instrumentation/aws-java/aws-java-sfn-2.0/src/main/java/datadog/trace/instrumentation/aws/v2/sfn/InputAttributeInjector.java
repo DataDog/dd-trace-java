@@ -1,19 +1,21 @@
 package datadog.trace.instrumentation.aws.v2.sfn;
 
-import datadog.json.JsonMapper;
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
+import datadog.context.Context;
 import datadog.json.JsonWriter;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class InputAttributeInjector {
   private static final String DATADOG_KEY = "_datadog";
 
-  public static String buildTraceContext(AgentSpan span) {
+  public static String buildTraceContext(Context context) {
+    if (fromContext(context) == null) {
+      return null;
+    }
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
-      writer.name("x-datadog-trace-id").value(span.getTraceId().toString());
-      writer.name("x-datadog-parent-id").value(String.valueOf(span.getSpanId()));
-      writer.name("x-datadog-tags");
-      JsonMapper.writeAsJsonValue(writer, span.getTags());
+      defaultPropagator().inject(context, writer, TextMapInjectAdapter.SETTER);
       writer.endObject();
       return writer.toString();
     } catch (Exception e) {
