@@ -58,6 +58,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD2Benchmark.iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
  * HashtableD2Benchmark.iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D2State.setUp()} (same
+ * machine/JVM/config): results were noisy and inconsistent with a clean pollution story —
+ * add_hashMap actually rose (77→103), while add_hashtable fell sharply (217→118, error bars wider
+ * than the mean both times); update_hashtable fell (1446→1225) and both iterate numbers fell
+ * (19.5→15.4, 17.0→13.1) despite {@code *_hashtable} not touching {@code java.util.HashMap}/{@code
+ * HashSet} dispatch at all. As with {@link HashtableD1Benchmark}, this looks like uncontrolled
+ * machine variance between the two sessions rather than a genuine pollution effect here — treat
+ * these two runs as not directly comparable. The <b>relative</b> conclusion (D2 dominates {@code
+ * update}, wins {@code add} by avoiding the {@code Key2} allocation, ties on {@code iterate}) is
+ * unchanged either way.
  */
 @Fork(2)
 @Warmup(iterations = 2)
