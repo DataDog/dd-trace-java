@@ -71,7 +71,11 @@ public class DDEvaluatorTest {
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
   private static final Moshi MOSHI =
-      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
+      new Moshi.Builder()
+          .add(Date.class, new DateAdapter())
+          .add(ShardAdapter.FACTORY)
+          .add(FlagMapAdapter.FACTORY)
+          .build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
@@ -233,11 +237,13 @@ public class DDEvaluatorTest {
   public void testEvaluateUnsignedShardRange() {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
+    // The selected shard is above Integer.MAX_VALUE, so this test proves that evaluation uses
+    // unsigned semantics after binary-compatible int storage.
     final Shard shard =
         new Shard(
             "salt",
-            singletonList(new ShardRange(3_699_531_192L, 3_699_531_193L)),
-            MAX_UNSIGNED_INT);
+            singletonList(new ShardRange((int) 3_699_531_192L, (int) 3_699_531_193L)),
+            (int) MAX_UNSIGNED_INT);
     final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
     final Allocation allocation =
         new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
@@ -1099,6 +1105,74 @@ public class DDEvaluatorTest {
     Map<String, Object> flagMetadata = emptyMap();
   }
 
+  /**
+   * Mirrors the production parser's binary-compatible uint32 representation for fixture parsing.
+   */
+  private static final class ShardAdapter extends JsonAdapter<Shard> {
+    private static final JsonAdapter.Factory FACTORY =
+        (type, annotations, moshi) -> {
+          if (!annotations.isEmpty() || type != Shard.class) {
+            return null;
+          }
+          return new ShardAdapter(moshi.adapter(ShardJson.class));
+        };
+
+    private final JsonAdapter<ShardJson> delegate;
+
+    private ShardAdapter(final JsonAdapter<ShardJson> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Shard fromJson(final JsonReader reader) throws IOException {
+      final ShardJson shard = delegate.fromJson(reader);
+      if (shard == null) {
+        return null;
+      }
+      final List<ShardRange> ranges;
+      if (shard.ranges == null) {
+        ranges = null;
+      } else {
+        ranges = new ArrayList<>();
+        for (final ShardRangeJson range : shard.ranges) {
+          ranges.add(
+              range == null
+                  ? null
+                  : new ShardRange(
+                      toUnsignedInt(range.start, "range start"),
+                      toUnsignedInt(range.end, "range end")));
+        }
+      }
+      return new Shard(shard.salt, ranges, toUnsignedInt(shard.totalShards, "totalShards"));
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Shard value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static int toUnsignedInt(final Long value, final String fieldName) {
+    if (value == null) {
+      return 0;
+    }
+    if (value < 0 || value > MAX_UNSIGNED_INT) {
+      throw new IllegalArgumentException("flag contains an invalid " + fieldName + " value");
+    }
+    return value.intValue();
+  }
+
+  private static final class ShardJson {
+    String salt;
+    List<ShardRangeJson> ranges;
+    Long totalShards;
+  }
+
+  private static final class ShardRangeJson {
+    Long start;
+    Long end;
+  }
+
   /** Reads the flags map with per-flag failure isolation, matching the production parser. */
   private static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
     private static final Type FLAGS_TYPE =
@@ -1129,7 +1203,6 @@ public class DDEvaluatorTest {
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
-          validateRawShardBounds(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);
@@ -1142,58 +1215,6 @@ public class DDEvaluatorTest {
       }
       reader.endObject();
       return flags;
-    }
-
-    private static void validateRawShardBounds(final Object rawFlag) {
-      if (!(rawFlag instanceof Map)) {
-        return;
-      }
-      final Object allocations = ((Map<?, ?>) rawFlag).get("allocations");
-      if (!(allocations instanceof List)) {
-        return;
-      }
-      for (final Object allocation : (List<?>) allocations) {
-        if (!(allocation instanceof Map)) {
-          continue;
-        }
-        final Object splits = ((Map<?, ?>) allocation).get("splits");
-        if (!(splits instanceof List)) {
-          continue;
-        }
-        for (final Object split : (List<?>) splits) {
-          if (!(split instanceof Map)) {
-            continue;
-          }
-          final Object shards = ((Map<?, ?>) split).get("shards");
-          if (!(shards instanceof List)) {
-            continue;
-          }
-          for (final Object shard : (List<?>) shards) {
-            if (!(shard instanceof Map)) {
-              continue;
-            }
-            final Map<?, ?> rawShard = (Map<?, ?>) shard;
-            validateUnsignedInt(rawShard.get("totalShards"));
-            final Object ranges = rawShard.get("ranges");
-            if (!(ranges instanceof List)) {
-              continue;
-            }
-            for (final Object range : (List<?>) ranges) {
-              if (range instanceof Map) {
-                final Map<?, ?> rawRange = (Map<?, ?>) range;
-                validateUnsignedInt(rawRange.get("start"));
-                validateUnsignedInt(rawRange.get("end"));
-              }
-            }
-          }
-        }
-      }
-    }
-
-    private static void validateUnsignedInt(final Object value) {
-      if (value instanceof Number && ((Number) value).longValue() > MAX_UNSIGNED_INT) {
-        throw new IllegalArgumentException("flag contains an oversized shard value");
-      }
     }
 
     private static void validateFlag(final String flagKey, final Flag flag) {
@@ -1217,12 +1238,14 @@ public class DDEvaluatorTest {
                 "flag \"" + flagKey + "\" contains a split with missing shards");
           }
           for (final Shard shard : split.shards) {
-            if (shard == null || shard.totalShards <= 0 || shard.ranges == null) {
+            if (shard == null
+                || Integer.toUnsignedLong(shard.totalShards) == 0
+                || shard.ranges == null) {
               throw new IllegalArgumentException(
                   "flag \"" + flagKey + "\" contains invalid shards");
             }
             for (final ShardRange range : shard.ranges) {
-              if (range == null || range.start < 0 || range.end < 0) {
+              if (range == null) {
                 throw new IllegalArgumentException(
                     "flag \"" + flagKey + "\" contains an invalid shard range");
               }

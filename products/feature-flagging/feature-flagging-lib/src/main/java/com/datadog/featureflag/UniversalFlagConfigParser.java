@@ -22,6 +22,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   private static final Moshi MOSHI =
       new Moshi.Builder()
           .add(Instant.class, new InstantAdapter())
+          .add(ShardAdapter.FACTORY)
           .add(AllocationAdapter.FACTORY)
           .add(FlagMapAdapter.FACTORY)
           .add(LenientBooleanAdapter.FACTORY)
@@ -92,57 +94,15 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     reader.peek();
   }
 
-  /** Rejects shard values that exceed the UFC unsigned 32-bit range. */
-  private static void validateRawShardBounds(final Object rawFlag) {
-    if (!(rawFlag instanceof Map)) {
-      return;
+  /** Converts a UFC uint32 wire value to its binary-compatible int representation. */
+  private static int toUnsignedInt(@Nullable final Long value, final String fieldName) {
+    if (value == null) {
+      return 0;
     }
-    final Object allocations = ((Map<?, ?>) rawFlag).get("allocations");
-    if (!(allocations instanceof List)) {
-      return;
+    if (value < 0 || value > MAX_UNSIGNED_INT) {
+      throw new InvalidFlagException("flag contains an invalid " + fieldName + " value");
     }
-    for (final Object allocation : (List<?>) allocations) {
-      if (!(allocation instanceof Map)) {
-        continue;
-      }
-      final Object splits = ((Map<?, ?>) allocation).get("splits");
-      if (!(splits instanceof List)) {
-        continue;
-      }
-      for (final Object split : (List<?>) splits) {
-        if (!(split instanceof Map)) {
-          continue;
-        }
-        final Object shards = ((Map<?, ?>) split).get("shards");
-        if (!(shards instanceof List)) {
-          continue;
-        }
-        for (final Object shard : (List<?>) shards) {
-          if (!(shard instanceof Map)) {
-            continue;
-          }
-          final Map<?, ?> rawShard = (Map<?, ?>) shard;
-          validateUnsignedInt(rawShard.get("totalShards"), "totalShards");
-          final Object ranges = rawShard.get("ranges");
-          if (!(ranges instanceof List)) {
-            continue;
-          }
-          for (final Object range : (List<?>) ranges) {
-            if (range instanceof Map) {
-              final Map<?, ?> rawRange = (Map<?, ?>) range;
-              validateUnsignedInt(rawRange.get("start"), "range start");
-              validateUnsignedInt(rawRange.get("end"), "range end");
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private static void validateUnsignedInt(final Object value, final String fieldName) {
-    if (value instanceof Number && ((Number) value).longValue() > MAX_UNSIGNED_INT) {
-      throw new InvalidFlagException("flag contains an oversized " + fieldName + " value");
-    }
+    return value.intValue();
   }
 
   /** Validates the required nested UFC fields and SemVer comparands for a flag. */
@@ -167,11 +127,13 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
               "flag \"" + flagKey + "\" contains a split with missing shards");
         }
         for (final Shard shard : split.shards) {
-          if (shard == null || shard.totalShards <= 0 || shard.ranges == null) {
+          if (shard == null
+              || Integer.toUnsignedLong(shard.totalShards) == 0
+              || shard.ranges == null) {
             throw new InvalidFlagException("flag \"" + flagKey + "\" contains invalid shards");
           }
           for (final ShardRange range : shard.ranges) {
-            if (range == null || range.start < 0 || range.end < 0) {
+            if (range == null) {
               throw new InvalidFlagException(
                   "flag \"" + flagKey + "\" contains an invalid shard range");
             }
@@ -299,6 +261,74 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     }
   }
 
+  /**
+   * Reads UFC uint32 shard fields through Long first, then preserves the bootstrap model's int ABI
+   * by storing the accepted value as its two's-complement bit pattern.
+   */
+  static final class ShardAdapter extends JsonAdapter<Shard> {
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || type != Shard.class) {
+              return null;
+            }
+            return new ShardAdapter(moshi.adapter(ShardJson.class));
+          }
+        };
+
+    private final JsonAdapter<ShardJson> delegate;
+
+    ShardAdapter(final JsonAdapter<ShardJson> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Nullable
+    @Override
+    public Shard fromJson(@Nonnull final JsonReader reader) throws IOException {
+      final ShardJson shard = delegate.fromJson(reader);
+      if (shard == null) {
+        return null;
+      }
+      final List<ShardRange> ranges;
+      if (shard.ranges == null) {
+        ranges = null;
+      } else {
+        ranges = new ArrayList<>();
+        for (final ShardRangeJson range : shard.ranges) {
+          ranges.add(
+              range == null
+                  ? null
+                  : new ShardRange(
+                      toUnsignedInt(range.start, "range start"),
+                      toUnsignedInt(range.end, "range end")));
+        }
+      }
+      return new Shard(shard.salt, ranges, toUnsignedInt(shard.totalShards, "totalShards"));
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Shard value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  static final class ShardJson {
+    String salt;
+    List<ShardRangeJson> ranges;
+    Long totalShards;
+  }
+
+  static final class ShardRangeJson {
+    Long start;
+    Long end;
+  }
+
   static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
 
     private static final Type FLAGS_TYPE =
@@ -337,7 +367,6 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
-          validateRawShardBounds(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);

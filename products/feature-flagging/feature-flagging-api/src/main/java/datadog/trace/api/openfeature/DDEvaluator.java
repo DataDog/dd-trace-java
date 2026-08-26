@@ -454,9 +454,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final long assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+    // The bootstrap model preserves its int ABI, so UFC uint32 values are stored as raw bits.
+    // Convert before arithmetic and comparison to retain their unsigned wire semantics.
+    final long totalShards = Integer.toUnsignedLong(shard.totalShards);
+    final long assignedShard = getShard(shard.salt, targetingKey, totalShards);
     for (final ShardRange range : shard.ranges) {
-      if (assignedShard >= range.start && assignedShard < range.end) {
+      final long rangeStart = Integer.toUnsignedLong(range.start);
+      final long rangeEnd = Integer.toUnsignedLong(range.end);
+      if (assignedShard >= rangeStart && assignedShard < rangeEnd) {
         return true;
       }
     }

@@ -217,7 +217,7 @@ class JsonApiUfcResponseParserTest {
                         ",\"allocations\":[{\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
                     booleanFlag(
                         "unsigned-total-shards",
-                        ",\"allocations\":[{\"key\":\"unsigned-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[]}]}]}]"),
+                        ",\"allocations\":[{\"key\":\"unsigned-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[{\"start\":2147483648,\"end\":2147483649}]}]}]}]"),
                     booleanFlag(
                         "too-many-shards",
                         ",\"allocations\":[{\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":4294967296,\"ranges\":[]}]}]}]"),
@@ -249,16 +249,47 @@ class JsonApiUfcResponseParserTest {
     assertTrue(configuration.flags.containsKey("unsigned-total-shards"));
     assertEquals(
         2_147_483_648L,
-        configuration
-            .flags
-            .get("unsigned-total-shards")
-            .allocations
-            .get(0)
-            .splits
-            .get(0)
-            .shards
-            .get(0)
-            .totalShards);
+        Integer.toUnsignedLong(
+            configuration
+                .flags
+                .get("unsigned-total-shards")
+                .allocations
+                .get(0)
+                .splits
+                .get(0)
+                .shards
+                .get(0)
+                .totalShards));
+    assertEquals(
+        2_147_483_648L,
+        Integer.toUnsignedLong(
+            configuration
+                .flags
+                .get("unsigned-total-shards")
+                .allocations
+                .get(0)
+                .splits
+                .get(0)
+                .shards
+                .get(0)
+                .ranges
+                .get(0)
+                .start));
+    assertEquals(
+        2_147_483_649L,
+        Integer.toUnsignedLong(
+            configuration
+                .flags
+                .get("unsigned-total-shards")
+                .allocations
+                .get(0)
+                .splits
+                .get(0)
+                .shards
+                .get(0)
+                .ranges
+                .get(0)
+                .end));
     assertFalse(configuration.flags.containsKey("too-many-shards"));
     assertFalse(configuration.flags.containsKey("missing-ranges"));
     assertFalse(configuration.flags.containsKey("null-shard"));
