@@ -99,4 +99,57 @@ class LLMObsContextTest {
       }
     }
   }
+
+  @Test
+  void samplingValuesReturnNullWhenNoContextAttached() {
+    assertNull(LLMObsContext.currentSamplingDecision());
+    assertNull(LLMObsContext.currentSampleRate());
+  }
+
+  @Test
+  void attachWithoutSamplingDecisionLeavesSamplingValuesNull() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, "session-123")) {
+      assertNull(LLMObsContext.currentSamplingDecision());
+      assertNull(LLMObsContext.currentSampleRate());
+    }
+  }
+
+  @Test
+  void attachWithSamplingDecisionStoresDecisionAndRate() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope =
+        LLMObsContext.attach(ctx, null, "0.25", LLMObsContext.SAMPLING_DECISION_DROPPED)) {
+      assertEquals(
+          LLMObsContext.SAMPLING_DECISION_DROPPED, LLMObsContext.currentSamplingDecision());
+      assertEquals("0.25", LLMObsContext.currentSampleRate());
+    }
+    assertNull(LLMObsContext.currentSamplingDecision());
+    assertNull(LLMObsContext.currentSampleRate());
+  }
+
+  @Test
+  void attachWithNullSamplingDecisionIgnoresSampleRate() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    // The rate is only meaningful alongside a decision, so it is not stored on its own.
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, "0.25", null)) {
+      assertNull(LLMObsContext.currentSamplingDecision());
+      assertNull(LLMObsContext.currentSampleRate());
+    }
+  }
+
+  @Test
+  void childScopeInheritsParentSamplingDecision() {
+    AgentSpanContext parent = mock(AgentSpanContext.class);
+    AgentSpanContext child = mock(AgentSpanContext.class);
+    try (ContextScope parentScope =
+        LLMObsContext.attach(parent, null, "1", LLMObsContext.SAMPLING_DECISION_SAMPLED)) {
+      try (ContextScope childScope = LLMObsContext.attach(child)) {
+        assertEquals(child, LLMObsContext.current());
+        assertEquals(
+            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+        assertEquals("1", LLMObsContext.currentSampleRate());
+      }
+    }
+  }
 }
