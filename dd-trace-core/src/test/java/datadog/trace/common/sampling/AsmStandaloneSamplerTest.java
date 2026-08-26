@@ -1,6 +1,7 @@
 package datadog.trace.common.sampling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,8 @@ class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
 
       assertEquals(PrioritySampling.SAMPLER_KEEP, span1.getSamplingPriority());
 
+      clearInvocations(clock);
+
       doAnswer(inv -> current.updateAndGet(value -> value + 1000))
           .when(clock)
           .millis(); // increment in one second
@@ -42,6 +45,8 @@ class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
       sampler.setSamplingPriority(span2);
 
       assertEquals(PrioritySampling.SAMPLER_DROP, span2.getSamplingPriority());
+
+      clearInvocations(clock);
 
       doAnswer(inv -> current.updateAndGet(value -> value + 60000))
           .when(clock)
