@@ -63,12 +63,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * machine/JVM/config): results were noisy and inconsistent with a clean pollution story —
  * add_hashMap actually rose (77→103), while add_hashtable fell sharply (217→118, error bars wider
  * than the mean both times); update_hashtable fell (1446→1225) and both iterate numbers fell
- * (19.5→15.4, 17.0→13.1) despite {@code *_hashtable} not touching {@code java.util.HashMap}/{@code
- * HashSet} dispatch at all. As with {@link HashtableD1Benchmark}, this looks like uncontrolled
- * machine variance between the two sessions rather than a genuine pollution effect here — treat
- * these two runs as not directly comparable. The <b>relative</b> conclusion (D2 dominates {@code
- * update}, wins {@code add} by avoiding the {@code Key2} allocation, ties on {@code iterate}) is
- * unchanged either way.
+ * (19.5→15.4, 17.0→13.1). As with {@link HashtableD1Benchmark}, {@code *_hashtable} is expected to
+ * be a no-op here: {@link Hashtable.D2.Entry#hash} and {@link Hashtable.D2.Entry#matches} are call
+ * sites private to {@code Hashtable.java}, structurally distinct from {@code
+ * java.util.HashMap}/{@code HashSet}'s internal dispatch call sites — pollution cannot reach them.
+ * With the JDK and machine held constant across this rerun, the drop is same-session run-to-run
+ * noise (thermal/power, not controlled for) rather than a genuine pollution effect. Treat these two
+ * runs as not directly comparable on absolute numbers. The <b>relative</b> conclusion (D2 dominates
+ * {@code update}, wins {@code add} by avoiding the {@code Key2} allocation, ties on {@code
+ * iterate}) is unchanged either way.
  */
 @Fork(2)
 @Warmup(iterations = 2)
