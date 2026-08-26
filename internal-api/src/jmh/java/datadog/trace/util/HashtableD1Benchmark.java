@@ -103,6 +103,8 @@ public class HashtableD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
+
       table = new Hashtable.D1<>(CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;

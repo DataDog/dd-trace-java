@@ -100,6 +100,7 @@ public class ThreadSafeMapCounterBenchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
       atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
       longAdderMap = new ConcurrentHashMap<>(CAPACITY);

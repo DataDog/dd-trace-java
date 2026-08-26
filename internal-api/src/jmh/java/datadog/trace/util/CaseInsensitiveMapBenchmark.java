@@ -6,8 +6,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -100,6 +102,11 @@ public class CaseInsensitiveMapBenchmark {
   // counter's cache-line ping-pong would floor the fastest lookups (the flat probe) at @Threads(8),
   // masking exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
 
   String nextLookupKey() {
     int localIndex = ++lookupIndex;

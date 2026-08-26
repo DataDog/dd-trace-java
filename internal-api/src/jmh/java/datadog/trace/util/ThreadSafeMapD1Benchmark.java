@@ -104,6 +104,7 @@ public class ThreadSafeMapD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D1.createBounded(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();

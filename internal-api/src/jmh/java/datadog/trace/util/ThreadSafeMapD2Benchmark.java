@@ -184,6 +184,7 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D2.createBounded(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
