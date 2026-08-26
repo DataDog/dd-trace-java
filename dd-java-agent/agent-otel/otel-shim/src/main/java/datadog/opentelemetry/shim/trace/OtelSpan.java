@@ -38,11 +38,11 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private boolean recording;
 
   /**
-   * Span events ({@code null} until an event is added). Mutations are guarded by synchronizing on
-   * {@code this}: events can be recorded from application threads while the span is finished (and
-   * its events serialized) from a different thread, so unsynchronized access would corrupt the
-   * backing list. Declared {@code volatile} so {@link #onSpanFinished()} can take a lock-free fast
-   * path for the common case of a span with no events.
+   * Span events ({@code null} until an event is added).
+   *
+   * <p>Volatile so {@link #onSpanFinished()} can skip the lock in common no-events case; writes and
+   * the rare non-null read synchronize on {@code this} to guard against concurrent recording from
+   * another thread.
    */
   private volatile List<OtelSpanEvent> events;
 
@@ -183,17 +183,14 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public void onSpanFinished() {
     applyNamingConvention(this.delegate);
-    // Fast path: most spans have no events, so avoid taking the lock entirely (single volatile
-    // read).
-    List<OtelSpanEvent> eventsSnapshot = this.events;
-    if (eventsSnapshot != null) {
-      // Copy under lock so serialization iterates a private snapshot that cannot be mutated
-      // concurrently by an application thread still recording events.
+    // Fast path: skip the lock when there are no events (the common case).
+    if (this.events != null) {
+      List<OtelSpanEvent> eventsSnapshot;
       synchronized (this) {
         eventsSnapshot = new ArrayList<>(this.events);
       }
+      setEventsAsTag(this.delegate, eventsSnapshot);
     }
-    setEventsAsTag(this.delegate, eventsSnapshot);
   }
 
   private static class NoopSpan implements Span {

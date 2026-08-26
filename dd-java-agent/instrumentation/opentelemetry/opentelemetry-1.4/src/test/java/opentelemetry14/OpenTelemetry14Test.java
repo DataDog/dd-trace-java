@@ -293,12 +293,8 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
   @Test
   void testConcurrentAddEvents() throws Exception {
-    // Regression test for the concurrent recording of span events. Events used to be stored in a
-    // plain ArrayList mutated without synchronization; recording events from multiple threads (as
-    // GraphQL DataLoaders do on virtual threads) corrupted the backing list, leaving null holes
-    // that
-    // triggered a NullPointerException in OtelSpanEvent.toTag when the span was finished. See trace
-    // b8b8e4edde47f90a92e832b63251a577.
+    // Regression test: concurrent addEvent calls (e.g. from GraphQL DataLoaders on virtual
+    // threads) used to corrupt unsynchronized backing list, causing NPE on span finish.
     int threadCount = 8;
     int eventsPerThread = 2000;
     Span span = this.otelTracer.spanBuilder("some-name").startSpan();
