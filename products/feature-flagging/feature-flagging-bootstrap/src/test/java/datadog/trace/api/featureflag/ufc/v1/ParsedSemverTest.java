@@ -2,6 +2,7 @@ package datadog.trace.api.featureflag.ufc.v1;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -172,6 +173,40 @@ class ParsedSemverTest {
     final ParsedSemver right = ParsedSemver.parse("1.0.0-11");
     assertTrue(right != null);
     assertTrue(ParsedSemver.compare(left, right) < 0);
+  }
+
+  @Test
+  void testEqualsAndHashCodeNormalizeTrailingZeroComponents() {
+    // Versions that compare as equal must also be equals() and share a hashCode, even when they
+    // differ only by trailing zero components (1.2.3 vs 1.2.3.0 vs 1.2.3.0.0).
+    final ParsedSemver base = ParsedSemver.parse("1.2.3");
+    final ParsedSemver trailingZero = ParsedSemver.parse("1.2.3.0");
+    final ParsedSemver trailingZeros = ParsedSemver.parse("1.2.3.0.0");
+    assertTrue(base != null);
+    assertTrue(trailingZero != null);
+    assertTrue(trailingZeros != null);
+    assertEquals(0, ParsedSemver.compare(base, trailingZero));
+    assertEquals(0, ParsedSemver.compare(base, trailingZeros));
+    assertEquals(base, trailingZero);
+    assertEquals(base, trailingZeros);
+    assertEquals(trailingZero, trailingZeros);
+    assertEquals(base.hashCode(), trailingZero.hashCode());
+    assertEquals(base.hashCode(), trailingZeros.hashCode());
+    assertEquals(trailingZero.hashCode(), trailingZeros.hashCode());
+
+    // All-zero versions of varying length are also compare-equal and must hash identically.
+    final ParsedSemver zero = ParsedSemver.parse("0");
+    final ParsedSemver zeroZero = ParsedSemver.parse("0.0.0.0");
+    assertTrue(zero != null);
+    assertTrue(zeroZero != null);
+    assertEquals(0, ParsedSemver.compare(zero, zeroZero));
+    assertEquals(zero, zeroZero);
+    assertEquals(zero.hashCode(), zeroZero.hashCode());
+
+    // Distinct versions must remain unequal and may differ in hash.
+    final ParsedSemver release = ParsedSemver.parse("1.2.4");
+    assertTrue(release != null);
+    assertNotEquals(base, release);
   }
 
   @Test

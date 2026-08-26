@@ -135,6 +135,20 @@ public final class ParsedSemver {
   }
 
   /**
+   * Returns the number of significant core components, excluding trailing zero components that
+   * {@link #compare} treats as equal to omitted components. This keeps {@link #equals} and {@link
+   * #hashCode} consistent with precedence comparison so that versions like {@code 1.2.3} and {@code
+   * 1.2.3.0} are equal and hash identically.
+   */
+  private int effectiveCoreLength() {
+    int length = coreLength;
+    while (length > 0 && core[length - 1] == 0L) {
+      length--;
+    }
+    return length;
+  }
+
+  /**
    * Validates dot-separated identifiers. Permits leading zeros for build metadata only; numeric
    * prerelease identifiers reject them.
    */
@@ -274,25 +288,19 @@ public final class ParsedSemver {
     if (!(o instanceof ParsedSemver)) {
       return false;
     }
-    final ParsedSemver that = (ParsedSemver) o;
-    if (coreLength != that.coreLength || !prerelease.equals(that.prerelease)) {
-      return false;
-    }
-    for (int i = 0; i < coreLength; i++) {
-      if (core[i] != that.core[i]) {
-        return false;
-      }
-    }
-    return true;
+    // Delegate to compare so equality matches precedence (SEMVER_EQ) and sorted collections, even
+    // when versions differ only by trailing zero components such as 1.2.3 and 1.2.3.0.
+    return compare(this, (ParsedSemver) o) == 0;
   }
 
   @Override
   public int hashCode() {
+    // Hash over the trailing-zero-stripped core so that compare-equal versions hash identically.
+    final int effectiveLength = effectiveCoreLength();
     int result = 1;
-    for (int i = 0; i < coreLength; i++) {
+    for (int i = 0; i < effectiveLength; i++) {
       result = 31 * result + Long.hashCode(core[i]);
     }
-    result = 31 * result + coreLength;
     return 31 * result + prerelease.hashCode();
   }
 
