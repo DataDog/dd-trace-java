@@ -1,14 +1,19 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository('redhat-ga', 'https://maven.repository.redhat.com/ga/')
   pass {
     group = 'org.wildfly'
     module = 'wildfly-ee'
     versions = '[9.0.0.Final,)'
+    // WildFly runtime dependencies not used by this instrumentation. Some versions are unavailable from Maven Central.
+    excludeDependency 'io.undertow:*'
+    excludeDependency 'org.jboss.remoting:*'
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   // Declared after java.gradle so Maven Central is tried first; this repo only acts as a
@@ -189,5 +194,4 @@ tasks.named("latestDepForkedTest", Test) {
     }
     )
 }
-
 

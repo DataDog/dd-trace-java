@@ -139,15 +139,22 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario                                      | traceparent                                               | tracestate               | priority     | decisionMaker             | origin",
-    "keep empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-01' | ''                       | SAMPLER_KEEP | SamplingMechanism.DEFAULT |       ",
-    "drop empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-00' | ''                       | SAMPLER_DROP |                           |       ",
-    "keep with user keep state                     | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some'          | USER_KEEP    |                           | some  ",
-    "keep with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;t.dm:-4'  | USER_KEEP    | SamplingMechanism.MANUAL  | some  ",
-    "drop with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:2;o:some;t.dm:-4'  | SAMPLER_DROP |                           | some  ",
-    "drop with user drop state                     | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some'         | USER_DROP    |                           | some  ",
-    "drop with user drop state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some;t.dm:-4' | USER_DROP    | SamplingMechanism.MANUAL  | some  ",
-    "keep overrides user drop state with manual dm | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:-1;o:some;t.dm:-4' | SAMPLER_KEEP | SamplingMechanism.DEFAULT | some  "
+    "scenario                                      | traceparent                                               | tracestate                  | priority     | decisionMaker             | origin",
+    "keep empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-01' | ''                          | SAMPLER_KEEP | SamplingMechanism.DEFAULT |       ",
+    "drop empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-00' | ''                          | SAMPLER_DROP |                           |       ",
+    "keep with user keep state                     | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some'             | USER_KEEP    |                           | some  ",
+    "keep with trailing element separator          | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;'            | USER_KEEP    |                           | some  ",
+    "keep with trailing separator and OWS          | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some; \t'         | USER_KEEP    |                           | some  ",
+    "keep with trailing separator OWS before comma | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;  ,x=y'      | USER_KEEP    |                           | some  ",
+    "skip empty element in middle                  | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;;o:some'            | USER_KEEP    |                           | some  ",
+    "skip leading separator                        | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=;s:2;o:some'            | USER_KEEP    |                           | some  ",
+    "skip bare element in middle                   | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag;o:some'        | USER_KEEP    |                           | some  ",
+    "skip multiple bare elements in middle         | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag1;flag2;o:some' | USER_KEEP    |                           | some  ",
+    "keep with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;t.dm:-4'     | USER_KEEP    | SamplingMechanism.MANUAL  | some  ",
+    "drop with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:2;o:some;t.dm:-4'     | SAMPLER_DROP |                           | some  ",
+    "drop with user drop state                     | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some'            | USER_DROP    |                           | some  ",
+    "drop with user drop state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some;t.dm:-4'    | USER_DROP    | SamplingMechanism.MANUAL  | some  ",
+    "keep overrides user drop state with manual dm | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:-1;o:some;t.dm:-4'    | SAMPLER_KEEP | SamplingMechanism.DEFAULT | some  "
   })
   void extractTraceparentTracestateAndHttpHeaders(
       String traceparent,

@@ -1,5 +1,5 @@
 plugins {
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 val sharedConfigDirectory = "$rootDir/../gradle"
@@ -21,7 +21,7 @@ allprojects {
   spotless {
     kotlinGradle {
       target("*.gradle.kts")
-      ktlint("1.8.0").editorConfigOverride(
+      ktlint(libs.versions.ktlint.get()).editorConfigOverride(
         mapOf(
           // Disable trailing comma rules to minimize diff.
           "ktlint_standard_trailing-comma-on-call-site" to "disabled",
@@ -29,9 +29,16 @@ allprojects {
         ),
       )
     }
-    java {
-      target("src/**/*.java")
-      googleJavaFormat("1.35.0")
+  }
+
+  pluginManager.withPlugin("java") {
+    spotless {
+      java {
+        target("src/**/*.java")
+        removeUnusedImports()
+        forbidWildcardImports()
+        googleJavaFormat(libs.versions.google.java.format.get())
+      }
     }
   }
 }

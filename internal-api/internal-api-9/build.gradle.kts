@@ -5,9 +5,12 @@ plugins {
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("dd-trace-java.jmh-conventions")
   idea
+  id("dd-trace-java.module.internal-api")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
+extensions.getByName("tracerJava").withGroovyBuilder {
+  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
+}
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
