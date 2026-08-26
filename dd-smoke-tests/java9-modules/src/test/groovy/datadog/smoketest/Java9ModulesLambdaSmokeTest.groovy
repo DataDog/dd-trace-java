@@ -14,7 +14,7 @@ import spock.lang.IgnoreIf
 })
 class Java9ModulesLambdaSmokeTest extends Java9ModulesSmokeTest {
   @Override
-  protected List<String> extraJvmArgs() {
-    return ["-Ddd.trace.lambda.enabled=true"]
+  def javaProperties() {
+    return super.javaProperties() + "-Ddd.trace.lambda.enabled=true"
   }
 }
