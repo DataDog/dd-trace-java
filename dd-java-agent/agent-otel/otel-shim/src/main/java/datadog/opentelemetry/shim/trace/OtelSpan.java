@@ -34,8 +34,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
-  private StatusCode statusCode;
-  private boolean recording;
+  private StatusCode statusCode = UNSET;
+  private volatile boolean recording = true;
 
   /**
    * Span events ({@code null} until an event is added).
@@ -51,8 +51,6 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
     if (delegate instanceof AttachableWrapper) {
       ((AttachableWrapper) delegate).attachWrapper(this);
     }
-    this.statusCode = UNSET;
-    this.recording = true;
     delegate.spanContext().setIntegrationName("otel");
   }
 
