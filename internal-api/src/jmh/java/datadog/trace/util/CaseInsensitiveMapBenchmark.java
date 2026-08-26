@@ -54,6 +54,30 @@ import org.openjdk.jmh.infra.Blackhole;
  * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
  * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
  * </code>
+ *
+ * <p>Rerun on JDK 8 with {@link BenchmarkUtils#polluteHashDispatch()} added to a new
+ * {@code @Setup(Level.Trial)} (this file had none before), at this file's actual {@code @Fork(2)}
+ * (the numbers above are from an ad hoc higher-fork run; not directly comparable). M ops/s, 8
+ * threads:
+ *
+ * <pre>{@code
+ * create_baseline        26    create_flatHashtable   13
+ * create_hashMap          9    create_treeMap          7
+ *
+ * lookup_baseline      2618    lookup_flatHashtable  415
+ * lookup_flatHashtable_lowLoad 415  lookup_hashMap    367*
+ * lookup_treeMap        209
+ * }</pre>
+ *
+ * <p>* = error bar over a third of the mean at {@code @Fork(2)} — directional only.
+ *
+ * <p>All four {@code lookup_*} numbers sit 17-23% below the table above (415 vs 537 flatHashtable,
+ * 367 vs 442 hashMap, 209 vs 251 treeMap) despite {@code flatHashtable} and {@code treeMap} using
+ * neither {@code java.util.HashMap} nor {@code hashCode()}/{@code equals()} dispatch — so this drop
+ * isn't attributable to pollution. Combined with the same pattern in {@link HashtableD1Benchmark}
+ * and {@link HashtableD2Benchmark}, this looks like session-to-session machine variance (different
+ * JDK, different run) rather than a real regression. The <b>relative</b> ranking — {@code
+ * flatHashtable} > {@code hashMap} > {@code treeMap} — is unchanged.
  */
 @Fork(2)
 @Warmup(iterations = 2)
