@@ -14,6 +14,10 @@ class Java9ModulesSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation plus some extra
   private static final int TIMEOUT_SECS = 30
 
+  protected List<String> extraJvmArgs() {
+    return []
+  }
+
   @Override
   ProcessBuilder createProcessBuilder() {
     String imageDir = System.getProperty("datadog.smoketest.module.image")
@@ -23,6 +27,7 @@ class Java9ModulesSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(imageDir + "/bin/java")
     command.addAll(defaultJavaProperties)
+    command.addAll(extraJvmArgs())
     command.addAll((String[]) ["-m", "datadog.smoketest.moduleapp/datadog.smoketest.moduleapp.ModuleApplication"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
