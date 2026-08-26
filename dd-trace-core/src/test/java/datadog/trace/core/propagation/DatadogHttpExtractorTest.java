@@ -409,7 +409,7 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractOtBaggageCountsEncodedUtf8Bytes() {
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put(OT_BAGGAGE_PREFIX + "a", "b"); // 2 bytes
-    headers.put(OT_BAGGAGE_PREFIX + "c", "%E2%99%A5"); // 10 encoded wire bytes
+    headers.put(OT_BAGGAGE_PREFIX + "c", "%E2%99%A5"); // 1-byte key + 9-byte raw value
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 

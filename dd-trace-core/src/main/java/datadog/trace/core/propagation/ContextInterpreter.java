@@ -238,7 +238,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean addBaggageItem(String key, String value) {
-    if (key == null || value == null) {
+    if (key == null || value == null || baggageMaxItems <= 0 || baggageMaxBytes <= 0) {
       return false;
     }
     final Integer previousItemBytes = baggageItemBytes.get(key);
