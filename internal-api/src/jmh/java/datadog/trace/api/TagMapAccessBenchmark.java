@@ -57,6 +57,28 @@ import org.openjdk.jmh.infra.Blackhole;
  * TagMapAccessBenchmark.insert_hashMap_builderStyle  thrpt    5  28057827.189 ± 1359655.664  ops/s
  * TagMapAccessBenchmark.insert_via_ledger            thrpt    5  41169656.095 ±  773264.754  ops/s
  * </code>
+ *
+ * <p>Rerun on JDK 8 with a new top-level {@code @Setup(Level.Trial)} calling {@link
+ * BenchmarkUtils#polluteHashDispatch()} (this file had none before). M ops/s, 8 threads:
+ *
+ * <pre>{@code
+ * getEntry                        83   getObject                    87
+ * insert                          37   insert_hashMap                48
+ * insert_hashMap_builderStyle     20   insert_via_ledger             37*
+ * }</pre>
+ *
+ * <p>* = error bar about a quarter of the mean at {@code @Fork(2)} — directional only.
+ *
+ * <p>Every number here is 9-29% below the Java 17 table above, with no clear split between the
+ * TagMap paths and the HashMap paths this pollution should affect — the same broad slowdown pattern
+ * seen across {@link datadog.trace.util.HashtableD1Benchmark}, {@link
+ * datadog.trace.util.HashtableD2Benchmark}, and {@link
+ * datadog.trace.util.CaseInsensitiveMapBenchmark} in the same session, so treat it as
+ * session-to-session machine/JDK variance rather than a pollution-driven regression. The relative
+ * story survives: {@code insert_hashMap} (48M) still beats {@code insert} (37M) for plain
+ * insertion, and {@code insert_via_ledger} (37M) still clearly beats the HashMap builder-style path
+ * (20M); {@code insert_via_ledger} landing roughly level with {@code insert} here (vs. clearly
+ * behind it in the table above) is within that path's own wide error bar, not a new finding.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
