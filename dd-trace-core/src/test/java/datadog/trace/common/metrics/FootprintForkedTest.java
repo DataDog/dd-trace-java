@@ -26,7 +26,7 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.openjdk.jol.info.GraphLayout;
 import org.tabletest.junit.TableTest;
 
-@DisabledIf("datadog.environment.JavaVirtualMachine#isIbm")
+@DisabledIf("datadog.environment.JavaVirtualMachine#isJ9")
 class FootprintForkedTest {
 
   private static final Random RANDOM = new Random(0);
