@@ -371,9 +371,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
       final Request request =
-          prepareRequest(endpoint, headers, config, datadogManagedEndpoint)
-              .get()
-              .build();
+          prepareRequest(endpoint, headers, config, datadogManagedEndpoint).get().build();
       if (!fetching.compareAndSet(false, true)) {
         throw new IllegalStateException("Feature Flagging HTTP request already in flight");
       }
