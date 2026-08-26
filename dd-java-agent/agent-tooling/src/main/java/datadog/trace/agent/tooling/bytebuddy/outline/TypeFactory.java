@@ -258,8 +258,11 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
-    // existing type description from same classloader?
-    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+    // The class being transformed must always be described from the bytes we were handed. A
+    // cached description under the same name may belong to a different class - lambda proxies
+    // generated for one declaring class all share a name - and rebuilding from it would drop
+    // whatever that description lacks, such as an interface.
+    SharedTypeInfo<TypeDescription> sharedType = name.equals(targetName) ? null : types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
