@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -34,6 +35,28 @@ public final class Try<T> {
   @Nonnull
   public static <T> Try<T> of(@Nullable T value) {
     return new Try<>(value);
+  }
+
+  /**
+   * Convenience form for the common shape {@code Try.of(receiver.someNullableMethod(args))}: {@code
+   * Try.of(receiver, r -> r.someNullableMethod(args))}. Useful when {@code receiver} would
+   * otherwise have to be re-evaluated or named twice at the call site.
+   *
+   * <p>Unlike the single-arg {@link #of}, {@code fn} here is typically a <em>capturing</em> lambda
+   * -- it closes over whatever local arguments the caller's method has in scope -- which makes it a
+   * second heap-object candidate distinct from the {@code Try} itself. <b>Confirmed 2026-08-27</b>
+   * against a real capacity-refusing lookup method (JDK 8/11/17/25, both a common and a rare
+   * refusal ratio): the capturing lambda scalar-replaces as reliably as a plain delegating method
+   * call does -- see the Hashtable-integration follow-up for that benchmark and the full numbers.
+   * That confirmation is specific to the shape actually measured: a monomorphic receiver and a
+   * {@code fn} built once per call site (not a fresh lambda per invocation) and applied exactly
+   * once. If {@code fn} itself captures something that must be freshly allocated per call (e.g. a
+   * non-singleton creator), that allocation is real regardless of what happens to the lambda
+   * wrapping it.
+   */
+  @Nonnull
+  public static <R, T> Try<T> of(R receiver, @Nonnull Function<? super R, ? extends T> fn) {
+    return new Try<>(fn.apply(receiver));
   }
 
   public boolean isPresent() {
