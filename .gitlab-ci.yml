@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '90cf5c67a3e68ce369d31c0d7a750016f97f61a0' # testing here
+    ref: &apm_sdks_benchmarks_sha 'c636f443a9ce3c4edc0f0056b4af4b944a16846b' # testing here
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
