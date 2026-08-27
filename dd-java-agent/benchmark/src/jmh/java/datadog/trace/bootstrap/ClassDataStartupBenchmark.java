@@ -19,6 +19,9 @@ public final class ClassDataStartupBenchmark {
   private static final List<String> DEFAULT_LAYOUTS =
       Arrays.asList(
           "baseline",
+          "instrumentation-only",
+          "load-order-common",
+          "semantic-common",
           "production",
           "stored-10",
           "stored-25",

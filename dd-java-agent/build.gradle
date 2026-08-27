@@ -96,13 +96,17 @@ class CommonClassDataTransformer implements ResourceTransformer {
 
     Map<String, String> moduleShards = readModuleShards(instrumenterIndex)
     Map<String, List<String>> shards = new LinkedHashMap<>()
-    shards.put('common', [])
+    shards.put('common-bytebuddy', [])
+    shards.put('common-agent', [])
+    shards.put('common-telemetry', [])
+    shards.put('common-communication', [])
+    shards.put('common-other', [])
     shards.put('early', [])
     Map<String, List<String>> targetShards = new TreeMap<>()
     classNames.each { String className ->
       String shard = moduleShards.get(className)
       if (shard == null) {
-        shards.get('common').add(className)
+        shards.get(semanticShard(className)).add(className)
       } else if (shard == 'early') {
         shards.get('early').add(className)
       } else {
@@ -194,6 +198,25 @@ class CommonClassDataTransformer implements ResourceTransformer {
         "Instrumenter index decoded ${cursor} of ${packed.length} packed-name bytes")
     }
     result
+  }
+
+  static String semanticShard(String className) {
+    if (className.startsWith('net.bytebuddy.')) {
+      return 'common-bytebuddy'
+    }
+    if (className.startsWith('datadog.trace.agent.')) {
+      return 'common-agent'
+    }
+    if (className.startsWith('datadog.telemetry.')) {
+      return 'common-telemetry'
+    }
+    if (className.startsWith('datadog.communication.') ||
+      className.startsWith('datadog.okhttp3.') ||
+      className.startsWith('datadog.okio.') ||
+      className.startsWith('com.squareup.moshi.')) {
+      return 'common-communication'
+    }
+    'common-other'
   }
 
   private static int skipOverrides(byte[] packed, int cursor) {
@@ -1086,7 +1109,8 @@ tasks.register('verifyCommonClassDataPackaging') {
           CommonClassDataTransformer.readModuleShards(instrumenterIndex)
         selectedNames.each { className ->
           Integer chunk = classChunks[className]
-          String expectedShard = moduleShards.get(className) ?: 'common'
+          String expectedShard = moduleShards.get(className) ?:
+            CommonClassDataTransformer.semanticShard(className)
           if (chunk == null) {
             failures.add("No packed record for ${className}")
           } else if (chunkShards[chunk] != expectedShard) {

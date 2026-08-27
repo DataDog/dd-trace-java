@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -39,6 +41,8 @@ public final class ClassDataBenchmarkArtifacts {
       Pattern.compile(".*\\[class,load] ([^ ]+) source:.*");
   private static final Pattern LEGACY_CLASS_LOAD = Pattern.compile("\\[Loaded ([^ ]+) from .*");
   private static final String COMMON_CLASSES_FILE = "common-classes.txt";
+  private static final String INSTRUMENTER_INDEX_ENTRY = "inst/instrumenter.index";
+  private static final int EARLY_LOAD_SHARD = -1;
 
   private ClassDataBenchmarkArtifacts() {}
 
@@ -80,6 +84,42 @@ public final class ClassDataBenchmarkArtifacts {
     }
     if (!profileOnly) {
       rewrite(agentJar, outputDir.resolve("baseline.jar"), commonClasses, 0, null);
+      Map<String, Integer> moduleShards = readInstrumenterModuleShards(agentJar);
+      Map<Integer, List<String>> groupedModules = new TreeMap<>();
+      for (String className : commonClasses) {
+        Integer shard = moduleShards.get(className);
+        if (shard != null) {
+          groupedModules.computeIfAbsent(shard, ignored -> new ArrayList<>()).add(className);
+        }
+      }
+      List<List<String>> moduleGroups = new ArrayList<>(groupedModules.values());
+      List<String> moduleClasses = new ArrayList<>();
+      for (List<String> group : moduleGroups) {
+        moduleClasses.addAll(group);
+      }
+      PackedArchive instrumenterOnly = createGroupedPackedData(agentJar, moduleGroups, 64);
+      rewrite(
+          agentJar,
+          outputDir.resolve("instrumentation-only.jar"),
+          moduleClasses,
+          0,
+          instrumenterOnly.withoutIndividualEntries());
+      List<List<String>> semanticGroups = semanticClassGroups(commonClasses, moduleShards);
+      PackedArchive semanticCommon = createGroupedPackedData(agentJar, semanticGroups, 64);
+      rewrite(
+          agentJar,
+          outputDir.resolve("semantic-common.jar"),
+          commonClasses,
+          0,
+          semanticCommon.withoutIndividualEntries());
+      List<List<String>> loadOrderGroups = loadOrderClassGroups(commonClasses, moduleShards);
+      PackedArchive loadOrderCommon = createGroupedPackedData(agentJar, loadOrderGroups, 64);
+      rewrite(
+          agentJar,
+          outputDir.resolve("load-order-common.jar"),
+          commonClasses,
+          0,
+          loadOrderCommon.withoutIndividualEntries());
       for (int percentage : STORED_PERCENTAGES) {
         int storedCount = percentageCount(commonClasses.size(), percentage);
         rewrite(
@@ -216,28 +256,39 @@ public final class ClassDataBenchmarkArtifacts {
 
   static PackedArchive createPackedData(File agentJar, List<String> commonClasses, int chunkSize)
       throws IOException {
+    return createGroupedPackedData(agentJar, Arrays.asList(commonClasses), chunkSize);
+  }
+
+  private static PackedArchive createGroupedPackedData(
+      File agentJar, List<List<String>> classGroups, int chunkSize) throws IOException {
     if (chunkSize <= 0) {
       throw new IllegalArgumentException("Chunk size must be positive");
     }
-    List<PackedRecord> records = new ArrayList<>(commonClasses.size());
+    int classCount = 0;
+    for (List<String> group : classGroups) {
+      classCount += group.size();
+    }
+    List<PackedRecord> records = new ArrayList<>(classCount);
     List<byte[]> chunks = new ArrayList<>();
     try (JarFile jar = new JarFile(agentJar)) {
       AgentJarIndex index = AgentJarIndex.readIndex(jar);
-      ByteArrayOutputStream chunk = null;
-      for (int i = 0; i < commonClasses.size(); i++) {
-        if (i % chunkSize == 0) {
-          if (chunk != null) {
-            chunks.add(chunk.toByteArray());
+      for (List<String> group : classGroups) {
+        ByteArrayOutputStream chunk = null;
+        for (int i = 0; i < group.size(); i++) {
+          if (i % chunkSize == 0) {
+            if (chunk != null) {
+              chunks.add(chunk.toByteArray());
+            }
+            chunk = new ByteArrayOutputStream();
           }
-          chunk = new ByteArrayOutputStream();
+          String className = group.get(i);
+          byte[] classData = readAll(jar, jar.getJarEntry(index.classEntryName(className)));
+          records.add(new PackedRecord(className, chunks.size(), chunk.size(), classData.length));
+          chunk.write(classData);
         }
-        String className = commonClasses.get(i);
-        byte[] classData = readAll(jar, jar.getJarEntry(index.classEntryName(className)));
-        records.add(new PackedRecord(className, i / chunkSize, chunk.size(), classData.length));
-        chunk.write(classData);
-      }
-      if (chunk != null) {
-        chunks.add(chunk.toByteArray());
+        if (chunk != null) {
+          chunks.add(chunk.toByteArray());
+        }
       }
     }
 
@@ -285,6 +336,140 @@ public final class ClassDataBenchmarkArtifacts {
       entries.put(PackedClassData.chunkEntryName(chunk), chunks.get(chunk));
     }
     return new PackedArchive(entries);
+  }
+
+  private static List<List<String>> semanticClassGroups(
+      List<String> commonClasses, Map<String, Integer> moduleShards) {
+    Map<String, List<String>> semanticGroups = new LinkedHashMap<>();
+    semanticGroups.put("bytebuddy", new ArrayList<>());
+    semanticGroups.put("agent", new ArrayList<>());
+    semanticGroups.put("telemetry", new ArrayList<>());
+    semanticGroups.put("communication", new ArrayList<>());
+    semanticGroups.put("other", new ArrayList<>());
+    Map<Integer, List<String>> instrumenterGroups = new TreeMap<>();
+
+    for (String className : commonClasses) {
+      Integer moduleShard = moduleShards.get(className);
+      if (moduleShard != null) {
+        instrumenterGroups
+            .computeIfAbsent(moduleShard, ignored -> new ArrayList<>())
+            .add(className);
+      } else {
+        semanticGroups.get(semanticGroup(className)).add(className);
+      }
+    }
+
+    List<List<String>> result = new ArrayList<>();
+    for (List<String> group : semanticGroups.values()) {
+      if (!group.isEmpty()) {
+        result.add(group);
+      }
+    }
+    result.addAll(instrumenterGroups.values());
+    return result;
+  }
+
+  private static List<List<String>> loadOrderClassGroups(
+      List<String> commonClasses, Map<String, Integer> moduleShards) {
+    List<String> nonModules = new ArrayList<>();
+    Map<Integer, List<String>> instrumenterGroups = new TreeMap<>();
+    for (String className : commonClasses) {
+      Integer moduleShard = moduleShards.get(className);
+      if (moduleShard == null) {
+        nonModules.add(className);
+      } else {
+        instrumenterGroups
+            .computeIfAbsent(moduleShard, ignored -> new ArrayList<>())
+            .add(className);
+      }
+    }
+    List<List<String>> result = new ArrayList<>();
+    result.add(nonModules);
+    result.addAll(instrumenterGroups.values());
+    return result;
+  }
+
+  private static String semanticGroup(String className) {
+    if (className.startsWith("net.bytebuddy.")) {
+      return "bytebuddy";
+    }
+    if (className.startsWith("datadog.trace.agent.")) {
+      return "agent";
+    }
+    if (className.startsWith("datadog.telemetry.")) {
+      return "telemetry";
+    }
+    if (className.startsWith("datadog.communication.")
+        || className.startsWith("datadog.okhttp3.")
+        || className.startsWith("datadog.okio.")
+        || className.startsWith("com.squareup.moshi.")) {
+      return "communication";
+    }
+    return "other";
+  }
+
+  private static Map<String, Integer> readInstrumenterModuleShards(File agentJar)
+      throws IOException {
+    byte[] packed;
+    int moduleCount;
+    try (JarFile jar = new JarFile(agentJar)) {
+      byte[] index = readAll(jar, jar.getJarEntry(INSTRUMENTER_INDEX_ENTRY));
+      try (DataInputStream input = new DataInputStream(new java.io.ByteArrayInputStream(index))) {
+        moduleCount = input.readInt();
+        input.readInt(); // transformation count
+        int packedLength = input.readInt();
+        if (moduleCount < 0 || packedLength < 0) {
+          throw new IOException("Invalid instrumenter index header");
+        }
+        packed = new byte[packedLength];
+        input.readFully(packed);
+        if (input.read() != -1) {
+          throw new IOException("Unexpected trailing instrumenter index data");
+        }
+      }
+    }
+
+    Map<String, Integer> result = new LinkedHashMap<>();
+    try (DataInputStream input = new DataInputStream(new java.io.ByteArrayInputStream(packed))) {
+      for (int module = 0; module < moduleCount; module++) {
+        String moduleName = readAscii(input);
+        int targetSystems = input.readUnsignedShort();
+        int flags = input.readUnsignedByte();
+        int memberCount = input.readUnsignedByte();
+        result.put(moduleName, (flags & 0x02) != 0 ? EARLY_LOAD_SHARD : targetSystems);
+        if (memberCount == 0xFF) {
+          if ((flags & 0x01) != 0) {
+            skipAdviceOverrides(input);
+          }
+        } else {
+          for (int member = 0; member < memberCount; member++) {
+            readAscii(input);
+            if ((flags & 0x01) != 0) {
+              skipAdviceOverrides(input);
+            }
+          }
+        }
+      }
+      if (input.read() != -1) {
+        throw new IOException("Instrumenter index contains unparsed module data");
+      }
+    }
+    return result;
+  }
+
+  private static String readAscii(DataInputStream input) throws IOException {
+    int length = input.readUnsignedByte();
+    byte[] value = new byte[length];
+    input.readFully(value);
+    return new String(value, StandardCharsets.ISO_8859_1);
+  }
+
+  private static void skipAdviceOverrides(DataInputStream input) throws IOException {
+    int overrideCount = input.readUnsignedByte();
+    for (int override = 0; override < overrideCount; override++) {
+      readAscii(input);
+      input.readUnsignedShort();
+    }
   }
 
   private static void rewrite(

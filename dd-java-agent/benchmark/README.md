@@ -12,6 +12,12 @@ The preparation task launches a minimal application with the assembled agent, re
 `.classdata` classes loaded before application main, and creates comparable agent jars:
 
 - `baseline.jar`: individually deflated entries, matching the current layout;
+- `instrumentation-only.jar`: only indexed `InstrumenterModule` classes packed into early-load and
+  exact target-system shards; all other classes remain individual entries;
+- `semantic-common.jar`: all common classes packed, with non-module classes grouped into Byte Buddy,
+  agent, telemetry, communication, and fallback families before chunking;
+- `load-order-common.jar`: all common classes packed using one non-module load-order group followed
+  by the same instrumenter shards, preserving the pre-semantic production strategy as a control;
 - `production.jar`: the actual production `shadowJar`, packed from the checked-in manifest;
 - `stored-{10,25,50,75,100}.jar`: the corresponding load-order prefix stored without compression;
 - `packed-{64,256,1024}.jar`: compact build-time index plus independently compressed load-order
@@ -22,9 +28,10 @@ The preparation task launches a minimal application with the assembled agent, re
 Packed variants other than `packed-64-dedup` retain individual entries as a compatibility control.
 The deduplicated and production variants serve packed class resource streams directly. Production
 packing applies only to selected `.classdata` entries; ordinary agent resources remain unchanged.
-Production chunks keep non-module classes in load order, but place indexed `InstrumenterModule`
-classes into deterministic shards by their exact target-system mask. Modules marked for early load
-share a separate shard regardless of their target systems. This keeps disabled products' module
+Production chunks place non-module classes into deterministic Byte Buddy, agent, telemetry,
+communication, and fallback families while preserving load order within each family. Indexed
+`InstrumenterModule` classes are sharded by their exact target-system mask; modules marked for early
+load share a separate shard regardless of their target systems. This keeps disabled subsystems'
 chunks unopened while correctly handling modules that apply to more than one product.
 Chunks stay cached during synchronous bootstrap because classes may be defined by both agent class
 loaders. At the end of bootstrap they are released, after which an eight-chunk LRU bounds retention
