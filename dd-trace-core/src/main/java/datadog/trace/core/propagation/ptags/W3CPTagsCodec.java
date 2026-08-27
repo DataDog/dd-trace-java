@@ -99,6 +99,8 @@ public class W3CPTagsCodec extends PTagsCodec {
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue parentAgentSpanIdTagValue = null;
+    TagValue parentAgentNameTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
       if (tagPos >= ddMemberValueEnd) {
@@ -168,6 +170,10 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
             } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
               orgPropagationMarkerTagValue = tagValue;
+            } else if (tagKey.equals(PARENT_AGENT_SPAN_ID_TAG)) {
+              parentAgentSpanIdTagValue = tagValue;
+            } else if (tagKey.equals(PARENT_AGENT_NAME_TAG)) {
+              parentAgentNameTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -187,21 +193,29 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    return new W3CPTags(
-        tagsFactory,
-        tagPairs,
-        decisionMakerTagValue,
-        traceIdTagValue,
-        traceSource,
-        samplingPriority,
-        origin,
-        value,
-        firstMemberStart,
-        ddMemberStart,
-        ddMemberValueEnd,
-        maxUnknownSize,
-        lastParentId,
-        orgPropagationMarkerTagValue);
+    W3CPTags result =
+        new W3CPTags(
+            tagsFactory,
+            tagPairs,
+            decisionMakerTagValue,
+            traceIdTagValue,
+            traceSource,
+            samplingPriority,
+            origin,
+            value,
+            firstMemberStart,
+            ddMemberStart,
+            ddMemberValueEnd,
+            maxUnknownSize,
+            lastParentId,
+            orgPropagationMarkerTagValue);
+    if (parentAgentSpanIdTagValue != null) {
+      result.updateParentAgentSpanId(parentAgentSpanIdTagValue.toString());
+    }
+    if (parentAgentNameTagValue != null) {
+      result.updateParentAgentName(parentAgentNameTagValue.toString());
+    }
+    return result;
   }
 
   @Override

@@ -32,6 +32,8 @@ interface CommonTags {
   String PARENT_ID = TAG_PREFIX + "parent_id";
   String SESSION_ID = TAG_PREFIX + LLMObsTags.SESSION_ID;
   String AGENT_VERSION = TAG_PREFIX + LLMObsTags.AGENT_VERSION;
+  String PAGENT_SPAN_ID = TAG_PREFIX + "pagent_span_id";
+  String PAGENT_NAME = TAG_PREFIX + "pagent_name";
 
   String TOOL_DEFINITIONS = TAG_PREFIX + "tool_definitions";
 
