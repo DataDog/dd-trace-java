@@ -16,7 +16,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.common.queue.Producer;
+import datadog.common.queue.ContextualProducer;
 import datadog.common.queue.WorkQueue;
 import datadog.common.queue.WorkQueues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -110,6 +110,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
+
+  /**
+   * Builds the snapshot for a span once the inbox has reserved a slot for it. Bound to this
+   * aggregator once, at construction, so admission costs no allocation at all: the span is the
+   * context, and everything else the snapshot needs is reachable from one or the other.
+   */
+  private final ContextualProducer<CoreSpan<?>, InboxItem> snapshotProducer = this::snapshotOf;
 
   /**
    * Previous peer-tag schema, kept until the next reporting cycle.
@@ -407,9 +414,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
       // check so the common case skips both the lookup and the getResourceName() call per span.
       final boolean hasIgnoredResources = !ignoredResources.isEmpty();
-      // One request per trace rather than one per span: it carries the arguments the deferred
-      // snapshot needs, and is dead by the time this method returns.
-      SnapshotRequest request = null;
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
@@ -421,10 +425,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             }
           }
           counted++;
-          if (request == null) {
-            request = new SnapshotRequest();
-          }
-          forceKeep |= publish(request, span, isTopLevel, peerTagSchema);
+          forceKeep |= publish(span);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -439,33 +440,25 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(
-      SnapshotRequest request, CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
-    request.span = span;
-    request.isTopLevel = isTopLevel;
-    request.peerTagSchema = peerTagSchema;
+  private boolean publish(CoreSpan<?> span) {
     // The inbox reserves a slot before calling back, so a full inbox costs nothing beyond this
     // call: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. The old racy
     // size() >= capacity() pre-check is gone with it.
-    if (!inbox.tryPut(request)) {
+    if (!inbox.tryPut(span, snapshotProducer)) {
       healthMetrics.onStatsInboxFull();
     }
     return span.getError() > 0;
   }
 
   /**
-   * Builds a {@link SpanSnapshot} once the inbox has reserved a slot for it. Mutable and reused
-   * across the spans of one trace so deferral costs one allocation per trace, not one per span.
+   * Re-derives what the publish loop had already computed, rather than carrying it into the
+   * producer: {@code isTopLevel} is a field read on the span's context, and the peer tag schema is
+   * non-null forever once {@link #bootstrapPeerTagSchema()} has run, which {@link #publish(List)}
+   * guarantees before it reaches any span. The cost is one extra volatile read per span, and a
+   * schema change mid-trace is now visible to the spans after it rather than to the next trace.
    */
-  private final class SnapshotRequest implements Producer<InboxItem> {
-    CoreSpan<?> span;
-    boolean isTopLevel;
-    PeerTagSchema peerTagSchema;
-
-    @Override
-    public InboxItem produce() {
-      return snapshot(span, isTopLevel, peerTagSchema);
-    }
+  private InboxItem snapshotOf(CoreSpan<?> span) {
+    return snapshot(span, span.isTopLevel(), cachedPeerTagSchema);
   }
 
   private SpanSnapshot snapshot(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
