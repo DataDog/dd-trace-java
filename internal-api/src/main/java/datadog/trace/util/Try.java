@@ -2,6 +2,8 @@ package datadog.trace.util;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
+import java.util.function.ObjLongConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -81,6 +83,27 @@ public final class Try<T> {
   public void update(Consumer<? super T> mutator) {
     if (value != null) {
       mutator.accept(value);
+    }
+  }
+
+  /**
+   * Primitive-{@code long}-context form of {@link #update(Consumer)}, for the common case where the
+   * mutation needs one caller-supplied {@code long} (e.g. a duration or count) and boxing it into a
+   * captured {@code Long}/generic-context object would be the actual per-call allocation. This
+   * exists so a table wrapping a fallible lookup in {@code Try} pays for this shape once, here,
+   * instead of once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s
+   * {@code ObjLongConsumer} overload for the caller-side problem this replaces.
+   */
+  public void update(long context, ObjLongConsumer<? super T> mutator) {
+    if (value != null) {
+      mutator.accept(value, context);
+    }
+  }
+
+  /** {@code int}-context sibling of {@link #update(long, ObjLongConsumer)}. */
+  public void update(int context, ObjIntConsumer<? super T> mutator) {
+    if (value != null) {
+      mutator.accept(value, context);
     }
   }
 
