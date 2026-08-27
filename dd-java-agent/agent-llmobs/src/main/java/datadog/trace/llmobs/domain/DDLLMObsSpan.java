@@ -118,6 +118,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // leakage) must not contribute either tag.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
+    String resolvedAgentVersion = agentVersion;
     if (null != parent) {
       if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
@@ -143,7 +144,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
         if (agentVersion == null || agentVersion.isEmpty()) {
           String inherited = LLMObsContext.currentAgentVersion();
           if (inherited != null && !inherited.isEmpty()) {
-            agentVersion = inherited;
+            resolvedAgentVersion = inherited;
           }
         }
       }
@@ -153,14 +154,14 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
-    this.hasAgentVersion = agentVersion != null && !agentVersion.isEmpty();
+    this.hasAgentVersion = resolvedAgentVersion != null && !resolvedAgentVersion.isEmpty();
     if (this.hasAgentVersion) {
-      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, agentVersion);
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, resolvedAgentVersion);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     // Propagate the effective sessionId and agent_version to descendant LLMObs spans via the
     // context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId, agentVersion);
+    scope = LLMObsContext.attach(span.spanContext(), sessionId, resolvedAgentVersion);
   }
 
   @Override
