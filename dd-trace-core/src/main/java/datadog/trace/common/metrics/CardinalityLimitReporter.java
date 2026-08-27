@@ -4,6 +4,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.util.Hashtable;
+import java.util.function.ObjLongConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,13 +56,15 @@ final class CardinalityLimitReporter {
     this.rlLog = rlLog;
   }
 
-  /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
+  /**
+   * Records {@code count} values blocked for {@code tag} in the current reporting cycle.
+   *
+   * <p>A {@code false} return -- the tag table is itself at capacity -- is deliberately ignored:
+   * this is a log sink, and the durable counts still reach {@code onTagCardinalityBlocked}.
+   */
   void record(String tag, long count) {
     if (count > 0) {
-      TagBlockEntry entry = blockedByTag.tryGetOrCreateOrNull(tag, TagBlockEntry::new);
-      if (entry != null) {
-        entry.count += count;
-      }
+      blockedByTag.tryGetOrUpdate(tag, TagBlockEntry::new, count, ADD_BLOCKED);
     }
   }
 
@@ -100,6 +103,9 @@ final class CardinalityLimitReporter {
   /**
    * Single-key counter entry: the tag name (via {@link #key()}) plus its in-place-mutated count.
    */
+  /** Non-capturing, so {@link #record} allocates nothing per call. */
+  private static final ObjLongConsumer<TagBlockEntry> ADD_BLOCKED = (entry, n) -> entry.count += n;
+
   private static final class TagBlockEntry extends Hashtable.D1.Entry<String> {
     long count;
 
