@@ -18,20 +18,20 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /** The behaviour every backing must share, exercised against each of them. */
-class QueueContractTest {
+class WorkQueueContractTest {
 
   private static final int CAPACITY = 4;
 
   static Stream<Arguments> boundedQueues() {
     return Stream.of(
-        Arguments.of("mpsc", (IntFunction<Queue<String>>) Queues::createMpscQueue),
-        Arguments.of("mpmc", (IntFunction<Queue<String>>) Queues::createMpmcQueue));
+        Arguments.of("mpsc", (IntFunction<WorkQueue<String>>) WorkQueues::createMpscQueue),
+        Arguments.of("mpmc", (IntFunction<WorkQueue<String>>) WorkQueues::createMpmcQueue));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void admitsUpToCapacityThenDrops(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void admitsUpToCapacityThenDrops(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
@@ -44,8 +44,8 @@ class QueueContractTest {
   /** The point of the whole API: a rejected element is never built. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void doesNotInvokeProducerWhenFull(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void doesNotInvokeProducerWhenFull(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
@@ -62,8 +62,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void invokesProducerWhenThereIsRoom(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void invokesProducerWhenThereIsRoom(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     assertTrue(queue.tryPut("ctx", context -> context + "-built"));
     List<String> consumed = drain(queue);
     assertEquals(Arrays.asList("ctx-built"), consumed);
@@ -71,8 +71,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void batchAdmissionReportsRejectedElements(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void batchAdmissionReportsRejectedElements(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     Collection<String> rejected = queue.tryPutBatch("a", "b", "c", "d", "e", "f");
     assertEquals(Arrays.asList("e", "f"), new ArrayList<>(rejected));
     assertEquals(2, queue.dropped());
@@ -81,8 +81,8 @@ class QueueContractTest {
   /** A batch producer keeps what will not fit, so stopping early loses nothing. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void batchProducerRetainsUnpulledElements(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void batchProducerRetainsUnpulledElements(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     Iterator<String> source = Arrays.asList("a", "b", "c", "d", "e", "f").iterator();
     BatchProducer<String> producer =
         new BatchProducer<String>() {
@@ -107,8 +107,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void processReportsWhetherThereWasWork(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void processReportsWhetherThereWasWork(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     assertFalse(queue.process(item -> {}), "empty queue has no work");
     queue.tryPut("a");
     assertTrue(queue.process(item -> {}));
@@ -117,8 +117,9 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void processReportsWorkEvenWhenConsumerThrows(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void processReportsWorkEvenWhenConsumerThrows(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
     assertTrue(
         queue.process(
@@ -131,8 +132,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void retriesUntilTheStrategyGivesUp(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void retriesUntilTheStrategyGivesUp(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
     AtomicInteger attempts = new AtomicInteger();
     List<Integer> reported = new ArrayList<>();
@@ -159,8 +160,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void maxRetriesBoundsResubmission(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void maxRetriesBoundsResubmission(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
     AtomicInteger attempts = new AtomicInteger();
     RetryStrategy<String> strategy = new MaxRetries<>(3);
@@ -179,8 +180,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void closeStopsAdmissionButKeepsBacklog(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void closeStopsAdmissionButKeepsBacklog(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
     queue.close();
 
@@ -193,8 +194,8 @@ class QueueContractTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
   void clearDiscardsContentsButLeavesAdmissionOpen(
-      String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPutBatch("a", "b");
     queue.clear();
 
@@ -205,8 +206,8 @@ class QueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void shutdownClosesAndDiscards(String name, IntFunction<Queue<String>> factory) {
-    Queue<String> queue = factory.apply(CAPACITY);
+  void shutdownClosesAndDiscards(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPutBatch("a", "b");
     queue.shutdown();
 
@@ -217,7 +218,7 @@ class QueueContractTest {
 
   @org.junit.jupiter.api.Test
   void unboundedQueueNeverRejects() {
-    Queue<String> queue = Queues.createUnboundedMpmcQueue();
+    WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     for (int i = 0; i < 1000; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
@@ -227,12 +228,12 @@ class QueueContractTest {
 
   @org.junit.jupiter.api.Test
   void unboundedQueueStillCloses() {
-    Queue<String> queue = Queues.createUnboundedMpmcQueue();
+    WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     queue.close();
     assertFalse(queue.tryPut("a"));
   }
 
-  private static List<String> drain(Queue<String> queue) {
+  private static List<String> drain(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {
       // drain

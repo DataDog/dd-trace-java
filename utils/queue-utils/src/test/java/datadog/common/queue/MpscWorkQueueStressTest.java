@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * dropped — so admitted plus dropped accounts for everything offered, with nothing lost, duplicated
  * or invented in between.
  */
-class MpscQueueStressTest {
+class MpscWorkQueueStressTest {
 
   private static final int PRODUCERS = 8;
   private static final int PER_PRODUCER = 20_000;
@@ -30,7 +30,7 @@ class MpscQueueStressTest {
 
   @Test
   void conservesEveryElementUnderContention() throws Exception {
-    Queue<Integer> queue = Queues.createMpscQueue(CAPACITY);
+    WorkQueue<Integer> queue = WorkQueues.createMpscQueue(CAPACITY);
     AtomicIntegerArray timesSeen = new AtomicIntegerArray(TOTAL);
     AtomicInteger admitted = new AtomicInteger();
     AtomicInteger consumed = new AtomicInteger();
@@ -106,7 +106,7 @@ class MpscQueueStressTest {
    */
   @Test
   void neverInvokesProducerWhileFull() throws Exception {
-    Queue<Integer> queue = Queues.createMpscQueue(CAPACITY);
+    WorkQueue<Integer> queue = WorkQueues.createMpscQueue(CAPACITY);
     while (queue.tryPut(0)) {
       // fill it, and leave it full — nothing consumes
     }

@@ -4,19 +4,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A {@link Queue} over a {@link ConcurrentLinkedQueue}: multi-producer, multi-consumer, optionally
- * bounded.
+ * A {@link WorkQueue} over a {@link ConcurrentLinkedQueue}: multi-producer, multi-consumer,
+ * optionally bounded.
  *
  * <p>This backing exists to give call sites that cannot yet take an MPSC ring — because they have
  * several consumers, or no defensible capacity — the admission and lifecycle contract anyway, so
- * they can be migrated behind {@link Queue} first and re-backed later. It keeps the linked queue's
- * per-element node, so it does not deliver the allocation win; prefer {@link MpscBoundedQueue}.
+ * they can be migrated behind {@link WorkQueue} first and re-backed later. It keeps the linked
+ * queue's per-element node, so it does not deliver the allocation win; prefer {@link
+ * MpscWorkQueue}.
  *
  * <p>The size counter is not merely bookkeeping. It is what makes the bound enforceable and {@link
  * #size()} constant-time, replacing the hand-rolled cap plus O(n) {@code ConcurrentLinkedQueue
  * .size()} walk that call sites otherwise pay on every admission.
  */
-final class LinkedQueue<T> extends BaseQueue<T> {
+final class LinkedWorkQueue<T> extends BaseWorkQueue<T> {
 
   private final ConcurrentLinkedQueue<Object> queue = new ConcurrentLinkedQueue<>();
   private final AtomicInteger size = new AtomicInteger();
@@ -25,7 +26,7 @@ final class LinkedQueue<T> extends BaseQueue<T> {
   /**
    * @param capacity the bound, or {@link Integer#MAX_VALUE} to leave the queue unbounded
    */
-  LinkedQueue(int capacity) {
+  LinkedWorkQueue(int capacity) {
     this.capacity = capacity;
   }
 

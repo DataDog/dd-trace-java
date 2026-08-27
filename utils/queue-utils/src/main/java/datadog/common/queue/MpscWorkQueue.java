@@ -3,7 +3,7 @@ package datadog.common.queue;
 import org.jctools.queues.MessagePassingQueue;
 
 /**
- * A {@link Queue} over a JCTools MPSC array queue: many producers, one consumer, bounded by
+ * A {@link WorkQueue} over a JCTools MPSC array queue: many producers, one consumer, bounded by
  * construction with no per-element node.
  *
  * <p>Reserve-before-construct is the backing queue's own {@code fill(Supplier, 1)}, which
@@ -11,7 +11,7 @@ import org.jctools.queues.MessagePassingQueue;
  * there is no room. That makes admission exact rather than best-effort: a rejected element is not
  * merely discarded cheaply, it is never built.
  */
-final class MpscBoundedQueue<T> extends BaseQueue<T> {
+final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
 
   /**
    * Handed to {@code fill} so the producer runs inside the claimed slot. One small short-lived
@@ -36,7 +36,7 @@ final class MpscBoundedQueue<T> extends BaseQueue<T> {
 
   private final MessagePassingQueue<Object> queue;
 
-  MpscBoundedQueue(int requestedCapacity) {
+  MpscWorkQueue(int requestedCapacity) {
     this.queue = Queues.mpscArrayQueue(requestedCapacity);
   }
 

@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Everything a {@link Queue} does that does not depend on how elements are stored: admission
+ * Everything a {@link WorkQueue} does that does not depend on how elements are stored: admission
  * bookkeeping, the closed flag, drop counting, and the consume-and-maybe-retry cycle.
  *
  * <p>Subclasses supply four storage primitives. {@link #admit(Object)} and {@link #admit(Object,
@@ -18,7 +18,7 @@ import java.util.function.Consumer;
  * not invoke the producer unless the claim succeeded — that is the contract this whole API exists
  * to provide.
  */
-abstract class BaseQueue<T> implements Queue<T> {
+abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /**
    * Wraps an item that has already failed, carrying its attempt count back into the queue. Only

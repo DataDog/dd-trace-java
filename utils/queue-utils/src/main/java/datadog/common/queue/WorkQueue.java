@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  * {@code process} methods reports whether there was an item to work on, which is the signal a drain
  * loop needs, and says nothing about whether the consumer succeeded.
  */
-public interface Queue<T> {
+public interface WorkQueue<T> {
 
   /**
    * @return whether the element was admitted
