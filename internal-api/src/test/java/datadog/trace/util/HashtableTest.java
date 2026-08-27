@@ -15,7 +15,9 @@ import datadog.trace.util.Hashtable.BucketIterator;
 import datadog.trace.util.Hashtable.MutatingBucketIterator;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
 import datadog.trace.util.Hashtable.Support;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import org.junit.jupiter.api.Nested;
@@ -763,6 +765,54 @@ class HashtableTest {
       buckets[0] = new StringIntEntry("a", 1);
       assertNull(Hashtable.evictOne(table, e -> e.value == 999));
       assertNotNull(buckets[0]);
+    }
+
+    @Test
+    void evictAllKeepsCountConsistentWhenThePredicateThrows() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(8);
+      for (int i = 0; i < 4; i++) {
+        StringIntEntry e = new StringIntEntry("k" + i, i);
+        assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
+      }
+      assertEquals(4, Hashtable.estimateSize(table));
+
+      // Removes some entries, then blows up. The count must reflect what actually left the table.
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              Hashtable.evictAll(
+                  table,
+                  e -> {
+                    if (e.value == 3) {
+                      throw new IllegalStateException("boom");
+                    }
+                    return true;
+                  }));
+
+      int counted = Hashtable.estimateSize(table);
+      Set<String> actuallyThere = new HashSet<>();
+      Hashtable.forEach(table, e -> actuallyThere.add(e.key));
+      assertEquals(
+          actuallyThere.size(), counted, "count must match the spine after a partial evictAll");
+    }
+
+    @Test
+    void drainDetachesEntriesSoASinkCannotPinTheChain() {
+      // Two entries forced into one bucket, so the drained pair is chained.
+      Hashtable.State<CollidingKeyEntry> table = Hashtable.createCapped(4);
+      CollidingKeyEntry first = new CollidingKeyEntry(new CollidingKey("first", 17), 1);
+      CollidingKeyEntry second = new CollidingKeyEntry(new CollidingKey("second", 17), 2);
+      assertTrue(Hashtable.insertHeadEntryFor(table, first.keyHash, first));
+      assertTrue(Hashtable.insertHeadEntryFor(table, second.keyHash, second));
+
+      List<CollidingKeyEntry> drained = new ArrayList<>();
+      Hashtable.drain(table, drained::add);
+
+      assertEquals(2, drained.size());
+      assertEquals(0, Hashtable.estimateSize(table), "drain resets the tracked count");
+      for (CollidingKeyEntry e : drained) {
+        assertNull(e.next(), "a retained entry must not pin the rest of its chain");
+      }
     }
 
     @Test

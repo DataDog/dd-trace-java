@@ -1052,10 +1052,22 @@ public final class Hashtable {
    * an event emitter, etc.). Equivalent to {@link #forEach} then {@link #clear}, offered as one
    * call so composers don't have to spell out both steps.
    */
+  @SuppressWarnings("unchecked")
   public static <TEntry extends Entry> void drain(
       @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
-    Hashtable.<TEntry>forEach(buckets, sink);
-    clear(buckets);
+    for (int i = 0; i < buckets.length; i++) {
+      Entry entry = buckets[i];
+      buckets[i] = null;
+      while (entry != null) {
+        // Unhook before handing over: a sink that retains one entry of a chain would otherwise pin
+        // the whole chain through `next`, including entries it chose not to keep. Read `next`
+        // first, since the sink may do anything with the entry once it has it.
+        Entry next = entry.next();
+        entry.setNext(null);
+        sink.accept((TEntry) entry);
+        entry = next;
+      }
+    }
   }
 
   /**
@@ -1063,12 +1075,21 @@ public final class Hashtable {
    * {@link BiConsumer} (typically a {@code static final}) plus the accumulator as {@code context}
    * (e.g. the target list or event builder) to avoid a capturing-lambda allocation.
    */
+  @SuppressWarnings("unchecked")
   public static <C, TEntry extends Entry> void drain(
       @Nonnull Hashtable.Entry[] buckets,
       C context,
       @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-    Hashtable.<C, TEntry>forEach(buckets, context, sink);
-    clear(buckets);
+    for (int i = 0; i < buckets.length; i++) {
+      Entry entry = buckets[i];
+      buckets[i] = null;
+      while (entry != null) {
+        Entry next = entry.next();
+        entry.setNext(null);
+        sink.accept(context, (TEntry) entry);
+        entry = next;
+      }
+    }
   }
 
   /**
@@ -1260,10 +1281,13 @@ public final class Hashtable {
         Entry candidate = iter.next();
         if (evictable.test((TEntry) candidate)) {
           iter.remove();
+          // Decrement per removal rather than subtracting `count` after the loop: if `evictable`
+          // throws part way through, the entries unlinked so far are already gone from the chains,
+          // and a deferred subtraction would never run -- leaving the count permanently high.
+          this.size -= 1;
           count++;
         }
       }
-      this.size -= count;
       this.cursor = 0;
       return count;
     }
