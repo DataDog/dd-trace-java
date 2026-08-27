@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,7 +68,7 @@ class WorkQueueContractTest {
   void invokesProducerWhenThereIsRoom(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     assertTrue(queue.tryPut("ctx", context -> context + "-built"));
-    List<String> consumed = drain(queue);
+    List<String> consumed = consumeAll(queue);
     assertEquals(Arrays.asList("ctx-built"), consumed);
   }
 
@@ -187,7 +188,7 @@ class WorkQueueContractTest {
     assertTrue(queue.isClosed());
     assertFalse(queue.tryPut("b"));
     assertEquals(1, queue.size(), "already-admitted work survives so a consumer can finish");
-    assertEquals(Arrays.asList("a"), drain(queue));
+    assertEquals(Arrays.asList("a"), consumeAll(queue));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -272,7 +273,8 @@ class WorkQueueContractTest {
       assertFalse(queue.tryPut("overflow"), "the claimed place is not available to anyone else");
       place.fill("reserved");
     }
-    assertTrue(drain(queue).contains("reserved"), "filling a claimed place cannot be rejected");
+    assertTrue(
+        consumeAll(queue).contains("reserved"), "filling a claimed place cannot be rejected");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -287,13 +289,13 @@ class WorkQueueContractTest {
     // The array backing reclaims the slot as the consumer passes over it rather than at close, so
     // the capacity is back once the queue has been drained, not necessarily the instant it is
     // abandoned. What both backings promise is that nothing is ever consumed for it.
-    assertTrue(drain(queue).isEmpty(), "an abandoned place produces no element");
+    assertTrue(consumeAll(queue).isEmpty(), "an abandoned place produces no element");
     assertEquals(0, queue.size());
     assertEquals(0, queue.dropped(), "abandoning a place the caller claimed is not a rejection");
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i), "the abandoned capacity is usable again");
     }
-    assertEquals(CAPACITY, drain(queue).size());
+    assertEquals(CAPACITY, consumeAll(queue).size());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -329,7 +331,7 @@ class WorkQueueContractTest {
           "holding a position means the consumer cannot see past it, even for what is behind");
       place.fill("second");
     }
-    consumed.addAll(drain(queue));
+    consumed.addAll(consumeAll(queue));
     assertEquals(Arrays.asList("first", "second", "behind"), consumed);
   }
 
@@ -342,7 +344,7 @@ class WorkQueueContractTest {
       assertTrue(queue.process(item -> {}), "an open reservation holds nothing back");
       place.fill("filled late");
     }
-    assertEquals(Arrays.asList("filled late"), drain(queue), "the order is the fill order");
+    assertEquals(Arrays.asList("filled late"), consumeAll(queue), "the order is the fill order");
   }
 
   @org.junit.jupiter.api.Test
@@ -358,7 +360,112 @@ class WorkQueueContractTest {
     assertEquals(0, queue.dropped());
   }
 
-  private static List<String> drain(WorkQueue<String> queue) {
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processStopsAtTheLimit(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      queue.tryPut("e" + i);
+    }
+    List<String> consumed = new ArrayList<>();
+
+    assertEquals(2, queue.process(2, consumed::add));
+
+    assertEquals(Arrays.asList("e0", "e1"), consumed);
+    assertEquals(CAPACITY - 2, queue.size(), "the rest of the batch is still there");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processStopsWhenTheQueueRunsDry(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+    queue.tryPut("b");
+    List<String> consumed = new ArrayList<>();
+
+    assertEquals(
+        2,
+        queue.process(100, consumed::add),
+        "a count short of the limit is how a caller learns there is no more work");
+
+    assertEquals(Arrays.asList("a", "b"), consumed);
+    assertEquals(0, queue.process(100, consumed::add), "and an empty queue drains nothing");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processConsumesNothingForAnEmptyBatch(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+
+    assertEquals(0, queue.process(0, item -> fail("nothing may be consumed")));
+
+    assertEquals(1, queue.size());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processPassesTheContextToEveryItem(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+    queue.tryPut("b");
+    List<String> consumed = new ArrayList<>();
+
+    assertEquals(2, queue.process(10, consumed, List::add));
+
+    assertEquals(Arrays.asList("a", "b"), consumed);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processAbandonsTheRestOfTheBatchWhenTheConsumerThrows(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+    queue.tryPut("b");
+    queue.tryPut("c");
+    List<String> consumed = new ArrayList<>();
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            queue.process(
+                10,
+                item -> {
+                  consumed.add(item);
+                  if ("b".equals(item)) {
+                    throw new IllegalStateException("boom");
+                  }
+                }));
+
+    assertEquals(Arrays.asList("a", "b"), consumed, "the failing item was handed over");
+    assertEquals(1, queue.size(), "what was behind it is left for the next drain");
+    assertEquals(0, queue.dropped(), "a failure the caller sees is not a drop");
+  }
+
+  @org.junit.jupiter.api.Test
+  void processStopsAtAnOpenReservation() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    queue.tryPut("first");
+    List<String> consumed = new ArrayList<>();
+
+    try (Reservation<String> place = queue.tryReserve()) {
+      queue.tryPut("behind");
+
+      assertEquals(
+          1,
+          queue.process(10, consumed::add),
+          "an array-backed reservation holds its position, so the batch ends there");
+      assertEquals(Arrays.asList("first"), consumed);
+
+      place.fill("reserved");
+    }
+
+    assertEquals(2, queue.process(10, consumed::add));
+    assertEquals(Arrays.asList("first", "reserved", "behind"), consumed);
+  }
+
+  private static List<String> consumeAll(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {
       // drain

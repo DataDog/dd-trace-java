@@ -104,6 +104,33 @@ public interface WorkQueue<T> {
   <C> boolean process(
       C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<T> retryStrategy);
 
+  /**
+   * Consumes up to {@code limit} items, stopping early when the queue runs dry.
+   *
+   * <p>The limit is required, and there is no consume-until-empty form. Against live producers that
+   * has no reason to ever return; on an unbounded backing there is not even a capacity to fall back
+   * on as an implicit bound; and a {@link RetryStrategy} re-admits behind a consumer that is still
+   * draining, so only a caller-named ceiling guarantees the batch ends. The limit is also the
+   * caller's latency knob: a drain occupies its thread until it is done, which matters most where
+   * that thread is shared with other subsystems.
+   *
+   * <p>A throwing consumer propagates, abandoning the rest of the batch. Items already consumed
+   * stay consumed and the count is lost with the stack unwind, so a caller that needs it should
+   * drain in smaller batches or handle failure per item with a {@link RetryStrategy}.
+   *
+   * @return how many items were consumed, which is {@code limit} when the batch filled and there
+   *     may be more waiting
+   */
+  int process(int limit, Consumer<? super T> consumer);
+
+  /**
+   * Consumes up to {@code limit} items, stopping early when the queue runs dry.
+   *
+   * @return how many items were consumed
+   * @see #process(int, Consumer)
+   */
+  <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer);
+
   int size();
 
   /**

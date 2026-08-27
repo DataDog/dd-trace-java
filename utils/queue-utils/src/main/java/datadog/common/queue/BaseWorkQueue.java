@@ -157,6 +157,35 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return true;
   }
 
+  @Override
+  public int process(int limit, Consumer<? super T> consumer) {
+    return process(limit, consumer, null, null);
+  }
+
+  @Override
+  public <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer) {
+    return process(limit, null, context, consumer);
+  }
+
+  private <C> int process(
+      int limit,
+      Consumer<? super T> consumer,
+      C context,
+      BiConsumer<? super C, ? super T> biConsumer) {
+    int consumed = 0;
+    while (consumed < limit) {
+      Object raw = take();
+      if (raw == null) {
+        break;
+      }
+      // Counted before the consumer runs: a throw carries the count away with it either way, and
+      // an item handed over is consumed whether or not the consumer made anything of it.
+      consumed++;
+      consume(raw, consumer, context, biConsumer, null);
+    }
+    return consumed;
+  }
+
   @SuppressWarnings("unchecked")
   private <C> void consume(
       Object raw,
