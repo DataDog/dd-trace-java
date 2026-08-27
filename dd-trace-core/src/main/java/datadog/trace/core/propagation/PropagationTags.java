@@ -67,6 +67,9 @@ public abstract class PropagationTags {
 
   public abstract void forceKeep(int samplingMechanism);
 
+  public abstract void updateOtelTraceState(
+      long traceIdLowOrderBits, double sampleRate, boolean sampled, int samplingPriority);
+
   public abstract int getSamplingPriority();
 
   public abstract void updateTraceOrigin(CharSequence origin);

@@ -445,7 +445,13 @@ public class DDSpanContext
       setOrigin(origin);
     }
     if (samplingPriority != PrioritySampling.UNSET) {
-      setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
+      if (this.propagationTags.getSamplingPriority() == samplingPriority) {
+        // Extractors already applied this priority to the propagation tags. Initialize the local
+        // field without reapplying the decision as an unknown local override.
+        SAMPLING_PRIORITY_UPDATER.set(this, samplingPriority);
+      } else {
+        setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
+      }
     }
     setTag(PARENT_ID, this.propagationTags.getLastParentId());
   }
