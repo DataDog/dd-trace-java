@@ -29,6 +29,26 @@ import javax.annotation.Nullable;
  * <p>For higher key dimensions, client code must implement its own class, but can still use the
  * static building blocks on this class to ease the implementation complexity.
  *
+ * <h2>Choosing between the three tables</h2>
+ *
+ * <ol>
+ *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
+ *       the three. {@code FlatHashtable} is racy by design, and this class is not thread-safe at
+ *       all.
+ *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
+ *       -- once per cycle, per request, or built and then discarded -- wants {@code FlatHashtable},
+ *       whose open addressing has no tombstones and so offers no removal beyond clearing. A table
+ *       whose entries come and go independently wants this one, where chaining removes and evicts
+ *       in place.
+ * </ol>
+ *
+ * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
+ * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
+ * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
+ * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
+ * cycle (evolving -- this class) against one that clears every entry each time it reports (resets
+ * -- {@code FlatHashtable}).
+ *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
  * building blocks on this class (see {@link #create(Class, int)}, {@link
