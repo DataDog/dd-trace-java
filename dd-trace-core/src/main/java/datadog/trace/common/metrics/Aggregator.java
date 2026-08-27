@@ -87,6 +87,10 @@ final class Aggregator implements Runnable {
     aggregates.resetCoreHandlers(healthMetrics, reporter);
   }
 
+  AggregateTable aggregates() {
+    return aggregates;
+  }
+
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
