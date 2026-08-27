@@ -53,12 +53,17 @@ final class AggregateTable {
     canonical.handlers.reset(healthMetrics, reporter);
   }
 
+  /**
+   * Live aggregate count. Exact from this class's point of view: {@link Hashtable#estimateSize} is
+   * an estimate only across a reservation window, and {@link #findOrInsert} reserves and links
+   * without yielding, so no caller can observe one.
+   */
   int size() {
-    return Hashtable.size(state);
+    return Hashtable.estimateSize(state);
   }
 
   boolean isEmpty() {
-    return Hashtable.isEmpty(state);
+    return Hashtable.isLikelyEmpty(state);
   }
 
   /**
