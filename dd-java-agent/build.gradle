@@ -87,7 +87,7 @@ class CommonClassDataTransformer implements ResourceTransformer {
       plannedClasses = parsePlan(planLines, maxChunkSize)
     }
     List<String> missing = plannedClasses.collect { it.className }
-      .findAll { !transformedClasses.containsKey(it) }
+    .findAll { !transformedClasses.containsKey(it) }
     if (!missing.isEmpty()) {
       throw new IOException(
       "Missing ${missing.size()} selected class-data entries, first entries: ${missing.take(5)}")
@@ -211,8 +211,14 @@ class CommonClassDataTransformer implements ResourceTransformer {
     }
 
     Map<String, List<String>> shards = new LinkedHashMap<>()
-    ['common-bytebuddy', 'common-agent', 'common-telemetry', 'common-communication',
-      'common-other', 'early'].each { shards.put(it, []) }
+    [
+      'common-bytebuddy',
+      'common-agent',
+      'common-telemetry',
+      'common-communication',
+      'common-other',
+      'early'
+    ].each { shards.put(it, []) }
     Map<String, List<String>> targetShards = new TreeMap<>()
     classNames.each { String className ->
       String shard = moduleShards.get(className)
@@ -297,8 +303,8 @@ class CommonClassDataTransformer implements ResourceTransformer {
       result.put(
         moduleName,
         (flags & 0x02) != 0
-          ? 'early'
-          : String.format(Locale.ROOT, 'targets-%04x', targetSystems))
+        ? 'early'
+        : String.format(Locale.ROOT, 'targets-%04x', targetSystems))
 
       if (memberCount == 0xFF) {
         if ((flags & 0x01) != 0) {
@@ -317,7 +323,7 @@ class CommonClassDataTransformer implements ResourceTransformer {
     }
     if (cursor != packed.length) {
       throw new IOException(
-        "Instrumenter index decoded ${cursor} of ${packed.length} packed-name bytes")
+      "Instrumenter index decoded ${cursor} of ${packed.length} packed-name bytes")
     }
     result
   }
