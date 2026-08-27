@@ -2,6 +2,8 @@ package datadog.common.queue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -253,6 +255,76 @@ class WorkQueueContractTest {
 
     assertEquals(Arrays.asList("a", "b"), consumed);
     assertEquals(0, queue.dropped(), "partitioned work is not lost");
+  }
+
+  // Reservations are the single-consumer backing's alone: see WorkQueue#tryReserve.
+
+  @org.junit.jupiter.api.Test
+  void reservationHoldsItsPlaceUntilFilled() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    try (Reservation<String> place = queue.tryReserve()) {
+      assertNotNull(place);
+      assertTrue(queue.tryPut("behind"), "the rest of the queue stays open for admission");
+      assertFalse(queue.process(item -> {}), "the consumer cannot see past an open reservation");
+      place.fill("reserved");
+    }
+    assertEquals(Arrays.asList("reserved", "behind"), drain(queue));
+  }
+
+  /** The stall an open reservation causes is why it is an escape hatch and not the default. */
+  @org.junit.jupiter.api.Test
+  void abandonedReservationReleasesTheConsumer() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    Reservation<String> place = queue.tryReserve();
+    assertNotNull(place);
+    queue.tryPut("behind");
+    assertFalse(queue.process(item -> {}));
+
+    place.close();
+
+    assertEquals(Arrays.asList("behind"), drain(queue), "the abandoned place is skipped, not held");
+    assertEquals(0, queue.dropped(), "abandoning a place the caller claimed is not a rejection");
+  }
+
+  @org.junit.jupiter.api.Test
+  void reserveFailsWhenThereIsNoRoom() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+    assertNull(queue.tryReserve());
+    assertEquals(1, queue.dropped(), "a place that could not be claimed counts like a rejection");
+  }
+
+  @org.junit.jupiter.api.Test
+  void reserveFailsOnceClosed() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    queue.close();
+    assertNull(queue.tryReserve());
+  }
+
+  @org.junit.jupiter.api.Test
+  void filledReservationsInterleaveWithOrdinaryAdmission() {
+    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+    queue.tryPut("first");
+    try (Reservation<String> place = queue.tryReserve()) {
+      place.fill("second");
+    }
+    queue.tryPut("third");
+    assertEquals(Arrays.asList("first", "second", "third"), drain(queue));
+  }
+
+  /**
+   * A multi-consumer queue refuses the hatch rather than letting a consumer spin on a held place.
+   */
+  @org.junit.jupiter.api.Test
+  void multiConsumerQueuesRefuseToReserve() {
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> WorkQueues.createMpmcQueue(CAPACITY).tryReserve());
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> WorkQueues.createUnboundedMpmcQueue().tryReserve());
   }
 
   private static List<String> drain(WorkQueue<String> queue) {

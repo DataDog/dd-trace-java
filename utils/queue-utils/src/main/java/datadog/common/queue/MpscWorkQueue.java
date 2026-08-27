@@ -34,7 +34,25 @@ final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
     }
   }
 
+  /** Creates the slot inside the claimed place, and hands it back to the reserving thread. */
+  private static final class SlotSupplier<T> implements MessagePassingQueue.Supplier<Object> {
+    Slot<T> slot;
+
+    @Override
+    public Object get() {
+      slot = new Slot<>();
+      return slot;
+    }
+  }
+
   private final MessagePassingQueue<Object> queue;
+
+  /**
+   * Set before the first {@link Slot} can reach the array, and never cleared. A queue whose caller
+   * never reserves keeps the plain consumption path; one that has reserved even once pays a peek
+   * and a type test per item forever, which is the price of not taxing every other call site.
+   */
+  private volatile boolean reservations;
 
   MpscWorkQueue(int requestedCapacity) {
     this.queue = Queues.mpscArrayQueue(requestedCapacity);
@@ -51,8 +69,35 @@ final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
   }
 
   @Override
+  Slot<T> reserve() {
+    // Set first: a slot must never reach the array before the consumer knows to expect one.
+    reservations = true;
+    SlotSupplier<T> supplier = new SlotSupplier<>();
+    return queue.fill(supplier, 1) == 1 ? supplier.slot : null;
+  }
+
+  @Override
   Object take() {
-    return queue.poll();
+    if (!reservations) {
+      return queue.poll();
+    }
+    for (; ; ) {
+      Object head = queue.relaxedPeek();
+      if (!(head instanceof Slot)) {
+        // Either empty, or an ordinary element whose place was never reserved.
+        return head == null ? null : queue.poll();
+      }
+      Object element = ((Slot<?>) head).element();
+      if (element == null) {
+        // Still being built. The place is claimed, so there is nothing behind it to take either.
+        return null;
+      }
+      queue.poll();
+      if (element != Slot.RELEASED) {
+        return element;
+      }
+      // Abandoned without ever being filled: skip it and look at what is behind it.
+    }
   }
 
   @Override

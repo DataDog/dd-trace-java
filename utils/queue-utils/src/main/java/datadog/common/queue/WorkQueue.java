@@ -56,6 +56,24 @@ public interface WorkQueue<T> {
   Collection<T> tryPut(Collection<? extends T> elements);
 
   /**
+   * Claims a place without supplying its element, for a caller whose work between claiming and
+   * filling cannot be expressed as a {@link Producer}.
+   *
+   * <p>This is the escape hatch, and it is a sharper tool than the {@code tryPut} family: the
+   * consumer cannot see past an open reservation, so one that is not promptly filled or closed
+   * stalls it. Use try-with-resources.
+   *
+   * <p>Only the single-consumer backing offers it. Holding a place open depends on the consumer
+   * being able to find the queue empty until the place is ready; where several consumers share a
+   * queue one of them takes the unfilled place instead and can only spin on it, so those backings
+   * refuse rather than deadlock.
+   *
+   * @return the claimed place, or {@code null} if there was no room
+   * @throws UnsupportedOperationException if this queue has more than one consumer
+   */
+  Reservation<T> tryReserve();
+
+  /**
    * Consumes one item, if there is one. A throwing consumer propagates.
    *
    * @return whether there was an item to consume

@@ -57,6 +57,16 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /**
    * @return the next stored object, or {@code null} if there was none
    */
+  /**
+   * Claims a place and stores a {@link Slot} in it, for the backings that can hold one open.
+   *
+   * @return the slot, or {@code null} if no place could be claimed
+   */
+  Slot<T> reserve() {
+    throw new UnsupportedOperationException(
+        getClass().getSimpleName() + " has several consumers and cannot hold a place open");
+  }
+
   abstract Object take();
 
   abstract void discardAll();
@@ -104,6 +114,19 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
     }
     return rejected == null ? emptyList() : rejected;
+  }
+
+  @Override
+  public Reservation<T> tryReserve() {
+    if (closed) {
+      dropped.increment();
+      return null;
+    }
+    Slot<T> slot = reserve();
+    if (slot == null) {
+      dropped.increment();
+    }
+    return slot;
   }
 
   @Override

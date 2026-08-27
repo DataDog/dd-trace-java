@@ -156,6 +156,100 @@ class MpscWorkQueueStressTest {
         "every rejected admission is counted");
   }
 
+  /**
+   * Reservations mixed into ordinary admission under contention: the consumer has to tell a place
+   * that is still being filled from an element that is ready, and from a place that was abandoned,
+   * without losing or duplicating anything behind it.
+   */
+  @Test
+  void conservesElementsWhenProducersReserve() throws Exception {
+    WorkQueue<Integer> queue = WorkQueues.createMpscQueue(CAPACITY);
+    AtomicIntegerArray timesSeen = new AtomicIntegerArray(TOTAL);
+    AtomicInteger admitted = new AtomicInteger();
+    AtomicInteger consumed = new AtomicInteger();
+
+    CountDownLatch start = new CountDownLatch(1);
+    CountDownLatch producersDone = new CountDownLatch(PRODUCERS);
+
+    for (int p = 0; p < PRODUCERS; p++) {
+      final int producer = p;
+      Thread thread =
+          new Thread(
+              () -> {
+                await(start);
+                try {
+                  for (int i = 0; i < PER_PRODUCER; i++) {
+                    int value = producer * PER_PRODUCER + i;
+                    switch (i % 3) {
+                      case 0:
+                        if (queue.tryPut(value)) {
+                          admitted.incrementAndGet();
+                        }
+                        break;
+                      case 1:
+                        try (Reservation<Integer> place = queue.tryReserve()) {
+                          if (place != null) {
+                            place.fill(value);
+                            admitted.incrementAndGet();
+                          }
+                        }
+                        break;
+                      default:
+                        // claimed and then abandoned: the consumer must skip it
+                        try (Reservation<Integer> place = queue.tryReserve()) {
+                          // no fill
+                        }
+                        break;
+                    }
+                  }
+                } finally {
+                  producersDone.countDown();
+                }
+              },
+              "producer-" + p);
+      thread.setDaemon(true);
+      thread.start();
+    }
+
+    AtomicBoolean consumerFailed = new AtomicBoolean();
+    Thread consumer =
+        new Thread(
+            () -> {
+              boolean producersFinished = false;
+              while (true) {
+                boolean hadWork = queue.process(value -> timesSeen.incrementAndGet(value));
+                if (hadWork) {
+                  consumed.incrementAndGet();
+                } else if (producersFinished) {
+                  return;
+                } else {
+                  producersFinished = producersDone.getCount() == 0;
+                  Thread.yield();
+                }
+              }
+            },
+            "consumer");
+    consumer.setDaemon(true);
+    consumer.setUncaughtExceptionHandler((t, e) -> consumerFailed.set(true));
+    consumer.start();
+
+    start.countDown();
+    assertTrue(
+        producersDone.await(TIMEOUT_SECONDS, TimeUnit.SECONDS), "producers did not finish in time");
+    consumer.join(TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS));
+    assertFalse(consumer.isAlive(), "consumer did not finish in time");
+    assertFalse(consumerFailed.get(), "consumer thread threw");
+
+    assertEquals(
+        admitted.get(), consumed.get(), "every filled place reaches the consumer exactly once");
+    assertEquals(0, queue.size(), "no abandoned place is left holding capacity");
+
+    for (int value = 0; value < TOTAL; value++) {
+      int seen = timesSeen.get(value);
+      assertTrue(seen <= 1, "element " + value + " was consumed " + seen + " times");
+    }
+  }
+
   private static void await(CountDownLatch latch) {
     try {
       latch.await();
