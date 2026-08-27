@@ -175,14 +175,20 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private RetryQueue<T> lease(int attempt) {
     return new RetryQueue<T>() {
       @Override
+      public boolean retry(T item) {
+        if (closed || !admit(new Retried<>(item, attempt))) {
+          dropped.increment();
+          return false;
+        }
+        return true;
+      }
+
+      @Override
       @SuppressWarnings("unchecked")
       public boolean retry(T... items) {
         boolean all = items.length > 0;
         for (T item : items) {
-          if (closed || !admit(new Retried<>(item, attempt))) {
-            dropped.increment();
-            all = false;
-          }
+          all &= retry(item);
         }
         return all;
       }

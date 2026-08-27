@@ -205,6 +205,31 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("a"));
   }
 
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void retryCanPartitionFailedWorkIntoSeveralItems(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("ab");
+    List<String> consumed = new ArrayList<>();
+    RetryStrategy<String> split =
+        (item, attempt, failure, retryQueue) -> retryQueue.retry("a", "b");
+
+    while (queue.process(
+        item -> {
+          if (item.length() > 1) {
+            throw new IllegalStateException("too big to handle in one piece");
+          }
+          consumed.add(item);
+        },
+        split)) {
+      // drain until the pieces are through
+    }
+
+    assertEquals(Arrays.asList("a", "b"), consumed);
+    assertEquals(0, queue.dropped(), "partitioned work is not lost");
+  }
+
   private static List<String> drain(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {

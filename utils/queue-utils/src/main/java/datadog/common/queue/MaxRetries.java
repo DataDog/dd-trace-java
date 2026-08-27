@@ -9,7 +9,6 @@ public final class MaxRetries<T> implements RetryStrategy<T> {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public boolean onFailure(T item, int attempt, Throwable failure, RetryQueue<T> retryQueue) {
     return attempt < maxRetries && retryQueue.retry(item);
   }
