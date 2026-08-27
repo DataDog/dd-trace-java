@@ -112,6 +112,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile TagValue orgPropagationMarkerTagValue;
 
+    private volatile OtelTraceState otelTraceState;
+
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
@@ -540,7 +542,20 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateW3CTracestate(String tracestate) {
+      clearCachedHeader(W3C);
       this.tracestate = tracestate;
+      setOtelTraceState(W3CPTagsCodec.extractOtelTraceState(tracestate));
+    }
+
+    OtelTraceState getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    void setOtelTraceState(OtelTraceState otelTraceState) {
+      if (this.otelTraceState != otelTraceState) {
+        this.otelTraceState = otelTraceState;
+        clearCachedHeader(W3C);
+      }
     }
 
     String getError() {
