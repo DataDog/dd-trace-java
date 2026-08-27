@@ -6,16 +6,24 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -205,6 +213,35 @@ class PackedClassDataTest {
     }
   }
 
+  @Test
+  void loadsDifferentChunksConcurrently() throws Exception {
+    byte[] index =
+        packIndex(2, entry("example.Blocked", 0, 0, 1), entry("example.Concurrent", 1, 0, 1));
+    Path jarPath = temporaryDirectory.resolve("concurrent.jar");
+    try (OutputStream file = Files.newOutputStream(jarPath);
+        JarOutputStream jar = new JarOutputStream(file)) {
+      writeEntry(jar, PackedClassData.ENTRY_NAME, index);
+      writeEntry(jar, PackedClassData.chunkEntryName(0), new byte[] {1});
+      writeEntry(jar, PackedClassData.chunkEntryName(1), new byte[] {2});
+    }
+
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try (BlockingJarFile jar = new BlockingJarFile(jarPath, PackedClassData.chunkEntryName(0))) {
+      PackedClassData packed = PackedClassData.from(jar);
+      Future<PackedClassData.Slice> blocked = executor.submit(() -> packed.find("example.Blocked"));
+      assertTrue(jar.awaitBlockedRead());
+
+      Future<PackedClassData.Slice> concurrent =
+          executor.submit(() -> packed.find("example.Concurrent"));
+      assertEquals(2, concurrent.get(5, TimeUnit.SECONDS).data[0]);
+
+      jar.resumeBlockedRead();
+      assertEquals(1, blocked.get(5, TimeUnit.SECONDS).data[0]);
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
   private static void assertLocation(
       PackedClassData.Location location, int chunk, int offset, int length) {
     assertEquals(chunk, location.chunk);
@@ -300,6 +337,41 @@ class PackedClassDataTest {
       this.chunk = chunk;
       this.offset = offset;
       this.length = length;
+    }
+  }
+
+  private static final class BlockingJarFile extends JarFile {
+    private final String blockedEntry;
+    private final CountDownLatch readStarted = new CountDownLatch(1);
+    private final CountDownLatch resumeRead = new CountDownLatch(1);
+
+    private BlockingJarFile(Path path, String blockedEntry) throws IOException {
+      super(path.toFile());
+      this.blockedEntry = blockedEntry;
+    }
+
+    @Override
+    public InputStream getInputStream(ZipEntry entry) throws IOException {
+      if (blockedEntry.equals(entry.getName())) {
+        readStarted.countDown();
+        try {
+          if (!resumeRead.await(5, TimeUnit.SECONDS)) {
+            throw new IOException("Timed out waiting to resume blocked chunk read");
+          }
+        } catch (InterruptedException error) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Interrupted while blocking chunk read", error);
+        }
+      }
+      return super.getInputStream(entry);
+    }
+
+    private boolean awaitBlockedRead() throws InterruptedException {
+      return readStarted.await(5, TimeUnit.SECONDS);
+    }
+
+    private void resumeBlockedRead() {
+      resumeRead.countDown();
     }
   }
 }

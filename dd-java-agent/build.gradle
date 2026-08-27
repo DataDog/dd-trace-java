@@ -811,6 +811,7 @@ def unpackedShadowJar = tasks.register("unpackedShadowJar", ShadowJar) {
   generalShadowJarConfig(it)
   configurations.empty()
   configurations.add(project.configurations.named('shadowInclude'))
+  destinationDirectory = layout.buildDirectory.dir('classdata-control')
   archiveClassifier = 'unpacked'
   manifest {
     attributes(

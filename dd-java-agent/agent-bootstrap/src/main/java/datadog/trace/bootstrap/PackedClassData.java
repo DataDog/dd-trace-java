@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -284,16 +285,22 @@ final class PackedClassData {
     private final JarFile jarFile;
     private final Index index;
     private final JarEntry[] chunkEntries;
-    private final byte[][] chunks;
+    private final AtomicReferenceArray<byte[]> chunks;
+    private final Object[] chunkLocks;
+    private final Object cacheLock = new Object();
     private final long[] lastAccess;
-    private boolean released;
+    private volatile boolean released;
     private long accessCounter;
 
     private Contents(JarFile jarFile, Index index, JarEntry[] chunkEntries) {
       this.jarFile = jarFile;
       this.index = index;
       this.chunkEntries = chunkEntries;
-      chunks = new byte[chunkEntries.length][];
+      chunks = new AtomicReferenceArray<>(chunkEntries.length);
+      chunkLocks = new Object[chunkEntries.length];
+      for (int chunk = 0; chunk < chunkLocks.length; chunk++) {
+        chunkLocks[chunk] = new Object();
+      }
       lastAccess = new long[chunkEntries.length];
     }
 
@@ -301,21 +308,23 @@ final class PackedClassData {
       return index.find(className) != null;
     }
 
-    private synchronized Slice find(String className) throws IOException {
+    private Slice find(String className) throws IOException {
       Location location = index.find(className);
       if (location == null) {
         return null;
       }
-      byte[] chunk = chunks[location.chunk];
+      byte[] chunk = chunks.get(location.chunk);
       if (chunk == null) {
-        chunk = readEntry(jarFile, chunkEntries[location.chunk]);
-        chunks[location.chunk] = chunk;
-        if (released) {
-          evictPostBootstrapChunk(location.chunk);
+        synchronized (chunkLocks[location.chunk]) {
+          chunk = chunks.get(location.chunk);
+          if (chunk == null) {
+            chunk = readEntry(jarFile, chunkEntries[location.chunk]);
+            chunks.set(location.chunk, chunk);
+          }
         }
       }
       if (released) {
-        lastAccess[location.chunk] = ++accessCounter;
+        recordPostBootstrapAccess(location.chunk, chunk);
       }
       if ((long) location.offset + location.length > chunk.length) {
         throw new IOException("Packed class-data slice exceeds chunk " + location.chunk);
@@ -323,9 +332,10 @@ final class PackedClassData {
       return new Slice(chunk, location.offset, location.length, location.chunk);
     }
 
-    private synchronized int retainedChunkBytes() {
+    private int retainedChunkBytes() {
       int bytes = 0;
-      for (byte[] chunk : chunks) {
+      for (int index = 0; index < chunks.length(); index++) {
+        byte[] chunk = chunks.get(index);
         if (chunk != null) {
           bytes += chunk.length;
         }
@@ -333,11 +343,24 @@ final class PackedClassData {
       return bytes;
     }
 
-    private synchronized void release() {
-      released = true;
-      for (int chunk = 0; chunk < chunks.length; chunk++) {
-        chunks[chunk] = null;
-        lastAccess[chunk] = 0;
+    private void release() {
+      synchronized (cacheLock) {
+        released = true;
+        for (int chunk = 0; chunk < chunks.length(); chunk++) {
+          chunks.set(chunk, null);
+          lastAccess[chunk] = 0;
+        }
+      }
+    }
+
+    private void recordPostBootstrapAccess(int loadedChunk, byte[] loadedContents) {
+      synchronized (cacheLock) {
+        // release() may have cleared this chunk after find() obtained its local reference.
+        if (chunks.get(loadedChunk) != loadedContents) {
+          return;
+        }
+        lastAccess[loadedChunk] = ++accessCounter;
+        evictPostBootstrapChunk(loadedChunk);
       }
     }
 
@@ -345,8 +368,8 @@ final class PackedClassData {
       int retained = 0;
       int oldestChunk = -1;
       long oldestAccess = Long.MAX_VALUE;
-      for (int chunk = 0; chunk < chunks.length; chunk++) {
-        if (chunks[chunk] != null) {
+      for (int chunk = 0; chunk < chunks.length(); chunk++) {
+        if (chunks.get(chunk) != null) {
           retained++;
           if (chunk != loadedChunk && lastAccess[chunk] < oldestAccess) {
             oldestChunk = chunk;
@@ -355,7 +378,7 @@ final class PackedClassData {
         }
       }
       if (retained > POST_BOOTSTRAP_CACHE_SIZE && oldestChunk >= 0) {
-        chunks[oldestChunk] = null;
+        chunks.set(oldestChunk, null);
         lastAccess[oldestChunk] = 0;
       }
     }

@@ -89,22 +89,6 @@ public final class DatadogClassLoader extends SecureClassLoader {
   }
 
   @Override
-  public InputStream getResourceAsStream(String name) {
-    if (packedClassData != null && name.endsWith(".class")) {
-      String className = name.substring(0, name.length() - ".class".length()).replace('/', '.');
-      try {
-        InputStream input = packedClassData.openStream(className);
-        if (input != null) {
-          return input;
-        }
-      } catch (IOException error) {
-        throw new IllegalStateException("Problem reading packed class resource " + name, error);
-      }
-    }
-    return super.getResourceAsStream(name);
-  }
-
-  @Override
   protected Enumeration<URL> findResources(String name) {
     URL resource = findResource(name);
     if (null != resource) {

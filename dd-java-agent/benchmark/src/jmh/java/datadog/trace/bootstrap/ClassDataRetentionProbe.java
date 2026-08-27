@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,6 +10,7 @@ import java.util.List;
 public final class ClassDataRetentionProbe {
   private ClassDataRetentionProbe() {}
 
+  @SuppressForbidden // Standalone probe output is consumed by benchmark tooling.
   public static void main(String[] args) throws Exception {
     if (args.length != 2) {
       throw new IllegalArgumentException("Expected: <benchmark-dir> <layout>");

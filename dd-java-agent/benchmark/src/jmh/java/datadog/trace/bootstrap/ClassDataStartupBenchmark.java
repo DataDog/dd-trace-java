@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -36,6 +37,7 @@ public final class ClassDataStartupBenchmark {
 
   private ClassDataStartupBenchmark() {}
 
+  @SuppressForbidden // Standalone benchmark output is intentionally written as CSV.
   public static void main(String[] args) throws Exception {
     if (args.length < 3 || args.length > 4) {
       throw new IllegalArgumentException(
@@ -83,9 +85,20 @@ public final class ClassDataStartupBenchmark {
 
   private static List<String> configuredLayouts() {
     String configured = System.getProperty("datadog.classdata.benchmark.layouts");
-    return configured == null || configured.isEmpty()
-        ? DEFAULT_LAYOUTS
-        : Arrays.asList(configured.split(","));
+    if (configured == null || configured.isEmpty()) {
+      return DEFAULT_LAYOUTS;
+    }
+    List<String> layouts = new ArrayList<>();
+    int start = 0;
+    int separator;
+    while ((separator = configured.indexOf(',', start)) >= 0) {
+      layouts.add(configured.substring(start, separator));
+      start = separator + 1;
+    }
+    if (start < configured.length()) {
+      layouts.add(configured.substring(start));
+    }
+    return layouts;
   }
 
   private static double launch(

@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -46,6 +47,7 @@ public final class ClassDataBenchmarkArtifacts {
 
   private ClassDataBenchmarkArtifacts() {}
 
+  @SuppressForbidden // Standalone artifact generation reports its output directory to the caller.
   public static void main(String[] args) throws Exception {
     if (args.length < 4 || args.length > 6) {
       throw new IllegalArgumentException(
