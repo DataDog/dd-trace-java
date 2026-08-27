@@ -24,7 +24,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly libs.okhttp2.minimum
+  compileOnly(group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0')
 
   implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: 'okhttp'
@@ -39,7 +39,7 @@ dependencies {
   testImplementation(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')) {
     exclude module: 'okhttp'
   }
-  testImplementation libs.okhttp2.minimum
+  testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
   testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))

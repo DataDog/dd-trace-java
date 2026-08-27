@@ -55,8 +55,6 @@ jol = "0.17"
 
 # Web & Network
 jnr-unixsocket = "0.38.25"
-okhttp2-minimum = "2.2.0"
-okhttp3-minimum = "3.0.0"
 
 # Cryptography
 cafe_crypto = "0.1.0"
@@ -167,10 +165,6 @@ slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 # JSON
 jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
-
-# Web & Network
-okhttp2-minimum = { module = "com.squareup.okhttp:okhttp", version.ref = "okhttp2-minimum" }
-okhttp3-minimum = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp3-minimum" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
