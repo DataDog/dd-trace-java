@@ -341,4 +341,68 @@ class HashtableD1Test {
     assertEquals(0, drained.size());
     assertEquals(0, table.size());
   }
+
+  @Test
+  void tryGetOrUpdateCreatesThenAppliesUpdater() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), e -> e.value += 5));
+    assertEquals(1, table.size());
+    assertEquals(5, table.get("a").value);
+  }
+
+  @Test
+  void tryGetOrUpdateUpdatesExistingEntryInPlace() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
+    table.insert(new StringIntEntry("a", 10));
+    StringIntEntry existing = table.get("a");
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), e -> e.value += 5));
+    assertEquals(1, table.size());
+    assertEquals(15, existing.value);
+    assertSame(existing, table.get("a"));
+  }
+
+  @Test
+  void tryGetOrUpdateReturnsFalseAtCapacityWithoutUpdating() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+    boolean[] updaterRan = {false};
+    assertFalse(
+        table.tryGetOrUpdate(
+            "c",
+            k -> new StringIntEntry(k, 0),
+            e -> {
+              updaterRan[0] = true;
+            }));
+    assertFalse(updaterRan[0], "updater must not run when the create is refused");
+    assertEquals(2, table.size());
+    assertNull(table.get("c"));
+  }
+
+  @Test
+  void tryGetOrUpdateAtCapacityStillUpdatesAnExistingKey() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), e -> e.value += 7));
+    assertEquals(8, table.get("a").value);
+  }
+
+  @Test
+  void tryGetOrUpdateWithContextPassesContextToUpdater() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 4, (n, e) -> e.value += n));
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 6, (n, e) -> e.value += n));
+    assertEquals(1, table.size());
+    assertEquals(10, table.get("a").value);
+  }
+
+  @Test
+  void tryGetOrUpdateWithContextReturnsFalseAtCapacity() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 1);
+    table.insert(new StringIntEntry("a", 1));
+    assertFalse(
+        table.tryGetOrUpdate("b", k -> new StringIntEntry(k, 0), 4, (n, e) -> e.value += n));
+    assertEquals(1, table.size());
+  }
 }
