@@ -1686,14 +1686,27 @@ public class Config {
     forceClearTextHttpForIntakeClient =
         configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
 
-    httpsProxy = configProvider.getString(PROXY_HTTPS);
+    String configuredHttpsProxy = configProvider.getString(PROXY_HTTPS);
+    if (configuredHttpsProxy == null) {
+      configuredHttpsProxy = ConfigHelper.env("HTTPS_PROXY");
+      if (configuredHttpsProxy == null) {
+        configuredHttpsProxy = ConfigHelper.env("https_proxy");
+      }
+    }
+    httpsProxy = configuredHttpsProxy;
 
     // DD_PROXY_NO_PROXY historically accepted spaces; standard NO_PROXY aliases use commas.
-    final String configuredNoProxyHosts = configProvider.getString(PROXY_NO_PROXY);
+    String configuredNoProxyHosts = configProvider.getString(PROXY_NO_PROXY);
+    if (configuredNoProxyHosts == null) {
+      configuredNoProxyHosts = ConfigHelper.env("NO_PROXY");
+      if (configuredNoProxyHosts == null) {
+        configuredNoProxyHosts = ConfigHelper.env("no_proxy");
+      }
+    }
     noProxyHosts =
         configuredNoProxyHosts == null
             ? Collections.emptySet()
-            : tryMakeImmutableSet(Arrays.asList(configuredNoProxyHosts.split("[,\\s]+")));
+            : parseStringIntoSetOfNonEmptyStrings(configuredNoProxyHosts);
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
