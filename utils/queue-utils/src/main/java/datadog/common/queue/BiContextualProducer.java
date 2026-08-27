@@ -1,5 +1,7 @@
 package datadog.common.queue;
 
+import datadog.trace.api.function.Strategy;
+
 /**
  * A {@link Producer} that derives its element from two caller-supplied contexts.
  *
@@ -13,6 +15,7 @@ package datadog.common.queue;
  * primitive one has to be boxed to ride a generic parameter, which costs more than re-deriving it.
  * A call site that genuinely needs more should close over what it needs once per scope.
  */
+@Strategy
 @FunctionalInterface
 public interface BiContextualProducer<C1, C2, T> {
   T produce(C1 first, C2 second);

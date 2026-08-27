@@ -1,5 +1,7 @@
 package datadog.common.queue;
 
+import datadog.trace.api.function.Strategy;
+import datadog.trace.api.function.StrategyConsumer;
 import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -45,14 +47,16 @@ public interface WorkQueue<T> {
    *
    * @return whether the element was admitted
    */
-  boolean tryPut(Producer<? extends T> producer);
+  @StrategyConsumer
+  boolean tryPut(@Strategy Producer<? extends T> producer);
 
   /**
    * Admits an element derived from {@code context}, constructing it only once a slot is reserved.
    *
    * @return whether the element was admitted
    */
-  <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer);
+  @StrategyConsumer
+  <C> boolean tryPut(C context, @Strategy ContextualProducer<? super C, ? extends T> producer);
 
   /**
    * Admits an element derived from two contexts, constructing it only once a slot is reserved.
@@ -60,8 +64,11 @@ public interface WorkQueue<T> {
    * @return whether the element was admitted
    * @see BiContextualProducer
    */
+  @StrategyConsumer
   <C1, C2> boolean tryPut(
-      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
+      C1 first,
+      C2 second,
+      @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
 
   /**
    * @return the elements that were not admitted, empty if all were
@@ -105,7 +112,7 @@ public interface WorkQueue<T> {
    *
    * @return whether there was an item to consume
    */
-  boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy);
+  boolean process(Consumer<? super T> consumer, @Strategy RetryStrategy<T> retryStrategy);
 
   /**
    * Consumes one item, if there is one. A throwing consumer propagates.
@@ -121,7 +128,9 @@ public interface WorkQueue<T> {
    * @return whether there was an item to consume
    */
   <C> boolean process(
-      C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<T> retryStrategy);
+      C context,
+      BiConsumer<? super C, ? super T> consumer,
+      @Strategy RetryStrategy<T> retryStrategy);
 
   /**
    * Consumes up to {@code limit} items, stopping early when the queue runs dry.

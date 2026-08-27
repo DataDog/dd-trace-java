@@ -1,5 +1,7 @@
 package datadog.common.queue;
 
+import datadog.trace.api.function.Strategy;
+
 /**
  * Decides what happens to an item whose consumer threw.
  *
@@ -7,6 +9,7 @@ package datadog.common.queue;
  * the decision; it does not report whether the item will eventually succeed. Logging and counting
  * are the caller's to compose here: this API performs neither.
  */
+@Strategy
 @FunctionalInterface
 public interface RetryStrategy<T> {
   /**

@@ -2,6 +2,8 @@ package datadog.common.queue;
 
 import static java.util.Collections.emptyList;
 
+import datadog.trace.api.function.Strategy;
+import datadog.trace.api.function.StrategyConsumer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -134,7 +136,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return false;
   }
 
-  private <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer) {
+  @StrategyConsumer
+  private <C> boolean admit(
+      C context, @Strategy ContextualProducer<? super C, ? extends T> producer) {
     if (!claimPlace()) {
       return false;
     }
@@ -148,8 +152,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return storeOrRelease(element);
   }
 
+  @StrategyConsumer
   private <C1, C2> boolean admit(
-      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+      C1 first,
+      C2 second,
+      @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
     if (!claimPlace()) {
       return false;
     }
