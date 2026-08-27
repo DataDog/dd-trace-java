@@ -18,7 +18,7 @@ The preparation task launches a minimal application with the assembled agent, re
   agent, telemetry, communication, and fallback families before chunking;
 - `load-order-common.jar`: all common classes packed using one non-module load-order group followed
   by the same instrumenter shards, preserving the pre-semantic production strategy as a control;
-- `production.jar`: the actual production `shadowJar`, packed from the checked-in manifest;
+- `production.jar`: the actual production `shadowJar`, packed from the checked-in chunk plan;
 - `stored-{10,25,50,75,100}.jar`: the corresponding load-order prefix stored without compression;
 - `packed-{64,256,1024}.jar`: compact build-time index plus independently compressed load-order
   chunks of the indicated class count;
@@ -36,6 +36,23 @@ chunks unopened while correctly handling modules that apply to more than one pro
 Chunks stay cached during synchronous bootstrap because classes may be defined by both agent class
 loaders. At the end of bootstrap they are released, after which an eight-chunk LRU bounds retention
 while preserving locality for instrumentations loaded during application startup.
+
+The production chunk layout is committed in `metadata/common-classdata-plan.txt`. It records the
+global chunk number, semantic or product shard, and class order, so two builds with the same plan
+produce the same layout. `shadowJar` consumes this plan directly and validates product shards
+against the current `instrumenter.index`.
+
+After reviewing a fresh profile in `metadata/common-classdata.txt`, regenerate the plan with:
+
+```shell
+./gradlew :dd-java-agent:generateCommonClassDataPlan
+```
+
+CI should run `:dd-java-agent:verifyCommonClassDataPlan`. This is a fast deterministic check: it
+derives a candidate from the committed profile and current instrumenter index, compares it with the
+committed plan, and reports added, removed, reassigned, or moved classes. It deliberately does not
+launch a timing-sensitive class-load profile on every PR. Profile collection and benchmark review
+remain the evidence-gathering step; plan verification is the reproducible build gate.
 
 The generated artifacts are under `build/classdata-benchmark`. Artifact discovery also accepts a
 `default`, `profiling`, `appsec`, or `tracing-disabled` scenario when its main class is invoked

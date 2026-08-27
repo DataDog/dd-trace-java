@@ -27,10 +27,10 @@ class CommonClassDataTransformer implements ResourceTransformer {
   private static final int RECORD_SIZE = 24
 
   @Input
-  List<String> classNames = []
+  List<String> planLines = []
 
   @Input
-  int chunkSize = 64
+  int maxChunkSize = 64
 
   @Internal
   final Map<String, byte[]> transformedClasses = new LinkedHashMap<>()
@@ -40,6 +40,9 @@ class CommonClassDataTransformer implements ResourceTransformer {
 
   @Internal
   Set<String> selectedClassNames
+
+  @Internal
+  List<Map<String, Object>> plannedClasses
 
   @Override
   boolean canTransformResource(FileTreeElement element) {
@@ -51,10 +54,8 @@ class CommonClassDataTransformer implements ResourceTransformer {
       return false
     }
     if (selectedClassNames == null) {
-      selectedClassNames = new HashSet<>(classNames)
-      if (selectedClassNames.size() != classNames.size()) {
-        throw new IllegalArgumentException('common class-data manifest contains duplicates')
-      }
+      plannedClasses = parsePlan(planLines, maxChunkSize)
+      selectedClassNames = plannedClasses.collect { it.className }.toSet()
     }
     selectedClassNames.contains(className)
   }
@@ -82,26 +83,136 @@ class CommonClassDataTransformer implements ResourceTransformer {
 
   @Override
   void modifyOutputStream(ZipOutputStream output, boolean preserveFileTimestamps) {
-    List<String> missing = classNames.findAll { !transformedClasses.containsKey(it) }
+    if (plannedClasses == null) {
+      plannedClasses = parsePlan(planLines, maxChunkSize)
+    }
+    List<String> missing = plannedClasses.collect { it.className }
+      .findAll { !transformedClasses.containsKey(it) }
     if (!missing.isEmpty()) {
       throw new IOException(
       "Missing ${missing.size()} selected class-data entries, first entries: ${missing.take(5)}")
-    }
-    if (chunkSize <= 0) {
-      throw new IOException('class-data chunk size must be positive')
     }
     if (instrumenterIndex == null) {
       throw new IOException("Missing ${INSTRUMENTER_INDEX_ENTRY}")
     }
 
     Map<String, String> moduleShards = readModuleShards(instrumenterIndex)
+    List<Map<String, Object>> records = []
+    List<byte[]> chunks = []
+    List<String> chunkShards = []
+    ByteArrayOutputStream chunk = null
+    int currentChunk = -1
+    plannedClasses.each { Map<String, Object> planned ->
+      String className = planned.className
+      String expectedShard = moduleShards.get(className) ?: semanticShard(className)
+      if (planned.shard != expectedShard) {
+        throw new IOException(
+        "Stale common class-data plan: ${className} is in ${planned.shard}, expected ${expectedShard}. " +
+        'Run ./gradlew :dd-java-agent:generateCommonClassDataPlan')
+      }
+      if (planned.chunk != currentChunk) {
+        if (chunk != null) {
+          chunks.add(chunk.toByteArray())
+        }
+        currentChunk = planned.chunk as int
+        chunk = new ByteArrayOutputStream()
+        chunkShards.add(planned.shard as String)
+      }
+      byte[] classData = transformedClasses.get(className)
+      records.add(
+        [className: className, chunk: currentChunk, offset: chunk.size(), length: classData.length])
+      chunk.write(classData)
+    }
+    if (chunk != null) {
+      chunks.add(chunk.toByteArray())
+    }
+
+    writeEntry(output, INSTRUMENTER_INDEX_ENTRY, instrumenterIndex)
+    writeEntry(output, INDEX_ENTRY, buildIndex(records, chunks.size()))
+    writeEntry(output, SHARDS_ENTRY, buildShardIndex(chunkShards))
+    chunks.eachWithIndex { byte[] contents, int index ->
+      writeEntry(output, "${CHUNK_PREFIX}${index}${CLASSDATA_SUFFIX}", contents)
+    }
+    transformedClasses.clear()
+    instrumenterIndex = null
+  }
+
+  static List<Map<String, Object>> parsePlan(List<String> lines, int maxChunkSize) {
+    if (maxChunkSize <= 0) {
+      throw new IllegalArgumentException('class-data maximum chunk size must be positive')
+    }
+    if (lines.isEmpty() || lines.first().trim() != '# common-classdata-plan-v1') {
+      throw new IllegalArgumentException(
+      'common class-data plan must start with # common-classdata-plan-v1')
+    }
+
+    List<Map<String, Object>> result = []
+    Set<String> classNames = new HashSet<>()
+    int currentChunk = -1
+    int classesInChunk = 0
+    String currentShard = null
+    lines.eachWithIndex { String rawLine, int lineIndex ->
+      String line = rawLine.trim()
+      if (line.isEmpty() || line.startsWith('#')) {
+        return
+      }
+      String[] fields = line.split('\t', -1)
+      if (fields.length != 3) {
+        throw new IllegalArgumentException(
+        "Invalid common class-data plan line ${lineIndex + 1}: expected chunk, shard, and class")
+      }
+      int chunk
+      try {
+        chunk = Integer.parseInt(fields[0])
+      } catch (NumberFormatException ignored) {
+        throw new IllegalArgumentException(
+        "Invalid common class-data chunk at line ${lineIndex + 1}: ${fields[0]}")
+      }
+      String shard = fields[1]
+      String className = fields[2]
+      if (!(shard ==~ /[a-z0-9][a-z0-9-]*/) || className.isEmpty()) {
+        throw new IllegalArgumentException(
+        "Invalid common class-data shard or class at line ${lineIndex + 1}")
+      }
+      if (chunk != currentChunk) {
+        if (chunk != currentChunk + 1) {
+          throw new IllegalArgumentException(
+          "Common class-data chunks must be contiguous; found ${chunk} after ${currentChunk}")
+        }
+        currentChunk = chunk
+        currentShard = shard
+        classesInChunk = 0
+      } else if (shard != currentShard) {
+        throw new IllegalArgumentException(
+        "Common class-data chunk ${chunk} contains both ${currentShard} and ${shard}")
+      }
+      if (++classesInChunk > maxChunkSize) {
+        throw new IllegalArgumentException(
+        "Common class-data chunk ${chunk} exceeds ${maxChunkSize} classes")
+      }
+      if (!classNames.add(className)) {
+        throw new IllegalArgumentException("Duplicate common class-data class ${className}")
+      }
+      result.add([chunk: chunk, shard: shard, className: className])
+    }
+    if (result.isEmpty()) {
+      throw new IllegalArgumentException('common class-data plan contains no classes')
+    }
+    result
+  }
+
+  static String buildPlan(
+    List<String> classNames, Map<String, String> moduleShards, int chunkSize) {
+    if (chunkSize <= 0) {
+      throw new IllegalArgumentException('class-data chunk size must be positive')
+    }
+    if (classNames.toSet().size() != classNames.size()) {
+      throw new IllegalArgumentException('common class-data profile contains duplicates')
+    }
+
     Map<String, List<String>> shards = new LinkedHashMap<>()
-    shards.put('common-bytebuddy', [])
-    shards.put('common-agent', [])
-    shards.put('common-telemetry', [])
-    shards.put('common-communication', [])
-    shards.put('common-other', [])
-    shards.put('early', [])
+    ['common-bytebuddy', 'common-agent', 'common-telemetry', 'common-communication',
+      'common-other', 'early'].each { shards.put(it, []) }
     Map<String, List<String>> targetShards = new TreeMap<>()
     classNames.each { String className ->
       String shard = moduleShards.get(className)
@@ -115,37 +226,48 @@ class CommonClassDataTransformer implements ResourceTransformer {
     }
     shards.putAll(targetShards)
 
-    List<Map<String, Object>> records = []
-    List<byte[]> chunks = []
-    List<String> chunkShards = []
+    StringBuilder plan = new StringBuilder('# common-classdata-plan-v1\n')
+    plan.append('# Generated from metadata/common-classdata.txt; do not edit by hand.\n')
+    plan.append('# Columns: global chunk, semantic/product shard, binary class name.\n')
+    int chunk = 0
     shards.each { String shard, List<String> shardClasses ->
-      ByteArrayOutputStream chunk = null
       shardClasses.eachWithIndex { String className, int index ->
-        if (index % chunkSize == 0) {
-          if (chunk != null) {
-            chunks.add(chunk.toByteArray())
-          }
-          chunk = new ByteArrayOutputStream()
-          chunkShards.add(shard)
+        if (index > 0 && index % chunkSize == 0) {
+          chunk++
         }
-        byte[] classData = transformedClasses.get(className)
-        records.add(
-          [className: className, chunk: chunks.size(), offset: chunk.size(), length: classData.length])
-        chunk.write(classData)
+        plan.append(chunk).append('\t').append(shard).append('\t').append(className).append('\n')
       }
-      if (chunk != null) {
-        chunks.add(chunk.toByteArray())
+      if (!shardClasses.isEmpty()) {
+        chunk++
       }
     }
+    plan.toString()
+  }
 
-    writeEntry(output, INSTRUMENTER_INDEX_ENTRY, instrumenterIndex)
-    writeEntry(output, INDEX_ENTRY, buildIndex(records, chunks.size()))
-    writeEntry(output, SHARDS_ENTRY, buildShardIndex(chunkShards))
-    chunks.eachWithIndex { byte[] contents, int index ->
-      writeEntry(output, "${CHUNK_PREFIX}${index}${CLASSDATA_SUFFIX}", contents)
+  static List<String> describePlanChanges(List<String> actualLines, List<String> expectedLines) {
+    Map<String, Map<String, Object>> actual = parsePlan(actualLines, Integer.MAX_VALUE)
+      .collectEntries { [(it.className): it] }
+    Map<String, Map<String, Object>> expected = parsePlan(expectedLines, Integer.MAX_VALUE)
+      .collectEntries { [(it.className): it] }
+    List<String> changes = []
+
+    (expected.keySet() - actual.keySet()).sort().each { String className ->
+      Map<String, Object> record = expected[className]
+      changes.add("+ ${className} -> ${record.shard}/${record.chunk}")
     }
-    transformedClasses.clear()
-    instrumenterIndex = null
+    (actual.keySet() - expected.keySet()).sort().each { String className ->
+      changes.add("- ${className} (was ${actual[className].shard}/${actual[className].chunk})")
+    }
+    (actual.keySet().intersect(expected.keySet()) as List<String>).sort().each { String className ->
+      Map<String, Object> before = actual[className]
+      Map<String, Object> after = expected[className]
+      if (before.shard != after.shard) {
+        changes.add("~ ${className} changed ${before.shard} -> ${after.shard}")
+      } else if (before.chunk != after.chunk) {
+        changes.add("~ ${className} moved from chunk ${before.chunk} to ${after.chunk}")
+      }
+    }
+    changes
   }
 
   static Map<String, String> readModuleShards(byte[] index) {
@@ -340,10 +462,16 @@ configurations {
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
 def includedJarFileTree = fileTree(includedAgentDir)
 def commonClassDataManifest = rootProject.file('metadata/common-classdata.txt')
-def commonClassDataClasses = providers.provider {
+def commonClassDataPlan = rootProject.file('metadata/common-classdata-plan.txt')
+def commonClassDataProfileClasses = providers.provider {
   commonClassDataManifest.readLines()
     .collect { it.trim() }
     .findAll { !it.isEmpty() && !it.startsWith('#') }
+}
+def commonClassDataPlanLines = providers.provider { commonClassDataPlan.readLines('UTF-8') }
+def commonClassDataClasses = providers.provider {
+  CommonClassDataTransformer.parsePlan(commonClassDataPlanLines.get(), 64)
+    .collect { it.className as String }
 }
 
 // Populated automatically by includeShadowJar for every product dir registered in this build.
@@ -662,10 +790,10 @@ tasks.named("shadowJar", ShadowJar) {
   }
 
   transform(CommonClassDataTransformer) {
-    it.classNames = commonClassDataClasses.get()
-    it.chunkSize = 64
+    it.planLines = commonClassDataPlanLines.get()
+    it.maxChunkSize = 64
   }
-  inputs.file(commonClassDataManifest)
+  inputs.file(commonClassDataPlan)
 }
 
 // Control artifact with the same inputs and relocation as the production jar, but with individual
@@ -690,6 +818,73 @@ def unpackedShadowJar = tasks.register("unpackedShadowJar", ShadowJar) {
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
       )
+  }
+}
+
+def expectedCommonClassDataPlan = { File unpackedJar ->
+  byte[] instrumenterIndex
+  new JarFile(unpackedJar).withCloseable { jar ->
+    def entry = jar.getJarEntry('inst/instrumenter.index')
+    if (entry == null) {
+      throw new GradleException('Unpacked agent jar is missing inst/instrumenter.index')
+    }
+    instrumenterIndex = jar.getInputStream(entry).bytes
+  }
+  CommonClassDataTransformer.buildPlan(
+    commonClassDataProfileClasses.get(),
+    CommonClassDataTransformer.readModuleShards(instrumenterIndex),
+    64)
+}
+
+tasks.register('generateCommonClassDataPlan') {
+  group = LifecycleBasePlugin.BUILD_GROUP
+  description = 'Regenerate the committed common class-data chunk plan'
+
+  def unpackedJar = unpackedShadowJar.flatMap { it.archiveFile }
+  inputs.file(commonClassDataManifest)
+  inputs.file(unpackedJar)
+  outputs.file(commonClassDataPlan)
+
+  doLast {
+    String expected = expectedCommonClassDataPlan(unpackedJar.get().asFile)
+    commonClassDataPlan.setText(expected, 'UTF-8')
+    logger.lifecycle(
+      "Updated ${rootProject.relativePath(commonClassDataPlan)} with " +
+      "${commonClassDataProfileClasses.get().size()} classes")
+  }
+}
+
+tasks.register('verifyCommonClassDataPlan') {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Verify the committed common class-data chunk plan is current'
+
+  def unpackedJar = unpackedShadowJar.flatMap { it.archiveFile }
+  inputs.file(commonClassDataManifest)
+  inputs.file(commonClassDataPlan)
+  inputs.file(unpackedJar)
+  outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
+
+  doLast {
+    String expected = expectedCommonClassDataPlan(unpackedJar.get().asFile)
+    String actual = commonClassDataPlan.getText('UTF-8')
+    if (actual != expected) {
+      List<String> changes = CommonClassDataTransformer.describePlanChanges(
+        actual.readLines(), expected.readLines())
+      String details = changes.isEmpty()
+        ? '  ~ class order or plan formatting changed'
+        : changes.take(20).collect { "  ${it}" }.join('\n')
+      if (changes.size() > 20) {
+        details += "\n  ... and ${changes.size() - 20} more changes"
+      }
+      throw new GradleException(
+      'Common class-data plan is stale:\n' + details +
+      '\nRegenerate and review it with:\n' +
+      '  ./gradlew :dd-java-agent:generateCommonClassDataPlan')
+    }
+
+    def marker = outputs.files.singleFile
+    marker.parentFile.mkdirs()
+    marker.text = 'verified'
   }
 }
 
@@ -866,7 +1061,7 @@ tasks.register('verifyAgentJarContents') {
   def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
   inputs.file(jarProvider)
   inputs.file(agentJarChecksProps)
-  inputs.file(commonClassDataManifest)
+  inputs.file(commonClassDataPlan)
   inputs.property('productPrefixes', includedProductPrefixes)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
@@ -992,7 +1187,7 @@ tasks.register('verifyCommonClassDataPackaging') {
   def packedJar = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
   def unpackedJar = unpackedShadowJar.flatMap { it.archiveFile }
   inputs.files(packedJar, unpackedJar)
-  inputs.file(commonClassDataManifest)
+  inputs.file(commonClassDataPlan)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
   doLast {
@@ -1224,5 +1419,6 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
 }
 
 tasks.named('check') {
-  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', 'verifyCommonClassDataPackaging'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', 'verifyCommonClassDataPackaging',
+    'verifyCommonClassDataPlan'
 }
