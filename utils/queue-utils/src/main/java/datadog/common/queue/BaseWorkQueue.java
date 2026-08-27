@@ -277,6 +277,28 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
+  public int put(Generator<? extends T> generator) {
+    int admitted = 0;
+    while (!closed && claimPlace()) {
+      T element;
+      try {
+        element = generator.next();
+      } catch (Throwable t) {
+        releasePlace();
+        throw t;
+      }
+      if (element == null || !store(element)) {
+        // The sequence is over, or the backing refused for a reason of its own. Either way the
+        // place just claimed was not used, and the caller sees how far the generator got.
+        releasePlace();
+        break;
+      }
+      admitted++;
+    }
+    return admitted;
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public Reservation<T> tryReserve() {
     if (closed || !claimPlace()) {

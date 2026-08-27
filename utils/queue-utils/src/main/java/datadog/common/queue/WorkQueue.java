@@ -65,6 +65,23 @@ public interface WorkQueue<T> {
   Collection<T> tryPut(Collection<? extends T> elements);
 
   /**
+   * Admits a whole sequence, pulling one element at a time and stopping when the sequence ends or
+   * the queue runs out of room. A place is claimed before each pull, so the generator is never
+   * asked for an element that cannot be stored.
+   *
+   * <p>This is the batching form to reach for. The loop lives on the queue's side, where it can
+   * stop the moment there is no room, and the caller never holds capacity it might not use.
+   *
+   * <p>A short read is not counted as a drop. The queue cannot know how much the generator had left
+   * — a sequence that ended and one that was cut off both simply stop — so the count is returned
+   * and what to make of it is left to the caller, who is the only one who knows what it set out to
+   * admit.
+   *
+   * @return how many elements were admitted, which is how far the generator got
+   */
+  int put(Generator<? extends T> generator);
+
+  /**
    * Claims a place without supplying its element, for a caller whose work between claiming and
    * filling cannot be expressed as a {@link Producer}.
    *
