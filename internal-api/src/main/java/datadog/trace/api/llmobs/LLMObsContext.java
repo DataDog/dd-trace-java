@@ -41,6 +41,13 @@ public final class LLMObsContext {
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
    * values are carried pre-formatted so that every span in the trace reports byte-identical values.
+   *
+   * <p><strong>In-process only.</strong> This context is not serialized into distributed trace
+   * headers, so each service in a distributed trace decides independently. Because the decision is
+   * a pure function of the APM trace ID and the configured rate, services configured at the same
+   * rate agree; services configured at different rates disagree and the trace is retained in part.
+   * A decision propagated by an upstream dd-trace-py or dd-trace-js service is likewise not read
+   * here. Closing that gap needs propagated trace tags mirroring the existing {@code _dd.p.ksr}.
    */
   public static ContextScope attach(
       AgentSpanContext ctx, String sessionId, String sampleRate, String samplingDecision) {
