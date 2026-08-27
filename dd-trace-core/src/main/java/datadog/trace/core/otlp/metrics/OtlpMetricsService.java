@@ -9,7 +9,12 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
-import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.AgentThreadFactory;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -18,19 +23,20 @@ import org.slf4j.LoggerFactory;
 /** Periodic service to collect OpenTelemetry metrics and export them over OTLP. */
 public final class OtlpMetricsService {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
-
   public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
 
-  private final AgentTaskScheduler scheduler;
+  private final ScheduledExecutorService executor;
   private final OtlpMetricsCollector collector;
   private final OtlpSender sender;
-
   private final int intervalMillis;
+  private final Object lifecycleLock = new Object();
 
-  private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
+  private ScheduledFuture<?> scheduledTask;
+  private CompletableFuture<Boolean> shutdownFuture;
 
   OtlpMetricsService(Config config) {
-    this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
+    this.executor =
+        Executors.newSingleThreadScheduledExecutor(new AgentThreadFactory(OTLP_METRICS_EXPORTER));
     this.sender = OtlpMetricsSenderFactory.create(config);
     if (this.sender == null) {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
@@ -41,8 +47,18 @@ public final class OtlpMetricsService {
               ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
               : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
-
     this.intervalMillis = config.getMetricsOtelInterval();
+  }
+
+  OtlpMetricsService(
+      ScheduledExecutorService executor,
+      OtlpMetricsCollector collector,
+      OtlpSender sender,
+      int intervalMillis) {
+    this.executor = executor;
+    this.collector = collector;
+    this.sender = sender;
+    this.intervalMillis = intervalMillis;
   }
 
   OtlpSender getSender() {
@@ -69,32 +85,111 @@ public final class OtlpMetricsService {
                         / Math.log(1 - 0.25)),
                 5_000);
 
-    scheduledTask =
-        scheduler.scheduleAtFixedRate(
-            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+    synchronized (lifecycleLock) {
+      if (shutdownFuture == null && scheduledTask == null) {
+        scheduledTask =
+            executor.scheduleAtFixedRate(
+                this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+      }
+    }
+  }
+
+  public CompletableFuture<Boolean> forceFlush() {
+    synchronized (lifecycleLock) {
+      if (sender == null || shutdownFuture != null) {
+        return CompletableFuture.completedFuture(false);
+      }
+      CompletableFuture<Boolean> result = new CompletableFuture<>();
+      try {
+        executor.execute(() -> result.complete(export()));
+      } catch (RejectedExecutionException e) {
+        LOGGER.debug("OTLP metrics executor rejected force flush", e);
+        result.complete(false);
+      }
+      return result;
+    }
   }
 
   public void flush() {
-    if (sender != null) {
-      scheduler.execute(this::export);
+    forceFlush();
+  }
+
+  public CompletableFuture<Boolean> shutdown() {
+    synchronized (lifecycleLock) {
+      if (shutdownFuture != null) {
+        return shutdownResult();
+      }
+
+      shutdownFuture = new CompletableFuture<>();
+      if (scheduledTask != null) {
+        scheduledTask.cancel(false);
+      }
+      if (sender == null) {
+        executor.shutdown();
+        shutdownFuture.complete(false);
+        return shutdownResult();
+      }
+
+      try {
+        executor.execute(this::finishShutdown);
+      } catch (RejectedExecutionException e) {
+        LOGGER.debug("OTLP metrics executor rejected shutdown", e);
+        closeSender();
+        executor.shutdown();
+        shutdownFuture.complete(false);
+      }
+      return shutdownResult();
     }
   }
 
-  public void shutdown() {
-    if (scheduledTask != null) {
-      scheduledTask.cancel();
+  private CompletableFuture<Boolean> shutdownResult() {
+    return shutdownFuture.thenApply(result -> result);
+  }
+
+  private void finishShutdown() {
+    boolean result = export();
+    if (!closeSender()) {
+      result = false;
     }
-    if (sender != null) {
+    try {
+      executor.shutdown();
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to shut down OTLP metrics executor", e);
+      result = false;
+    }
+    shutdownFuture.complete(result);
+  }
+
+  private boolean closeSender() {
+    try {
       sender.shutdown();
+      return true;
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to shut down OTLP metrics sender", e);
+      return false;
     }
   }
 
-  private void export() {
-    OtlpPayload payload = collector.collectMetrics();
-    if (payload != OtlpPayload.EMPTY) {
+  private boolean export() {
+    boolean attempted = false;
+    try {
+      OtlpPayload payload = collector.collectMetrics();
+      if (payload == OtlpPayload.EMPTY) {
+        return true;
+      }
+
       OtlpTelemetry.getInstance().onMetricsExportAttempt();
+      attempted = true;
       RemoteApi.Response response = sender.send(payload);
-      OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
+      boolean success = response != null && response.success();
+      OtlpTelemetry.getInstance().onMetricsExportComplete(success);
+      return success;
+    } catch (Throwable e) {
+      if (attempted) {
+        OtlpTelemetry.getInstance().onMetricsExportComplete(false);
+      }
+      LOGGER.debug("Failed to export OTLP metrics", e);
+      return false;
     }
   }
 }

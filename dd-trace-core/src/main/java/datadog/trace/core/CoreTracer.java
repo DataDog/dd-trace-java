@@ -129,6 +129,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -1542,6 +1543,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.flush();
     }
+  }
+
+  @Override
+  public CompletableFuture<Boolean> forceFlushOtelMetrics() {
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      return OtlpMetricsService.INSTANCE.forceFlush();
+    }
+    return CompletableFuture.completedFuture(false);
+  }
+
+  @Override
+  public CompletableFuture<Boolean> shutdownOtelMetrics() {
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      return OtlpMetricsService.INSTANCE.shutdown();
+    }
+    return CompletableFuture.completedFuture(false);
   }
 
   @Override
