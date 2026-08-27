@@ -32,8 +32,9 @@ public final class WorkQueues {
    * ConcurrentLinkedQueue}.
    *
    * <p>For call sites that need several consumers. It keeps the linked queue's per-element node, so
-   * it buys the admission and lifecycle contract but not the allocation win — prefer {@link
-   * #createMpscQueue} where a single consumer is possible.
+   * it buys the admission and lifecycle contract, an enforceable bound and a constant-time {@link
+   * WorkQueue#size()}, but not the allocation win — prefer {@link #createMpscQueue} where a single
+   * consumer is possible.
    *
    * @param capacity the bound
    */

@@ -13,17 +13,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  * queue's per-element node, so it does not deliver the allocation win; prefer {@link
  * MpscWorkQueue}.
  *
- * <p>Reservations are not available here. Holding a place open needs the consumer to be able to see
- * that the place is not ready yet and simply find the queue empty; with several consumers, one of
- * them takes the place instead and has nothing to do but spin until it is filled — a single thread
- * that reserves and then drains would wait on itself forever. {@link MpscWorkQueue} has one
- * consumer and can offer the hatch safely.
+ * <p>A reservation here claims capacity and nothing else. There is no slot to hold, so the element
+ * joins at the tail when it is filled and the queue keeps fill order rather than claim order — and,
+ * because no place is ever open in the queue itself, no consumer can find one it has to wait on.
+ * {@link MpscWorkQueue} pays for claim order with a consumer that cannot see past an open
+ * reservation; this backing does not have that hazard because it does not offer that guarantee.
  *
- * <p>The size counter is not merely bookkeeping. It is what makes the bound enforceable and {@link
- * #size()} constant-time, replacing the hand-rolled cap plus O(n) {@code ConcurrentLinkedQueue
- * .size()} walk that call sites otherwise pay on every admission. It costs one atomic add per
- * admission and one per consumption; a call site migrating off an uncapped {@code
- * ConcurrentLinkedQueue} gets a bound for roughly what its old size check cost.
+ * <p>The permit counter is not merely bookkeeping. It is what makes the bound enforceable and
+ * {@link #size()} constant-time, replacing the hand-rolled cap plus O(n) {@code
+ * ConcurrentLinkedQueue.size()} walk that call sites otherwise pay on every admission. It costs one
+ * atomic add per admission and one per consumption; a call site migrating off an uncapped {@code
+ * ConcurrentLinkedQueue} gets a bound for less than its old size check cost.
  */
 final class LinkedWorkQueue<T> extends BaseWorkQueue<T> {
 
