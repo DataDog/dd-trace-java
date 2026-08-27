@@ -82,10 +82,10 @@ public class DebuggerMetricCollector
   private <E extends Enum<E> & Reason> void addCounterMetric(
       AtomicLongArray counters, String name, E[] enumValues) {
     for (E enumValue : enumValues) {
-      long value = counters.get(enumValue.ordinal());
+      // get and reset
+      long value = counters.getAndSet(enumValue.ordinal(), 0);
       if (value > 0) {
         metricsQueue.offer(new DebuggerMetric(name, value, enumValue.getTag()));
-        counters.set(enumValue.ordinal(), 0);
       }
     }
   }

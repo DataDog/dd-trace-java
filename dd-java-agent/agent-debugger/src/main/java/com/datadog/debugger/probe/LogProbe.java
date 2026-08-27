@@ -589,7 +589,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         !logStatus.getDebugSessionStatus().isDisabled()
             && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
-    if (!sampled) {
+    if (!sampled && !logStatus.getDebugSessionStatus().isDisabled()) {
       DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
     }
   }
