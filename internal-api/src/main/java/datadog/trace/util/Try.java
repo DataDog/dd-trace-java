@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.ObjDoubleConsumer;
 import java.util.function.ObjIntConsumer;
 import java.util.function.ObjLongConsumer;
 import javax.annotation.Nonnull;
@@ -102,6 +103,29 @@ public final class Try<T> {
 
   /** {@code int}-context sibling of {@link #update(long, ObjLongConsumer)}. */
   public void update(int context, ObjIntConsumer<? super T> mutator) {
+    if (value != null) {
+      mutator.accept(value, context);
+    }
+  }
+
+  /**
+   * {@code double}-context sibling of {@link #update(long, ObjLongConsumer)}. Not driven by a known
+   * caller today; kept in step with the {@code int}/{@code double}/{@code long} specializations
+   * {@code Stream}/{@code Optional} carry, on the same anticipated-future-use basis.
+   */
+  public void update(double context, ObjDoubleConsumer<? super T> mutator) {
+    if (value != null) {
+      mutator.accept(value, context);
+    }
+  }
+
+  /**
+   * {@code boolean}-context sibling of {@link #update(long, ObjLongConsumer)}. Unlike the other
+   * primitive forms, this one breaks from the {@code Stream}/{@code Optional} precedent -- the JDK
+   * never shipped a boolean specialization for either -- so {@link ObjBooleanConsumer} is a
+   * hand-rolled interface rather than a reused JDK one.
+   */
+  public void update(boolean context, ObjBooleanConsumer<? super T> mutator) {
     if (value != null) {
       mutator.accept(value, context);
     }
