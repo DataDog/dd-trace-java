@@ -109,12 +109,12 @@ class HashtableTest {
 
       assertTrue(Hashtable.insertHeadEntryFor(size, buckets, a.keyHash, a));
       assertTrue(Hashtable.insertHeadEntryFor(size, buckets, b.keyHash, b));
-      assertEquals(2, size.size());
+      assertEquals(2, size.estimateSize());
 
       assertFalse(
           Hashtable.insertHeadEntryFor(size, buckets, c.keyHash, c),
           "refused once the tracker is at capacity");
-      assertEquals(2, size.size(), "a refused insert must not consume a slot");
+      assertEquals(2, size.estimateSize(), "a refused insert must not consume a slot");
     }
 
     @Test
@@ -128,7 +128,7 @@ class HashtableTest {
           Hashtable.removeMatching(size, buckets, a.keyHash, e -> e.matches("a"));
 
       assertSame(a, removed);
-      assertEquals(0, size.size());
+      assertEquals(0, size.estimateSize());
       assertNull(Hashtable.bucketFor(buckets, a.keyHash));
     }
 
@@ -142,7 +142,7 @@ class HashtableTest {
       assertNull(
           Hashtable.<StringIntEntry>removeMatching(
               size, buckets, a.keyHash, e -> e.matches("nope")));
-      assertEquals(1, size.size(), "a non-matching scan must not decrement");
+      assertEquals(1, size.estimateSize(), "a non-matching scan must not decrement");
       assertSame(a, Hashtable.bucketFor(buckets, a.keyHash));
     }
 
@@ -671,7 +671,7 @@ class HashtableTest {
 
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
-      assertEquals(2, table.sizeManager.size());
+      assertEquals(2, table.sizeManager.estimateSize());
     }
 
     @Test
@@ -685,7 +685,7 @@ class HashtableTest {
 
       // Full, but one entry is evictable -- the slot it frees becomes the reservation.
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
-      assertEquals(2, table.sizeManager.size(), "one out, one reserved");
+      assertEquals(2, table.sizeManager.estimateSize(), "one out, one reserved");
       Set<String> remaining = new HashSet<>();
       Hashtable.<StringIntEntry>forEach(table.buckets, e -> remaining.add(e.key));
       assertFalse(remaining.contains("stale"), "the evictable entry is gone");
@@ -699,7 +699,7 @@ class HashtableTest {
       assertTrue(Hashtable.insertHeadEntryFor(table, hot.keyHash, hot));
 
       assertFalse(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
-      assertEquals(1, table.sizeManager.size(), "a refused reservation consumes nothing");
+      assertEquals(1, table.sizeManager.estimateSize(), "a refused reservation consumes nothing");
       Set<String> remaining = new HashSet<>();
       Hashtable.<StringIntEntry>forEach(table.buckets, e -> remaining.add(e.key));
       assertTrue(remaining.contains("hot"), "nothing was evicted");
@@ -714,22 +714,23 @@ class HashtableTest {
       StringIntEntry removed = Hashtable.removeMatching(table, a.keyHash, e -> e.matches("a"));
 
       assertSame(a, removed);
-      assertEquals(0, table.sizeManager.size());
+      assertEquals(0, table.sizeManager.estimateSize());
     }
 
     @Test
     void stateAccessorsAndInsertReservedRoundTrip() {
       Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
-      assertTrue(Hashtable.isEmpty(table));
-      assertEquals(0, Hashtable.size(table));
+      assertTrue(Hashtable.isLikelyEmpty(table));
+      assertEquals(0, Hashtable.estimateSize(table));
 
       // Reserve first, build second -- a refused reservation must cost no allocation.
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertReserved(table, a.keyHash, a);
 
-      assertEquals(1, Hashtable.size(table), "insertReserved must not count the entry twice");
-      assertFalse(Hashtable.isEmpty(table));
+      assertEquals(
+          1, Hashtable.estimateSize(table), "insertReserved must not count the entry twice");
+      assertFalse(Hashtable.isLikelyEmpty(table));
       assertSame(a, Hashtable.bucketFor(table, a.keyHash), "typed, no witness needed");
 
       Set<String> seen = new HashSet<>();
@@ -747,11 +748,11 @@ class HashtableTest {
       Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertHeadEntryFor(table, a.keyHash, a);
-      assertEquals(1, table.sizeManager.size());
+      assertEquals(1, table.sizeManager.estimateSize());
 
       Hashtable.clear(table);
 
-      assertEquals(0, table.sizeManager.size());
+      assertEquals(0, table.sizeManager.estimateSize());
       assertNull(table.buckets[Hashtable.bucketIndex(table.buckets, a.keyHash)]);
     }
 
@@ -762,6 +763,23 @@ class HashtableTest {
       buckets[0] = new StringIntEntry("a", 1);
       assertNull(Hashtable.evictOne(table, e -> e.value == 999));
       assertNotNull(buckets[0]);
+    }
+
+    @Test
+    void evictOneAdvancesCursorEvenWhenNothingMatches() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      assertTrue(Hashtable.insertHeadEntryFor(table, a.keyHash, a));
+
+      // Nothing is evictable, so the scan fails -- but the cursor must still move on.
+      assertNull(Hashtable.evictOne(table, e -> e.value == 999));
+      assertEquals(1, Hashtable.estimateSize(table), "a failed scan evicts nothing");
+
+      // The cursor has stepped past where the entry sits, so finding it again needs the
+      // wrap-around pass; that it is still found proves the step did not strand it.
+      StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 1);
+      assertEquals("a", evicted.key);
+      assertEquals(0, Hashtable.estimateSize(table));
     }
 
     @Test
