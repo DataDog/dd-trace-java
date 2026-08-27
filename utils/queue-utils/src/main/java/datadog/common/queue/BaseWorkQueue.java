@@ -56,21 +56,8 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * production to appear. The drop is already counted, by {@link #tryReserve} at the moment of
    * refusal.
    */
-  private static final Reservation<Object> REFUSED =
-      new Reservation<Object>() {
-        @Override
-        public boolean granted() {
-          return false;
-        }
-
-        @Override
-        public void fill(Object element) {}
-
-        @Override
-        public void close() {}
-      };
-
   private final LongAdder dropped = new LongAdder();
+
   private volatile boolean closed;
 
   /**
@@ -93,6 +80,14 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * refuses for a reason of its own.
    *
    * @return whether the element was stored
+   */
+  /**
+   * The one call site every backing funnels through, which is why the count of backings loaded in a
+   * process is an admission cost and not only a dispatch cost. At one or two implementations this
+   * site is free; a third makes it megamorphic, measured at 24 bytes and roughly three times the
+   * time per call — paid by callers that only ever touch one backing. A third backing is therefore
+   * a decision about every existing caller, and the point at which to replace this template method
+   * with a per-caller strategy so the sites stay separate.
    */
   abstract boolean store(Object element);
 
@@ -183,23 +178,55 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * room was already taken; abandoning gives the room back. Nothing is held open in the backing, so
    * a consumer never has to wait on one.
    */
+  /**
+   * Both outcomes, from one allocation site.
+   *
+   * <p>A refusal could be a shared singleton, and that is the more obvious design: it saves the
+   * allocation on the path that already lost. What it costs is paid by a caller that sees both
+   * outcomes at one site. Returning either a fresh reservation or a static merges an allocation
+   * with a globally reachable reference at a phi, and escape analysis gives up on the merge, so a
+   * reservation that would have been scalar-replaced away is allocated for real — {@code
+   * AdmissionBenchmark.reserveMixed} measures 12 bytes per call that way and zero this way, on JDK
+   * 17. JDK 21's allocation-merge support does not rescue it: that covers merges of non-escaping
+   * allocations and null, never a static.
+   *
+   * <p>The condition matters, because it is not every caller. A site that only ever sees one
+   * outcome — a queue that is effectively always accepting, or the drain loop's always-full
+   * counterpart — has its other branch pruned, and there is no merge left to defeat anything; both
+   * designs measure zero there. So this is insurance for the caller sitting at the capacity
+   * boundary rather than a saving for everyone. It is free insurance, which is the reason to take
+   * it: one allocation site is no worse anywhere, and it also keeps {@link #fill} and {@link
+   * #close} monomorphic for callers that never see a refusal, and drops an unchecked cast.
+   *
+   * <p>A refused reservation starts out {@code done}, which is what makes it inert: there is no
+   * place to give back and nothing to store, and both methods already short-circuit on that flag.
+   */
   private final class PlaceReservation implements Reservation<T> {
+    private final boolean granted;
     private boolean done;
+
+    PlaceReservation(boolean granted) {
+      this.granted = granted;
+      this.done = !granted;
+    }
 
     @Override
     public boolean granted() {
-      return true;
+      return granted;
     }
 
     @Override
     public void fill(T element) {
+      // Before the null check, so that filling a refusal stays silent: a caller that skipped
+      // building an element has nothing but null to offer, and the refused path never throws.
+      if (done) {
+        return;
+      }
       if (element == null) {
         throw new NullPointerException("a queue cannot hold null");
       }
-      if (!done) {
-        done = true;
-        store(element);
-      }
+      done = true;
+      store(element);
     }
 
     @Override
@@ -290,13 +317,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public final Reservation<T> tryReserve() {
-    if (closed || !claimPlace()) {
+    boolean granted = !closed && claimPlace();
+    if (!granted) {
       dropped.increment();
-      return (Reservation<T>) REFUSED;
     }
-    return new PlaceReservation();
+    return new PlaceReservation(granted);
   }
 
   @Override

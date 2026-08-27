@@ -44,11 +44,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * tryPutContextual         BOTH          ?        ?
  * tryPutBiContextual       ONE           ?        ?
  * tryPutBiContextual       BOTH          ?        ?
- * reserveAndFill           ONE           ?        ?
- * reserveAndFill           BOTH          ?        ?
- * reserveRefused           ONE           ?        ?
- * reserveRefused           BOTH          ?        ?
+ * reserveAndFill           ONE           20.4     0
+ * reserveAndFill           BOTH          20.6     0
+ * reserveRefused           ONE           13.8     0
+ * reserveRefused           BOTH          13.9     0
+ * reserveMixed             ONE           13.6     0     (12 with a shared refusal singleton)
+ * reserveMixed             BOTH          13.6     0     (12 with a shared refusal singleton)
  * </pre>
+ *
+ * <p>JDK 17, one machine, {@code -Pjmh.forks=1}. The single-outcome arms cannot distinguish the two
+ * refusal designs; only {@code reserveMixed} can.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -75,6 +80,9 @@ public class AdmissionBenchmark {
 
   @Param({"ONE", "BOTH"})
   public Backings backings;
+
+  /** Alternates the reserving queue in {@link #reserveMixed}, so one site sees both outcomes. */
+  private int mixer;
 
   /** The queue under test. */
   private WorkQueue<String> queue;
@@ -149,5 +157,29 @@ public class AdmissionBenchmark {
     } finally {
       place.close();
     }
+  }
+
+  /**
+   * Both outcomes through one call site, which is the only shape where how a refusal is represented
+   * can cost anything.
+   *
+   * <p>The two arms above each see a single outcome, so C2 prunes the branch that never runs and
+   * there is no merge to defeat escape analysis — they read zero whether a refusal is a shared
+   * singleton or its own allocation, and neither one can tell the two designs apart. A caller whose
+   * queue is nearly always accepting is genuinely in that case. A caller that sits at the boundary,
+   * refusing about as often as it admits, is in this one.
+   */
+  @Benchmark
+  public void reserveMixed(Blackhole bh) {
+    WorkQueue<String> target = (mixer++ & 1) == 0 ? queue : full;
+    Reservation<String> place = target.tryReserve();
+    try {
+      if (place.granted()) {
+        place.fill(ELEMENT);
+      }
+    } finally {
+      place.close();
+    }
+    queue.process(bh::consume);
   }
 }
