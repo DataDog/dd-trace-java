@@ -168,6 +168,76 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   @Test
+  void innerAgentFinishRestoresOuterAgentPropagationTags() throws Exception {
+    // Outer agent starts → stamps PTags. Inner agent starts → overwrites PTags.
+    // After inner agent finishes, PTags must revert to the outer agent's values so that
+    // a sibling span created after the inner agent reflects the outer agent.
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
+      try {
+        AgentSpan outerInner = innerSpan(outerAgent);
+        String outerPagentSpanId = String.valueOf(outerInner.getSpanId());
+
+        DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
+        // Inner agent has overwritten PTags at this point
+        innerAgent.finish();
+        // After finish(), PTags must be restored to outer agent's values
+
+        // A sibling span created now should see outer agent's attribution (from PTags fallback),
+        // because the LLMObsContext from outerAgent is still active and same trace
+        DDLLMObsSpan siblingTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "sibling-tool");
+        try {
+          AgentSpan siblingInner = innerSpan(siblingTool);
+          assertEquals(outerPagentSpanId, siblingInner.getTag(PAGENT_SPAN_ID_TAG));
+          assertEquals("outer-agent", siblingInner.getTag(PAGENT_NAME_TAG));
+        } finally {
+          siblingTool.finish();
+        }
+      } finally {
+        outerAgent.finish();
+        apmScope.span().finish();
+      }
+    }
+  }
+
+  @Test
+  void staleContextInDifferentTraceDoesNotInheritPagent() throws Exception {
+    // Create an agent span in one APM trace, then create a non-agent span in a different APM
+    // trace. The stale LLMObsContext from the first trace must not leak pagent attribution.
+    AgentSpan firstRoot = AgentTracer.get().buildSpan("apm", "http.request.1").start();
+    AgentScope firstScope = AgentTracer.activateSpan(firstRoot);
+
+    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "first-trace-agent");
+    // agentSpan's LLMObsContext is now active in the current thread
+
+    // Close the first APM scope (but do NOT close agentSpan's scope yet) — simulate a context
+    // leak where the LLMObsContext outlives the APM scope it was created in.
+    firstScope.close();
+
+    // Start a fresh APM root (different trace) while the first trace's LLMObsContext is active
+    AgentSpan secondRoot = AgentTracer.get().buildSpan("apm", "http.request.2").start();
+    AgentScope secondScope = AgentTracer.activateSpan(secondRoot);
+    try {
+      DDLLMObsSpan toolInSecondTrace = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "second-trace-tool");
+      try {
+        // The tool span's APM parent is secondRoot (different trace from agentSpan).
+        // The trace-ID gate must block inheritance from the stale LLMObsContext.
+        // It may still pick up pagent from PTags on secondRoot, but those are empty.
+        AgentSpan toolInner = innerSpan(toolInSecondTrace);
+        assertNull(toolInner.getTag(PAGENT_SPAN_ID_TAG));
+        assertNull(toolInner.getTag(PAGENT_NAME_TAG));
+      } finally {
+        toolInSecondTrace.finish();
+      }
+    } finally {
+      secondScope.close();
+      secondRoot.finish();
+      agentSpan.finish();
+      firstRoot.finish();
+    }
+  }
+
+  @Test
   void distributedParentPagentValuesAreInherited() throws Exception {
     // Simulate a distributed parent: an APM root span with pagent propagation tags already set
     // (e.g. injected by an upstream service during HTTP propagation).
