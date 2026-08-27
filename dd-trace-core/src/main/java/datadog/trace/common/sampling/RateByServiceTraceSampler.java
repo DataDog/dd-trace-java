@@ -58,16 +58,19 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
+    boolean sampled = sampler.sample(span);
+    int samplingPriority = sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP;
 
-    if (sampler.sample(span)) {
+    if (rates.hasAgentRates()) {
       span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP,
+          samplingPriority,
           SAMPLING_AGENT_RATE,
           sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
+          SamplingMechanism.AGENT_RATE,
+          sampled);
     } else {
       span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP,
+          samplingPriority,
           SAMPLING_AGENT_RATE,
           sampler.getSampleRate(),
           SamplingMechanism.AGENT_RATE);
@@ -161,7 +164,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     if (canIncrease && anyCapped) {
       lastCappedNanos = now;
     }
-    serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler);
+    serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler, true);
   }
 
   private static RateSampler createRateSampler(final double sampleRate) {
@@ -183,15 +186,23 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     private final Map<String, TreeMap<String, RateSampler>> envServiceRates;
     private final RateSampler fallbackSampler;
+    private final boolean hasAgentRates;
 
     RateSamplersByEnvAndService() {
-      this(Collections.emptyMap(), DEFAULT_SAMPLER);
+      this(Collections.emptyMap(), DEFAULT_SAMPLER, false);
     }
 
     RateSamplersByEnvAndService(
-        Map<String, TreeMap<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
+        Map<String, TreeMap<String, RateSampler>> envServiceRates,
+        RateSampler fallbackSampler,
+        boolean hasAgentRates) {
       this.envServiceRates = envServiceRates;
       this.fallbackSampler = fallbackSampler;
+      this.hasAgentRates = hasAgentRates;
+    }
+
+    boolean hasAgentRates() {
+      return hasAgentRates;
     }
 
     RateSampler getFallbackSampler() {

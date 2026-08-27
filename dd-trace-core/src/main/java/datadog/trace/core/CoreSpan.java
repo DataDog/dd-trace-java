@@ -124,6 +124,13 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setSamplingPriority(
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
 
+  T setSamplingPriority(
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism,
+      boolean sampled);
+
   T setSpanSamplingPriority(double rate, int limit);
 
   T setMetric(CharSequence name, int value);
