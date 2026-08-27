@@ -2,6 +2,7 @@ package datadog.common.queue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -89,17 +90,41 @@ class WorkQueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void processReportsWorkEvenWhenConsumerThrows(
+  void processPropagatesAConsumerFailureWhenGivenNoStrategy(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
+
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                queue.process(
+                    item -> {
+                      throw new IllegalStateException("boom");
+                    }),
+            "without a strategy the queue takes no view on failure");
+
+    assertEquals("boom", thrown.getMessage());
+    assertEquals(0, queue.dropped(), "a failure the caller sees is not a silent drop");
+    assertEquals(0, queue.size(), "the item was still consumed off the queue");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void processReportsWorkEvenWhenTheStrategyGivesUp(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+    RetryStrategy<String> giveUp = (item, attempt, failure, retryQueue) -> false;
     assertTrue(
         queue.process(
             item -> {
               throw new IllegalStateException("boom");
-            }),
+            },
+            giveUp),
         "the return value reports work found, not consumer success");
-    assertEquals(1, queue.dropped(), "an unretried failure loses the item");
+    assertEquals(1, queue.dropped(), "an abandoned item is counted");
   }
 
   @ParameterizedTest(name = "{0}")

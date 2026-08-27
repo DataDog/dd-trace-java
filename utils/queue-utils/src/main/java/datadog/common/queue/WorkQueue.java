@@ -19,7 +19,9 @@ import java.util.function.Consumer;
  *
  * <p>Consumption is synchronous and happens in the caller's frame; the boolean returned by the
  * {@code process} methods reports whether there was an item to work on, which is the signal a drain
- * loop needs, and says nothing about whether the consumer succeeded.
+ * loop needs, and says nothing about whether the consumer succeeded. A consumer that throws throws
+ * out of {@code process} unless a {@link RetryStrategy} was supplied to handle it — the queue takes
+ * no view on failure it was not given one for, and never logs.
  */
 public interface WorkQueue<T> {
 
@@ -54,21 +56,31 @@ public interface WorkQueue<T> {
   Collection<T> tryPut(Collection<? extends T> elements);
 
   /**
+   * Consumes one item, if there is one. A throwing consumer propagates.
+   *
    * @return whether there was an item to consume
    */
   boolean process(Consumer<? super T> consumer);
 
   /**
+   * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
+   * retryStrategy} rather than propagating it.
+   *
    * @return whether there was an item to consume
    */
   boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy);
 
   /**
+   * Consumes one item, if there is one. A throwing consumer propagates.
+   *
    * @return whether there was an item to consume
    */
   <C> boolean process(C context, BiConsumer<? super C, ? super T> consumer);
 
   /**
+   * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
+   * retryStrategy} rather than propagating it.
+   *
    * @return whether there was an item to consume
    */
   <C> boolean process(
@@ -77,7 +89,8 @@ public interface WorkQueue<T> {
   int size();
 
   /**
-   * @return how many elements have been rejected over this queue's lifetime
+   * @return how many elements have been rejected on admission, or abandoned by a {@link
+   *     RetryStrategy}, over this queue's lifetime
    */
   long dropped();
 

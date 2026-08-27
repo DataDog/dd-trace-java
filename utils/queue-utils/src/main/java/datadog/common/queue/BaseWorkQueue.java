@@ -154,6 +154,17 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       item = (T) raw;
       attempt = 0;
     }
+    if (retryStrategy == null) {
+      // No strategy means no opinion about failure: the throw travels out to the caller's own
+      // frame, where its existing error handling already lives. Swallowing it here would make a
+      // queue the arbiter of an error policy nobody handed it.
+      if (consumer != null) {
+        consumer.accept(item);
+      } else {
+        biConsumer.accept(context, item);
+      }
+      return;
+    }
     try {
       if (consumer != null) {
         consumer.accept(item);
@@ -161,13 +172,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         biConsumer.accept(context, item);
       }
     } catch (Throwable failure) {
-      onFailure(item, attempt + 1, failure, retryStrategy);
-    }
-  }
-
-  private void onFailure(T item, int attempt, Throwable failure, RetryStrategy<T> retryStrategy) {
-    if (retryStrategy == null || !retryStrategy.onFailure(item, attempt, failure, lease(attempt))) {
-      dropped.increment();
+      if (!retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1))) {
+        dropped.increment();
+      }
     }
   }
 
