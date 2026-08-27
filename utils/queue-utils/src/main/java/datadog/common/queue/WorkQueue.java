@@ -63,13 +63,13 @@ public interface WorkQueue<T> {
    * consumer cannot see past an open reservation, so one that is not promptly filled or closed
    * stalls it. Use try-with-resources.
    *
-   * <p>Only the single-consumer backing offers it. Holding a place open depends on the consumer
-   * being able to find the queue empty until the place is ready; where several consumers share a
-   * queue one of them takes the unfilled place instead and can only spin on it, so those backings
-   * refuse rather than deadlock.
+   * <p>What is reserved is capacity — {@link Reservation#fill} cannot be rejected. Whether the
+   * element also keeps the position it was claimed at depends on the backing: an array-backed queue
+   * claims a slot, and so holds the order, at the cost of a consumer that cannot see past it until
+   * it is filled; a linked queue has no slot to hold and joins the element at the tail when it is
+   * filled, so nothing stalls and the order is the fill order.
    *
-   * @return the claimed place, or {@code null} if there was no room
-   * @throws UnsupportedOperationException if this queue has more than one consumer
+   * @return the claimed capacity, or {@code null} if there was none to claim
    */
   Reservation<T> tryReserve();
 

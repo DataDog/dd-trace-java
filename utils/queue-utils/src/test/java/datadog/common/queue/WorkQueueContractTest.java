@@ -257,38 +257,49 @@ class WorkQueueContractTest {
     assertEquals(0, queue.dropped(), "partitioned work is not lost");
   }
 
-  // Reservations are the single-consumer backing's alone: see WorkQueue#tryReserve.
+  // A reservation claims capacity on every backing; only the array backing also holds position.
 
-  @org.junit.jupiter.api.Test
-  void reservationHoldsItsPlaceUntilFilled() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void reservationClaimsCapacityUpFront(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     try (Reservation<String> place = queue.tryReserve()) {
       assertNotNull(place);
-      assertTrue(queue.tryPut("behind"), "the rest of the queue stays open for admission");
-      assertFalse(queue.process(item -> {}), "the consumer cannot see past an open reservation");
+      assertEquals(1, queue.size(), "the claim costs capacity before the element exists");
+      for (int i = 0; i < CAPACITY - 1; i++) {
+        assertTrue(queue.tryPut("e" + i));
+      }
+      assertFalse(queue.tryPut("overflow"), "the claimed place is not available to anyone else");
       place.fill("reserved");
     }
-    assertEquals(Arrays.asList("reserved", "behind"), drain(queue));
+    assertTrue(drain(queue).contains("reserved"), "filling a claimed place cannot be rejected");
   }
 
-  /** The stall an open reservation causes is why it is an escape hatch and not the default. */
-  @org.junit.jupiter.api.Test
-  void abandonedReservationReleasesTheConsumer() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void abandonedReservationYieldsNothingAndGivesTheCapacityBack(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     Reservation<String> place = queue.tryReserve();
     assertNotNull(place);
-    queue.tryPut("behind");
-    assertFalse(queue.process(item -> {}));
-
     place.close();
 
-    assertEquals(Arrays.asList("behind"), drain(queue), "the abandoned place is skipped, not held");
+    // The array backing reclaims the slot as the consumer passes over it rather than at close, so
+    // the capacity is back once the queue has been drained, not necessarily the instant it is
+    // abandoned. What both backings promise is that nothing is ever consumed for it.
+    assertTrue(drain(queue).isEmpty(), "an abandoned place produces no element");
+    assertEquals(0, queue.size());
     assertEquals(0, queue.dropped(), "abandoning a place the caller claimed is not a rejection");
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the abandoned capacity is usable again");
+    }
+    assertEquals(CAPACITY, drain(queue).size());
   }
 
-  @org.junit.jupiter.api.Test
-  void reserveFailsWhenThereIsNoRoom() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void reserveFailsWhenThereIsNoRoom(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
@@ -296,35 +307,55 @@ class WorkQueueContractTest {
     assertEquals(1, queue.dropped(), "a place that could not be claimed counts like a rejection");
   }
 
-  @org.junit.jupiter.api.Test
-  void reserveFailsOnceClosed() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void reserveFailsOnceClosed(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.close();
     assertNull(queue.tryReserve());
   }
 
+  /** The array backing claims a slot, so the element keeps the position it was reserved at. */
   @org.junit.jupiter.api.Test
-  void filledReservationsInterleaveWithOrdinaryAdmission() {
+  void arrayBackedReservationHoldsItsPosition() {
     WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
     queue.tryPut("first");
+    List<String> consumed = new ArrayList<>();
     try (Reservation<String> place = queue.tryReserve()) {
+      assertTrue(queue.tryPut("behind"), "the rest of the queue stays open for admission");
+      assertTrue(queue.process(consumed::add), "what was admitted before the claim is unaffected");
+      assertFalse(
+          queue.process(consumed::add),
+          "holding a position means the consumer cannot see past it, even for what is behind");
       place.fill("second");
     }
-    queue.tryPut("third");
-    assertEquals(Arrays.asList("first", "second", "third"), drain(queue));
+    consumed.addAll(drain(queue));
+    assertEquals(Arrays.asList("first", "second", "behind"), consumed);
   }
 
-  /**
-   * A multi-consumer queue refuses the hatch rather than letting a consumer spin on a held place.
-   */
+  /** The linked backing has no slot to hold, so nothing is held in front of the consumer. */
   @org.junit.jupiter.api.Test
-  void multiConsumerQueuesRefuseToReserve() {
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> WorkQueues.createMpmcQueue(CAPACITY).tryReserve());
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> WorkQueues.createUnboundedMpmcQueue().tryReserve());
+  void linkedReservationDoesNotStallTheConsumer() {
+    WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
+    try (Reservation<String> place = queue.tryReserve()) {
+      assertTrue(queue.tryPut("behind"));
+      assertTrue(queue.process(item -> {}), "an open reservation holds nothing back");
+      place.fill("filled late");
+    }
+    assertEquals(Arrays.asList("filled late"), drain(queue), "the order is the fill order");
+  }
+
+  @org.junit.jupiter.api.Test
+  void unboundedReservationAlwaysSucceeds() {
+    WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
+    for (int i = 0; i < 1000; i++) {
+      try (Reservation<String> place = queue.tryReserve()) {
+        assertNotNull(place);
+        place.fill("e" + i);
+      }
+    }
+    assertEquals(1000, queue.size());
+    assertEquals(0, queue.dropped());
   }
 
   private static List<String> drain(WorkQueue<String> queue) {

@@ -69,7 +69,7 @@ final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
   }
 
   @Override
-  Slot<T> reserve() {
+  Reservation<T> reserve() {
     // Set first: a slot must never reach the array before the consumer knows to expect one.
     reservations = true;
     SlotSupplier<T> supplier = new SlotSupplier<>();

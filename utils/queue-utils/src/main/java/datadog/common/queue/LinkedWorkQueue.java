@@ -76,6 +76,38 @@ final class LinkedWorkQueue<T> extends BaseWorkQueue<T> {
     return true;
   }
 
+  /**
+   * Capacity claimed ahead of the element that will use it. Filling can only ever offer, because
+   * the room was already taken; abandoning gives the room back.
+   */
+  private final class LinkedReservation implements Reservation<T> {
+    private boolean done;
+
+    @Override
+    public void fill(T element) {
+      if (element == null) {
+        throw new NullPointerException("a queue cannot hold null");
+      }
+      if (!done) {
+        done = true;
+        queue.offer(element);
+      }
+    }
+
+    @Override
+    public void close() {
+      if (!done) {
+        done = true;
+        size.decrementAndGet();
+      }
+    }
+  }
+
+  @Override
+  Reservation<T> reserve() {
+    return claimPlace() ? new LinkedReservation() : null;
+  }
+
   @Override
   Object take() {
     return poll();
