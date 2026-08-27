@@ -69,7 +69,19 @@ final class AggregateTable {
   /**
    * Returns the {@link AggregateEntry} to update for {@code snapshot}, lazily creating one on miss.
    * Returns {@code null} when the table is at capacity and no stale entry can be evicted -- the
-   * caller should drop the data point in that case.
+   * caller should drop the data point in that case (reported via {@code
+   * onStatsAggregateDropped}). Dropping the new key rather than evicting an established one is
+   * deliberate: the cap is sized to the steady-state working set, so a full table of entries that
+   * were all used this cycle means the new key is the outlier.
+   *
+   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
+   * often eviction fires but doesn't eliminate it. Over-cap values for a single field collapse into
+   * the shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its
+   * own. But distinct in-budget combinations across fields (resource x service x operation x ...)
+   * can still drive the entry count to {@code maxAggregates}, so eviction remains the backstop.
+   *
+   * <p>The scan that finds a stale entry, and its resume-where-it-left-off amortization, live in
+   * {@link Hashtable#tryReserveOrEvict} -- this class only supplies {@link #STALE}.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
@@ -91,23 +103,6 @@ final class AggregateTable {
     return entry;
   }
 
-  /**
-   * Unlinks the first entry whose {@code getHitCount() == 0}, resuming the scan from {@link
-   * #evictCursor} so consecutive evictions amortize to O(1) per call. Worst case for a single call
-   * is still O(N) when nearly every entry is hot, but a sustained eviction stream never re-scans
-   * the hot prefix more than twice across N evictions.
-   *
-   * <p>If the table is full and every entry was used in this cycle, drop the new key (reported via
-   * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
-   * steady-state working set, so eviction is rare in the common case.
-   *
-   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
-   * often this fires but doesn't eliminate it. Over-cap values for a single field collapse into the
-   * shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its own.
-   * But distinct in-budget combinations across fields (resource x service x operation x ...) can
-   * still drive the entry count to {@code maxAggregates}, so this cursor-resumed scan remains the
-   * backstop.
-   */
   void forEach(Consumer<AggregateEntry> consumer) {
     Hashtable.forEach(state, consumer);
   }
