@@ -53,6 +53,17 @@ dependencies {
   latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.+'
   latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http2', version: '4.+'
   latestDepTestImplementation group: 'io.netty', name: 'netty-codec-socks', version: '4.+'
+  // Next native dependencies are required by NettyNativeClientAbortSpanTest
+  latestDepTestImplementation group: 'io.netty', name: 'netty-transport-classes-epoll', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-transport-classes-kqueue', version: '4.+'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-epoll', version: '4.+', classifier: 'linux-aarch_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-epoll', version: '4.+', classifier: 'linux-x86_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-kqueue', version: '4.+', classifier: 'osx-aarch_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-kqueue', version: '4.+', classifier: 'osx-x86_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-unix-common', version: '4.+', classifier: 'linux-aarch_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-unix-common', version: '4.+', classifier: 'linux-x86_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-unix-common', version: '4.+', classifier: 'osx-aarch_64'
+  latestDepTestRuntimeOnly group: 'io.netty', name: 'netty-transport-native-unix-common', version: '4.+', classifier: 'osx-x86_64'
 
   latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.+'
 }
