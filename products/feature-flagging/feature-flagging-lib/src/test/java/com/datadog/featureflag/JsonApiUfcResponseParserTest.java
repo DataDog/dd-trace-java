@@ -8,8 +8,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.squareup.moshi.JsonQualifier;
+import com.squareup.moshi.Moshi;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
 import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -298,6 +306,23 @@ class JsonApiUfcResponseParserTest {
     assertFalse(configuration.flags.containsKey("non-boolean-is-null"));
     assertTrue(configuration.flags.containsKey("valid-condition-operands"));
   }
+
+  @Test
+  void shardAdapterFactoryRejectsQualifiedShard() {
+    assertNull(
+        UniversalFlagConfigParser.ShardAdapter.FACTORY.create(
+            Shard.class,
+            Collections.singleton(QualifiedShard.class.getAnnotation(ShardQualifier.class)),
+            new Moshi.Builder().build()));
+  }
+
+  @JsonQualifier
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.TYPE)
+  private @interface ShardQualifier {}
+
+  @ShardQualifier
+  private static final class QualifiedShard {}
 
   @Test
   void nullAttributesAreRejectedWithoutInvokingTheFlagParser() throws Exception {
