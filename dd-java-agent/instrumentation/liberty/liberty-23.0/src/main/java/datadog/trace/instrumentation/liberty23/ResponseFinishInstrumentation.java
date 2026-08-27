@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.liberty23;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
@@ -18,6 +19,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * XXX: {@link SRTServletResponse#finish()} is not appropriate method to look at the response
@@ -28,7 +31,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   public ResponseFinishInstrumentation() {
     super("liberty");
@@ -49,6 +54,12 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    // Liberty keeps this class name across the javax-to-jakarta servlet migration.
+    return implementsInterface(named("jakarta.servlet.http.HttpServletResponse"));
   }
 
   @Override

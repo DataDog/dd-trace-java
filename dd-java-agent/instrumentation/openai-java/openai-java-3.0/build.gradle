@@ -23,12 +23,14 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
 
-  // Exclude the conflicting dependency to avoid NoSuchFieldError: Class okhttp3.MediaType does not have member field 'okhttp3.MediaType$Companion Companion'
+  // The Datadog forks have different Maven coordinates but retain the okhttp3 and
+  // okio packages, so they can shadow the newer upstream classes at test runtime.
   configurations.testRuntimeClasspath {
     exclude group: 'com.datadoghq.okhttp3'
+    exclude group: 'com.datadoghq.okio'
   }
   configurations.latestDepTestRuntimeClasspath {
     exclude group: 'com.datadoghq.okhttp3'
+    exclude group: 'com.datadoghq.okio'
   }
 }
-

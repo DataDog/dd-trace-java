@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
-  id 'com.gradleup.shadow'
+  id 'dd-trace-java.spring-boot-shadow-jar'
   id 'java'
   id 'org.jetbrains.kotlin.jvm'
   id 'scala'
@@ -27,10 +27,6 @@ tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
   }
-}
-
-tasks.named("shadowJar", ShadowJar) {
-  configurations.add(project.configurations.named('runtimeClasspath'))
 }
 
 dependencies {

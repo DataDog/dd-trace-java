@@ -21,6 +21,10 @@ tasks.named("jar", Jar) {
 }
 
 dependencies {
+  // This legacy IAST fixture relies on first-file Spring factories behavior; merging the complete
+  // factory set changes its Java 8/11 runtime and leaves RIPEMD128 unavailable during requests.
+  // Keep autoconfigure direct so enhanced graph ordering selects the same factories file as before.
+  implementation group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version: '1.5.18.RELEASE'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.18.RELEASE'
   implementation group: 'com.auth0', name: 'java-jwt', version: '4.0.0-beta.0'

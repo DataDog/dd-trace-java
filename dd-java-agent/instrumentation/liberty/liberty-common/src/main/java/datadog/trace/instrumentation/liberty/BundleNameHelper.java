@@ -1,12 +1,9 @@
-package datadog.trace.instrumentation.liberty20;
-
-import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
+package datadog.trace.instrumentation.liberty;
 
 public class BundleNameHelper {
   private BundleNameHelper() {}
 
-  public static String extractDeploymentName(final ThreadContextClassLoader classLoader) {
-    final String id = classLoader.getKey();
+  public static String extractDeploymentName(final String id) {
     // id is something like <type>:name#somethingelse
     final int head = id.indexOf(':');
     if (head < 0) {

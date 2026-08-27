@@ -17,6 +17,11 @@ tasks.named("jar", Jar) {
 
 dependencies {
   implementation project(':dd-trace-api')
+  // This AppSec fixture relies on the legacy first-file Spring factories behavior: merging the
+  // complete factory set changes its request/error handling and breaks the blocking assertions.
+  // Keep autoconfigure direct and ahead of spring-boot-starter-web so enhanced graph ordering
+  // selects the same META-INF/spring.factories file as before.
+  implementation group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version: '2.6.0'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0'
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
   implementation group: 'com.h2database', name: 'h2', version: '2.1.212'

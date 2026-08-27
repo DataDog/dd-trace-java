@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty20;
+package datadog.trace.instrumentation.liberty;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -33,6 +33,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] knownMatchingTypes() {
+    // These IBM request implementations are shared by the javax and jakarta Liberty generations.
     return new String[] {
       "com.ibm.ws.webcontainer.srt.SRTServletRequest",
       "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
@@ -41,7 +42,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.liberty20.PartHelper"};
+    return new String[] {"datadog.trace.instrumentation.liberty.PartHelper"};
   }
 
   @Override

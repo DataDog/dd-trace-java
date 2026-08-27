@@ -33,6 +33,10 @@ plugins {
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+// Prevent dependency constraints from changing classpath order (https://github.com/gradle/gradle/issues/38057).
+// This Gradle 9.7 feature preview becomes the default in Gradle 10 and can then be removed.
+enableFeaturePreview("ENHANCED_GRAPH_ORDERING")
+
 val isCI = providers.environmentVariable("CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
@@ -473,6 +477,7 @@ include(
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
   ":dd-java-agent:instrumentation:liberty:liberty-20.0",
   ":dd-java-agent:instrumentation:liberty:liberty-23.0",
+  ":dd-java-agent:instrumentation:liberty:liberty-common",
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:log4j:log4j-2.7",

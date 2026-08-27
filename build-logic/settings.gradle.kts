@@ -48,4 +48,5 @@ dependencyResolutionManagement {
 rootProject.name = "build-logic"
 
 include(":conventions")
+include(":spring-boot-shadow")
 include(":smoke-test")

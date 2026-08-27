@@ -31,21 +31,25 @@ dependencies {
   latestDepTestImplementation group: "com.alipay.sofa", name: "sofa-rpc-all", version: "+"
 
   constraints {
-    // Regression fix for Gradle 9.6.0.
+    // `sofa-rpc-all:5.14.2` brings `netty-all:4.1.44.Final`, a fat jar carrying the classes of
+    // every netty module, while `grpc-netty:1.53.0` brings the individual `netty-*:4.1.79.Final`
+    // modules. Both supply `io.netty.**` under unrelated coordinates, so Gradle cannot reconcile
+    // them and whichever jar sorts first wins class loading.
     //
-    // The `sofa-rpc-all:5.14.2` brings `netty-all:4.1.44.Final`, which is a fat jar,
-    // while `grpc-netty:1.53.0` brings individual `netty-*:4.1.79.Final` modules.
-    // Gradle 9.6.0 introduced a regression in the classpath ordering, as they are
-    // working on revamping the dependency traversal. The result is that the `4.1.44`
-    // fat jar classes appear earlier and its classes are loaded from it ; this
-    // produces a `NoSuchMethodError` at runtime in netty's `AbstractReferenceCountedByteBuf`.
+    // Forcing 4.1.79 removes the duplicate rather than reordering it: `netty-all` has shipped zero
+    // classes since 4.1.75, so it becomes an empty aggregator that instead pulls in the complete,
+    // version-aligned 4.1.79 module set - including the dns/epoll/kqueue/sctp modules that the fat
+    // jar was otherwise the only source of.
     //
-    // The workaround is to force `netty-all` to `4.1.79` so the fat jar and the individual
-    // modules are aligned on the same version. The fix is behind Gradle 9.7's
-    // ENHANCED_GRAPH_ORDERING preview, which currently exposes other fat-jar conflicts.
-    // See https://github.com/gradle/gradle/issues/38057 for more details.
+    // This is deliberately independent of ENHANCED_GRAPH_ORDERING. That preview only changes where
+    // the fat jar lands: without it the jar sorts between `netty-buffer` and `netty-common`, so
+    // `AbstractReferenceCountedByteBuf` (4.1.79) is paired with `ReferenceCountUpdater` (4.1.44)
+    // and fails with a `NoSuchMethodError`; with it the jar sorts ahead of every modular jar, which
+    // hides that symptom only because all of netty then silently loads from 4.1.44. Either way the
+    // classpath still holds two copies of `io.netty.**`, so do not drop this constraint on the
+    // grounds that the preview is enabled.
     testImplementation("io.netty:netty-all:4.1.79.Final") {
-      because "sofa-rpc-all brings netty-all:4.1.44.Final (fat jar) while grpc-netty brings individual netty-*:4.1.79.Final modules; Gradle 9.6.0 classpath ordering regression causes 4.1.44 classes to shadow 4.1.79, producing NoSuchMethodError"
+      because "netty-all:4.1.44 is a fat jar whose io.netty classes shadow the individual netty-*:4.1.79 modules; netty-all:4.1.79 is class-free and pulls in the aligned module set instead"
     }
   }
 }

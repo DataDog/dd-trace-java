@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.liberty20;
+package datadog.trace.instrumentation.liberty;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Method;
