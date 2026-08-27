@@ -43,6 +43,26 @@ import javax.annotation.Nullable;
  * see {@link #resizingInsert}). The trade only pays when a miss is benign (a cache / interner), not
  * for a must-hold-everything map.
  *
+ * <h2>Choosing between the three tables</h2>
+ *
+ * <ol>
+ *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
+ *       the three. This class is racy by design (see above), and {@code Hashtable} is not
+ *       thread-safe at all.
+ *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
+ *       -- once per cycle, per request, or built and then discarded -- wants this class, whose open
+ *       addressing has no tombstones and so offers no removal beyond clearing. A table whose
+ *       entries come and go independently wants the chained {@code Hashtable}, which removes and
+ *       evicts in place.
+ * </ol>
+ *
+ * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
+ * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
+ * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
+ * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
+ * cycle (evolving -- {@code Hashtable}) against one that clears every entry each time it reports
+ * (resets -- this class).
+ *
  * <p><b>Strategy roles, split by concern.</b> The per-use policy is a small set of {@link Strategy
  * strategy} objects rather than one, so a caller supplies only what an operation needs:
  *
