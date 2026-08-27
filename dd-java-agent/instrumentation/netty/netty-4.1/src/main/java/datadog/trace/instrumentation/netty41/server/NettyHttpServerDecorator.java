@@ -122,6 +122,7 @@ public class NettyHttpServerDecorator
     private final HttpVersion protocolVersion;
     private final String acceptHeader;
     private final ServerRequestContext serverContext;
+    private volatile boolean blockingResponseInitiated;
 
     public NettyBlockResponseFunction(
         ChannelPipeline pipeline,
@@ -140,9 +141,22 @@ public class NettyHttpServerDecorator
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
         String securityResponseId) {
+      // A single request can trigger multiple blocking evaluations (e.g. one per multipart
+      // chunk). Once a block has already been initiated, the response queue entry backing
+      // isPending() may have already been consumed by that earlier, successful commit — treat
+      // later calls as already handled rather than re-evaluating and reporting a spurious
+      // block_failure for a block that actually succeeded.
+      if (blockingResponseInitiated) {
+        return true;
+      }
       if (pipeline.channel().eventLoop().inEventLoop()) {
-        return commitBlockingResponse(
-            segment, statusCode, templateType, extraHeaders, securityResponseId);
+        boolean committed =
+            commitBlockingResponse(
+                segment, statusCode, templateType, extraHeaders, securityResponseId);
+        if (committed) {
+          blockingResponseInitiated = true;
+        }
+        return committed;
       }
 
       try {
@@ -153,6 +167,7 @@ public class NettyHttpServerDecorator
                 () ->
                     commitBlockingResponse(
                         segment, statusCode, templateType, extraHeaders, securityResponseId));
+        blockingResponseInitiated = true;
         return true;
       } catch (RuntimeException rte) {
         log.warn("Failed scheduling blocking handler", rte);
