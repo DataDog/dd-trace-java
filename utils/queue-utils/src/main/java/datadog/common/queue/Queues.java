@@ -89,4 +89,44 @@ public final class Queues {
     }
     return new SpscArrayQueue<>(requestedCapacity);
   }
+
+  /**
+   * Creates a bounded Multiple Producer, Single Consumer {@link Queue} backed by an MPSC array
+   * queue.
+   *
+   * <p>The preferred backing: no per-element node, constant-time {@link Queue#size()}, and
+   * admission that claims a slot before invoking a producer, so an element that will not fit is
+   * never built.
+   *
+   * @param requestedCapacity the bound. Will be rounded to the next power of two.
+   */
+  public static <E> Queue<E> mpscQueue(int requestedCapacity) {
+    return new MpscBoundedQueue<>(requestedCapacity);
+  }
+
+  /**
+   * Creates a bounded Multiple Producer, Multiple Consumer {@link Queue} backed by a {@link
+   * java.util.concurrent.ConcurrentLinkedQueue}.
+   *
+   * <p>For call sites that need several consumers. It keeps the linked queue's per-element node, so
+   * it buys the admission and lifecycle contract but not the allocation win — prefer {@link
+   * #mpscQueue} where a single consumer is possible.
+   *
+   * @param capacity the bound
+   */
+  public static <E> Queue<E> mpmcQueue(int capacity) {
+    return new LinkedQueue<>(capacity);
+  }
+
+  /**
+   * Creates an unbounded Multiple Producer, Multiple Consumer {@link Queue} backed by a {@link
+   * java.util.concurrent.ConcurrentLinkedQueue}.
+   *
+   * <p>Unbounded means admission never rejects and {@link Queue#dropped()} only ever counts items
+   * abandoned by a retry strategy. Intended as a migration step for call sites that are unbounded
+   * today: adopt the interface here, then pick a bound and move to {@link #mpscQueue}.
+   */
+  public static <E> Queue<E> unboundedMpmcQueue() {
+    return new LinkedQueue<>(Integer.MAX_VALUE);
+  }
 }

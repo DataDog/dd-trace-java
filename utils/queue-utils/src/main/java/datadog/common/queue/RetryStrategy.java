@@ -10,7 +10,8 @@ package datadog.common.queue;
 @FunctionalInterface
 public interface RetryStrategy<T> {
   /**
-   * @param attempt how many times this item has already been consumed unsuccessfully
+   * @param attempt how many times this item has been consumed unsuccessfully, including now, so the
+   *     first failure reports {@code 1}
    * @return {@code true} if the item was resubmitted, {@code false} if the strategy gave up
    */
   boolean onFailure(T item, int attempt, Throwable failure, RetryQueue<T> retryQueue);

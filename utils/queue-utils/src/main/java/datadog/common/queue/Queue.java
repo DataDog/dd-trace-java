@@ -13,6 +13,10 @@ import java.util.function.Consumer;
  * never constructed at all — the guarantee that makes it safe to hand this a producer that
  * allocates heavily, since the allocation cannot happen on the path where it would be wasted.
  *
+ * <p>Because the slot is claimed first, a producer runs while holding capacity a consumer may be
+ * waiting on. Producers should build their element and nothing else: work that blocks, or that
+ * takes appreciably longer than an allocation, stalls the consumer rather than merely the producer.
+ *
  * <p>Consumption is synchronous and happens in the caller's frame; the boolean returned by the
  * {@code process} methods reports whether there was an item to work on, which is the signal a drain
  * loop needs, and says nothing about whether the consumer succeeded.
@@ -60,7 +64,7 @@ public interface Queue<T> {
   /**
    * @return whether there was an item to consume
    */
-  boolean process(Consumer<? super T> consumer, RetryStrategy<? super T> retryStrategy);
+  boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy);
 
   /**
    * @return whether there was an item to consume
@@ -71,7 +75,7 @@ public interface Queue<T> {
    * @return whether there was an item to consume
    */
   <C> boolean process(
-      C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<? super T> retryStrategy);
+      C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<T> retryStrategy);
 
   int size();
 
@@ -83,10 +87,12 @@ public interface Queue<T> {
   /**
    * Stops future admission, leaving current contents alone so a consumer can finish its backlog.
    *
-   * <p>Rejection after closing is distinguishable from an ordinary full-capacity rejection, so a
-   * caller can tell "transiently full, worth retrying" from "permanently done".
+   * <p>A caller distinguishes "transiently full, worth retrying" from "permanently done" by asking
+   * {@link #isClosed()}; the {@code boolean} returned by admission does not carry the difference.
    */
   void close();
+
+  boolean isClosed();
 
   /** Discards current contents without affecting admission. */
   void clear();
