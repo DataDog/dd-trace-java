@@ -48,11 +48,12 @@ After reviewing a fresh profile in `metadata/common-classdata.txt`, regenerate t
 ./gradlew :dd-java-agent:generateCommonClassDataPlan
 ```
 
-CI should run `:dd-java-agent:verifyCommonClassDataPlan`. This is a fast deterministic check: it
-derives a candidate from the committed profile and current instrumenter index, compares it with the
-committed plan, and reports added, removed, reassigned, or moved classes. It deliberately does not
-launch a timing-sensitive class-load profile on every PR. Profile collection and benchmark review
-remain the evidence-gathering step; plan verification is the reproducible build gate.
+The GitLab `verify-common-classdata-plan` job runs this verification on development branches and
+skips `master`, release branches, tags, and dependency-cache population pipelines. It derives a
+candidate from the committed profile and current instrumenter index, compares it with the committed
+plan, and reports added, removed, reassigned, or moved classes. It deliberately does not launch a
+timing-sensitive class-load profile on every PR. Profile collection and benchmark review remain the
+evidence-gathering step; plan verification is the reproducible build gate.
 
 The generated artifacts are under `build/classdata-benchmark`. Artifact discovery also accepts a
 `default`, `profiling`, `appsec`, or `tracing-disabled` scenario when its main class is invoked

@@ -1419,6 +1419,5 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
 }
 
 tasks.named('check') {
-  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', 'verifyCommonClassDataPackaging',
-    'verifyCommonClassDataPlan'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', 'verifyCommonClassDataPackaging'
 }

@@ -359,6 +359,22 @@ build:
     reports:
       dotenv: build.env
 
+verify-common-classdata-plan:
+  extends: .gradle_build
+  stage: tests
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
+  script:
+    - ./gradlew --version
+    - ./gradlew :dd-java-agent:verifyCommonClassDataPlan -PskipTests $GRADLE_ARGS
+
 build_tests:
   extends: .gradle_build
   variables:
