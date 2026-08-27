@@ -24,8 +24,8 @@ class QueueContractTest {
 
   static Stream<Arguments> boundedQueues() {
     return Stream.of(
-        Arguments.of("mpsc", (IntFunction<Queue<String>>) Queues::mpscQueue),
-        Arguments.of("mpmc", (IntFunction<Queue<String>>) Queues::mpmcQueue));
+        Arguments.of("mpsc", (IntFunction<Queue<String>>) Queues::createMpscQueue),
+        Arguments.of("mpmc", (IntFunction<Queue<String>>) Queues::createMpmcQueue));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -217,7 +217,7 @@ class QueueContractTest {
 
   @org.junit.jupiter.api.Test
   void unboundedQueueNeverRejects() {
-    Queue<String> queue = Queues.unboundedMpmcQueue();
+    Queue<String> queue = Queues.createUnboundedMpmcQueue();
     for (int i = 0; i < 1000; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
@@ -227,7 +227,7 @@ class QueueContractTest {
 
   @org.junit.jupiter.api.Test
   void unboundedQueueStillCloses() {
-    Queue<String> queue = Queues.unboundedMpmcQueue();
+    Queue<String> queue = Queues.createUnboundedMpmcQueue();
     queue.close();
     assertFalse(queue.tryPut("a"));
   }

@@ -30,7 +30,7 @@ class MpscQueueStressTest {
 
   @Test
   void conservesEveryElementUnderContention() throws Exception {
-    Queue<Integer> queue = Queues.mpscQueue(CAPACITY);
+    Queue<Integer> queue = Queues.createMpscQueue(CAPACITY);
     AtomicIntegerArray timesSeen = new AtomicIntegerArray(TOTAL);
     AtomicInteger admitted = new AtomicInteger();
     AtomicInteger consumed = new AtomicInteger();
@@ -106,7 +106,7 @@ class MpscQueueStressTest {
    */
   @Test
   void neverInvokesProducerWhileFull() throws Exception {
-    Queue<Integer> queue = Queues.mpscQueue(CAPACITY);
+    Queue<Integer> queue = Queues.createMpscQueue(CAPACITY);
     while (queue.tryPut(0)) {
       // fill it, and leave it full — nothing consumes
     }
