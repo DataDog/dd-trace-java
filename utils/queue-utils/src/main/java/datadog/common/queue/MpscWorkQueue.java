@@ -34,6 +34,26 @@ final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
     }
   }
 
+  /** The two-context form of {@link ProducingSupplier}, with the same escape-free lifetime. */
+  private static final class BiProducingSupplier<C1, C2, T>
+      implements MessagePassingQueue.Supplier<Object> {
+    private final C1 first;
+    private final C2 second;
+    private final BiContextualProducer<? super C1, ? super C2, ? extends T> producer;
+
+    BiProducingSupplier(
+        C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+      this.first = first;
+      this.second = second;
+      this.producer = producer;
+    }
+
+    @Override
+    public Object get() {
+      return producer.produce(first, second);
+    }
+  }
+
   /** Creates the slot inside the claimed place, and hands it back to the reserving thread. */
   private static final class SlotSupplier<T> implements MessagePassingQueue.Supplier<Object> {
     Slot<T> slot;
@@ -66,6 +86,12 @@ final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
   @Override
   <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer) {
     return queue.fill(new ProducingSupplier<>(context, producer), 1) == 1;
+  }
+
+  @Override
+  <C1, C2> boolean admit(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+    return queue.fill(new BiProducingSupplier<>(first, second, producer), 1) == 1;
   }
 
   @Override

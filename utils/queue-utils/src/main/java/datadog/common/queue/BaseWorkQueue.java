@@ -54,6 +54,10 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    */
   abstract <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer);
 
+  /** Claims a slot and only then invokes the two-context producer. */
+  abstract <C1, C2> boolean admit(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
+
   /**
    * @return the next stored object, or {@code null} if there was none
    */
@@ -82,6 +86,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @Override
   public <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer) {
     return record(!closed && admit(context, producer));
+  }
+
+  @Override
+  public <C1, C2> boolean tryPut(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+    return record(!closed && admit(first, second, producer));
   }
 
   @Override

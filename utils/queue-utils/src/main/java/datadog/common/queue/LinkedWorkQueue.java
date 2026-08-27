@@ -72,6 +72,23 @@ final class LinkedWorkQueue<T> extends BaseWorkQueue<T> {
     return true;
   }
 
+  @Override
+  <C1, C2> boolean admit(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+    if (!claimPlace()) {
+      return false;
+    }
+    T element;
+    try {
+      element = producer.produce(first, second);
+    } catch (Throwable t) {
+      available.incrementAndGet();
+      throw t;
+    }
+    queue.offer(element);
+    return true;
+  }
+
   /**
    * Spends a place, and gives it back if there was none to spend, rather than looping on a
    * compare-and-set. Admission costs one atomic add, with a second only on the path that was going

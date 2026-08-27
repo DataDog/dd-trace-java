@@ -45,6 +45,15 @@ public interface WorkQueue<T> {
   <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer);
 
   /**
+   * Admits an element derived from two contexts, constructing it only once a slot is reserved.
+   *
+   * @return whether the element was admitted
+   * @see BiContextualProducer
+   */
+  <C1, C2> boolean tryPut(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
+
+  /**
    * @return the elements that were not admitted, empty if all were
    */
   @SuppressWarnings("unchecked")

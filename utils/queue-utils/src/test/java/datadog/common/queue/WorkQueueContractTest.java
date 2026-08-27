@@ -465,6 +465,40 @@ class WorkQueueContractTest {
     assertEquals(Arrays.asList("first", "reserved", "behind"), consumed);
   }
 
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void admitsFromTwoContexts(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+
+    assertTrue(queue.tryPut("a", "b", (first, second) -> first + second));
+
+    assertEquals(Arrays.asList("ab"), consumeAll(queue));
+  }
+
+  /** The point of the whole API, in its two-context form: a rejected element is never built. */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void doesNotInvokeTwoContextProducerWhenFull(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      queue.tryPut("e" + i);
+    }
+    AtomicBoolean produced = new AtomicBoolean();
+
+    assertFalse(
+        queue.tryPut(
+            produced,
+            "unused",
+            (flag, ignored) -> {
+              flag.set(true);
+              return "built";
+            }));
+
+    assertFalse(produced.get(), "a full queue must not build what it is going to reject");
+    assertEquals(1, queue.dropped());
+  }
+
   private static List<String> consumeAll(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {
