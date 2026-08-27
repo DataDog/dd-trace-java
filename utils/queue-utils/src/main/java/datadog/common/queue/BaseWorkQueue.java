@@ -37,8 +37,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /** Non-capturing adapters, so the producer forms share one admission path without allocating. */
   private static final ContextualProducer<Producer<Object>, Object> PRODUCE = Producer::produce;
 
-  private static final ContextualProducer<BatchProducer<Object>, Object> NEXT = BatchProducer::next;
-
   private final LongAdder dropped = new LongAdder();
   private volatile boolean closed;
 
@@ -106,16 +104,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
     }
     return rejected == null ? emptyList() : rejected;
-  }
-
-  @Override
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  public void put(BatchProducer<? extends T> batchProducer) {
-    // Nothing is lost by stopping early: an element is pulled only once a slot is claimed, so
-    // whatever we did not take is still held by the producer.
-    while (!closed && batchProducer.hasNext() && admit(batchProducer, (ContextualProducer) NEXT)) {
-      // keep pulling
-    }
   }
 
   @Override

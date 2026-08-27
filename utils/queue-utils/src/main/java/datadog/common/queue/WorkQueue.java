@@ -53,9 +53,6 @@ public interface WorkQueue<T> {
    */
   Collection<T> tryPut(Collection<? extends T> elements);
 
-  /** Admits every element the producer yields, pulling them as capacity allows. */
-  void put(BatchProducer<? extends T> batchProducer);
-
   /**
    * @return whether there was an item to consume
    */

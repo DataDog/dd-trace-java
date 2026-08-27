@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -76,33 +75,6 @@ class WorkQueueContractTest {
     Collection<String> rejected = queue.tryPutBatch("a", "b", "c", "d", "e", "f");
     assertEquals(Arrays.asList("e", "f"), new ArrayList<>(rejected));
     assertEquals(2, queue.dropped());
-  }
-
-  /** A batch producer keeps what will not fit, so stopping early loses nothing. */
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("boundedQueues")
-  void batchProducerRetainsUnpulledElements(String name, IntFunction<WorkQueue<String>> factory) {
-    WorkQueue<String> queue = factory.apply(CAPACITY);
-    Iterator<String> source = Arrays.asList("a", "b", "c", "d", "e", "f").iterator();
-    BatchProducer<String> producer =
-        new BatchProducer<String>() {
-          @Override
-          public boolean hasNext() {
-            return source.hasNext();
-          }
-
-          @Override
-          public String next() {
-            return source.next();
-          }
-        };
-
-    queue.put(producer);
-
-    assertEquals(CAPACITY, queue.size());
-    assertEquals(0, queue.dropped(), "stopping at capacity is not a drop");
-    assertTrue(producer.hasNext(), "unpulled elements stay with the producer");
-    assertEquals("e", producer.next());
   }
 
   @ParameterizedTest(name = "{0}")
