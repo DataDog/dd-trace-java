@@ -14,6 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.intake.Intake;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -22,10 +23,50 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class BackendApiFactoryTest {
 
   private static final MediaType JSON = MediaType.parse("application/json");
+
+  @ParameterizedTest
+  @ValueSource(strings = {"datadoghq.com", "custom.example", "DATADOGHQ.EU"})
+  void eventPlatformDirectIntakeUsesExactHttpsHost(String site) {
+    final HttpUrl url = BackendApiFactory.buildEventPlatformIntakeUrl(site);
+
+    assertEquals("https", url.scheme());
+    assertEquals("event-platform-intake." + site.toLowerCase(Locale.ROOT), url.host());
+    assertEquals(443, url.port());
+    assertEquals("/api/v2/", url.encodedPath());
+    assertEquals("", url.username());
+    assertEquals("", url.password());
+    assertNull(url.encodedQuery());
+    assertNull(url.encodedFragment());
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(
+      strings = {
+        "datadoghq.com@evil.example",
+        "datadoghq.com:password@evil.example",
+        "https://datadoghq.com",
+        "datadoghq.com:443",
+        "datadoghq.com:8443",
+        "datadoghq.com/path",
+        "datadoghq.com?query=value",
+        "datadoghq.com#fragment",
+        "data doghq.com",
+        " datadoghq.com",
+        "datadoghq.com ",
+        "datadoghq.com\\evil.example"
+      })
+  void eventPlatformDirectIntakeRejectsUnsafeSite(String site) {
+    assertThrows(
+        IllegalArgumentException.class, () -> BackendApiFactory.buildEventPlatformIntakeUrl(site));
+  }
 
   @Test
   void noBackendApiWhenAgentDoesNotAdvertiseEvpProxy() {

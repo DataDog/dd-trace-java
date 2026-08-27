@@ -48,7 +48,7 @@ public class BackendApiFactory {
 
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
-    HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
+    HttpUrl agentlessUrl = buildDirectIntakeUrl(intake, config);
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
       throw new FatalAgentMisconfigurationError(
@@ -62,6 +62,40 @@ public class BackendApiFactory {
         retryPolicyFactory(),
         sharedCommunicationObjects.getIntakeHttpClient(),
         responseCompression);
+  }
+
+  private static HttpUrl buildDirectIntakeUrl(Intake intake, Config config) {
+    if (intake != Intake.EVENT_PLATFORM) {
+      return HttpUrl.get(intake.getAgentlessUrl(config));
+    }
+    return buildEventPlatformIntakeUrl(config.getSite());
+  }
+
+  static HttpUrl buildEventPlatformIntakeUrl(String site) {
+    if (site == null || site.isEmpty()) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
+
+    String expectedHost = Intake.EVENT_PLATFORM.getUrlPrefix() + "." + site;
+    HttpUrl url =
+        new HttpUrl.Builder()
+            .scheme("https")
+            .host(expectedHost)
+            .addPathSegment("api")
+            .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
+            .addPathSegment("")
+            .build();
+    if (!url.isHttps()
+        || !url.username().isEmpty()
+        || !url.password().isEmpty()
+        || !url.host().equalsIgnoreCase(expectedHost)
+        || url.port() != 443
+        || !url.encodedPath().equals("/api/" + Intake.EVENT_PLATFORM.getVersion() + "/")
+        || url.encodedQuery() != null
+        || url.encodedFragment() != null) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
+    return url;
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
