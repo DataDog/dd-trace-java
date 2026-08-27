@@ -194,6 +194,10 @@ public final class ClassDataBenchmarkArtifacts {
       options.add("-Ddd.appsec.enabled=true");
       return options;
     }
+    if ("tracing-disabled".equals(scenario)) {
+      options.add("-Ddd.trace.enabled=false");
+      return options;
+    }
     throw new IllegalArgumentException("Unknown class-data benchmark scenario " + scenario);
   }
 

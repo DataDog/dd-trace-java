@@ -5,6 +5,7 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.CacheableTransfor
 import com.github.jengelman.gradle.plugins.shadow.transformers.PreserveFirstFoundResourceTransformer
 import com.github.jengelman.gradle.plugins.shadow.transformers.ResourceTransformer
 import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.jar.JarFile
 import org.apache.tools.zip.ZipEntry
@@ -16,7 +17,9 @@ import org.gradle.api.tasks.Internal
 @CacheableTransformer
 class CommonClassDataTransformer implements ResourceTransformer {
   private static final String INDEX_ENTRY = 'dd-java-agent-common.classdata'
+  private static final String SHARDS_ENTRY = 'dd-java-agent-common.shards'
   private static final String CHUNK_PREFIX = 'dd-java-agent-common/'
+  private static final String INSTRUMENTER_INDEX_ENTRY = 'inst/instrumenter.index'
   private static final String CLASSDATA_SUFFIX = '.classdata'
   private static final int MAGIC = 0x44444344
   private static final int VERSION = 2
@@ -33,10 +36,16 @@ class CommonClassDataTransformer implements ResourceTransformer {
   final Map<String, byte[]> transformedClasses = new LinkedHashMap<>()
 
   @Internal
+  byte[] instrumenterIndex
+
+  @Internal
   Set<String> selectedClassNames
 
   @Override
   boolean canTransformResource(FileTreeElement element) {
+    if (element.path == INSTRUMENTER_INDEX_ENTRY) {
+      return true
+    }
     String className = className(element.path)
     if (className == null) {
       return false
@@ -52,6 +61,13 @@ class CommonClassDataTransformer implements ResourceTransformer {
 
   @Override
   void transform(TransformerContext context) {
+    if (context.path == INSTRUMENTER_INDEX_ENTRY) {
+      if (instrumenterIndex != null) {
+        throw new IOException("Duplicate ${INSTRUMENTER_INDEX_ENTRY}")
+      }
+      instrumenterIndex = context.inputStream.bytes
+      return
+    }
     String className = className(context.path)
     byte[] previous = transformedClasses.put(className, context.inputStream.bytes)
     if (previous != null) {
@@ -74,29 +90,139 @@ class CommonClassDataTransformer implements ResourceTransformer {
     if (chunkSize <= 0) {
       throw new IOException('class-data chunk size must be positive')
     }
+    if (instrumenterIndex == null) {
+      throw new IOException("Missing ${INSTRUMENTER_INDEX_ENTRY}")
+    }
+
+    Map<String, String> moduleShards = readModuleShards(instrumenterIndex)
+    Map<String, List<String>> shards = new LinkedHashMap<>()
+    shards.put('common', [])
+    shards.put('early', [])
+    Map<String, List<String>> targetShards = new TreeMap<>()
+    classNames.each { String className ->
+      String shard = moduleShards.get(className)
+      if (shard == null) {
+        shards.get('common').add(className)
+      } else if (shard == 'early') {
+        shards.get('early').add(className)
+      } else {
+        targetShards.computeIfAbsent(shard) { [] }.add(className)
+      }
+    }
+    shards.putAll(targetShards)
 
     List<Map<String, Object>> records = []
     List<byte[]> chunks = []
-    ByteArrayOutputStream chunk = new ByteArrayOutputStream()
-    classNames.eachWithIndex { String className, int index ->
-      if (index > 0 && index % chunkSize == 0) {
-        chunks.add(chunk.toByteArray())
-        chunk = new ByteArrayOutputStream()
+    List<String> chunkShards = []
+    shards.each { String shard, List<String> shardClasses ->
+      ByteArrayOutputStream chunk = null
+      shardClasses.eachWithIndex { String className, int index ->
+        if (index % chunkSize == 0) {
+          if (chunk != null) {
+            chunks.add(chunk.toByteArray())
+          }
+          chunk = new ByteArrayOutputStream()
+          chunkShards.add(shard)
+        }
+        byte[] classData = transformedClasses.get(className)
+        records.add(
+          [className: className, chunk: chunks.size(), offset: chunk.size(), length: classData.length])
+        chunk.write(classData)
       }
-      byte[] classData = transformedClasses.get(className)
-      records.add(
-        [className: className, chunk: index.intdiv(chunkSize), offset: chunk.size(), length: classData.length])
-      chunk.write(classData)
-    }
-    if (!classNames.isEmpty()) {
-      chunks.add(chunk.toByteArray())
+      if (chunk != null) {
+        chunks.add(chunk.toByteArray())
+      }
     }
 
+    writeEntry(output, INSTRUMENTER_INDEX_ENTRY, instrumenterIndex)
     writeEntry(output, INDEX_ENTRY, buildIndex(records, chunks.size()))
+    writeEntry(output, SHARDS_ENTRY, buildShardIndex(chunkShards))
     chunks.eachWithIndex { byte[] contents, int index ->
       writeEntry(output, "${CHUNK_PREFIX}${index}${CLASSDATA_SUFFIX}", contents)
     }
     transformedClasses.clear()
+    instrumenterIndex = null
+  }
+
+  static Map<String, String> readModuleShards(byte[] index) {
+    DataInputStream input = new DataInputStream(new ByteArrayInputStream(index))
+    int moduleCount = input.readInt()
+    input.readInt() // transformation count
+    int packedLength = input.readInt()
+    if (moduleCount < 0 || packedLength < 0) {
+      throw new IOException('Invalid instrumenter index header')
+    }
+    byte[] packed = new byte[packedLength]
+    input.readFully(packed)
+    if (input.read() != -1) {
+      throw new IOException('Unexpected trailing data in instrumenter index')
+    }
+
+    Map<String, String> result = new HashMap<>()
+    int cursor = 0
+    for (int module = 0; module < moduleCount; module++) {
+      int nameLength = unsignedByte(packed, cursor++)
+      requireAvailable(packed, cursor, nameLength + 4)
+      String moduleName = new String(packed, cursor, nameLength, StandardCharsets.ISO_8859_1)
+      cursor += nameLength
+      int targetSystems = (unsignedByte(packed, cursor++) << 8) | unsignedByte(packed, cursor++)
+      int flags = unsignedByte(packed, cursor++)
+      int memberCount = unsignedByte(packed, cursor++)
+      result.put(
+        moduleName,
+        (flags & 0x02) != 0
+          ? 'early'
+          : String.format(Locale.ROOT, 'targets-%04x', targetSystems))
+
+      if (memberCount == 0xFF) {
+        if ((flags & 0x01) != 0) {
+          cursor = skipOverrides(packed, cursor)
+        }
+      } else {
+        for (int member = 0; member < memberCount; member++) {
+          int memberNameLength = unsignedByte(packed, cursor++)
+          requireAvailable(packed, cursor, memberNameLength)
+          cursor += memberNameLength
+          if ((flags & 0x01) != 0) {
+            cursor = skipOverrides(packed, cursor)
+          }
+        }
+      }
+    }
+    if (cursor != packed.length) {
+      throw new IOException(
+        "Instrumenter index decoded ${cursor} of ${packed.length} packed-name bytes")
+    }
+    result
+  }
+
+  private static int skipOverrides(byte[] packed, int cursor) {
+    int overrideCount = unsignedByte(packed, cursor++)
+    for (int override = 0; override < overrideCount; override++) {
+      int adviceNameLength = unsignedByte(packed, cursor++)
+      requireAvailable(packed, cursor, adviceNameLength + 2)
+      cursor += adviceNameLength + 2
+    }
+    cursor
+  }
+
+  private static int unsignedByte(byte[] packed, int offset) {
+    requireAvailable(packed, offset, 1)
+    packed[offset] & 0xFF
+  }
+
+  private static void requireAvailable(byte[] packed, int offset, int length) {
+    if (offset < 0 || length < 0 || offset > packed.length - length) {
+      throw new IOException('Truncated instrumenter index')
+    }
+  }
+
+  private static byte[] buildShardIndex(List<String> chunkShards) {
+    StringBuilder contents = new StringBuilder('version=1\n')
+    chunkShards.eachWithIndex { String shard, int chunk ->
+      contents.append(chunk).append('=').append(shard).append('\n')
+    }
+    contents.toString().getBytes(StandardCharsets.ISO_8859_1)
   }
 
   private static byte[] buildIndex(List<Map<String, Object>> records, int chunkCount) {
@@ -747,6 +873,7 @@ tasks.register('verifyAgentJarContents') {
       'dd-java-agent.index',
       // Common startup classes, generated by CommonClassDataTransformer
       'dd-java-agent-common.classdata',
+      'dd-java-agent-common.shards',
       'dd-java-agent-common/0.classdata',
       // Premain-Class: Java 6 pre check
       'datadog/trace/bootstrap/AgentPreCheck.class',
@@ -879,6 +1006,7 @@ tasks.register('verifyCommonClassDataPackaging') {
     }
     def unexpectedlyAdded = (packedEntries.keySet() - unpackedEntries.keySet()).findAll {
       it != 'dd-java-agent-common.classdata' &&
+        it != 'dd-java-agent-common.shards' &&
         it != 'dd-java-agent-common/' &&
         !(it ==~ /dd-java-agent-common\/\d+\.classdata/)
     }
@@ -892,6 +1020,82 @@ tasks.register('verifyCommonClassDataPackaging') {
           failures.add("Content changed for unselected entry: ${entry}")
         }
       }
+
+    new JarFile(packedJar.get().asFile).withCloseable { jar ->
+      def readBytes = { String entry ->
+        def jarEntry = jar.getJarEntry(entry)
+        jarEntry == null ? null : jar.getInputStream(jarEntry).bytes
+      }
+      byte[] packedIndex = readBytes('dd-java-agent-common.classdata')
+      byte[] shardIndex = readBytes('dd-java-agent-common.shards')
+      byte[] instrumenterIndex = readBytes('inst/instrumenter.index')
+      if (packedIndex == null || shardIndex == null || instrumenterIndex == null) {
+        failures.add('Missing packed, shard, or instrumenter index')
+      } else {
+        def readInt = { byte[] bytes, int offset ->
+          ((bytes[offset] & 0xFF) << 24) |
+            ((bytes[offset + 1] & 0xFF) << 16) |
+            ((bytes[offset + 2] & 0xFF) << 8) |
+            (bytes[offset + 3] & 0xFF)
+        }
+        Map<Integer, String> chunkShards = [:]
+        new String(shardIndex, StandardCharsets.ISO_8859_1).readLines().each { line ->
+          if (!line.isEmpty() && line != 'version=1') {
+            int separator = line.indexOf('=')
+            if (separator <= 0) {
+              failures.add("Malformed class-data shard record: ${line}")
+            } else {
+              chunkShards[Integer.parseInt(line.substring(0, separator))] =
+                line.substring(separator + 1)
+            }
+          }
+        }
+
+        Map<String, Integer> classChunks = [:]
+        if (packedIndex.length < 20 || readInt(packedIndex, 0) != 0x44444344) {
+          failures.add('Invalid common class-data index header')
+        } else {
+          int classCount = readInt(packedIndex, 8)
+          int chunkCount = readInt(packedIndex, 12)
+          int tableSize = readInt(packedIndex, 16)
+          for (int slot = 0; slot < tableSize; slot++) {
+            int record = 20 + slot * 24
+            int nameOffset = readInt(packedIndex, record + 4)
+            int nameLength = readInt(packedIndex, record + 8)
+            if (nameLength > 0) {
+              StringBuilder name = new StringBuilder(nameLength)
+              for (int character = 0; character < nameLength; character++) {
+                int offset = nameOffset + character * 2
+                name.append((char) (((packedIndex[offset] & 0xFF) << 8) |
+                  (packedIndex[offset + 1] & 0xFF)))
+              }
+              classChunks[name.toString()] = readInt(packedIndex, record + 12)
+            }
+          }
+          if (classChunks.size() != classCount) {
+            failures.add(
+              "Packed index declares ${classCount} classes but decoded ${classChunks.size()}")
+          }
+          if (chunkShards.keySet() != (0..<chunkCount).toSet()) {
+            failures.add(
+              "Shard index covers chunks ${chunkShards.keySet().sort()}, expected 0..<${chunkCount}")
+          }
+        }
+
+        Map<String, String> moduleShards =
+          CommonClassDataTransformer.readModuleShards(instrumenterIndex)
+        selectedNames.each { className ->
+          Integer chunk = classChunks[className]
+          String expectedShard = moduleShards.get(className) ?: 'common'
+          if (chunk == null) {
+            failures.add("No packed record for ${className}")
+          } else if (chunkShards[chunk] != expectedShard) {
+            failures.add(
+              "${className} is in ${chunkShards[chunk]}, expected ${expectedShard}")
+          }
+        }
+      }
+    }
     if (!failures.empty) {
       throw new GradleException(
       "Common class-data packaging verification failed (${failures.size()} issue(s)):\n" +

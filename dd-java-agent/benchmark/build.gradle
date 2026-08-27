@@ -54,6 +54,8 @@ def agentUnpackedShadowJar = project(':dd-java-agent').tasks.named('unpackedShad
 def benchmarkJavaExecutable = providers.provider {
   jmh.jvm.orNull ?: new File(System.getProperty('java.home'), 'bin/java').absolutePath
 }
+def classDataBenchmarkScenario =
+  providers.systemProperty('datadog.classdata.benchmark.scenario').orElse('default')
 
 tasks.register('prepareClassDataBenchmark', JavaExec) {
   group = 'benchmark'
@@ -62,6 +64,7 @@ tasks.register('prepareClassDataBenchmark', JavaExec) {
   classpath = sourceSets.jmh.runtimeClasspath
   mainClass = 'datadog.trace.bootstrap.ClassDataBenchmarkArtifacts'
   inputs.files agentShadowJar.flatMap { it.archiveFile }, agentUnpackedShadowJar.flatMap { it.archiveFile }
+  inputs.property 'scenario', classDataBenchmarkScenario
   outputs.dir classDataBenchmarkDir
   doFirst {
     setArgs([
@@ -69,6 +72,7 @@ tasks.register('prepareClassDataBenchmark', JavaExec) {
       classDataBenchmarkDir.get().asFile.absolutePath,
       benchmarkJavaExecutable.get(),
       tasks.named('jmhJar').get().archiveFile.get().asFile.absolutePath,
+      classDataBenchmarkScenario.get(),
     ])
   }
   doLast {
@@ -103,6 +107,7 @@ tasks.register('classDataStartupBenchmark', JavaExec) {
       classDataBenchmarkDir.get().asFile.absolutePath,
       benchmarkJavaExecutable.get(),
       tasks.named('jmhJar').get().archiveFile.get().asFile.absolutePath,
+      classDataBenchmarkScenario.get(),
     ])
   }
 }
