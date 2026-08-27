@@ -98,9 +98,11 @@ final class Aggregator implements Runnable {
     Drainer drainer = new Drainer();
     while (!currentThread.isInterrupted() && !drainer.stopped) {
       try {
-        // process reports whether there was an item to work on; a failing item throws out of it,
-        // into the same catch that has always kept one bad item from ending the drain loop.
-        if (!inbox.process(drainer)) {
+        // Take what is there in one pass, the way the old jctools drain did. size() is O(1) on
+        // this queue, so asking costs a read, and anything that arrives mid-pass is simply the
+        // next pass's work. A failing item throws out of process, into the same catch that has
+        // always kept one bad item from ending the drain loop.
+        if (inbox.process(Math.max(1, inbox.size()), drainer) == 0) {
           Thread.sleep(sleepMillis);
         }
       } catch (InterruptedException e) {
