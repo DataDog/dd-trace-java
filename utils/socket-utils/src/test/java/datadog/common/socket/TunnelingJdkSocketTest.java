@@ -65,6 +65,8 @@ public class TunnelingJdkSocketTest {
     startServer(socketAddress);
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
 
+    assertNotNull(clientSocket.getChannel());
+    assertTrue(clientSocket.getChannel().isOpen());
     assertFalse(clientSocket.isConnected());
     assertFalse(clientSocket.isClosed());
 
@@ -83,6 +85,7 @@ public class TunnelingJdkSocketTest {
 
     assertTrue(clientSocket.isConnected());
     assertTrue(clientSocket.isClosed());
+    assertFalse(clientSocket.getChannel().isOpen());
     assertTrue(clientSocket.isInputShutdown());
     assertTrue(clientSocket.isOutputShutdown());
     assertEquals(-1, inputStream.read());
@@ -90,6 +93,23 @@ public class TunnelingJdkSocketTest {
     assertThrows(SocketException.class, clientSocket::getInputStream);
     assertThrows(SocketException.class, clientSocket::getOutputStream);
     clientSocket.close();
+  }
+
+  @Test
+  public void testConnectFailureClosesSocket() throws Exception {
+    Path missingSocketPath = getSocketPath();
+    TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(missingSocketPath);
+
+    assertThrows(
+        IOException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+
+    assertFalse(clientSocket.isConnected());
+    assertTrue(clientSocket.isClosed());
+    assertTrue(clientSocket.isInputShutdown());
+    assertTrue(clientSocket.isOutputShutdown());
+    assertFalse(clientSocket.getChannel().isOpen());
+    assertThrows(
+        SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
   }
 
   @Test
