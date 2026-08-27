@@ -3,140 +3,41 @@ package datadog.common.queue;
 import org.jctools.queues.MessagePassingQueue;
 
 /**
- * A {@link WorkQueue} over a JCTools MPSC array queue: many producers, one consumer, bounded by
- * construction with no per-element node.
+ * A {@link WorkQueue} over a JCTools MPSC array queue: many producers, one consumer, no per-element
+ * node. The preferred backing.
  *
- * <p>Reserve-before-construct is the backing queue's own {@code fill(Supplier, 1)}, which
- * CAS-claims the slot and only then calls the supplier, returning zero without ever calling it when
- * there is no room. That makes admission exact rather than best-effort: a rejected element is not
- * merely discarded cheaply, it is never built.
+ * <p>Storage only. The bound and the reserve-before-construct guarantee both live in {@link
+ * BaseWorkQueue}, which spends a place before it calls any producer, so by the time an element
+ * reaches {@link #store} the ring is known to have room for it.
+ *
+ * <p>That the ring could have enforced its own bound, inside a CAS it was performing anyway, is the
+ * cost of this arrangement — see {@link BaseWorkQueue} for what it buys. What it avoids is holding
+ * a ring position open across a caller-controlled gap: the ring reports a claimed-but-unfilled
+ * position as empty, so a reservation that held one would stall the consumer, and would need a
+ * placeholder object per reservation for the consumer to tell an abandoned position from a pending
+ * one.
  */
 final class MpscWorkQueue<T> extends BaseWorkQueue<T> {
 
-  /**
-   * Handed to {@code fill} so the producer runs inside the claimed slot. One small short-lived
-   * object per producing admission, which never escapes the {@code fill} call and so is a candidate
-   * for scalar replacement; the payload it defers building is the allocation that matters.
-   */
-  private static final class ProducingSupplier<C, T>
-      implements MessagePassingQueue.Supplier<Object> {
-    private final C context;
-    private final ContextualProducer<? super C, ? extends T> producer;
-
-    ProducingSupplier(C context, ContextualProducer<? super C, ? extends T> producer) {
-      this.context = context;
-      this.producer = producer;
-    }
-
-    @Override
-    public Object get() {
-      return producer.produce(context);
-    }
-  }
-
-  /** The two-context form of {@link ProducingSupplier}, with the same escape-free lifetime. */
-  private static final class BiProducingSupplier<C1, C2, T>
-      implements MessagePassingQueue.Supplier<Object> {
-    private final C1 first;
-    private final C2 second;
-    private final BiContextualProducer<? super C1, ? super C2, ? extends T> producer;
-
-    BiProducingSupplier(
-        C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
-      this.first = first;
-      this.second = second;
-      this.producer = producer;
-    }
-
-    @Override
-    public Object get() {
-      return producer.produce(first, second);
-    }
-  }
-
-  /** Creates the slot inside the claimed place, and hands it back to the reserving thread. */
-  private static final class SlotSupplier<T> implements MessagePassingQueue.Supplier<Object> {
-    Slot<T> slot;
-
-    @Override
-    public Object get() {
-      slot = new Slot<>();
-      return slot;
-    }
-  }
-
   private final MessagePassingQueue<Object> queue;
 
-  /**
-   * Set before the first {@link Slot} can reach the array, and never cleared. A queue whose caller
-   * never reserves keeps the plain consumption path; one that has reserved even once pays a peek
-   * and a type test per item forever, which is the price of not taxing every other call site.
-   */
-  private volatile boolean reservations;
-
   MpscWorkQueue(int requestedCapacity) {
-    this.queue = Queues.mpscArrayQueue(requestedCapacity);
+    this(Queues.<Object>mpscArrayQueue(requestedCapacity));
+  }
+
+  /** Takes the queue already built, so the bound can be the capacity it actually rounded up to. */
+  private MpscWorkQueue(MessagePassingQueue<Object> queue) {
+    super(queue.capacity());
+    this.queue = queue;
   }
 
   @Override
-  boolean admit(Object element) {
+  boolean store(Object element) {
     return queue.offer(element);
   }
 
   @Override
-  <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer) {
-    return queue.fill(new ProducingSupplier<>(context, producer), 1) == 1;
-  }
-
-  @Override
-  <C1, C2> boolean admit(
-      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
-    return queue.fill(new BiProducingSupplier<>(first, second, producer), 1) == 1;
-  }
-
-  @Override
-  Reservation<T> reserve() {
-    // Set first: a slot must never reach the array before the consumer knows to expect one.
-    reservations = true;
-    SlotSupplier<T> supplier = new SlotSupplier<>();
-    return queue.fill(supplier, 1) == 1 ? supplier.slot : null;
-  }
-
-  @Override
-  Object take() {
-    if (!reservations) {
-      return queue.poll();
-    }
-    for (; ; ) {
-      Object head = queue.relaxedPeek();
-      if (!(head instanceof Slot)) {
-        // Either empty, or an ordinary element whose place was never reserved.
-        return head == null ? null : queue.poll();
-      }
-      Object element = ((Slot<?>) head).element();
-      if (element == null) {
-        // Still being built. The place is claimed, so there is nothing behind it to take either.
-        return null;
-      }
-      queue.poll();
-      if (element != Slot.RELEASED) {
-        return element;
-      }
-      // Abandoned without ever being filled: skip it and look at what is behind it.
-    }
-  }
-
-  @Override
-  void discardAll() {
-    queue.clear();
-  }
-
-  @Override
-  public int size() {
-    return queue.size();
-  }
-
-  int capacity() {
-    return queue.capacity();
+  Object retrieve() {
+    return queue.poll();
   }
 }

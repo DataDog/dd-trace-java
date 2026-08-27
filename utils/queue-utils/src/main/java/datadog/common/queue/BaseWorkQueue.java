@@ -5,18 +5,25 @@ import static java.util.Collections.emptyList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Everything a {@link WorkQueue} does that does not depend on how elements are stored: admission
- * bookkeeping, the closed flag, drop counting, and the consume-and-maybe-retry cycle.
+ * Everything a {@link WorkQueue} does that does not depend on how elements are stored: the bound,
+ * admission, reservations, the closed flag, drop counting, and the consume-and-maybe-retry cycle.
  *
- * <p>Subclasses supply four storage primitives. {@link #admit(Object)} and {@link #admit(Object,
- * ContextualProducer)} must both claim a slot before storing anything, and the producing form must
- * not invoke the producer unless the claim succeeded — that is the contract this whole API exists
- * to provide.
+ * <p>Subclasses supply two storage primitives, {@link #store} and {@link #retrieve}, and neither
+ * needs to enforce anything. The bound lives here, as a count of places still available: admission
+ * spends one before it builds or stores anything, consumption returns one, and a reservation is
+ * simply a spent place with nothing in it yet. That is why the storage primitives can be as thin as
+ * they are, and why both backings admit and reserve through exactly the same code.
+ *
+ * <p>The counter costs one atomic add per admission and one per consumption. On a backing that
+ * could have leaned on its own bound that is a real tax, paid for a uniform contract: every backing
+ * can reserve capacity, nothing has to hold a position open, so no consumer can be stalled by a
+ * reservation and no reservation can deadlock a thread that also consumes.
  */
 abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
@@ -41,36 +48,153 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private volatile boolean closed;
 
   /**
-   * Stores an already-built element, claiming a slot first.
-   *
-   * @return whether a slot was claimed and the element stored
+   * Places still available, not places used. The bound is then a comparison against zero rather
+   * than against a capacity that has to be loaded and that an unbounded queue has to be branched
+   * around: seeded with {@link Integer#MAX_VALUE} it is a queue no backlog can exhaust, on the same
+   * code path as any other.
    */
-  abstract boolean admit(Object element);
+  private final AtomicInteger available;
+
+  private final int capacity;
+
+  BaseWorkQueue(int capacity) {
+    this.capacity = capacity;
+    this.available = new AtomicInteger(capacity);
+  }
 
   /**
-   * Claims a slot and only then invokes the producer to build the element.
+   * Stores an element in a place already claimed for it, so this can only fail if the backing
+   * refuses for a reason of its own.
    *
-   * @return whether a slot was claimed and the element stored
+   * @return whether the element was stored
    */
-  abstract <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer);
-
-  /** Claims a slot and only then invokes the two-context producer. */
-  abstract <C1, C2> boolean admit(
-      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
+  abstract boolean store(Object element);
 
   /**
    * @return the next stored object, or {@code null} if there was none
    */
+  abstract Object retrieve();
+
   /**
-   * Claims capacity for an element that does not exist yet.
+   * Spends a place, and gives it back if there was none to spend, rather than looping on a
+   * compare-and-set. Admission costs one atomic add, with a second only on the path that was going
+   * to be rejected anyway — and no retry under contention, which is where a CAS loop is at its
+   * worst.
    *
-   * @return the reservation, or {@code null} if no capacity could be claimed
+   * <p>The bound itself is exact: the queue never holds more than {@code capacity} elements and
+   * open reservations together. What is approximate is who gets turned away. Claimants racing at
+   * the boundary can drive the count below zero between them and all give their places back, so an
+   * admission can be rejected while the queue is a place or two short of full. That only happens
+   * when it is already at the boundary, where the caller is dropping work regardless.
    */
-  abstract Reservation<T> reserve();
+  private boolean claimPlace() {
+    if (available.decrementAndGet() >= 0) {
+      return true;
+    }
+    available.incrementAndGet();
+    return false;
+  }
 
-  abstract Object take();
+  private void releasePlace() {
+    available.incrementAndGet();
+  }
 
-  abstract void discardAll();
+  private boolean admit(Object element) {
+    if (!claimPlace()) {
+      return false;
+    }
+    if (store(element)) {
+      return true;
+    }
+    releasePlace();
+    return false;
+  }
+
+  private <C> boolean admit(C context, ContextualProducer<? super C, ? extends T> producer) {
+    if (!claimPlace()) {
+      return false;
+    }
+    T element;
+    try {
+      element = producer.produce(context);
+    } catch (Throwable t) {
+      releasePlace();
+      throw t;
+    }
+    return storeOrRelease(element);
+  }
+
+  private <C1, C2> boolean admit(
+      C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
+    if (!claimPlace()) {
+      return false;
+    }
+    T element;
+    try {
+      element = producer.produce(first, second);
+    } catch (Throwable t) {
+      releasePlace();
+      throw t;
+    }
+    return storeOrRelease(element);
+  }
+
+  private boolean storeOrRelease(T element) {
+    if (element != null && store(element)) {
+      return true;
+    }
+    releasePlace();
+    return false;
+  }
+
+  /**
+   * A place spent ahead of the element that will use it. Filling can only ever store, because the
+   * room was already taken; abandoning gives the room back. Nothing is held open in the backing, so
+   * a consumer never has to wait on one.
+   */
+  private final class PlaceReservation implements Reservation<T> {
+    private boolean done;
+
+    @Override
+    public void fill(T element) {
+      if (element == null) {
+        throw new NullPointerException("a queue cannot hold null");
+      }
+      if (!done) {
+        done = true;
+        store(element);
+      }
+    }
+
+    @Override
+    public void close() {
+      // Only the reserving thread fills or closes, so a plain flag orders the two correctly.
+      if (!done) {
+        done = true;
+        releasePlace();
+      }
+    }
+  }
+
+  private Object take() {
+    Object element = retrieve();
+    if (element != null) {
+      releasePlace();
+    }
+    return element;
+  }
+
+  private void discardAll() {
+    while (take() != null) {
+      // give every place back as it goes
+    }
+  }
+
+  @Override
+  public int size() {
+    // Claimants at the boundary can transiently drive the count below zero before backing out.
+    return Math.max(0, capacity - available.get());
+  }
 
   @Override
   public boolean tryPut(T element) {
@@ -129,11 +253,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       dropped.increment();
       return null;
     }
-    Reservation<T> reservation = reserve();
-    if (reservation == null) {
+    if (!claimPlace()) {
       dropped.increment();
+      return null;
     }
-    return reservation;
+    return new PlaceReservation();
   }
 
   @Override

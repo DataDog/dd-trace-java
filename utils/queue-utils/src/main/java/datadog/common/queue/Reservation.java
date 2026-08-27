@@ -1,14 +1,14 @@
 package datadog.common.queue;
 
 /**
- * A claimed place in a {@link WorkQueue}, for the rare caller that must do work between claiming
- * and filling and so cannot express its admission as a {@link Producer}.
+ * A claimed place in a {@link WorkQueue}, for a caller whose work between claiming and filling
+ * cannot be expressed as a {@link Producer}.
  *
- * <p>Capacity is claimed when the reservation is taken and held until it is filled or released, so
- * one that is never closed leaks capacity, and on an array-backed queue — where the claim is a slot
- * the consumer cannot see past — stalls the consumer as well. Take one only in try-with-resources,
- * hold it for as long as it takes to build one element, and prefer the producer forms of {@code
- * tryPut}, which cannot be leaked.
+ * <p>What is claimed is capacity, never a position: the element joins the queue where it is filled,
+ * not where it was claimed, so an open reservation holds no place a consumer could be waiting on
+ * and cannot stall one. A reservation that is neither filled nor closed does leak its capacity,
+ * quietly and permanently, which is why this is an {@link AutoCloseable} meant for
+ * try-with-resources.
  */
 public interface Reservation<T> extends AutoCloseable {
 
@@ -19,10 +19,8 @@ public interface Reservation<T> extends AutoCloseable {
   void fill(T element);
 
   /**
-   * Releases the place if it was never filled. Filling first makes this a no-op.
-   *
-   * <p>Nothing is ever consumed for a released place. Where the claim was a slot, the capacity
-   * comes back as the consumer passes over it rather than the instant it is released.
+   * Gives the place back if it was never filled, immediately. Filling first makes this a no-op, and
+   * nothing is ever consumed for a released place.
    */
   @Override
   void close();

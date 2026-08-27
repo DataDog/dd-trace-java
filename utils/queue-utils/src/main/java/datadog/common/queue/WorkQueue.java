@@ -68,15 +68,10 @@ public interface WorkQueue<T> {
    * Claims a place without supplying its element, for a caller whose work between claiming and
    * filling cannot be expressed as a {@link Producer}.
    *
-   * <p>This is the escape hatch, and it is a sharper tool than the {@code tryPut} family: the
-   * consumer cannot see past an open reservation, so one that is not promptly filled or closed
-   * stalls it. Use try-with-resources.
-   *
-   * <p>What is reserved is capacity — {@link Reservation#fill} cannot be rejected. Whether the
-   * element also keeps the position it was claimed at depends on the backing: an array-backed queue
-   * claims a slot, and so holds the order, at the cost of a consumer that cannot see past it until
-   * it is filled; a linked queue has no slot to hold and joins the element at the tail when it is
-   * filled, so nothing stalls and the order is the fill order.
+   * <p>What is reserved is capacity, not a position — {@link Reservation#fill} cannot be rejected,
+   * and the element joins the queue where it is filled. Nothing is held open that a consumer could
+   * be waiting on, so a thread may safely reserve and consume, but a reservation that is never
+   * filled or closed leaks its capacity for good. Use try-with-resources.
    *
    * @return the claimed capacity, or {@code null} if there was none to claim
    */

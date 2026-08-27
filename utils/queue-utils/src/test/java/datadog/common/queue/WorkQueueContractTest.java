@@ -318,33 +318,43 @@ class WorkQueueContractTest {
   }
 
   /** The array backing claims a slot, so the element keeps the position it was reserved at. */
-  @org.junit.jupiter.api.Test
-  void arrayBackedReservationHoldsItsPosition() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void reservationJoinsWhereItIsFilledRatherThanWhereItWasClaimed(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("first");
     List<String> consumed = new ArrayList<>();
+
     try (Reservation<String> place = queue.tryReserve()) {
       assertTrue(queue.tryPut("behind"), "the rest of the queue stays open for admission");
-      assertTrue(queue.process(consumed::add), "what was admitted before the claim is unaffected");
-      assertFalse(
-          queue.process(consumed::add),
-          "holding a position means the consumer cannot see past it, even for what is behind");
-      place.fill("second");
-    }
-    consumed.addAll(consumeAll(queue));
-    assertEquals(Arrays.asList("first", "second", "behind"), consumed);
-  }
-
-  /** The linked backing has no slot to hold, so nothing is held in front of the consumer. */
-  @org.junit.jupiter.api.Test
-  void linkedReservationDoesNotStallTheConsumer() {
-    WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
-    try (Reservation<String> place = queue.tryReserve()) {
-      assertTrue(queue.tryPut("behind"));
-      assertTrue(queue.process(item -> {}), "an open reservation holds nothing back");
+      assertEquals(
+          Arrays.asList("first", "behind"),
+          consumeAll(queue),
+          "a reservation holds no position, so nothing is held in front of the consumer");
       place.fill("filled late");
     }
-    assertEquals(Arrays.asList("filled late"), consumeAll(queue), "the order is the fill order");
+
+    consumed.addAll(consumeAll(queue));
+    assertEquals(Arrays.asList("filled late"), consumed, "the order is the fill order");
+  }
+
+  /**
+   * The hazard a position-holding reservation would have: one thread that reserves and then drains
+   * would be waiting on itself.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aThreadMayReserveAndConsume(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("waiting");
+
+    try (Reservation<String> place = queue.tryReserve()) {
+      assertEquals(1, queue.process(10, item -> {}), "consumption is not blocked by the claim");
+      place.fill("filled");
+    }
+
+    assertEquals(Arrays.asList("filled"), consumeAll(queue));
   }
 
   @org.junit.jupiter.api.Test
@@ -443,26 +453,27 @@ class WorkQueueContractTest {
     assertEquals(0, queue.dropped(), "a failure the caller sees is not a drop");
   }
 
-  @org.junit.jupiter.api.Test
-  void processStopsAtAnOpenReservation() {
-    WorkQueue<String> queue = WorkQueues.createMpscQueue(CAPACITY);
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void openReservationHoldsCapacityWithoutHoldingUpTheBatch(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("first");
     List<String> consumed = new ArrayList<>();
 
     try (Reservation<String> place = queue.tryReserve()) {
       queue.tryPut("behind");
 
-      assertEquals(
-          1,
-          queue.process(10, consumed::add),
-          "an array-backed reservation holds its position, so the batch ends there");
-      assertEquals(Arrays.asList("first"), consumed);
+      assertEquals(2, queue.process(10, consumed::add), "the batch runs past the open claim");
+      assertEquals(Arrays.asList("first", "behind"), consumed);
+      assertEquals(1, queue.size(), "the claimed place is still spent");
 
       place.fill("reserved");
     }
 
-    assertEquals(2, queue.process(10, consumed::add));
-    assertEquals(Arrays.asList("first", "reserved", "behind"), consumed);
+    assertEquals(1, queue.process(10, consumed::add));
+    assertEquals(Arrays.asList("first", "behind", "reserved"), consumed);
+    assertEquals(0, queue.size());
   }
 
   @ParameterizedTest(name = "{0}")

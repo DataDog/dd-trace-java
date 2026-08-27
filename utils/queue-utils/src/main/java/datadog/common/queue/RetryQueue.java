@@ -10,9 +10,10 @@ public interface RetryQueue<T> {
   /**
    * Resubmits the failed item.
    *
-   * <p>Reuses the lease the failed item already holds and so cannot fail on capacity. This is the
-   * overload every ordinary strategy wants: it resubmits without allocating the array the varargs
-   * form needs.
+   * <p>The failed item's place was given back when it was consumed, so this claims a place like any
+   * other admission and can be rejected if the queue filled up behind it; a rejected retry counts
+   * as a drop. This is the overload every ordinary strategy wants: it resubmits without allocating
+   * the array the varargs form needs.
    *
    * @return whether the item was resubmitted
    */
@@ -21,11 +22,10 @@ public interface RetryQueue<T> {
   /**
    * Resubmits several items in place of the failed item.
    *
-   * <p>Partitioning failed work into smaller pieces needs slots beyond the one the failed item
-   * holds, and is a no-op returning {@code false} if they cannot be reserved; the original item
-   * stays leased and is retried later.
+   * <p>Each piece claims its own place, so a partition can be admitted only in part; the return
+   * value reports whether all of them made it, and each rejection counts as a drop.
    *
-   * @return whether the items were resubmitted
+   * @return whether every item was resubmitted
    */
   @SuppressWarnings("unchecked")
   boolean retry(T... items);
