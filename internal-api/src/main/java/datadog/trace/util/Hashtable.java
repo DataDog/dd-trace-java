@@ -183,8 +183,12 @@ public final class Hashtable {
       return new D1<>(maxCapacity);
     }
 
+    /**
+     * Live entry count. Exact here, unlike {@link SizeManager#estimateSize()}: this class reserves
+     * and links within a single call, so a caller can never observe the reservation window.
+     */
     public int size() {
-      return this.sizeManager.size();
+      return this.sizeManager.estimateSize();
     }
 
     /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
@@ -448,8 +452,12 @@ public final class Hashtable {
       return new D2<>(maxCapacity);
     }
 
+    /**
+     * Live entry count. Exact here, unlike {@link SizeManager#estimateSize()}: this class reserves
+     * and links within a single call, so a caller can never observe the reservation window.
+     */
     public int size() {
-      return this.sizeManager.size();
+      return this.sizeManager.estimateSize();
     }
 
     /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
@@ -841,14 +849,20 @@ public final class Hashtable {
     drain(state.sizeManager, state.buckets, context, sink);
   }
 
-  /** Live entry count of {@code state}. */
-  public static int size(@Nonnull State<?> state) {
-    return state.sizeManager.size();
+  /** Live entries in {@code state}; see {@link SizeManager#estimateSize()} for why an estimate. */
+  public static int estimateSize(@Nonnull State<?> state) {
+    return state.sizeManager.estimateSize();
   }
 
-  /** {@code true} when {@code state} holds no entries. */
-  public static boolean isEmpty(@Nonnull State<?> state) {
-    return state.sizeManager.size() == 0;
+  /**
+   * {@code true} when {@code state} appears to hold no entries. Derived from {@link
+   * SizeManager#estimateSize()} and inherits its imprecision -- an outstanding reservation reads as
+   * non-empty, and a link made without one can read as empty while the spine is not. Named for what
+   * it can honestly promise: use it to skip work that is merely wasted on an empty table, not to
+   * establish that there is nothing there.
+   */
+  public static boolean isLikelyEmpty(@Nonnull State<?> state) {
+    return state.sizeManager.estimateSize() == 0;
   }
 
   /**
@@ -1092,7 +1106,17 @@ public final class Hashtable {
       this.capacity = capacity;
     }
 
-    public int size() {
+    /**
+     * Live entries, as far as this manager knows -- an estimate, not a census. A reservation taken
+     * by {@link #tryReserve()} or {@link #tryReserveOrEvict} counts immediately, so between
+     * reserving and linking the figure runs one high; and {@link Hashtable#insertReserved} trusts
+     * the caller to have reserved, so a link without one leaves it low. The manager counts what it
+     * is told, and cannot audit the spine to check.
+     *
+     * <p>Wrappers that never expose the reservation window -- {@link D1} and {@link D2}, which
+     * reserve and link inside a single call -- can and do present this as an exact {@code size()}.
+     */
+    public int estimateSize() {
       return this.size;
     }
 
@@ -1169,7 +1193,14 @@ public final class Hashtable {
      *
      * <p>Resuming from the previous position is what keeps a sustained eviction stream amortized:
      * the worst case for a single call is still O(N) when nearly every entry is hot, but N
-     * evictions never re-scan the hot prefix more than twice.
+     * successful evictions never re-scan the hot prefix more than twice.
+     *
+     * <p><b>That amortization covers successes only.</b> A call that matches nothing has, by
+     * definition, tested every live entry -- so a table that is full and entirely hot pays a full
+     * pass per attempt. The cursor still steps on, so repeated refusals at least start from a
+     * different bucket rather than re-testing in identical order, but the per-attempt cost does not
+     * shrink. Size the cap to the steady-state working set so this stays the rare path, and keep
+     * {@code evictable} cheap -- it is called once per live entry on every refusal.
      */
     @SuppressWarnings("unchecked")
     @Nullable
@@ -1181,8 +1212,14 @@ public final class Hashtable {
       }
       if (evicted != null) {
         this.size -= 1;
+        return (TEntry) evicted;
       }
-      return (TEntry) evicted;
+      // Nothing matched anywhere. Step the cursor on regardless, so a table that is full of hot
+      // entries doesn't retry from the same origin every time -- successive refusals sweep a
+      // different starting bucket instead of re-testing the same entries in the same order.
+      // (buckets.length is a power of two, so the mask wraps.)
+      this.cursor = (this.cursor + 1) & (buckets.length - 1);
+      return null;
     }
 
     @SuppressWarnings("unchecked")
