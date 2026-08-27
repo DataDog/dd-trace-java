@@ -4,6 +4,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 plugins {
   `java-library`
   id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.jmh-conventions")
 }
 
 dependencies {
