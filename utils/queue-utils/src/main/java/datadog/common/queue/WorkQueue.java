@@ -79,7 +79,7 @@ public interface WorkQueue<T> {
   /**
    * @return the elements that were not admitted, empty if all were
    */
-  Collection<T> tryPut(Collection<? extends T> elements);
+  Collection<T> tryPutBatch(Collection<? extends T> elements);
 
   /**
    * Claims a place without supplying its element, for a caller whose work between claiming and
@@ -113,6 +113,17 @@ public interface WorkQueue<T> {
    * @return whether there was an item to consume
    */
   boolean process(Consumer<? super T> consumer, @Strategy RetryStrategy<T> retryStrategy);
+
+  /**
+   * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
+   * exceptionHandler} rather than propagating it. The item is dropped.
+   *
+   * <p>Pass an explicitly typed lambda or a cast: an inexact method reference cannot tell this
+   * overload from {@link #process(Consumer, RetryStrategy)}.
+   *
+   * @return whether there was an item to consume
+   */
+  boolean process(Consumer<? super T> consumer, @Strategy ExceptionHandler exceptionHandler);
 
   /**
    * Consumes one item, if there is one. A throwing consumer propagates.

@@ -33,11 +33,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * Wraps an item that has already failed, carrying its attempt count back into the queue. Only
    * allocated on the failure path, so the common case stores the element itself.
    */
-  private static final class Retried<T> {
+  private static final class Retry<T> {
     final T item;
     final int attempt;
 
-    Retried(T item, int attempt) {
+    Retry(T item, int attempt) {
       this.item = item;
       this.attempt = attempt;
     }
@@ -227,29 +227,29 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public int size() {
+  public final int size() {
     // Claimants at the boundary can transiently drive the count below zero before backing out.
     return Math.max(0, capacity - available.get());
   }
 
   @Override
-  public boolean tryPut(T element) {
+  public final boolean tryPut(T element) {
     return record(!closed && admit(element));
   }
 
   @Override
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public boolean tryPut(Producer<? extends T> producer) {
+  public final boolean tryPut(Producer<? extends T> producer) {
     return record(!closed && admit(producer, (ContextualProducer) PRODUCE));
   }
 
   @Override
-  public <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer) {
+  public final <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer) {
     return record(!closed && admit(context, producer));
   }
 
   @Override
-  public <C1, C2> boolean tryPut(
+  public final <C1, C2> boolean tryPut(
       C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
     return record(!closed && admit(first, second, producer));
   }
@@ -258,10 +258,14 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @SafeVarargs
   public final Collection<T> tryPutBatch(T... elements) {
     List<T> rejected = null;
-    for (T element : elements) {
+    for (int i = 0; i < elements.length; i++) {
+      T element = elements[i];
       if (!tryPut(element)) {
         if (rejected == null) {
-          rejected = new ArrayList<>();
+          // Refusals run to the end far more often than not: once the queue is full it stays full
+          // for the rest of the pass unless a consumer intervenes. Sizing for the remainder is an
+          // exact fit in that case and an over-fit in the other, and either beats regrowing.
+          rejected = new ArrayList<>(elements.length - i);
         }
         rejected.add(element);
       }
@@ -270,22 +274,24 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public Collection<T> tryPut(Collection<? extends T> elements) {
+  public final Collection<T> tryPutBatch(Collection<? extends T> elements) {
     List<T> rejected = null;
+    int remaining = elements.size();
     for (T element : elements) {
       if (!tryPut(element)) {
         if (rejected == null) {
-          rejected = new ArrayList<>();
+          rejected = new ArrayList<>(remaining);
         }
         rejected.add(element);
       }
+      remaining--;
     }
     return rejected == null ? emptyList() : rejected;
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public Reservation<T> tryReserve() {
+  public final Reservation<T> tryReserve() {
     if (closed || !claimPlace()) {
       dropped.increment();
       return (Reservation<T>) REFUSED;
@@ -294,43 +300,53 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public boolean process(Consumer<? super T> consumer) {
+  public final boolean process(Consumer<? super T> consumer) {
     return process(consumer, (RetryStrategy<T>) null);
   }
 
   @Override
-  public boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy) {
+  public final boolean process(Consumer<? super T> consumer, ExceptionHandler exceptionHandler) {
     Object raw = take();
     if (raw == null) {
       return false;
     }
-    consume(raw, consumer, null, null, retryStrategy);
+    consume(raw, consumer, null, null, null, exceptionHandler);
     return true;
   }
 
   @Override
-  public <C> boolean process(C context, BiConsumer<? super C, ? super T> consumer) {
+  public final boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy) {
+    Object raw = take();
+    if (raw == null) {
+      return false;
+    }
+    consume(raw, consumer, null, null, retryStrategy, null);
+    return true;
+  }
+
+  @Override
+  public final <C> boolean process(C context, BiConsumer<? super C, ? super T> consumer) {
     return process(context, consumer, (RetryStrategy<T>) null);
   }
 
   @Override
-  public <C> boolean process(
+  public final <C> boolean process(
       C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<T> retryStrategy) {
     Object raw = take();
     if (raw == null) {
       return false;
     }
-    consume(raw, null, context, consumer, retryStrategy);
+    consume(raw, null, context, consumer, retryStrategy, null);
     return true;
   }
 
   @Override
-  public int process(int limit, Consumer<? super T> consumer) {
+  public final int process(int limit, Consumer<? super T> consumer) {
     return process(limit, consumer, null, null);
   }
 
   @Override
-  public <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer) {
+  public final <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer) {
     return process(limit, null, context, consumer);
   }
 
@@ -348,7 +364,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       // Counted before the consumer runs: a throw carries the count away with it either way, and
       // an item handed over is consumed whether or not the consumer made anything of it.
       consumed++;
-      consume(raw, consumer, context, biConsumer, null);
+      consume(raw, consumer, context, biConsumer, null, null);
     }
     return consumed;
   }
@@ -359,18 +375,19 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       Consumer<? super T> consumer,
       C context,
       BiConsumer<? super C, ? super T> biConsumer,
-      RetryStrategy<T> retryStrategy) {
+      RetryStrategy<T> retryStrategy,
+      ExceptionHandler exceptionHandler) {
     T item;
     int attempt;
-    if (raw instanceof Retried) {
-      Retried<T> retried = (Retried<T>) raw;
+    if (raw instanceof Retry) {
+      Retry<T> retried = (Retry<T>) raw;
       item = retried.item;
       attempt = retried.attempt;
     } else {
       item = (T) raw;
       attempt = 0;
     }
-    if (retryStrategy == null) {
+    if (retryStrategy == null && exceptionHandler == null) {
       // No strategy means no opinion about failure: the throw travels out to the caller's own
       // frame, where its existing error handling already lives. Swallowing it here would make a
       // queue the arbiter of an error policy nobody handed it.
@@ -388,7 +405,10 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         biConsumer.accept(context, item);
       }
     } catch (Throwable failure) {
-      if (!retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1))) {
+      if (exceptionHandler != null) {
+        dropped.increment();
+        exceptionHandler.handle(failure);
+      } else if (!retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1))) {
         dropped.increment();
       }
     }
@@ -399,7 +419,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return new RetryQueue<T>() {
       @Override
       public boolean retry(T item) {
-        if (closed || !admit(new Retried<>(item, attempt))) {
+        if (closed || !admit(new Retry<>(item, attempt))) {
           dropped.increment();
           return false;
         }
@@ -426,27 +446,27 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public long dropped() {
+  public final long dropped() {
     return dropped.sum();
   }
 
   @Override
-  public void close() {
+  public final void close() {
     closed = true;
   }
 
   @Override
-  public boolean isClosed() {
+  public final boolean isClosed() {
     return closed;
   }
 
   @Override
-  public void clear() {
+  public final void clear() {
     discardAll();
   }
 
   @Override
-  public void shutdown() {
+  public final void shutdown() {
     closed = true;
     discardAll();
   }

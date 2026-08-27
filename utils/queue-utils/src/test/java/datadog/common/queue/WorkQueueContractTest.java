@@ -82,6 +82,55 @@ class WorkQueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
+  void collectionAdmissionReportsRejectedElements(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    Collection<String> rejected = queue.tryPutBatch(Arrays.asList("a", "b", "c", "d", "e", "f"));
+    assertEquals(Arrays.asList("e", "f"), new ArrayList<>(rejected));
+    assertEquals(2, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void exceptionHandlerSeesTheFailureAndTheItemIsDropped(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+
+    List<Throwable> seen = new ArrayList<>();
+    assertTrue(
+        queue.process(
+            item -> {
+              throw new IllegalStateException("boom");
+            },
+            (ExceptionHandler) seen::add));
+
+    assertEquals(1, seen.size());
+    assertEquals("boom", seen.get(0).getMessage());
+    assertEquals(1, queue.dropped());
+    assertEquals(0, queue.size());
+    assertFalse(queue.process(item -> fail("nothing should be left")));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void exceptionHandlerIsNotCalledWhenTheConsumerSucceeds(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.tryPut("a");
+
+    List<String> consumed = new ArrayList<>();
+    assertTrue(
+        queue.process(
+            consumed::add,
+            (ExceptionHandler) failure -> fail("handler ran for a consumer that did not throw")));
+
+    assertEquals(Arrays.asList("a"), consumed);
+    assertEquals(0, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
   void processReportsWhetherThereWasWork(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     assertFalse(queue.process(item -> {}), "empty queue has no work");
