@@ -3,7 +3,6 @@ package datadog.common.queue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -305,8 +304,13 @@ class WorkQueueContractTest {
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
-    assertNull(queue.tryReserve());
+    Reservation<String> refused = queue.tryReserve();
+    assertFalse(refused.granted(), "a refusal is a reservation, never null");
     assertEquals(1, queue.dropped(), "a place that could not be claimed counts like a rejection");
+
+    refused.fill("discarded");
+    refused.close();
+    assertEquals(CAPACITY, queue.size(), "filling a refusal changes nothing and does not throw");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -314,7 +318,7 @@ class WorkQueueContractTest {
   void reserveFailsOnceClosed(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.close();
-    assertNull(queue.tryReserve());
+    assertFalse(queue.tryReserve().granted());
   }
 
   /** The array backing claims a slot, so the element keeps the position it was reserved at. */

@@ -188,7 +188,7 @@ class MpscWorkQueueStressTest {
                         break;
                       case 1:
                         try (Reservation<Integer> place = queue.tryReserve()) {
-                          if (place != null) {
+                          if (place.granted()) {
                             place.fill(value);
                             admitted.incrementAndGet();
                           }

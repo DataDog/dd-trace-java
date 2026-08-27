@@ -73,7 +73,12 @@ public interface WorkQueue<T> {
    * be waiting on, so a thread may safely reserve and consume, but a reservation that is never
    * filled or closed leaks its capacity for good. Use try-with-resources.
    *
-   * @return the claimed capacity, or {@code null} if there was none to claim
+   * <p>Never {@code null}: a refusal comes back as a reservation that reports {@link
+   * Reservation#granted} as {@code false} and discards anything filled into it. Nothing on the
+   * refused path throws, so the try-with-resources is always safe; checking {@code granted} is what
+   * lets the caller skip building an element the queue had no room for.
+   *
+   * @return the claimed capacity, or a refused reservation if there was none to claim
    */
   Reservation<T> tryReserve();
 

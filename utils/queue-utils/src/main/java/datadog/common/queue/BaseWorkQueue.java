@@ -44,6 +44,30 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /** Non-capturing adapters, so the producer forms share one admission path without allocating. */
   private static final ContextualProducer<Producer<Object>, Object> PRODUCE = Producer::produce;
 
+  /**
+   * The answer to every refused claim: a reservation that holds nothing, discards whatever is
+   * filled into it, and has nothing to give back. It holds no state, so one instance serves every
+   * queue and every element type.
+   *
+   * <p>Filling it is a no-op rather than a throw. The queue is full exactly when a caller can least
+   * afford a surprise, and an exception raised only under backpressure is a bug that waits for
+   * production to appear. The drop is already counted, by {@link #tryReserve} at the moment of
+   * refusal.
+   */
+  private static final Reservation<Object> REFUSED =
+      new Reservation<Object>() {
+        @Override
+        public boolean granted() {
+          return false;
+        }
+
+        @Override
+        public void fill(Object element) {}
+
+        @Override
+        public void close() {}
+      };
+
   private final LongAdder dropped = new LongAdder();
   private volatile boolean closed;
 
@@ -156,6 +180,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     private boolean done;
 
     @Override
+    public boolean granted() {
+      return true;
+    }
+
+    @Override
     public void fill(T element) {
       if (element == null) {
         throw new NullPointerException("a queue cannot hold null");
@@ -248,14 +277,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Reservation<T> tryReserve() {
-    if (closed) {
+    if (closed || !claimPlace()) {
       dropped.increment();
-      return null;
-    }
-    if (!claimPlace()) {
-      dropped.increment();
-      return null;
+      return (Reservation<T>) REFUSED;
     }
     return new PlaceReservation();
   }

@@ -9,12 +9,42 @@ package datadog.common.queue;
  * and cannot stall one. A reservation that is neither filled nor closed does leak its capacity,
  * quietly and permanently, which is why this is an {@link AutoCloseable} meant for
  * try-with-resources.
+ *
+ * <p>A refused claim is a reservation too, rather than a {@code null}, and one that quietly
+ * discards whatever is filled into it. Nothing about the failed path throws, so the shortest
+ * correct call site is also the obvious one:
+ *
+ * <pre>{@code
+ * try (Reservation<Task> place = queue.tryReserve()) {
+ *   place.fill(buildTask());
+ * }
+ * }</pre>
+ *
+ * <p>Consulting {@link #granted} first is what buys the reserve-first guarantee — skip the build
+ * and nothing is allocated for a queue that had no room for it:
+ *
+ * <pre>{@code
+ * try (Reservation<Task> place = queue.tryReserve()) {
+ *   if (place.granted()) {
+ *     place.fill(buildTask());
+ *   }
+ * }
+ * }</pre>
  */
 public interface Reservation<T> extends AutoCloseable {
 
   /**
-   * Publishes {@code element} into the claimed place. The place is already claimed, so this cannot
-   * fail and cannot be rejected.
+   * Whether a place was actually claimed. Worth asking before building anything expensive: a
+   * refused reservation accepts a fill and throws it away, so checking is what turns
+   * allocate-then-drop into never-allocate.
+   *
+   * @return whether a fill will be kept
+   */
+  boolean granted();
+
+  /**
+   * Publishes {@code element} into the claimed place. A granted place is already paid for, so this
+   * cannot be rejected; a refused one discards the element, having already counted the drop.
    */
   void fill(T element);
 
