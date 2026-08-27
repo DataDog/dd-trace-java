@@ -69,10 +69,10 @@ final class AggregateTable {
   /**
    * Returns the {@link AggregateEntry} to update for {@code snapshot}, lazily creating one on miss.
    * Returns {@code null} when the table is at capacity and no stale entry can be evicted -- the
-   * caller should drop the data point in that case (reported via {@code
-   * onStatsAggregateDropped}). Dropping the new key rather than evicting an established one is
-   * deliberate: the cap is sized to the steady-state working set, so a full table of entries that
-   * were all used this cycle means the new key is the outlier.
+   * caller should drop the data point in that case (reported via {@code onStatsAggregateDropped}).
+   * Dropping the new key rather than evicting an established one is deliberate: the cap is sized to
+   * the steady-state working set, so a full table of entries that were all used this cycle means
+   * the new key is the outlier.
    *
    * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
    * often eviction fires but doesn't eliminate it. Over-cap values for a single field collapse into
