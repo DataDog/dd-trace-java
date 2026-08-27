@@ -16,7 +16,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.common.queue.ContextualProducer;
+import datadog.common.queue.BiContextualProducer;
 import datadog.common.queue.WorkQueue;
 import datadog.common.queue.WorkQueues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -113,10 +113,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   /**
    * Builds the snapshot for a span once the inbox has reserved a slot for it. Bound to this
-   * aggregator once, at construction, so admission costs no allocation at all: the span is the
-   * context, and everything else the snapshot needs is reachable from one or the other.
+   * aggregator once, at construction, so admission costs no allocation at all: the span and the
+   * schema the publish loop hoisted are the two contexts, and everything else the snapshot needs is
+   * reachable from this aggregator.
    */
-  private final ContextualProducer<CoreSpan<?>, InboxItem> snapshotProducer = this::snapshotOf;
+  private final BiContextualProducer<CoreSpan<?>, PeerTagSchema, InboxItem> snapshotProducer =
+      this::snapshot;
 
   /**
    * Previous peer-tag schema, kept until the next reporting cycle.
@@ -425,7 +427,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             }
           }
           counted++;
-          forceKeep |= publish(span);
+          forceKeep |= publish(span, peerTagSchema);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -440,28 +442,23 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span) {
+  private boolean publish(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
     // The inbox reserves a slot before calling back, so a full inbox costs nothing beyond this
     // call: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. The old racy
     // size() >= capacity() pre-check is gone with it.
-    if (!inbox.tryPut(span, snapshotProducer)) {
+    if (!inbox.tryPut(span, peerTagSchema, snapshotProducer)) {
       healthMetrics.onStatsInboxFull();
     }
     return span.getError() > 0;
   }
 
   /**
-   * Re-derives what the publish loop had already computed, rather than carrying it into the
-   * producer: {@code isTopLevel} is a field read on the span's context, and the peer tag schema is
-   * non-null forever once {@link #bootstrapPeerTagSchema()} has run, which {@link #publish(List)}
-   * guarantees before it reaches any span. The cost is one extra volatile read per span, and a
-   * schema change mid-trace is now visible to the spans after it rather than to the next trace.
+   * The schema rides along as the second context so the publish loop can keep reading it once per
+   * trace rather than once per span, which is what it did before admission became a callback.
+   * {@code isTopLevel} needs no such carriage: it is a field read on the span itself.
    */
-  private InboxItem snapshotOf(CoreSpan<?> span) {
-    return snapshot(span, span.isTopLevel(), cachedPeerTagSchema);
-  }
-
-  private SpanSnapshot snapshot(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
+  private SpanSnapshot snapshot(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
+    boolean isTopLevel = span.isTopLevel();
     boolean error = span.getError() > 0;
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
