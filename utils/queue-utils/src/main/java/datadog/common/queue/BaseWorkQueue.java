@@ -301,11 +301,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final boolean process(Consumer<? super T> consumer) {
-    return process(consumer, (RetryStrategy<T>) null);
+    return processOrRetry(consumer, null);
   }
 
   @Override
-  public final boolean process(Consumer<? super T> consumer, ExceptionHandler exceptionHandler) {
+  public final boolean processOrHandle(
+      Consumer<? super T> consumer, ExceptionHandler<? super T> exceptionHandler) {
     Object raw = take();
     if (raw == null) {
       return false;
@@ -315,7 +316,8 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public final boolean process(Consumer<? super T> consumer, RetryStrategy<T> retryStrategy) {
+  public final boolean processOrRetry(
+      Consumer<? super T> consumer, RetryStrategy<T> retryStrategy) {
     Object raw = take();
     if (raw == null) {
       return false;
@@ -326,17 +328,30 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final <C> boolean process(C context, BiConsumer<? super C, ? super T> consumer) {
-    return process(context, consumer, (RetryStrategy<T>) null);
+    return processOrRetry(context, consumer, null);
   }
 
   @Override
-  public final <C> boolean process(
+  public final <C> boolean processOrRetry(
       C context, BiConsumer<? super C, ? super T> consumer, RetryStrategy<T> retryStrategy) {
     Object raw = take();
     if (raw == null) {
       return false;
     }
     consume(raw, null, context, consumer, retryStrategy, null);
+    return true;
+  }
+
+  @Override
+  public final <C> boolean processOrHandle(
+      C context,
+      BiConsumer<? super C, ? super T> consumer,
+      ExceptionHandler<? super T> exceptionHandler) {
+    Object raw = take();
+    if (raw == null) {
+      return false;
+    }
+    consume(raw, null, context, consumer, null, exceptionHandler);
     return true;
   }
 
@@ -376,7 +391,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       C context,
       BiConsumer<? super C, ? super T> biConsumer,
       RetryStrategy<T> retryStrategy,
-      ExceptionHandler exceptionHandler) {
+      ExceptionHandler<? super T> exceptionHandler) {
     T item;
     int attempt;
     if (raw instanceof Retry) {
@@ -407,7 +422,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     } catch (Throwable failure) {
       if (exceptionHandler != null) {
         dropped.increment();
-        exceptionHandler.handle(failure);
+        exceptionHandler.handle(item, failure);
       } else if (!retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1))) {
         dropped.increment();
       }

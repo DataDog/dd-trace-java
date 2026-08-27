@@ -32,8 +32,11 @@ import java.util.function.Consumer;
  * <p>Consumption is synchronous and happens in the caller's frame; the boolean returned by the
  * {@code process} methods reports whether there was an item to work on, which is the signal a drain
  * loop needs, and says nothing about whether the consumer succeeded. A consumer that throws throws
- * out of {@code process} unless a {@link RetryStrategy} was supplied to handle it — the queue takes
- * no view on failure it was not given one for, and never logs.
+ * out of {@code process} — the queue takes no view on failure it was not given one for, and never
+ * logs. Say what should happen instead by calling {@link #processOrRetry} with a {@link
+ * RetryStrategy}, or {@link #processOrHandle} with an {@link ExceptionHandler} when the answer is
+ * only ever to record it and move on. Those are separate names rather than overloads because a
+ * lambda or method reference cannot always tell two same-arity callbacks apart.
  */
 public interface WorkQueue<T> {
 
@@ -112,18 +115,16 @@ public interface WorkQueue<T> {
    *
    * @return whether there was an item to consume
    */
-  boolean process(Consumer<? super T> consumer, @Strategy RetryStrategy<T> retryStrategy);
+  boolean processOrRetry(Consumer<? super T> consumer, @Strategy RetryStrategy<T> retryStrategy);
 
   /**
    * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
    * exceptionHandler} rather than propagating it. The item is dropped.
    *
-   * <p>Pass an explicitly typed lambda or a cast: an inexact method reference cannot tell this
-   * overload from {@link #process(Consumer, RetryStrategy)}.
-   *
    * @return whether there was an item to consume
    */
-  boolean process(Consumer<? super T> consumer, @Strategy ExceptionHandler exceptionHandler);
+  boolean processOrHandle(
+      Consumer<? super T> consumer, @Strategy ExceptionHandler<? super T> exceptionHandler);
 
   /**
    * Consumes one item, if there is one. A throwing consumer propagates.
@@ -138,10 +139,21 @@ public interface WorkQueue<T> {
    *
    * @return whether there was an item to consume
    */
-  <C> boolean process(
+  <C> boolean processOrRetry(
       C context,
       BiConsumer<? super C, ? super T> consumer,
       @Strategy RetryStrategy<T> retryStrategy);
+
+  /**
+   * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
+   * exceptionHandler} rather than propagating it. The item is dropped.
+   *
+   * @return whether there was an item to consume
+   */
+  <C> boolean processOrHandle(
+      C context,
+      BiConsumer<? super C, ? super T> consumer,
+      @Strategy ExceptionHandler<? super T> exceptionHandler);
 
   /**
    * Consumes up to {@code limit} items, stopping early when the queue runs dry.

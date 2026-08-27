@@ -97,16 +97,15 @@ class WorkQueueContractTest {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
 
-    List<Throwable> seen = new ArrayList<>();
+    List<String> seen = new ArrayList<>();
     assertTrue(
-        queue.process(
+        queue.processOrHandle(
             item -> {
               throw new IllegalStateException("boom");
             },
-            (ExceptionHandler) seen::add));
+            (item, failure) -> seen.add(item + ":" + failure.getMessage())));
 
-    assertEquals(1, seen.size());
-    assertEquals("boom", seen.get(0).getMessage());
+    assertEquals(Arrays.asList("a:boom"), seen, "the handler is told which item died");
     assertEquals(1, queue.dropped());
     assertEquals(0, queue.size());
     assertFalse(queue.process(item -> fail("nothing should be left")));
@@ -121,9 +120,9 @@ class WorkQueueContractTest {
 
     List<String> consumed = new ArrayList<>();
     assertTrue(
-        queue.process(
+        queue.processOrHandle(
             consumed::add,
-            (ExceptionHandler) failure -> fail("handler ran for a consumer that did not throw")));
+            (item, failure) -> fail("handler ran for a consumer that did not throw")));
 
     assertEquals(Arrays.asList("a"), consumed);
     assertEquals(0, queue.dropped());
@@ -169,7 +168,7 @@ class WorkQueueContractTest {
     queue.tryPut("a");
     RetryStrategy<String> giveUp = (item, attempt, failure, retryQueue) -> false;
     assertTrue(
-        queue.process(
+        queue.processOrRetry(
             item -> {
               throw new IllegalStateException("boom");
             },
@@ -192,7 +191,7 @@ class WorkQueueContractTest {
           return attempt < 2 && retryQueue.retry(item);
         };
 
-    while (queue.process(
+    while (queue.processOrRetry(
         item -> {
           attempts.incrementAndGet();
           throw new IllegalStateException("boom");
@@ -214,7 +213,7 @@ class WorkQueueContractTest {
     AtomicInteger attempts = new AtomicInteger();
     RetryStrategy<String> strategy = new MaxRetries<>(3);
 
-    while (queue.process(
+    while (queue.processOrRetry(
         item -> {
           attempts.incrementAndGet();
           throw new IllegalStateException("boom");
@@ -291,7 +290,7 @@ class WorkQueueContractTest {
     RetryStrategy<String> split =
         (item, attempt, failure, retryQueue) -> retryQueue.retry("a", "b");
 
-    while (queue.process(
+    while (queue.processOrRetry(
         item -> {
           if (item.length() > 1) {
             throw new IllegalStateException("too big to handle in one piece");
