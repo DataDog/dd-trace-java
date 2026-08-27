@@ -8,13 +8,10 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLongArray;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DebuggerMetricCollector
     implements MetricCollector<DebuggerMetricCollector.DebuggerMetric> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerMetricCollector.class);
-  public static final DebuggerMetricCollector INSTANCE = new DebuggerMetricCollector();
+  private static final DebuggerMetricCollector INSTANCE = new DebuggerMetricCollector();
 
   interface Reason {
     String getTag();
