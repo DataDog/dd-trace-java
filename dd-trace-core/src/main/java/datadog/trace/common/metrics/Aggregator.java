@@ -2,13 +2,14 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.WorkQueue;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +19,7 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<InboxItem> inbox;
+  private final WorkQueue<InboxItem> inbox;
   private final AggregateTable aggregates;
   private final MetricWriter writer;
   private final HealthMetrics healthMetrics;
@@ -45,7 +46,7 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      WorkQueue<InboxItem> inbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -66,7 +67,7 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      WorkQueue<InboxItem> inbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -97,9 +98,9 @@ final class Aggregator implements Runnable {
     Drainer drainer = new Drainer();
     while (!currentThread.isInterrupted() && !drainer.stopped) {
       try {
-        if (!inbox.isEmpty()) {
-          inbox.drain(drainer);
-        } else {
+        // process reports whether there was an item to work on; a failing item throws out of it,
+        // into the same catch that has always kept one bad item from ending the drain loop.
+        if (!inbox.process(drainer)) {
           Thread.sleep(sleepMillis);
         }
       } catch (InterruptedException e) {
@@ -111,7 +112,7 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
+  private final class Drainer implements Consumer<InboxItem> {
 
     boolean stopped = false;
 

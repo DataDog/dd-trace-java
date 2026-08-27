@@ -16,7 +16,9 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.common.queue.Queues;
+import datadog.common.queue.Producer;
+import datadog.common.queue.WorkQueue;
+import datadog.common.queue.WorkQueues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -39,7 +41,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   private final Set<String> ignoredResources;
   private final Thread thread;
-  private final MessagePassingQueue<InboxItem> inbox;
+  private final WorkQueue<InboxItem> inbox;
   private final Sink sink;
   private final MetricWriter metricWriter;
   private final Aggregator aggregator;
@@ -274,7 +275,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.additionalTagsSchema = additionalTagsSchema;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
-    this.inbox = Queues.mpscArrayQueue(queueSize);
+    this.inbox = WorkQueues.createMpscQueue(queueSize);
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
@@ -346,7 +347,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     boolean published;
     int attempts = 0;
     do {
-      published = inbox.offer(REPORT);
+      published = inbox.tryPut(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
     if (!published) {
@@ -373,7 +374,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
     while (thread.isAlive() && !published) {
-      published = inbox.offer(reportSignal);
+      published = inbox.tryPut(reportSignal);
       if (!published) {
         try {
           Thread.sleep(10);
@@ -406,6 +407,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
       // check so the common case skips both the lookup and the getResourceName() call per span.
       final boolean hasIgnoredResources = !ignoredResources.isEmpty();
+      // One request per trace rather than one per span: it carries the arguments the deferred
+      // snapshot needs, and is dead by the time this method returns.
+      SnapshotRequest request = null;
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
@@ -417,7 +421,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             }
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, peerTagSchema);
+          if (request == null) {
+            request = new SnapshotRequest();
+          }
+          forceKeep |= publish(request, span, isTopLevel, peerTagSchema);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -432,13 +439,37 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
-    boolean error = span.getError() > 0;
-    // size() is approximate on jctools MPSC queues but good enough for a fast-path overflow check.
-    if (inbox.size() >= inbox.capacity()) {
+  private boolean publish(
+      SnapshotRequest request, CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
+    request.span = span;
+    request.isTopLevel = isTopLevel;
+    request.peerTagSchema = peerTagSchema;
+    // The inbox reserves a slot before calling back, so a full inbox costs nothing beyond this
+    // call: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. The old racy
+    // size() >= capacity() pre-check is gone with it.
+    if (!inbox.tryPut(request)) {
       healthMetrics.onStatsInboxFull();
-      return error;
     }
+    return span.getError() > 0;
+  }
+
+  /**
+   * Builds a {@link SpanSnapshot} once the inbox has reserved a slot for it. Mutable and reused
+   * across the spans of one trace so deferral costs one allocation per trace, not one per span.
+   */
+  private final class SnapshotRequest implements Producer<InboxItem> {
+    CoreSpan<?> span;
+    boolean isTopLevel;
+    PeerTagSchema peerTagSchema;
+
+    @Override
+    public InboxItem produce() {
+      return snapshot(span, isTopLevel, peerTagSchema);
+    }
+  }
+
+  private SpanSnapshot snapshot(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
+    boolean error = span.getError() > 0;
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -503,11 +534,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             grpcStatusCode,
             additionalTagValues,
             tagAndDuration);
-    if (!inbox.offer(snapshot)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    // force keep keys if there are errors
-    return error;
+    return snapshot;
   }
 
   /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
@@ -679,7 +706,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (null != cancellation) {
       cancellation.cancel();
     }
-    inbox.offer(STOP);
+    inbox.tryPut(STOP);
   }
 
   @Override
@@ -732,7 +759,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // the aggregator drains existing snapshots and ships them on the next report cycle; the
       // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
       // now-empty inbox. Worst case: one extra reporting cycle of stale data.
-      inbox.offer(CLEAR);
+      inbox.tryPut(CLEAR);
     }
   }
 
@@ -746,6 +773,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   @VisibleForTesting
   boolean isEmpty() {
-    return inbox.isEmpty();
+    return inbox.size() == 0;
   }
 }
