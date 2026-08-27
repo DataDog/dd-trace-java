@@ -41,6 +41,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
+  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
+  private static final String MANUAL_FRAMEWORK = "AgentObs SDK";
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
       LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
   private static final String INSTRUMENTATION_METHOD_ANNOTATED = "annotated";
@@ -289,6 +291,64 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(INPUT_PROMPT, annotatedPrompt);
     span.setTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD, INSTRUMENTATION_METHOD_ANNOTATED);
+  }
+
+  @Override
+  public void annotateAgentManifest(LLMObs.AgentManifest manifest) {
+    if (finished || manifest == null) {
+      return;
+    }
+    if (!Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
+      LOGGER.warn(
+          "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
+      return;
+    }
+    Map<String, Object> manifestMap = buildManifestMap(manifest);
+    if (!manifestMap.isEmpty()) {
+      manifestMap.put("framework", MANUAL_FRAMEWORK);
+      span.setTag(AGENT_MANIFEST, manifestMap);
+    }
+  }
+
+  private Map<String, Object> buildManifestMap(LLMObs.AgentManifest manifest) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    CharSequence sn = span.getSpanName();
+    String name =
+        manifest.getName() != null ? manifest.getName() : (sn != null ? sn.toString() : null);
+    if (name != null && !name.isEmpty()) {
+      map.put("name", name);
+    }
+    if (manifest.getInstructions() != null && !manifest.getInstructions().isEmpty()) {
+      map.put("instructions", manifest.getInstructions());
+    }
+    if (manifest.getModel() != null && !manifest.getModel().isEmpty()) {
+      map.put("model", manifest.getModel());
+    }
+    if (manifest.getModelSettings() != null && !manifest.getModelSettings().isEmpty()) {
+      map.put("model_settings", new LinkedHashMap<>(manifest.getModelSettings()));
+    }
+    if (manifest.getTools() != null && !manifest.getTools().isEmpty()) {
+      List<Map<String, Object>> toolList = new ArrayList<>();
+      for (LLMObs.AgentTool tool : manifest.getTools()) {
+        if (tool == null || tool.getName() == null || tool.getName().isEmpty()) {
+          LOGGER.warn("agent manifest tool missing required name; skipping");
+          continue;
+        }
+        Map<String, Object> toolMap = new LinkedHashMap<>();
+        toolMap.put("name", tool.getName());
+        if (tool.getDescription() != null) {
+          toolMap.put("description", tool.getDescription());
+        }
+        if (tool.getParameters() != null && !tool.getParameters().isEmpty()) {
+          toolMap.put("parameters", new LinkedHashMap<>(tool.getParameters()));
+        }
+        toolList.add(toolMap);
+      }
+      if (!toolList.isEmpty()) {
+        map.put("tools", toolList);
+      }
+    }
+    return map;
   }
 
   private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {

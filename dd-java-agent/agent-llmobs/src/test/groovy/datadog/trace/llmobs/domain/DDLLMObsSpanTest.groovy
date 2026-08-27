@@ -63,6 +63,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
+  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + "agent_manifest"
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
   LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method"
 
@@ -789,6 +790,159 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def innerSpan = (AgentSpan) test.span
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
+  }
+
+  def "agent manifest full annotation sets correct tag"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def settings = [temperature: 0.7, max_tokens: 1024]
+    def params = [city: [type: "string"]]
+    def tools = [LLMObs.AgentTool.from("get_weather", "Look up weather", params)]
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("travel_desk")
+      .instructions("Book travel.")
+      .model("gpt-4o")
+      .modelSettings(settings)
+      .tools(tools)
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "travel_desk"
+    stored["instructions"] == "Book travel."
+    stored["model"] == "gpt-4o"
+    stored["framework"] == "AgentObs SDK"
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.7
+    ms["max_tokens"] == 1024
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "get_weather"
+    toolList[0]["description"] == "Look up weather"
+    toolList[0]["parameters"] == [city: [type: "string"]]
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest name defaults to span name when not provided"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().instructions("Do something.").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "my-agent"
+    stored["instructions"] == "Do something."
+    stored["framework"] == "AgentObs SDK"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest drops tool with null name"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def validTool = LLMObs.AgentTool.from("valid-tool")
+    def badTool = LLMObs.AgentTool.from(null)
+    def manifest = LLMObs.AgentManifest.builder()
+      .tools([badTool, validTool])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "valid-tool"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest on non-agent span is silently dropped"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm-span")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call overwrites the first"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder().name("first").instructions("v1").build()
+    def second = LLMObs.AgentManifest.builder().name("second").model("gpt-4o").build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "second"
+    stored["model"] == "gpt-4o"
+    !stored.containsKey("instructions")
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest model_settings forwarded as-is"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, custom_key: "custom_val"])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.5
+    ms["custom_key"] == "custom_val"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "annotateAgentManifest null manifest is ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+
+    when:
+    test.annotateAgentManifest(null)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
+
+    cleanup:
+    test.finish()
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {
