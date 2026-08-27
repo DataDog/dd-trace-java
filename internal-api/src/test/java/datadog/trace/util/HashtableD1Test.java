@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.ObjLongConsumer;
 import org.junit.jupiter.api.Test;
 
 class HashtableD1Test {
@@ -391,8 +392,13 @@ class HashtableD1Test {
   @Test
   void tryGetOrUpdateWithContextPassesContextToUpdater() {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
-    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 4, (n, e) -> e.value += n));
-    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 6, (n, e) -> e.value += n));
+    // Boxed on purpose: an int literal would bind to the primitive-long overload instead.
+    assertTrue(
+        table.tryGetOrUpdate(
+            "a", k -> new StringIntEntry(k, 0), Integer.valueOf(4), (n, e) -> e.value += n));
+    assertTrue(
+        table.tryGetOrUpdate(
+            "a", k -> new StringIntEntry(k, 0), Integer.valueOf(6), (n, e) -> e.value += n));
     assertEquals(1, table.size());
     assertEquals(10, table.get("a").value);
   }
@@ -402,7 +408,36 @@ class HashtableD1Test {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 1);
     table.insert(new StringIntEntry("a", 1));
     assertFalse(
-        table.tryGetOrUpdate("b", k -> new StringIntEntry(k, 0), 4, (n, e) -> e.value += n));
+        table.tryGetOrUpdate(
+            "b", k -> new StringIntEntry(k, 0), Integer.valueOf(4), (n, e) -> e.value += n));
     assertEquals(1, table.size());
   }
+
+  @Test
+  void tryGetOrUpdateWithLongContextCreatesThenAccumulates() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 4L, ADD_LONG));
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 6L, ADD_LONG));
+    assertEquals(1, table.size());
+    assertEquals(10, table.get("a").value);
+  }
+
+  @Test
+  void tryGetOrUpdateWithLongContextReturnsFalseAtCapacityWithoutUpdating() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 1);
+    table.insert(new StringIntEntry("a", 1));
+    assertFalse(table.tryGetOrUpdate("b", k -> new StringIntEntry(k, 0), 4L, ADD_LONG));
+    assertEquals(1, table.size());
+    assertEquals(1, table.get("a").value);
+  }
+
+  @Test
+  void tryGetOrUpdateWithLongContextAtCapacityStillUpdatesAnExistingKey() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 1);
+    table.insert(new StringIntEntry("a", 1));
+    assertTrue(table.tryGetOrUpdate("a", k -> new StringIntEntry(k, 0), 4L, ADD_LONG));
+    assertEquals(5, table.get("a").value);
+  }
+
+  private static final ObjLongConsumer<StringIntEntry> ADD_LONG = (e, n) -> e.value += (int) n;
 }

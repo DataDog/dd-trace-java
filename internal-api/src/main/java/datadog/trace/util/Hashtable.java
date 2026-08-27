@@ -9,6 +9,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.ObjLongConsumer;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -383,6 +384,31 @@ public final class Hashtable {
         return false;
       }
       updater.accept(context, entry);
+      return true;
+    }
+
+    /**
+     * Primitive-{@code long} {@link #tryGetOrUpdate}, for the accumulate-a-count shape:
+     *
+     * <pre>{@code
+     * private static final ObjLongConsumer<Counter> ADD = (c, n) -> c.count += n;
+     * table.tryGetOrUpdate(key, Counter::new, n, ADD);
+     * }</pre>
+     *
+     * <p>The generic context overload would box {@code n} on every call; this one does not. Note
+     * the argument order is {@code (entry, value)} -- {@link ObjLongConsumer}'s, not the {@code
+     * (context, entry)} of the {@link BiConsumer} overload.
+     */
+    public boolean tryGetOrUpdate(
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator,
+        long context,
+        @Nonnull ObjLongConsumer<? super TEntry> updater) {
+      TEntry entry = tryGetOrCreate(key, creator);
+      if (entry == null) {
+        return false;
+      }
+      updater.accept(entry, context);
       return true;
     }
 
