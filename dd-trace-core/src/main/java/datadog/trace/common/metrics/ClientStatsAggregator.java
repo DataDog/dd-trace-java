@@ -761,8 +761,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
   }
 
+  /**
+   * Whether the aggregator thread has taken everything the inbox held. Named for consumption rather
+   * than contents: {@code size()} counts capacity in use, which includes any place claimed but not
+   * yet filled, so "drained" is the question this can actually answer.
+   */
   @VisibleForTesting
-  boolean isEmpty() {
+  boolean isDrained() {
     return inbox.size() == 0;
   }
 }
