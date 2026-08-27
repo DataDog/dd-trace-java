@@ -8,6 +8,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,12 @@ public class BackendApiFactory {
 
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
+    return createDirectIntakeApi(intake, responseCompression, true);
+  }
+
+  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  public BackendApi createDirectIntakeApi(
+      Intake intake, boolean responseCompression, boolean followRedirects) {
     HttpUrl agentlessUrl = buildDirectIntakeUrl(intake, config);
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
@@ -60,8 +67,16 @@ public class BackendApiFactory {
         apiKey,
         traceId,
         retryPolicyFactory(),
-        sharedCommunicationObjects.getIntakeHttpClient(),
+        directIntakeHttpClient(sharedCommunicationObjects.getIntakeHttpClient(), followRedirects),
         responseCompression);
+  }
+
+  static OkHttpClient directIntakeHttpClient(
+      final OkHttpClient intakeHttpClient, final boolean followRedirects) {
+    if (followRedirects) {
+      return intakeHttpClient;
+    }
+    return intakeHttpClient.newBuilder().followRedirects(false).followSslRedirects(false).build();
   }
 
   private static HttpUrl buildDirectIntakeUrl(Intake intake, Config config) {

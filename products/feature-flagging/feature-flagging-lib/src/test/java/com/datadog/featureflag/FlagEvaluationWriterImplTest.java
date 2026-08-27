@@ -697,7 +697,8 @@ class FlagEvaluationWriterImplTest {
                 HttpRetryPolicy.Factory.NEVER_RETRY,
                 client,
                 false);
-        when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(false)))
+        when(backendApiFactory.createDirectIntakeApi(
+                eq(Intake.EVENT_PLATFORM), eq(false), eq(false)))
             .thenReturn(directApi);
         final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
             new FeatureFlagBackendApiFactory(

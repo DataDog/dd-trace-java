@@ -13,6 +13,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.intake.Intake;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import okhttp3.HttpUrl;
@@ -66,6 +67,53 @@ class BackendApiFactoryTest {
   void eventPlatformDirectIntakeRejectsUnsafeSite(String site) {
     assertThrows(
         IllegalArgumentException.class, () -> BackendApiFactory.buildEventPlatformIntakeUrl(site));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {301, 302, 307, 308})
+  void featureFlagDirectIntakeDoesNotFollowRedirects(final int statusCode) throws Exception {
+    final MockWebServer intake = new MockWebServer();
+    final MockWebServer redirectTarget = new MockWebServer();
+    final OkHttpClient sharedClient = new OkHttpClient.Builder().build();
+    final OkHttpClient directClient = BackendApiFactory.directIntakeHttpClient(sharedClient, false);
+    redirectTarget.start();
+    intake.enqueue(
+        new MockResponse()
+            .setResponseCode(statusCode)
+            .setHeader("Location", redirectTarget.url("/redirected")));
+    intake.start();
+    try {
+      final IntakeApi api =
+          new IntakeApi(
+              intake.url("/api/v2/"),
+              "api-key",
+              "123",
+              HttpRetryPolicy.Factory.NEVER_RETRY,
+              directClient,
+              false);
+
+      assertThrows(
+          IOException.class,
+          () ->
+              api.post(
+                  "flagevaluation",
+                  RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+                  stream -> null,
+                  null,
+                  false));
+
+      final RecordedRequest request = intake.takeRequest();
+      assertEquals("api-key", request.getHeader("DD-API-KEY"));
+      assertEquals(1, intake.getRequestCount());
+      assertEquals(0, redirectTarget.getRequestCount());
+    } finally {
+      directClient.dispatcher().executorService().shutdownNow();
+      directClient.connectionPool().evictAll();
+      sharedClient.dispatcher().executorService().shutdownNow();
+      sharedClient.connectionPool().evictAll();
+      intake.shutdown();
+      redirectTarget.shutdown();
+    }
   }
 
   @Test
