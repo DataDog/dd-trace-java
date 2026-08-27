@@ -37,21 +37,27 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>
  * shape                                 JDK 8  JDK 11  JDK 17  JDK 21  JDK 25   what it isolates
- * singleSite                                ?       ?       0       ?       0   the floor
- * flagOnOneAllocation                       ?       ?       0       ?       0   outcome in a field
- * closedInFinally                           ?       ?       0       ?       0   try/finally
- * closedInFinallyWithThrow                  ?       ?       0       ?       ?   ... with the handler taken
- * flagOnOneAllocationClosedInFinally        ?       ?       0       ?       0   flag field, whole
- * passedToInlinedStrategy                   ?       ?       0       ?       0   @Strategy boundary
- * backingMonomorphic                        ?       ?       0       ?       0   one backing
- * backingBimorphic                          ?       ?       0       ?       0   two backings
- * phiWithNull                               ?       ?       8       ?       0   merge with null
- * phiWithStatic                             ?       ?       8       ?       8   merge with a singleton
- * phiWithStaticClosedInFinally              ?       ?       8       ?       8   ... the same, whole
- * phiOfTwoAllocations                       ?       ?      16       ?      16   merge of two allocations
- * passedToUninlinedStrategy                 ?       ?      24       ?      24   the same boundary, uninlined
- * backingMegamorphic                        ?       ?      24       ?      24   three backings
+ * singleSite                                0       ?       0       ?       0   the floor
+ * flagOnOneAllocation                       0       ?       0       ?       0   outcome in a field
+ * closedInFinally                           0       ?       0       ?       0   try/finally
+ * closedInFinallyWithThrow                  0       ?       0       ?       ?   ... with the handler taken
+ * flagOnOneAllocationClosedInFinally        0       ?       0       ?       0   flag field, whole
+ * passedToInlinedStrategy                   0       ?       0       ?       0   @Strategy boundary
+ * backingMonomorphic                        0       ?       0       ?       0   one backing
+ * backingBimorphic                          0       ?       0       ?       0   two backings
+ * phiWithNull                               8       ?       8       ?       0   merge with null
+ * phiWithStatic                             8       ?       8       ?       8   merge with a singleton
+ * phiWithStaticClosedInFinally              8       ?       8       ?       8   ... the same, whole
+ * phiOfTwoAllocations                      16       ?      16       ?      16   merge of two allocations
+ * passedToUninlinedStrategy                24       ?      24       ?      24   the same boundary, uninlined
+ * backingMegamorphic                       24       ?      24       ?      24   three backings
  * </pre>
+ *
+ * <p>JDK 8 column measured 2026-08-27 (Zulu 8.72.0.17, this machine, {@code -Pjmh.fork=1}): every
+ * arm lands on the same B/op as the 17/25 columns it was checked against, including {@code
+ * phiWithNull} staying at 8 rather than following JDK 25's drop to 0 — the {@code
+ * ReduceAllocationMerges} relaxation is JDK 21+ only, so 8's floor for this shape is the older,
+ * unconditional one.
  *
  * <p>What the two measured columns say so far:
  *
