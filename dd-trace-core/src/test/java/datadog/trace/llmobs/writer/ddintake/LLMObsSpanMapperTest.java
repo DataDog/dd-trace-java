@@ -816,6 +816,77 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
+  @Test
+  void testLLMObsSpanMapperSerializesAgentManifest() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "travel_desk");
+    manifest.put("instructions", "Book travel.");
+    manifest.put("model", "gpt-4o");
+    manifest.put("framework", "AgentObs SDK");
+
+    Map<String, Object> modelSettings = new LinkedHashMap<>();
+    modelSettings.put("temperature", 0.7);
+    manifest.put("model_settings", modelSettings);
+
+    List<Map<String, Object>> tools = new ArrayList<>();
+    Map<String, Object> tool = new LinkedHashMap<>();
+    tool.put("name", "get_weather");
+    tool.put("description", "Look up the weather.");
+    tools.add(tool);
+    manifest.put("tools", tools);
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_manifest"));
+    Map<String, Object> gotManifest = (Map<String, Object>) meta.get("agent_manifest");
+    assertEquals("travel_desk", gotManifest.get("name"));
+    assertEquals("Book travel.", gotManifest.get("instructions"));
+    assertEquals("gpt-4o", gotManifest.get("model"));
+    assertEquals("AgentObs SDK", gotManifest.get("framework"));
+    assertEquals(modelSettings, gotManifest.get("model_settings"));
+    assertEquals(tools, gotManifest.get("tools"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testAgentManifestDoesNotAppearInTags() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "my-agent");
+    manifest.put("framework", "AgentObs SDK");
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(t -> t.startsWith("agent_manifest:")));
+
+    tracer.close();
+  }
+
   private static AgentSpan newLlmObsSpan(CoreTracer tracer, String name, boolean drop) {
     AgentSpan span =
         tracer
