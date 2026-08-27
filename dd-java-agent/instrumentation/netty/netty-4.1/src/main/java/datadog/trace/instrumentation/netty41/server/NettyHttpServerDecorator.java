@@ -164,10 +164,12 @@ public class NettyHttpServerDecorator
             .channel()
             .eventLoop()
             .execute(
-                () ->
-                    commitBlockingResponse(
-                        segment, statusCode, templateType, extraHeaders, securityResponseId));
-        blockingResponseInitiated = true;
+                () -> {
+                  if (commitBlockingResponse(
+                      segment, statusCode, templateType, extraHeaders, securityResponseId)) {
+                    blockingResponseInitiated = true;
+                  }
+                });
         return true;
       } catch (RuntimeException rte) {
         log.warn("Failed scheduling blocking handler", rte);
