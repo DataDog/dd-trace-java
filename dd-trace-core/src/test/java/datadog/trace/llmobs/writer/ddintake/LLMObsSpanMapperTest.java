@@ -925,12 +925,72 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals("0", dd.get("sampling_decision"));
     assertEquals("0.1", dd.get("sample_rate"));
 
-    // The mapper removes the tags after writing them, so they must not reach tags[].
+    // The mapper writes these as dedicated _dd fields and skips them elsewhere, so they must not
+    // also appear in tags[].
     List<String> tags = (List<String>) spanData.get("tags");
     assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sampling_decision:")));
     assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("sample_rate:")));
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("parent_id:")));
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("span.kind:")));
 
     tracer.close();
+  }
+
+  @Test
+  void testTopLevelFieldsSurviveASerializationRetry() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.parent_id", "9876543210")
+            .withTag("_ml_obs_tag.sampling_decision", "0")
+            .withTag("_ml_obs_tag.sample_rate", "0.1")
+            .start();
+    span.setSpanType(InternalSpanTypes.LLMOBS);
+    span.finish();
+    List<DDSpan> trace = Collections.singletonList((DDSpan) span);
+
+    // On a BufferOverflowException, MsgPackWriter.format discards the partial write and re-invokes
+    // map(..., retry = true) on the same span instances. Model that contract directly: an attempt
+    // whose output is thrown away, then the retry. A mapper that consumed tags off the span while
+    // writing would emit different — and wrong — values the second time: a dropped span would
+    // come back as retained, and parent_id and span.kind would be lost.
+    mapWithRetryFlag(mapper, trace, false);
+    mapper.reset();
+    Map<String, Object> retried = mapWithRetryFlag(mapper, trace, true);
+
+    Map<String, Object> dd = (Map<String, Object>) retried.get("_dd");
+    assertEquals("0", dd.get("sampling_decision"));
+    assertEquals("0.1", dd.get("sample_rate"));
+    assertEquals("9876543210", retried.get("parent_id"));
+    assertEquals("llm", ((Map<String, Object>) retried.get("meta")).get("span.kind"));
+
+    tracer.close();
+  }
+
+  /**
+   * Invokes {@link LLMObsSpanMapper#map(List, datadog.communication.serialization.Writable,
+   * boolean)} directly, bypassing {@code MsgPackWriter.format} so the retry flag can be set
+   * explicitly, and returns the single serialized span.
+   */
+  private static Map<String, Object> mapWithRetryFlag(
+      LLMObsSpanMapper mapper, List<DDSpan> trace, boolean retry) throws IOException {
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+    FlushingBuffer buffer = new FlushingBuffer(16 * 1024, sink);
+    MsgPackWriter packer = new MsgPackWriter(buffer);
+    mapper.map(trace, packer, retry);
+    // format() marks the message complete after a successful map; flush() emits nothing without it.
+    buffer.mark();
+    packer.flush();
+
+    assertNotNull(sink.captured);
+    datadog.trace.common.writer.Payload payload = mapper.newPayload();
+    payload.withBody(trace.size(), sink.captured);
+    Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
+    return ((List<Map<String, Object>>) result.get("spans")).get(0);
   }
 
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {

@@ -213,15 +213,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   }
 
   @Test
-  void openAiRequestSpanDoesNotInheritSamplingDecisionFromStaleCrossTraceContext()
-      throws Exception {
+  void openAiRequestSpanInheritsNothingFromStaleCrossTraceContext() throws Exception {
     // Simulates a stale LLMObsContext leaked across an async boundary: the context is attached,
     // but its span is never made the active tracer span, so the openai.request call below starts
     // a brand-new trace and the trace-consistency gate in OpenAiDecorator must skip inheritance.
     AgentSpan staleParent = AgentTracer.startSpan("test", "stale-parent");
     try (ContextScope ignored =
         LLMObsContext.attach(
-            staleParent.spanContext(), null, "0.25", LLMObsContext.SAMPLING_DECISION_DROPPED)) {
+            staleParent.spanContext(),
+            "stale-session",
+            "0.25",
+            LLMObsContext.SAMPLING_DECISION_DROPPED)) {
       try {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       } catch (Exception ignored2) {
@@ -230,15 +232,21 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       staleParent.finish();
     }
 
-    // The stale "0"/"0.25" pair must not leak; the span falls through to deciding for itself at
-    // the configured rate of 1.0 instead.
     writer.waitForTraces(2);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
+
+    // The stale "0"/"0.25" pair must not leak; the span falls through to deciding for itself at
+    // the configured rate of 1.0 instead.
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+
+    // The same gate covers parent_id and session_id: inheriting either would point this span at
+    // a parent in an unrelated trace and file it under an unrelated session.
+    assertEquals(LLMObsContext.ROOT_SPAN_ID, openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
   }
 }
 

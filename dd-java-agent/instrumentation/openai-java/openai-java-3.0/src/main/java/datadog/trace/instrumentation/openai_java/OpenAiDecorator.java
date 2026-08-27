@@ -110,9 +110,13 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.SOURCE, "integration");
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
+      // Inheriting from the active LLMObs context is gated on that context
+      // belonging to the same APM trace as this span.
       AgentSpanContext parent = LLMObsContext.current();
+      boolean inheritable = parent != null && parent.getTraceId().equals(span.getTraceId());
+
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
-      if (parent != null) {
+      if (inheritable) {
         parentSpanId = String.valueOf(parent.getSpanId());
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
@@ -122,17 +126,14 @@ public class OpenAiDecorator extends ClientDecorator {
       // session_id from the workflow root via context propagation. Without this, the
       // auto-instrumented openai.request span would not appear under its session in
       // the LLM Trace Explorer's Sessions view.
-      String sessionId = LLMObsContext.currentSessionId();
+      String sessionId = inheritable ? LLMObsContext.currentSessionId() : null;
       if (sessionId != null && !sessionId.isEmpty()) {
         span.setTag(CommonTags.SESSION_ID, sessionId);
       }
 
-      // Inherit the head-based sampling decision from the active LLMObs parent, gated on the two
-      // spans belonging to the same APM trace so a stale context cannot contribute a verdict
-      // computed from a different trace ID.
       String samplingDecision = null;
       String sampleRate = null;
-      if (parent != null && parent.getTraceId().equals(span.getTraceId())) {
+      if (inheritable) {
         samplingDecision = LLMObsContext.currentSamplingDecision();
         sampleRate = LLMObsContext.currentSampleRate();
       }

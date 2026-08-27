@@ -119,6 +119,24 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private static final String SAMPLE_RATE_ALL = "1";
 
+  /**
+   * Internal tags serialized as dedicated top-level fields, which must therefore not also be
+   * emitted into the {@code tags} array.
+   *
+   * <p>These are skipped while writing rather than removed from the span. {@link
+   * datadog.communication.serialization.msgpack.MsgPackWriter#format} re-invokes {@code map} on the
+   * same span instances after a buffer overflow, so a span mutated on the first pass serializes
+   * differently on the retry — a dropped span would lose its verdict and be re-emitted as retained.
+   */
+  private static final Set<String> TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  PARENT_ID_TAG_INTERNAL_FULL,
+                  SAMPLING_DECISION_TAG_INTERNAL_FULL,
+                  SAMPLE_RATE_TAG_INTERNAL_FULL,
+                  SPAN_KIND_TAG_KEY)));
+
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
 
@@ -197,7 +215,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // 3
       writable.writeUTF8(PARENT_ID);
       writable.writeString(span.getTag(PARENT_ID_TAG_INTERNAL_FULL), null);
-      span.removeTag(PARENT_ID_TAG_INTERNAL_FULL);
 
       // 4
       writable.writeUTF8(NAME);
@@ -228,8 +245,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeString(samplingDecision, null);
       writable.writeUTF8(SAMPLE_RATE);
       writable.writeString(sampleRate, null);
-      span.removeTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
-      span.removeTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
 
       // 9 — optional top-level session_id field. Required by the LLMObs HTTP intake schema
       // and by the LLM Trace Explorer's Sessions filter, which keys off this field.
@@ -388,6 +403,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey();
         if (key.equals(SPAN_KIND_TAG_KEY)) {
           spanKind = String.valueOf(tag.getValue());
+        } else if (TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS.contains(key)) {
+          // Already written as a dedicated field; not counted here so it stays out of the array.
         } else if (TAGS_FOR_REMAPPING.contains(key)) {
           tagsToRemapToMeta.put(key, tag.getValue());
         } else if (key.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
@@ -404,9 +421,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         }
       }
 
-      if (!spanKind.equals("unknown")) {
-        metadata.getTags().remove(SPAN_KIND_TAG_KEY);
-      } else {
+      if (spanKind.equals("unknown")) {
         LOGGER.warn("missing span kind");
       }
 
@@ -442,7 +457,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();
-        if (!tagsToRemapToMeta.containsKey(key) && key.startsWith(LLMOBS_TAG_PREFIX)) {
+        if (!tagsToRemapToMeta.containsKey(key)
+            && !TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS.contains(key)
+            && key.startsWith(LLMOBS_TAG_PREFIX)) {
           writable.writeObject(key.substring(LLMOBS_TAG_PREFIX.length()) + ":" + value, null);
         }
       }
