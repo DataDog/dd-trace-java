@@ -9,13 +9,23 @@ import java.util.function.Consumer;
  * element it is going to reject.
  *
  * <p>Capacity is fixed by construction. A queue never grows in response to fullness: full means
- * drop and count. Admission reserves a slot before invoking any producer, so a rejected element is
+ * drop and count. Admission claims a place before invoking any producer, so a rejected element is
  * never constructed at all — the guarantee that makes it safe to hand this a producer that
  * allocates heavily, since the allocation cannot happen on the path where it would be wasted.
  *
- * <p>Because the slot is claimed first, a producer runs while holding capacity a consumer may be
- * waiting on. Producers should build their element and nothing else: work that blocks, or that
- * takes appreciably longer than an allocation, stalls the consumer rather than merely the producer.
+ * <p>What is claimed is capacity, never a position, so a producer never holds up a consumer. It
+ * does hold a place other producers could have used, though: work that blocks, or that takes
+ * appreciably longer than an allocation, is paid for by everyone else admitting to this queue.
+ * Producers should build their element and nothing else.
+ *
+ * <p>Prefer the producer forms, and treat {@link #tryReserve} as the fallback. The distinction is
+ * {@code forEach} against {@code Iterator}: with a producer the queue owns the sequence, claiming
+ * and building in the order it knows to be safe, and there is no protocol for a caller to get
+ * wrong. A reservation hands that loop back — the caller must check {@link Reservation#granted},
+ * must fill or close, and an abandoned one is capacity nobody can see or reclaim, the same way a
+ * half-consumed iterator is state its collection cannot account for. Reach for it when the work
+ * between claiming and filling genuinely will not fold into a callback, and use {@code tryPut}
+ * everywhere else.
  *
  * <p>Consumption is synchronous and happens in the caller's frame; the boolean returned by the
  * {@code process} methods reports whether there was an item to work on, which is the signal a drain
