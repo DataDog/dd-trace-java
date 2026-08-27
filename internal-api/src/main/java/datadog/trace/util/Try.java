@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ObjDoubleConsumer;
@@ -84,6 +85,18 @@ public final class Try<T> {
   public void update(Consumer<? super T> mutator) {
     if (value != null) {
       mutator.accept(value);
+    }
+  }
+
+  /**
+   * Generic-context form of {@link #update(Consumer)}, for callers that already have a reusable,
+   * non-capturing {@code BiConsumer} (typically a {@code static final}) plus whatever context it
+   * needs -- mirrors {@code Hashtable#forEach}'s {@code (context, entry)} argument order for the
+   * same reason: the entry doesn't need naming at the call site, only the context does.
+   */
+  public <C> void update(C context, BiConsumer<? super C, ? super T> mutator) {
+    if (value != null) {
+      mutator.accept(context, value);
     }
   }
 
