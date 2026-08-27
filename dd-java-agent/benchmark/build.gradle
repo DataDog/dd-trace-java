@@ -6,6 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   jmh project(':dd-trace-api')
+  jmh project(':dd-java-agent:agent-bootstrap')
   jmh libs.bytebuddyagent
 }
 
@@ -39,7 +40,71 @@ jmh {
 }
 
 tasks.named('jmh') {
-  dependsOn ':dd-java-agent:shadowJar'
+  def includes = providers.gradleProperty('jmh.includes')
+  if (!includes.isPresent() || includes.get().contains('ClassData')) {
+    dependsOn 'prepareClassDataBenchmark'
+  } else {
+    dependsOn ':dd-java-agent:shadowJar'
+  }
+}
+
+def classDataBenchmarkDir = layout.buildDirectory.dir('classdata-benchmark')
+def agentShadowJar = project(':dd-java-agent').tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
+def agentUnpackedShadowJar = project(':dd-java-agent').tasks.named('unpackedShadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
+def benchmarkJavaExecutable = providers.provider {
+  jmh.jvm.orNull ?: new File(System.getProperty('java.home'), 'bin/java').absolutePath
+}
+
+tasks.register('prepareClassDataBenchmark', JavaExec) {
+  group = 'benchmark'
+  description = 'Build deflated, stored, and packed classdata benchmark agent jars'
+  dependsOn agentShadowJar, agentUnpackedShadowJar, tasks.named('jmhJar')
+  classpath = sourceSets.jmh.runtimeClasspath
+  mainClass = 'datadog.trace.bootstrap.ClassDataBenchmarkArtifacts'
+  inputs.files agentShadowJar.flatMap { it.archiveFile }, agentUnpackedShadowJar.flatMap { it.archiveFile }
+  outputs.dir classDataBenchmarkDir
+  doFirst {
+    setArgs([
+      agentUnpackedShadowJar.get().archiveFile.get().asFile.absolutePath,
+      classDataBenchmarkDir.get().asFile.absolutePath,
+      benchmarkJavaExecutable.get(),
+      tasks.named('jmhJar').get().archiveFile.get().asFile.absolutePath,
+    ])
+  }
+  doLast {
+    copy {
+      from agentShadowJar.get().archiveFile
+      into classDataBenchmarkDir
+      rename { 'production.jar' }
+    }
+  }
+}
+
+jmh {
+  jvmArgsAppend = ["-Ddatadog.classdata.benchmark.dir=${classDataBenchmarkDir.get().asFile.absolutePath}"]
+}
+
+tasks.register('classDataStartupBenchmark', JavaExec) {
+  group = 'benchmark'
+  description = 'Compare fresh-JVM startup across classdata archive variants'
+  dependsOn 'prepareClassDataBenchmark', tasks.named('jmhJar')
+  classpath = sourceSets.jmh.runtimeClasspath
+  mainClass = 'datadog.trace.bootstrap.ClassDataStartupBenchmark'
+  systemProperty 'datadog.classdata.benchmark.warmups',
+    providers.systemProperty('datadog.classdata.benchmark.warmups').getOrElse('5')
+  systemProperty 'datadog.classdata.benchmark.repetitions',
+    providers.systemProperty('datadog.classdata.benchmark.repetitions').getOrElse('30')
+  def layouts = providers.systemProperty('datadog.classdata.benchmark.layouts')
+  if (layouts.isPresent()) {
+    systemProperty 'datadog.classdata.benchmark.layouts', layouts.get()
+  }
+  doFirst {
+    setArgs([
+      classDataBenchmarkDir.get().asFile.absolutePath,
+      benchmarkJavaExecutable.get(),
+      tasks.named('jmhJar').get().archiveFile.get().asFile.absolutePath,
+    ])
+  }
 }
 
 /*
@@ -48,4 +113,3 @@ tasks.named('jmh') {
  (using https://github.com/brendangregg/FlameGraph)
  ./flamegraph.pl --color=java dd-java-agent/benchmark/build/reports/jmh/profiler-cleaned.txt > dd-java-agent/benchmark/build/reports/jmh/jmh-master.svg
  */
-

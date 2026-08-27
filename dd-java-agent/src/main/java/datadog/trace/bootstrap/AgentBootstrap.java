@@ -163,7 +163,13 @@ public final class AgentBootstrap {
       final Method startMethod =
           agentClass.getMethod(
               "start", Object.class, Instrumentation.class, URL.class, String.class);
-      startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+      try {
+        startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+      } finally {
+        if ("datadog.trace.bootstrap.Agent".equals(agentClassName)) {
+          agentClass.getMethod("releaseClassData").invoke(null);
+        }
+      }
     } catch (Throwable e) {
       throw new IllegalStateException("Unable to start DD Java Agent.", e);
     }

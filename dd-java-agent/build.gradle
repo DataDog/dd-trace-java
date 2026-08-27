@@ -1,9 +1,177 @@
 import static org.gradle.api.file.DuplicatesStrategy.INCLUDE
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.CacheableTransformer
 import com.github.jengelman.gradle.plugins.shadow.transformers.PreserveFirstFoundResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.ResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.jar.JarFile
+import org.apache.tools.zip.ZipEntry
+import org.apache.tools.zip.ZipOutputStream
+import org.gradle.api.file.FileTreeElement
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
+
+@CacheableTransformer
+class CommonClassDataTransformer implements ResourceTransformer {
+  private static final String INDEX_ENTRY = 'dd-java-agent-common.classdata'
+  private static final String CHUNK_PREFIX = 'dd-java-agent-common/'
+  private static final String CLASSDATA_SUFFIX = '.classdata'
+  private static final int MAGIC = 0x44444344
+  private static final int VERSION = 2
+  private static final int HEADER_SIZE = 20
+  private static final int RECORD_SIZE = 24
+
+  @Input
+  List<String> classNames = []
+
+  @Input
+  int chunkSize = 64
+
+  @Internal
+  final Map<String, byte[]> transformedClasses = new LinkedHashMap<>()
+
+  @Internal
+  Set<String> selectedClassNames
+
+  @Override
+  boolean canTransformResource(FileTreeElement element) {
+    String className = className(element.path)
+    if (className == null) {
+      return false
+    }
+    if (selectedClassNames == null) {
+      selectedClassNames = new HashSet<>(classNames)
+      if (selectedClassNames.size() != classNames.size()) {
+        throw new IllegalArgumentException('common class-data manifest contains duplicates')
+      }
+    }
+    selectedClassNames.contains(className)
+  }
+
+  @Override
+  void transform(TransformerContext context) {
+    String className = className(context.path)
+    byte[] previous = transformedClasses.put(className, context.inputStream.bytes)
+    if (previous != null) {
+      throw new IOException("Duplicate selected class-data entry for ${className}")
+    }
+  }
+
+  @Override
+  boolean hasTransformedResource() {
+    !transformedClasses.isEmpty()
+  }
+
+  @Override
+  void modifyOutputStream(ZipOutputStream output, boolean preserveFileTimestamps) {
+    List<String> missing = classNames.findAll { !transformedClasses.containsKey(it) }
+    if (!missing.isEmpty()) {
+      throw new IOException(
+      "Missing ${missing.size()} selected class-data entries, first entries: ${missing.take(5)}")
+    }
+    if (chunkSize <= 0) {
+      throw new IOException('class-data chunk size must be positive')
+    }
+
+    List<Map<String, Object>> records = []
+    List<byte[]> chunks = []
+    ByteArrayOutputStream chunk = new ByteArrayOutputStream()
+    classNames.eachWithIndex { String className, int index ->
+      if (index > 0 && index % chunkSize == 0) {
+        chunks.add(chunk.toByteArray())
+        chunk = new ByteArrayOutputStream()
+      }
+      byte[] classData = transformedClasses.get(className)
+      records.add(
+        [className: className, chunk: index.intdiv(chunkSize), offset: chunk.size(), length: classData.length])
+      chunk.write(classData)
+    }
+    if (!classNames.isEmpty()) {
+      chunks.add(chunk.toByteArray())
+    }
+
+    writeEntry(output, INDEX_ENTRY, buildIndex(records, chunks.size()))
+    chunks.eachWithIndex { byte[] contents, int index ->
+      writeEntry(output, "${CHUNK_PREFIX}${index}${CLASSDATA_SUFFIX}", contents)
+    }
+    transformedClasses.clear()
+  }
+
+  private static byte[] buildIndex(List<Map<String, Object>> records, int chunkCount) {
+    int tableSize = 1
+    while (tableSize < records.size() * 2) {
+      tableSize <<= 1
+    }
+    int namesOffset = HEADER_SIZE + tableSize * RECORD_SIZE
+    int nextNameOffset = namesOffset
+    records.each { record ->
+      record.nameOffset = nextNameOffset
+      nextNameOffset += ((String) record.className).length() * 2
+    }
+
+    byte[] index = new byte[nextNameOffset]
+    writeInt(index, 0, MAGIC)
+    writeInt(index, 4, VERSION)
+    writeInt(index, 8, records.size())
+    writeInt(index, 12, chunkCount)
+    writeInt(index, 16, tableSize)
+    boolean[] occupied = new boolean[tableSize]
+    records.each { record ->
+      String className = record.className
+      int slot = spread(className.hashCode()) & (tableSize - 1)
+      while (occupied[slot]) {
+        slot = (slot + 1) & (tableSize - 1)
+      }
+      occupied[slot] = true
+      int recordOffset = HEADER_SIZE + slot * RECORD_SIZE
+      writeInt(index, recordOffset, className.hashCode())
+      writeInt(index, recordOffset + 4, record.nameOffset as int)
+      writeInt(index, recordOffset + 8, className.length())
+      writeInt(index, recordOffset + 12, record.chunk as int)
+      writeInt(index, recordOffset + 16, record.offset as int)
+      writeInt(index, recordOffset + 20, record.length as int)
+      int nameOffset = record.nameOffset
+      for (int i = 0; i < className.length(); i++) {
+        int character = className.charAt(i) as int
+        index[nameOffset++] = (byte) (character >>> 8)
+        index[nameOffset++] = (byte) character
+      }
+    }
+    index
+  }
+
+  private static void writeEntry(ZipOutputStream output, String name, byte[] contents) {
+    ZipEntry entry = new ZipEntry(name)
+    entry.time = 0
+    output.putNextEntry(entry)
+    output.write(contents)
+    output.closeEntry()
+  }
+
+  private static String className(String path) {
+    if (!path.endsWith(CLASSDATA_SUFFIX)) {
+      return null
+    }
+    int prefixEnd = path.indexOf('/')
+    if (prefixEnd < 0) {
+      return null
+    }
+    path.substring(prefixEnd + 1, path.length() - CLASSDATA_SUFFIX.length()).replace('/', '.')
+  }
+
+  private static int spread(int hash) {
+    hash ^ (hash >>> 16)
+  }
+
+  private static void writeInt(byte[] target, int offset, int value) {
+    target[offset] = (byte) (value >>> 24)
+    target[offset + 1] = (byte) (value >>> 16)
+    target[offset + 2] = (byte) (value >>> 8)
+    target[offset + 3] = (byte) value
+  }
+}
 
 plugins {
   id 'com.gradleup.shadow'
@@ -22,6 +190,12 @@ configurations {
 
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
 def includedJarFileTree = fileTree(includedAgentDir)
+def commonClassDataManifest = rootProject.file('metadata/common-classdata.txt')
+def commonClassDataClasses = providers.provider {
+  commonClassDataManifest.readLines()
+    .collect { it.trim() }
+    .findAll { !it.isEmpty() && !it.startsWith('#') }
+}
 
 // Populated automatically by includeShadowJar for every product dir registered in this build.
 // Used by verifyAgentJarContents to check that all included products land in the assembled jar.
@@ -326,6 +500,41 @@ tasks.named("shadowJar", ShadowJar) {
 
   manifest {
     attributes(
+      "Implementation-Title": project.name,
+      "Implementation-Version": project.version,
+      "Implementation-Vendor": "Datadog",
+      "Implementation-URL": "https://github.com/datadog/dd-trace-java",
+      "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
+      "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
+      "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
+      "Can-Redefine-Classes": true,
+      "Can-Retransform-Classes": true,
+      )
+  }
+
+  transform(CommonClassDataTransformer) {
+    it.classNames = commonClassDataClasses.get()
+    it.chunkSize = 64
+  }
+  inputs.file(commonClassDataManifest)
+}
+
+// Control artifact with the same inputs and relocation as the production jar, but with individual
+// class-data entries. This is intentionally not published.
+def unpackedShadowJar = tasks.register("unpackedShadowJar", ShadowJar) {
+  from sourceSets.main.output
+  from sourceSets.main_java6.output
+  from sourceSets.main_java11.output
+  generalShadowJarConfig(it)
+  configurations.empty()
+  configurations.add(project.configurations.named('shadowInclude'))
+  archiveClassifier = 'unpacked'
+  manifest {
+    attributes(
+      "Implementation-Title": project.name,
+      "Implementation-Version": project.version,
+      "Implementation-Vendor": "Datadog",
+      "Implementation-URL": "https://github.com/datadog/dd-trace-java",
       "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
@@ -508,6 +717,7 @@ tasks.register('verifyAgentJarContents') {
   def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
   inputs.file(jarProvider)
   inputs.file(agentJarChecksProps)
+  inputs.file(commonClassDataManifest)
   inputs.property('productPrefixes', includedProductPrefixes)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
@@ -535,6 +745,9 @@ tasks.register('verifyAgentJarContents') {
       // Runtime index, loaded at startup to resolve classdata paths
       // Generated by :dd-java-agent:generateAgentJarIndex
       'dd-java-agent.index',
+      // Common startup classes, generated by CommonClassDataTransformer
+      'dd-java-agent-common.classdata',
+      'dd-java-agent-common/0.classdata',
       // Premain-Class: Java 6 pre check
       'datadog/trace/bootstrap/AgentPreCheck.class',
       // Agent-Class: main bootstrap entry point
@@ -559,10 +772,25 @@ tasks.register('verifyAgentJarContents') {
     }
 
     // Sanity check on the minimum number of classes; see metadata/agent-jar-checks.properties.
-    def classCount = entries.keySet().count { it.endsWith('.class') || it.endsWith('.classdata') }
+    def classCount = entries.keySet().count {
+      it.endsWith('.class') || (it.endsWith('.classdata') && !it.startsWith('dd-java-agent-common'))
+    }
+    classCount += commonClassDataClasses.get().size()
     def classFloor = Integer.parseInt(props['classes.minimum.guard'])
     if (classCount < classFloor) {
       failures.add("Class count ${classCount} is below floor ${classFloor}")
+    }
+
+    def packedClassNames = commonClassDataClasses.get().toSet()
+    def leakedPackedClasses = entries.keySet()
+      .findAll { it.endsWith('.classdata') && it.contains('/') && !it.startsWith('dd-java-agent-common/') }
+      .collect {
+        def prefixEnd = it.indexOf('/')
+        it.substring(prefixEnd + 1, it.length() - '.classdata'.length()).replace('/', '.')
+      }
+      .findAll { packedClassNames.contains(it) }
+    if (!leakedPackedClasses.empty) {
+      failures.add("Packed classes still have individual entries: ${leakedPackedClasses.take(5)}")
     }
 
     // Each registered product must contribute at least one .classdata entry.
@@ -599,6 +827,75 @@ tasks.register('verifyAgentJarContents') {
       throw new GradleException(
       "Agent jar verification failed (${failures.size()} issue(s)):\n" +
       failures.collect { "  - ${it}" }.join('\n'))
+    }
+
+    def marker = outputs.files.singleFile
+    marker.parentFile.mkdirs()
+    marker.text = 'verified'
+  }
+}
+
+tasks.register('verifyCommonClassDataPackaging') {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Verify class-data packing changes only the selected class entries'
+
+  def packedJar = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  def unpackedJar = unpackedShadowJar.flatMap { it.archiveFile }
+  inputs.files(packedJar, unpackedJar)
+  inputs.file(commonClassDataManifest)
+  outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
+
+  doLast {
+    def readEntries = { File file ->
+      Map<String, List<Long>> result = [:]
+      new JarFile(file).withCloseable { jar ->
+        jar.entries().each { entry -> result[entry.name] = [entry.size, entry.crc] }
+      }
+      result
+    }
+    Map<String, List<Long>> packedEntries = readEntries(packedJar.get().asFile)
+    Map<String, List<Long>> unpackedEntries = readEntries(unpackedJar.get().asFile)
+    Set<String> selectedNames = commonClassDataClasses.get().toSet()
+    Set<String> selectedEntries = unpackedEntries.keySet().findAll { entry ->
+      if (!entry.endsWith('.classdata') || !entry.contains('/')) {
+        return false
+      }
+      int prefixEnd = entry.indexOf('/')
+      String className = entry
+        .substring(prefixEnd + 1, entry.length() - '.classdata'.length())
+        .replace('/', '.')
+      selectedNames.contains(className)
+    }.toSet()
+
+    List<String> failures = []
+    if (selectedEntries.size() != selectedNames.size()) {
+      failures.add(
+        "Manifest has ${selectedNames.size()} classes but matched ${selectedEntries.size()} unpacked entries")
+    }
+    def unexpectedlyRemoved = (unpackedEntries.keySet() - packedEntries.keySet() - selectedEntries)
+      .findAll { !it.endsWith('/') }
+    if (!unexpectedlyRemoved.empty) {
+      failures.add("Unexpectedly removed entries: ${unexpectedlyRemoved.take(5)}")
+    }
+    def unexpectedlyAdded = (packedEntries.keySet() - unpackedEntries.keySet()).findAll {
+      it != 'dd-java-agent-common.classdata' &&
+        it != 'dd-java-agent-common/' &&
+        !(it ==~ /dd-java-agent-common\/\d+\.classdata/)
+    }
+    if (!unexpectedlyAdded.empty) {
+      failures.add("Unexpectedly added entries: ${unexpectedlyAdded.take(5)}")
+    }
+    (unpackedEntries.keySet() - selectedEntries)
+      .findAll { !it.endsWith('/') }
+      .intersect(packedEntries.keySet()).each { entry ->
+        if (unpackedEntries[entry] != packedEntries[entry]) {
+          failures.add("Content changed for unselected entry: ${entry}")
+        }
+      }
+    if (!failures.empty) {
+      throw new GradleException(
+      "Common class-data packaging verification failed (${failures.size()} issue(s)):\n" +
+      failures.take(20).collect { "  - ${it}" }.join('\n'))
     }
 
     def marker = outputs.files.singleFile
@@ -699,5 +996,5 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
 }
 
 tasks.named('check') {
-  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations', 'verifyCommonClassDataPackaging'
 }
