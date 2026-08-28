@@ -41,6 +41,8 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -57,7 +59,7 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
 @AutoService(InstrumenterModule.class)
-public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
+public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaStreamTaskInstrumentation() {
@@ -294,6 +296,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
+      if (!KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+        span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+      }
       String applicationId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
@@ -360,6 +365,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
+      if (!KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+        span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+      }
       String applicationId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
