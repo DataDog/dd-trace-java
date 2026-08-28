@@ -653,6 +653,10 @@ public final class ConcurrentHashtable {
       @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLock(buckets))
         : "insertHeadEntryAt called without holding getWriteLock(buckets)";
+    assert entry.next() == null
+        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain"
+            + " (unlink() deliberately leaves a removed entry's next intact for in-flight"
+            + " readers, so a removed entry must never be reinserted)";
     entry.setNext(buckets.get(index));
     buckets.set(index, entry);
   }
