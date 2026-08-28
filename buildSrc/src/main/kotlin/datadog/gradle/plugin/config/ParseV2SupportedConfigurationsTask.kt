@@ -15,6 +15,7 @@ import org.gradle.kotlin.dsl.property
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
+import java.util.Locale
 import javax.inject.Inject
 
 @CacheableTask
@@ -83,7 +84,9 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     }.toMap()
 
     val sensitiveKeys: Set<String> = supported.flatMap { (canonical, configList) ->
-      configList.filter { it.sensitive }.flatMap { listOf(canonical) + it.aliases }
+      configList.filter { it.sensitive }.flatMap {
+        listOf(canonical) + it.aliases + it.propertyKeys.map(::toCanonicalEnvVar)
+      }
     }.toSet()
 
     // Build the output .java path from the fully-qualified class name
@@ -105,6 +108,14 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       reversePropertyKeysMap,
       sensitiveKeys
     )
+  }
+
+  private fun toCanonicalEnvVar(key: String): String {
+    val env = key.replace('.', '_').replace('-', '_').uppercase(Locale.ROOT)
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return env
+    }
+    return if (env.startsWith("DD_")) env else "DD_$env"
   }
 
   private fun generateJavaFile(

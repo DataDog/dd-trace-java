@@ -78,6 +78,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
 
     assertTrue(content.contains("""sensitiveKeys.add("DD_ACTION_EXECUTION_ID")"""))
     assertTrue(content.contains("""sensitiveKeys.add("DD_LEGACY_ACTION_EXECUTION_ID")"""))
+    assertTrue(content.contains("""sensitiveKeys.add("DD_PROPERTY_KEY")"""))
     assertFalse(content.contains("""sensitiveKeys.add("DD_AGENTLESS_LOG_SUBMISSION_ENABLED")"""))
   }
 
