@@ -95,26 +95,26 @@ class WorkQueueContractTest {
   void transformingBatchAdmissionAppliesTheContextToEverySourceElement(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
-    Collection<Integer> rejected =
+    int admitted =
         queue.tryPutBatch(Arrays.asList(1, 2, 3), "x", (source, suffix) -> source + suffix);
-    assertTrue(rejected.isEmpty());
+    assertEquals(3, admitted);
     assertEquals(Arrays.asList("1x", "2x", "3x"), consumeAll(queue));
     assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aDeclinedSourceElementIsNeitherRejectedNorDropped(
+  void aDeclinedSourceElementIsNeitherAdmittedNorDropped(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
-    // Every other element declined. Returning null is the caller's own decision, so the queue owes
-    // it no report: nothing comes back as a reject and nothing is counted against dropped().
-    Collection<Integer> rejected =
+    // Every other element declined. Returning null is the caller's own decision, so it counts
+    // against neither the admitted total nor dropped(): the caller already knows it declined.
+    int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6),
             "x",
             (source, suffix) -> source % 2 == 0 ? null : source + suffix);
-    assertTrue(rejected.isEmpty(), "declined elements must not come back as rejects");
+    assertEquals(3, admitted);
     assertEquals(Arrays.asList("1x", "3x", "5x"), consumeAll(queue));
     assertEquals(0, queue.dropped());
   }
@@ -127,40 +127,24 @@ class WorkQueueContractTest {
     // Nearly twice capacity in source elements, the even ones declined: the place claimed for a
     // declined element has to go back, or the batch would run out of room after CAPACITY source
     // elements rather than after CAPACITY admitted ones.
-    Collection<Integer> rejected =
+    int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6, 7),
             "x",
             (source, suffix) -> source % 2 == 0 ? null : source + suffix);
-    assertTrue(rejected.isEmpty());
+    assertEquals(CAPACITY, admitted);
     assertEquals(Arrays.asList("1x", "3x", "5x", "7x"), consumeAll(queue));
+    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aSourceElementTheProducerWouldHaveDeclinedIsStillARejectOnceFull(
-      String name, IntFunction<WorkQueue<String>> factory) {
-    WorkQueue<String> queue = factory.apply(CAPACITY);
-    // The odd elements fill the queue exactly, so element 8 never gets a place -- even though the
-    // producer would have declined it. The place is claimed before the producer is asked, so the
-    // queue cannot know that, and reports what is true from where it stands: it could not ask.
-    Collection<Integer> rejected =
-        queue.tryPutBatch(
-            Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8),
-            "x",
-            (source, suffix) -> source % 2 == 0 ? null : source + suffix);
-    assertEquals(Arrays.asList(8), new ArrayList<>(rejected));
-    assertEquals(Arrays.asList("1x", "3x", "5x", "7x"), consumeAll(queue));
-    assertEquals(1, queue.dropped());
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("boundedQueues")
-  void transformingBatchAdmissionReturnsTheSourceElementsItCouldNotAskAbout(
+  void theShortfallIsExactWhenTheCallerKnowsWhatItMeantToAdmit(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     List<Integer> asked = new ArrayList<>();
-    Collection<Integer> rejected =
+    int intended = 6;
+    int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6),
             "x",
@@ -168,21 +152,41 @@ class WorkQueueContractTest {
               asked.add(source);
               return source + suffix;
             });
-    assertEquals(Arrays.asList(5, 6), new ArrayList<>(rejected));
-    // The rejects are exactly the source elements the producer was never asked about -- the point
-    // of claiming a place before producing.
+    assertEquals(CAPACITY, admitted);
+    // The whole point of the count: a caller that declined nothing gets its loss by subtraction.
+    assertEquals(2, intended - admitted);
+    // And the producer was only ever asked about elements there was already room for.
     assertEquals(Arrays.asList(1, 2, 3, 4), asked);
     assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void transformingBatchAdmissionRejectsEverythingOnceClosed(
+  void aSourceElementTheProducerWouldHaveDeclinedIsStillDroppedOnceFull(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    // The odd elements fill the queue exactly, so element 8 never gets a place -- even though the
+    // producer would have declined it. The place is claimed before the producer is asked, so the
+    // queue cannot know that, and counts what is true from where it stands: it could not ask.
+    // This is why dropped() is approximate for a declining producer and the shortfall is not.
+    int admitted =
+        queue.tryPutBatch(
+            Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8),
+            "x",
+            (source, suffix) -> source % 2 == 0 ? null : source + suffix);
+    assertEquals(CAPACITY, admitted);
+    assertEquals(Arrays.asList("1x", "3x", "5x", "7x"), consumeAll(queue));
+    assertEquals(1, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void transformingBatchAdmissionAdmitsNothingOnceClosed(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.close();
     AtomicBoolean asked = new AtomicBoolean();
-    Collection<Integer> rejected =
+    int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2),
             "x",
@@ -190,7 +194,7 @@ class WorkQueueContractTest {
               asked.set(true);
               return source + suffix;
             });
-    assertEquals(Arrays.asList(1, 2), new ArrayList<>(rejected));
+    assertEquals(0, admitted);
     assertFalse(asked.get(), "a closed queue must not ask the producer for anything");
     assertEquals(2, queue.dropped());
   }
@@ -214,7 +218,7 @@ class WorkQueueContractTest {
                   return element + suffix;
                 }));
     // The place claimed for the failed element went back, so the queue still holds capacity for
-    // four more admissions beyond the one that succeeded.
+    // three more admissions beyond the one that succeeded.
     assertEquals(1, queue.size());
     assertTrue(queue.tryPutBatch("a", "b", "c").isEmpty());
   }

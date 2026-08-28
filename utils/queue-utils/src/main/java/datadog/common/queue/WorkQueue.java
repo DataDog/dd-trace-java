@@ -90,13 +90,15 @@ public interface WorkQueue<T> {
    * and a caller batching work this way never holds capacity of its own.
    *
    * <p>The producer may decline a source element by returning {@code null}. That is an explicit
-   * decision by the caller rather than a loss, so a declined element is neither returned as a
-   * reject nor counted against {@link #dropped()}; the place claimed for it is simply given back.
-   * Rejects are the source elements the producer was never asked about, because there was no room
-   * to ask — plus any it produced that the backing then refused. A full queue can therefore hand
-   * back an element the producer would have declined: the place is claimed before the producer is
-   * asked, so the queue does not know, and reports what it does know, which is that it could not
-   * ask.
+   * decision by the caller rather than a loss, so a declined element is not counted against {@link
+   * #dropped()} and does not count as admitted; the place claimed for it is simply given back.
+   *
+   * <p>A count rather than the refused source elements, because the count is the number a caller
+   * can act on and the elements are not. A caller that knows how many it meant to admit gets the
+   * exact shortfall by subtraction, with its own declines excluded from both sides. The refused
+   * elements cannot be that precise: a place is claimed before the producer is asked, so a full
+   * queue cannot tell a genuine refusal from an element the producer would have declined anyway,
+   * and hands back — and counts against {@link #dropped()} — some of each.
    *
    * <p>{@code context} is the one value the whole batch shares and a source element cannot recover
    * on its own — a schema, a clock reading, a per-batch buffer. It is read once here rather than
@@ -114,11 +116,11 @@ public interface WorkQueue<T> {
    * more per element than a producer can return. Such a caller keeps its own loop and admits one
    * element at a time; that is not a shortcoming of the loop.
    *
-   * @return the source elements that were not admitted, empty if all were
+   * @return how many elements were admitted
    * @see BiContextualProducer
    */
   @StrategyConsumer
-  <E, C> Collection<E> tryPutBatch(
+  <E, C> int tryPutBatch(
       Collection<? extends E> source,
       C context,
       @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer);

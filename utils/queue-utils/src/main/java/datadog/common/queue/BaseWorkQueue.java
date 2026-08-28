@@ -168,12 +168,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /**
    * The per-source-element half of {@link #tryPutBatch(Collection, Object, BiContextualProducer)}.
    *
-   * <p>Three outcomes collapse into two, because only one of them is a loss. An admitted element
-   * and a declined one both leave the caller nothing to do: the first is in the queue, the second
-   * was never meant to be. Only a refusal — no place to claim, or a backing that would not take
-   * what was produced — hands a source element back and counts a drop.
+   * <p>Three outcomes, two of which report as not admitted for different reasons. A decline is the
+   * caller's own decision, so it gives its place back and counts nothing. A refusal — no place to
+   * claim, or a backing that would not take what was produced — gives the place back where there is
+   * one and counts a drop.
    *
-   * @return whether the source element was dealt with, whether by admitting it or by declining it
+   * @return whether the source element was admitted
    */
   @StrategyConsumer
   private <E, C> boolean admitEach(
@@ -192,9 +192,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       throw t;
     }
     if (produced == null) {
-      // Declined. The place goes back and the caller hears nothing, because nothing was lost.
+      // Declined. The place goes back and nothing is counted, because nothing was lost.
       releasePlace();
-      return true;
+      return false;
     }
     if (store(produced)) {
       return true;
@@ -361,22 +361,17 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   @Override
-  public final <E, C> Collection<E> tryPutBatch(
+  public final <E, C> int tryPutBatch(
       Collection<? extends E> source,
       C context,
       BiContextualProducer<? super E, ? super C, ? extends T> producer) {
-    List<E> rejected = null;
-    int remaining = source.size();
+    int admitted = 0;
     for (E element : source) {
-      if (!admitEach(element, context, producer)) {
-        if (rejected == null) {
-          rejected = new ArrayList<>(remaining);
-        }
-        rejected.add(element);
+      if (admitEach(element, context, producer)) {
+        admitted++;
       }
-      remaining--;
     }
-    return rejected == null ? emptyList() : rejected;
+    return admitted;
   }
 
   @Override
