@@ -45,7 +45,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
-  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\\x00");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -445,7 +445,7 @@ public class ShellGitClient implements GitClient {
                             "show",
                             commit,
                             "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+                            "--format=%H%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B"))
                     .trim();
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             LOGGER.error("Failed to fetch commit info", e);

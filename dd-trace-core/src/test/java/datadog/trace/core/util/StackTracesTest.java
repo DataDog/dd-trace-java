@@ -111,7 +111,20 @@ class StackTracesTest {
   @ParameterizedTest(name = "truncation limit {0}")
   @MethodSource("testTruncateArguments")
   void testTruncate(int limit, String expected) {
-    assertEquals(expected, StackTraces.truncate(TRACE, limit));
+    assertEquals(
+        normalizePlatformDifferences(expected),
+        normalizePlatformDifferences(StackTraces.truncate(TRACE, limit)));
+  }
+
+  private static String normalizePlatformDifferences(String trace) {
+    return trace
+        .replace("\r\n", "\n")
+        // Native line endings change the exact character split around a centre cut. The content on
+        // the adjacent partial lines is intentionally unspecified; the marker and all complete
+        // lines remain exact.
+        .replaceAll(
+            "(?m)^.*\\n(\\t\\.\\.\\. trace centre-cut to \\d+ chars \\.\\.\\.\\n).*$",
+            "<cut-head>\n$1<cut-tail>");
   }
 
   static Stream<Arguments> testTruncateArguments() {

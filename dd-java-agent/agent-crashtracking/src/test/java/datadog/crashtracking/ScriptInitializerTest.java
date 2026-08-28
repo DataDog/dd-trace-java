@@ -3,9 +3,11 @@ package datadog.crashtracking;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -148,6 +150,7 @@ public class ScriptInitializerTest {
 
   @Test
   void testCrashUploaderInvalidFolder() throws IOException {
+    requirePosix();
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_crash_uploader.sh");
     assertDoesNotThrow(
@@ -157,9 +160,16 @@ public class ScriptInitializerTest {
 
   @Test
   void testOomeInitializeInvalidFolder() throws IOException {
+    requirePosix();
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_oome_notifier.sh");
     assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(file + " %p"));
     assertFalse(Files.exists(file), "File " + file + " should not have been created");
+  }
+
+  private static void requirePosix() {
+    assumeTrue(
+        FileSystems.getDefault().supportedFileAttributeViews().contains("posix"),
+        "Skipping POSIX-only test on non-POSIX file system");
   }
 }

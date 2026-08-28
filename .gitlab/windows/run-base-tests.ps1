@@ -57,6 +57,7 @@ try {
 
     $gradleArguments = @(
         $env:GRADLE_TARGET,
+        "-Dscan.capture-resource-usage=false",
         # Formatting is validated by the dedicated GitLab Spotless job.
         "-x",
         "spotlessCheck",

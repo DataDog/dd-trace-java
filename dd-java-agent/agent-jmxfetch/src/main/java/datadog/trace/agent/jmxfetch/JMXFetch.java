@@ -195,7 +195,7 @@ public class JMXFetch {
       }
       log.debug("reading found metricconfigs");
       Scanner scanner = new Scanner(metricConfigsStream);
-      scanner.useDelimiter("\n");
+      scanner.useDelimiter("\\r?\\n");
       final List<String> result = new ArrayList<>();
       final SortedSet<String> integrationName = new TreeSet<>();
       while (scanner.hasNext()) {

@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
@@ -48,14 +49,15 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'throws if custom config does not exist'() {
     setup:
-    injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
+    String missingRules = Paths.get(File.separator, 'file', 'that', 'does', 'not', 'exist')
+    injectSysConfig('dd.appsec.rules', missingRules)
 
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     def exception = thrown(AbortStartupException)
-    exception.cause.toString().contains('/file/that/does/not/exist')
+    exception.cause.toString().contains(missingRules)
   }
 
   void 'system should throw AbortStartupException when config file is not valid JSON'() {

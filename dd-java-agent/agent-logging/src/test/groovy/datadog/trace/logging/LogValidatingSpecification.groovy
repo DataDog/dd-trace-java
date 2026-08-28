@@ -13,7 +13,7 @@ abstract class LogValidatingSpecification extends Specification {
   }
 
   private static validateLogLine(LogValidator validator, boolean enabled, String level, String marker, String msg, String emsg) {
-    def current = validator.outputStream.toString()
+    def current = normalizeLineEndings(validator.outputStream.toString())
     def expected = ""
     if (enabled) {
       expected = marker == null ? "$level ${validator.name} - $msg\n" : "$marker ${validator.name} - $msg\n"
@@ -21,6 +21,10 @@ abstract class LogValidatingSpecification extends Specification {
     }
     assert current == expected
     validator.output.reset()
+  }
+
+  protected static String normalizeLineEndings(String value) {
+    value.replace("\r\n", "\n")
   }
 
   class LogValidator {

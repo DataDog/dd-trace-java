@@ -110,6 +110,14 @@ class RepoIndexTest extends Specification {
     paths.first() == sourcePath("src/main/groovy", myClassName)
   }
 
+  def "test source root uses its filesystem separator"() {
+    given:
+    def sourceRoot = new RepoIndex.SourceRoot("src\\main\\groovy", Language.GROOVY, '\\' as char)
+
+    expect:
+    sourceRoot.resolveSourcePath("example.MyClass") == "src\\main\\groovy\\example\\MyClass.groovy"
+  }
+
   private static String sourcePath(String sourceRoot, String className) {
     return Paths.get(sourceRoot, className.replace('.' as char, File.separatorChar) + Language.GROOVY.extension).toString()
   }

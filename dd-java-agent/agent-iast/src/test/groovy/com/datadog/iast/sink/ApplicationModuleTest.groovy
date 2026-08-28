@@ -46,7 +46,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
   void 'check vulnerabilities #path'() {
     given:
     final file = ClassLoader.getSystemResource(path)
-    final realPath = file.path
+    final realPath = Paths.get(file.toURI()).toString()
 
     when:
     module.onRealPath(realPath)

@@ -171,7 +171,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
           int sourceRootIdx =
               sourceRoots.computeIfAbsent(
-                  new RepoIndex.SourceRoot(relativeSourceRoot, language),
+                  new RepoIndex.SourceRoot(
+                      relativeSourceRoot,
+                      language,
+                      repoRoot.getFileSystem().getSeparator().charAt(0)),
                   sr -> sourceRootCounter.getAndIncrement());
 
           String relativePath = sourceRoot.relativize(file).toString();

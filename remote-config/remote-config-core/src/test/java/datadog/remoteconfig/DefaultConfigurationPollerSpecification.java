@@ -866,8 +866,10 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         arguments(
             "two reportable errors",
             toJson(twoErrors),
-            "Failed to apply configuration due to 2 errors:\n (1) Not a valid config key: foobar\n"
-                + " (2) No content for employee/ASM_DD/1.recommended.json/config\n"),
+            String.format(
+                "Failed to apply configuration due to 2 errors:%n"
+                    + " (1) Not a valid config key: foobar%n"
+                    + " (2) No content for employee/ASM_DD/1.recommended.json/config%n")),
         arguments(
             "in target_files but not signed",
             toJson(notInTargets),

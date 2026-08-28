@@ -67,7 +67,7 @@ class DDLoggerTest extends LogValidatingSpecification {
   }
 
   static String validateLogLine(OutputStream outputStream, String previous, boolean enabled, String level, String msg, String emsg) {
-    def total = outputStream.toString()
+    def total = normalizeLineEndings(outputStream.toString())
     def current = total.substring(previous.length())
     def expected = ""
     if (enabled) {
@@ -248,7 +248,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     }
 
     then:
-    outputStream.toString() ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+    normalizeLineEndings(outputStream.toString()) ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
 
     where:
     level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
@@ -273,7 +273,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     }
 
     then:
-    outputStream.toString() ==~ /^.* $level foo - log some more \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+    normalizeLineEndings(outputStream.toString()) ==~ /^.* $level foo - log some more \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
 
     where:
     level << LogLevel.values().toList().take(5) // remove LogLevel.OFF

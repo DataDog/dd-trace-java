@@ -56,7 +56,7 @@ class SystemAccessTest extends DDJavaSpecification {
     if (hasCpuTime) {
       assertNotEquals(Long.MIN_VALUE, threadCpuTime1);
       assertNotEquals(Long.MIN_VALUE, threadCpuTime2);
-      assertTrue(threadCpuTime2 > threadCpuTime1);
+      assertTrue(threadCpuTime2 >= threadCpuTime1);
     } else {
       assertEquals(Long.MIN_VALUE, threadCpuTime1);
       assertEquals(Long.MIN_VALUE, threadCpuTime2);

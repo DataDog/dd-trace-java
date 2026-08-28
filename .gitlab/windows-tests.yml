@@ -29,7 +29,7 @@ build-windows-ci-image:
         "--tag", $image
       )
 
-      Invoke-Native docker @("pull", $image)
+      Invoke-Native docker @("pull", "--quiet", $image)
       if ($LASTEXITCODE -eq 0) {
         $buildArguments += @("--cache-from", $image)
       } else {
@@ -117,7 +117,7 @@ test-base-windows:
 
       $image = Get-WindowsCiImage
       Write-Output "Expected Windows test image: $image"
-      Invoke-Native docker @("pull", $image)
+      Invoke-Native docker @("pull", "--quiet", $image)
       if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Could not pull Windows test image $image."
         Write-Host "Manually run build-windows-ci-image, wait for it to finish, then retry this job."

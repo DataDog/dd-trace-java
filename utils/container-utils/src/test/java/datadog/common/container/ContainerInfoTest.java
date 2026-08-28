@@ -19,6 +19,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -251,6 +253,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
 
   @Test
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires Unix inode support and ls")
   void getInoPathShouldReturnSameValueAsLsIdPath() throws Exception {
     File f = File.createTempFile("container-info-test-", "-inode-file");
     f.deleteOnExit();
@@ -291,6 +294,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
     "['']                 | true       ",
     "[memory]             | false      "
   })
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires Unix inode support and ls")
   void readEntityIDReturnIdInoForEmptyController(
       List<String> controllers, boolean hasEntityId) throws Exception {
     File mountPath = createTempDir();
@@ -315,6 +319,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
     "[memory]             | true       ",
     "['']                 | false      "
   })
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires Unix inode support and ls")
   void readEntityIDReturnIdInoForMemoryController(
       List<String> controllers, boolean hasEntityId) throws Exception {
     File mountPath = createTempDir();
@@ -337,6 +342,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
   // spotless:on
 
   @Test
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires Unix inode support and ls")
   void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
     File mountPath = createTempDir();
     File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
