@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MES
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.Arrays;
 import java.util.function.Supplier;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -31,6 +33,11 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final boolean KAFKA_LEGACY_TRACING = Config.get().isKafkaLegacyTracingEnabled();
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!KAFKA_LEGACY_TRACING, KAFKA);
+  public static final boolean TRACING_ENABLED =
+      InstrumenterConfig.get()
+          .isIntegrationEnabled(
+              Arrays.asList("kafka", "kafka-streams"),
+              InstrumenterConfig.get().isIntegrationsEnabled());
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
 
   private final String spanKind;
