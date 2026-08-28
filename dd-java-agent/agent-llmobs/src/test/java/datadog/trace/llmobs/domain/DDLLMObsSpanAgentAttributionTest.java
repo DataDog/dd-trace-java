@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.api.llmobs.LLMObsPropagationAccess;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -216,9 +215,9 @@ class DDLLMObsSpanAgentAttributionTest {
 
   @Test
   void innerAgentFinishRestoresOuterAgentPropagationTags() throws Exception {
-    // Outer agent starts → stamps PTags. Inner agent starts → overwrites PTags.
-    // After inner agent finishes, PTags must revert to the outer agent's values so that
-    // a sibling span created after the inner agent reflects the outer agent.
+    // Outer agent's LLMObsContext is active. Inner agent starts (its own context pushed on top).
+    // After inner agent finishes its context is popped, restoring outer agent's context.
+    // A sibling span then sees outer agent's attribution via LLMObsContext.
     try (AgentScope apmScope = startRootApmScope()) {
       DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
       try {
@@ -226,12 +225,10 @@ class DDLLMObsSpanAgentAttributionTest {
         String outerPagentSpanId = String.valueOf(outerInner.getSpanId());
 
         DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
-        // Inner agent has overwritten PTags at this point
         innerAgent.finish();
-        // After finish(), PTags must be restored to outer agent's values
+        // After finish(), inner agent's LLMObsContext scope is closed — outer agent's is restored.
 
-        // A sibling span created now should see outer agent's attribution (from PTags fallback),
-        // because the LLMObsContext from outerAgent is still active and same trace
+        // Sibling span created now sees outer agent's attribution via the restored LLMObsContext.
         DDLLMObsSpan siblingTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "sibling-tool");
         try {
           AgentSpan siblingInner = innerSpan(siblingTool);
@@ -269,7 +266,6 @@ class DDLLMObsSpanAgentAttributionTest {
       try {
         // The tool span's APM parent is secondRoot (different trace from agentSpan).
         // The trace-ID gate must block inheritance from the stale LLMObsContext.
-        // It may still pick up pagent from PTags on secondRoot, but those are empty.
         AgentSpan toolInner = innerSpan(toolInSecondTrace);
         assertNull(toolInner.getTag(PAGENT_SPAN_ID_TAG));
         assertNull(toolInner.getTag(PAGENT_NAME_TAG));
@@ -287,8 +283,8 @@ class DDLLMObsSpanAgentAttributionTest {
   @Test
   void standaloneAgentSpanActivatesApmScopeForOutgoingPropagation() throws Exception {
     // When no ambient APM root exists, the agent span must activate its underlying APM span so
-    // that subsequently instrumented outgoing requests become children of it and inherit the pagent
-    // PTags. Verify the active APM span IS the agent's inner span while the agent is open.
+    // that subsequently instrumented outgoing requests become children of it.
+    // Verify the active APM span IS the agent's inner span while the agent is open.
     DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "standalone-agent");
     try {
       AgentSpan inner = innerSpan(agentSpan);
@@ -306,7 +302,7 @@ class DDLLMObsSpanAgentAttributionTest {
   @Test
   void nonStandaloneAgentSpanDoesNotActivateApmScope() throws Exception {
     // When an APM root already exists (production case), the agent span must NOT override the
-    // active APM scope — the existing root already carries the pagent PTags.
+    // active APM scope.
     try (AgentScope apmScope = startRootApmScope()) {
       AgentSpan rootApm = apmScope.span();
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "non-standalone-agent");
@@ -323,30 +319,4 @@ class DDLLMObsSpanAgentAttributionTest {
     }
   }
 
-  @Test
-  void distributedParentPagentValuesAreInherited() throws Exception {
-    // Simulate a distributed parent: an APM root span with pagent propagation tags already set
-    // (e.g. injected by an upstream service during HTTP propagation).
-    AgentSpan rootApmSpan = AgentTracer.get().buildSpan("apm", "http.server.request").start();
-    AgentScope apmScope = AgentTracer.activateSpan(rootApmSpan);
-    try {
-      // Directly stamp the pagent values on the root span context via LLMObsPropagationAccess
-      LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootApmSpan.spanContext();
-      access.setParentAgentSpanId("1234567890abcdef");
-      access.setParentAgentName("upstream-agent");
-
-      // No LLMObs context is active — should fall through to the distributed path
-      DDLLMObsSpan llmSpan = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "downstream-llm");
-      try {
-        AgentSpan llmInner = innerSpan(llmSpan);
-        assertEquals("1234567890abcdef", llmInner.getTag(PAGENT_SPAN_ID_TAG));
-        assertEquals("upstream-agent", llmInner.getTag(PAGENT_NAME_TAG));
-      } finally {
-        llmSpan.finish();
-      }
-    } finally {
-      apmScope.close();
-      rootApmSpan.finish();
-    }
-  }
 }

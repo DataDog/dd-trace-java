@@ -177,15 +177,4 @@ public abstract class PropagationTags {
 
   public abstract void updateAndLockDecisionMaker(PropagationTags source);
 
-  /** Returns the propagated parent agent span ID (_dd.p.llmobs_pagent_span_id), or null. */
-  public abstract String getParentAgentSpanId();
-
-  /** Returns the propagated parent agent name (_dd.p.llmobs_pagent_name), or null. */
-  public abstract String getParentAgentName();
-
-  /** Sets the parent agent span ID for outgoing propagation. Null clears it. */
-  public abstract void updateParentAgentSpanId(String value);
-
-  /** Sets the parent agent name for outgoing propagation. Null clears it. */
-  public abstract void updateParentAgentName(String value);
 }

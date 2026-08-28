@@ -5,8 +5,6 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.PARENT_AGENT_NAME_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.PARENT_AGENT_SPAN_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -113,9 +111,6 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue knuthSamplingRateTagValue;
 
     private volatile TagValue orgPropagationMarkerTagValue;
-
-    private volatile TagValue parentAgentSpanIdTagValue;
-    private volatile TagValue parentAgentNameTagValue;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -383,46 +378,6 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public String getParentAgentSpanId() {
-      TagValue v = parentAgentSpanIdTagValue;
-      return v == null ? null : v.forType(TagElement.Encoding.DATADOG).toString();
-    }
-
-    @Override
-    public String getParentAgentName() {
-      TagValue v = parentAgentNameTagValue;
-      return v == null ? null : v.forType(TagElement.Encoding.DATADOG).toString();
-    }
-
-    @Override
-    public void updateParentAgentSpanId(String value) {
-      TagValue newValue = value == null ? null : TagValue.from(value);
-      if (!Objects.equals(this.parentAgentSpanIdTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.parentAgentSpanIdTagValue = newValue;
-      }
-    }
-
-    @Override
-    public void updateParentAgentName(String value) {
-      TagValue newValue = value == null ? null : TagValue.from(value);
-      if (!Objects.equals(this.parentAgentNameTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.parentAgentNameTagValue = newValue;
-      }
-    }
-
-    TagValue getParentAgentSpanIdTagValue() {
-      return parentAgentSpanIdTagValue;
-    }
-
-    TagValue getParentAgentNameTagValue() {
-      return parentAgentNameTagValue;
-    }
-
-    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -565,11 +520,6 @@ public class PTagsFactory implements PropagationTags.Factory {
                   TRACE_SOURCE_TAG,
                   TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource)));
         }
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, PARENT_AGENT_SPAN_ID_TAG, parentAgentSpanIdTagValue);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(size, PARENT_AGENT_NAME_TAG, parentAgentNameTagValue);
         xDatadogTagsSize = size;
       }
       return size;

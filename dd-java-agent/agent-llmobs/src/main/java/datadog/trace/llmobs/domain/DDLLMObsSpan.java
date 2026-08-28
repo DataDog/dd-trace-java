@@ -8,7 +8,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.api.llmobs.LLMObsPropagationAccess;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -69,10 +68,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String mlApp;
   private final ContextScope scope;
   private final boolean hasSessionId;
-  private final boolean hasAgentVersion;
-  // Saved propagation values to restore when an agent span finishes (nested agent support).
-  private final String previousPagentSpanId;
-  private final String previousPagentName;
   // Non-null only when this is a standalone agent span (no ambient APM root). Activating the
   // underlying APM span as a scope ensures outgoing HTTP instrumentation creates spans under this
   // agent, so they share the same APM trace and pick up the pagent PTags stamped on the root.
@@ -192,15 +187,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
         resolvedPagentName = LLMObsContext.currentParentAgentName();
       }
 
-      // Fall back to distributed propagated tags on the root APM span context.
-      if (resolvedPagentSpanId == null) {
-        AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
-        if (rootCtx instanceof LLMObsPropagationAccess) {
-          LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
-          resolvedPagentSpanId = access.getParentAgentSpanId();
-          resolvedPagentName = access.getParentAgentName();
-        }
-      }
     }
 
     // Store pagent values as internal tags so the serializer can emit agent_attribution.
@@ -211,6 +197,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
+<<<<<<< HEAD
     // If this span is an agent, stamp the root trace's propagation tags for outgoing distributed
     // calls. Save the previous values first so finish() can restore them — this supports nested
     // agent spans where an inner agent must not permanently overwrite the outer agent's
@@ -234,6 +221,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     // Propagate sessionId, agent_version, and agent attribution to descendant LLMObs spans.
+=======
+    // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
+>>>>>>> 7b2ab19e6d (revert(llmobs): remove distributed agent attribution propagation via PTags)
     scope =
         LLMObsContext.attach(
             span.spanContext(), sessionId, resolvedAgentVersion, resolvedPagentSpanId,
@@ -706,16 +696,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     span.finish();
     scope.close();
-    // Restore the propagation tags saved before this agent span overwrote them, so that an outer
-    // agent span's attribution is reinstated once this inner agent span finishes.
-    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
-      AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
-      if (rootCtx instanceof LLMObsPropagationAccess) {
-        LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
-        access.setParentAgentSpanId(previousPagentSpanId);
-        access.setParentAgentName(previousPagentName);
-      }
-    }
     if (standaloneApmScope != null) {
       standaloneApmScope.close();
     }

@@ -21,7 +21,6 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.llmobs.LLMObsPropagationAccess;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -65,8 +64,7 @@ public class DDSpanContext
     implements AgentSpanContext,
         RequestContext,
         TraceSegment,
-        ProfilerContext,
-        LLMObsPropagationAccess {
+        ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1495,27 +1493,6 @@ public class DDSpanContext
 
   public PropagationTags getPropagationTags() {
     return getRootSpanContextOrThis().propagationTags;
-  }
-
-  // LLMObsPropagationAccess implementation — delegates to the root span's propagation tags
-  @Override
-  public String getParentAgentSpanId() {
-    return getPropagationTags().getParentAgentSpanId();
-  }
-
-  @Override
-  public String getParentAgentName() {
-    return getPropagationTags().getParentAgentName();
-  }
-
-  @Override
-  public void setParentAgentSpanId(String value) {
-    getPropagationTags().updateParentAgentSpanId(value);
-  }
-
-  @Override
-  public void setParentAgentName(String value) {
-    getPropagationTags().updateParentAgentName(value);
   }
 
   /** TraceSegment Implementation */
