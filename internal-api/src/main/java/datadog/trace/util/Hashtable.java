@@ -99,8 +99,8 @@ public final class Hashtable {
    *
    * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
    * for choosing a capacity appropriate to the working set. Once {@link #size()} reaches that
-   * capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreate} returns {@code
-   * null} rather than adding more entries -- a lookup hit is still always returned even at
+   * capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns
+   * {@code null} rather than adding more entries -- a lookup hit is still always returned even at
    * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
    * Drop down to the static building blocks and drive the bucket array yourself -- {@link
    * Hashtable#createCapped(int)} hands you a spine and a {@link SizeManager} already matched to
@@ -172,8 +172,8 @@ public final class Hashtable {
 
     /**
      * A <em>capped</em> single-key table: it holds at most {@code maxCapacity} live entries, after
-     * which {@link #insert} returns {@code false} and {@link #tryGetOrCreate} returns {@code null}.
-     * A lookup hit is still always returned at capacity -- the cap only blocks new entries.
+     * which {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code
+     * null}. A lookup hit is still always returned at capacity -- the cap only blocks new entries.
      *
      * <p>"Capped" names the promise, not the mechanism: the bucket array is sized once from {@code
      * maxCapacity} via {@link Hashtable#capacityFor(int)} and never resized, but that is an
@@ -295,17 +295,16 @@ public final class Hashtable {
     }
 
     /**
-     * Returns the entry for {@code key}, building one via {@code creator} if absent -- or {@code
-     * null} if the key is absent and the table is <b>at capacity</b>. This method can refuse:
-     * despite the name it is not total, and a caller that dereferences the result without a null
-     * check will NPE the first time the cap is reached. A lookup hit is always returned even at
-     * capacity, so only the create half can fail. Check {@link #isFull()} beforehand if you want to
-     * distinguish "refused" from "created" without inspecting the result.
+     * Returns the entry for {@code key}, building one via {@code creator} if absent -- wrapped in a
+     * {@link Maybe} that is absent if the key is absent and the table is <b>at capacity</b>. A
+     * lookup hit is always returned even at capacity, so only the create half can fail. Check
+     * {@link #isFull()} beforehand if you want to distinguish "refused" from "created" without
+     * inspecting the result.
      *
      * <p>Refusal is a designed steady state for a capped table, not an exceptional condition -- see
      * {@link #createCapped}. Decide deliberately what a refused create should do (drop the sample,
-     * fall back, make room); silently ignoring the {@code null} turns the cap into data loss you
-     * cannot see.
+     * fall back, make room); silently ignoring an absent {@link Maybe} turns the cap into data loss
+     * you cannot see.
      *
      * <p>Computes the hash once and reuses it for both the lookup and (on miss) the insert --
      * avoids the double-hash that "{@code get}; if null then {@code insert}" would incur.
@@ -314,9 +313,26 @@ public final class Hashtable {
      * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
      * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
      * bucket that future {@link #get} calls won't probe.
+     *
+     * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreateOrNull}
+     * -- see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     * Use {@link #tryGetOrCreateOrNull} directly only when a manual null check is genuinely more
+     * convenient than {@link Maybe#update}/{@link Maybe#getOrNull}.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreateOrNull(key, creator));
+    }
+
+    /**
+     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
+     * form above for new call sites; this one remains as an escape hatch for callers where the
+     * {@link Maybe} allocation-free contract doesn't fit (e.g. storing the result past the current
+     * stack frame) or that pre-date it.
      */
     @Nullable
-    public TEntry tryGetOrCreate(
+    public TEntry tryGetOrCreateOrNull(
         @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       for (TEntry curEntry = bucketFor(this.buckets, keyHash);
@@ -340,24 +356,8 @@ public final class Hashtable {
     }
 
     /**
-     * {@link Maybe}-wrapped form of {@link #tryGetOrCreate}, for callers that want to guard the
-     * refused-create case with {@link Maybe#update} rather than a manual null check:
-     *
-     * <pre>{@code
-     * table.tryGetOrCreateAsMaybe(key, Counter::new).update(n, ADD);
-     * }</pre>
-     *
-     * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreate} --
-     * see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
-     */
-    @Nonnull
-    public Maybe<TEntry> tryGetOrCreateAsMaybe(
-        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
-      return Maybe.of(tryGetOrCreate(key, creator));
-    }
-
-    /**
-     * {@link #tryGetOrCreate} followed by {@code updater}, returning whether the update happened.
+     * {@link #tryGetOrCreateOrNull} followed by {@code updater}, returning whether the update
+     * happened.
      *
      * <p>Prefer this over the two-call form for the common read-modify-write shape -- a counter
      * bump, a max, a timestamp refresh:
@@ -368,19 +368,19 @@ public final class Hashtable {
      *
      * <p>The two-call form leaves a {@code null} on the caller's happy path, and the {@code null}
      * only ever appears once the table is <b>at capacity</b> -- so {@code
-     * tryGetOrCreate(...).inc()} reads fine, tests fine, and throws in production under cardinality
-     * pressure. Fusing the update keeps that reference inside the table: at capacity the update is
-     * skipped and {@code false} is returned, which a counter caller can safely ignore or check
-     * deliberately.
+     * tryGetOrCreateOrNull(...).inc()} reads fine, tests fine, and throws in production under
+     * cardinality pressure. Fusing the update keeps that reference inside the table: at capacity
+     * the update is skipped and {@code false} is returned, which a counter caller can safely ignore
+     * or check deliberately.
      *
      * <p>No extra work versus doing it by hand -- the hash is still computed once, by the delegated
-     * {@link #tryGetOrCreate}.
+     * {@link #tryGetOrCreateOrNull}.
      */
     public boolean tryGetOrUpdate(
         @Nullable K key,
         @Nonnull Function<? super K, ? extends TEntry> creator,
         @Nonnull Consumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreate(key, creator);
+      TEntry entry = tryGetOrCreateOrNull(key, creator);
       if (entry == null) {
         return false;
       }
@@ -399,7 +399,7 @@ public final class Hashtable {
         @Nonnull Function<? super K, ? extends TEntry> creator,
         C context,
         @Nonnull BiConsumer<? super C, ? super TEntry> updater) {
-      TEntry entry = tryGetOrCreate(key, creator);
+      TEntry entry = tryGetOrCreateOrNull(key, creator);
       if (entry == null) {
         return false;
       }
@@ -424,7 +424,7 @@ public final class Hashtable {
         @Nonnull Function<? super K, ? extends TEntry> creator,
         long context,
         @Nonnull ObjLongConsumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreate(key, creator);
+      TEntry entry = tryGetOrCreateOrNull(key, creator);
       if (entry == null) {
         return false;
       }
@@ -553,8 +553,8 @@ public final class Hashtable {
     /**
      * Composite-key analogue of {@link D1#createCapped}: a <em>capped</em> table holding at most
      * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
-     * {@link #tryGetOrCreate} returns {@code null}, with lookup hits still always returned. See
-     * {@link D1#createCapped} for what "capped" promises and why it is the default posture.
+     * {@link #tryGetOrCreateOrNull} returns {@code null}, with lookup hits still always returned.
+     * See {@link D1#createCapped} for what "capped" promises and why it is the default posture.
      *
      * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
      * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
@@ -635,17 +635,31 @@ public final class Hashtable {
 
     /**
      * Two-key analogue of {@link D1#tryGetOrCreate}: returns the entry for {@code (key1, key2)},
-     * building one via {@code creator} if absent -- or {@code null} if the pair is absent and the
-     * table is <b>at capacity</b>. Like the single-key form it is not total despite the name, and
-     * refusal is a designed steady state rather than an exceptional one; see {@link
-     * D1#tryGetOrCreate} for the full contract and what to do about a refused create.
+     * building one via {@code creator} if absent -- wrapped in a {@link Maybe} that is absent if
+     * the pair is absent and the table is <b>at capacity</b>. Refusal is a designed steady state
+     * rather than an exceptional one; see {@link D1#tryGetOrCreate} for the full contract and what
+     * to do about a refused create.
      *
      * <p>Computes the combined hash once and reuses it for both lookup and (on miss) insert. The
      * {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
      * Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     *
+     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreateOrNull(key1, key2, creator));
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
+     * of {@link #tryGetOrCreate}. Prefer the {@link Maybe} form above for new call sites.
      */
     @Nullable
-    public TEntry tryGetOrCreate(
+    public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
@@ -671,30 +685,18 @@ public final class Hashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreateAsMaybe}: {@link Maybe}-wrapped form of {@link
-     * #tryGetOrCreate}, delegating to it as the sole {@link Maybe#of} call site.
-     */
-    @Nonnull
-    public Maybe<TEntry> tryGetOrCreateAsMaybe(
-        @Nullable K1 key1,
-        @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
-      return Maybe.of(tryGetOrCreate(key1, key2, creator));
-    }
-
-    /**
      * Two-key analogue of {@link D1#tryGetOrUpdate(Object, Function, Consumer)}: applies {@code
      * updater} to the entry for {@code (key1, key2)}, creating one if absent, and returns whether
      * the update happened. Returns {@code false} without updating when the pair is absent and the
      * table is at capacity. See the single-key form for why fusing the update is preferred over
-     * {@code tryGetOrCreate(...)} followed by a dereference.
+     * {@code tryGetOrCreateOrNull(...)} followed by a dereference.
      */
     public boolean tryGetOrUpdate(
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
         @Nonnull Consumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreate(key1, key2, creator);
+      TEntry entry = tryGetOrCreateOrNull(key1, key2, creator);
       if (entry == null) {
         return false;
       }
@@ -714,7 +716,7 @@ public final class Hashtable {
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
         C context,
         @Nonnull BiConsumer<? super C, ? super TEntry> updater) {
-      TEntry entry = tryGetOrCreate(key1, key2, creator);
+      TEntry entry = tryGetOrCreateOrNull(key1, key2, creator);
       if (entry == null) {
         return false;
       }
