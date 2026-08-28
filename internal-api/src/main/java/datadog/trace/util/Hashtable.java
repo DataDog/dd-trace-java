@@ -861,6 +861,8 @@ public final class Hashtable {
    */
   public static void insertHeadEntryAt(
       @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
+    assert entry.next() == null
+        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
   }
