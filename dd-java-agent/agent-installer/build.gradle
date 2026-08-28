@@ -31,6 +31,7 @@ dependencies {
   compileOnly project(':products:metrics:metrics-lib')
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation project(':utils:test-junit-utils')
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
