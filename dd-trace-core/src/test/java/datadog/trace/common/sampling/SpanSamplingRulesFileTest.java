@@ -4,11 +4,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
 
 class SpanSamplingRulesFileTest extends SpanSamplingRulesTest {
 
-  static String createRulesFile(String rules) throws IOException {
-    Path tempFile = Files.createTempFile("single-span-sampling-rules", ".json");
+  @TempDir Path tempDir;
+
+  String createRulesFile(String rules) throws IOException {
+    Path tempFile = tempDir.resolve("single-span-sampling-rules.json");
     Files.write(tempFile, rules.getBytes(StandardCharsets.UTF_8));
     return tempFile.toString();
   }
