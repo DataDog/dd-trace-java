@@ -126,6 +126,23 @@ public interface WorkQueue<T> {
       @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer);
 
   /**
+   * As {@link #tryPutBatch(Collection, Object, BiContextualProducer)}, handing each source element
+   * it could not admit to {@code onRejected} on the way past.
+   *
+   * <p>Elements the producer declined do not reach the handler; refusals do. See {@link
+   * RejectHandler} for the one place that line blurs.
+   *
+   * @return how many elements were admitted
+   * @see RejectHandler
+   */
+  @StrategyConsumer
+  <E, C> int tryPutBatch(
+      Collection<? extends E> source,
+      C context,
+      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
+      @Strategy RejectHandler<? super E> onRejected);
+
+  /**
    * Claims a place without supplying its element, for a caller whose work between claiming and
    * filling cannot be expressed as a {@link Producer}.
    *

@@ -201,6 +201,42 @@ class WorkQueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
+  void aRejectHandlerSeesEverySourceElementThatCouldNotBeAdmitted(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    List<Integer> rejected = new ArrayList<>();
+    int admitted =
+        queue.tryPutBatch(
+            Arrays.asList(1, 2, 3, 4, 5, 6),
+            "x",
+            (source, suffix) -> source + suffix,
+            rejected::add);
+    assertEquals(CAPACITY, admitted);
+    assertEquals(Arrays.asList(5, 6), rejected);
+    assertEquals(2, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aRejectHandlerDoesNotSeeElementsTheProducerDeclined(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    List<Integer> rejected = new ArrayList<>();
+    // Six source elements, three declined, three admitted -- the queue never fills, so nothing was
+    // refused and the handler is never called. A decline is not a rejection.
+    int admitted =
+        queue.tryPutBatch(
+            Arrays.asList(1, 2, 3, 4, 5, 6),
+            "x",
+            (source, suffix) -> source % 2 == 0 ? null : source + suffix,
+            rejected::add);
+    assertEquals(3, admitted);
+    assertTrue(rejected.isEmpty(), "a declined element is the caller's own decision");
+    assertEquals(0, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
   void aThrowingTransformGivesBackItsPlaceAndPropagates(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);

@@ -179,9 +179,10 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private <E, C> boolean admitEach(
       E element,
       C context,
-      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer) {
+      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
+      @Strategy RejectHandler<? super E> onRejected) {
     if (closed || !claimPlace()) {
-      dropped.increment();
+      reject(element, onRejected);
       return false;
     }
     T produced;
@@ -200,8 +201,17 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       return true;
     }
     releasePlace();
-    dropped.increment();
+    reject(element, onRejected);
     return false;
+  }
+
+  /** {@code null} rather than a no-op handler, so the count-only form adds a test and no call. */
+  @StrategyConsumer
+  private <E> void reject(E element, @Strategy RejectHandler<? super E> onRejected) {
+    dropped.increment();
+    if (onRejected != null) {
+      onRejected.onRejected(element);
+    }
   }
 
   private boolean storeOrRelease(T element) {
@@ -365,9 +375,18 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       Collection<? extends E> source,
       C context,
       BiContextualProducer<? super E, ? super C, ? extends T> producer) {
+    return tryPutBatch(source, context, producer, null);
+  }
+
+  @Override
+  public final <E, C> int tryPutBatch(
+      Collection<? extends E> source,
+      C context,
+      BiContextualProducer<? super E, ? super C, ? extends T> producer,
+      RejectHandler<? super E> onRejected) {
     int admitted = 0;
     for (E element : source) {
-      if (admitEach(element, context, producer)) {
+      if (admitEach(element, context, producer, onRejected)) {
         admitted++;
       }
     }
