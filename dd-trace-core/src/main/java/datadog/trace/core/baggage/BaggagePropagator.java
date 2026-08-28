@@ -129,7 +129,7 @@ public class BaggagePropagator implements Propagator {
     // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     if (extractedSpan != null) {
-      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof TagContext) {
         ((TagContext) extractedSpanContext).setW3CBaggage(baggage);
       }

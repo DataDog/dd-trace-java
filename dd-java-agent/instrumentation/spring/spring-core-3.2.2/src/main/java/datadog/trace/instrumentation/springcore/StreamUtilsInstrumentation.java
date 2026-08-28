@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springcore;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -56,7 +57,7 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
 
     private static void muzzleCheck() throws IOException {
       StreamUtils.copyToString(
-          new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset());
+          new ByteArrayInputStream("test".getBytes(UTF_8)), Charset.defaultCharset());
     }
   }
 }

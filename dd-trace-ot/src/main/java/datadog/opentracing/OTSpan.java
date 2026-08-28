@@ -30,7 +30,7 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
 
   @Override
   public SpanContext context() {
-    return converter.toSpanContext(delegate.context());
+    return converter.toSpanContext(delegate.spanContext());
   }
 
   @Override

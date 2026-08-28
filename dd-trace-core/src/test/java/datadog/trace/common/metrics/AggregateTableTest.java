@@ -8,11 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -282,6 +286,7 @@ class AggregateTableTest {
         null,
         null,
         null,
+        null,
         0L);
   }
 
@@ -302,7 +307,35 @@ class AggregateTableTest {
         null,
         null,
         null,
+        null,
         0L);
+  }
+
+  @Test
+  void resetCoreHandlersClearsBlockedCountsAndRefreshesCapacity() {
+    // Inject the core handlers via the 3-arg constructor to test resetCoreHandlers() directly.
+    CoreHandlers handlers = new CoreHandlers();
+    AggregateTable table = new AggregateTable(512, handlers, AdditionalTagsSchema.EMPTY);
+
+    // Fill the service cardinality budget and push one value over the limit.
+    for (int i = 0; i < MetricCardinalityLimits.SERVICE; i++) {
+      table.findOrInsert(snapshot("svc-" + i, "op", "client"));
+    }
+    AggregateEntry blocked = table.findOrInsert(snapshot("svc-overflow", "op", "client"));
+    // All overflow services map to the same sentinel bucket.
+    AggregateEntry blocked2 = table.findOrInsert(snapshot("svc-overflow-2", "op", "client"));
+    assertSame(blocked, blocked2);
+
+    HealthMetrics metrics = mock(HealthMetrics.class);
+    table.resetCoreHandlers(metrics, new CardinalityLimitReporter());
+
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
+    verifyNoMoreInteractions(metrics);
+
+    // After reset, a new service name should land in a fresh bucket, not the sentinel.
+    AggregateEntry afterReset = table.findOrInsert(snapshot("svc-new", "op", "client"));
+    assertNotSame(blocked, afterReset);
+    assertEquals("svc-new", afterReset.getService().toString());
   }
 
   // ---------- helpers ----------
@@ -337,7 +370,7 @@ class AggregateTableTest {
         names[i] = namesAndValues[2 * i];
         values[i] = namesAndValues[2 * i + 1];
       }
-      this.peerTagSchema = PeerTagSchema.testSchema(names);
+      this.peerTagSchema = new PeerTagSchema(names, PeerTagSchema.NO_STATE);
       this.peerTagValues = values;
       return this;
     }
@@ -355,6 +388,7 @@ class AggregateTableTest {
           spanKind,
           peerTagSchema,
           peerTagValues,
+          null,
           null,
           null,
           null,

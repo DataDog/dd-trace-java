@@ -74,23 +74,18 @@ public final class ScaReachabilitySystem {
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(database, instrumentation);
 
-    // canRetransform=true is required so that future method-level symbols (when added to the
-    // database) can trigger retransformation of already-loaded classes via retransformClasses().
-    // For current class-level symbols, retransformation is not used - see
-    // checkAlreadyLoadedClasses.
+    // canRetransform=true is required so that already-loaded classes can be retransformed to inject
+    // method-level callbacks when they were loaded before the agent started.
     instrumentation.addTransformer(transformer, true);
 
     transformer.checkAlreadyLoadedClasses();
     log.debug("SCA Reachability: startup scan complete");
 
-    // processPendingClassEvents drains the first-load queue (JAR resolution + hit reporting);
-    // performPendingRetransforms then injects method-level callbacks for any classes it queued.
-    // Order matters: process events first so retransforms happen in the same heartbeat.
+    // performPendingRetransforms injects method-level callbacks into classes whose names were
+    // added to pendingRetransformNames by transform() on first load or by processClass() when
+    // version resolution previously failed and needs a retry.
     ScaReachabilityDependencyRegistry.INSTANCE.setPeriodicWorkCallback(
-        () -> {
-          transformer.processPendingClassEvents();
-          transformer.performPendingRetransforms();
-        });
+        transformer::performPendingRetransforms);
   }
 
   /**

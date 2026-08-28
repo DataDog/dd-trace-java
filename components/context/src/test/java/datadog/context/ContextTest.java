@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -60,8 +61,10 @@ class ContextTest {
     // Test null value handling
     assertDoesNotThrow(
         () -> context.with(BOOLEAN_KEY, null), "Null value should not throw exception");
-    // Test null implicitly keyed value handling
-    assertDoesNotThrow(() -> context.with(null), "Null implicitly keyed value not throw exception");
+    // Test null implicitly keyed value handling - should preserve existing context, not discard it
+    Context withNull = context1.with((ImplicitContextKeyed) null);
+    assertEquals(
+        context1, withNull, "Null implicitly keyed value should preserve existing context");
   }
 
   @ParameterizedTest
@@ -163,6 +166,17 @@ class ContextTest {
     assertTrue(
         debugString.contains(context.getClass().getSimpleName()),
         "Context string representation should contain implementation name");
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
+  void testWithSameValueReturnsThis(Context context) {
+    String value = "value";
+    Context context1 = context.with(STRING_KEY, value);
+    // storing the same value again should return the same instance
+    assertSame(context1, context1.with(STRING_KEY, value));
+    // storing a different value should return a new instance
+    assertNotEquals(context1, context1.with(STRING_KEY, "other"));
   }
 
   @SuppressWarnings({"SimplifiableAssertion"})

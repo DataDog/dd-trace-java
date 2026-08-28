@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty38.client;
 
-import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -10,8 +9,10 @@ import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAdapter.SETTER;
 
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
@@ -42,10 +43,10 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     final ChannelTraceContext channelTraceContext =
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-    AgentScope parentScope = null;
-    final AgentScope.Continuation continuation = channelTraceContext.getConnectionContinuation();
+    ContextScope parentScope = null;
+    final ContextContinuation continuation = channelTraceContext.getConnectionContinuation();
     if (continuation != null) {
-      parentScope = continuation.activate();
+      parentScope = continuation.resume();
       channelTraceContext.setConnectionContinuation(null);
     }
 
@@ -56,7 +57,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
 
@@ -65,7 +66,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
       }
 
-      DECORATE.injectContext(current(), request.headers(), SETTER);
+      DECORATE.injectContext(Context.current(), request.headers(), SETTER);
 
       channelTraceContext.setClientSpan(span);
 

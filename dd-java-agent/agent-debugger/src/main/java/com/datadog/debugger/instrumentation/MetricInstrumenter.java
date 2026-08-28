@@ -10,7 +10,19 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isInScope;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
-import static com.datadog.debugger.instrumentation.Types.*;
+import static com.datadog.debugger.instrumentation.Types.ARRAYLIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.COLLECTION_TYPE;
+import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.HASHMAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.HASHSET_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LINKEDHASHMAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LINKEDLIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.MAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.METRICKIND_TYPE;
+import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.SET_TYPE;
+import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static datadog.trace.util.Strings.getClassName;
 import static org.objectweb.asm.Type.DOUBLE_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
@@ -56,6 +68,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -71,6 +84,8 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +123,9 @@ public class MetricInstrumenter extends Instrumenter {
         }
       case EXIT:
         {
-          processInstructions();
+          Map<AbstractInsnNode, Frame<BasicValue>> frames =
+              ASMHelper.computeFrames(classNode.name, methodNode);
+          processInstructions(frames);
           addFinallyHandler(returnHandlerLabel);
           installFinallyBlocks();
           break;
@@ -158,7 +175,8 @@ public class MetricInstrumenter extends Instrumenter {
   }
 
   @Override
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     int size = 1;
     int storeOpCode = 0;
     int loadOpCode = 0;
@@ -166,7 +184,9 @@ public class MetricInstrumenter extends Instrumenter {
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
-        return wrapTryCatch(callMetric(metricProbe, node));
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe, node));
+        insnList.insert(stackCleanupInsnList(node, 0, frames)); // void return: nothing to keep
+        return insnList;
       case Opcodes.LRETURN:
         storeOpCode = Opcodes.LSTORE;
         loadOpCode = Opcodes.LLOAD;
@@ -202,7 +222,10 @@ public class MetricInstrumenter extends Instrumenter {
         wrapTryCatch(
             callMetric(metricProbe, node, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
-    insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
+    InsnList prefixInsns = new InsnList();
+    prefixInsns.add(new VarInsnNode(storeOpCode, tmpIdx));
+    prefixInsns.add(stackCleanupInsnList(node, 1, frames)); // keep 1 value (the one we just stored)
+    insnList.insert(prefixInsns);
     // restore return value to the stack after wrapped call
     insnList.add(new VarInsnNode(loadOpCode, tmpIdx));
     return insnList;

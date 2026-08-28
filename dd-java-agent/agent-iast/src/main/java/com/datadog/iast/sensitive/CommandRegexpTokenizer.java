@@ -2,7 +2,7 @@ package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
-import java.util.regex.Pattern;
+import com.google.re2j.Pattern;
 
 public class CommandRegexpTokenizer extends AbstractRegexTokenizer {
 

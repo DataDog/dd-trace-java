@@ -37,7 +37,7 @@ public interface URIDataAdapter {
   /**
    * The URI is a valid one or not (looks malformed)
    *
-   * @return
+   * @return {@code true} if the URI is valid, {@code false} if it looks malformed
    */
   boolean isValid();
 }

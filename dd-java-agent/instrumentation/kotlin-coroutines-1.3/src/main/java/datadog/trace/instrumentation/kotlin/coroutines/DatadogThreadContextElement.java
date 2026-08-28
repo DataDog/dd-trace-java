@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,7 +23,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   }
 
   private Context context;
-  private AgentScope.Continuation continuation;
+  private ContextContinuation continuation;
 
   @Nonnull
   @Override
@@ -45,7 +45,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
     if (datadog != null && datadog.continuation != null) {
       // release enclosing trace now the coroutine has completed
-      datadog.continuation.cancel();
+      datadog.continuation.release();
     }
   }
 

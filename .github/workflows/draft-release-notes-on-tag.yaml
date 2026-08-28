@@ -103,9 +103,9 @@ jobs:
               'tag: diagnostics': ':mag:',
               'tag: performance': ':zap:',
               'tag: security': ':closed_lock_with_key:',
-              'type: bug': ':bug:',
+              'type: bug fix': ':bug:',
               'type: documentation': ':book:',
-              'type: enhancement': ':sparkles:',
+              'type: feature': ':sparkles:',
               'type: feature request': ':bulb:',
               'type: refactoring': ':broom:'
             }

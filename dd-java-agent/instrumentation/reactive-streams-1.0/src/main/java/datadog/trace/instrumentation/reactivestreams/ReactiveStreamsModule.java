@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ public final class ReactiveStreamsModule extends InstrumenterModule.ContextTrack
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ReactiveStreamsContextPropagation",
       packageName + ".ReactiveStreamsAsyncResultExtension",
       packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
       packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
@@ -30,7 +32,7 @@ public final class ReactiveStreamsModule extends InstrumenterModule.ContextTrack
   public Map<String, String> contextStore() {
     final Map<String, String> store = new HashMap<>();
     store.put("org.reactivestreams.Subscriber", Context.class.getName());
-    store.put("org.reactivestreams.Publisher", Context.class.getName());
+    store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
     return store;
   }
 

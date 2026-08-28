@@ -5,9 +5,16 @@ import datadog.trace.api.profiling.ProfilingScope;
 
 public class DatadogProfilingScope implements ProfilingScope {
   private final DatadogProfiler profiler;
+  // Snapshot of the app-managed context slots at scope creation (those registered via
+  // ProfilingContextAttribute). Restored on close() so ambient values set before this
+  // scope are not lost when the scope exits.
+  // Span context slots (managed by DatadogProfilingIntegration) are not snapshotted
+  // here; their lifecycle is controlled by the tracer's activate/deactivate path.
+  private final DatadogProfiler.AppContextSnapshot savedAppContext;
 
   public DatadogProfilingScope(DatadogProfiler profiler) {
     this.profiler = profiler;
+    this.savedAppContext = profiler.saveAppContext();
   }
 
   @Override
@@ -36,7 +43,10 @@ public class DatadogProfilingScope implements ProfilingScope {
 
   @Override
   public void close() {
-    // ddprof 1.41.0 removed the int-encoding setter; snapshot/restore of tag
-    // context across nested scopes is no longer supported by the library.
+    // Restores the app-managed context slots that were active when this scope opened.
+    // Span context slots are NOT touched here; they are managed independently by the
+    // tracer via DatadogProfilingIntegration.activate()/close().
+    profiler.restoreAppContext(savedAppContext);
+    profiler.syncNativeAppContext();
   }
 }

@@ -5,7 +5,6 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
-import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.util.Strings;
 import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
@@ -35,12 +34,11 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li><b>Two-phase processing</b>: on first class load ({@code classBeingRedefined == null}),
- *       {@link #transform} only enqueues the event and returns {@code null} — no JAR I/O on the
- *       class-loading thread. {@link #processPendingClassEvents} runs on the telemetry thread each
- *       heartbeat and performs all heavyweight work (JAR reads, version resolution, hit reporting).
- *       Method-level bytecode injection is deferred further to {@link #performPendingRetransforms},
- *       which calls {@link Instrumentation#retransformClasses} and fires {@link #transform} again
- *       with {@code classBeingRedefined != null}.
+ *       {@link #transform} adds the class name to {@link #pendingRetransformNames} and returns
+ *       {@code null} — no JAR I/O on the class-loading thread. {@link #performPendingRetransforms}
+ *       runs on the telemetry thread each heartbeat, calls {@link
+ *       Instrumentation#retransformClasses}, and fires {@link #transform} again with {@code
+ *       classBeingRedefined != null} to inject method-level callbacks.
  *   <li><b>Never throws</b>: any error in {@link #transform} is caught silently to avoid breaking
  *       class loading.
  *   <li><b>Concurrent</b>: all shared state uses concurrent collections — {@link #transform} is
@@ -48,15 +46,22 @@ import org.slf4j.LoggerFactory;
  *   <li><b>Version cache</b>: each JAR is read at most once; non-empty results are cached in {@link
  *       #jarCache}.
  *   <li><b>Single occurrence</b>: each (vulnId, artifact, symbolName) tuple is reported at most
- *       once per RFC requirement. Class-level dedup lives in {@link #reportedHits}; method-level
- *       dedup lives in {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across
- *       retransforms).
+ *       once per RFC requirement. Dedup lives in {@code ScaReachabilityCallback.reported}
+ *       (bootstrap-side, persists across retransforms).
  * </ul>
  */
 public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
   private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
+
+  /**
+   * Maximum number of retransform attempts for a class whose watched artifact never resolves as a
+   * dependency. Beyond this cap the class is given up on, so that a permanently unresolvable
+   * artifact (e.g. embedded Tomcat) cannot re-queue itself forever and cause unbounded {@link
+   * Instrumentation#retransformClasses} calls. See APPSEC-69734.
+   */
+  @VisibleForTesting static final int MAX_UNRESOLVED_RETRIES = 5;
 
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
@@ -65,52 +70,68 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * Cache: JAR URI → resolved dependencies. URI is used instead of URL to avoid DNS lookups in
    * equals/hashCode (DMI_COLLECTION_OF_URLS). Only non-empty results are cached to allow retries.
    */
-  private final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
+  @VisibleForTesting
+  final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
   /**
-   * Cache: artifact name → classpath-resolved version. Used when the class's own JAR does not
-   * contain the vulnerable artifact (e.g., Spring Boot starters whose watched classes live in
-   * transitive dependency JARs). Only non-null results are cached; null means "not yet found" and
-   * will be retried on the next periodic retransform.
-   */
-  private final ConcurrentHashMap<String, String> classpathArtifactCache =
-      new ConcurrentHashMap<>();
-
-  /** Deduplication set: "vulnId|artifact|symbol" tuples already reported. */
-  private final Set<String> reportedHits = ConcurrentHashMap.newKeySet();
-
-  /**
-   * Classes whose bytecode needs (re)transformation for method-level symbol injection:
-   *
-   * <ul>
-   *   <li>Classes already loaded at startup before this transformer was registered.
-   *   <li>Classes where JAR version resolution returned no results at load time and needs a retry.
-   * </ul>
-   *
-   * Drained and processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
+   * Cache: artifact name → classpath-resolved {@link Dependency}. Stores the full dependency (name
+   * + version) so that the resolved {@code dep.name} — which may be an artifactId-only name like
+   * {@code "junrar"} for JARs without pom.properties — is propagated to {@code registerCve} and
+   * kept consistent with the name that {@link datadog.telemetry.dependency.DependencyService} will
+   * report. Only non-null results are cached; null means "not yet found" and will be retried on the
+   * next periodic retransform.
    */
   @VisibleForTesting
-  final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
+  final ConcurrentHashMap<String, Dependency> classpathArtifactCache = new ConcurrentHashMap<>();
+
+  /**
+   * Batches of classes whose bytecode needs (re)transformation for method-level symbol injection:
+   *
+   * <ul>
+   *   <li>Classes already loaded at startup before this transformer was registered (queued as a
+   *       single shared batch by {@link #checkAlreadyLoadedClasses()}).
+   *   <li>Batches that failed {@code retransformClasses()} and were bisected into halves (see
+   *       {@link #performPendingRetransforms()}).
+   * </ul>
+   *
+   * <p>Each element is retransformed via its own {@code retransformClasses()} call, independently
+   * of the other batches, so an unrelated failure in one batch never affects another. Drained and
+   * processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
+   */
+  @VisibleForTesting
+  final ConcurrentLinkedQueue<List<Class<?>>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   /**
-   * Queue of classes detected on first load but not yet processed. Populated by {@link #transform}
-   * (class-loading thread); drained by {@link #processPendingClassEvents} (telemetry thread).
+   * Class name (internal format) → number of retransform attempts already spent on a class whose
+   * watched artifact could not be resolved. Capped by {@link #MAX_UNRESOLVED_RETRIES}.
+   *
+   * <p>Known limitation: keyed only by class name, never reset. If a class name exhausts the cap
+   * during one class-load lifecycle (e.g. a classloader that is later discarded) and the same name
+   * is loaded again later (redeploy, new classloader instance) with a classpath that would now
+   * resolve the artifact, the new load inherits the exhausted count and gives up immediately
+   * instead of getting its own {@value #MAX_UNRESOLVED_RETRIES} attempts. Accepted: this requires
+   * the same class name to be reloaded within the same JVM process after already exhausting the
+   * cap, which is rare, and the map's unbounded lifetime is otherwise fine (bounded by the number
+   * of distinct watched classes).
    */
   @VisibleForTesting
-  final ConcurrentLinkedQueue<PendingClass> pendingClassEvents = new ConcurrentLinkedQueue<>();
+  final ConcurrentHashMap<String, Integer> unresolvedAttemptCounts = new ConcurrentHashMap<>();
 
-  static final class PendingClass {
-    final String className;
-    final URL jarUrl;
-
-    PendingClass(String className, URL jarUrl) {
-      this.className = className;
-      this.jarUrl = jarUrl;
-    }
-  }
+  /**
+   * Class names (internal format) whose unresolved-retry attempt has already been counted during
+   * the current heartbeat. A single {@link #performPendingRetransforms()} call retransforms every
+   * loaded {@code Class<?>} sharing the same name (e.g. one copy per Spring Boot {@code
+   * LaunchedURLClassLoader}), each triggering its own {@code processClass()} invocation; this set
+   * makes them count as one attempt instead of N. Cleared at the start of every heartbeat.
+   *
+   * <p>Plain {@link HashSet}: {@link #performPendingRetransforms()} runs single-threaded and never
+   * concurrently with itself, and {@code processClass()} is invoked synchronously from within its
+   * {@code retransformClasses()} calls.
+   */
+  @VisibleForTesting final Set<String> countedThisHeartbeat = new HashSet<>();
 
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
@@ -155,11 +176,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
 
       if (classBeingRedefined == null) {
-        // First load: enqueue for deferred processing on the telemetry thread so that JAR I/O
+        // First load: schedule a retransform for the next telemetry heartbeat so that JAR I/O
         // (DependencyResolver.resolve) does not run on the class-loading thread.
-        // processPendingClassEvents() will handle resolution, reporting, and scheduling
-        // retransformation for method-level symbols on the next telemetry heartbeat.
-        pendingClassEvents.add(new PendingClass(className, location));
+        pendingRetransformNames.add(className);
         return null;
       }
 
@@ -177,15 +196,15 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * Injects method-level callbacks into the bytecode of a class being retransformed.
    *
    * <p>Called only on retransformation ({@code classBeingRedefined != null}), triggered by {@link
-   * #performPendingRetransforms} for classes that have method-level symbols. Class-level hits were
-   * already reported by {@link #reportClassLevelHits} during {@link #processPendingClassEvents}.
+   * #performPendingRetransforms}.
    *
-   * <p>Returns modified bytecode if method-level callbacks were injected, or {@code null} if only
-   * class-level symbols were present (no bytecode change needed).
+   * <p>Returns modified bytecode if method-level callbacks were injected, or {@code null} if
+   * version resolution failed (no bytecode change needed; will be retried on the next heartbeat).
    */
   private byte[] processClass(
       String className, URL jarUrl, List<ScaEntry> entries, byte[] classfileBuffer) {
-    List<Dependency> classJarDeps = resolveDependencies(jarUrl);
+    // Cache-only: processClass() runs under JVM retransform locks; no fresh JAR I/O here.
+    List<Dependency> classJarDeps = resolveDependenciesFromCache(jarUrl);
 
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
@@ -194,36 +213,38 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     String dotClassName = null;
 
     for (ScaEntry entry : entries) {
-      // Resolve version: first check the class's own JAR, then fall back to a full classpath
-      // scan. The fallback handles cases where the vulnerable artifact is an aggregator/starter
-      // POM whose watched classes actually live in a transitive dependency JAR (e.g.,
-      // spring-boot-starter-web watches @Controller, but @Controller is in spring-context.jar).
-      String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
-      if (version == null) {
-        // Version not yet resolvable - check lazily (only here) whether this entry has
-        // method-level symbols, to decide if a periodic retry should be scheduled.
-        // Doing this check only when version==null avoids the stream allocation on the
-        // common path where the version resolves successfully.
-        if (hasMethodLevelSymbolForEntry(entry, className)) {
-          hasUnresolvedMethodLevelSymbols = true;
-        }
+      // Resolve the dependency for this artifact: first check the class's own JAR, then fall back
+      // to a full classpath scan. The fallback handles aggregator/starter POM artifacts whose
+      // watched classes actually live in a transitive dependency JAR (e.g., spring-boot-starter-web
+      // watches @Controller, but @Controller is in spring-context.jar).
+      //
+      // We use the resolved dep's name (not entry.artifact()) for registerCve and
+      // MethodCallbackSpec
+      // to ensure that the registry key matches the name that DependencyService will later report.
+      // For JARs without pom.properties, DependencyResolver.guessFallbackNoPom produces an
+      // artifactId-only name (e.g. "junrar" instead of "com.github.junrar:junrar"). Using
+      // entry.artifact() as the registry key would cause a mismatch with DependencyService's name,
+      // causing the CVE telemetry event to lose its source/hash or appear under the wrong name.
+      Dependency resolvedDep = resolveArtifactDep(entry.artifact(), classJarDeps);
+      if (resolvedDep == null) {
+        hasUnresolvedMethodLevelSymbols = true;
         continue;
       }
+      String version = resolvedDep.version;
+      String depName = resolvedDep.name != null ? resolvedDep.name : entry.artifact();
 
       if (!entry.isVersionVulnerable(version)) {
         continue;
       }
 
-      reportClassLevelHitIfPresent(entry, version, className);
       for (ScaSymbol symbol : entry.symbols()) {
-        if (!symbol.className().equals(className) || symbol.isClassLevel()) {
+        if (!symbol.className().equals(className)) {
           continue;
         }
         // Register the CVE now (at class load time) with reached=[] so the next heartbeat
         // signals the backend that SCA is monitoring this CVE. The callsite will be added
         // later when the method is actually called (via ScaReachabilityCallback).
-        ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
-            entry.artifact(), version, entry.vulnId());
+        ScaReachabilityDependencyRegistry.INSTANCE.registerCve(depName, version, entry.vulnId());
         if (dotClassName == null) {
           dotClassName = Strings.getClassName(className);
         }
@@ -231,7 +252,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
             .add(
                 new MethodCallbackSpec(
-                    entry.vulnId(), entry.artifact(), version, dotClassName, symbol.method()));
+                    entry.vulnId(), depName, version, dotClassName, symbol.method()));
       }
     }
 
@@ -241,7 +262,32 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       // pendingRetransform. Instead we queue the internal class name; performPendingRetransforms()
       // will resolve it back to a Class<?> via instrumentation.getAllLoadedClasses() and
       // retransform.
-      pendingRetransformNames.add(className);
+      //
+      // The retry is capped (APPSEC-69734): some watched artifacts can never resolve (e.g. an
+      // embedded-Tomcat app that only ships tomcat-embed-core will never resolve tomcat or
+      // tomcat-coyote), and an uncapped re-queue means one retransformClasses() call per heartbeat
+      // forever, with a permanent stop-the-world / metaspace cost even though the bytecode never
+      // changes. The cap is uniform: it does not matter which resolution path failed.
+      boolean firstThisHeartbeat = countedThisHeartbeat.add(className);
+      int attempts;
+      if (firstThisHeartbeat) {
+        attempts = unresolvedAttemptCounts.merge(className, 1, Integer::sum);
+      } else {
+        // Another classloader's copy of the same class already counted this heartbeat: reuse the
+        // current count instead of counting the same heartbeat twice.
+        attempts = unresolvedAttemptCounts.getOrDefault(className, 0);
+      }
+      if (attempts < MAX_UNRESOLVED_RETRIES) {
+        pendingRetransformNames.add(className);
+      } else if (firstThisHeartbeat) {
+        // Reached only on the transition from "allowed" to "capped": once given up, the class is
+        // never re-queued, so this logs at most once per class.
+        log.debug(
+            "SCA Reachability: giving up resolving unresolved artifact(s) for class {} after {}"
+                + " heartbeats",
+            className,
+            attempts);
+      }
     }
 
     if (methodCallbacks.isEmpty()) {
@@ -262,6 +308,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * would produce false positives if used as reachability proxies. See APPSEC-62260.
    */
   public void checkAlreadyLoadedClasses() {
+    List<Class<?>> toRetransform = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       if (clazz == null) {
         continue;
@@ -281,55 +328,18 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         // JDK/bootstrap class (no code source): skip - false positive, see class Javadoc.
         continue;
       }
-      try {
-        reportClassLevelHits(internalName, location, entries);
-        // If any entry for this class has method-level symbols, the class needs retransformation
-        // so the bytecode callback can be injected. We can't modify bytecode here (we're just
-        // scanning) - retransformation is deferred to performPendingRetransforms().
-        if (hasMethodLevelSymbolForClass(entries, internalName)) {
-          pendingRetransform.add(clazz);
-        }
-      } catch (Exception e) {
-        // Never abort the scan - a failure on one class must not skip the remaining ones.
-        log.debug("SCA Reachability: error scanning already-loaded class {}", internalName, e);
-      }
+      // All symbols are method-level: always schedule retransformation so the bytecode
+      // callback can be injected. We can't modify bytecode during the startup scan; deferred
+      // to performPendingRetransforms().
+      toRetransform.add(clazz);
     }
-  }
-
-  /**
-   * Processes classes enqueued by {@link #transform} on first load.
-   *
-   * <p>Runs on the telemetry thread (heartbeat) so that JAR I/O does not block class loading. For
-   * each pending class:
-   *
-   * <ol>
-   *   <li>Resolves the JAR dependencies via {@link DependencyResolver} (I/O, cached after first
-   *       read per JAR).
-   *   <li>Reports class-level hits immediately.
-   *   <li>Schedules retransformation for method-level symbols by adding to {@link
-   *       #pendingRetransformNames}; {@link #performPendingRetransforms} handles the actual {@link
-   *       Instrumentation#retransformClasses} call on the same heartbeat.
-   * </ol>
-   *
-   * <p>Must be called <em>before</em> {@link #performPendingRetransforms} so that classes queued
-   * here are retransformed in the same heartbeat.
-   */
-  public void processPendingClassEvents() {
-    PendingClass event;
-    while ((event = pendingClassEvents.poll()) != null) {
-      final String className = event.className;
-      List<ScaEntry> entries = database.entriesForClass(className);
-      if (entries == null) {
-        continue;
-      }
-      try {
-        reportClassLevelHits(className, event.jarUrl, entries);
-        if (hasMethodLevelSymbolForClass(entries, className)) {
-          pendingRetransformNames.add(className);
-        }
-      } catch (Exception e) {
-        log.debug("SCA Reachability: error processing deferred class {}", className, e);
-      }
+    if (!toRetransform.isEmpty()) {
+      // Queued as a single shared batch: the common case is that all of these classes retransform
+      // successfully together, so this keeps the startup scan to one retransformClasses() call
+      // instead of one per already-loaded class. If the batch does fail,
+      // performPendingRetransforms()
+      // bisects it on the next heartbeat like any other batch.
+      pendingRetransform.add(toRetransform);
     }
   }
 
@@ -337,37 +347,43 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * Retransforms classes scheduled for method-level bytecode injection:
    *
    * <ol>
-   *   <li>Classes detected on first load and queued by {@link #processPendingClassEvents}.
+   *   <li>Classes detected on first load ({@link #transform} adds them to {@link
+   *       #pendingRetransformNames}).
    *   <li>Classes already loaded before the transformer was registered ({@link
    *       #checkAlreadyLoadedClasses}).
    *   <li>Classes whose JAR version could not be resolved (will be retried).
    * </ol>
    *
-   * <p>Must be called <em>after</em> {@link #processPendingClassEvents} so that classes queued in
-   * the same heartbeat are retransformed immediately.
-   *
    * <p>Called by {@code ScaReachabilityPeriodicAction} on each telemetry heartbeat via the {@code
    * periodicWorkCallback} registered in {@link ScaReachabilityDependencyRegistry}.
    */
   public void performPendingRetransforms() {
+    // Start a fresh heartbeat: unresolved-retry attempts are counted at most once per class name
+    // per heartbeat, no matter how many classloaders loaded that same class.
+    countedThisHeartbeat.clear();
+
     if (instrumentation == null) {
       return; // no-op when instrumentation is unavailable (e.g. in unit tests)
     }
-    // Drain the direct Class<?> queue (from checkAlreadyLoadedClasses)
-    List<Class<?>> toRetransform = new ArrayList<>();
-    Class<?> clazz;
-    while ((clazz = pendingRetransform.poll()) != null) {
-      if (instrumentation.isModifiableClass(clazz)) {
-        toRetransform.add(clazz);
+    // Drain the batch queue (from checkAlreadyLoadedClasses and prior bisections), dropping any
+    // classes that are no longer modifiable from within each batch while preserving the rest of
+    // that batch's grouping.
+    List<List<Class<?>>> batches = new ArrayList<>();
+    List<Class<?>> batch;
+    while ((batch = pendingRetransform.poll()) != null) {
+      batch.removeIf(c -> !instrumentation.isModifiableClass(c));
+      if (!batch.isEmpty()) {
+        batches.add(batch);
       }
     }
 
-    // Resolve any classes queued by name (from processClass timing failures).
-    // Use contains+removeAll instead of remove inside the loop: the same class may be loaded
-    // by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than one
-    // instance), and we must retransform ALL of them, not just the first one found.
+    // Resolve any classes queued by name (from processClass timing failures) into their own
+    // batch. Use contains+removeAll instead of remove inside the loop: the same class may be
+    // loaded by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than
+    // one instance), and we must retransform ALL of them, not just the first one found.
     if (!pendingRetransformNames.isEmpty()) {
       Set<String> matched = new HashSet<>();
+      List<Class<?>> resolved = new ArrayList<>();
       for (Class<?> loaded : instrumentation.getAllLoadedClasses()) {
         if (loaded == null) {
           continue;
@@ -377,26 +393,95 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           // Always add to matched to drain the pending set; only retransform if modifiable.
           matched.add(name);
           if (instrumentation.isModifiableClass(loaded)) {
-            toRetransform.add(loaded);
+            resolved.add(loaded);
           }
         }
       }
       pendingRetransformNames.removeAll(matched);
+      if (!resolved.isEmpty()) {
+        batches.add(resolved);
+      }
     }
 
-    if (toRetransform.isEmpty()) {
+    if (batches.isEmpty()) {
       return;
     }
 
+    // Pre-warm caches before retransformClasses() acquires JVM locks — no JAR I/O inside the
+    // callback.
+    // Two paths in processClass() can trigger fresh JAR I/O under locks:
+    //   1. resolveDependenciesFromCache() — safe only if jarCache is already populated.
+    //   2. resolveArtifactDep() → findArtifactInClasspath() for aggregator artifacts (e.g.,
+    //      spring-boot-starter-web) whose pom.properties is not in the class's own JAR.
+    //      Without pre-warming classpathArtifactCache, this scans all java.class.path JARs via
+    //      resolveDependencies() under JVM locks, reintroducing the snakeyaml deadlock.
+    for (List<Class<?>> b : batches) {
+      for (Class<?> c : b) {
+        ProtectionDomain pd = c.getProtectionDomain();
+        if (pd == null) {
+          continue;
+        }
+        CodeSource cs = pd.getCodeSource();
+        if (cs == null) {
+          continue;
+        }
+        URL loc = cs.getLocation();
+        if (loc == null) {
+          continue;
+        }
+        resolveDependencies(loc);
+        String internalName = c.getName().replace('.', '/');
+        List<ScaEntry> dbEntries = database.entriesForClass(internalName);
+        if (dbEntries != null) {
+          List<Dependency> classJarDeps = resolveDependenciesFromCache(loc);
+          for (ScaEntry entry : dbEntries) {
+            resolveVersionForArtifact(entry.artifact(), classJarDeps);
+          }
+        }
+      }
+    }
+
+    // Each batch is retransformed independently: a failure in one batch never affects another,
+    // and a failing multi-class batch is bisected rather than dropped as a whole.
+    for (List<Class<?>> b : batches) {
+      retransformBatch(b);
+    }
+  }
+
+  /**
+   * Attempts {@code retransformClasses()} for a single batch. On failure, a multi-class batch is
+   * bisected into two halves that are re-queued as independent batches for the next heartbeat —
+   * never retried within this same call — so that a healthy class is progressively isolated from an
+   * unrelated, permanently-failing batch-mate instead of being dropped alongside it. Once a batch
+   * is down to a single class, a further failure of that class means it has already been proven to
+   * be the actual cause (or, for a class that started as a singleton, that its very first attempt
+   * failed): it is dropped immediately rather than retried, so it never leaks its {@code Class<?>}
+   * (and {@code ClassLoader}) in Metaspace. See APPSEC-69201 for the trade-off this implies.
+   */
+  private void retransformBatch(List<Class<?>> batch) {
     try {
-      instrumentation.retransformClasses(toRetransform.toArray(new Class<?>[0]));
+      instrumentation.retransformClasses(batch.toArray(new Class<?>[0]));
       log.debug(
-          "SCA Reachability: retransformed {} class(es) for method-level detection",
-          toRetransform.size());
+          "SCA Reachability: retransformed {} class(es) for method-level detection", batch.size());
     } catch (Throwable t) {
-      log.debug("SCA Reachability: retransformClasses failed", t);
-      // Re-queue on failure so the next heartbeat can retry
-      pendingRetransform.addAll(toRetransform);
+      log.debug(
+          "SCA Reachability: retransformClasses failed for a batch of {} class(es)",
+          batch.size(),
+          t);
+      if (batch.size() == 1) {
+        log.debug(
+            "SCA Reachability: giving up retransforming {} after a failed attempt as a singleton"
+                + " batch",
+            batch.get(0).getName());
+      } else {
+        int mid = batch.size() / 2;
+        pendingRetransform.add(new ArrayList<>(batch.subList(0, mid)));
+        pendingRetransform.add(new ArrayList<>(batch.subList(mid, batch.size())));
+        log.debug(
+            "SCA Reachability: bisecting failing batch of {} class(es) into two halves for the"
+                + " next heartbeat",
+            batch.size());
+      }
     }
   }
 
@@ -404,84 +489,85 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // Internal matching logic
   // ---------------------------------------------------------------------------
 
-  private void reportClassLevelHits(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
-    List<Dependency> classJarDeps = resolveDependencies(jarUrl);
-    for (ScaEntry entry : entries) {
-      String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
-      if (version == null || !entry.isVersionVulnerable(version)) {
-        continue;
-      }
-      reportClassLevelHitIfPresent(entry, version, internalClassName);
-    }
-  }
-
-  private static boolean hasMethodLevelSymbolForClass(List<ScaEntry> entries, String className) {
-    for (ScaEntry entry : entries) {
-      if (hasMethodLevelSymbolForEntry(entry, className)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static boolean hasMethodLevelSymbolForEntry(ScaEntry entry, String className) {
-    for (ScaSymbol symbol : entry.symbols()) {
-      if (symbol.className().equals(className) && !symbol.isClassLevel()) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /**
-   * Reports a class-level reachability hit for the first class-level symbol in {@code entry} that
-   * matches {@code internalClassName}. No-op if no matching class-level symbol exists.
-   */
-  private void reportClassLevelHitIfPresent(
-      ScaEntry entry, String version, String internalClassName) {
-    for (ScaSymbol symbol : entry.symbols()) {
-      if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
-        reportHit(entry, version, internalClassName, ScaReachabilityHit.CLASS_LEVEL_SYMBOL, 1);
-        return; // one hit per entry is sufficient
-      }
-    }
-  }
-
-  /**
-   * Resolves the version of {@code artifactName} using a two-step strategy:
+   * Resolves the {@link Dependency} for {@code artifactName} (groupId:artifactId format), returning
+   * the matched dependency object — which may have an artifactId-only {@code name} for JARs without
+   * {@code pom.properties}. Returns {@code null} if the artifact cannot be found.
    *
-   * <ol>
-   *   <li>Check the dependencies resolved from the class's own JAR ({@code classJarDeps}). This
-   *       covers the common case where the class and its artifact live in the same JAR.
-   *   <li>If not found, fall back to a full classpath scan via {@link
-   *       #findArtifactVersionInClasspath}. This handles aggregator/starter POM artifacts (e.g.,
-   *       {@code spring-boot-starter-web}) whose watched classes live in transitive dependency JARs
-   *       rather than in the starter JAR itself. Results of successful scans are cached.
-   * </ol>
-   *
-   * @return the resolved version string, or {@code null} if the artifact cannot be found
+   * <p>Use this method (not {@link #resolveVersionForArtifact}) whenever the resolved dependency
+   * name needs to be propagated (e.g., for {@code registerCve} and {@code MethodCallbackSpec}), so
+   * that registry keys stay consistent with the names that {@link
+   * datadog.telemetry.dependency.DependencyService} will report.
    */
   @VisibleForTesting
-  String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
-    for (Dependency dep : classJarDeps) {
-      if (artifactName.equals(dep.name)) {
-        return dep.version;
-      }
+  Dependency resolveArtifactDep(String artifactName, List<Dependency> classJarDeps) {
+    Dependency dep = matchDep(artifactName, classJarDeps);
+    if (dep != null) {
+      return dep;
     }
     // Classpath fallback: check cache first, then scan.
-    String cached = classpathArtifactCache.get(artifactName);
+    Dependency cached = classpathArtifactCache.get(artifactName);
     if (cached != null) {
       return cached;
     }
-    String version = findArtifactVersionInClasspath(artifactName);
-    if (version != null) {
-      classpathArtifactCache.put(artifactName, version); // only cache hits; misses are retried
+    dep = findArtifactInClasspath(artifactName);
+    if (dep != null) {
+      classpathArtifactCache.put(artifactName, dep); // only cache hits; misses are retried
     }
-    return version;
+    return dep;
   }
 
   @VisibleForTesting
-  String findArtifactVersionInClasspath(String artifactName) {
+  String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
+    Dependency dep = resolveArtifactDep(artifactName, classJarDeps);
+    return dep != null ? dep.version : null;
+  }
+
+  /**
+   * Matches {@code artifactName} (groupId:artifactId format) against a list of dependencies,
+   * returning the matched {@link Dependency} object (not just the version).
+   *
+   * <p>First tries an exact name match. If that fails, falls back to matching by artifact ID only.
+   * The fallback handles JARs without {@code pom.properties}: {@code Dependency.guessFallbackNoPom}
+   * can only extract the artifact ID from the filename (no group ID), producing names like {@code
+   * "junrar"} for {@code com.github.junrar:junrar}. The returned dependency's {@code name} reflects
+   * what {@link datadog.telemetry.dependency.DependencyService} will report for that JAR.
+   */
+  @VisibleForTesting
+  static Dependency matchDep(String artifactName, List<Dependency> deps) {
+    for (Dependency dep : deps) {
+      if (artifactName.equals(dep.name)) {
+        return dep;
+      }
+    }
+    int colonIdx = artifactName.lastIndexOf(':');
+    if (colonIdx < 0) {
+      return null;
+    }
+    String artifactId = artifactName.substring(colonIdx + 1);
+    for (Dependency dep : deps) {
+      if (dep.name != null
+          && !dep.name.contains(":")
+          && artifactId.equals(dep.name)
+          && dep.version != null) {
+        return dep;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Matches {@code artifactName} against a list of dependencies, returning the resolved version
+   * string. Delegates to {@link #matchDep} — use that method when the full dependency object is
+   * needed.
+   */
+  @VisibleForTesting
+  static String matchVersion(String artifactName, List<Dependency> deps) {
+    Dependency dep = matchDep(artifactName, deps);
+    return dep != null ? dep.version : null;
+  }
+
+  private Dependency findArtifactInClasspath(String artifactName) {
     // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
     Set<URI> scanned = new HashSet<>();
 
@@ -499,9 +585,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       try {
         URI uri = new File(entry).toURI();
         if (scanned.add(uri)) {
-          String version = findArtifactInUrl(artifactName, uri.toURL());
-          if (version != null) {
-            return version;
+          Dependency dep = matchDep(artifactName, resolveDependencies(uri.toURL()));
+          if (dep != null) {
+            return dep;
           }
         }
       } catch (Exception e) {
@@ -511,38 +597,25 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     return null;
   }
 
-  private String findArtifactInUrl(String artifactName, URL url) {
-    for (Dependency dep : resolveDependencies(url)) {
-      if (artifactName.equals(dep.name) && dep.version != null) {
-        return dep.version;
-      }
-    }
-    return null;
+  @VisibleForTesting
+  String findArtifactVersionInClasspath(String artifactName) {
+    Dependency dep = findArtifactInClasspath(artifactName);
+    return dep != null ? dep.version : null;
   }
 
-  private void reportHit(
-      ScaEntry entry, String version, String internalClassName, String symbolName, int line) {
-    // Include version: two artifact versions loaded in separate classloaders must produce
-    // independent class-level hits.
-    String dedupKey = entry.vulnId() + "|" + entry.artifact() + "|" + version + "|" + symbolName;
-    if (!reportedHits.add(dedupKey)) {
-      return;
+  private List<Dependency> resolveDependenciesFromCache(URL url) {
+    try {
+      List<Dependency> cached = jarCache.get(url.toURI());
+      return cached != null ? cached : Collections.emptyList();
+    } catch (Exception e) {
+      // URISyntaxException from url.toURI() — should not happen for JAR URLs from protection domain
+      log.debug("SCA Reachability: could not read jarCache for {}", url, e);
+      return Collections.emptyList();
     }
-    String dotClassName = Strings.getClassName(internalClassName);
-    log.debug(
-        "SCA Reachability: {} reached in {}:{} via {}#{}",
-        entry.vulnId(),
-        entry.artifact(),
-        version,
-        dotClassName,
-        symbolName);
-    // Register with callsite in the stateful registry. For class-level, dotClassName and
-    // symbolName ("<clinit>") are used as the callsite - there is no separate "caller" frame.
-    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        entry.artifact(), version, entry.vulnId(), dotClassName, symbolName, line);
   }
 
-  private List<Dependency> resolveDependencies(URL url) {
+  @VisibleForTesting
+  List<Dependency> resolveDependencies(URL url) {
     try {
       URI uri = url.toURI();
       List<Dependency> cached = jarCache.get(uri);

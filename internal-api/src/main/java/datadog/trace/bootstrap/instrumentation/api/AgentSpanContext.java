@@ -68,7 +68,7 @@ public interface AgentSpanContext {
      *
      * @return The span links to other extracted contexts found but terminated.
      */
-    List<AgentSpanLink> getTerminatedContextLinks();
+    List<AgentSpanLink> getTerminatedSpanLinks();
 
     String getForwarded();
 

@@ -261,8 +261,8 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  AgentSpanContext context() {
-    return delegate.context()
+  AgentSpanContext spanContext() {
+    return delegate.spanContext()
   }
 
   @Override

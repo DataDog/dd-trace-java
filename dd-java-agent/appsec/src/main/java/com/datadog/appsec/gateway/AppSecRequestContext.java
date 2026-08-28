@@ -11,6 +11,7 @@ import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
-public class AppSecRequestContext implements DataBundle, Closeable {
+public class AppSecRequestContext implements DataBundle, Closeable, AppSecContext {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
@@ -123,6 +124,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private String route;
   private String httpUrl;
+  private String apiSecurityFramework;
   private String endpoint;
   private boolean endpointComputed = false;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
@@ -168,6 +170,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
+  private volatile boolean wafRequestExcluded;
 
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
@@ -287,6 +290,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return wafRateLimited;
   }
 
+  // placeholder: libddwaf does not yet expose exclusion filter results
+  public void setWafRequestExcluded() {
+    wafRequestExcluded = true;
+  }
+
+  public boolean isWafRequestExcluded() {
+    return wafRequestExcluded;
+  }
+
   public void increaseWafTimeouts() {
     WAF_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
@@ -342,39 +354,55 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
+  /**
+   * Returns the request's {@link WafContext}, creating it on first use.
+   *
+   * <p>Returns {@code null} when the context has already been closed (see {@link
+   * #closeWafContext()}). Callers MUST treat a {@code null} return as "the WAF must not run for
+   * this request" and skip the evaluation. This prevents a late/async data event (e.g. a RASP
+   * callback on a driver or event-loop thread) from resurrecting a brand-new native {@code
+   * ddwaf_context} on an already-finished request, which would never be closed and would leak
+   * off-heap memory (APPSEC-69085).
+   */
   public WafContext getOrCreateWafContext(
       WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
-    if (createMetrics) {
-      if (wafMetrics == null) {
-        this.wafMetrics = new WafMetrics();
-      }
-      if (isRasp && raspMetrics == null) {
-        this.raspMetrics = new WafMetrics();
-      }
-    }
-
-    WafContext curWafContext;
     synchronized (this) {
-      curWafContext = this.wafContext;
-      if (curWafContext != null) {
-        return curWafContext;
+      // Atomic with respect to closeWafContext(): both run under this monitor.
+      if (wafContextClosed) {
+        return null;
       }
-      curWafContext = new WafContext(wafHandle);
+      if (createMetrics) {
+        if (wafMetrics == null) {
+          this.wafMetrics = new WafMetrics();
+        }
+        if (isRasp && raspMetrics == null) {
+          this.raspMetrics = new WafMetrics();
+        }
+      }
+      if (this.wafContext != null) {
+        return this.wafContext;
+      }
+      WafContext curWafContext = new WafContext(wafHandle);
       this.wafContext = curWafContext;
+      return curWafContext;
     }
-    return curWafContext;
   }
 
   public void closeWafContext() {
-    if (wafContext != null) {
-      synchronized (this) {
-        if (wafContext != null) {
-          try {
-            wafContextClosed = true;
-            wafContext.close();
-          } finally {
-            wafContext = null;
-          }
+    if (wafContextClosed) {
+      // Fast path for the common case of redundant close() calls (e.g. the generic fallback
+      // close() running after GatewayBridge#onRequestEnded already closed it).
+      return;
+    }
+    synchronized (this) {
+      // Must be set unconditionally, even if the WAF never ran for this request: a late/async
+      // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).
+      wafContextClosed = true;
+      if (wafContext != null) {
+        try {
+          wafContext.close();
+        } finally {
+          wafContext = null;
         }
       }
     }
@@ -442,6 +470,20 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRoute(String route) {
     this.route = route;
+  }
+
+  /**
+   * The web framework component (e.g. netty, tomcat) captured at request-end, when the request was
+   * sampled for API Security schema extraction. Read by the deferred post-processing step instead
+   * of the span's local root, since the local root can be an inferred-proxy span (e.g.
+   * aws-apigateway) rather than the actual web framework.
+   */
+  public String getApiSecurityFramework() {
+    return apiSecurityFramework;
+  }
+
+  public void setApiSecurityFramework(String apiSecurityFramework) {
+    this.apiSecurityFramework = apiSecurityFramework;
   }
 
   public String getHttpUrl() {
@@ -709,8 +751,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       if (wafContext != null) {
         log.debug(
             SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-        closeWafContext();
       }
+      // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
+      // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
+      closeWafContext();
       collectedCookies = null;
       requestHeaders.clear();
       responseHeaders.clear();
@@ -1026,7 +1070,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   // Mainly used for testing and logging
-  Set<String> getDerivativeKeys() {
+  public Set<String> getDerivativeKeys() {
     Map<String, Object> current = derivatives.get();
     return current == null ? emptySet() : new HashSet<>(current.keySet());
   }

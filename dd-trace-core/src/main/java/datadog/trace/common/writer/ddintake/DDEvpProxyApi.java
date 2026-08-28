@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddintake;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
+import datadog.communication.EvpProxy;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -10,11 +11,11 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -26,7 +27,6 @@ public class DDEvpProxyApi extends RemoteApi {
 
   private static final Logger log = LoggerFactory.getLogger(DDEvpProxyApi.class);
 
-  private static final String DD_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_CONTENT_TYPE = "gzip";
 
@@ -36,7 +36,7 @@ public class DDEvpProxyApi extends RemoteApi {
 
   public static class DDEvpProxyApiBuilder {
     private String apiVersion = DEFAULT_INTAKE_VERSION;
-    @NonNull private TrackType trackType = TrackType.NOOP;
+    @Nonnull private TrackType trackType = TrackType.NOOP;
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl agentUrl = null;
@@ -44,7 +44,7 @@ public class DDEvpProxyApi extends RemoteApi {
     String evpProxyEndpoint;
     boolean compressionEnabled;
 
-    public DDEvpProxyApiBuilder trackType(@NonNull final TrackType trackType) {
+    public DDEvpProxyApiBuilder trackType(@Nonnull final TrackType trackType) {
       this.trackType = trackType;
       return this;
     }
@@ -131,7 +131,7 @@ public class DDEvpProxyApi extends RemoteApi {
     Request.Builder builder =
         new Request.Builder()
             .url(proxiedApiUrl)
-            .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
+            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
             .tag(OkHttpUtils.CustomListener.class, telemetryListener);
 
     if (isCompressionEnabled()) {

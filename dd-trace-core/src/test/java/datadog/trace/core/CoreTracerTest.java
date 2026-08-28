@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -28,6 +28,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.common.sampling.AllSampler;
@@ -37,7 +38,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -76,6 +77,138 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       assertInstanceOf(DDAgentWriter.class, tracer.writer);
     } finally {
       tracer.close();
+    }
+  }
+
+  private static final long SNAPSTART_CONSTRUCTION_TIME_NANOS = TimeUnit.SECONDS.toNanos(1000);
+
+  @Test
+  void
+      getTimeWithNanoTicks_whenNanoTicksStaleAfterSimulatedRestore_thenTimestampStaysAnchoredToConstructionTime() {
+    // Characterizes the AWS Lambda SnapStart bug this fix addresses: System.nanoTime() does not
+    // accumulate the frozen checkpoint/restore duration, so the nanoTicks a span is timestamped
+    // with right after restore is (almost) unchanged from construction (snapshot creation) time,
+    // even though wall-clock time has moved on by hours. Without a resync, span timestamps
+    // computed from that near-frozen nanoTicks stay anchored to construction time.
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    try {
+      long constructionTimeNanoTicks = timeSource.getNanoTicks();
+
+      // The restore happens much later: wall-clock jumps forward by 2 hours, but nanoTicks - tied
+      // to monotonic JVM uptime, which does not advance while the snapshot is frozen - does not.
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+
+      assertEquals(
+          SNAPSTART_CONSTRUCTION_TIME_NANOS,
+          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
+  void
+      maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    try {
+      // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+      long postRestoreNanos = timeSource.getCurrentTimeNanos();
+
+      tracer.maybeResyncClockForLambdaInvocation();
+
+      // A span timestamped with the near-frozen, post-restore nanoTicks reading now reflects the
+      // real post-restore time, not the stale construction-time anchor - proving the resync
+      // actually corrected counterDrift rather than the assertion just re-deriving the same
+      // reading.
+      assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  @WithConfig(key = TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED, value = "true")
+  void notifyLambdaStart_whenExplicitlyEnabled_thenResyncsClockToCurrentTime() {
+    // notifyLambdaStart runs once per Lambda invocation, before any span for that invocation is
+    // created - the actual trigger point for the resync in production, not just the extracted
+    // maybeResyncClockForLambdaInvocation() logic exercised directly above.
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    try {
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+      long postRestoreNanos = timeSource.getCurrentTimeNanos();
+
+      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+
+      // Same near-frozen-nanoTicks check as above: proves notifyLambdaStart's resync corrected
+      // the drift, rather than the assertion re-deriving the answer independently.
+      assertEquals(postRestoreNanos, tracer.getTimeWithNanoTicks(timeSource.getNanoTicks()));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void
+      notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
+    SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    try {
+      long constructionTimeNanoTicks = timeSource.getNanoTicks();
+      timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
+
+      // No @WithConfig override here - this is an opt-in feature, off by default.
+      tracer.notifyLambdaStart(new Object(), "lambda-request-123");
+
+      assertEquals(
+          SNAPSTART_CONSTRUCTION_TIME_NANOS,
+          tracer.getTimeWithNanoTicks(constructionTimeNanoTicks));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * A {@link datadog.trace.api.time.TimeSource} that decouples wall-clock time from nanoTicks, to
+   * simulate an AWS Lambda SnapStart checkpoint/restore: while frozen, monotonic nanoTicks do not
+   * advance but wall-clock time does. {@link ControllableTimeSource} can't simulate this because it
+   * derives both from the same underlying counter.
+   */
+  private static final class SnapStartTimeSource implements datadog.trace.api.time.TimeSource {
+    private final long nanoTicks;
+    private long currentTimeNanos;
+
+    SnapStartTimeSource(long initialNanos) {
+      this.nanoTicks = initialNanos;
+      this.currentTimeNanos = initialNanos;
+    }
+
+    void simulateSnapStartRestore(long wallClockJumpNanos) {
+      currentTimeNanos += wallClockJumpNanos;
+    }
+
+    @Override
+    public long getNanoTicks() {
+      return nanoTicks;
+    }
+
+    @Override
+    public long getCurrentTimeMillis() {
+      return TimeUnit.NANOSECONDS.toMillis(currentTimeNanos);
+    }
+
+    @Override
+    public long getCurrentTimeMicros() {
+      return TimeUnit.NANOSECONDS.toMicros(currentTimeNanos);
+    }
+
+    @Override
+    public long getCurrentTimeNanos() {
+      return currentTimeNanos;
     }
   }
 
@@ -200,7 +333,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     localRootSpanTags.put("only_root", "value");
     CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
     AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
-    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.context()).start();
+    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
     try {
       assertTrue(root.getTags().containsKey("only_root"));
       assertFalse(child.getTags().containsKey("only_root"));
@@ -232,7 +365,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     try {
       DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       DDSpan child =
-          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.context()).start();
+          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
       root.finish();
 
       assertNull(root.getSamplingPriority());

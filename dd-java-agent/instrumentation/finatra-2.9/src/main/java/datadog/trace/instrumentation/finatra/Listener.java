@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.finatra;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.DECORATE;
 
 import com.twitter.finagle.http.Response;
@@ -18,23 +17,23 @@ public class Listener implements FutureEventListener<Response> {
 
   @Override
   public void onSuccess(final Response response) {
-    final AgentSpan span = spanFromContext(scope.context());
+    final AgentSpan span = AgentSpan.fromContext(scope.context());
     // Don't use DECORATE.onResponse because this is the controller span
     if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
       span.setError(true);
     }
 
     DECORATE.beforeFinish(scope.context());
-    span.finish();
     scope.close();
+    span.finish();
   }
 
   @Override
   public void onFailure(final Throwable cause) {
-    final AgentSpan span = spanFromContext(scope.context());
+    final AgentSpan span = AgentSpan.fromContext(scope.context());
     DECORATE.onError(span, cause);
     DECORATE.beforeFinish(scope.context());
-    span.finish();
     scope.close();
+    span.finish();
   }
 }

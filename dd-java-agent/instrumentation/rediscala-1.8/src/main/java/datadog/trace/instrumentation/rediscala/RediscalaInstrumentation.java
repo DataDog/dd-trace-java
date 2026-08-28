@@ -107,6 +107,7 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
       }
       if (throwable == null) {
         responseFuture.onComplete(new OnCompleteHandler(contextStore, connection), ctx);
+        scope.close();
       } else {
         if (connection != null) {
           // try to get the info early
@@ -114,9 +115,9 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
         }
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       }
-      scope.close();
       // span finished in OnCompleteHandler
     }
   }

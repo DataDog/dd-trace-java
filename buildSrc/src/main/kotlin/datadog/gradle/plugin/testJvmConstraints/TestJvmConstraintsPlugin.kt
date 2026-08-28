@@ -13,6 +13,10 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 class TestJvmConstraintsPlugin : Plugin<Project> {
   override fun apply(project: Project) {
+    if (project.extensions.findByName(TEST_JVM_CONSTRAINTS) != null) {
+      return
+    }
+
     project.pluginManager.apply(JavaPlugin::class.java)
 
     val projectExtension = project.extensions.create<TestJvmConstraintsExtension>(TEST_JVM_CONSTRAINTS)
@@ -45,12 +49,10 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     // Jacoco plugin is not applied on every project
     project.pluginManager.withPlugin("org.gradle.jacoco") {
       project.tasks.withType<Test>().configureEach {
-        // Disable jacoco for additional 'testJvm' tests to speed things up a bit
-        if (testJvmSpec.javaTestLauncher.isPresent) {
-          extensions.configure<JacocoTaskExtension> {
-            isEnabled = false
-          }
-        }
+        configureJacocoForAdditionalTestJvm(
+          testJvmSpec.javaTestLauncher.isPresent,
+          project.rootProject.providers.gradleProperty("checkCoverage").isPresent
+        )
       }
     }
   }
@@ -151,5 +153,17 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       .orElse(project.providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
     )
     taskExtension.nativeImageCapable.convention(projectExtension.nativeImageCapable)
+  }
+}
+
+internal fun Test.configureJacocoForAdditionalTestJvm(
+  hasAdditionalTestJvmLauncher: Boolean,
+  checkCoverage: Boolean
+) {
+  // Disable jacoco for additional 'testJvm' tests unless coverage was explicitly requested.
+  if (hasAdditionalTestJvmLauncher && !checkCoverage) {
+    extensions.configure<JacocoTaskExtension> {
+      isEnabled = false
+    }
   }
 }

@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "javax.ws.rs"
@@ -13,8 +17,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -40,4 +42,11 @@ dependencies {
   latestDepTestImplementation group: 'org.glassfish.jersey.core', name: 'jersey-client', version: '2.+'
   latestDepTestImplementation group: 'org.apache.cxf', name: 'cxf-rt-rs-client', version: '3.2.6'
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-client', version: '3.0.26.Final'
+}
+
+// Jersey 2.0 links to Guava's removed MoreExecutors.sameThreadExecutor method.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:20.0'
+  }
 }

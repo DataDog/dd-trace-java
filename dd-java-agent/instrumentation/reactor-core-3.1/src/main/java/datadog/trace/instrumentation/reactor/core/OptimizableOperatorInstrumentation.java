@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -50,16 +51,12 @@ public class OptimizableOperatorInstrumentation
         @Advice.This final Publisher self,
         @Advice.Argument(0) final Subscriber arg,
         @Advice.Return final Subscriber s) {
-      if (s == null || arg == null) {
-        return;
-      }
-      Context context = InstrumentationContext.get(Publisher.class, Context.class).get(self);
-      if (context == null) {
-        context = InstrumentationContext.get(Subscriber.class, Context.class).get(arg);
-      }
-      if (context != null) {
-        InstrumentationContext.get(Subscriber.class, Context.class).putIfAbsent(s, context);
-      }
+      ReactorContextBridge.transferToOptimizedSubscriber(
+          self,
+          arg,
+          s,
+          InstrumentationContext.get(Publisher.class, HandoffContext.class),
+          InstrumentationContext.get(Subscriber.class, Context.class));
     }
   }
 }

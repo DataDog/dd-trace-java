@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.net;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.UrlConnectionDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
@@ -85,7 +85,7 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
         if (!state.hasSpan() && !state.isFinished()) {
           final AgentSpan span = state.start(thiz);
           if (!connected) {
-            DECORATE.injectContext(getCurrentContext().with(span), thiz, SETTER);
+            DECORATE.injectContext(currentContext().with(span), thiz, SETTER);
           }
         }
         return state;

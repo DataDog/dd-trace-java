@@ -12,6 +12,7 @@ import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
+import datadog.crashtracking.dto.RuntimeInfo;
 import datadog.crashtracking.dto.SigInfo;
 import datadog.crashtracking.dto.StackFrame;
 import datadog.crashtracking.dto.StackTrace;
@@ -44,6 +45,9 @@ import java.util.regex.Pattern;
  */
 public final class HotspotCrashLogParser {
   private static final String HOTSPOT_JVM_ARGS_PREFIX = "jvm_args:";
+  private static final String JRE_VERSION_PREFIX = "# JRE version: ";
+  private static final String JAVA_VM_PREFIX = "# Java VM: ";
+  private static final String VM_INFO_PREFIX = "vm_info: ";
   private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
@@ -362,6 +366,9 @@ public final class HotspotCrashLogParser {
     String dynamicLibraryKey = null;
     boolean previousLineBlank = false;
     State nextThreadSectionState = null;
+    String jreVersion = null;
+    String javaVm = null;
+    String vmInfo = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -391,6 +398,11 @@ public final class HotspotCrashLogParser {
                 pid = line.substring(pidIdx + 4, endIdx);
               }
             }
+          }
+          if (jreVersion == null && line.startsWith(JRE_VERSION_PREFIX)) {
+            jreVersion = line.substring(JRE_VERSION_PREFIX.length()).trim();
+          } else if (javaVm == null && line.startsWith(JAVA_VM_PREFIX)) {
+            javaVm = line.substring(JAVA_VM_PREFIX.length()).trim();
           }
           break;
         case HEADER:
@@ -486,6 +498,8 @@ public final class HotspotCrashLogParser {
             state = State.DYNAMIC_LIBRARIES;
           } else if (line.contains("S Y S T E M")) {
             state = State.SYSTEM;
+          } else if (vmInfo == null && line.startsWith(VM_INFO_PREFIX)) {
+            vmInfo = line.substring(VM_INFO_PREFIX.length()).trim();
           } else if (line.equals("END.")) {
             state = State.DONE;
           }
@@ -527,6 +541,8 @@ public final class HotspotCrashLogParser {
             datetimeRaw = line.substring(6).trim();
           } else if (datetime == null && datetimeRaw != null && line.startsWith("timezone: ")) {
             datetime = dateTimeToISO(datetimeRaw + " " + line.substring(10).trim());
+          } else if (vmInfo == null && line.startsWith(VM_INFO_PREFIX)) {
+            vmInfo = line.substring(VM_INFO_PREFIX.length()).trim();
           }
           break;
         case DONE:
@@ -550,9 +566,12 @@ public final class HotspotCrashLogParser {
     if (oomMessage != null) {
       kind = "OutOfMemory";
       message = oomMessage;
-    } else {
-      kind = sigInfo != null && sigInfo.name != null ? sigInfo.name : "UNKNOWN";
+    } else if (sigInfo != null && sigInfo.name != null) {
+      kind = sigInfo.name;
       message = "Process terminated by signal " + kind;
+    } else {
+      kind = "InternalError";
+      message = "Process terminated by Internal error";
     }
 
     final List<StackFrame> enrichedFrames = new ArrayList<>(frames.size());
@@ -606,11 +625,16 @@ public final class HotspotCrashLogParser {
       registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
       resolvedMapping = registerToMemoryMapping;
     }
+    RuntimeInfo runtimeInfo =
+        (jreVersion != null || javaVm != null || vmInfo != null)
+            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+            : null;
     Experimental experimental =
         !registers.isEmpty()
                 || resolvedMapping != null
                 || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, resolvedMapping, runtimeArgs)
+                || runtimeInfo != null
+            ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
             : null;
     DynamicLibs files =
         (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())

@@ -1,7 +1,7 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
 String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'

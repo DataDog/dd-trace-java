@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // Quarkus is only supported up to Java 21: https://github.com/quarkusio/quarkus
@@ -16,7 +15,7 @@ smokeTestApp {
   javaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(11)
   }
-  application {
+  gradleApp {
     taskName = 'quarkusBuild'
     nestedTasks = ['build']
     // Quarkus' uber-jar is named `<projectName>-runner.jar`; here the inner project has no

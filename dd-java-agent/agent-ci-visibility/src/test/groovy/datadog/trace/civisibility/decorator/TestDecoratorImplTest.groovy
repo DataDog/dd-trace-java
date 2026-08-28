@@ -22,7 +22,7 @@ class TestDecoratorImplTest extends Specification {
     then:
     1 * span.setTag(Tags.TEST_SESSION_NAME, "session-name")
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.context() >> context
+    1 * span.spanContext() >> context
     1 * context.setIntegrationName("test-component")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
@@ -48,7 +48,7 @@ class TestDecoratorImplTest extends Specification {
     decorator.afterStart(span)
 
     then:
-    1 * span.context() >> context
+    1 * span.spanContext() >> context
     1 * context.setIntegrationName("test-component")
     1 * span.setTag(Tags.TEST_SESSION_NAME, expectedSessionName)
 

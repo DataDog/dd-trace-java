@@ -99,6 +99,11 @@ public final class Hashtable {
         this.key = key;
       }
 
+      /** The key this entry was created with. */
+      public K key() {
+        return this.key;
+      }
+
       public boolean matches(Object key) {
         return Objects.equals(this.key, key);
       }
@@ -263,6 +268,16 @@ public final class Hashtable {
         super(hash(key1, key2));
         this.key1 = key1;
         this.key2 = key2;
+      }
+
+      /** The first key part this entry was created with. */
+      public K1 key1() {
+        return this.key1;
+      }
+
+      /** The second key part this entry was created with. */
+      public K2 key2() {
+        return this.key2;
       }
 
       public boolean matches(K1 key1, K2 key2) {
@@ -618,8 +633,7 @@ public final class Hashtable {
 
   /**
    * Mutating iterator over entries in a single bucket whose {@code keyHash} matches a specific
-   * search hash. Supports {@link #remove()} and {@link #replace(Entry)} to splice the chain in
-   * place.
+   * search hash. Supports {@link #remove()} and {@link #replace} to splice the chain in place.
    *
    * <p>Carries previous-node pointers for the current entry and the next-match entry so that {@code
    * remove} and {@code replace} can fix up the chain in O(1) without re-walking from the bucket

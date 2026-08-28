@@ -1,15 +1,14 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'dd-trace-java.mass'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'SpringBoot Tomcat Smoke Tests.'
 
 def serverName = 'tomcat'
 def serverModule = 'tomcat-9'
-def serverVersion = '9.0.117'
+def serverVersion = '9.0.120'
 def serverExtension = 'zip'
 
 repositories {
@@ -35,7 +34,7 @@ configurations {
 }
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootWar'
     artifactPath = 'libs/springboot-tomcat-smoketest.war'
     sysProperty = 'datadog.smoketest.springboot.war.path'

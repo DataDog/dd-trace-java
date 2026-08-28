@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -25,7 +26,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultExtension", packageName + ".ContextSpanHelper",
+      packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
     };
   }
 
@@ -33,7 +34,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
   public Map<String, String> contextStore() {
     final Map<String, String> store = new HashMap<>();
     store.put("org.reactivestreams.Subscriber", Context.class.getName());
-    store.put("org.reactivestreams.Publisher", Context.class.getName());
+    store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
     return store;
   }
 
@@ -55,7 +56,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
     return asList(
         new BlockingPublisherInstrumentation(),
         new CorePublisherInstrumentation(),
-        new CoreSubscriberInstrumentation(),
+        new ContextWritingSubscriberInstrumentation(),
         new OptimizableOperatorInstrumentation());
   }
 }

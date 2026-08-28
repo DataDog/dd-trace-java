@@ -119,14 +119,13 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
       CallDepthThreadLocalMap.reset(RequestHandler.class);
 
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-        if (throwable != null) {
+        if (throwable == null) {
+          AgentTracer.get().notifyAppSecEnd(span, result);
+        } else {
           span.addThrowable(throwable);
         }
-        String lambdaRequestId = awsContext.getAwsRequestId();
-
-        AgentTracer.get().notifyAppSecEnd(span);
         // Force the resource name back to the literal placeholder marker right
         // before finish so that the Datadog Lambda Extension's filter
         // (filter_span_from_lambda_library_or_runtime in
@@ -142,10 +141,11 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // and the HTTP/JAX-RS instrumentation will already have written
         // HTTP_FRAMEWORK_ROUTE (3) by this point.
         span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
-        span.finish();
-        AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
         scope.close();
+        span.finish();
+        AgentTracer.get()
+            .notifyExtensionEnd(span, result, null != throwable, awsContext.getAwsRequestId());
       }
     }
   }

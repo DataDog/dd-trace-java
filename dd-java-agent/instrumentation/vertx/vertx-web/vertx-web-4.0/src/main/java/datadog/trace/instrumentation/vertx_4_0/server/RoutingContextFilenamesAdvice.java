@@ -2,10 +2,9 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
-import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -27,7 +26,7 @@ class RoutingContextFilenamesAdvice {
     return CallDepthThreadLocalMap.incrementCallDepth(FileUpload.class);
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
       @Advice.Enter int depth,
       @Advice.Return Collection<FileUpload> uploads,
@@ -38,35 +37,52 @@ class RoutingContextFilenamesAdvice {
       return;
     }
 
-    List<String> filenames = new ArrayList<>(uploads.size());
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+        cbp.getCallback(EVENTS.requestFilesContent());
+    if (filenamesCb == null && contentCb == null) {
+      return;
+    }
+
+    int maxFiles = Config.get().getAppSecMaxFileContentCount();
+    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
+    List<String> filenames = null;
+    List<String> filesContent = null;
+
     for (FileUpload upload : uploads) {
       String name = upload.fileName();
-      if (name != null && !name.isEmpty()) {
+      if (filenamesCb != null && name != null && !name.isEmpty()) {
+        if (filenames == null) {
+          filenames = new ArrayList<>();
+        }
         filenames.add(name);
       }
-    }
-    if (filenames.isEmpty()) {
-      return;
-    }
-
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, List<String>, Flow<Void>> cb =
-        cbp.getCallback(EVENTS.requestFilesFilenames());
-    if (cb == null) {
-      return;
-    }
-
-    Flow<Void> flow = cb.apply(reqCtx, filenames);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        brf.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), (Flow.Action.RequestBlockingAction) action);
-        if (throwable == null) {
-          throwable = new BlockingException("Blocked request (multipart file upload)");
+      if (contentCb != null
+          && maxFiles > 0
+          && (filesContent == null || filesContent.size() < maxFiles)) {
+        if (filesContent == null) {
+          filesContent = new ArrayList<>();
         }
+        filesContent.add(FileUploadHelper.readUploadContent(upload, maxBytes));
       }
+    }
+
+    if (filenamesCb != null && filenames != null) {
+      throwable =
+          FileUploadHelper.commitBlockingResponse(
+              filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
+    }
+
+    if (throwable != null) {
+      return;
+    }
+
+    if (contentCb != null && filesContent != null) {
+      throwable =
+          FileUploadHelper.commitBlockingResponse(
+              contentCb, reqCtx, filesContent, "Blocked request (file content)");
     }
   }
 }

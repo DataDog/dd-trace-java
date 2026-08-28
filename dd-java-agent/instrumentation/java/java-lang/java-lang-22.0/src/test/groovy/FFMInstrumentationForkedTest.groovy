@@ -136,58 +136,32 @@ class FFMInstrumentationForkedTest extends InstrumentationSpecification {
 
   def "should trace ffm calls using libraryLookup by path for library loaded with System.load"() {
     setup:
-    injectSysConfig("trace.native.methods", "libjvm[*]")
-    final String libName = System.mapLibraryName("jvm")
-    final Path libPath = Path.of(System.getProperty("java.home"), "lib", "server", libName)
+    injectSysConfig("trace.native.methods", "libdt_socket[*]")
+    final String libName = System.mapLibraryName("dt_socket")
+    final Path libPath = Path.of(System.getProperty("java.home"), "lib", libName)
 
     when:
     LoaderUtil.loadLibrary(libPath)
-    try (final Arena arena = Arena.ofConfined()) {
-      final SymbolLookup libLookup = LoaderUtil.loaderLookup()
-      FunctionDescriptor fd = FunctionDescriptor.of(
-      ValueLayout.JAVA_INT,   // jint return
-      ValueLayout.ADDRESS,    // JavaVM**
-      ValueLayout.JAVA_INT,   // jsize bufLen
-      ValueLayout.ADDRESS     // jsize* nVMs
-      )
-
-      // this is a quite stable symbol (it's in the public API)
-      MemorySegment sym =
-      libLookup.find("JNI_GetCreatedJavaVMs")
-      .orElseThrow()
-
-      MethodHandle methodHandle = Linker.nativeLinker().downcallHandle(sym, fd)
-
-      // Allocate space for JavaVM* (we only expect 1 VM)
-      MemorySegment vmBuf = arena.allocate(ValueLayout.ADDRESS)
-
-      // Allocate space for jsize nVMs
-      MemorySegment nVMs = arena.allocate(ValueLayout.JAVA_INT)
-
-      int result = (int) methodHandle.invokeWithArguments(
-      vmBuf,
-      1,
-      nVMs
-      )
-
-      int count = nVMs.get(ValueLayout.JAVA_INT, 0)
-
-      System.out.println("Return code: " + result)
-      System.out.println("Number of VMs: " + count)
-
-      if (count > 0) {
-        MemorySegment vmPtr = vmBuf.get(ValueLayout.ADDRESS, 0)
-        System.out.println("JavaVM pointer: " + vmPtr)
-      }
-    }
-
+    final SymbolLookup libLookup = LoaderUtil.loaderLookup()
+    final MemorySegment onLoadAddr = libLookup.findOrThrow("jdwpTransport_OnLoad")
+    final MethodHandle onLoadHandle =
+    Linker.nativeLinker().downcallHandle(
+    onLoadAddr,
+    FunctionDescriptor.of(
+    ValueLayout.JAVA_INT,
+    ValueLayout.ADDRESS,
+    ValueLayout.ADDRESS,
+    ValueLayout.JAVA_INT,
+    ValueLayout.ADDRESS))
+    // version 0 is rejected before any argument is dereferenced
+    onLoadHandle.invokeWithArguments(MemorySegment.NULL, MemorySegment.NULL, 0, MemorySegment.NULL)
 
     then:
     assertTraces(1) {
       trace(1) {
         span {
           operationName "trace.native"
-          resourceName "libjvm.JNI_GetCreatedJavaVMs"
+          resourceName "libdt_socket.jdwpTransport_OnLoad"
           tags {
             "$Tags.COMPONENT" "trace-ffm"
             defaultTags()

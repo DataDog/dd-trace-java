@@ -1,3 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  // Use slf4j-simple as default; logback's synchronized appenders can pin virtual-thread carriers
+  // when many vthreads log concurrently, which deadlocks the virtual-thread suites.
+  id 'dd-trace-java.conventions.testing.slf4j-simple'
+}
+
 muzzle {
   // No assertInverse: the advice references only java.lang.Runnable plus agent-bootstrap helpers,
   // never an OkHttp type, so muzzle has nothing version-specific to fail on for pre-4.x. The real
@@ -9,11 +16,6 @@ muzzle {
     versions = "[4.0,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-// Use slf4j-simple for tests; logback's synchronized appenders can pin virtual-thread carriers
-// when many vthreads log concurrently, which deadlocks the virtual-thread suites.
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 // The only coverage here is the virtual-thread regression suite, which needs the JDK 21+ API. We
 // run the same test source against both OkHttp 4.x and 5.x:

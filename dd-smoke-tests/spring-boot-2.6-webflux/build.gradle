@@ -3,9 +3,9 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTra
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Boot 2.6 Webflux Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -17,7 +17,8 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  configurations = [project.configurations.runtimeClasspath]
+  configurations.add(project.configurations.named('runtimeClasspath'))
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
   mergeServiceFiles()
   append 'META-INF/spring.handlers'
   append 'META-INF/spring.schemas'
@@ -25,6 +26,15 @@ tasks.named("shadowJar", ShadowJar) {
   transform(PropertiesFileTransformer) {
     paths = ['META-INF/spring.factories']
     mergeStrategy = "append"
+  }
+  filesNotMatching([
+    'META-INF/services/**',
+    'META-INF/spring.handlers',
+    'META-INF/spring.schemas',
+    'META-INF/spring.tooling',
+    'META-INF/spring.factories',
+  ]) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
 }
 

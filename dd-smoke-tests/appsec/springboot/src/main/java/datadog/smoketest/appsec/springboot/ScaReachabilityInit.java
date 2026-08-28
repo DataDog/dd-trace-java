@@ -4,21 +4,25 @@ import javax.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
 /**
- * Forces snakeyaml's Yaml class to load at application startup so that SCA Reachability can detect
- * the dependency at boot time rather than waiting for the first request.
+ * Forces junrar's LocalFolderExtractor class to load at application startup so that SCA
+ * Reachability can detect the dependency at boot time rather than waiting for the first request.
  *
- * <p>snakeyaml is on the classpath (used by Spring Boot's YAML support) but the smoke test app uses
- * application.properties rather than application.yml, so Spring never triggers snakeyaml loading on
- * its own. This component ensures the class is loaded during context initialization so the SCA
- * transformer can register the CVE and the next telemetry heartbeat can report it.
+ * <p>The constructor of LocalFolderExtractor is package-private, so Class.forName is used to
+ * trigger the class load without instantiation. After the next telemetry heartbeat the SCA
+ * transformer retransforms the class and registers the CVE with reached:[]. No vulnerable method is
+ * called, so reached stays empty.
  */
 @Component
 class ScaReachabilityInit {
 
   @PostConstruct
   void init() {
-    // Instantiating Yaml loads org.yaml.snakeyaml.Yaml without calling any vulnerable method,
-    // so the SCA transformer registers the CVE with reached:[] (class-level detection only).
-    new org.yaml.snakeyaml.Yaml();
+    try {
+      // Loading the class triggers the SCA transformer, which schedules a retransform on the
+      // next heartbeat. The retransform injects method-level callbacks and registers the CVE
+      // with reached:[]. Neither createDirectory nor createFile is called here.
+      Class.forName("com.github.junrar.LocalFolderExtractor");
+    } catch (ClassNotFoundException ignored) {
+    }
   }
 }

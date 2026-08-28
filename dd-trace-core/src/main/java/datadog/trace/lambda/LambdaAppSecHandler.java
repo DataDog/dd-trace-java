@@ -1,13 +1,22 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.lambda.LambdaEventParser.MAX_EVENT_SIZE;
+import static datadog.trace.lambda.LambdaEventParser.buildFullPath;
+import static datadog.trace.lambda.LambdaEventParser.findHeader;
+import static datadog.trace.lambda.LambdaEventParser.parseEvent;
+import static datadog.trace.lambda.LambdaEventParser.parseJsonValue;
+import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.TagMap;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,15 +27,18 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
+import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
+import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -36,33 +48,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handles AppSec processing for AWS Lambda invocations. Extracts Lambda event data and invokes
- * AppSec gateway callbacks.
+ * Handles AppSec processing for AWS Lambda invocations: invokes the AppSec gateway callbacks for
+ * the event and the handler response, and derives the HTTP span tags from the event. Payload
+ * parsing is delegated to {@link LambdaEventParser}.
  */
 public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
-  private static final Moshi MOSHI = new Moshi.Builder().build();
-  private static final JsonAdapter<Map> MAP_ADAPTER = MOSHI.adapter(Map.class);
-  private static final JsonAdapter<Object> OBJECT_ADAPTER = MOSHI.adapter(Object.class);
-
-  private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
+  // Carries the detected trigger type from processRequestStart to processResponseData within the
+  // same Lambda invocation. Cleared in processRequestEnd.
+  private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
 
   /**
-   * Process AppSec request data at the start of a Lambda invocation. Extract event data and invokes
-   * all relevant AppSec gateway callbacks.
+   * Processes AppSec request data at the start of a Lambda invocation: invokes all relevant AppSec
+   * gateway callbacks on the parsed event, and, for recognised HTTP triggers, applies the HTTP tags
+   * to the returned context so they land on the invocation span at creation.
    *
    * @param event the Lambda event object
-   * @return AgentSpanContext containing AppSec data, or null if AppSec is disabled or processing
-   *     fails
+   * @return a {@link TagContext} carrying the AppSec request context and the HTTP tags, or null if
+   *     AppSec is disabled, the event is not a parseable payload, or processing fails
    */
   public static AgentSpanContext processRequestStart(Object event) {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
       log.debug("AppSec is not active, skipping request start processing");
       return null;
     }
+
+    CURRENT_TRIGGER_TYPE.set(LambdaTriggerType.UNKNOWN);
 
     if (!(event instanceof ByteArrayInputStream)) {
       log.debug(
@@ -72,11 +86,24 @@ public class LambdaAppSecHandler {
     }
 
     try {
-      LambdaEventData eventData = extractEventData((ByteArrayInputStream) event);
-      if (eventData == LambdaEventData.EMPTY) {
+      LambdaRequestData eventData = parseEvent((ByteArrayInputStream) event);
+      if (eventData == LambdaRequestData.EMPTY) {
         return null;
       }
-      return processAppSecRequestData(eventData);
+      CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
+      // v2 payloads carry the request line verbatim; the others expose the path and a decoded
+      // parameter map only, so the query string has to be rebuilt from them
+      String fullPath = eventData.rawUri;
+      if (fullPath == null && eventData.path != null) {
+        fullPath = buildFullPath(eventData.path, eventData.queryParameters);
+      }
+      LambdaURIDataAdapter uriAdapter =
+          new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
+      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
+      if (context instanceof TagContext && eventData.triggerType.isHttp()) {
+        applyHttpTags((TagContext) context, eventData, uriAdapter);
+      }
+      return context;
     } catch (Exception e) {
       log.debug("Failed to process AppSec request data", e);
       return null;
@@ -84,11 +111,14 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Invokes the requestEnded gateway callback to add AppSec data to the span.
+   * Invokes the requestEnded gateway callback to add AppSec data to the span, propagates the
+   * sampling decision of trace-tagging rules, and clears the per-invocation state.
    *
    * @param span the current span
    */
   public static void processRequestEnd(AgentSpan span) {
+    CURRENT_TRIGGER_TYPE.remove();
+
     if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
       return;
     }
@@ -103,15 +133,146 @@ public class LambdaAppSecHandler {
       } else {
         log.debug("requestEnded callback is null");
       }
+
+      // In Lambda, the WAF runs in processRequestStart before the span exists.
+      // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
+      // isManuallyKept(), which is set by trace-tagging rules that produce no events.
+      // Apply it here so those traces are not silently dropped.
+      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      AppSecContext appSecCtx =
+          rawAppSecCtx instanceof AppSecContext ? (AppSecContext) rawAppSecCtx : null;
+      if (appSecCtx != null && appSecCtx.isManuallyKept()) {
+        TraceSegment traceSeg = requestContext.getTraceSegment();
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
     }
   }
 
   /**
-   * Merge AppSec context data into extension context.
+   * Processes response data through the WAF before the request context is closed: fires the
+   * response gateway events with the status code, headers and body parsed from the Lambda response,
+   * and sets {@code http.status_code} on the span. Only applies to recognised HTTP triggers.
    *
-   * @param extensionContext context from extension
-   * @param appSecContext context containing AppSec data
-   * @return merged context
+   * @param span the current span
+   * @param result the Lambda handler result (expected to be a ByteArrayOutputStream)
+   */
+  public static void processResponseData(AgentSpan span, Object result) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE
+        || span == null
+        || !(result instanceof ByteArrayOutputStream)) {
+      return;
+    }
+
+    try {
+      byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
+      if (bytes.length == 0 || bytes.length > MAX_EVENT_SIZE) {
+        log.debug(
+            "Response size {} exceeds limit {} or is empty, skipping response processing",
+            bytes.length,
+            MAX_EVENT_SIZE);
+        return;
+      }
+
+      String json = new String(bytes, StandardCharsets.UTF_8);
+      LambdaResponseData responseData = parseResponse(json);
+
+      // Only process responses for known HTTP trigger types
+      LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
+      if (triggerType == null || !triggerType.isHttp()) {
+        return;
+      }
+
+      if (responseData == null || responseData.statusCode == 0) {
+        // No statusCode means this is not an API-GW formatted response, or JSON parsing failed.
+        if (responseData == null || (responseData.headers.isEmpty() && responseData.body == null)) {
+          // Parse failed or response has no API-GW structure (plain JSON body).
+          // Treat the full response as the body
+          Object fallbackBody;
+          String fallbackContentType;
+          try {
+            fallbackBody = parseJsonValue(json);
+            fallbackContentType = "application/json";
+          } catch (Exception e) {
+            fallbackBody = json;
+            fallbackContentType = "text/plain";
+          }
+          Map<String, String> fallbackHeaders =
+              Collections.singletonMap("content-type", fallbackContentType);
+          responseData = new LambdaResponseData(0, fallbackHeaders, fallbackBody);
+        }
+        // else: responseData has explicit headers/body fields — keep them, just skip
+        // responseStarted
+        // (statusCode remains 0, so the responseStarted guard below will not fire).
+      }
+
+      // The only HTTP tag set on the exit path: the status does not exist at span creation.
+      if (responseData.statusCode > 0) {
+        span.setHttpStatusCode(responseData.statusCode);
+        boolean isError = Config.get().getHttpServerErrorStatuses().get(responseData.statusCode);
+        span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
+
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext == null) {
+        log.debug("Span has no RequestContext, skipping response processing");
+        return;
+      }
+
+      AgentTracer.TracerAPI tracer = AgentTracer.get();
+      CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
+
+      // Fire response gateway events. Flow results are intentionally ignored: blocking on response
+      // is not supported for Lambda because remote config is unavailable in that environment.
+
+      // Fire responseStarted
+      if (responseData.statusCode > 0) {
+        BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
+            cbp.getCallback(EVENTS.responseStarted());
+        if (responseStartedCb != null) {
+          responseStartedCb.apply(requestContext, responseData.statusCode);
+        }
+      }
+
+      // Fire responseHeader for each allowed header
+      if (responseData.headers != null && !responseData.headers.isEmpty()) {
+        TriConsumer<RequestContext, String, String> responseHeaderCb =
+            cbp.getCallback(EVENTS.responseHeader());
+        if (responseHeaderCb != null) {
+          for (Map.Entry<String, String> header : responseData.headers.entrySet()) {
+            responseHeaderCb.accept(requestContext, header.getKey(), header.getValue());
+          }
+        }
+      }
+
+      // Fire responseHeaderDone
+      Function<RequestContext, Flow<Void>> responseHeaderDoneCb =
+          cbp.getCallback(EVENTS.responseHeaderDone());
+      if (responseHeaderDoneCb != null) {
+        responseHeaderDoneCb.apply(requestContext);
+      }
+
+      // Fire responseBody
+      if (responseData.body != null) {
+        BiFunction<RequestContext, Object, Flow<Void>> responseBodyCb =
+            cbp.getCallback(EVENTS.responseBody());
+        if (responseBodyCb != null) {
+          responseBodyCb.apply(requestContext, responseData.body);
+        }
+      }
+    } catch (Exception e) {
+      log.debug("Failed to process AppSec response data", e);
+    }
+  }
+
+  /**
+   * Merges the AppSec request context data and the HTTP tags into the context returned by the
+   * Lambda Extension, which is the one that survives and seeds the invocation span.
+   *
+   * @param extensionContext context from the extension, may be null when no extension is in the
+   *     path
+   * @param appSecContext context returned by {@link #processRequestStart(Object)}, may be null
+   * @return the surviving context: the extension one when both are present
    */
   public static AgentSpanContext mergeContexts(
       AgentSpanContext extensionContext, AgentSpanContext appSecContext) {
@@ -131,6 +292,15 @@ public class LambdaAppSecHandler {
         if (appSecData != null) {
           merged.withRequestContextDataAppSec(appSecData);
         }
+        // The extension context is the one that survives, so the HTTP tags applied to the AppSec
+        // context have to be carried over: CoreTracer copies them onto the span at creation.
+        // The AppSec-derived values win on a key collision. No collision is reachable today: the
+        // extension context only carries tags for headers mapped through
+        // DD_TRACE_REQUEST_HEADER_TAGS
+        // (ContextInterpreter.handleTags), and those would have to be mapped onto an http.* key.
+        for (TagMap.EntryReader tag : extracted.getTags()) {
+          merged.putTag(tag.tag(), tag.stringValue());
+        }
         return merged;
       }
 
@@ -141,7 +311,54 @@ public class LambdaAppSecHandler {
     return extensionContext;
   }
 
-  private static AgentSpanContext processAppSecRequestData(LambdaEventData eventData) {
+  /**
+   * Writes the HTTP tags derived from the Lambda event onto the context that will seed the
+   * invocation span. Transcribed from {@code HttpServerDecorator.doOnRequest}, minus the client IP
+   * tags, {@code span.kind} and {@code http.fragment}.
+   */
+  static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
+    // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
+    if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
+      ctx.putTag(Tags.HTTP_METHOD, req.method);
+    }
+
+    if (req.host != null) {
+      // No query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it here.
+      ctx.putTag(
+          Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
+    }
+
+    String query = url.rawQuery();
+    if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
+      ctx.putTag(DDTags.HTTP_QUERY, query);
+    }
+
+    String userAgent = findHeader(req.headers, "user-agent");
+    if (userAgent != null) {
+      ctx.putTag(Tags.HTTP_USER_AGENT, userAgent);
+    }
+
+    if (req.route != null) {
+      ctx.putTag(Tags.HTTP_ROUTE, req.route);
+    }
+
+    // Deliberately a different host from the one in http.url, as in the decorator
+    String forwardedHost = findHeader(req.headers, "x-forwarded-host");
+    String hostname = forwardedHost != null ? forwardedHost : req.host;
+    if (hostname != null) {
+      ctx.putTag(Tags.HTTP_HOSTNAME, hostname);
+    }
+  }
+
+  /**
+   * Fires the request-phase gateway callbacks against a {@link TemporaryRequestContext}, since the
+   * span does not exist yet, and returns the context carrying the resulting AppSec request context.
+   *
+   * @return the context to hand back to the tracer, or null if AppSec registered no {@code
+   *     requestStarted} callback
+   */
+  private static AgentSpanContext processAppSecRequestData(
+      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter) {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -168,9 +385,6 @@ public class LambdaAppSecHandler {
                     .getCallbackProvider(RequestContextSlot.APPSEC)
                     .getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
-          // Reconstruct full path with query string for AppSec analysis
-          String fullPath = buildFullPath(eventData.path, eventData.queryParameters);
-          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath, eventData.headers);
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
           log.debug("requestMethodUriRaw callback is null");
@@ -247,521 +461,12 @@ public class LambdaAppSecHandler {
     return tagContext;
   }
 
-  private static LambdaEventData extractEventData(ByteArrayInputStream inputStream)
-      throws IOException {
-    inputStream.mark(0);
-    try {
-      int availableBytes = inputStream.available();
-
-      if (availableBytes <= 0 || availableBytes > MAX_EVENT_SIZE) {
-        log.debug(
-            "Event size {} exceeds limit {} or is invalid, skipping AppSec processing",
-            availableBytes,
-            MAX_EVENT_SIZE);
-        return LambdaEventData.EMPTY;
-      }
-
-      byte[] bytes = new byte[availableBytes];
-      int read = inputStream.read(bytes);
-      if (read <= 0) {
-        return LambdaEventData.EMPTY;
-      }
-      return extractEventDataFromJson(new String(bytes, 0, read, StandardCharsets.UTF_8));
-    } finally {
-      inputStream.reset();
-    }
-  }
-
-  private static LambdaEventData extractEventDataFromJson(String json) {
-    try {
-      // Parse JSON into a Map
-      Map<String, Object> event = MAP_ADAPTER.fromJson(json);
-      log.debug("Event JSON parsed successfully");
-
-      if (event == null) {
-        return LambdaEventData.EMPTY;
-      }
-
-      // Detect trigger type
-      LambdaTriggerType triggerType = detectTriggerType(event);
-      log.debug("Detected Lambda trigger type: {}", triggerType);
-
-      // Extract data based on trigger type
-      switch (triggerType) {
-        case API_GATEWAY_V1_REST:
-          return extractApiGatewayV1Data(event);
-        case API_GATEWAY_V2_HTTP:
-        case LAMBDA_URL:
-          return extractApiGatewayV2HttpData(event, triggerType);
-        case API_GATEWAY_V2_WEBSOCKET:
-          return extractApiGatewayV2WebSocketData(event);
-        case ALB:
-        case ALB_MULTI_VALUE:
-          return extractAlbData(event, triggerType);
-        default:
-          log.debug("Unknown trigger type, attempting generic extraction");
-          return extractGenericData(event);
-      }
-    } catch (Exception e) {
-      log.debug("Failed to parse event data from JSON", e);
-      return LambdaEventData.EMPTY;
-    }
-  }
-
-  static LambdaTriggerType detectTriggerType(Map<String, Object> event) {
-    Object requestContextObj = event.get("requestContext");
-
-    if (requestContextObj instanceof Map) {
-      Map<?, ?> requestContext = (Map<?, ?>) requestContextObj;
-
-      // Check for ALB trigger (has elb object)
-      if (requestContext.containsKey("elb")) {
-        // Check if event has multiValueHeaders
-        if (event.containsKey("multiValueHeaders")) {
-          return LambdaTriggerType.ALB_MULTI_VALUE;
-        }
-        return LambdaTriggerType.ALB;
-      }
-
-      // Check for WebSocket
-      if (requestContext.containsKey("connectionId")
-          && (requestContext.containsKey("eventType") || requestContext.containsKey("routeKey"))) {
-        return LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET;
-      }
-
-      // Check for API Gateway v2 format
-      Object httpObj = requestContext.get("http");
-      if (httpObj instanceof Map) {
-        Object domainNameObj = requestContext.get("domainName");
-        if (domainNameObj instanceof String) {
-          String domainName = (String) domainNameObj;
-          if (domainName.contains("lambda-url")) {
-            return LambdaTriggerType.LAMBDA_URL;
-          } else {
-            return LambdaTriggerType.API_GATEWAY_V2_HTTP;
-          }
-        } else {
-          return LambdaTriggerType.LAMBDA_URL;
-        }
-      }
-
-      // Check for API Gateway v1 REST API
-      if (requestContext.containsKey("httpMethod") || requestContext.containsKey("requestId")) {
-        return LambdaTriggerType.API_GATEWAY_V1_REST;
-      }
-    }
-    return LambdaTriggerType.UNKNOWN;
-  }
-
-  /** Extracts data from API Gateway v1 (REST API) event */
-  private static LambdaEventData extractApiGatewayV1Data(Map<String, Object> event) {
-    Map<String, String> headers = extractHeaders(event.get("headers"));
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-    Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
-
-    Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
-    String method = (String) requestContext.get("httpMethod");
-    String path = (String) event.get("path");
-
-    String sourceIp = null;
-    Object identityObj = requestContext.get("identity");
-    if (identityObj instanceof Map) {
-      Map<?, ?> identity = (Map<?, ?>) identityObj;
-      sourceIp = (String) identity.get("sourceIp");
-    }
-
-    return new LambdaEventData(
-        headers,
-        method,
-        path,
-        sourceIp,
-        null,
-        LambdaTriggerType.API_GATEWAY_V1_REST,
-        pathParameters,
-        queryParameters,
-        body);
-  }
-
-  /** Extracts data from API Gateway v2 (HTTP API) or Lambda URL event */
-  private static LambdaEventData extractApiGatewayV2HttpData(
-      Map<String, Object> event, LambdaTriggerType triggerType) {
-    Map<String, String> headers = extractHeadersWithCookies(event);
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-    Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
-
-    Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
-    Map<?, ?> http = (Map<?, ?>) requestContext.get("http");
-
-    String method = (String) http.get("method");
-    String path = (String) http.get("path");
-    String sourceIp = (String) http.get("sourceIp");
-
-    // Extract port if available
-    Integer sourcePort = null;
-    Object portObj = http.get("sourcePort");
-    if (portObj instanceof Number) {
-      sourcePort = ((Number) portObj).intValue();
-    }
-
-    return new LambdaEventData(
-        headers,
-        method,
-        path,
-        sourceIp,
-        sourcePort,
-        triggerType,
-        pathParameters,
-        queryParameters,
-        body);
-  }
-
-  /** Extracts data from API Gateway v2 WebSocket event */
-  private static LambdaEventData extractApiGatewayV2WebSocketData(Map<String, Object> event) {
-    Map<String, String> headers = extractHeadersWithCookies(event);
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-    Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
-
-    Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
-
-    String method = "WEBSOCKET";
-    String routeKey = (String) requestContext.get("routeKey");
-    String path = routeKey != null ? routeKey : "/";
-
-    String sourceIp = null;
-    Object identityObj = requestContext.get("identity");
-    if (identityObj instanceof Map) {
-      Map<?, ?> identity = (Map<?, ?>) identityObj;
-      sourceIp = (String) identity.get("sourceIp");
-    }
-
-    return new LambdaEventData(
-        headers,
-        method,
-        path,
-        sourceIp,
-        null,
-        LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET,
-        pathParameters,
-        queryParameters,
-        body);
-  }
-
-  /** Extracts data from ALB event (with or without multi-value headers) */
-  private static LambdaEventData extractAlbData(
-      Map<String, Object> event, LambdaTriggerType triggerType) {
-    Map<String, String> headers;
-
-    if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
-      // Handle multi-value headers (combine multiple values with comma)
-      headers = new java.util.HashMap<>();
-      Object multiValueHeadersObj = event.get("multiValueHeaders");
-      if (multiValueHeadersObj instanceof Map) {
-        Map<?, ?> rawHeaders = (Map<?, ?>) multiValueHeadersObj;
-        for (Map.Entry<?, ?> entry : rawHeaders.entrySet()) {
-          if (entry.getKey() != null && entry.getValue() != null) {
-            String key = String.valueOf(entry.getKey());
-            if (entry.getValue() instanceof java.util.List) {
-              java.util.List<?> values = (java.util.List<?>) entry.getValue();
-              // Join multiple values with comma
-              String joinedValue =
-                  values.stream()
-                      .map(String::valueOf)
-                      .collect(java.util.stream.Collectors.joining(", "));
-              headers.put(key, joinedValue);
-            } else {
-              headers.put(key, String.valueOf(entry.getValue()));
-            }
-          }
-        }
-      }
+  /** Sets the current trigger type thread-local. Package-private for use in tests only. */
+  static void setCurrentTriggerType(LambdaTriggerType type) {
+    if (type == null) {
+      CURRENT_TRIGGER_TYPE.remove();
     } else {
-      headers = extractHeaders(event.get("headers"));
-    }
-
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-
-    // ALB can have both queryStringParameters and multiValueQueryStringParameters
-    Map<String, List<String>> queryParameters;
-    if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
-      queryParameters =
-          extractMultiValueQueryParameters(event.get("multiValueQueryStringParameters"));
-    } else {
-      queryParameters = extractQueryParameters(event.get("queryStringParameters"));
-    }
-
-    Object body = extractBody(event);
-
-    String method = (String) event.get("httpMethod");
-    String path = (String) event.get("path");
-    String xff = headers.get("x-forwarded-for");
-    String sourceIp = null;
-    if (xff != null) {
-      int commaIdx = xff.indexOf(',');
-      sourceIp = (commaIdx >= 0 ? xff.substring(0, commaIdx) : xff).trim();
-    }
-
-    return new LambdaEventData(
-        headers, method, path, sourceIp, null, triggerType, pathParameters, queryParameters, body);
-  }
-
-  /** Generic data extraction for unknown trigger types (fallback) */
-  private static LambdaEventData extractGenericData(Map<String, Object> event) {
-    Map<String, String> headers = extractHeadersWithCookies(event);
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-    Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
-
-    String method = null;
-    String path = null;
-    String sourceIp = null;
-
-    // Try to extract from requestContext if available
-    Object requestContextObj = event.get("requestContext");
-    if (requestContextObj instanceof Map) {
-      Map<?, ?> requestContext = (Map<?, ?>) requestContextObj;
-
-      Object httpObj = requestContext.get("http");
-      if (httpObj instanceof Map) {
-        Map<?, ?> http = (Map<?, ?>) httpObj;
-        method = (String) http.get("method");
-        path = (String) http.get("path");
-        sourceIp = (String) http.get("sourceIp");
-      } else {
-        Object methodObj = requestContext.get("httpMethod");
-        if (methodObj != null) {
-          method = String.valueOf(methodObj);
-        }
-
-        Object identityObj = requestContext.get("identity");
-        if (identityObj instanceof Map) {
-          Map<?, ?> identity = (Map<?, ?>) identityObj;
-          sourceIp = (String) identity.get("sourceIp");
-        }
-      }
-    }
-
-    // Try root level fields
-    if (method == null) {
-      Object methodObj = event.get("httpMethod");
-      if (methodObj != null) {
-        method = String.valueOf(methodObj);
-      }
-    }
-    if (path == null) {
-      Object pathObj = event.get("path");
-      if (pathObj != null) {
-        path = String.valueOf(pathObj);
-      }
-    }
-
-    return new LambdaEventData(
-        headers,
-        method,
-        path,
-        sourceIp,
-        null,
-        LambdaTriggerType.UNKNOWN,
-        pathParameters,
-        queryParameters,
-        body);
-  }
-
-  /**
-   * Generic helper method to extract string key-value pairs from an object. Converts all keys and
-   * values to strings, filtering out null entries.
-   */
-  private static Map<String, String> extractStringMap(Object mapObj) {
-    Map<String, String> result = new java.util.HashMap<>();
-    if (mapObj instanceof Map) {
-      Map<?, ?> rawMap = (Map<?, ?>) mapObj;
-      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-        if (entry.getKey() != null && entry.getValue() != null) {
-          String key = String.valueOf(entry.getKey());
-          String value = String.valueOf(entry.getValue());
-          result.put(key, value);
-        }
-      }
-    }
-    return result;
-  }
-
-  /** Helper method to extract headers from event */
-  private static Map<String, String> extractHeaders(Object headersObj) {
-    Map<String, String> headers = extractStringMap(headersObj);
-    log.debug("Extracted {} headers", headers.size());
-    if (headers.containsKey("cookie")) {
-      log.debug("Cookie header found with value length: {}", headers.get("cookie").length());
-    }
-    return headers;
-  }
-
-  /** Helper method to extract path parameters from event */
-  private static Map<String, String> extractPathParameters(Object pathParamsObj) {
-    Map<String, String> pathParams = extractStringMap(pathParamsObj);
-    log.debug("Extracted {} path parameters", pathParams.size());
-    return pathParams;
-  }
-
-  /**
-   * Helper method to extract query parameters from event. Converts Map<String, String> to
-   * Map<String, List<String>> format expected by AppSec.
-   */
-  private static Map<String, List<String>> extractQueryParameters(Object queryParamsObj) {
-    Map<String, List<String>> result = new java.util.HashMap<>();
-    if (queryParamsObj instanceof Map) {
-      Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
-      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-        if (entry.getKey() != null && entry.getValue() != null) {
-          String key = String.valueOf(entry.getKey());
-          String value = String.valueOf(entry.getValue());
-          result.put(key, java.util.Collections.singletonList(value));
-        }
-      }
-    }
-    log.debug("Extracted {} query parameters", result.size());
-    return result;
-  }
-
-  /**
-   * Helper method to extract multi-value query parameters (used by ALB). Handles Map<String,
-   * List<String>> format directly.
-   */
-  private static Map<String, List<String>> extractMultiValueQueryParameters(Object queryParamsObj) {
-    Map<String, List<String>> result = new java.util.HashMap<>();
-    if (queryParamsObj instanceof Map) {
-      Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
-      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-        if (entry.getKey() != null && entry.getValue() != null) {
-          String key = String.valueOf(entry.getKey());
-          if (entry.getValue() instanceof java.util.List) {
-            java.util.List<?> values = (java.util.List<?>) entry.getValue();
-            java.util.List<String> stringValues = new java.util.ArrayList<>();
-            for (Object value : values) {
-              if (value != null) {
-                stringValues.add(String.valueOf(value));
-              }
-            }
-            result.put(key, stringValues);
-          } else {
-            result.put(key, java.util.Collections.singletonList(String.valueOf(entry.getValue())));
-          }
-        }
-      }
-    }
-    log.debug("Extracted {} multi-value query parameters", result.size());
-    return result;
-  }
-
-  /**
-   * Helper method to build full path including query string. Lambda events provide path and query
-   * parameters separately, so we need to reconstruct the full URI for AppSec to parse.
-   */
-  private static String buildFullPath(String path, Map<String, List<String>> queryParameters) {
-    if (queryParameters == null || queryParameters.isEmpty()) {
-      return path;
-    }
-
-    StringBuilder fullPath = new StringBuilder(path);
-    fullPath.append('?');
-
-    boolean first = true;
-    for (Map.Entry<String, List<String>> entry : queryParameters.entrySet()) {
-      String key = entry.getKey();
-      for (String value : entry.getValue()) {
-        if (!first) {
-          fullPath.append('&');
-        }
-        first = false;
-        fullPath.append(key);
-        if (value != null) {
-          fullPath.append('=').append(value);
-        }
-      }
-    }
-
-    return fullPath.toString();
-  }
-
-  /**
-   * Helper method to extract and merge headers with cookies array from event. API Gateway v2
-   * provides a separate 'cookies' array that should be merged with headers.
-   */
-  private static Map<String, String> extractHeadersWithCookies(Map<String, Object> event) {
-    Map<String, String> headers = extractHeaders(event.get("headers"));
-
-    // API Gateway v2 provides a pre-parsed cookies array
-    Object cookiesObj = event.get("cookies");
-    if (cookiesObj instanceof java.util.List) {
-      java.util.List<?> cookiesList = (java.util.List<?>) cookiesObj;
-      if (!cookiesList.isEmpty()) {
-        // Join cookies with "; " separator per RFC 6265
-        String cookieValue =
-            cookiesList.stream()
-                .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining("; "));
-
-        // Merge with existing cookie header if present
-        String existingCookie = headers.get("cookie");
-        if (existingCookie != null && !existingCookie.isEmpty()) {
-          headers.put("cookie", existingCookie + "; " + cookieValue);
-        } else {
-          headers.put("cookie", cookieValue);
-        }
-      }
-    }
-
-    return headers;
-  }
-
-  /** Helper method to extract and parse body from event */
-  private static Object extractBody(Map<String, Object> event) {
-    Object bodyObj = event.get("body");
-    if (bodyObj == null) {
-      return null;
-    }
-
-    String bodyString = String.valueOf(bodyObj);
-
-    // Check if body is base64 encoded (API Gateway feature)
-    Boolean isBase64Encoded = (Boolean) event.get("isBase64Encoded");
-    if (Boolean.TRUE.equals(isBase64Encoded)) {
-      try {
-        bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
-      } catch (Exception e) {
-        log.debug("Failed to decode base64 body", e);
-        return null;
-      }
-    }
-
-    // Try to parse as JSON
-    Object parsedBody = parseBodyAsJson(bodyString);
-    if (parsedBody != null) {
-      log.debug("Body parsed as JSON successfully");
-      return parsedBody;
-    }
-
-    // If not JSON, return the raw string
-    log.debug("Body is not JSON, returning raw string");
-    return bodyString;
-  }
-
-  /** Helper method to parse body as JSON */
-  private static Object parseBodyAsJson(String body) {
-    if (body == null || body.isEmpty() || "null".equals(body)) {
-      return null;
-    }
-
-    try {
-      return OBJECT_ADAPTER.fromJson(body);
-    } catch (Exception e) {
-      return null;
+      CURRENT_TRIGGER_TYPE.set(type);
     }
   }
 
@@ -816,146 +521,6 @@ public class LambdaAppSecHandler {
     @Override
     public void close() {
       // No-op for temporary context
-    }
-  }
-
-  /** Enum representing different AWS Lambda trigger types */
-  enum LambdaTriggerType {
-    API_GATEWAY_V1_REST, // API Gateway REST API (v1)
-    API_GATEWAY_V2_HTTP, // API Gateway HTTP API (v2)
-    API_GATEWAY_V2_WEBSOCKET, // API Gateway WebSocket
-    ALB, // Application Load Balancer
-    ALB_MULTI_VALUE, // ALB with multi-value headers
-    LAMBDA_URL, // Lambda Function URL
-    UNKNOWN // Unknown or unsupported trigger
-  }
-
-  /** Object for Lambda event data needed for AppSec processing */
-  static class LambdaEventData {
-    final Map<String, String> headers;
-    final String method;
-    final String path;
-    final String sourceIp;
-    final Integer sourcePort;
-    final LambdaTriggerType triggerType;
-    final Map<String, String> pathParameters;
-    final Map<String, List<String>> queryParameters;
-    final Object body;
-
-    static final LambdaEventData EMPTY =
-        new LambdaEventData(
-            Collections.emptyMap(),
-            null,
-            null,
-            null,
-            null,
-            LambdaTriggerType.UNKNOWN,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            null);
-
-    LambdaEventData(
-        Map<String, String> headers,
-        String method,
-        String path,
-        String sourceIp,
-        Integer sourcePort,
-        LambdaTriggerType triggerType,
-        Map<String, String> pathParameters,
-        Map<String, List<String>> queryParameters,
-        Object body) {
-      this.headers = headers;
-      this.method = method;
-      this.path = path;
-      this.sourceIp = sourceIp;
-      this.sourcePort = sourcePort;
-      this.triggerType = triggerType;
-      this.pathParameters = pathParameters;
-      this.queryParameters = queryParameters;
-      this.body = body;
-    }
-  }
-
-  /** URIDataAdapter implementation for Lambda events. */
-  private static class LambdaURIDataAdapter extends URIDataAdapterBase {
-    private final String path;
-    private final String query;
-    private final String scheme;
-    private final int port;
-
-    LambdaURIDataAdapter(String pathWithQuery, Map<String, String> headers) {
-      if (pathWithQuery != null) {
-        int queryIndex = pathWithQuery.indexOf('?');
-        if (queryIndex != -1) {
-          this.path = pathWithQuery.substring(0, queryIndex);
-          this.query = pathWithQuery.substring(queryIndex + 1);
-        } else {
-          this.path = pathWithQuery;
-          this.query = null;
-        }
-      } else {
-        this.path = "/";
-        this.query = null;
-      }
-
-      String forwardedProto = headers != null ? headers.get("x-forwarded-proto") : null;
-      this.scheme =
-          (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : "https";
-
-      String forwardedPort = headers != null ? headers.get("x-forwarded-port") : null;
-      int parsedPort = -1;
-      if (forwardedPort != null && !forwardedPort.isEmpty()) {
-        try {
-          parsedPort = Integer.parseInt(forwardedPort.trim());
-        } catch (NumberFormatException ignored) {
-        }
-      }
-      this.port = parsedPort > 0 ? parsedPort : 443;
-    }
-
-    @Override
-    public String scheme() {
-      return scheme;
-    }
-
-    @Override
-    public String host() {
-      return null;
-    }
-
-    @Override
-    public int port() {
-      return port;
-    }
-
-    @Override
-    public String path() {
-      return path;
-    }
-
-    @Override
-    public String fragment() {
-      return null;
-    }
-
-    @Override
-    public String query() {
-      return query;
-    }
-
-    @Override
-    public boolean supportsRaw() {
-      return true;
-    }
-
-    @Override
-    public String rawPath() {
-      return path;
-    }
-
-    @Override
-    public String rawQuery() {
-      return query;
     }
   }
 }

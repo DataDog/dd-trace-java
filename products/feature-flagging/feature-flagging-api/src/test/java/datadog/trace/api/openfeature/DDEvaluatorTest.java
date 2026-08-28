@@ -1,13 +1,6 @@
 package datadog.trace.api.openfeature;
 
-import static dev.openfeature.sdk.ErrorCode.FLAG_NOT_FOUND;
-import static dev.openfeature.sdk.ErrorCode.TARGETING_KEY_MISSING;
-import static dev.openfeature.sdk.Reason.DEFAULT;
-import static dev.openfeature.sdk.Reason.DISABLED;
 import static dev.openfeature.sdk.Reason.ERROR;
-import static dev.openfeature.sdk.Reason.SPLIT;
-import static dev.openfeature.sdk.Reason.STATIC;
-import static dev.openfeature.sdk.Reason.TARGETING_MATCH;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -17,20 +10,27 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.oneOf;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonDataException;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Shard;
@@ -38,53 +38,68 @@ import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
-import datadog.trace.api.openfeature.util.TestCase;
-import datadog.trace.api.openfeature.util.TestCase.Result;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 public class DDEvaluatorTest {
 
-  @Captor private ArgumentCaptor<ExposureEvent> exposureEventCaptor;
+  private static final String CANONICAL_FIXTURE_PATH =
+      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
+  private static final Moshi MOSHI =
+      new Moshi.Builder()
+          .add(Date.class, new DateAdapter())
+          .add(ShardAdapter.FACTORY)
+          .add(FlagMapAdapter.FACTORY)
+          .build();
+  private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
+      MOSHI.adapter(ServerConfiguration.class);
+  private static final Type FIXTURE_LIST_TYPE =
+      Types.newParameterizedType(List.class, FixtureCase.class);
+  private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
+      MOSHI.adapter(FIXTURE_LIST_TYPE);
+  private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
+      ThreadLocal.withInitial(HashMap::new);
+  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
-  private FeatureFlaggingGateway.ExposureListener exposureListener;
+  @Test
+  public void testInitializeSignalsApplicationProviderActivation() throws Exception {
+    final FeatureFlaggingGateway.ActivationListener listener =
+        mock(FeatureFlaggingGateway.ActivationListener.class);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    FeatureFlaggingGateway.addActivationListener(listener);
+    try {
+      evaluator.initialize(1, MILLISECONDS, mock(EvaluationContext.class));
 
-  @BeforeEach
-  public void setup() {
-    exposureListener = mock(FeatureFlaggingGateway.ExposureListener.class);
-    FeatureFlaggingGateway.addExposureListener(exposureListener);
-  }
-
-  @AfterEach
-  public void tearDown() {
-    FeatureFlaggingGateway.removeExposureListener(exposureListener);
-    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+      verify(listener).activate();
+    } finally {
+      evaluator.shutdown();
+      FeatureFlaggingGateway.removeActivationListener(listener);
+    }
   }
 
   private static Arguments[] valueMappingTestCases() {
@@ -129,7 +144,7 @@ public class DDEvaluatorTest {
       Arguments.of(Value.class, null, null),
 
       // Unsupported
-      Arguments.of(Date.class, "21-12-2023", IllegalArgumentException.class),
+      Arguments.of(Long.class, 42L, IllegalArgumentException.class),
     };
   }
 
@@ -203,7 +218,7 @@ public class DDEvaluatorTest {
     flags.put("null-allocation", new Flag("target", true, null, null, null));
     flags.put("empty-allocation", new Flag("target", true, null, null, emptyList()));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, flags));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("allocation");
 
@@ -214,8 +229,448 @@ public class DDEvaluatorTest {
 
     details = evaluator.evaluate(Integer.class, "empty-allocation", 23, ctx);
     assertThat(details.getValue(), equalTo(23));
-    assertThat(details.getReason(), equalTo(DEFAULT.name()));
+    assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testEvaluateUnsignedShardRange() {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    // The selected shard is above Integer.MAX_VALUE, so this test proves that evaluation uses
+    // unsigned semantics after binary-compatible int storage.
+    final Shard shard =
+        new Shard(
+            "salt",
+            singletonList(new ShardRange((int) 3_699_531_192L, (int) 3_699_531_193L)),
+            (int) MAX_UNSIGNED_INT);
+    final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+
+    final EvaluationContext context =
+        new MutableContext("target").setTargetingKey("high-shard-user");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, context);
+
+    assertThat(details.getValue(), equalTo(1));
+    assertThat(details.getReason(), equalTo("SPLIT"));
+    assertThat(details.getVariant(), equalTo("on"));
+  }
+
+  // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
+  // ----
+  //
+  // Every code path that returns a ProviderEvaluation must stamp the consent boolean so downstream
+  // hooks can honour it. These tests exercise each stamp site with both consent values (on/off) so
+  // a mutation to any stamp — deleting the line, hardcoding the value — flips at least one
+  // assertion.
+
+  // -- success path: resolveVariant (variant metadata builder) --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnResolvedVariant() {
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(true);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnResolvedVariant() {
+    // Symmetric consent-off assertion. Paired with the consent-on test above this pins the
+    // resolveVariant metadata line (DDEvaluator.java: METADATA_OBSERVE_FULL_EVALUATION_DATA) so
+    // deleting it or hardcoding either value would fail at least one assertion.
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(false);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DISABLED path: flag.enabled=false --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(true);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(false);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DEFAULT path: no allocation matches --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDefault() {
+    // Allocation exists but has empty splits, so the loop finishes without returning and we fall
+    // through to the DEFAULT branch.
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(true);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDefault() {
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(false);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- error paths: FLAG_NOT_FOUND / PROVIDER_NOT_READY (via consentMetadata in error()) --
+
+  @Test
+  public void observeFullEvaluationDataStampedOnFlagNotFoundError() {
+    // Was previously named "…OnSuccess" but actually exercises the error() helper's stamp via
+    // FLAG_NOT_FOUND — kept for that stamp site, correctly named.
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", true, null, new HashMap<>()));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataDefaultsToFalseWhenEvaluatorHasNoConfig() {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  @Test
+  public void observeFullEvaluationDataNullConfigFieldTreatedAsFalse() {
+    // The field is boxed so Moshi tolerates a malformed consent value in the UFC JSON without
+    // aborting the whole parse. The evaluator must then interpret null as the privacy-preserving
+    // default. An auto-unbox at the read site (config.observeFullEvaluationData) would NPE here.
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", new Flag("target", true, ValueType.INTEGER, emptyMap(), emptyList()));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, ctx);
+
+    // Flags still evaluate — availability preserved despite the malformed consent field.
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split
+  // with empty shards (so the shard-match branch is skipped and the split is picked immediately),
+  // and a single "on" variant whose value maps to the requested Integer type.
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData) {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateDisabledFlag(
+      final boolean observeFullEvaluationData) {
+    return evaluateFlag(
+        new Flag("target", false, ValueType.INTEGER, emptyMap(), null), observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateWithEmptySplits(
+      final boolean observeFullEvaluationData) {
+    // Enabled, allocations present, allocation active, no rules, empty splits → falls through the
+    // for-loop to the DEFAULT return.
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, emptyList(), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateFlag(
+      final Flag flag, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", flag);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+    return evaluator.evaluate(Integer.class, "target", 23, ctx);
+  }
+
+  // ---- error message redaction respects observeFullEvaluationData ----
+
+  @Test
+  public void numericConditionOnTargetingKeyDropsExceptionMessageUnderConsentOff() {
+    // Rule {attribute:"id", operator:GT, value:0} + "id" not in context →
+    // DDEvaluator.resolveAttribute
+    // falls back to the targeting key, so Double.parseDouble("jane.doe@datadoghq.com") throws
+    // NumberFormatException. The exception message echoes the raw context value verbatim, so it
+    // must be dropped when observeFullEvaluationData=false.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertNull(details.getErrorMessage(), "consent-off must not surface the raw exception message");
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyPreservesExceptionMessageUnderConsentOn() {
+    // Symmetric case: with consent on, the raw exception message flows through unchanged so
+    // operators keep the diagnostic detail they opted in to.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", true);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertThat(details.getErrorMessage(), equalTo("For input string: \"jane.doe@datadoghq.com\""));
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyErrorMessageNeverContainsPiiUnderConsentOff() {
+    // Belt-and-suspenders: independent of the exact null/empty form, the raw PII value must never
+    // appear in the message under consent-off. Guards against future changes that might replace
+    // null with a redacted string or a code-name suffix.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    final String message = details.getErrorMessage();
+    assertFalse(
+        message != null && message.contains("jane.doe@datadoghq.com"),
+        "consent-off errorMessage must not contain raw context values");
+  }
+
+  private static ProviderEvaluation<?> evaluateWithNumericRuleOnId(
+      final String targetingKey, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<Rule> rules =
+        singletonList(
+            new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
+    // Split must be non-empty so the allocation is considered a match target; its contents don't
+    // matter because the rule throws before a split is picked.
+    final Allocation allocation =
+        new Allocation("alloc", rules, null, null, emptyList(), Boolean.FALSE);
+    flags.put(
+        "num-rule",
+        new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext(targetingKey);
+    return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
+  }
+
+  @Test
+  public void testAllocationDateAbiAndInstantAccessors() throws Exception {
+    final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
+    final Allocation allocation =
+        new Allocation("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(Allocation.class.getField("startAt").getType(), equalTo(Date.class));
+    assertThat(Allocation.class.getField("endAt").getType(), equalTo(Date.class));
+    assertThat(allocation.startAtInstant(), equalTo(startAt.toInstant()));
+    assertThat(allocation.endAtInstant(), equalTo(endAt.toInstant()));
+  }
+
+  @Test
+  public void testAllocationWindowHonorsMicrosecondPrecision() {
+    final Instant startAt = Instant.parse("2024-01-01T00:00:00.123456Z");
+    final Instant endAt = Instant.parse("2024-01-01T00:00:00.987654Z");
+    final Allocation allocation =
+        Allocation.fromInstants("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(
+        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)), equalTo(false));
+    assertThat(DDEvaluator.isAllocationActive(allocation, startAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
+  }
+
+  // --- SemVer condition evaluation tests (ported from Go evaluator_test.go) ---
+
+  private static Flag semverFlag(final ConditionOperator operator, final String comparand) {
+    final ParsedSemver parsed = ParsedSemver.parse(comparand);
+    final ConditionConfiguration condition =
+        new ConditionConfiguration(operator, "version", comparand);
+    condition.semverComparand = parsed;
+    final Rule rule = new Rule(singletonList(condition));
+    final Split split = new Split(emptyList(), "on", null, null);
+    final Allocation allocation =
+        Allocation.fromInstants(
+            "targeted", singletonList(rule), null, null, singletonList(split), false);
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    return new Flag("test-flag", true, ValueType.BOOLEAN, variations, singletonList(allocation));
+  }
+
+  private static EvaluationContext semverContext(final Object version) {
+    final Map<String, Object> attributes = new HashMap<>();
+    if (version != null) {
+      attributes.put("version", version);
+    }
+    final MutableContext context =
+        new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
+    context.setTargetingKey("subject");
+    return context;
+  }
+
+  static Arguments[] semverConditionTestCases() {
+    return new Arguments[] {
+      // Equal
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3.4.5.6", "1.2.3.4.5.6", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.2.3.4.5.7", "1.2.3.4.5.6", true),
+      // Not equal
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
+      // Less than
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.9.9", "2.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LT, "2.0.0", "2.0.0", false),
+      // Less than or equal
+      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.0", "2.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.1", "2.0.0", false),
+      // Greater than
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.1", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.0", "1.0.0", false),
+      // Greater than or equal
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.0.0", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "0.9.9", "1.0.0", false),
+      // Prerelease ordering
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.1", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.2", "1.0.0-beta.11", true),
+      // Build metadata is ignored
+      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+exp.sha.5114f85", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_LT, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_LTE, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
+      // Invalid attribute does not match
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
+      // Non-string attribute does not match
+      Arguments.of(ConditionOperator.SEMVER_EQ, 1.2, "1.2.0", false),
+    };
+  }
+
+  @ParameterizedTest(name = "{0} attr={1} comparand={2} -> {3}")
+  @MethodSource("semverConditionTestCases")
+  public void testEvaluateSemverCondition(
+      final ConditionOperator operator,
+      final Object attribute,
+      final String comparand,
+      final boolean wantMatch) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("test-flag", semverFlag(operator, comparand));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(attribute));
+
+    if (wantMatch) {
+      assertThat(details.getValue(), equalTo(true));
+      assertThat(details.getReason(), equalTo("TARGETING_MATCH"));
+    } else {
+      assertThat(details.getValue(), equalTo(false));
+      assertThat(details.getReason(), equalTo("DEFAULT"));
+    }
+  }
+
+  @Test
+  public void testEvaluateSemverConditionMissingAttribute() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("test-flag", semverFlag(ConditionOperator.SEMVER_EQ, "1.2.3"));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(null));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+  }
+
+  @Test
+  public void testEvaluateSemverConditionInvalidComparandReturnsParseError() {
+    // A flag with an invalid semver comparand is dropped during parsing.
+    // The evaluator should return PARSE_ERROR when the flag is queried.
+    final Map<String, Flag> flags = new HashMap<>();
+    final Map<String, String> invalidFlags = new HashMap<>();
+    invalidFlags.put("invalid-semver", "invalid_semver_comparand");
+    final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
+    config.invalidFlags = invalidFlags;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(config);
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "invalid-semver", false, semverContext("1.2.3"));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+  }
+
+  @Test
+  public void testEvaluateMalformedFlagReturnsParseError() {
+    final Map<String, Flag> flags = new HashMap<>();
+    final Map<String, String> invalidFlags = new HashMap<>();
+    invalidFlags.put("malformed-flag", "invalid_flag");
+    final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
+    config.invalidFlags = invalidFlags;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(config);
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "malformed-flag", false, new MutableContext());
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
   }
 
   private static Arguments[] flatteningTestCases() {
@@ -233,6 +688,11 @@ public class DDEvaluatorTest {
         Arguments.of(
             mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
             mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
+    arguments.add(
+        Arguments.of(
+            mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
+    final Instant instant = Instant.parse("2026-07-10T12:34:56Z");
+    arguments.add(Arguments.of(mapOf("instant", instant), mapOf("instant", instant.toString())));
     return arguments.toArray(new Arguments[0]);
   }
 
@@ -250,1111 +710,364 @@ public class DDEvaluatorTest {
     }
   }
 
-  private static List<TestCase<?>> evaluateTestCases() {
-    return Arrays.asList(
-        // OF spec 3.1.1: targeting key is optional; static flags must evaluate successfully without
-        // it
-        new TestCase<>("default")
-            .flag("simple-string")
-            // no .targetingKey() -- null by default
-            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
-        // Null targeting key on sharded flag must return TARGETING_KEY_MISSING
-        new TestCase<>("default")
-            .flag("shard-flag")
-            // no .targetingKey() -- null
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(TARGETING_KEY_MISSING)),
-        // Null targeting key on rule-only flag (matching on non-id attribute) must succeed
-        new TestCase<>("default")
-            .flag("country-rule-flag")
-            // no .targetingKey() -- null
-            .context("country", "US")
-            .result(new Result<>("us-value").reason(TARGETING_MATCH.name()).variant("us")),
-        // OF.7: Empty string is a valid targeting key - evaluation should proceed as normal
-        new TestCase<>("default")
-            .flag("simple-string")
-            .targetingKey("")
-            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
-        new TestCase<>("default")
-            .flag("non-existent-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(FLAG_NOT_FOUND)),
-        new TestCase<>("default")
-            .flag("disabled-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(DISABLED.name())),
-        new TestCase<>("default")
-            .flag("simple-string")
-            .targetingKey("user-123")
-            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
-        new TestCase<>(false)
-            .flag("boolean-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(true).reason(STATIC.name()).variant("enabled")),
-        new TestCase<>(0)
-            .flag("integer-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(42).reason(STATIC.name()).variant("forty-two")),
-        new TestCase<>("default")
-            .flag("rule-based-flag")
-            .targetingKey("user-premium")
-            .context("email", "john@company.com")
-            .result(new Result<>("premium").reason(TARGETING_MATCH.name()).variant("premium")),
-        new TestCase<>("default")
-            .flag("rule-based-flag")
-            .targetingKey("user-basic")
-            .context("email", "john@gmail.com")
-            .result(new Result<>("basic").reason(STATIC.name()).variant("basic")),
-        new TestCase<>("default")
-            .flag("numeric-rule-flag")
-            .targetingKey("user-vip")
-            .context("score", 850)
-            .result(new Result<>("vip").reason(TARGETING_MATCH.name()).variant("vip")),
-        new TestCase<>("default")
-            .flag("null-check-flag")
-            .targetingKey("user-no-beta")
-            .result(new Result<>("no-beta").reason(TARGETING_MATCH.name()).variant("no-beta")),
-        new TestCase<>("default")
-            .flag("region-flag")
-            .targetingKey("user-regional")
-            .context("region", "us-east-1")
-            .result(new Result<>("regional").reason(TARGETING_MATCH.name()).variant("regional")),
-        new TestCase<>("default")
-            .flag("time-based-flag")
-            .targetingKey("user-regional")
-            .context("region", "us-east-1")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("shard-flag")
-            .targetingKey("user-shard-test")
-            .result(
-                new Result<>("default")
-                    // Result depends on shard calculation - either match or default
-                    .reason(SPLIT.name(), DEFAULT.name())),
-        // Type mismatch: STRING flag evaluated as Integer
-        new TestCase<>(0)
-            .flag("string-number-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Type mismatch: STRING flag evaluated as Boolean
-        new TestCase<>(false)
-            .flag("simple-string")
-            .targetingKey("user-123")
-            .result(new Result<>(false).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Type mismatch: BOOLEAN flag evaluated as String
-        new TestCase<>("default")
-            .flag("boolean-flag")
-            .targetingKey("user-123")
-            .result(
-                new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Type mismatch: NUMERIC flag evaluated as Integer
-        new TestCase<>(0)
-            .flag("double-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Type mismatch: INTEGER flag evaluated as Double
-        new TestCase<>(0.0)
-            .flag("integer-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(0.0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Variant stores "not-a-number" for an INTEGER flag; Double.parseDouble fails ->
-        // PARSE_ERROR
-        new TestCase<>(0)
-            .flag("integer-string-variant-flag")
-            .targetingKey("user-123")
-            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
-        new TestCase<>("default")
-            .flag("broken-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.GENERAL)),
-        new TestCase<>("default")
-            .flag("lt-flag")
-            .targetingKey("user-123")
-            .context("score", 750)
-            .result(new Result<>("low-score").reason(TARGETING_MATCH.name()).variant("low")),
-        new TestCase<>("default")
-            .flag("lte-flag")
-            .targetingKey("user-123")
-            .context("score", 800)
-            .result(new Result<>("medium-score").reason(TARGETING_MATCH.name()).variant("medium")),
-        new TestCase<>("default")
-            .flag("gt-flag")
-            .targetingKey("user-123")
-            .context("score", 950)
-            .result(new Result<>("high-score").reason(TARGETING_MATCH.name()).variant("high")),
-        new TestCase<>("default")
-            .flag("not-matches-flag")
-            .targetingKey("user-123")
-            .context("email", "user@yahoo.com")
-            .result(new Result<>("external").reason(TARGETING_MATCH.name()).variant("external")),
-        new TestCase<>("default")
-            .flag("not-one-of-flag")
-            .targetingKey("user-123")
-            .context("region", "ap-south-1")
-            .result(new Result<>("other-region").reason(TARGETING_MATCH.name()).variant("other")),
-        new TestCase<>("default")
-            .flag("double-equals-flag")
-            .targetingKey("user-123")
-            .context("rate", 3.14159)
-            .result(new Result<>("pi-value").reason(TARGETING_MATCH.name()).variant("pi")),
-        new TestCase<>("default")
-            .flag("nested-attr-flag")
-            .targetingKey("user-123")
-            .context("user.profile.level", "premium")
-            .result(new Result<>("premium-user").reason(TARGETING_MATCH.name()).variant("premium")),
-        new TestCase<>("default")
-            .flag("lt-flag")
-            .targetingKey("user-123")
-            .context("score", "not-a-number")
-            .result(
-                new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        new TestCase<>("default")
-            .flag("exposure-flag")
-            .targetingKey("user-123")
-            .result(
-                new Result<>("tracked-value")
-                    .reason(STATIC.name())
-                    .variant("tracked")
-                    .flagMetadata("allocationKey", "exposure-alloc")
-                    .flagMetadata("doLog", true)),
-        new TestCase<>("default")
-            .flag("exposure-logging-flag")
-            .targetingKey("user-exposure")
-            .context("feature", "premium")
-            .result(
-                new Result<>("logged-value")
-                    .reason(TARGETING_MATCH.name())
-                    .variant("logged")
-                    .flagMetadata("allocationKey", "logged-alloc")
-                    .flagMetadata("doLog", true)),
-        new TestCase<>("default")
-            .flag("double-comparison-flag")
-            .targetingKey("user-123")
-            .context("score", 3.14159)
-            .result(new Result<>("exact-match").reason(TARGETING_MATCH.name()).variant("exact")),
-        new TestCase<>("default")
-            .flag("numeric-one-of-flag")
-            .targetingKey("user-123")
-            .context("score", 3.14159)
-            .result(
-                new Result<>("numeric-matched")
-                    .reason(TARGETING_MATCH.name())
-                    .variant("numeric-match")),
-        new TestCase<>("default")
-            .flag("numeric-not-one-of-flag")
-            .targetingKey("user-123")
-            .context("score", 42.0)
-            .result(new Result<>("not-in-set").reason(TARGETING_MATCH.name()).variant("excluded")),
-        new TestCase<>("default")
-            .flag("is-null-false-flag")
-            .targetingKey("user-123")
-            .context("attr", "value")
-            .result(new Result<>("not-null").reason(TARGETING_MATCH.name()).variant("not-null")),
-        new TestCase<>("default")
-            .flag("is-null-non-boolean-flag")
-            .targetingKey("user-123")
-            .result(
-                new Result<>("null-match").reason(TARGETING_MATCH.name()).variant("null-match")),
-        new TestCase<>("default")
-            .flag("null-attribute-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("not-matches-positive-flag")
-            .targetingKey("user-123")
-            .context("email", "user@gmail.com")
-            .result(
-                new Result<>("external-email").reason(TARGETING_MATCH.name()).variant("external")),
-        new TestCase<>("default")
-            .flag("not-one-of-positive-flag")
-            .targetingKey("user-123")
-            .context("region", "ap-south-1")
-            .result(new Result<>("other-region").reason(TARGETING_MATCH.name()).variant("other")),
-        new TestCase<>("default")
-            .flag("false-numeric-comparisons-flag")
-            .targetingKey("user-123")
-            .context("score", 750)
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("empty-splits-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("empty-conditions-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("shard-matching-flag")
-            .targetingKey("specific-key-that-matches-shard")
-            .result(new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
-        new TestCase<>("default")
-            .flag("future-allocation-flag")
-            .targetingKey("user-123")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("id-attribute-flag")
-            .targetingKey("user-special-id")
-            .result(new Result<>("id-resolved").reason(TARGETING_MATCH.name()).variant("id-match")),
-        new TestCase<>("default")
-            .flag("non-iterable-condition-flag")
-            .targetingKey("user-123")
-            .context("attr", "test-value")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("gt-false-flag")
-            .targetingKey("user-123")
-            .context("score", 500)
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("lte-false-flag")
-            .targetingKey("user-123")
-            .context("score", 600)
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("lt-false-flag")
-            .targetingKey("user-123")
-            .context("score", 700)
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("not-matches-false-flag")
-            .targetingKey("user-123")
-            .context("email", "user@company.com")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("not-one-of-false-flag")
-            .targetingKey("user-123")
-            .context("region", "us-east-1")
-            .result(new Result<>("default").reason(DEFAULT.name())),
-        new TestCase<>("default")
-            .flag("null-context-values-flag")
-            .targetingKey("user-123")
-            .context("nullAttr", (String) null)
-            .result(
-                new Result<>("null-handled")
-                    .reason(TARGETING_MATCH.name())
-                    .variant("null-variant")),
-        new TestCase<>("default")
-            .flag("invalid-regex-flag")
-            .targetingKey("user-123")
-            .context("email", "user@example.com")
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
-        new TestCase<>("default")
-            .flag("invalid-regex-not-matches-flag")
-            .targetingKey("user-123")
-            .context("email", "user@example.com")
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)));
+  @Test
+  public void testDeeplyNestedContextIsTruncatedRatherThanOverflowingTheStack() {
+    Value nested = new Value("leaf");
+    for (int i = 0; i < 10_000; i++) {
+      nested = new Value(singletonList(nested));
+    }
+    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
+
+    final Map<String, Object> result = DDEvaluator.flattenContext(context);
+
+    final StringBuilder truncatedKey = new StringBuilder("deep");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
+      truncatedKey.append("[0]");
+    }
+    assertThat(result.size(), equalTo(1));
+    assertThat(result, hasEntry(truncatedKey.toString(), null));
   }
 
-  @MethodSource("evaluateTestCases")
-  @ParameterizedTest
-  public <E> void testEvaluate(final TestCase<E> testCase) {
+  @Test
+  public void testCopyPrunedContextCapsTopLevelFieldCount() {
+    final MutableContext context = new MutableContext();
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS + 100; i++) {
+      context.add(String.format("k%04d", i), "v");
+    }
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(result.truncatedReason, equalTo("max_context_fields"));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedStringValues() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("drop", new String(longChars));
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.containsKey("drop"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_value_length"));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedKeys() {
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add(new String(longKeyChars), "drop");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.size(), equalTo(1));
+    assertThat(result.truncatedReason, equalTo("max_key_length"));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsListWidth() {
+    final List<Value> wide = new java.util.ArrayList<>();
+    for (int i = 0; i < DDEvaluator.MAX_LIST_ELEMENTS + 50; i++) {
+      wide.add(Value.objectToValue("v" + i));
+    }
+    final EvaluationContext context = new MutableContext().add("list", wide);
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs.containsKey("list[0]"), equalTo(true));
+    assertThat(
+        result.attrs.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"),
+        equalTo(true));
+    assertThat(
+        result.attrs.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_list_elements"));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsStructureWidth() {
+    final dev.openfeature.sdk.MutableStructure wide = new dev.openfeature.sdk.MutableStructure();
+    for (int i = 0; i < DDEvaluator.MAX_STRUCTURE_PROPERTIES + 50; i++) {
+      wide.add(String.format("p%04d", i), "v");
+    }
+    final EvaluationContext context = new MutableContext().add("struct", wide);
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    long structKeys = result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
+    assertThat(result.truncatedReason, equalTo("max_structure_properties"));
+  }
+
+  @Test
+  public void testCopyPrunedContextTruncatesDeepNesting() {
+    Value nested = new Value("leaf");
+    for (int i = 0; i < 10_000; i++) {
+      nested = new Value(singletonList(nested));
+    }
+    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    final StringBuilder truncatedKey = new StringBuilder("deep");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
+      truncatedKey.append("[0]");
+    }
+    // The recursion stops on the first list element at MAX_SNAPSHOT_DEPTH; deeper elements are
+    // never walked and no entry is emitted for them.
+    assertThat(result.attrs.containsKey(truncatedKey.toString()), equalTo(false));
+    assertThat(result.attrs.size(), equalTo(0));
+    assertThat(result.truncatedReason, equalTo("max_snapshot_depth"));
+  }
+
+  @Test
+  public void testCopyPrunedContextExcludesTargetingKey() {
+    final MutableContext context = new MutableContext("user-42").add("region", "us-east-1");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.attrs.containsKey("targetingKey"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextNoTruncationReturnsNullReason() {
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+    context.add("tier", "gold");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextMultipleReasonsAreSortedAndDeduplicated() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("dropValue", new String(longChars));
+    context.add(new String(longKeyChars), "dropKey");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    // Both max_key_length and max_value_length fired; sorted alphabetically, no duplicates.
+    assertThat(result.truncatedReason, equalTo("max_key_length,max_value_length"));
+  }
+
+  @Test
+  public void testCanonicalFixturesArePresent() throws IOException {
+    assertThat(canonicalTestCases().size(), greaterThan(0));
+  }
+
+  @MethodSource("canonicalTestCases")
+  @ParameterizedTest(name = "{0}")
+  public void testEvaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(createTestConfiguration());
-    final ProviderEvaluation<E> details =
-        evaluator.evaluate(testCase.type, testCase.flag, testCase.defaultValue, testCase.context);
-    final Result<E> expected = testCase.result;
-    assertThat(details.getValue(), equalTo(expected.value));
-    assertThat(details.getReason(), oneOf(expected.reason));
-    assertThat(details.getVariant(), equalTo(expected.variant));
-    assertThat(details.getErrorCode(), equalTo(expected.errorCode));
-    assertThat(details.getErrorCode(), equalTo(expected.errorCode));
-    final String expectedAllocation = (String) expected.flagMetadata.get("allocationKey");
-    if (expectedAllocation != null) {
-      assertThat(details.getFlagMetadata().getString("allocationKey"), equalTo(expectedAllocation));
+    evaluator.accept(loadCanonicalConfiguration());
+
+    final Class<?> targetType = targetType(testCase.variationType);
+    final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);
+    final Object expectedValue = mapFixtureValue(targetType, testCase.result.value);
+    final ProviderEvaluation<?> details =
+        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
+
+    assertThat(details.getValue(), equalTo(expectedValue));
+    assertThat(details.getReason(), equalTo(testCase.result.reason));
+    if (testCase.result.variant != null) {
+      assertThat(details.getVariant(), equalTo(testCase.result.variant));
     }
-    if (shouldDispatchExposure(expected)) {
-      verify(exposureListener, times(1)).accept(exposureEventCaptor.capture());
-      final ExposureEvent capturedEvent = exposureEventCaptor.getValue();
-      assertThat(capturedEvent.flag.key, equalTo(testCase.flag));
-      assertThat(capturedEvent.allocation.key, equalTo(expectedAllocation));
-      assertThat(capturedEvent.variant.key, equalTo(testCase.result.variant));
-      assertThat(capturedEvent.subject.id, equalTo(testCase.context.getTargetingKey()));
-      for (final Map.Entry<String, Object> entry : testCase.context.asObjectMap().entrySet()) {
-        assertThat(capturedEvent.subject.attributes, hasEntry(entry.getKey(), entry.getValue()));
+    if (testCase.result.errorCode != null) {
+      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.result.errorCode)));
+    }
+    if (testCase.result.flagMetadata != null
+        && testCase.result.flagMetadata.get("allocationKey") != null) {
+      assertThat(
+          details.getFlagMetadata().getString("allocationKey"),
+          equalTo(String.valueOf(testCase.result.flagMetadata.get("allocationKey"))));
+    }
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static ProviderEvaluation<?> evaluate(
+      final DDEvaluator evaluator,
+      final Class<?> targetType,
+      final String flag,
+      final Object defaultValue,
+      final EvaluationContext context) {
+    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
+  }
+
+  private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
+    INVALID_FLAGS_HOLDER.get().clear();
+    try {
+      final ServerConfiguration config =
+          CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
+      final Map<String, String> invalidFlags = new HashMap<>(INVALID_FLAGS_HOLDER.get());
+      if (!invalidFlags.isEmpty()) {
+        config.invalidFlags = invalidFlags;
       }
-    } else {
-      verify(exposureListener, times(0)).accept(any(ExposureEvent.class));
+      validateAndCacheSemverComparands(config);
+      return config;
+    } finally {
+      INVALID_FLAGS_HOLDER.get().clear();
     }
   }
 
-  private static boolean shouldDispatchExposure(final Result<?> result) {
-    final Boolean doLog = (Boolean) result.flagMetadata.get("doLog");
-    return doLog != null && doLog;
+  /**
+   * Validates and caches SemVer comparands for all SEMVER_* conditions in the configuration. Flags
+   * with invalid comparands are removed from the flags map and tracked in invalidFlags, matching
+   * the behavior of {@link com.datadog.featureflag.UniversalFlagConfigParser}.
+   */
+  private static void validateAndCacheSemverComparands(final ServerConfiguration config) {
+    if (config.flags == null) {
+      return;
+    }
+    final Map<String, String> invalidFlags =
+        config.invalidFlags == null ? new HashMap<>() : new HashMap<>(config.invalidFlags);
+    final Map<String, Flag> flagsToRemove = new HashMap<>();
+    for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
+      final String flagKey = entry.getKey();
+      final Flag flag = entry.getValue();
+      if (flag.allocations == null) {
+        continue;
+      }
+      boolean invalid = false;
+      for (final Allocation allocation : flag.allocations) {
+        if (allocation.rules == null) {
+          continue;
+        }
+        for (final Rule rule : allocation.rules) {
+          if (rule.conditions == null) {
+            continue;
+          }
+          for (final ConditionConfiguration condition : rule.conditions) {
+            if (condition.operator == null) {
+              continue;
+            }
+            switch (condition.operator) {
+              case SEMVER_EQ:
+              case SEMVER_NEQ:
+              case SEMVER_LT:
+              case SEMVER_LTE:
+              case SEMVER_GT:
+              case SEMVER_GTE:
+                if (!(condition.value instanceof String)) {
+                  invalid = true;
+                  break;
+                }
+                final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
+                if (parsed == null) {
+                  invalid = true;
+                  break;
+                }
+                condition.semverComparand = parsed;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+      }
+      if (invalid) {
+        flagsToRemove.put(flagKey, flag);
+        invalidFlags.put(flagKey, "invalid_semver_comparand");
+      }
+    }
+    for (final String flagKey : flagsToRemove.keySet()) {
+      config.flags.remove(flagKey);
+    }
+    if (!invalidFlags.isEmpty()) {
+      config.invalidFlags = invalidFlags;
+    }
   }
 
-  private ServerConfiguration createTestConfiguration() {
-    final Map<String, Flag> flags = new HashMap<>();
-    flags.put(
-        "simple-string", createSimpleFlag("simple-string", ValueType.STRING, "test-value", "on"));
-    flags.put("boolean-flag", createSimpleFlag("boolean-flag", ValueType.BOOLEAN, true, "enabled"));
-    flags.put("integer-flag", createSimpleFlag("integer-flag", ValueType.INTEGER, 42, "forty-two"));
-    flags.put("double-flag", createSimpleFlag("double-flag", ValueType.NUMERIC, 3.14, "pi"));
-    flags.put(
-        "string-number-flag",
-        createSimpleFlag("string-number-flag", ValueType.STRING, "123", "string-num"));
-    flags.put("disabled-flag", new Flag("disabled-flag", false, ValueType.BOOLEAN, null, null));
-    flags.put("rule-based-flag", createRuleBasedFlag());
-    flags.put("numeric-rule-flag", createNumericRuleFlag());
-    flags.put("null-check-flag", createNullCheckFlag());
-    flags.put("region-flag", createOneOfRuleFlag());
-    flags.put("time-based-flag", createTimeBasedFlag());
-    flags.put("shard-flag", createShardBasedFlag());
-    flags.put("broken-flag", createBrokenFlag());
-    flags.put("lt-flag", createLessThanFlag());
-    flags.put("lte-flag", createLessThanOrEqualFlag());
-    flags.put("gt-flag", createGreaterThanFlag());
-    flags.put("not-matches-flag", createNotMatchesFlag());
-    flags.put("not-one-of-flag", createNotOneOfFlag());
-    flags.put("double-equals-flag", createDoubleEqualsFlag());
-    flags.put("nested-attr-flag", createNestedAttributeFlag());
-    flags.put("exposure-flag", createExposureFlag());
-    flags.put("exposure-logging-flag", createExposureLoggingFlag());
-    flags.put("double-comparison-flag", createDoubleComparisonFlag());
-    flags.put("numeric-one-of-flag", createNumericOneOfFlag());
-    flags.put("numeric-not-one-of-flag", createNumericNotOneOfFlag());
-    flags.put("is-null-false-flag", createIsNullFalseFlag());
-    flags.put("is-null-non-boolean-flag", createIsNullNonBooleanFlag());
-    flags.put("null-attribute-flag", createNullAttributeFlag());
-    flags.put("not-matches-positive-flag", createNotMatchesPositiveFlag());
-    flags.put("not-one-of-positive-flag", createNotOneOfPositiveFlag());
-    flags.put("false-numeric-comparisons-flag", createFalseNumericComparisonsFlag());
-    flags.put("empty-splits-flag", createEmptySplitsFlag());
-    flags.put("empty-conditions-flag", createEmptyConditionsFlag());
-    flags.put("shard-matching-flag", createShardMatchingFlag());
-    flags.put("future-allocation-flag", createFutureAllocationFlag());
-    flags.put("id-attribute-flag", createIdAttributeFlag());
-    flags.put("non-iterable-condition-flag", createNonIterableConditionFlag());
-    flags.put("gt-false-flag", createGtFalseFlag());
-    flags.put("lte-false-flag", createLteFalseFlag());
-    flags.put("lt-false-flag", createLtFalseFlag());
-    flags.put("not-matches-false-flag", createNotMatchesFalseFlag());
-    flags.put("not-one-of-false-flag", createNotOneOfFalseFlag());
-    flags.put("null-context-values-flag", createNullContextValuesFlag());
-    flags.put("country-rule-flag", createCountryRuleFlag());
-    flags.put(
-        "integer-string-variant-flag",
-        createSimpleFlag("integer-string-variant-flag", ValueType.INTEGER, "not-a-number", "bad"));
-    flags.put("invalid-regex-flag", createInvalidRegexFlag());
-    flags.put("invalid-regex-not-matches-flag", createInvalidRegexNotMatchesFlag());
-    return new ServerConfiguration(null, null, null, flags);
+  private static List<FixtureCase> canonicalTestCases() throws IOException {
+    final Path evaluationCases = fixtureRoot().resolve("evaluation-cases");
+    final List<FixtureCase> result = new ArrayList<>();
+
+    try (final Stream<Path> paths = Files.list(evaluationCases)) {
+      final List<Path> files =
+          paths
+              .filter(path -> path.getFileName().toString().endsWith(".json"))
+              .sorted((left, right) -> left.getFileName().compareTo(right.getFileName()))
+              .collect(Collectors.toList());
+      for (final Path file : files) {
+        final List<FixtureCase> testCases = FIXTURE_LIST_ADAPTER.fromJson(read(file));
+        if (testCases == null) {
+          throw new JsonDataException("Fixture file did not contain an array: " + file);
+        }
+        for (int index = 0; index < testCases.size(); index++) {
+          final FixtureCase testCase = testCases.get(index);
+          testCase.fileName = file.getFileName().toString();
+          testCase.index = index;
+          result.add(testCase);
+        }
+      }
+    }
+
+    assertThat(result.size(), greaterThan(0));
+    return result;
   }
 
-  private Flag createSimpleFlag(String key, ValueType type, Object value, String variantKey) {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put(variantKey, new Variant(variantKey, value));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
-    final List<Allocation> allocations =
-        singletonList(new Allocation("alloc1", null, null, null, splits, false));
-    return new Flag(key, true, type, variants, allocations);
+  private static Path fixtureRoot() {
+    Path directory = Paths.get("").toAbsolutePath();
+    while (directory != null) {
+      final Path candidate = directory.resolve(CANONICAL_FIXTURE_PATH);
+      if (Files.exists(candidate.resolve("ufc-config.json"))
+          && Files.isDirectory(candidate.resolve("evaluation-cases"))) {
+        return candidate;
+      }
+      directory = directory.getParent();
+    }
+    throw new IllegalStateException("Unable to find canonical FFE fixtures");
   }
 
-  private Flag createRuleBasedFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("premium", new Variant("premium", "premium"));
-    variants.put("basic", new Variant("basic", "basic"));
-
-    // Rule: email MATCHES @company.com$ -> premium
-    final List<ConditionConfiguration> premiumConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.MATCHES, "email", "@company\\.com$"));
-    final List<Rule> premiumRules = singletonList(new Rule(premiumConditions));
-    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null));
-    final Allocation premiumAllocation =
-        new Allocation("premium-alloc", premiumRules, null, null, premiumSplits, false);
-
-    // Fallback allocation for basic
-    final List<Split> basicSplits = singletonList(new Split(emptyList(), "basic", null));
-    final Allocation basicAllocation =
-        new Allocation("basic-alloc", null, null, null, basicSplits, false);
-
-    final List<Allocation> allocations = asList(premiumAllocation, basicAllocation);
-
-    return new Flag("rule-based-flag", true, ValueType.STRING, variants, allocations);
+  private static String read(final Path path) throws IOException {
+    return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
   }
 
-  private Flag createNumericRuleFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("vip", new Variant("vip", "vip"));
-    variants.put("regular", new Variant("regular", "regular"));
-
-    // Rule: score >= 800 -> vip
-    final List<ConditionConfiguration> vipConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.GTE, "score", 800));
-    final List<Rule> vipRules = singletonList(new Rule(vipConditions));
-    final List<Split> vipSplits = singletonList(new Split(emptyList(), "vip", null));
-    final Allocation vipAllocation =
-        new Allocation("vip-alloc", vipRules, null, null, vipSplits, false);
-
-    // Fallback
-    final List<Split> regularSplits = singletonList(new Split(emptyList(), "regular", null));
-    final Allocation regularAllocation =
-        new Allocation("regular-alloc", null, null, null, regularSplits, false);
-
-    return new Flag(
-        "numeric-rule-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        asList(vipAllocation, regularAllocation));
+  private static EvaluationContext context(final FixtureCase testCase) {
+    final Map<String, Object> attributes =
+        testCase.attributes == null ? emptyMap() : testCase.attributes;
+    final MutableContext context =
+        new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
+    if (testCase.targetingKey != null) {
+      context.setTargetingKey(testCase.targetingKey);
+    }
+    return context;
   }
 
-  private Flag createNullCheckFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("no-beta", new Variant("no-beta", "no-beta"));
-    variants.put("has-beta", new Variant("has-beta", "has-beta"));
-
-    // Rule: beta_feature IS_NULL (true) -> no-beta
-    final List<ConditionConfiguration> noBetaConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "beta_feature", true));
-    final List<Rule> noBetaRules = singletonList(new Rule(noBetaConditions));
-    final List<Split> noBetaSplits = singletonList(new Split(emptyList(), "no-beta", null));
-    final Allocation noBetaAllocation =
-        new Allocation("no-beta-alloc", noBetaRules, null, null, noBetaSplits, false);
-
-    // Fallback
-    final List<Split> hasBetaSplits = singletonList(new Split(emptyList(), "has-beta", null));
-    final Allocation hasBetaAllocation =
-        new Allocation("has-beta-alloc", null, null, null, hasBetaSplits, false);
-
-    return new Flag(
-        "null-check-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        asList(noBetaAllocation, hasBetaAllocation));
+  private static Class<?> targetType(final String variationType) {
+    switch (variationType) {
+      case "BOOLEAN":
+        return Boolean.class;
+      case "INTEGER":
+        return Integer.class;
+      case "NUMERIC":
+        return Double.class;
+      case "STRING":
+        return String.class;
+      case "JSON":
+        return Value.class;
+      default:
+        throw new IllegalArgumentException("Unsupported variationType: " + variationType);
+    }
   }
 
-  private Flag createOneOfRuleFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("regional", new Variant("regional", "regional"));
-    variants.put("global", new Variant("global", "global"));
-
-    // Rule: region ONE_OF [us-east-1, us-west-2, eu-west-1] -> regional
-    final List<String> allowedRegions = asList("us-east-1", "us-west-2", "eu-west-1");
-    final List<ConditionConfiguration> regionalConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.ONE_OF, "region", allowedRegions));
-    final List<Rule> regionalRules = singletonList(new Rule(regionalConditions));
-    final List<Split> regionalSplits = singletonList(new Split(emptyList(), "regional", null));
-    final Allocation regionalAllocation =
-        new Allocation("regional-alloc", regionalRules, null, null, regionalSplits, false);
-
-    // Fallback
-    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null));
-    final Allocation globalAllocation =
-        new Allocation("global-alloc", null, null, null, globalSplits, false);
-
-    return new Flag(
-        "region-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        asList(regionalAllocation, globalAllocation));
-  }
-
-  private Flag createTimeBasedFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("time-limited", new Variant("time-limited", "time-limited"));
-
-    final List<Split> splits = singletonList(new Split(emptyList(), "time-limited", null));
-
-    // Allocation that ended in 2022 (should be inactive)
-    final List<Allocation> allocations =
-        singletonList(
-            new Allocation(
-                "time-alloc",
-                null,
-                parseDate("2022-01-01T00:00:00Z"),
-                parseDate("2022-12-31T23:59:59Z"),
-                splits,
-                false));
-
-    return new Flag("time-based-flag", true, ValueType.STRING, variants, allocations);
-  }
-
-  private Flag createShardBasedFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("shard-variant", new Variant("shard-variant", "shard-value"));
-
-    // Create a shard that includes some range
-    final List<ShardRange> ranges = singletonList(new ShardRange(0, 50)); // 0-49 out of 100
-    final List<Shard> shards = singletonList(new Shard("test-salt", ranges, 100));
-
-    final List<Split> splits = singletonList(new Split(shards, "shard-variant", null));
-
-    final List<Allocation> allocations =
-        singletonList(new Allocation("shard-alloc", null, null, null, splits, false));
-
-    return new Flag("shard-flag", true, ValueType.STRING, variants, allocations);
-  }
-
-  private Flag createBrokenFlag() {
-    // Create a flag with missing variant
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("existing", new Variant("existing", "value"));
-
-    final List<Split> splits = singletonList(new Split(emptyList(), "missing-variant", null));
-
-    final List<Allocation> allocations =
-        singletonList(new Allocation("alloc1", null, null, null, splits, false));
-
-    return new Flag("broken-flag", true, ValueType.STRING, variants, allocations);
-  }
-
-  private Flag createComparisonFlag(
-      String flagKey,
-      String allocKey,
-      String variantKey,
-      String variantValue,
-      ConditionOperator operator,
-      String attribute,
-      Object threshold) {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put(variantKey, new Variant(variantKey, variantValue));
-
-    final List<ConditionConfiguration> conditions =
-        singletonList(new ConditionConfiguration(operator, attribute, threshold));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
-    final Allocation allocation = new Allocation(allocKey, rules, null, null, splits, false);
-
-    return new Flag(flagKey, true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createLessThanFlag() {
-    return createComparisonFlag(
-        "lt-flag", "low-alloc", "low", "low-score", ConditionOperator.LT, "score", 800);
-  }
-
-  private Flag createLessThanOrEqualFlag() {
-    return createComparisonFlag(
-        "lte-flag", "medium-alloc", "medium", "medium-score", ConditionOperator.LTE, "score", 800);
-  }
-
-  private Flag createGreaterThanFlag() {
-    return createComparisonFlag(
-        "gt-flag", "high-alloc", "high", "high-score", ConditionOperator.GT, "score", 900);
-  }
-
-  private Flag createNotOperatorFlag(
-      String flagKey,
-      String allocKey,
-      String variantKey,
-      String variantValue,
-      ConditionOperator operator,
-      String attribute,
-      Object value) {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put(variantKey, new Variant(variantKey, variantValue));
-
-    final List<ConditionConfiguration> conditions =
-        singletonList(new ConditionConfiguration(operator, attribute, value));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
-    final Allocation allocation = new Allocation(allocKey, rules, null, null, splits, false);
-
-    return new Flag(flagKey, true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createNotMatchesFlag() {
-    return createNotOperatorFlag(
-        "not-matches-flag",
-        "external-alloc",
-        "external",
-        "external",
-        ConditionOperator.NOT_MATCHES,
-        "email",
-        "@company\\.com$");
-  }
-
-  private Flag createNotOneOfFlag() {
-    final List<String> disallowedRegions = asList("us-east-1", "us-west-2", "eu-west-1");
-    return createNotOperatorFlag(
-        "not-one-of-flag",
-        "other-alloc",
-        "other",
-        "other-region",
-        ConditionOperator.NOT_ONE_OF,
-        "region",
-        disallowedRegions);
-  }
-
-  private Flag createDoubleEqualsFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("pi", new Variant("pi", "pi-value"));
-
-    // This will test the double comparison in valuesEqual - match exact double value
-    final List<ConditionConfiguration> piConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "rate", "3.14159"));
-    final List<Rule> piRules = singletonList(new Rule(piConditions));
-    final List<Split> piSplits = singletonList(new Split(emptyList(), "pi", null));
-    final Allocation piAllocation =
-        new Allocation("pi-alloc", piRules, null, null, piSplits, false);
-
-    return new Flag(
-        "double-equals-flag", true, ValueType.STRING, variants, singletonList(piAllocation));
-  }
-
-  private Flag createNestedAttributeFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("premium", new Variant("premium", "premium-user"));
-
-    // Rule: user.profile.level MATCHES premium -> premium
-    final List<ConditionConfiguration> premiumConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.MATCHES, "user.profile.level", "premium"));
-    final List<Rule> premiumRules = singletonList(new Rule(premiumConditions));
-    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null));
-    final Allocation premiumAllocation =
-        new Allocation("premium-nested-alloc", premiumRules, null, null, premiumSplits, false);
-
-    return new Flag(
-        "nested-attr-flag", true, ValueType.STRING, variants, singletonList(premiumAllocation));
-  }
-
-  private Flag createExposureFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("tracked", new Variant("tracked", "tracked-value"));
-
-    final List<Split> splits = singletonList(new Split(emptyList(), "tracked", null));
-    // Create allocation with doLog=true to trigger exposure logging
-    final List<Allocation> allocations =
-        singletonList(new Allocation("exposure-alloc", null, null, null, splits, true));
-
-    return new Flag("exposure-flag", true, ValueType.STRING, variants, allocations);
-  }
-
-  private Flag createDoubleComparisonFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("exact", new Variant("exact", "exact-match"));
-
-    // This flag uses numeric comparison that will trigger the double comparison lambda
-    final List<ConditionConfiguration> exactConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.LTE, "score", 3.14159));
-    final List<Rule> exactRules = singletonList(new Rule(exactConditions));
-    final List<Split> exactSplits = singletonList(new Split(emptyList(), "exact", null));
-    final Allocation exactAllocation =
-        new Allocation("exact-alloc", exactRules, null, null, exactSplits, false);
-
-    return new Flag(
-        "double-comparison-flag", true, ValueType.STRING, variants, singletonList(exactAllocation));
-  }
-
-  private Flag createExposureLoggingFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("logged", new Variant("logged", "logged-value"));
-
-    // Rule: feature MATCHES premium -> logged
-    final List<ConditionConfiguration> loggedConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "feature", "premium"));
-    final List<Rule> loggedRules = singletonList(new Rule(loggedConditions));
-    final List<Split> loggedSplits = singletonList(new Split(emptyList(), "logged", null));
-    // Create allocation with doLog=true to trigger exposure logging and allocationKey method
-    final Allocation loggedAllocation =
-        new Allocation("logged-alloc", loggedRules, null, null, loggedSplits, true);
-
-    return new Flag(
-        "exposure-logging-flag", true, ValueType.STRING, variants, singletonList(loggedAllocation));
-  }
-
-  private Flag createNumericOneOfFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("numeric-match", new Variant("numeric-match", "numeric-matched"));
-
-    // Rule: score ONE_OF [3.14159, 2.71828] -> numeric-match
-    // This will trigger valuesEqual with numeric comparison via lambda$valuesEqual$4
-    final List<Double> numericValues = asList(3.14159, 2.71828);
-    final List<ConditionConfiguration> numericConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "score", numericValues));
-    final List<Rule> numericRules = singletonList(new Rule(numericConditions));
-    final List<Split> numericSplits = singletonList(new Split(emptyList(), "numeric-match", null));
-    final Allocation numericAllocation =
-        new Allocation("numeric-alloc", numericRules, null, null, numericSplits, false);
-
-    return new Flag(
-        "numeric-one-of-flag", true, ValueType.STRING, variants, singletonList(numericAllocation));
-  }
-
-  private Flag createNumericNotOneOfFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("excluded", new Variant("excluded", "not-in-set"));
-
-    // Rule: score NOT_ONE_OF [1.0, 2.0, 3.0] -> excluded
-    // This will trigger valuesEqual with numeric comparison via lambda$valuesEqual$4
-    final List<Double> excludedValues = asList(1.0, 2.0, 3.0);
-    final List<ConditionConfiguration> excludedConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "score", excludedValues));
-    final List<Rule> excludedRules = singletonList(new Rule(excludedConditions));
-    final List<Split> excludedSplits = singletonList(new Split(emptyList(), "excluded", null));
-    final Allocation excludedAllocation =
-        new Allocation("excluded-alloc", excludedRules, null, null, excludedSplits, false);
-
-    return new Flag(
-        "numeric-not-one-of-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(excludedAllocation));
-  }
-
-  private Flag createIsNullFalseFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("not-null", new Variant("not-null", "not-null"));
-
-    // Rule: attr IS_NULL false -> not-null (checks if attr is NOT null)
-    final List<ConditionConfiguration> notNullConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "attr", false));
-    final List<Rule> notNullRules = singletonList(new Rule(notNullConditions));
-    final List<Split> notNullSplits = singletonList(new Split(emptyList(), "not-null", null));
-    final Allocation notNullAllocation =
-        new Allocation("not-null-alloc", notNullRules, null, null, notNullSplits, false);
-
-    return new Flag(
-        "is-null-false-flag", true, ValueType.STRING, variants, singletonList(notNullAllocation));
-  }
-
-  private Flag createIsNullNonBooleanFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("null-match", new Variant("null-match", "null-match"));
-
-    // Rule: missing_attr IS_NULL "string" -> null-match (non-boolean expectedNull value)
-    final List<ConditionConfiguration> nullConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.IS_NULL, "missing_attr", "string"));
-    final List<Rule> nullRules = singletonList(new Rule(nullConditions));
-    final List<Split> nullSplits = singletonList(new Split(emptyList(), "null-match", null));
-    final Allocation nullAllocation =
-        new Allocation("null-alloc", nullRules, null, null, nullSplits, false);
-
-    return new Flag(
-        "is-null-non-boolean-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(nullAllocation));
-  }
-
-  private Flag createNullAttributeFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("fallback", new Variant("fallback", "fallback"));
-
-    // Rule: null_attribute MATCHES "test" -> should not match due to null attribute
-    final List<ConditionConfiguration> nullAttrConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, null, "test"));
-    final List<Rule> nullAttrRules = singletonList(new Rule(nullAttrConditions));
-    final List<Split> nullAttrSplits = singletonList(new Split(emptyList(), "fallback", null));
-    final Allocation nullAttrAllocation =
-        new Allocation("null-attr-alloc", nullAttrRules, null, null, nullAttrSplits, false);
-
-    return new Flag(
-        "null-attribute-flag", true, ValueType.STRING, variants, singletonList(nullAttrAllocation));
-  }
-
-  private Flag createNotMatchesPositiveFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("external", new Variant("external", "external-email"));
-
-    // Rule: email NOT_MATCHES "@company.com" -> external (should match gmail.com)
-    final List<ConditionConfiguration> externalConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "@company\\.com"));
-    final List<Rule> externalRules = singletonList(new Rule(externalConditions));
-    final List<Split> externalSplits = singletonList(new Split(emptyList(), "external", null));
-    final Allocation externalAllocation =
-        new Allocation("external-alloc", externalRules, null, null, externalSplits, false);
-
-    return new Flag(
-        "not-matches-positive-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(externalAllocation));
-  }
-
-  private Flag createNotOneOfPositiveFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("other", new Variant("other", "other-region"));
-
-    // Rule: region NOT_ONE_OF ["us-east-1", "us-west-2", "eu-west-1"] -> other
-    final List<String> excludedRegions = asList("us-east-1", "us-west-2", "eu-west-1");
-    final List<ConditionConfiguration> otherConditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "region", excludedRegions));
-    final List<Rule> otherRules = singletonList(new Rule(otherConditions));
-    final List<Split> otherSplits = singletonList(new Split(emptyList(), "other", null));
-    final Allocation otherAllocation =
-        new Allocation("other-alloc", otherRules, null, null, otherSplits, false);
-
-    return new Flag(
-        "not-one-of-positive-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(otherAllocation));
-  }
-
-  private Flag createFalseNumericComparisonsFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("high-score", new Variant("high-score", "high-score"));
-
-    // Rule: score GTE 800 -> high-score (test will provide 750, should fail)
-    final List<ConditionConfiguration> highScoreConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.GTE, "score", 800));
-    final List<Rule> highScoreRules = singletonList(new Rule(highScoreConditions));
-    final List<Split> highScoreSplits = singletonList(new Split(emptyList(), "high-score", null));
-    final Allocation highScoreAllocation =
-        new Allocation("high-score-alloc", highScoreRules, null, null, highScoreSplits, false);
-
-    return new Flag(
-        "false-numeric-comparisons-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(highScoreAllocation));
-  }
-
-  private Flag createEmptySplitsFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("default", new Variant("default", "default"));
-
-    // Allocation with null splits
-    final Allocation allocation =
-        new Allocation("empty-splits-alloc", null, null, null, null, false);
-
-    return new Flag(
-        "empty-splits-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createEmptyConditionsFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("default", new Variant("default", "default"));
-
-    // Rule with empty conditions list - this will be skipped, causing allocation to not match
-    final Rule emptyConditionsRule = new Rule(emptyList());
-    final List<Split> splits = singletonList(new Split(emptyList(), "default", null));
-    final Allocation allocation =
-        new Allocation(
-            "empty-conditions-alloc",
-            singletonList(emptyConditionsRule),
-            null,
-            null,
-            splits,
-            false);
-
-    return new Flag(
-        "empty-conditions-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createShardMatchingFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("matched", new Variant("matched", "shard-matched"));
-
-    // Create shard that will match the specific targeting key
-    final List<ShardRange> ranges =
-        singletonList(new ShardRange(0, 100)); // Full range to ensure match
-    final List<Shard> shards = singletonList(new Shard("test-salt", ranges, 100));
-    final List<Split> splits = singletonList(new Split(shards, "matched", null));
-    final Allocation allocation =
-        new Allocation("shard-matching-alloc", null, null, null, splits, false);
-
-    return new Flag(
-        "shard-matching-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createFutureAllocationFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("future", new Variant("future", "future-value"));
-
-    final List<Split> splits = singletonList(new Split(emptyList(), "future", null));
-
-    // Allocation that starts in the future (2050)
-    final Allocation allocation =
-        new Allocation(
-            "future-alloc", null, parseDate("2050-01-01T00:00:00Z"), null, splits, false);
-
-    return new Flag(
-        "future-allocation-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createIdAttributeFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("id-match", new Variant("id-match", "id-resolved"));
-
-    // Rule that checks for "id" attribute (will use targeting key if not provided)
-    final List<ConditionConfiguration> conditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.MATCHES, "id", "user-special-id"));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "id-match", null));
-    final Allocation allocation = new Allocation("id-attr-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "id-attribute-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createNonIterableConditionFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("no-match", new Variant("no-match", "no-match"));
-
-    // Rule with ONE_OF condition but non-iterable value (String instead of List)
-    final List<ConditionConfiguration> conditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "attr", "single-value"));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "no-match", null));
-    final Allocation allocation =
-        new Allocation("non-iterable-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "non-iterable-condition-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createGtFalseFlag() {
-    return createComparisonFlag(
-        "gt-false-flag",
-        "gt-false-alloc",
-        "high",
-        "high-value",
-        ConditionOperator.GT,
-        "score",
-        600);
-  }
-
-  private Flag createLteFalseFlag() {
-    return createComparisonFlag(
-        "lte-false-flag",
-        "lte-false-alloc",
-        "low",
-        "low-value",
-        ConditionOperator.LTE,
-        "score",
-        500);
-  }
-
-  private Flag createLtFalseFlag() {
-    return createComparisonFlag(
-        "lt-false-flag",
-        "lt-false-alloc",
-        "very-low",
-        "very-low-value",
-        ConditionOperator.LT,
-        "score",
-        600);
-  }
-
-  private Flag createNotMatchesFalseFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("internal", new Variant("internal", "internal-email"));
-
-    // Rule: email NOT_MATCHES "@company.com" -> internal (test provides company.com, should fail)
-    final List<ConditionConfiguration> conditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "@company\\.com"));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "internal", null));
-    final Allocation allocation =
-        new Allocation("not-matches-false-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "not-matches-false-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createNotOneOfFalseFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("excluded", new Variant("excluded", "excluded-region"));
-
-    // Rule: region NOT_ONE_OF ["us-east-1", "us-west-2"] -> excluded (test provides us-east-1,
-    // should fail)
-    final List<String> excludedRegions = asList("us-east-1", "us-west-2");
-    final List<ConditionConfiguration> conditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "region", excludedRegions));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
-    final Allocation allocation =
-        new Allocation("not-one-of-false-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "not-one-of-false-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createNullContextValuesFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("null-variant", new Variant("null-variant", "null-handled"));
-
-    // Rule that will handle null context values in flattening
-    final List<ConditionConfiguration> conditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "nullAttr", true));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "null-variant", null));
-    final Allocation allocation =
-        new Allocation("null-context-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "null-context-values-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createCountryRuleFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("us", new Variant("us", "us-value"));
-    variants.put("global", new Variant("global", "global-value"));
-
-    // Rule: country ONE_OF ["US"] -> us (no shards, so null targeting key is fine)
-    final List<String> usCountries = singletonList("US");
-    final List<ConditionConfiguration> usConditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "country", usCountries));
-    final List<Rule> usRules = singletonList(new Rule(usConditions));
-    final List<Split> usSplits = singletonList(new Split(emptyList(), "us", null));
-    final Allocation usAllocation =
-        new Allocation("us-alloc", usRules, null, null, usSplits, false);
-
-    // Fallback allocation (no rules, no shards)
-    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null));
-    final Allocation globalAllocation =
-        new Allocation("global-alloc", null, null, null, globalSplits, false);
-
-    return new Flag(
-        "country-rule-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        asList(usAllocation, globalAllocation));
-  }
-
-  private Flag createInvalidRegexFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("matched", new Variant("matched", "matched-value"));
-
-    // Condition with an intentionally invalid regex pattern (unclosed bracket)
-    final List<ConditionConfiguration> conditions =
-        singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "email", "[invalid"));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "matched", null));
-    final Allocation allocation =
-        new Allocation("invalid-regex-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "invalid-regex-flag", true, ValueType.STRING, variants, singletonList(allocation));
-  }
-
-  private Flag createInvalidRegexNotMatchesFlag() {
-    final Map<String, Variant> variants = new HashMap<>();
-    variants.put("excluded", new Variant("excluded", "excluded-value"));
-
-    // Condition with an intentionally invalid regex pattern (unclosed bracket) under NOT_MATCHES
-    final List<ConditionConfiguration> conditions =
-        singletonList(
-            new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "[invalid"));
-    final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
-    final Allocation allocation =
-        new Allocation("invalid-regex-not-matches-alloc", rules, null, null, splits, false);
-
-    return new Flag(
-        "invalid-regex-not-matches-flag",
-        true,
-        ValueType.STRING,
-        variants,
-        singletonList(allocation));
+  private static Object mapFixtureValue(final Class<?> targetType, final Object value) {
+    return DDEvaluator.mapValue(targetType, value);
   }
 
   private static Map<String, Object> mapOf(final Object... props) {
@@ -1368,13 +1081,250 @@ public class DDEvaluatorTest {
     return result;
   }
 
-  private static Date parseDate(String dateString) {
-    try {
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-      formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-      return formatter.parse(dateString);
-    } catch (ParseException e) {
-      throw new RuntimeException("Failed to parse date: " + dateString, e);
+  private static final class FixtureCase {
+    Map<String, Object> attributes = emptyMap();
+    Object defaultValue;
+    String flag;
+    FixtureResult result;
+    String targetingKey;
+    String variationType;
+    transient String fileName;
+    transient int index;
+
+    @Override
+    public String toString() {
+      return fileName + "[" + index + "] flag=" + flag;
+    }
+  }
+
+  private static final class FixtureResult {
+    Object value;
+    String reason;
+    String errorCode;
+    String variant;
+    Map<String, Object> flagMetadata = emptyMap();
+  }
+
+  /**
+   * Mirrors the production parser's binary-compatible uint32 representation for fixture parsing.
+   */
+  private static final class ShardAdapter extends JsonAdapter<Shard> {
+    private static final JsonAdapter.Factory FACTORY =
+        (type, annotations, moshi) -> {
+          if (!annotations.isEmpty() || type != Shard.class) {
+            return null;
+          }
+          return new ShardAdapter(moshi.adapter(ShardJson.class));
+        };
+
+    private final JsonAdapter<ShardJson> delegate;
+
+    private ShardAdapter(final JsonAdapter<ShardJson> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Shard fromJson(final JsonReader reader) throws IOException {
+      final ShardJson shard = delegate.fromJson(reader);
+      if (shard == null) {
+        return null;
+      }
+      final List<ShardRange> ranges;
+      if (shard.ranges == null) {
+        ranges = null;
+      } else {
+        ranges = new ArrayList<>();
+        for (final ShardRangeJson range : shard.ranges) {
+          ranges.add(
+              range == null
+                  ? null
+                  : new ShardRange(
+                      toUnsignedInt(range.start, "range start"),
+                      toUnsignedInt(range.end, "range end")));
+        }
+      }
+      return new Shard(shard.salt, ranges, toUnsignedInt(shard.totalShards, "totalShards"));
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Shard value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static int toUnsignedInt(final Long value, final String fieldName) {
+    if (value == null) {
+      return 0;
+    }
+    if (value < 0 || value > MAX_UNSIGNED_INT) {
+      throw new IllegalArgumentException("flag contains an invalid " + fieldName + " value");
+    }
+    return value.intValue();
+  }
+
+  private static final class ShardJson {
+    String salt;
+    List<ShardRangeJson> ranges;
+    Long totalShards;
+  }
+
+  private static final class ShardRangeJson {
+    Long start;
+    Long end;
+  }
+
+  /** Reads the flags map with per-flag failure isolation, matching the production parser. */
+  private static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
+    private static final Type FLAGS_TYPE =
+        Types.newParameterizedType(Map.class, String.class, Flag.class);
+
+    private static final JsonAdapter.Factory FACTORY =
+        (type, annotations, moshi) -> {
+          if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
+            return null;
+          }
+          return new FlagMapAdapter(moshi.adapter(Flag.class));
+        };
+
+    private final JsonAdapter<Flag> flagAdapter;
+
+    private FlagMapAdapter(final JsonAdapter<Flag> flagAdapter) {
+      this.flagAdapter = flagAdapter;
+    }
+
+    @Override
+    public Map<String, Flag> fromJson(final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      final Map<String, Flag> flags = new HashMap<>();
+      reader.beginObject();
+      while (reader.hasNext()) {
+        final String flagKey = reader.nextName();
+        final Object rawFlag = reader.readJsonValue();
+        try {
+          final Flag flag = flagAdapter.fromJsonValue(rawFlag);
+          if (flag != null) {
+            validateFlag(flagKey, flag);
+            flags.put(flagKey, flag);
+          }
+        } catch (JsonDataException | IllegalArgumentException ignored) {
+          INVALID_FLAGS_HOLDER.get().put(flagKey, "invalid_flag");
+          // A malformed flag must not prevent valid flags in the same configuration from loading.
+        }
+      }
+      reader.endObject();
+      return flags;
+    }
+
+    private static void validateFlag(final String flagKey, final Flag flag) {
+      if (flag.allocations == null) {
+        return;
+      }
+      for (final Allocation allocation : flag.allocations) {
+        if (allocation == null) {
+          continue;
+        }
+        validateConditionOperands(flagKey, allocation);
+        if (allocation.splits == null) {
+          continue;
+        }
+        for (final Split split : allocation.splits) {
+          if (split == null) {
+            continue;
+          }
+          if (split.shards == null) {
+            throw new IllegalArgumentException(
+                "flag \"" + flagKey + "\" contains a split with missing shards");
+          }
+          for (final Shard shard : split.shards) {
+            if (shard == null
+                || Integer.toUnsignedLong(shard.totalShards) == 0
+                || shard.ranges == null) {
+              throw new IllegalArgumentException(
+                  "flag \"" + flagKey + "\" contains invalid shards");
+            }
+            for (final ShardRange range : shard.ranges) {
+              if (range == null) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" contains an invalid shard range");
+              }
+            }
+          }
+        }
+      }
+    }
+
+    private static void validateConditionOperands(
+        final String flagKey, final Allocation allocation) {
+      if (allocation.rules == null) {
+        return;
+      }
+      for (final Rule rule : allocation.rules) {
+        if (rule == null || rule.conditions == null) {
+          continue;
+        }
+        for (final ConditionConfiguration condition : rule.conditions) {
+          if (condition == null || condition.operator == null) {
+            continue;
+          }
+          switch (condition.operator) {
+            case LT:
+            case LTE:
+            case GT:
+            case GTE:
+              if (!(condition.value instanceof Number)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-numeric condition");
+              }
+              break;
+            case ONE_OF:
+            case NOT_ONE_OF:
+              if (!(condition.value instanceof List)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-list condition");
+              }
+              break;
+            case IS_NULL:
+              if (!(condition.value instanceof Boolean)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-boolean condition");
+              }
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Map<String, Flag> value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static final class DateAdapter extends JsonAdapter<Date> {
+    @Override
+    public Date fromJson(final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      try {
+        return Date.from(
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
+      } catch (final Exception ignored) {
+        return null;
+      }
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Date value) throws IOException {
+      if (value == null) {
+        writer.nullValue();
+        return;
+      }
+      writer.value(value.toInstant().toString());
     }
   }
 }

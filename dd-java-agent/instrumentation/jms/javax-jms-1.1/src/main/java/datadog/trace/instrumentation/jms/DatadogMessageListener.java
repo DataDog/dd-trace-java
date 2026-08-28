@@ -11,8 +11,8 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABL
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
@@ -58,7 +58,7 @@ public class DatadogMessageListener implements MessageListener {
             consumerState.getBrokerServiceName());
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
-      span = startSpan("jms", JMS_CONSUME, timeInQueue.context());
+      span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
@@ -71,7 +71,7 @@ public class DatadogMessageListener implements MessageListener {
       // span will be finished by Session.commit/rollback/close
       sessionState.finishOnCommit(span);
     }
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
       CONSUMER_DECORATE.onError(span, thrown);

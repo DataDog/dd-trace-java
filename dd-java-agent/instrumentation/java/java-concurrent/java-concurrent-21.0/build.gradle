@@ -1,16 +1,12 @@
 plugins {
   id 'idea'
+  id 'dd-trace-java.module.instrumentation'
+  // Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
+  id 'dd-trace-java.conventions.testing.slf4j-simple'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
-  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
-  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
-  maxJavaVersion = JavaVersion.VERSION_24
 }
 
 muzzle {
@@ -29,6 +25,14 @@ idea {
  * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag
  */
 addTestSuite('previewTest')
+
+tasks.named("previewTest").configure {
+  testJvmConstraints {
+    // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
+    // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
+    maxJavaVersion = JavaVersion.VERSION_24
+  }
+}
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
 tasks.withType(AbstractCompile).configureEach {

@@ -76,10 +76,10 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
       if (handlerContext == null) {
         return null;
       }
-      return activateSpan(DECORATE.onSessionCloseIssued(handlerContext, null, 1000));
+      return activateSpan(DECORATE.startOutboundCloseSpan(handlerContext, null, 1000));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable thrown,

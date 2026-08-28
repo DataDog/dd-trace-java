@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -7,10 +11,12 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
+
+tasks.named('latestDepForkedTest', Test) {
+  systemProperty 'test.dd.jetty92', 'true'
+}
 
 // Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies.
 // Using testRuntimeClasspath instead of testImplementation because exclusions on testImplementation

@@ -101,7 +101,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records1.add(record)
         }
       })
@@ -109,7 +108,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records2.add(record)
         }
       })
@@ -117,7 +115,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records3.add(record)
         }
       })
@@ -125,7 +122,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records4.add(record)
         }
       })
@@ -205,7 +201,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records1.add(activeSpan())
         }
       })
@@ -213,7 +208,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records2.add(activeSpan())
         }
       })
@@ -221,7 +215,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records3.add(activeSpan())
         }
       })
@@ -229,7 +222,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records4.add(activeSpan())
         }
       })

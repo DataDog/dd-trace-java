@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +45,7 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
         carrier.entries().stream()
             .anyMatch(entry -> "dd-pathway-ctx-base64".equals(entry.getKey()));
     assertTrue(hasPathwayCtxBase64);
-    assertNotEquals(0L, ((DDSpan) span).context().getPathwayContext().getHash());
+    assertNotEquals(0L, ((DDSpan) span).spanContext().getPathwayContext().getHash());
   }
 
   static class CustomContextCarrier implements DataStreamsContextCarrier {

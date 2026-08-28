@@ -1,8 +1,6 @@
 package opentelemetry14;
 
 import static datadog.opentelemetry.shim.trace.OtelSpanEventTestHelper.stringifyErrorStack;
-import static datadog.trace.agent.test.assertions.Matchers.any;
-import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
@@ -17,6 +15,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.test.junit.utils.assertions.Matchers.any;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static io.opentelemetry.api.common.AttributeKey.booleanArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.doubleArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.longArrayKey;
@@ -43,8 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.opentelemetry.shim.trace.OtelSpanEvent;
-import datadog.trace.agent.test.assertions.Matcher;
-import datadog.trace.agent.test.assertions.Matchers;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -52,6 +50,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -67,9 +67,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import opentelemetry14.context.propagation.TextMap;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -287,6 +289,48 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
                     defaultTags(),
                     tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
                     tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+  }
+
+  @Test
+  void testConcurrentAddEvents() throws Exception {
+    // Regression test: concurrent addEvent calls (e.g. from GraphQL DataLoaders on virtual
+    // threads) used to corrupt unsynchronized backing list, causing NPE on span finish.
+    int threadCount = 8;
+    int eventsPerThread = 2000;
+    Span span = this.otelTracer.spanBuilder("some-name").startSpan();
+
+    CountDownLatch start = new CountDownLatch(1);
+    List<Thread> threads = new ArrayList<>();
+    for (int t = 0; t < threadCount; t++) {
+      Thread thread =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                for (int i = 0; i < eventsPerThread; i++) {
+                  span.addEvent("event");
+                }
+              });
+      thread.start();
+      threads.add(thread);
+    }
+
+    start.countDown();
+    for (Thread thread : threads) {
+      thread.join();
+    }
+    span.end();
+
+    writer.waitForTraces(1);
+    List<DDSpan> firstTrace = writer.firstTrace();
+    assertEquals(1, firstTrace.size());
+    Object eventsTag = firstTrace.get(0).getTags().get(SPAN_EVENTS);
+    JSONArray events = new JSONArray((String) eventsTag);
+    assertEquals(threadCount * eventsPerThread, events.length());
   }
 
   @Test
@@ -590,7 +634,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
     writer.waitForTraces(1);
     DDSpan ddSpan = writer.firstTrace().get(0);
-    assertEquals("otel", ddSpan.context().getIntegrationName().toString());
+    assertEquals("otel", ddSpan.spanContext().getIntegrationName().toString());
   }
 
   static Stream<Arguments> testSpanKindsArguments() {

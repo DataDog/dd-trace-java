@@ -13,12 +13,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +65,10 @@ public class ExceptionProbeManager {
 
   public ClassNameFilter getClassNameFilter() {
     return classNameFiltering;
+  }
+
+  public void removeThrowableState(Throwable t) {
+    snapshotsByThrowable.remove(t);
   }
 
   static class CreationResult {
@@ -182,7 +186,7 @@ public class ExceptionProbeManager {
 
   public static class ThrowableState {
     private final String exceptionId;
-    private final List<Snapshot> snapshots = new ArrayList<>();
+    private final List<Snapshot> snapshots = new CopyOnWriteArrayList<>();
     private boolean snapshotSent;
 
     private ThrowableState(String exceptionId) {
@@ -197,11 +201,11 @@ public class ExceptionProbeManager {
       return snapshots;
     }
 
-    public boolean isSampling() {
-      return !snapshots.isEmpty();
-    }
-
     public void addSnapshot(Snapshot snapshot) {
+      if (snapshots.size() > 256) {
+        LOGGER.debug("Too many (256) snapshots for exceptionId={}, dropping snapshot", exceptionId);
+        return;
+      }
       snapshots.add(snapshot);
     }
 

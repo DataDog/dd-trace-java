@@ -89,6 +89,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     assertThat(suite.getAttribute("failures")).isEqualTo("0")
 
     val passCase = findTestCase(report, "muzzle-AssertPass-core-jdk")
+    assertThat(passCase.getAttribute("file")).isEqualTo("dd-java-agent/instrumentation/demo")
     assertThat(passCase.getElementsByTagName("failure").length).isEqualTo(0)
   }
 
@@ -162,14 +163,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       "--configuration",
       "muzzleBootstrap"
     )
-    assertThat(bootstrapDependencies.output).contains("project :dd-java-agent:agent-bootstrap")
+    assertThat(bootstrapDependencies.output).contains(":dd-java-agent:agent-bootstrap")
 
     val toolingDependencies = run(
       ":dd-java-agent:instrumentation:demo:dependencies",
       "--configuration",
       "muzzleTooling"
     )
-    assertThat(toolingDependencies.output).contains("project :dd-java-agent:agent-tooling")
+    assertThat(toolingDependencies.output).contains(":dd-java-agent:agent-tooling")
   }
 
   @Test

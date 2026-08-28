@@ -24,7 +24,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(TagMap.Entry.create(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE))
     1 * span.setTag(TagMap.Entry.create(COMPONENT, "test-component"))
-    1 * span.context() >> spanContext
+    1 * span.spanContext() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(TagMap.Entry.create(SPAN_KIND, "server"))
     1 * span.setSpanType(decorator.spanType())

@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -20,7 +22,7 @@ class DebuggerTracerTest {
 
   @AfterEach
   public void after() {
-    AgentTracer.forceRegister(null);
+    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
   }
 
   @Test
@@ -60,7 +62,7 @@ class DebuggerTracerTest {
 
   @Test
   public void noApi() {
-    AgentTracer.forceRegister(null);
+    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     DebuggerTracer debuggerTracer = new DebuggerTracer(probeStatusSink);
     DebuggerSpan span =

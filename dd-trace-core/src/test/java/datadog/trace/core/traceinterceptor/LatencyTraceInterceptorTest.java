@@ -1,6 +1,6 @@
 package datadog.trace.core.traceinterceptor;
 
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -8,7 +8,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.tabletest.DDTagsConverter;
+import datadog.trace.test.junit.utils.converter.TagsConverter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Timeout;
@@ -32,7 +32,7 @@ class LatencyTraceInterceptorTest extends DDCoreJavaSpecification {
   void testSetSamplingPriorityAccordingToLatency(
       String partialFlushEnabled,
       String latencyThreshold,
-      @ConvertWith(DDTagsConverter.class) String priorityTag,
+      @ConvertWith(TagsConverter.class) String priorityTag,
       long minDuration,
       int expected)
       throws InterruptedException {
@@ -50,6 +50,6 @@ class LatencyTraceInterceptorTest extends DDCoreJavaSpecification {
     List<DDSpan> trace = writer.firstTrace();
     assertEquals(1, trace.size());
     DDSpan span = trace.get(0);
-    assertEquals(expected, span.context().getSamplingPriority());
+    assertEquals(expected, span.spanContext().getSamplingPriority());
   }
 }

@@ -244,7 +244,7 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedContextLink(
+              context.addTerminatedSpanLink(
                   DDSpanLink.from(
                       (ExtractedContext) extracted,
                       SpanAttributes.builder()

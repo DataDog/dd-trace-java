@@ -210,7 +210,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.isWafRequestBlockFailure()
     1 * mockAppSecCtx.isWafRateLimited()
     1 * mockAppSecCtx.isWafTruncated()
-    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -1528,8 +1528,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> true
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1546,8 +1546,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> false
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> false
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1565,8 +1565,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route'])
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route', 'component': 'spring-web'])
+    1 * requestSampler.preSampleRequest(_, 'spring-web') >> true
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }

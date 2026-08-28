@@ -1,6 +1,9 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,8 +16,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
@@ -23,9 +29,15 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -128,6 +140,46 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void parsesAllocationWindowDatesAsDateFieldsWithInstantAccessors() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":{"
+                + "\"dated-flag\":{"
+                + "\"key\":\"dated-flag\","
+                + "\"enabled\":true,"
+                + "\"variationType\":\"STRING\","
+                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+                + "\"allocations\":[{"
+                + "\"key\":\"dated-allocation\","
+                + "\"rules\":[],"
+                + "\"startAt\":\"2023-01-01T01:00:00.123456+01:00\","
+                + "\"endAt\":\"2023-01-02T00:00:00.987654Z\","
+                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+                + "\"doLog\":true"
+                + "}]"
+                + "}"
+                + "}"
+                + "}");
+
+    final Allocation allocation = config.flags.get("dated-flag").allocations.get(0);
+    assertEquals(Date.class, Allocation.class.getField("startAt").getType());
+    assertEquals(Date.class, Allocation.class.getField("endAt").getType());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123Z"), allocation.startAt.toInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987Z"), allocation.endAt.toInstant());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123456Z"), allocation.startAtInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987654Z"), allocation.endAtInstant());
+  }
+
+  @Test
+  void rejectsTrailingJson() {
+    assertThrows(IOException.class, () -> deserialize(emptyConfig() + "{}"));
+  }
+
+  @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
     final ServerConfiguration config =
         deserialize(
@@ -173,48 +225,190 @@ class RemoteConfigServiceImplTest {
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
 
-  @TableTest({
-    "scenario                                  | value                            | expectedEpochMilli",
-    "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",
-    "utc end of year                           | '2023-12-31T23:59:59Z'           | 1704067199000     ",
-    "leap day                                  | '2024-02-29T12:00:00Z'           | 1709208000000     ",
-    "millisecond precision                     | '2023-01-01T00:00:00.000Z'       | 1672531200000     ",
-    "three fractional digits                   | '2023-06-15T14:30:45.123Z'       | 1686839445123     ",
-    "six fractional digits truncate to millis  | '2023-06-15T14:30:45.123456Z'    | 1686839445123     ",
-    "six fractional digits preserve millis     | '2023-06-15T14:30:45.235982Z'    | 1686839445235     ",
-    "nine fractional digits truncate to millis | '2023-06-15T14:30:45.123456789Z' | 1686839445123     ",
-    "one fractional digit                      | '2023-06-15T14:30:45.1Z'         | 1686839445100     ",
-    "two fractional digits                     | '2023-06-15T14:30:45.12Z'        | 1686839445120     ",
-    "positive offset                           | '2023-01-01T01:00:00+01:00'      | 1672531200000     ",
-    "negative offset                           | '2023-01-01T00:00:00-05:00'      | 1672549200000     ",
-    "date only                                 | '2023-01-01'                     |                   ",
-    "invalid                                   | 'invalid-date'                   |                   ",
-    "empty string                              | ''                               |                   ",
-    "not a date                                | 'not-a-date'                     |                   ",
-    "slash date                                | '2023/01/01T00:00:00Z'           |                   ",
-    "null                                      |                                  |                   "
-  })
-  void testDateParsing(final String value, final Long expectedEpochMilli) throws Exception {
-    final JsonReader reader = mock(JsonReader.class);
-    when(reader.nextString()).thenReturn(value);
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+  @Test
+  void flagMapAdapterFactoryOnlyCreatesFlagMapAdapterForFlagMapType() {
+    final Moshi moshi = moshi();
+    final Type flagsType = Types.newParameterizedType(Map.class, String.class, Flag.class);
 
-    final Date parsed = adapter.fromJson(reader);
-    if (expectedEpochMilli == null) {
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.FlagMapAdapter);
+    assertNull(
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
+    assertNull(
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(
+            flagsType, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void lenientBooleanAdapterFactoryOnlyCreatesAdapterForUnannotatedBoxedBoolean() {
+    final Moshi moshi = moshi();
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.LenientBooleanAdapter);
+    // Primitive boolean keeps Moshi's strict adapter so mandatory fields still reject bad values.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            boolean.class, emptySet(), moshi));
+    // A qualified Boolean belongs to whichever adapter declared the qualifier, not to this one.
+    assertNull(
+        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+            Boolean.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void lenientBooleanAdapterIsReadOnly() {
+    final UniversalFlagConfigParser.LenientBooleanAdapter adapter =
+        new UniversalFlagConfigParser.LenientBooleanAdapter();
+
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), true));
+  }
+
+  @Test
+  void allowsNullFlagMap() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":null"
+                + "}");
+
+    assertNotNull(config);
+    assertNull(config.flags);
+  }
+
+  @Test
+  void skipsNullFlagAndKeepsValidFlag() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":{"
+                + "\"null-flag\":null,"
+                + "\"valid-flag\":{"
+                + "\"key\":\"valid-flag\","
+                + "\"enabled\":true,"
+                + "\"variationType\":\"STRING\","
+                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+                + "\"allocations\":[{"
+                + "\"key\":\"default-allocation\","
+                + "\"rules\":[],"
+                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+                + "\"doLog\":true"
+                + "}]"
+                + "}"
+                + "}"
+                + "}");
+
+    assertNotNull(config);
+    assertFalse(config.flags.containsKey("null-flag"));
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+  }
+
+  @Test
+  void flagMapAdapterIsReadOnly() {
+    final UniversalFlagConfigParser.FlagMapAdapter adapter =
+        new UniversalFlagConfigParser.FlagMapAdapter(moshi().adapter(Flag.class));
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
+  }
+
+  @Test
+  void allocationAdapterFactoryOnlyCreatesAllocationAdapterForAllocationType() {
+    final Moshi moshi = moshi();
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.AllocationAdapter);
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            String.class, emptySet(), moshi));
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void allocationAdapterHandlesNullAndIsReadOnly() throws Exception {
+    final UniversalFlagConfigParser.AllocationAdapter adapter =
+        new UniversalFlagConfigParser.AllocationAdapter(
+            moshi().adapter(UniversalFlagConfigParser.AllocationJson.class));
+
+    assertNull(adapter.fromJson("null"));
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), null));
+  }
+
+  @TableTest({
+    "scenario                       | value                            | expectedInstant                 ",
+    "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
+    "utc end of year                | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
+    "leap day                       | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
+    "millisecond precision          | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
+    "three fractional digits        | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
+    "six fractional digits          | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
+    "six fractional digits distinct | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
+    "nine fractional digits         | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
+    "one fractional digit           | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
+    "two fractional digits          | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
+    "positive offset                | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
+    "negative offset                | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
+    "date only                      | '2023-01-01'                     |                                 ",
+    "invalid                        | 'invalid-date'                   |                                 ",
+    "empty string                   | ''                               |                                 ",
+    "not a date                     | 'not-a-date'                     |                                 ",
+    "slash date                     | '2023/01/01T00:00:00Z'           |                                 ",
+    "null                           |                                  |                                 "
+  })
+  void testInstantParsing(final String value, final String expectedInstant) throws Exception {
+    final JsonReader reader = mock(JsonReader.class);
+    if (value == null) {
+      when(reader.peek()).thenReturn(JsonReader.Token.NULL);
+      when(reader.nextNull()).thenReturn(null);
+    } else {
+      when(reader.peek()).thenReturn(JsonReader.Token.STRING);
+      when(reader.nextString()).thenReturn(value);
+    }
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
+
+    final Instant parsed = adapter.fromJson(reader);
+    if (value == null) {
+      verify(reader).nextNull();
+    }
+    if (expectedInstant == null) {
       assertNull(parsed);
     } else {
       assertNotNull(parsed);
-      assertEquals(Instant.ofEpochMilli(expectedEpochMilli), parsed.toInstant());
+      assertEquals(expectedInstant, parsed.toString());
     }
   }
 
   @Test
   void testParsingOnlyAdapter() {
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
 
     assertThrows(
         UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), new Date()));
+        () -> adapter.toJson(mock(JsonWriter.class), Instant.EPOCH));
   }
 
   @SuppressWarnings("unchecked")
@@ -223,8 +417,14 @@ class RemoteConfigServiceImplTest {
   }
 
   private static ServerConfiguration deserialize(final String json) throws Exception {
-    return RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserialize(
-        json.getBytes(UTF_8));
+    return UniversalFlagConfigParser.INSTANCE.deserialize(json.getBytes(UTF_8));
+  }
+
+  private static Moshi moshi() {
+    return new Moshi.Builder()
+        .add(Instant.class, new UniversalFlagConfigParser.InstantAdapter())
+        .add(UniversalFlagConfigParser.AllocationAdapter.FACTORY)
+        .build();
   }
 
   private static String emptyConfig() {

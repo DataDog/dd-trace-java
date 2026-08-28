@@ -2,10 +2,10 @@ package datadog.telemetry.metric;
 
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class LLMObsMetricPeriodicAction extends MetricPeriodicAction {
-  @NonNull
+  @Nonnull
   @Override
   public MetricCollector collector() {
     return LLMObsMetricCollector.get();

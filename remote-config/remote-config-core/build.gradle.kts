@@ -1,8 +1,7 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 val minimumBranchCoverage by extra(0.6)
 val minimumInstructionCoverage by extra(0.8)
@@ -17,23 +16,17 @@ val excludedClassesCoverage by extra(
     "datadog.remoteconfig.ExceptionHelper",
   )
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.remoteconfig.tuf.FeaturesConfig",
-    "datadog.remoteconfig.PollerRequestFactory",
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.remoteconfig.tuf.FeaturesConfig",
+  "datadog.remoteconfig.PollerRequestFactory",
 )
-val excludedClassesInstructionCoverage by extra(
-  listOf(
-    "datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop",
-  )
-)
+extra["excludedClassesInstructionCoverage"] = listOf("datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop",)
 
 dependencies {
   api(project(":remote-config:remote-config-api"))
 
   implementation(libs.slf4j)
-  implementation(libs.okhttp)
+  implementation(libs.datadog.okhttp)
   implementation(libs.moshi)
   implementation(libs.bundles.cafe.crypto)
 

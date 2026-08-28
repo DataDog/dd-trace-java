@@ -8,7 +8,7 @@ import com.ning.http.client.HttpResponseBodyPart;
 import com.ning.http.client.HttpResponseHeaders;
 import com.ning.http.client.HttpResponseStatus;
 import com.ning.http.client.Response;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
@@ -30,7 +30,7 @@ public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
 
   @Override
   public STATE onBodyPartReceived(HttpResponseBodyPart httpResponseBodyPart) throws Exception {
-    try (final AgentScope ignored = activateSpan(clientSpan)) {
+    try (final ContextScope ignored = activateSpan(clientSpan)) {
       return delegate.onBodyPartReceived(httpResponseBodyPart);
     }
   }
@@ -38,7 +38,7 @@ public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
   @Override
   public STATE onStatusReceived(HttpResponseStatus httpResponseStatus) throws Exception {
     responseBuilder = responseBuilder.accumulate(httpResponseStatus);
-    try (final AgentScope ignored = activateSpan(clientSpan)) {
+    try (final ContextScope ignored = activateSpan(clientSpan)) {
       return delegate.onStatusReceived(httpResponseStatus);
     }
   }
@@ -46,7 +46,7 @@ public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
   @Override
   public STATE onHeadersReceived(HttpResponseHeaders httpResponseHeaders) throws Exception {
     responseBuilder = responseBuilder.accumulate(httpResponseHeaders);
-    try (final AgentScope ignored = activateSpan(clientSpan)) {
+    try (final ContextScope ignored = activateSpan(clientSpan)) {
       return delegate.onHeadersReceived(httpResponseHeaders);
     }
   }
@@ -55,7 +55,7 @@ public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
   public T onCompleted() throws Exception {
     try {
       final T response;
-      try (AgentScope ignored = (parentSpan != null ? activateSpan(parentSpan) : null)) {
+      try (ContextScope ignored = (parentSpan != null ? activateSpan(parentSpan) : null)) {
         response = delegate.onCompleted();
       }
       if (response instanceof Response) {

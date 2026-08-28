@@ -2,7 +2,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
@@ -73,12 +73,15 @@ gradlePlugin {
       id = "dd-trace-java.sca-enrichments"
       implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
+
+    create("jardiff-plugin") {
+      id = "dd-trace-java.jardiff"
+      implementationClass = "datadog.gradle.plugin.jardiff.JardiffPlugin"
+    }
   }
 }
 
-apply {
-  from("$rootDir/../gradle/repositories.gradle")
-}
+apply(from = "$rootDir/../gradle/repositories.gradle")
 
 repositories {
   gradlePluginPortal()
@@ -95,9 +98,8 @@ dependencies {
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.javaparser.symbol.solver)
 
-  implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
@@ -107,6 +109,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  testImplementation("me.champeau.jmh:jmh-gradle-plugin:0.7.3")
 }
 
 tasks.compileKotlin {
@@ -117,7 +121,7 @@ tasks.compileKotlin {
 testing {
   @Suppress("UnstableApiUsage")
   suites {
-    val test by getting(JvmTestSuite::class) {
+    named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
       }

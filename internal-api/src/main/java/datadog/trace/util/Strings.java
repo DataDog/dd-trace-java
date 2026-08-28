@@ -6,6 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
@@ -192,5 +195,209 @@ public final class Strings {
     } else {
       return null;
     }
+  }
+
+  /** Low overhead replaceAll */
+  public static final String replaceAll(String input, String needle, String replacement) {
+    int index = input.indexOf(needle);
+    if (index == -1) return input;
+
+    int needleLen = needle.length();
+
+    StringBuilder builder = new StringBuilder(input.length() + 10);
+    builder.append(input, 0, index);
+    builder.append(replacement);
+
+    int prevIndex = index;
+    index = input.indexOf(needle, index + needleLen);
+    for (; index != -1; prevIndex = index, index = input.indexOf(needle, index + needleLen)) {
+      builder.append(input, prevIndex + needleLen, index);
+      builder.append(replacement);
+    }
+    builder.append(input, prevIndex + needleLen, input.length());
+
+    return builder.toString();
+  }
+
+  /**
+   * Provides a SubSequence which a view into the provided String Unlike String.subSequence (which
+   * is usually just a wrapper around String.substring), this routine doesn't allocate a new String
+   * or byte[]/char[].
+   */
+  public static final SubSequence subSequence(String str, int beginIndex) {
+    return new SubSequence(str, beginIndex, str.length());
+  }
+
+  /**
+   * Provides a SubSequence which a view into the provided String Unlike String.subSequence (which
+   * is usually just a wrapper around String.substring), this routine doesn't allocate a new <code>
+   * String</code> or <code>byte[]</code> / <code>char[]</code>.
+   */
+  public static final SubSequence subSequence(String str, int beginIndex, int endIndex) {
+    return new SubSequence(str, beginIndex, endIndex);
+  }
+
+  /**
+   * Provides an Iterable<SubSequence> where the sub-sequences are separated by <code>splitChar
+   * </code>. Unlike other approaches to splitting, this routine doesn't allocate any new <code>
+   * String</code> or <code>byte[]</code> / <code>char[]</code>
+   */
+  public static final Iterable<SubSequence> split(String str, char splitChar) {
+    if (str.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    int firstIndex = str.indexOf(splitChar);
+    if (firstIndex == -1) {
+      return Collections.singletonList(subSequence(str, 0));
+    }
+
+    return new SplitIterable(str, splitChar, firstIndex);
+  }
+
+  static final class SplitIterable implements Iterable<SubSequence> {
+    private final String str;
+    private final int len;
+    private final char splitChar;
+    private final int firstIndex;
+
+    SplitIterable(String str, char splitChar, int firstIndex) {
+      this.str = str;
+      this.len = str.length();
+      this.splitChar = splitChar;
+      this.firstIndex = firstIndex;
+    }
+
+    @Override
+    public SplitIterator iterator() {
+      return new SplitIterator(this.str, this.len, this.splitChar, this.firstIndex);
+    }
+  }
+
+  static final class SplitIterator implements Iterator<SubSequence> {
+    private final String str;
+    private final int len;
+    private final char splitChar;
+
+    private int curIndex;
+    private int nextIndex;
+
+    SplitIterator(String str, int len, char splitChar, int firstIndex) {
+      this.str = str;
+      this.len = len;
+      this.splitChar = splitChar;
+
+      this.curIndex = 0;
+      this.nextIndex = firstIndex == -1 ? len : firstIndex;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return (this.curIndex <= this.len);
+    }
+
+    @Override
+    public SubSequence next() {
+      int curIndex = this.curIndex;
+      int len = this.len;
+
+      if (curIndex > len) throw new NoSuchElementException();
+
+      // NOTE: Experimented with returning a single mutable SubSequence
+      // where the index range is updated each time.  In typical usage,
+      // that was slightly worse -- likely because escape analysis was
+      // able to eliminate the allocation, but that hasn't been directly
+      // confirmed.
+      SubSequence subSeq;
+
+      int nextIndex = this.nextIndex;
+      if (nextIndex == len - 1) {
+        // Handles the case where there's a trailing separator,
+        // curIndex is moved to len to represent the empty string
+        // after the trailing separator
+
+        // Next call then goes into the special case below
+        subSeq = new SubSequence(this.str, curIndex, nextIndex);
+        this.curIndex = len;
+        this.nextIndex = len;
+      } else if (curIndex == len) {
+        // Handles the empty string after the trailing separator
+        // curIndex is given the terminating value `len + 1`
+
+        // Don't use SubSequence.EMPTY because it wouldn't have
+        // the correct beginIndex
+        subSeq = new SubSequence(this.str, len, len);
+        this.curIndex = len + 1;
+      } else {
+        subSeq = new SubSequence(this.str, curIndex, nextIndex);
+
+        // core advancing logic
+        this.curIndex = nextIndex + 1;
+        int searchIndex = this.str.indexOf(this.splitChar, nextIndex + 1);
+        this.nextIndex = (searchIndex == -1) ? len : searchIndex;
+      }
+
+      return subSeq;
+    }
+  }
+
+  /**
+   * True if {@code needle} occurs fully within {@code s[beginIndex, endIndex)} -- a range-limited,
+   * allocation-free alternative to {@code s.substring(beginIndex, endIndex).contains(needle)}.
+   *
+   * <p>{@code indexOf} returns the earliest occurrence at or after {@code beginIndex}; if that one
+   * overshoots {@code endIndex} there is no earlier full occurrence in range, so the bound check is
+   * exact.
+   */
+  public static boolean regionContains(String s, int beginIndex, int endIndex, String needle) {
+    int idx = s.indexOf(needle, beginIndex);
+    return idx >= 0 && idx + needle.length() <= endIndex;
+  }
+
+  /**
+   * A {@code hashCode} consistent with {@link String#equalsIgnoreCase}: any two strings that are
+   * equal ignoring case produce the same value. Same polynomial as {@link String#hashCode} but over
+   * the case-folded characters, so it never allocates (no {@code toLowerCase} copy).
+   *
+   * <p>Uses the same two-way fold {@code String.equalsIgnoreCase} / {@code
+   * String.regionMatches(ignoreCase)} use ({@code toLowerCase(toUpperCase(c))}), so the two stay
+   * consistent for all inputs, not just ASCII — pairing a one-way fold here with {@code
+   * equalsIgnoreCase} would risk silent false misses on the Unicode characters where they diverge.
+   *
+   * <p>Folds by code point, not by {@code char} (UTF-16 unit). On JDK 9+, {@code equalsIgnoreCase}
+   * itself reconstructs supplementary code points before folding (e.g. it treats U+10400 and
+   * U+10428 as equal), so a per-{@code char} fold would make this hash inconsistent with it for
+   * such pairs -- a supplementary-plane analog of the same silent-false-miss risk called out above.
+   * A per-{@code char} fold matched {@code equalsIgnoreCase} only on JDK 8, where it did not
+   * reconstruct code points; folding by code point keeps the two consistent on every supported JDK.
+   * (On JDK 8, where {@code equalsIgnoreCase} still treats such pairs as distinct, folding them
+   * together here is merely an extra, harmless collision -- consistency only needs to hold in the
+   * equal-hash direction, not the reverse.)
+   */
+  public static int caseInsensitiveHashCode(String s) {
+    int h = 0;
+    final int len = s.length();
+    for (int i = 0; i < len; ) {
+      final char c = s.charAt(i);
+      if (c < 0x80) {
+        // ASCII fast path: case folding is exactly A-Z -> a-z, and every ASCII char is its own
+        // code point, so this is equivalent to (and cheaper than) the code-point fold below.
+        h = 31 * h + ((c >= 'A' && c <= 'Z') ? (c + 32) : c);
+        ++i;
+        continue;
+      }
+      final int cp = s.codePointAt(i);
+      final int folded = Character.toLowerCase(Character.toUpperCase(cp));
+      if (Character.isSupplementaryCodePoint(folded)) {
+        // Fold back into the two chars equalsIgnoreCase itself compares, so the polynomial stays
+        // over the same "characters" for both single- and multi-char inputs.
+        h = 31 * h + Character.highSurrogate(folded);
+        h = 31 * h + Character.lowSurrogate(folded);
+      } else {
+        h = 31 * h + folded;
+      }
+      i += Character.charCount(cp);
+    }
+    return h;
   }
 }

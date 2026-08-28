@@ -3,9 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id "com.gradleup.shadow"
   id "dd-trace-java.profiling-ddprof-override"
+  id 'dd-trace-java.module.internal-library'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   // This module provides the ddprof library as an api dependency
@@ -16,10 +15,8 @@ dependencies {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  dependencies {
-    deps.excludeShared
-    exclude '**/*.debug'
-  }
+  dependencies deps.excludeShared
+  exclude '**/*.debug'
   archiveClassifier = 'all'
   include {
     def rslt = false

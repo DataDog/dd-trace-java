@@ -32,7 +32,7 @@ class LinksAssert {
   }
 
   def link(DDSpan linked, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
-    link(linked.context(), flags, attributes, traceState)
+    link(linked.spanContext(), flags, attributes, traceState)
   }
 
   def link(AgentSpanContext context, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {

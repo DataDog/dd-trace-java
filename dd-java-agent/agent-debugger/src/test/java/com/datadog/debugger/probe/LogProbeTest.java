@@ -5,25 +5,30 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe.Builder;
 import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.sampling.ConstantSampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -136,7 +141,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (AgentScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -177,7 +182,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (AgentScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {
@@ -340,6 +345,49 @@ public class LogProbeTest {
         "errorEntry", snapshot.getCaptures().getEntry().getCapturedThrowable().getMessage());
     assertEquals(
         "errorExit", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+  }
+
+  @Test
+  public void captureExpressionsInActiveDebugSession() {
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
+      span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
+      // the probe sampler always rejects: the active session decision must still win
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+      LogProbe logProbe =
+          createLog("log line")
+              .probeId(ProbeId.newId())
+              .evaluateAt(MethodLocation.EXIT)
+              .tags(format("session_id:%s", DEBUG_SESSION_ID))
+              .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
+              .captureExpressions(
+                  singletonList(
+                      new LogProbe.CaptureExpression(
+                          "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
+              .build();
+      logProbe.initSamplers();
+      CapturedContext entryContext = capturedContext(span, logProbe);
+      CapturedContext exitContext = capturedContext(span, logProbe);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
+      Snapshot snapshot = new Snapshot(currentThread(), logProbe, 3);
+      assertTrue(logProbe.fillSnapshot(entryContext, exitContext, emptyList(), snapshot));
+      assertEquals(
+          "hello",
+          snapshot
+              .getCaptures()
+              .getReturn()
+              .getCaptureExpressions()
+              .get("greeting")
+              .getValue()
+              .toString());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
   }
 
   private Builder createLog(String template) {
