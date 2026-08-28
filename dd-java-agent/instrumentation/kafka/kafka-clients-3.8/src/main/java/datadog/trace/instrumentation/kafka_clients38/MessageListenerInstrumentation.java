@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
+public class MessageListenerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MessageListenerInstrumentation() {

@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice,
         Instrumenter.WithTypeStructure {

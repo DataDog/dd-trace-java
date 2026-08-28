@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class MetadataInstrumentation extends InstrumenterModule.Tracing
+public class MetadataInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MetadataInstrumentation() {
