@@ -85,9 +85,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
-    // flush both queues so sampled-out traces (routed to the secondary queue) aren't
-    // left behind, e.g. when a Lambda invocation's execution environment freezes
-    // right after this synchronous flush returns.
+    // flush both queues so sampled-out traces (routed to the secondary queue) aren't left behind
     CountDownLatch latch = new CountDownLatch(2);
     offer(primaryQueue, new FlushEvent(latch));
     offer(secondaryQueue, new FlushEvent(latch));
