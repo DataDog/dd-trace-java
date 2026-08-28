@@ -96,7 +96,7 @@ final class Aggregator implements Runnable {
   public void run() {
     Thread currentThread = Thread.currentThread();
     Drainer drainer = new Drainer();
-    while (!currentThread.isInterrupted() && !drainer.stopped) {
+    while (!currentThread.isInterrupted() && !inbox.isClosed()) {
       try {
         // Take what is there in one pass, the way the old jctools drain did. size() is O(1) on
         // this queue, so asking costs a read, and anything that arrives mid-pass is simply the
@@ -114,9 +114,11 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
+  /**
+   * Stateless. Whether the aggregator has stopped is the inbox's closed flag, which the run loop
+   * reads as its own exit condition -- see the {@link StopSignal} branch below.
+   */
   private final class Drainer implements Consumer<InboxItem> {
-
-    boolean stopped = false;
 
     @Override
     public void accept(InboxItem item) {
@@ -135,7 +137,7 @@ final class Aggregator implements Runnable {
         // re-aggregated, and flushed on the next report -- where the agent rejects them again,
         // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
         // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
-        if (!stopped) {
+        if (!inbox.isClosed()) {
           aggregates.clear();
           // Clear dirty too -- without this, the next report() would see dirty=true, run
           // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
@@ -146,16 +148,21 @@ final class Aggregator implements Runnable {
         ((SignalItem) item).complete();
       } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
-        if (!stopped) {
+        if (!inbox.isClosed()) {
           report(wallClockTime(), signal);
-          stopped = item instanceof StopSignal;
-          if (stopped) {
+          if (item instanceof StopSignal) {
+            // Closing the inbox *is* stopping. It refuses further admission, so producers stop
+            // building snapshots for a consumer that is on its way out, and it is the condition
+            // this loop already reads to leave -- one piece of state rather than two that have to
+            // agree. Deliberately not shutdown(): anything queued behind STOP stays readable, and
+            // the batch this call sits in keeps being walked.
+            inbox.close();
             signal.complete();
           }
         } else {
           signal.ignore();
         }
-      } else if (item instanceof SpanSnapshot && !stopped) {
+      } else if (item instanceof SpanSnapshot && !inbox.isClosed()) {
         SpanSnapshot snapshot = (SpanSnapshot) item;
         AggregateEntry entry = aggregates.findOrInsert(snapshot);
         if (entry != null) {

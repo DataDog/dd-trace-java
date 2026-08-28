@@ -382,7 +382,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     // Try to send the report signal
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
-    while (thread.isAlive() && !published) {
+    // isClosed() as well as isAlive(): the inbox closes the moment STOP is taken, which is
+    // strictly before the thread finishes exiting, so this stops sleeping through that window
+    // waiting on a signal that can no longer be admitted.
+    while (thread.isAlive() && !inbox.isClosed() && !published) {
       published = inbox.tryPut(reportSignal);
       if (!published) {
         try {
@@ -404,7 +407,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    if (statsExportEnabled()) {
+    // Closed before enabled: closed is a volatile read, where statsExportEnabled() can reach into
+    // feature discovery. Once the aggregator thread has taken STOP the inbox refuses everything,
+    // so asking once here is the whole publish path after shutdown -- rather than a capacity's
+    // worth of snapshots built for a consumer that has already exited, followed by an unbounded
+    // run of inbox-full reports for a queue nobody is draining.
+    if (!inbox.isClosed() && statsExportEnabled()) {
       // Producer-side fast path: one volatile read and use whatever schema is currently cached.
       // The aggregator thread keeps this schema in sync with feature discovery in
       // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
@@ -446,6 +454,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     // The inbox reserves a slot before calling back, so a full inbox costs nothing beyond this
     // call: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. The old racy
     // size() >= capacity() pre-check is gone with it.
+    //
+    // A refusal is read as capacity rather than closure because the caller checked isClosed() once
+    // for the trace. A close landing mid-trace mis-attributes that trace's remaining spans, which
+    // is worth not re-reading the flag per span.
     if (!inbox.tryPut(span, peerTagSchema, snapshotProducer)) {
       healthMetrics.onStatsInboxFull();
     }
