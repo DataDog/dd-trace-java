@@ -589,7 +589,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - metrics enabled"() {
     setup:
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment.name=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
