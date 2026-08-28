@@ -58,8 +58,10 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
             Config.get())) {
 
       dataStreams.start();
-      DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
-      dataStreams.add(new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+      DataStreamsTags tags =
+          DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+      dataStreams.add(
+          new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
       timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds());
       invokeReport(dataStreams);
 
