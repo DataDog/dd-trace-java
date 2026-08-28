@@ -123,12 +123,12 @@ public final class FlatHashtable {
    *
    * <p><b>Fixed or growable, chosen at construction.</b> {@link #createFixed} keeps the raw core's
    * bounded posture — the table holds up to {@code maxCapacity} entries, then {@link
-   * #tryGetOrCreate} caps and returns {@code null} (the caller supplies the overflow default).
-   * {@link #createGrowable} trades that for {@code HashMap}-like ergonomics — its {@code
+   * #tryGetOrCreateOrNull} caps and returns {@code null} (the caller supplies the overflow
+   * default). {@link #createGrowable} trades that for {@code HashMap}-like ergonomics — its {@code
    * initialCapacity} is a sizing hint, not a cap, the table doubles when it fills past its load
-   * factor, and {@code tryGetOrCreate} never returns {@code null}. The distinct factory names make
-   * the choice explicit at the call site (there's no ambiguous {@code (Class, int)} constructor);
-   * {@code Capacity} always counts <i>entries</i>, matching the chained {@code
+   * factor, and {@code tryGetOrCreateOrNull} never returns {@code null}. The distinct factory names
+   * make the choice explicit at the call site (there's no ambiguous {@code (Class, int)}
+   * constructor); {@code Capacity} always counts <i>entries</i>, matching the chained {@code
    * Hashtable.D1.createCapped}. Across the family a table factory's number is always entries — only
    * the low-level array allocators take a bucket count.
    *
@@ -197,7 +197,7 @@ public final class FlatHashtable {
 
     /**
      * A bounded {@link D1} holding up to {@code maxCapacity} entries at the {@link
-     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreate} returns {@code null}).
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreateOrNull} returns {@code null}).
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
@@ -257,18 +257,33 @@ public final class FlatHashtable {
 
     /**
      * Existing entry for {@code key}, or a freshly {@link CreateStrategy#create created} + inserted
-     * one. A growable table never returns {@code null}; a fixed one returns {@code null} when full
-     * and {@code key} is absent (the caller supplies the overflow default). A hit is always
-     * returned even at capacity — the cap blocks only creation, not lookup.
+     * one, wrapped in a {@link Maybe}. A growable table's {@link Maybe} is always present; a fixed
+     * one's is absent when full and {@code key} is absent (the caller supplies the overflow
+     * default). A hit is always returned even at capacity — the cap blocks only creation, not
+     * lookup.
      *
      * <p>The {@code try} prefix marks "this may refuse" — a growable table simply never exercises
-     * it. The name has to serve both postures, since the posture is chosen per instance at the
-     * factory while the method name is per class, and the two mistakes are not symmetric:
-     * under-promising refusal costs an NPE at the cap, over-promising it costs a redundant null
-     * check. So it errs toward {@code try}.
+     * it.
+     *
+     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site -- see
+     * {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+      return Maybe.of(tryGetOrCreateOrNull(key, createStrat));
+    }
+
+    /**
+     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
+     * form above for new call sites; this one remains as an escape hatch for callers where the
+     * {@link Maybe} allocation-free contract doesn't fit or that pre-date it. Under-promising
+     * refusal here costs an NPE at the cap; over-promising it costs a redundant null check on a
+     * growable table -- so it errs toward {@code try}.
      */
     @Nullable
-    public TEntry tryGetOrCreate(@Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+    public TEntry tryGetOrCreateOrNull(
+        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
       final TEntry existing = get(key);
       if (existing != null) {
         return existing;
@@ -393,7 +408,7 @@ public final class FlatHashtable {
 
     /**
      * A bounded {@link D2} holding up to {@code maxCapacity} entries at the {@link
-     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreate} returns {@code null}).
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreateOrNull} returns {@code null}).
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
@@ -452,11 +467,25 @@ public final class FlatHashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#tryGetOrCreate}: growable never returns {@code null}; fixed
-     * returns {@code null} when full and {@code (key1, key2)} is absent.
+     * Two-key analogue of {@link D1#tryGetOrCreate}: {@link Maybe}-wrapped form, delegating to
+     * {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site. Growable's {@link
+     * Maybe} is always present; fixed's is absent when full and {@code (key1, key2)} is absent.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
+      return Maybe.of(tryGetOrCreateOrNull(key1, key2, createStrat));
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
+     * of {@link #tryGetOrCreate}. Growable never returns {@code null}; fixed returns {@code null}
+     * when full and {@code (key1, key2)} is absent.
      */
     @Nullable
-    public TEntry tryGetOrCreate(
+    public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {

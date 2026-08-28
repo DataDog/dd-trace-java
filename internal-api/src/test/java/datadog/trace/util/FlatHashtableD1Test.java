@@ -188,7 +188,7 @@ class FlatHashtableD1Test {
     FlatHashtable.D1<String, StringIntEntry> table = growable(8);
     int[] createCount = {0};
     StringIntEntry created =
-        table.tryGetOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             k -> {
               createCount[0]++;
@@ -209,7 +209,7 @@ class FlatHashtableD1Test {
     table.insert(seeded);
     int[] createCount = {0};
     StringIntEntry got =
-        table.tryGetOrCreate(
+        table.tryGetOrCreateOrNull(
             "foo",
             k -> {
               createCount[0]++;
@@ -237,7 +237,7 @@ class FlatHashtableD1Test {
   void growableGetOrCreateNeverReturnsNull() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      StringIntEntry e = table.tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0));
+      StringIntEntry e = table.tryGetOrCreateOrNull("k" + i, k -> new StringIntEntry(k, 0));
       assertNotNull(e);
     }
     assertEquals(50, table.size());
@@ -246,15 +246,36 @@ class FlatHashtableD1Test {
   @Test
   void fixedGetOrCreateCapsWhenFull() {
     FlatHashtable.D1<String, StringIntEntry> table = fixed(2);
-    assertNotNull(table.tryGetOrCreate("a", k -> new StringIntEntry(k, 1)));
-    assertNotNull(table.tryGetOrCreate("b", k -> new StringIntEntry(k, 2)));
+    assertNotNull(table.tryGetOrCreateOrNull("a", k -> new StringIntEntry(k, 1)));
+    assertNotNull(table.tryGetOrCreateOrNull("b", k -> new StringIntEntry(k, 2)));
     assertEquals(2, table.size());
     // At capacity, a new key can't be created -> null (caller's overflow default).
-    assertNull(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)));
+    assertNull(table.tryGetOrCreateOrNull("c", k -> new StringIntEntry(k, 3)));
     assertEquals(2, table.size());
     // ...but an existing key still resolves even at capacity (cap blocks creation, not lookup).
     StringIntEntry a = table.get("a");
-    assertSame(a, table.tryGetOrCreate("a", k -> new StringIntEntry(k, 99)));
+    assertSame(a, table.tryGetOrCreateOrNull("a", k -> new StringIntEntry(k, 99)));
+  }
+
+  @Test
+  void fixedGetOrCreateAsMaybeIsAbsentWhenFullButStillReturnsHits() {
+    FlatHashtable.D1<String, StringIntEntry> table = fixed(2);
+    table.tryGetOrCreate("a", k -> new StringIntEntry(k, 1));
+    table.tryGetOrCreate("b", k -> new StringIntEntry(k, 2));
+
+    assertFalse(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)).isPresent());
+
+    Maybe<StringIntEntry> hit = table.tryGetOrCreate("a", k -> new StringIntEntry(k, 99));
+    assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void growableGetOrCreateAsMaybeIsAlwaysPresent() {
+    FlatHashtable.D1<String, StringIntEntry> table = growable(1);
+    for (int i = 0; i < 50; i++) {
+      assertTrue(table.tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0)).isPresent());
+    }
+    assertEquals(50, table.size());
   }
 
   @Test

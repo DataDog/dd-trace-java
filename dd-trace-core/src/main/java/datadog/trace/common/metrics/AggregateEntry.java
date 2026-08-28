@@ -244,6 +244,14 @@ public final class AggregateEntry extends Hashtable.Entry {
     return hitCount;
   }
 
+  /**
+   * {@code true} if nothing hit this entry in the current reporting cycle, making it the first
+   * thing worth evicting when the table is full.
+   */
+  public boolean isStale() {
+    return hitCount == 0;
+  }
+
   public int getErrorCount() {
     return errorCount;
   }

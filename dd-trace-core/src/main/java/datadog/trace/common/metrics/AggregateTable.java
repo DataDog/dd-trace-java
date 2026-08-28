@@ -2,7 +2,6 @@ package datadog.trace.common.metrics;
 
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
-import datadog.trace.util.Hashtable.MutatingTableIterator;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -25,17 +24,9 @@ import java.util.function.Consumer;
  */
 final class AggregateTable {
 
-  private final Hashtable.Entry[] buckets;
-  private final int maxAggregates;
-  private final AggregateEntry.Canonical canonical;
-  private int size;
+  private final Hashtable.State<AggregateEntry> state;
 
-  /**
-   * Bucket index where the last {@link #evictOneStale} successfully removed an entry. The next call
-   * resumes from this bucket so a fast-evicting workload doesn't repeatedly re-walk the same hot
-   * entries clustered near bucket 0. Reset to {@code 0} by {@link #clear}.
-   */
-  private int evictCursor;
+  private final AggregateEntry.Canonical canonical;
 
   AggregateTable(int maxAggregates) {
     this(maxAggregates, AdditionalTagsSchema.EMPTY);
@@ -47,8 +38,7 @@ final class AggregateTable {
 
   AggregateTable(
       int maxAggregates, CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
-    this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
-    this.maxAggregates = maxAggregates;
+    this.state = Hashtable.createCapped(maxAggregates);
     this.canonical = new AggregateEntry.Canonical(handlers, additionalTagsSchema);
   }
 
@@ -56,82 +46,58 @@ final class AggregateTable {
     canonical.handlers.reset(healthMetrics, reporter);
   }
 
+  /**
+   * Live aggregate count. Exact from this class's point of view: {@link Hashtable#estimateSize} is
+   * an estimate only across a reservation window, and {@link #findOrInsert} reserves and links
+   * without yielding, so no caller can observe one.
+   */
   int size() {
-    return size;
+    return Hashtable.estimateSize(state);
   }
 
   boolean isEmpty() {
-    return size == 0;
+    return Hashtable.isLikelyEmpty(state);
   }
 
   /**
    * Returns the {@link AggregateEntry} to update for {@code snapshot}, lazily creating one on miss.
    * Returns {@code null} when the table is at capacity and no stale entry can be evicted -- the
-   * caller should drop the data point in that case.
+   * caller should drop the data point in that case (reported via {@code onStatsAggregateDropped}).
+   * Dropping the new key rather than evicting an established one is deliberate: the cap is sized to
+   * the steady-state working set, so a full table of entries that were all used this cycle means
+   * the new key is the outlier.
+   *
+   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
+   * often eviction fires but doesn't eliminate it. Over-cap values for a single field collapse into
+   * the shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its
+   * own. But distinct in-budget combinations across fields (resource x service x operation x ...)
+   * can still drive the entry count to {@code maxAggregates}, so eviction remains the backstop.
+   *
+   * <p>The scan that finds a stale entry, and its resume-where-it-left-off amortization, live in
+   * {@link Hashtable#tryReserveOrEvict} -- this class only supplies {@link AggregateEntry#isStale}.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
-    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
+    for (AggregateEntry candidate = Hashtable.bucketFor(state, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
         return candidate;
       }
     }
-    // Miss path.
-    if (size >= maxAggregates && !evictOneStale()) {
+    // Miss path. Reserve before building the entry so a refused insert costs no allocation; the
+    // reservation evicts a stale entry to make room if the table is already full.
+    if (!Hashtable.tryReserveOrEvict(state, AggregateEntry::isStale)) {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
-    Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);
-    size++;
+    Hashtable.insertReserved(state, keyHash, entry);
     return entry;
   }
 
-  /**
-   * Unlinks the first entry whose {@code getHitCount() == 0}, resuming the scan from {@link
-   * #evictCursor} so consecutive evictions amortize to O(1) per call. Worst case for a single call
-   * is still O(N) when nearly every entry is hot, but a sustained eviction stream never re-scans
-   * the hot prefix more than twice across N evictions.
-   *
-   * <p>If the table is full and every entry was used in this cycle, drop the new key (reported via
-   * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
-   * steady-state working set, so eviction is rare in the common case.
-   *
-   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
-   * often this fires but doesn't eliminate it. Over-cap values for a single field collapse into the
-   * shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its own.
-   * But distinct in-budget combinations across fields (resource x service x operation x ...) can
-   * still drive the entry count to {@code maxAggregates}, so this cursor-resumed scan remains the
-   * backstop.
-   */
-  private boolean evictOneStale() {
-    // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The
-    // second pass is naturally empty when cursor==0, so no extra check needed.
-    return evictOneStaleInRange(evictCursor, buckets.length)
-        || evictOneStaleInRange(0, evictCursor);
-  }
-
-  /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
-  private boolean evictOneStaleInRange(int startBucket, int endBucket) {
-    MutatingTableIterator<AggregateEntry> iter =
-        Hashtable.Support.mutatingTableIterator(buckets, startBucket, endBucket);
-    while (iter.hasNext()) {
-      AggregateEntry e = iter.next();
-      if (e.getHitCount() == 0) {
-        int bucket = iter.currentBucket();
-        iter.remove();
-        size--;
-        evictCursor = bucket;
-        return true;
-      }
-    }
-    return false;
-  }
-
   void forEach(Consumer<AggregateEntry> consumer) {
-    Hashtable.Support.forEach(buckets, consumer);
+    Hashtable.forEach(state, consumer);
   }
 
   /**
@@ -139,26 +105,16 @@ final class AggregateTable {
    * each invocation -- pass a non-capturing {@link BiConsumer} (typically a {@code static final})
    * plus whatever side-band state it needs as {@code context}.
    */
-  <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
-    Hashtable.Support.forEach(buckets, context, consumer);
+  <C> void forEach(C context, BiConsumer<C, AggregateEntry> consumer) {
+    Hashtable.forEach(state, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> iter =
-            Hashtable.Support.mutatingTableIterator(buckets);
-        iter.hasNext(); ) {
-      AggregateEntry e = iter.next();
-      if (e.getHitCount() == 0) {
-        iter.remove();
-        size--;
-      }
-    }
+    Hashtable.evictAll(state, AggregateEntry::isStale);
   }
 
   void clear() {
-    Hashtable.Support.clear(buckets);
-    size = 0;
-    evictCursor = 0;
+    Hashtable.clear(state);
   }
 }

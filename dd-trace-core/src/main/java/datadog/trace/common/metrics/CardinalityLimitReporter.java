@@ -55,13 +55,15 @@ final class CardinalityLimitReporter {
     this.rlLog = rlLog;
   }
 
-  /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
+  /**
+   * Records {@code count} values blocked for {@code tag} in the current reporting cycle.
+   *
+   * <p>A refused create -- the tag table is itself at capacity -- is deliberately ignored: this is
+   * a log sink, and the durable counts still reach {@code onTagCardinalityBlocked}.
+   */
   void record(String tag, long count) {
     if (count > 0) {
-      TagBlockEntry entry = blockedByTag.tryGetOrCreate(tag, TagBlockEntry::new);
-      if (entry != null) {
-        entry.count += count;
-      }
+      blockedByTag.tryGetOrCreate(tag, TagBlockEntry::new).update(count, TagBlockEntry::inc);
     }
   }
 
@@ -105,6 +107,10 @@ final class CardinalityLimitReporter {
 
     TagBlockEntry(String tag) {
       super(tag);
+    }
+
+    void inc(long n) {
+      count += n;
     }
   }
 }
