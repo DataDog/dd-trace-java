@@ -75,6 +75,23 @@ class ConcurrentHashtableSizeManagerTest {
   }
 
   @Test
+  void insertReservedSplicesWithoutTouchingTheCountAfterATryReserve() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.State.createCapped(TestEntry.class, 2);
+    assertTrue(state.sizeManager.tryReserve());
+    assertEquals(1, state.sizeManager.estimateSize());
+
+    TestEntry entry = new TestEntry(0, "reserved");
+    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+      ConcurrentHashtable.insertReserved(state, entry.keyHash, entry);
+    }
+
+    assertSame(entry, state.buckets.get(0));
+    // Count reflects only the earlier tryReserve() -- insertReserved must not increment again.
+    assertEquals(1, state.sizeManager.estimateSize());
+  }
+
+  @Test
   void evictOneReturnsNullAndLeavesCountUnchangedWhenNothingMatches() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
@@ -222,15 +239,15 @@ class ConcurrentHashtableSizeManagerTest {
     state.sizeManager.increment();
     assertTrue(ConcurrentHashtable.isFull(state));
 
-    // Table is full: tryReserveOrEvict evicts "a" and reserves the freed slot for the caller,
-    // who is now responsible for inserting the entry that occupies it (mirrors the D1/D2
-    // tryGetOrCreateOrEvict contract, where the actual insert happens right after).
+    // Table is full: tryReserveOrEvict evicts "a" and reserves the freed slot for the caller, who
+    // is now responsible for splicing in the entry that occupies it -- via insertReserved, since
+    // the reservation already happened and a plain insertHeadEntryAt/increment would double-count.
     boolean reserved = ConcurrentHashtable.tryReserveOrEvict(state, e -> true);
     assertTrue(reserved);
     assertEquals(1, ConcurrentHashtable.estimateSize(state));
     assertNull(state.buckets.get(0)); // "a" was evicted; the reserved slot has no entry yet
     synchronized (ConcurrentHashtable.getWriteLock(state)) {
-      ConcurrentHashtable.insertHeadEntryAt(state, 0, new TestEntry(0, "reserved"));
+      ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
     }
 
     int evicted = ConcurrentHashtable.evictAll(state, e -> true);

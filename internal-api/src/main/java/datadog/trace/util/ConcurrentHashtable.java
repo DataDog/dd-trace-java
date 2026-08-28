@@ -1094,6 +1094,32 @@ public final class ConcurrentHashtable {
   }
 
   /**
+   * Splices {@code entry} in as the new head of its bucket <em>without</em> touching the count,
+   * because the caller already holds a reservation for it -- from {@link #tryReserveOrEvict} or a
+   * bare {@link SizeManager#tryReserve()}. Pairing those is the shape of a miss path that wants to
+   * refuse before it builds anything:
+   *
+   * <pre>{@code
+   * if (!tryReserveOrEvict(state, evictable)) {
+   *   return null;                       // refused -- no entry was built
+   * }
+   * insertReserved(state, keyHash, buildEntry());
+   * }</pre>
+   *
+   * <p>Distinct from {@link #insertHeadEntryFor(AtomicReferenceArray, long, Entry)}, which reserves
+   * as it inserts; calling that one here would count the entry twice. {@link D1} and {@link D2} do
+   * not use this: their {@code creator} is fallible, so they check/evict, build the entry, link it,
+   * and only then call {@link SizeManager#increment} -- reserving up front could leak a slot if the
+   * build throws (see {@link D1#tryGetOrCreateOrNull}). Use this only when the entry is already
+   * fully built before the reservation is taken.
+   */
+  @GuardedBy("getWriteLock(state)")
+  public static <TEntry extends Entry> void insertReserved(
+      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+    insertHeadEntryFor(state.buckets, keyHash, entry);
+  }
+
+  /**
    * Splices {@code entry} out of the chain at {@code index}. {@code prev} is the in-chain
    * predecessor, or {@code null} when {@code entry} is the bucket head. Re-points the predecessor
    * (or the bucket head slot) past {@code entry} via a volatile write so lock-free readers see the
