@@ -25,7 +25,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * and read the same rows across {@code -PtestJvm} 8, 11, 17, 21 and 25. The point is the matrix of
  * shape against JDK, so that "will this allocate" stops being a question two people answer from
  * memory. Nothing here is specific to any one caller: the arms were written for the granted/refused
- * reservation of APMLP-1642's WorkQueue, and carry over unchanged to APMLP-1799's Try&lt;T&gt;,
+ * reservation of APMLP-1642's WorkQueue, and carry over unchanged to APMLP-1799's Maybe&lt;T&gt;,
  * because both are the same two-outcome wrapper and the shapes are what is measured.
  *
  * <p>Every arm consumes the object's <em>fields</em> rather than the object. Handing the reference

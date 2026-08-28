@@ -22,45 +22,45 @@ import javax.annotation.Nullable;
  * <p><b>Confirmed 2026-08-27</b> ({@code EscapeShapeBenchmark}, JDK 8/11/17/25): the shape here --
  * one allocation site, a plain nullable field, no singleton merge -- scalar-replaces on ordinary
  * escape analysis, no JDK-21+ {@code ReduceAllocationMerges} needed. The discipline required of a
- * caller is that the wrapping method itself construct a {@code Try} at exactly one call site (fed
+ * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an
  * already-nullable-returning method) rather than once per {@code return} statement -- multiple
  * construction sites inline into a multi-producer phi that fails scalar replacement on every JDK
  * 8-25 once the refusal branch is reachable. See {@code EscapeShapeBenchmark}'s {@code
  * phiOfTwoAllocations} arm for that failure mode in isolation.
  */
-public final class Try<T> {
+public final class Maybe<T> {
   @Nullable private final T value;
 
-  private Try(@Nullable T value) {
+  private Maybe(@Nullable T value) {
     this.value = value;
   }
 
   @Nonnull
-  public static <T> Try<T> of(@Nullable T value) {
-    return new Try<>(value);
+  public static <T> Maybe<T> of(@Nullable T value) {
+    return new Maybe<>(value);
   }
 
   /**
-   * Convenience form for the common shape {@code Try.of(receiver.someNullableMethod(args))}: {@code
-   * Try.of(receiver, r -> r.someNullableMethod(args))}. Useful when {@code receiver} would
+   * Convenience form for the common shape {@code Maybe.of(receiver.someNullableMethod(args))}:
+   * {@code Maybe.of(receiver, r -> r.someNullableMethod(args))}. Useful when {@code receiver} would
    * otherwise have to be re-evaluated or named twice at the call site.
    *
    * <p>Unlike the single-arg {@link #of}, {@code fn} here is typically a <em>capturing</em> lambda
    * -- it closes over whatever local arguments the caller's method has in scope -- which makes it a
-   * second heap-object candidate distinct from the {@code Try} itself. <b>Confirmed 2026-08-27</b>
-   * against a real capacity-refusing lookup method (JDK 8/11/17/25, both a common and a rare
-   * refusal ratio): the capturing lambda scalar-replaces as reliably as a plain delegating method
-   * call does -- see the Hashtable-integration follow-up for that benchmark and the full numbers.
-   * That confirmation is specific to the shape actually measured: a monomorphic receiver and a
-   * {@code fn} built once per call site (not a fresh lambda per invocation) and applied exactly
-   * once. If {@code fn} itself captures something that must be freshly allocated per call (e.g. a
-   * non-singleton creator), that allocation is real regardless of what happens to the lambda
-   * wrapping it.
+   * second heap-object candidate distinct from the {@code Maybe} itself. <b>Confirmed
+   * 2026-08-27</b> against a real capacity-refusing lookup method (JDK 8/11/17/25, both a common
+   * and a rare refusal ratio): the capturing lambda scalar-replaces as reliably as a plain
+   * delegating method call does -- see the Hashtable-integration follow-up for that benchmark and
+   * the full numbers. That confirmation is specific to the shape actually measured: a monomorphic
+   * receiver and a {@code fn} built once per call site (not a fresh lambda per invocation) and
+   * applied exactly once. If {@code fn} itself captures something that must be freshly allocated
+   * per call (e.g. a non-singleton creator), that allocation is real regardless of what happens to
+   * the lambda wrapping it.
    */
   @Nonnull
-  public static <R, T> Try<T> of(R receiver, @Nonnull Function<? super R, ? extends T> fn) {
-    return new Try<>(fn.apply(receiver));
+  public static <R, T> Maybe<T> of(R receiver, @Nonnull Function<? super R, ? extends T> fn) {
+    return new Maybe<>(fn.apply(receiver));
   }
 
   public boolean isPresent() {
@@ -104,7 +104,7 @@ public final class Try<T> {
    * Primitive-{@code long}-context form of {@link #update(Consumer)}, for the common case where the
    * mutation needs one caller-supplied {@code long} (e.g. a duration or count) and boxing it into a
    * captured {@code Long}/generic-context object would be the actual per-call allocation. This
-   * exists so a table wrapping a fallible lookup in {@code Try} pays for this shape once, here,
+   * exists so a table wrapping a fallible lookup in {@code Maybe} pays for this shape once, here,
    * instead of once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s
    * {@code ObjLongConsumer} overload for the caller-side problem this replaces.
    */

@@ -16,7 +16,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * A do/don't guide for using {@link Try}, not a research instrument like {@code
+ * A do/don't guide for using {@link Maybe}, not a research instrument like {@code
  * datadog.trace.util.escape.EscapeShapeBenchmark} (which this class's arms are built on top of).
  * Read {@code gc.alloc.rate.norm} — the "good" arm in each pair is expected to read 0 B/op on every
  * JDK the way {@code EscapeShapeBenchmark}'s {@code singleSite}/{@code passedToInlinedStrategy}
@@ -36,7 +36,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * like.</b> {@code badBoxedContextUpdateInlined} was expected to allocate the boxed {@code Long}
  * and, measured here, does not -- with the whole {@code update} call inlined, C2 scalar-replaces
  * the box the same as it would any other short-lived object. That is exactly the "EA-dependent"
- * half of J12's phrase: {@link Try#update(long, ObjLongConsumer)} has no box to eliminate in the
+ * half of J12's phrase: {@link Maybe#update(long, ObjLongConsumer)} has no box to eliminate in the
  * first place, so it reads 0 B/op *regardless* of whether this call site keeps inlining; the
  * generic-context form's 0 B/op is contingent on inlining holding, which {@code
  * badBoxedContextUpdateUninlined} demonstrates by taking that away via the same {@code
@@ -46,7 +46,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(
     value = 2,
     jvmArgsAppend = {
-      "-XX:CompileCommand=dontinline,datadog.trace.util.TryUsagePatternsBenchmark$UninlinedBoxedAdder::accept"
+      "-XX:CompileCommand=dontinline,datadog.trace.util.MaybeUsagePatternsBenchmark$UninlinedBoxedAdder::accept"
     })
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
@@ -54,22 +54,22 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(java.util.concurrent.TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
-public class TryUsagePatternsBenchmark {
+public class MaybeUsagePatternsBenchmark {
 
   static final class Widget {
     long count;
   }
 
-  /** A non-capturing updater, as {@link Try#update(long, ObjLongConsumer)} expects. */
+  /** A non-capturing updater, as {@link Maybe#update(long, ObjLongConsumer)} expects. */
   static final ObjLongConsumer<Widget> ADD_PRIMITIVE = (w, delta) -> w.count += delta;
 
   /**
    * The same update expressed through the generic-context overload instead. {@code Long} is not
-   * assignable from {@code long} without boxing, so calling {@link Try#update(Object, BiConsumer)}
-   * with a {@code long} argument boxes it every time — the exact per-call allocation {@link
-   * Try#update(long, ObjLongConsumer)} exists to avoid. Kept as a {@code BiConsumer<Long, Widget>}
-   * rather than inlined at the call site so the two arms below differ only in which overload is
-   * selected, not in lambda shape.
+   * assignable from {@code long} without boxing, so calling {@link Maybe#update(Object,
+   * BiConsumer)} with a {@code long} argument boxes it every time — the exact per-call allocation
+   * {@link Maybe#update(long, ObjLongConsumer)} exists to avoid. Kept as a {@code BiConsumer<Long,
+   * Widget>} rather than inlined at the call site so the two arms below differ only in which
+   * overload is selected, not in lambda shape.
    */
   static final BiConsumer<Long, Widget> ADD_BOXED = (delta, w) -> w.count += delta;
 
@@ -99,7 +99,7 @@ public class TryUsagePatternsBenchmark {
   private final Widget[] table = new Widget[8];
   private int counter;
 
-  public TryUsagePatternsBenchmark() {
+  public MaybeUsagePatternsBenchmark() {
     for (int i = 0; i < table.length; i++) {
       // Half the slots stay null so every arm below actually exercises the refused/empty path,
       // not just the present one -- see EscapeShapeBenchmark's `alternate()` javadoc for why an
@@ -120,43 +120,43 @@ public class TryUsagePatternsBenchmark {
   }
 
   /**
-   * GOOD: exactly one {@code Try.of(...)} call site, fed by delegating to the existing nullable
-   * method. See {@link Try}'s class javadoc for why this is the recommended shape.
+   * GOOD: exactly one {@code Maybe.of(...)} call site, fed by delegating to the existing nullable
+   * method. See {@link Maybe}'s class javadoc for why this is the recommended shape.
    */
-  private Try<Widget> tryLookupDelegating(int key) {
-    return Try.of(lookup(key));
+  private Maybe<Widget> tryLookupDelegating(int key) {
+    return Maybe.of(lookup(key));
   }
 
   /**
-   * BAD: a {@code Try.of(...)} call site per branch. Both branches return the same wrapper type, so
-   * this looks equivalent to {@link #tryLookupDelegating} at every call site that uses it — the
+   * BAD: a {@code Maybe.of(...)} call site per branch. Both branches return the same wrapper type,
+   * so this looks equivalent to {@link #tryLookupDelegating} at every call site that uses it — the
    * difference only shows up here, in the allocation profile of the method that builds the {@code
-   * Try}, which is exactly why it is easy to introduce by accident.
+   * Maybe}, which is exactly why it is easy to introduce by accident.
    */
-  private Try<Widget> tryLookupMultiSite(int key) {
+  private Maybe<Widget> tryLookupMultiSite(int key) {
     Widget w = lookup(key);
     if (w != null) {
-      return Try.of(w);
+      return Maybe.of(w);
     } else {
-      return Try.<Widget>of(null);
+      return Maybe.<Widget>of(null);
     }
   }
 
   @Benchmark
   public void goodSingleConstructionSite(Blackhole bh) {
-    Try<Widget> t = tryLookupDelegating(nextKey());
+    Maybe<Widget> t = tryLookupDelegating(nextKey());
     bh.consume(t.isPresent());
   }
 
   @Benchmark
   public void badMultiConstructionSite(Blackhole bh) {
-    Try<Widget> t = tryLookupMultiSite(nextKey());
+    Maybe<Widget> t = tryLookupMultiSite(nextKey());
     bh.consume(t.isPresent());
   }
 
   @Benchmark
   public void goodPrimitiveContextUpdate(Blackhole bh) {
-    Try<Widget> t = tryLookupDelegating(nextKey());
+    Maybe<Widget> t = tryLookupDelegating(nextKey());
     t.update(DELTA, ADD_PRIMITIVE);
     bh.consume(t.isPresent());
   }
@@ -168,7 +168,7 @@ public class TryUsagePatternsBenchmark {
    */
   @Benchmark
   public void badBoxedContextUpdateInlined(Blackhole bh) {
-    Try<Widget> t = tryLookupDelegating(nextKey());
+    Maybe<Widget> t = tryLookupDelegating(nextKey());
     t.update(DELTA, ADD_BOXED);
     bh.consume(t.isPresent());
   }
@@ -180,7 +180,7 @@ public class TryUsagePatternsBenchmark {
    */
   @Benchmark
   public void badBoxedContextUpdateUninlined(Blackhole bh) {
-    Try<Widget> t = tryLookupDelegating(nextKey());
+    Maybe<Widget> t = tryLookupDelegating(nextKey());
     t.update(DELTA, ADD_BOXED_UNINLINED);
     bh.consume(t.isPresent());
   }
