@@ -815,7 +815,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     stored["name"] == "travel_desk"
     stored["instructions"] == "Book travel."
     stored["model"] == "gpt-4o"
-    stored["framework"] == "AgentObs SDK"
+    stored["framework"] == "manual"
     def ms = (Map) stored["model_settings"]
     ms["temperature"] == 0.7
     ms["max_tokens"] == 1024
@@ -842,7 +842,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
     stored["name"] == "my-agent"
     stored["instructions"] == "Do something."
-    stored["framework"] == "AgentObs SDK"
+    stored["framework"] == "manual"
 
     cleanup:
     test.finish()
@@ -871,6 +871,26 @@ class DDLLMObsSpanTest  extends DDSpecification{
     test.finish()
   }
 
+  def "agent manifest with empty tools list omits tools key"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .tools([])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    !stored.containsKey("tools")
+
+    cleanup:
+    test.finish()
+  }
+
   def "agent manifest on non-agent span is silently dropped"() {
     setup:
     def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm-span")
@@ -887,11 +907,18 @@ class DDLLMObsSpanTest  extends DDSpecification{
     test.finish()
   }
 
-  def "second annotateAgentManifest call overwrites the first"() {
+  def "second annotateAgentManifest call merges with the first"() {
     setup:
     def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
-    def first = LLMObs.AgentManifest.builder().name("first").instructions("v1").build()
-    def second = LLMObs.AgentManifest.builder().name("second").model("gpt-4o").build()
+    def first = LLMObs.AgentManifest.builder()
+      .name("first")
+      .instructions("v1 instructions")
+      .model("gpt-3.5")
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .name("second")
+      .model("gpt-4o")
+      .build()
 
     when:
     test.annotateAgentManifest(first)
@@ -900,9 +927,37 @@ class DDLLMObsSpanTest  extends DDSpecification{
     then:
     def innerSpan = (AgentSpan) test.span
     def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
-    stored["name"] == "second"
-    stored["model"] == "gpt-4o"
-    !stored.containsKey("instructions")
+    stored["name"] == "second"          // second call wins on name
+    stored["model"] == "gpt-4o"         // second call wins on model
+    stored["instructions"] == "v1 instructions"  // first call's instructions preserved
+    stored["framework"] == "manual"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call merges model_settings"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, max_tokens: 512])
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .modelSettings([temperature: 0.9, top_p: 0.95])
+      .build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.9    // second wins
+    ms["max_tokens"] == 512     // first preserved
+    ms["top_p"] == 0.95         // second adds
 
     cleanup:
     test.finish()
@@ -943,6 +998,21 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     cleanup:
     test.finish()
+  }
+
+  def "annotateAgentManifest after finish is silently ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").model("gpt-4o").build()
+
+    when:
+    test.finish()
+    test.annotateAgentManifest(manifest)
+
+    then:
+    noExceptionThrown()
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

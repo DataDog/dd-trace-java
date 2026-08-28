@@ -1120,6 +1120,14 @@ public class LLMObs {
       return new AgentTool(name, null, null);
     }
 
+    /**
+     * Creates an agent tool with a name, description, and parameter schema.
+     *
+     * @param name the tool name
+     * @param description an optional description of what the tool does
+     * @param parameters optional parameter schema; the map is shallow-copied — callers must not
+     *     mutate nested values after construction
+     */
     public static AgentTool from(
         String name, @Nullable String description, @Nullable Map<String, Object> parameters) {
       return new AgentTool(name, description, parameters);
@@ -1132,6 +1140,7 @@ public class LLMObs {
           parameters == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
     }
 
+    @Nullable
     public String getName() {
       return name;
     }

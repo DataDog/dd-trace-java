@@ -64,6 +64,8 @@ public interface LLMObsSpan {
    *
    * <p>This annotation is ignored for non-agent spans.
    *
+   * <p>A fully-empty manifest (no fields set) still writes the {@code framework} key.
+   *
    * @param agentManifest The agent manifest configuration
    */
   default void annotateAgentManifest(LLMObs.AgentManifest agentManifest) {}

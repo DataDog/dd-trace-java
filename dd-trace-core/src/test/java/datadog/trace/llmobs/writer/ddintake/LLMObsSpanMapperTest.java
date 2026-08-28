@@ -2,6 +2,7 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -825,7 +826,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     manifest.put("name", "travel_desk");
     manifest.put("instructions", "Book travel.");
     manifest.put("model", "gpt-4o");
-    manifest.put("framework", "AgentObs SDK");
+    manifest.put("framework", "manual");
 
     Map<String, Object> modelSettings = new LinkedHashMap<>();
     modelSettings.put("temperature", 0.7);
@@ -855,8 +856,10 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals("travel_desk", gotManifest.get("name"));
     assertEquals("Book travel.", gotManifest.get("instructions"));
     assertEquals("gpt-4o", gotManifest.get("model"));
-    assertEquals("AgentObs SDK", gotManifest.get("framework"));
+    assertEquals("manual", gotManifest.get("framework"));
     assertEquals(modelSettings, gotManifest.get("model_settings"));
+    assertInstanceOf(
+        Double.class, ((Map<?, ?>) gotManifest.get("model_settings")).get("temperature"));
     assertEquals(tools, gotManifest.get("tools"));
 
     tracer.close();
@@ -869,7 +872,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
     Map<String, Object> manifest = new LinkedHashMap<>();
     manifest.put("name", "my-agent");
-    manifest.put("framework", "AgentObs SDK");
+    manifest.put("framework", "manual");
 
     AgentSpan agentSpan =
         tracer
@@ -882,7 +885,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
     Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
     List<String> tags = (List<String>) spanData.get("tags");
-    assertFalse(tags.stream().anyMatch(t -> t.startsWith("agent_manifest:")));
+    assertFalse(tags.stream().anyMatch(t -> t.contains("agent_manifest")));
 
     tracer.close();
   }

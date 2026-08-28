@@ -42,7 +42,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
   private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
-  private static final String MANUAL_FRAMEWORK = "AgentObs SDK";
+  private static final String MANUAL_FRAMEWORK = "manual";
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
       LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
   private static final String INSTRUMENTATION_METHOD_ANNOTATED = "annotated";
@@ -303,30 +303,48 @@ public class DDLLMObsSpan implements LLMObsSpan {
           "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
       return;
     }
-    Map<String, Object> manifestMap = buildManifestMap(manifest);
-    if (!manifestMap.isEmpty()) {
-      manifestMap.put("framework", MANUAL_FRAMEWORK);
-      span.setTag(AGENT_MANIFEST, manifestMap);
-    }
+    // Read existing manifest (may be null on first call)
+    Object existing = span.getTag(AGENT_MANIFEST);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> base =
+        (existing instanceof Map)
+            ? new LinkedHashMap<>((Map<String, Object>) existing)
+            : new LinkedHashMap<>();
+    mergeManifest(base, manifest);
+    base.put("framework", MANUAL_FRAMEWORK);
+    span.setTag(AGENT_MANIFEST, base);
   }
 
-  private Map<String, Object> buildManifestMap(LLMObs.AgentManifest manifest) {
-    Map<String, Object> map = new LinkedHashMap<>();
-    CharSequence sn = span.getSpanName();
-    String name =
-        manifest.getName() != null ? manifest.getName() : (sn != null ? sn.toString() : null);
-    if (name != null && !name.isEmpty()) {
-      map.put("name", name);
+  private void mergeManifest(Map<String, Object> base, LLMObs.AgentManifest manifest) {
+    // name: new non-empty wins, else keep existing, else span name
+    String manifestName = manifest.getName();
+    if (manifestName != null && !manifestName.isEmpty()) {
+      base.put("name", manifestName);
+    } else if (!base.containsKey("name")) {
+      CharSequence sn = span.getSpanName();
+      if (sn != null && sn.length() > 0) {
+        base.put("name", sn.toString());
+      }
     }
+    // instructions
     if (manifest.getInstructions() != null && !manifest.getInstructions().isEmpty()) {
-      map.put("instructions", manifest.getInstructions());
+      base.put("instructions", manifest.getInstructions());
     }
+    // model
     if (manifest.getModel() != null && !manifest.getModel().isEmpty()) {
-      map.put("model", manifest.getModel());
+      base.put("model", manifest.getModel());
     }
+    // model_settings: shallow merge
     if (manifest.getModelSettings() != null && !manifest.getModelSettings().isEmpty()) {
-      map.put("model_settings", new LinkedHashMap<>(manifest.getModelSettings()));
+      @SuppressWarnings("unchecked")
+      Map<String, Object> existingSettings =
+          (base.get("model_settings") instanceof Map)
+              ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
+              : new LinkedHashMap<>();
+      existingSettings.putAll(manifest.getModelSettings());
+      base.put("model_settings", existingSettings);
     }
+    // tools: replace if non-null non-empty
     if (manifest.getTools() != null && !manifest.getTools().isEmpty()) {
       List<Map<String, Object>> toolList = new ArrayList<>();
       for (LLMObs.AgentTool tool : manifest.getTools()) {
@@ -345,10 +363,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
         toolList.add(toolMap);
       }
       if (!toolList.isEmpty()) {
-        map.put("tools", toolList);
+        base.put("tools", toolList);
       }
     }
-    return map;
   }
 
   private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
