@@ -8,7 +8,6 @@ import datadog.trace.api.InstrumenterConfig;
 import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class InstrumenterModuleTest {
