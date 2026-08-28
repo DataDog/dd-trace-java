@@ -96,10 +96,10 @@ jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
-ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
-dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
 datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }
 datadog-okio = { module = "com.datadoghq.okio:okio", version.ref = "datadog-okio" }
+ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
+dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
 
 # Languages
 ## Groovy
@@ -169,22 +169,22 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
-junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
-junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
-okhttp3-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp3-testing" }
-testing-okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp3-testing" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
+okhttp3-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp3-testing" }
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
 tabletest = { module = "org.tabletest:tabletest-junit", version.ref = "tabletest" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
+testing-okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp3-testing" }
 
 [bundles]
 # Bytecode manipulations & codegen
