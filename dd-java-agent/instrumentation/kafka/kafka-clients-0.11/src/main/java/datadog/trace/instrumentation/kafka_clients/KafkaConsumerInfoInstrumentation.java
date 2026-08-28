@@ -44,7 +44,7 @@ import org.apache.kafka.common.errors.WakeupException;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaConsumerInfoInstrumentation() {
