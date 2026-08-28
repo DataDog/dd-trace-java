@@ -111,7 +111,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   }
 
   @AfterAll
-  static void cleanupSpec() {
+  static void stopSocatProxy() {
     if (process != null) {
       process.destroy();
     }

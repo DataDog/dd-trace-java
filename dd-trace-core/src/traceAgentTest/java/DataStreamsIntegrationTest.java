@@ -49,25 +49,25 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
+    try (DefaultDataStreamsMonitoring dataStreams =
         new DefaultDataStreamsMonitoring(
             sink,
             sharedCommunicationObjects.featuresDiscovery(Config.get()),
             timeSource,
             () -> traceConfig,
-            Config.get());
-    dataStreams.start();
-    DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
-    dataStreams.add(new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
-    timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds());
-    invokeReport(dataStreams);
+            Config.get())) {
 
-    assertTrue(sharedCommunicationObjects.featuresDiscovery(Config.get()).supportsDataStreams());
-    // conditions.eventually { assert listener.events.size() == 1 }
-    waitForEvents(listener, 1);
-    assertEquals(OK, listener.events.get(0));
+      dataStreams.start();
+      DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+      dataStreams.add(new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+      timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds());
+      invokeReport(dataStreams);
 
-    dataStreams.close();
+      assertTrue(sharedCommunicationObjects.featuresDiscovery(Config.get()).supportsDataStreams());
+      // conditions.eventually { assert listener.events.size() == 1 }
+      waitForEvents(listener, 1);
+      assertEquals(OK, listener.events.get(0));
+    }
   }
 
   private static void waitForEvents(BlockingListener listener, int expectedCount) {
