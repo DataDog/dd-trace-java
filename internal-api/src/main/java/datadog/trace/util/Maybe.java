@@ -17,9 +17,9 @@ import javax.annotation.Nullable;
  * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code phiWithStatic} arm for why an
  * {@code EMPTY} singleton would cost 8 B/op on every JDK measured, including 25.
  *
- * <p><b>Confirmed 2026-08-27</b> ({@code EscapeShapeBenchmark}, JDK 8/11/17/25): the shape here --
- * one allocation site, a plain nullable field, no singleton merge -- scalar-replaces on ordinary
- * escape analysis, no JDK-21+ {@code ReduceAllocationMerges} needed. The discipline required of a
+ * <p>This shape -- one allocation site, a plain nullable field, no singleton merge -- scalar-
+ * replaces on ordinary escape analysis, on JDK 8/11/17/25, no JDK-21+ {@code
+ * ReduceAllocationMerges} needed (see {@code EscapeShapeBenchmark}). The discipline required of a
  * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an
  * already-nullable-returning method) rather than once per {@code return} statement -- multiple
@@ -55,15 +55,12 @@ public final class Maybe<T> {
    * -- it closes over whatever local arguments the caller's method has in scope, so a fresh lambda
    * instance is created on every invocation (capturing lambdas are never cached the way a
    * non-capturing lambda's singleton instance commonly is) -- which makes it a second heap-object
-   * candidate distinct from the {@code Maybe} itself. <b>Confirmed 2026-08-27</b> against a real
-   * capacity-refusing lookup method (JDK 8/11/17/25, both a common and a rare refusal ratio): that
-   * freshly-allocated capturing lambda still scalar-replaces as reliably as a plain delegating
-   * method call does -- see the Hashtable-integration follow-up for that benchmark and the full
-   * numbers. That confirmation is specific to the shape actually measured: a monomorphic receiver
-   * and a {@code fn} that is applied exactly once and does not itself escape (e.g. by being stored
-   * or passed further). If {@code fn} itself captures something that must be freshly allocated per
-   * call (e.g. a non-singleton creator), that allocation is real regardless of what happens to the
-   * lambda wrapping it.
+   * candidate distinct from the {@code Maybe} itself. That freshly-allocated capturing lambda still
+   * scalar-replaces as reliably as a plain delegating method call does, for the shape actually
+   * measured (JDK 8/11/17/25): a monomorphic receiver and a {@code fn} that is applied exactly once
+   * and does not itself escape (e.g. by being stored or passed further). If {@code fn} itself
+   * captures something that must be freshly allocated per call (e.g. a non-singleton creator), that
+   * allocation is real regardless of what happens to the lambda wrapping it.
    */
   @Nonnull
   public static <R, T> Maybe<T> of(R receiver, @Nonnull Function<? super R, ? extends T> fn) {

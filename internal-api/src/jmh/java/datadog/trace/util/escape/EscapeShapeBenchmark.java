@@ -24,9 +24,22 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * and read the same rows across {@code -PtestJvm} 8, 11, 17, 21 and 25. The point is the matrix of
  * shape against JDK, so that "will this allocate" stops being a question two people answer from
- * memory. Nothing here is specific to any one caller: the arms were written for the granted/refused
- * reservation of APMLP-1642's WorkQueue, and carry over unchanged to APMLP-1799's Maybe&lt;T&gt;,
- * because both are the same two-outcome wrapper and the shapes are what is measured.
+ * memory. Nothing here is specific to any one caller: the arms model a generic two-outcome wrapper
+ * (something that is either present with a value or absent) and carry over unchanged to {@code
+ * Maybe}, because the shapes under test are about the compiler's allocation behavior, not about
+ * what the wrapped value represents.
+ *
+ * <p>Three terms recur below. <b>Escape analysis (EA)</b> is the compiler's proof that an allocated
+ * object's lifetime is provably confined to the method (or thread) that created it -- it never
+ * escapes into a field, a return value visible outside, or a call the compiler cannot see into.
+ * <b>Scalar replacement</b> is what C2 does once EA holds: it replaces the object with its
+ * individual fields, held in registers or on the stack, so no heap allocation happens at all -- the
+ * arms that read 0 B/op below scalar-replaced. <b>{@code ReduceAllocationMerges}</b> (JDK-8287061)
+ * is a JDK 21+ extension of that proof to certain merges of two live allocations reaching the same
+ * use, which is why a few rows below only drop to 0 starting at JDK 21/25 rather than on every JDK.
+ * All of this is specific to HotSpot's C2 JIT; none of it has been checked against OpenJ9 or
+ * GraalVM, which use different compilers with different heuristics and may not scalar-replace the
+ * same shapes.
  *
  * <p>Every arm consumes the object's <em>fields</em> rather than the object. Handing the reference
  * to a {@link Blackhole} would make it escape by construction and every row would read the same.
@@ -91,17 +104,20 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 public class EscapeShapeBenchmark {
 
-  /** Stands in for a reservation: two fields and a method worth calling. */
-  interface Cell {
+  /**
+   * Minimal two-method interface -- a value to read and a close to call -- standing in for any
+   * short-lived object more complex than a single field.
+   */
+  interface Outcome {
     int value();
 
     void close();
   }
 
-  static final class Granted implements Cell {
+  static final class SingleAllocation implements Outcome {
     private final int seed;
 
-    Granted(int seed) {
+    SingleAllocation(int seed) {
       this.seed = seed;
     }
 
@@ -115,10 +131,10 @@ public class EscapeShapeBenchmark {
   }
 
   /** A second allocation site, for the merge that C2 has some chance with. */
-  static final class Alternate implements Cell {
+  static final class AlternateAllocation implements Outcome {
     private final int seed;
 
-    Alternate(int seed) {
+    AlternateAllocation(int seed) {
       this.seed = seed;
     }
 
@@ -131,9 +147,9 @@ public class EscapeShapeBenchmark {
     public void close() {}
   }
 
-  /** The shared refusal: reachable from a static, so the merge it takes part in is not local. */
-  static final Cell REFUSED =
-      new Cell() {
+  /** The absent outcome, reachable from a static, so the merge it takes part in is not local. */
+  static final Outcome STATIC_SINGLETON =
+      new Outcome() {
         @Override
         public int value() {
           return 0;
@@ -144,17 +160,17 @@ public class EscapeShapeBenchmark {
       };
 
   /** One allocation site carrying the outcome in a field: the shape that survives. */
-  static final class Flagged {
-    private final boolean granted;
+  static final class FlaggedAllocation {
+    private final boolean present;
     private final int seed;
 
-    Flagged(boolean granted, int seed) {
-      this.granted = granted;
+    FlaggedAllocation(boolean present, int seed) {
+      this.present = present;
       this.seed = seed;
     }
 
     int value() {
-      return granted ? seed + 1 : 0;
+      return present ? seed + 1 : 0;
     }
 
     void close() {}
@@ -164,11 +180,11 @@ public class EscapeShapeBenchmark {
    * A non-capturing strategy held in a static final field of concrete type, as {@code @Strategy}
    * requires.
    */
-  interface CellStrategy {
-    int apply(Flagged cell);
+  interface OutcomeStrategy {
+    int apply(FlaggedAllocation cell);
   }
 
-  static final CellStrategy INLINED = Flagged::value;
+  static final OutcomeStrategy INLINED = FlaggedAllocation::value;
 
   /**
    * Kept out of line by the {@code CompileCommand} in {@link Fork}, not by {@link CompilerControl}:
@@ -177,14 +193,14 @@ public class EscapeShapeBenchmark {
    * the timing against {@code passedToInlinedStrategy} before believing this row — a call that
    * really did not inline cannot cost the same as no call.
    */
-  static final class UninlinedStrategy implements CellStrategy {
+  static final class UninlinedStrategy implements OutcomeStrategy {
     @Override
-    public int apply(Flagged cell) {
+    public int apply(FlaggedAllocation cell) {
       return cell.value();
     }
   }
 
-  static final CellStrategy UNINLINED = new UninlinedStrategy();
+  static final OutcomeStrategy UNINLINED = new UninlinedStrategy();
 
   /**
    * The template-method shape: a final method on a base type calling out to an abstract one, with
@@ -193,30 +209,30 @@ public class EscapeShapeBenchmark {
    * guard, but gives up at three, and a call it does not inline turns its argument into an escape.
    */
   abstract static class Backing {
-    final int admit(Flagged cell) {
+    final int admit(FlaggedAllocation cell) {
       return store(cell);
     }
 
-    abstract int store(Flagged cell);
+    abstract int store(FlaggedAllocation cell);
   }
 
   static final class ArrayBacking extends Backing {
     @Override
-    int store(Flagged cell) {
+    int store(FlaggedAllocation cell) {
       return cell.value();
     }
   }
 
   static final class LinkedBacking extends Backing {
     @Override
-    int store(Flagged cell) {
+    int store(FlaggedAllocation cell) {
       return cell.value() + 1;
     }
   }
 
   static final class ThirdBacking extends Backing {
     @Override
-    int store(Flagged cell) {
+    int store(FlaggedAllocation cell) {
       return cell.value() + 2;
     }
   }
@@ -240,21 +256,21 @@ public class EscapeShapeBenchmark {
   @Benchmark
   public void backingMonomorphic(Blackhole bh) {
     Backing backing = one[(counter++ & 0x7fffffff) % one.length];
-    Flagged cell = new Flagged(true, counter);
+    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
     bh.consume(backing.admit(cell));
   }
 
   @Benchmark
   public void backingBimorphic(Blackhole bh) {
     Backing backing = two[(counter++ & 0x7fffffff) % two.length];
-    Flagged cell = new Flagged(true, counter);
+    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
     bh.consume(backing.admit(cell));
   }
 
   @Benchmark
   public void backingMegamorphic(Blackhole bh) {
     Backing backing = three[(counter++ & 0x7fffffff) % three.length];
-    Flagged cell = new Flagged(true, counter);
+    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
     bh.consume(backing.admit(cell));
   }
 
@@ -271,37 +287,37 @@ public class EscapeShapeBenchmark {
 
   @Benchmark
   public void singleSite(Blackhole bh) {
-    Granted cell = new Granted(counter++);
+    SingleAllocation cell = new SingleAllocation(counter++);
     bh.consume(cell.value());
   }
 
   @Benchmark
   public void phiOfTwoAllocations(Blackhole bh) {
-    Cell cell = alternate() ? new Granted(counter) : new Alternate(counter);
+    Outcome cell = alternate() ? new SingleAllocation(counter) : new AlternateAllocation(counter);
     bh.consume(cell.value());
   }
 
   @Benchmark
   public void phiWithStatic(Blackhole bh) {
-    Cell cell = alternate() ? new Granted(counter) : REFUSED;
+    Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
     bh.consume(cell.value());
   }
 
   @Benchmark
   public void phiWithNull(Blackhole bh) {
-    Granted cell = alternate() ? new Granted(counter) : null;
+    SingleAllocation cell = alternate() ? new SingleAllocation(counter) : null;
     bh.consume(cell == null ? 0 : cell.value());
   }
 
   @Benchmark
   public void flagOnOneAllocation(Blackhole bh) {
-    Flagged cell = new Flagged(alternate(), counter);
+    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
     bh.consume(cell.value());
   }
 
   @Benchmark
   public void closedInFinally(Blackhole bh) {
-    Granted cell = new Granted(counter++);
+    SingleAllocation cell = new SingleAllocation(counter++);
     try {
       bh.consume(cell.value());
     } finally {
@@ -325,7 +341,7 @@ public class EscapeShapeBenchmark {
    */
   @Benchmark
   public void closedInFinallyWithThrow(Blackhole bh) {
-    Granted cell = new Granted(counter++);
+    SingleAllocation cell = new SingleAllocation(counter++);
     try {
       if ((counter & 15) == 0) {
         throw Failure.INSTANCE;
@@ -341,7 +357,7 @@ public class EscapeShapeBenchmark {
   /** The Optional-style shape, whole: a singleton for one outcome, under try/finally. */
   @Benchmark
   public void phiWithStaticClosedInFinally(Blackhole bh) {
-    Cell cell = alternate() ? new Granted(counter) : REFUSED;
+    Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
     try {
       bh.consume(cell.value());
     } finally {
@@ -352,7 +368,7 @@ public class EscapeShapeBenchmark {
   /** The single-site shape, whole: one allocation carrying a flag, under try/finally. */
   @Benchmark
   public void flagOnOneAllocationClosedInFinally(Blackhole bh) {
-    Flagged cell = new Flagged(alternate(), counter);
+    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
     try {
       bh.consume(cell.value());
     } finally {
@@ -365,7 +381,7 @@ public class EscapeShapeBenchmark {
    */
   @Benchmark
   public void passedToInlinedStrategy(Blackhole bh) {
-    Flagged cell = new Flagged(alternate(), counter);
+    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
     bh.consume(INLINED.apply(cell));
   }
 
@@ -374,7 +390,7 @@ public class EscapeShapeBenchmark {
    */
   @Benchmark
   public void passedToUninlinedStrategy(Blackhole bh) {
-    Flagged cell = new Flagged(alternate(), counter);
+    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
     bh.consume(UNINLINED.apply(cell));
   }
 }

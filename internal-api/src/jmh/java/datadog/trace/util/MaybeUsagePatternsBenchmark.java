@@ -75,10 +75,10 @@ public class MaybeUsagePatternsBenchmark {
    * BiConsumer<Widget, Long>} rather than inlined at the call site so the two arms below differ
    * only in which overload is selected, not in lambda shape.
    */
-  static final BiConsumer<Widget, Long> ADD_BOXED = (w, delta) -> w.count += delta;
+  static final BiConsumer<Widget, Long> ADD_BOXED_INLINED = (w, delta) -> w.count += delta;
 
   /**
-   * Same logic as {@link #ADD_BOXED}, but as a named class rather than a lambda so {@code
+   * Same logic as {@link #ADD_BOXED_INLINED}, but as a named class rather than a lambda so {@code
    * -XX:CompileCommand=dontinline} (see this class's {@link Fork} annotation) has a concrete method
    * to target -- kept out of line the same way {@code EscapeShapeBenchmark}'s {@code
    * UninlinedStrategy} is, by the {@code CompileCommand} rather than {@code CompilerControl}, since
@@ -173,7 +173,7 @@ public class MaybeUsagePatternsBenchmark {
   @Benchmark
   public void badBoxedContextUpdateInlined(Blackhole bh) {
     Maybe<Widget> t = tryLookupDelegating(nextKey());
-    t.update(DELTA, ADD_BOXED);
+    t.update(DELTA, ADD_BOXED_INLINED);
     bh.consume(t.isPresent());
   }
 
