@@ -39,6 +39,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -475,6 +476,20 @@ public class LambdaAppSecHandler {
           bodyCallback.apply(requestContext, eventData.body);
         } else {
           log.debug("requestBodyProcessed callback is null");
+        }
+      }
+
+      // Call requestFilesFilenames. Only the names are reported: the file content shares the
+      // body's UTF-8 decode, so for anything that is not text it is already lossy.
+      if (!eventData.filenames.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCallback != null) {
+          filenamesCallback.apply(requestContext, eventData.filenames);
+        } else {
+          log.debug("requestFilesFilenames callback is null");
         }
       }
     }

@@ -3,6 +3,7 @@ package datadog.trace.lambda;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.lambda.ContentTypeBodyParser.ParseContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -242,7 +243,8 @@ final class LambdaEventParser {
     if (queryParameters.isEmpty()) {
       queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     }
-    Object body = extractBody(event, headers);
+    ParseContext parseContext = new ParseContext();
+    Object body = extractBody(event, headers, parseContext);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
     String method = (String) requestContext.get("httpMethod");
@@ -268,7 +270,8 @@ final class LambdaEventParser {
         extractHost(requestContext, headers),
         // REST APIs expose the parameterized route as the top-level "resource"
         stringOrNull(event.get("resource")),
-        null);
+        null,
+        parseContext.filenames());
   }
 
   /** Extracts data from API Gateway v2 (HTTP API) or Lambda URL event */
@@ -278,7 +281,8 @@ final class LambdaEventParser {
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     Map<String, List<String>> queryParameters =
         extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event, headers);
+    ParseContext parseContext = new ParseContext();
+    Object body = extractBody(event, headers, parseContext);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
     Map<?, ?> http = (Map<?, ?>) requestContext.get("http");
@@ -306,7 +310,8 @@ final class LambdaEventParser {
         body,
         extractHost(requestContext, headers),
         extractRouteKey(requestContext),
-        extractRawUri(event));
+        extractRawUri(event),
+        parseContext.filenames());
   }
 
   /**
@@ -332,7 +337,8 @@ final class LambdaEventParser {
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     Map<String, List<String>> queryParameters =
         extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event, headers);
+    ParseContext parseContext = new ParseContext();
+    Object body = extractBody(event, headers, parseContext);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
 
@@ -360,7 +366,8 @@ final class LambdaEventParser {
         extractHost(requestContext, headers),
         // Verbatim: WebSocket route keys are not "METHOD /path", and $connect is a real route
         routeKey,
-        null);
+        null,
+        parseContext.filenames());
   }
 
   /** Extracts data from ALB event (with or without multi-value headers) */
@@ -413,7 +420,8 @@ final class LambdaEventParser {
       queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     }
 
-    Object body = extractBody(event, headers);
+    ParseContext parseContext = new ParseContext();
+    Object body = extractBody(event, headers, parseContext);
 
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
@@ -437,7 +445,8 @@ final class LambdaEventParser {
         body,
         stripPort(findHeader(headers, "host")),
         null,
-        null);
+        null,
+        parseContext.filenames());
   }
 
   /**
@@ -669,7 +678,8 @@ final class LambdaEventParser {
   }
 
   /** Helper method to extract and parse body from event */
-  private static Object extractBody(Map<String, Object> event, Map<String, String> headers) {
+  private static Object extractBody(
+      Map<String, Object> event, Map<String, String> headers, ParseContext parseContext) {
     Object bodyObj = event.get("body");
     if (bodyObj == null) {
       return null;
@@ -688,7 +698,7 @@ final class LambdaEventParser {
       }
     }
 
-    return ContentTypeBodyParser.parseBody(bodyString, headers.get("content-type"));
+    return ContentTypeBodyParser.parseBody(bodyString, headers.get("content-type"), parseContext);
   }
 
   /** Helper method to parse body as JSON */
@@ -758,6 +768,9 @@ final class LambdaEventParser {
      */
     final String rawUri;
 
+    /** Filenames of the multipart file parts carried by the body, empty when there are none. */
+    final List<String> filenames;
+
     static final LambdaRequestData EMPTY =
         new LambdaRequestData(
             Collections.emptyMap(),
@@ -792,7 +805,8 @@ final class LambdaEventParser {
           body,
           null,
           null,
-          null);
+          null,
+          Collections.emptyList());
     }
 
     LambdaRequestData(
@@ -807,7 +821,8 @@ final class LambdaEventParser {
         Object body,
         String host,
         String route,
-        String rawUri) {
+        String rawUri,
+        List<String> filenames) {
       this.headers = headers;
       this.method = method;
       this.path = path;
@@ -820,6 +835,7 @@ final class LambdaEventParser {
       this.host = host;
       this.route = route;
       this.rawUri = rawUri;
+      this.filenames = filenames;
     }
   }
 

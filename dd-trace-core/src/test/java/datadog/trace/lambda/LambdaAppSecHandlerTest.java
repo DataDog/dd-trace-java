@@ -726,6 +726,109 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   @SuppressWarnings("unchecked")
+  void parsesMultipartBodyIntoItsFields() {
+    String eventJson =
+        "{"
+            + "\"body\": \"--xy\\r\\nContent-Disposition: form-data; name=\\\"user\\\"\\r\\n\\r\\nadmin"
+            + "\\r\\n--xy\\r\\nContent-Disposition: form-data; name=\\\"role\\\"\\r\\n\\r\\nroot"
+            + "\\r\\n--xy--\","
+            + "\"headers\": {\"Content-Type\": \"multipart/form-data; boundary=xy\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedBody = {null};
+
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertInstanceOf(Map.class, capturedBody[0]);
+    Map<String, Object> fields = (Map<String, Object>) capturedBody[0];
+    assertEquals("admin", fields.get("user"));
+    assertEquals("root", fields.get("role"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void reportsMultipartFilenamesToTheWaf() {
+    String eventJson =
+        "{"
+            + "\"body\": \"--xy\\r\\nContent-Disposition: form-data; name=\\\"user\\\"\\r\\n\\r\\nadmin"
+            + "\\r\\n--xy\\r\\nContent-Disposition: form-data; name=\\\"avatar\\\";"
+            + " filename=\\\"cat.png\\\"\\r\\n\\r\\nbytes"
+            + "\\r\\n--xy--\","
+            + "\"headers\": {\"Content-Type\": \"multipart/form-data; boundary=xy\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedBody = {null};
+    Object[] capturedFilenames = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onBody(body -> capturedBody[0] = body)
+            .onFilenames(filenames -> capturedFilenames[0] = filenames));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals(Arrays.asList("cat.png"), capturedFilenames[0]);
+    // The file part is reported by name only: it is not a field, and its content is left out
+    Map<String, Object> fields = (Map<String, Object>) capturedBody[0];
+    assertEquals("admin", fields.get("user"));
+    assertNull(fields.get("avatar"));
+  }
+
+  @Test
+  void doesNotReportFilenamesForAMultipartBodyWithoutFileParts() {
+    String eventJson =
+        "{"
+            + "\"body\": \"--xy\\r\\nContent-Disposition: form-data; name=\\\"user\\\"\\r\\n\\r\\nadmin"
+            + "\\r\\n--xy--\","
+            + "\"headers\": {\"Content-Type\": \"multipart/form-data; boundary=xy\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedFilenames = {null};
+
+    setupMockCallbacks(new Callbacks().onFilenames(filenames -> capturedFilenames[0] = filenames));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertNull(capturedFilenames[0]);
+  }
+
+  @Test
+  void keepsMultipartBodyWithoutBoundaryAsRawString() {
+    String body =
+        "--xy\\r\\nContent-Disposition: form-data; name=user\\r\\n\\r\\nadmin\\r\\n--xy--";
+    String eventJson =
+        "{"
+            + "\"body\": \""
+            + body
+            + "\","
+            + "\"headers\": {\"Content-Type\": \"multipart/form-data\"},"
+            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object[] capturedBody = {null};
+
+    setupMockCallbacks(new Callbacks().onBody(b -> capturedBody[0] = b));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals(body.replace("\\r\\n", "\r\n"), capturedBody[0]);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
   void appliesContentTypeDispatchToBase64DecodedBodies() {
     String base64Body =
         Base64.getEncoder().encodeToString("user=admin".getBytes(StandardCharsets.UTF_8));
@@ -2433,6 +2536,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     BiConsumer<String, Integer> onSocketAddress;
     Consumer<Map<String, Object>> onPathParams;
     Consumer<Object> onBody;
+    Consumer<List<String>> onFilenames;
 
     Callbacks onMethodUri(BiConsumer<String, URIDataAdapter> cb) {
       this.onMethodUri = cb;
@@ -2456,6 +2560,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Callbacks onBody(Consumer<Object> cb) {
       this.onBody = cb;
+      return this;
+    }
+
+    Callbacks onFilenames(Consumer<List<String>> cb) {
+      this.onFilenames = cb;
       return this;
     }
   }
@@ -2534,6 +2643,19 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
           .apply(any(), any());
     }
 
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback = null;
+    if (callbacks.onFilenames != null) {
+      filenamesCallback = mock(BiFunction.class);
+      Consumer<List<String>> capture = callbacks.onFilenames;
+      doAnswer(
+              inv -> {
+                capture.accept(inv.getArgument(1));
+                return Flow.ResultFlow.empty();
+              })
+          .when(filenamesCallback)
+          .apply(any(), any());
+    }
+
     CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
     when(mockCallbackProvider.getCallback(EVENTS.requestStarted()))
         .thenReturn(requestStartedCallback);
@@ -2547,6 +2669,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(mockCallbackProvider.getCallback(EVENTS.requestPathParams()))
         .thenReturn(pathParamsCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestBodyProcessed())).thenReturn(bodyCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestFilesFilenames()))
+        .thenReturn(filenamesCallback);
 
     AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
     when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
