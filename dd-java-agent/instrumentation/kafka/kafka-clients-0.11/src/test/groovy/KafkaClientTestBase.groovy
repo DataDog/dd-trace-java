@@ -1673,7 +1673,11 @@ class KafkaClientDataStreamsOnlyExtractedParentForkedTest extends KafkaClientTes
     def producedSpan = TEST_WRITER[0][0]
     producedSpan.traceId.toLong() == existingTraceId
     producedSpan.parentId == existingSpanId
-    producedSpan.getSamplingPriority() != PrioritySampling.USER_DROP
+    // The injected headers carry no x-datadog-sampling-priority, so the extracted context's
+    // priority is UNSET and the normal sampler decides. Assert the concrete resulting value
+    // rather than just "not USER_DROP", so any regression that lands on a different-but-also
+    // wrong priority is caught too.
+    producedSpan.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when: "the message is consumed"
     def pollResult = KafkaTestUtils.getRecords(consumer)
@@ -1685,7 +1689,8 @@ class KafkaClientDataStreamsOnlyExtractedParentForkedTest extends KafkaClientTes
     !recs.hasNext()
     TEST_WRITER.waitForTraces(2)
     def consumedSpan = TEST_WRITER[1][0]
-    consumedSpan.getSamplingPriority() != PrioritySampling.USER_DROP
+    consumedSpan.traceId.toLong() == existingTraceId
+    consumedSpan.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     cleanup:
     consumer?.close()
@@ -1756,6 +1761,62 @@ class KafkaClientDataStreamsOnlyIntegrationOverrideForkedTest extends KafkaClien
 
     cleanup:
     consumer?.close()
+    producer?.close()
+  }
+}
+
+// Regression guard for the producer suppression site: producing a message from inside an already
+// active local trace (e.g. an instrumented HTTP request) must NOT force that customer trace to
+// USER_DROP. The produce span is created with a scope-honouring startSpan overload, so it becomes
+// a child of the active span, and setSamplingPriority is trace-level - without the local-root
+// check on the suppression guard the whole surrounding trace would be silently dropped.
+class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("integrations.enabled", "false")
+    injectSysConfig("data.streams.enabled", "true")
+  }
+
+  @Override
+  String service() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  def "producing inside an active local trace does not force that trace to USER_DROP"() {
+    setup:
+    def kafkaPartition = 0
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+
+    when: "a message is produced from within an already active local trace"
+    runUnderTrace("parent") {
+      producer.send(new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "in-active-trace")).get()
+    }
+
+    then: "the surrounding customer trace is not force-dropped"
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER[0]
+    def localRoot = trace[0].localRootSpan
+    localRoot.operationName.toString() == "parent"
+    localRoot.getSamplingPriority() != PrioritySampling.USER_DROP
+
+    cleanup:
     producer?.close()
   }
 }
