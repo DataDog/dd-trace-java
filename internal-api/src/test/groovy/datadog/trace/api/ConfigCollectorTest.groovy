@@ -126,7 +126,6 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigSetting cs = defaultConfigByKey.get(configKey)
 
     then:
-    cs.key == configKey
     cs.stringValue() == null
     cs.origin == ConfigOrigin.DEFAULT
 
@@ -148,7 +147,6 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigSetting cs = defaultConfigByKey.get(configKey)
 
     then:
-    cs.key == configKey
     cs.stringValue() == ""
     cs.origin == ConfigOrigin.DEFAULT
 
@@ -184,11 +182,14 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('api-key', 'sensitive data', ConfigOrigin.ENV, ABSENT_SEQ_ID)
+    ConfigCollector.get().put(configKey, 'sensitive data', ConfigOrigin.ENV, ABSENT_SEQ_ID)
 
     then:
     def collected = ConfigCollector.get().collect()
-    collected.get(ConfigOrigin.ENV).get('api-key').stringValue() == '<hidden>'
+    collected.get(ConfigOrigin.ENV).get(configKey).stringValue() == '<hidden>'
+
+    where:
+    configKey << ['api-key', 'DD_PROFILING_API_KEY', 'DD_PROFILING_APIKEY']
   }
 
   def "collects common setting default values"() {
@@ -198,7 +199,6 @@ class ConfigCollectorTest extends DDSpecification {
     then:
     def setting = defaultConfigByKey.get(key)
 
-    setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.DEFAULT
 
@@ -232,7 +232,6 @@ class ConfigCollectorTest extends DDSpecification {
     then:
     def setting = envConfigByKey.get(key)
 
-    setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.ENV
 
@@ -317,7 +316,6 @@ class ConfigCollectorTest extends DDSpecification {
     cs = defaultConfigByKey.get(key)
 
     then:
-    cs.key == key
     cs.stringValue() == value
     cs.origin == ConfigOrigin.DEFAULT
     cs.seqId == ConfigSetting.DEFAULT_SEQ_ID

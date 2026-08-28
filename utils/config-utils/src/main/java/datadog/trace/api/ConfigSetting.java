@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
+import static datadog.trace.config.inversion.GeneratedSupportedConfigurations.SENSITIVE_KEYS;
 import static datadog.trace.util.ConfigStrings.toCanonicalEnvVar;
 
-import datadog.trace.config.inversion.GeneratedSupportedConfigurations;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.Objects;
@@ -38,21 +38,12 @@ public final class ConfigSetting {
     return new ConfigSetting(key, value, origin, seqId, configId);
   }
 
-  // Redact values of configs flagged "sensitive": true in metadata/supported-configurations.json.
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
-    this.key = key;
-    this.value =
-        (value != null
-                && GeneratedSupportedConfigurations.SENSITIVE_KEYS.contains(toCanonicalEnvVar(key)))
-            ? "<hidden>"
-            : value;
+    this.key = toCanonicalEnvVar(key);
+    this.value = (value != null && SENSITIVE_KEYS.contains(this.key)) ? "<hidden>" : value;
     this.origin = origin;
     this.seqId = seqId;
     this.configId = configId;
-  }
-
-  public String normalizedKey() {
-    return toCanonicalEnvVar(key);
   }
 
   public String stringValue() {
@@ -140,7 +131,7 @@ public final class ConfigSetting {
   public String toString() {
     return "ConfigSetting{"
         + "key='"
-        + normalizedKey()
+        + key
         + '\''
         + ", value="
         + stringValue()

@@ -44,17 +44,21 @@ public class ConfigSettingTest {
   }
 
   @TableTest({
-    "scenario            | key                         | value     | filteredValue",
-    "api key property    | api-key                     | somevalue | <hidden>     ",
-    "api key system prop | dd.api-key                  | somevalue | <hidden>     ",
-    "api key env var     | DD_API_KEY                  | somevalue | <hidden>     ",
-    "application key     | application-key             | somevalue | <hidden>     ",
-    "application alias   | DD_APP_KEY                  | somevalue | <hidden>     ",
-    "otlp traces headers | otlp.traces.headers         | somevalue | <hidden>     ",
-    "proxy password      | profiling.proxy.password    | somevalue | <hidden>     ",
-    "session token prop  | test.agent.session.token    | somevalue | <hidden>     ",
-    "session token env   | DD_TEST_AGENT_SESSION_TOKEN | somevalue | <hidden>     ",
-    "non-sensitive key   | some.other.key              | somevalue | somevalue    "
+    "scenario             | key                         | value     | filteredValue",
+    "api key property     | api-key                     | somevalue | <hidden>     ",
+    "api key system prop  | dd.api-key                  | somevalue | <hidden>     ",
+    "api key env var      | DD_API_KEY                  | somevalue | <hidden>     ",
+    "application key      | application-key             | somevalue | <hidden>     ",
+    "application alias    | DD_APP_KEY                  | somevalue | <hidden>     ",
+    "otlp traces headers  | otlp.traces.headers         | somevalue | <hidden>     ",
+    "profiling API key    | profiling.api-key           | somevalue | <hidden>     ",
+    "profiling APIKEY     | profiling.apikey            | somevalue | <hidden>     ",
+    "profiling API env    | DD_PROFILING_API_KEY        | somevalue | <hidden>     ",
+    "profiling APIKEY env | DD_PROFILING_APIKEY         | somevalue | <hidden>     ",
+    "proxy password       | profiling.proxy.password    | somevalue | <hidden>     ",
+    "session token prop   | test.agent.session.token    | somevalue | <hidden>     ",
+    "session token env    | DD_TEST_AGENT_SESSION_TOKEN | somevalue | <hidden>     ",
+    "non-sensitive key    | some.other.key              | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
@@ -66,8 +70,8 @@ public class ConfigSettingTest {
     "dd env var    | DD_PROFILING_API_KEY | DD_PROFILING_API_KEY",
     "otel env var  | OTEL_SERVICE_NAME    | OTEL_SERVICE_NAME   "
   })
-  void normalizesKeyName(String key, String normalized) {
-    assertEquals(normalized, ConfigSetting.of(key, "v", ConfigOrigin.DEFAULT).normalizedKey());
+  void storesNormalizedKeyName(String key, String normalized) {
+    assertEquals(normalized, ConfigSetting.of(key, "v", ConfigOrigin.DEFAULT).key);
   }
 
   @TableTest({

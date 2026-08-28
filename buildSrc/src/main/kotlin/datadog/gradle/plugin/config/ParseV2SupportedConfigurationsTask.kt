@@ -233,7 +233,6 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("  }")
       out.println()
 
-      // initSensitiveKeys()
       out.println("  private static Set<String> initSensitiveKeys() {")
       out.println("    Set<String> sensitiveKeys = new HashSet<>();")
       for (key in sensitiveKeys.toSortedSet()) {
