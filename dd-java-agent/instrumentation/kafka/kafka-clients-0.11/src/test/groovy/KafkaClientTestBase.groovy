@@ -14,6 +14,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDTags
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
@@ -1541,6 +1542,220 @@ class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification 
     !TEST_WRITER.isEmpty()
 
     cleanup:
+    producer?.close()
+  }
+}
+
+// DSM billing-suppression coverage: when tracing is disabled for kafka (globally, via
+// integrations.enabled) but DSM is enabled, a genuinely local-root produce/consume span (no
+// extracted/real parent trace context) must have its sampling priority forced to USER_DROP so it
+// does not count towards APM billing, while a span that joins a real propagated trace must not be.
+class KafkaClientDataStreamsOnlyLocalRootForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("integrations.enabled", "false")
+    injectSysConfig("data.streams.enabled", "true")
+  }
+
+  @Override
+  String service() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  def "local-root produce and consume spans are forced to USER_DROP when kafka tracing is disabled and DSM is enabled"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when: "a message is produced with no propagated trace headers, i.e. a genuine local root"
+    def record = new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "local-root-message")
+    producer.send(record).get()
+
+    then: "the produce span's trace is forced to USER_DROP to suppress APM billing"
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    producedSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+
+    when: "the message is consumed"
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
+
+    then: "the consume span's trace is also forced to USER_DROP"
+    recs.hasNext()
+    recs.next().value() == "local-root-message"
+    !recs.hasNext()
+    TEST_WRITER.waitForTraces(2)
+    def consumedSpan = TEST_WRITER[1][0]
+    consumedSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+  }
+}
+
+// Regression guard: a span that joins a real, externally-propagated Datadog trace (extracted
+// x-datadog-trace-id/x-datadog-parent-id headers) must NOT be forced to USER_DROP, even under the
+// same "kafka tracing disabled + DSM enabled" configuration as above, since it is not a local root.
+class KafkaClientDataStreamsOnlyExtractedParentForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("integrations.enabled", "false")
+    injectSysConfig("data.streams.enabled", "true")
+  }
+
+  @Override
+  String service() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  def "produce and consume spans with an extracted parent trace context are not forced to USER_DROP"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    def existingTraceId = 1234567890123456L
+    def existingSpanId = 9876543210987654L
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-datadog-trace-id",
+    String.valueOf(existingTraceId).getBytes(StandardCharsets.UTF_8)))
+    headers.add(new RecordHeader("x-datadog-parent-id",
+    String.valueOf(existingSpanId).getBytes(StandardCharsets.UTF_8)))
+
+    when: "a message carrying a real, externally-propagated Datadog trace context is produced"
+    def record = new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "propagated-trace-message", headers)
+    producer.send(record).get()
+
+    then: "the produce span joins the propagated trace and is NOT forced to USER_DROP"
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    producedSpan.traceId.toLong() == existingTraceId
+    producedSpan.parentId == existingSpanId
+    producedSpan.getSamplingPriority() != PrioritySampling.USER_DROP
+
+    when: "the message is consumed"
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
+
+    then: "the consume span also joins the propagated trace and is NOT forced to USER_DROP"
+    recs.hasNext()
+    recs.next().value() == "propagated-trace-message"
+    !recs.hasNext()
+    TEST_WRITER.waitForTraces(2)
+    def consumedSpan = TEST_WRITER[1][0]
+    consumedSpan.getSamplingPriority() != PrioritySampling.USER_DROP
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+  }
+}
+
+// Confirms the per-integration override (trace.kafka.enabled=false) suppresses billing identically
+// to the global integrations.enabled=false toggle used above, for a genuine local-root span.
+class KafkaClientDataStreamsOnlyIntegrationOverrideForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.kafka.enabled", "false")
+    injectSysConfig("data.streams.enabled", "true")
+  }
+
+  @Override
+  String service() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  def "local-root produce and consume spans are forced to USER_DROP when trace.kafka.enabled=false and DSM is enabled"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when: "a message is produced with no propagated trace headers, i.e. a genuine local root"
+    def record = new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "local-root-message")
+    producer.send(record).get()
+
+    then: "the produce span's trace is forced to USER_DROP to suppress APM billing"
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    producedSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+
+    when: "the message is consumed"
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
+
+    then: "the consume span's trace is also forced to USER_DROP"
+    recs.hasNext()
+    recs.next().value() == "local-root-message"
+    !recs.hasNext()
+    TEST_WRITER.waitForTraces(2)
+    def consumedSpan = TEST_WRITER[1][0]
+    consumedSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+
+    cleanup:
+    consumer?.close()
     producer?.close()
   }
 }
