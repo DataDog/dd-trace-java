@@ -12,8 +12,6 @@ import javax.annotation.Nullable;
  * Candidate return shape for fallible operations (e.g. a table's capacity-refusing {@code
  * tryGetOrCreate}), evaluating whether it can be allocation-free under escape analysis.
  *
- * <p>Not wired into any real caller yet.
- *
  * <p>Deliberately shaped against the {@code Optional}-style merge-with-singleton pitfall: {@link
  * #of} is the only allocation site, always allocates (never returns a shared instance), and holds a
  * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code phiWithStatic} arm for why an
