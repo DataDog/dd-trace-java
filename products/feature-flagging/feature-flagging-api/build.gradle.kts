@@ -4,12 +4,9 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   idea
-  `maven-publish`
+  id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/publish.gradle")
 
 configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
@@ -55,7 +52,6 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
-  testImplementation("org.awaitility:awaitility:4.3.0")
 
   // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
   // needs them on its own compile and runtime classpath to drive the hook end to end.

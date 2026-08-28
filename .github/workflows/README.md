@@ -34,6 +34,7 @@ _Trigger:_ When creating or updating a pull request, or when new commits are pus
 
 _Actions:_
 
+* Clean up the tool labels (`Bits AI`, `campaigner-automated-change`) by removing them from both the pull request and the repository.
 * Detect AI-generated pull requests then apply the `tag: ai generated` label.
 * Check the pull request did not introduce unexpected labels.
 

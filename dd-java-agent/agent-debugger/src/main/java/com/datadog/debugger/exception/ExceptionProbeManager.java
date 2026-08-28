@@ -67,6 +67,10 @@ public class ExceptionProbeManager {
     return classNameFiltering;
   }
 
+  public void removeThrowableState(Throwable t) {
+    snapshotsByThrowable.remove(t);
+  }
+
   static class CreationResult {
     final int probesCreated;
     final int thirdPartyFrames;
@@ -198,6 +202,10 @@ public class ExceptionProbeManager {
     }
 
     public void addSnapshot(Snapshot snapshot) {
+      if (snapshots.size() > 256) {
+        LOGGER.debug("Too many (256) snapshots for exceptionId={}, dropping snapshot", exceptionId);
+        return;
+      }
       snapshots.add(snapshot);
     }
 

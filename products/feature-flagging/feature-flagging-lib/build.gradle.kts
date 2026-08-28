@@ -1,10 +1,9 @@
 plugins {
   `java-library`
   id("dd-trace-java.version-file")
+  id("dd-trace-java.module.product-library")
   id("me.champeau.jmh")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 description = "Feature flagging remote config and exposure handling"
 
@@ -21,6 +20,7 @@ dependencies {
   api(project(":communication"))
   implementation(project(":internal-api"))
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  compileOnly(project(":products:feature-flagging:feature-flagging-config"))
   implementation(project(":utils:logging-utils"))
   api(project(":utils:queue-utils"))
 
@@ -30,6 +30,7 @@ dependencies {
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))
 }

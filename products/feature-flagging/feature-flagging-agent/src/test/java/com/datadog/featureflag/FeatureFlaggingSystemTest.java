@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +37,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
-
   @AfterEach
   void resetFlagEvaluationGateway() {
     FeatureFlaggingSystem.stop();
@@ -49,7 +49,7 @@ class FeatureFlaggingSystemTest {
   @WithConfig(
       key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
       value = "http://127.0.0.1:1")
-  void agentlessStartWaitsForApplicationProviderActivation() {
+  void agentlessStartWaitsForApplicationProviderActivationWithoutPreparingDelivery() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     clearInvocations(sharedCommunicationObjects);
 
@@ -57,16 +57,65 @@ class FeatureFlaggingSystemTest {
       FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+      assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
       verifyNoInteractions(sharedCommunicationObjects);
-
-      FeatureFlaggingGateway.activate();
-
-      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     } finally {
       FeatureFlaggingSystem.stop();
     }
 
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+    assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void agentlessActivationInitializesSystemOnce() {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final FeatureFlaggingSystem.SystemInitializer systemInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, systemInitializer);
+
+    verifyNoInteractions(systemInitializer);
+    assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+
+    FeatureFlaggingGateway.activate();
+    FeatureFlaggingGateway.activate();
+
+    verify(systemInitializer).initialize(eq(sharedCommunicationObjects), any(Config.class));
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void agentlessInitializationFailureCleansUpAndAllowsRetry() {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final FeatureFlaggingSystem.SystemInitializer failedInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+    final IllegalStateException initializationFailure =
+        new IllegalStateException("system initialization failed");
+    doThrow(initializationFailure)
+        .when(failedInitializer)
+        .initialize(any(SharedCommunicationObjects.class), any(Config.class));
+
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, failedInitializer);
+
+    final IllegalStateException thrown =
+        assertThrows(IllegalStateException.class, FeatureFlaggingGateway::activate);
+
+    assertSame(initializationFailure, thrown);
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+    assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+
+    final FeatureFlaggingSystem.SystemInitializer retryInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, retryInitializer);
+    FeatureFlaggingGateway.activate();
+
+    verify(retryInitializer).initialize(eq(sharedCommunicationObjects), any(Config.class));
   }
 
   @Test
@@ -83,6 +132,7 @@ class FeatureFlaggingSystemTest {
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
 
       FeatureFlaggingSystem.stop();
+      clearInvocations(sharedCommunicationObjects);
       FeatureFlaggingGateway.activate();
 
       assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
@@ -221,6 +271,8 @@ class FeatureFlaggingSystemTest {
       // Agentless defers initialization until the application provider activates.
       FeatureFlaggingGateway.activate();
 
+      assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
+      assertTrue(FeatureFlaggingSystem.isConfigurationSourceStarted());
       assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
     } finally {
@@ -338,6 +390,11 @@ class FeatureFlaggingSystemTest {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.supportsEvpProxy()).thenReturn(true);
     when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
+    return sharedCommunicationObjects(discovery);
+  }
+
+  private static SharedCommunicationObjects sharedCommunicationObjects(
+      final DDAgentFeaturesDiscovery discovery) {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
     when(sharedCommunicationObjects.featuresDiscovery(any(Config.class))).thenReturn(discovery);
     sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost");

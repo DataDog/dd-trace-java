@@ -17,10 +17,6 @@ final class FeatureFlagEvpContext {
     if (config.getVersion() != null) {
       context.put("version", config.getVersion());
     }
-    // SDK identity (source.name / source.version) is emitted per-event at the top level
-    // (sibling of flag/variant/targeting_key), matching the flagevaluation track schema in
-    // logs-backend. Putting it in the batch context would map it to context.source.*, which is
-    // not a declared facet and causes the indexer to drop the event.
     return context;
   }
 }
