@@ -322,38 +322,43 @@ public class DDLLMObsSpan implements LLMObsSpan {
       base.put("name", manifestName);
     } else if (!base.containsKey("name")) {
       CharSequence spanName = span.getSpanName();
-      if (sn != null && sn.length() > 0) {
-        base.put("name", sn.toString());
+      if (spanName != null && spanName.length() > 0) {
+        base.put("name", spanName.toString());
       }
     }
     // instructions
-    if (manifest.getInstructions() != null && !manifest.getInstructions().isEmpty()) {
-      base.put("instructions", manifest.getInstructions());
+    String instructions = manifest.getInstructions();
+    if (instructions != null && !instructions.isEmpty()) {
+      base.put("instructions", instructions);
     }
     // model
-    if (manifest.getModel() != null && !manifest.getModel().isEmpty()) {
-      base.put("model", manifest.getModel());
+    String model = manifest.getModel();
+    if (model != null && !model.isEmpty()) {
+      base.put("model", model);
     }
     // model_settings: shallow merge
-    if (manifest.getModelSettings() != null && !manifest.getModelSettings().isEmpty()) {
+    Map<String, Object> modelSettings = manifest.getModelSettings();
+    if (modelSettings != null && !modelSettings.isEmpty()) {
       @SuppressWarnings("unchecked")
       Map<String, Object> existingSettings =
           (base.get("model_settings") instanceof Map)
               ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
               : new LinkedHashMap<>();
-      existingSettings.putAll(manifest.getModelSettings());
+      existingSettings.putAll(modelSettings);
       base.put("model_settings", existingSettings);
     }
     // tools: replace if non-null non-empty
-    if (manifest.getTools() != null && !manifest.getTools().isEmpty()) {
+    List<LLMObs.AgentTool> tools = manifest.getTools();
+    if (tools != null && !tools.isEmpty()) {
       List<Map<String, Object>> toolList = new ArrayList<>();
-      for (LLMObs.AgentTool tool : manifest.getTools()) {
-        if (tool == null || tool.getName() == null || tool.getName().isEmpty()) {
+      for (LLMObs.AgentTool tool : tools) {
+        String toolName = tool == null ? null : tool.getName();
+        if (toolName == null || toolName.isEmpty()) {
           LOGGER.warn("agent manifest tool missing required name; skipping");
           continue;
         }
         Map<String, Object> toolMap = new LinkedHashMap<>();
-        toolMap.put("name", tool.getName());
+        toolMap.put("name", toolName);
         if (tool.getDescription() != null) {
           toolMap.put("description", tool.getDescription());
         }

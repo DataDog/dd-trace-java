@@ -1162,7 +1162,7 @@ public class LLMObs {
    *
    * <p>Build via {@link AgentManifest#builder()} and pass to {@link
    * LLMObsSpan#annotateAgentManifest(AgentManifest)}. Only applied on agent spans; ignored on other
-   * span kinds. A subsequent call on the same span overwrites the previous manifest.
+   * span kinds. A subsequent call on the same span merges with the previous manifest.
    */
   public static final class AgentManifest {
     private final String name;
