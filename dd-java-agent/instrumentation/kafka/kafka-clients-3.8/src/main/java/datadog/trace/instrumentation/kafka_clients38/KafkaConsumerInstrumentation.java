@@ -19,7 +19,7 @@ import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaConsumerInstrumentation() {

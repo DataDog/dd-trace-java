@@ -12,7 +12,7 @@ import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
+public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ConsumerCoordinatorInstrumentation() {
