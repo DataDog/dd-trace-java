@@ -37,6 +37,8 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -165,6 +167,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.DataS
       } else {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
         callbackParentSpan = localActiveSpan;
+        if (!KafkaDecorator.TRACING_ENABLED && Config.get().isDataStreamsEnabled()) {
+          span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+        }
       }
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
