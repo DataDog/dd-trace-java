@@ -22,6 +22,8 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -116,6 +118,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
+          if (spanContext == null
+              && !KafkaDecorator.TRACING_ENABLED
+              && traceConfig().isDataStreamsEnabled()) {
+            span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+          }
           DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
           final long payloadSize =
               traceConfig().isDataStreamsEnabled() ? Utils.computePayloadSizeBytes(val) : 0;
@@ -137,6 +144,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           }
         } else {
           span = startSpan(JAVA_KAFKA.toString(), operationName, null);
+          if (!KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+            span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+          }
         }
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
