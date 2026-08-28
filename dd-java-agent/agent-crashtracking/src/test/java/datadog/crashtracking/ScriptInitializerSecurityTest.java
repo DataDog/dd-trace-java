@@ -1,6 +1,7 @@
 package datadog.crashtracking;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -109,6 +111,46 @@ public class ScriptInitializerSecurityTest {
   }
 
   @Test
+  void crashUploaderFreshDirHasExactlyOwnerPermissions() throws Exception {
+    Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
+    CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log");
+
+    // The directory is created by mkdirs() (subject to the process umask) before the
+    // owner-only bits are applied, so any stray group/other bits left over from that
+    // umask must have been cleared, not just overlaid with the owner bits.
+    assertPermissions(
+        scriptFile.getParent(),
+        EnumSet.of(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
+  void oomeNotifierFreshDirHasExactlyOwnerPermissions() throws Exception {
+    Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
+    OOMENotifierScriptInitializer.initialize(scriptFile + " %p");
+
+    assertPermissions(
+        scriptFile.getParent(),
+        EnumSet.of(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
+  void oomeNotifierScriptFileIsNotOwnerWritable() throws Exception {
+    Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
+    OOMENotifierScriptInitializer.initialize(scriptFile + " %p");
+
+    // The write bit is deliberately not restored after the clear/set-owner-only sequence,
+    // so the copied script must end up read+execute only, even for the owner.
+    assertPermissions(
+        scriptFile, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
   void oomeNotifierFreshDirIsOwnerRestricted() throws Exception {
     Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
     OOMENotifierScriptInitializer.initialize(scriptFile + " %p");
@@ -174,6 +216,20 @@ public class ScriptInitializerSecurityTest {
     boolean crashCfgWritten =
         Files.list(tempDir).anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
     assertTrue(crashCfgWritten, "Crash uploader .cfg file must be written in the clean flow");
+  }
+
+  private static void assertPermissions(Path path, Set<PosixFilePermission> expected)
+      throws IOException {
+    Set<PosixFilePermission> actual = Files.getPosixFilePermissions(path);
+    assertEquals(
+        actual,
+        expected,
+        "Expected permissions "
+            + PosixFilePermissions.toString(expected)
+            + " but found "
+            + PosixFilePermissions.toString(actual)
+            + " on "
+            + path);
   }
 
   private static void assertNoGroupWorldWriteBit(Path path) throws IOException {

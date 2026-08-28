@@ -86,6 +86,11 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
+      // first clear all privileges
+      scriptDirectory.setReadable(false, false);
+      scriptDirectory.setWritable(false, false);
+      scriptDirectory.setExecutable(false, false);
+      // then set them only for the owner
       scriptDirectory.setReadable(true, true);
       scriptDirectory.setWritable(true, true);
       scriptDirectory.setExecutable(true, true);
@@ -95,8 +100,13 @@ public final class OOMENotifierScriptInitializer {
       // do not overwrite existing
       if (!scriptFile.exists()) {
         copyStream(getOomeNotifierTemplate(), scriptFile);
-        scriptFile.setReadable(true, true);
+        // first clear all privileges
+        scriptFile.setReadable(false, false);
         scriptFile.setWritable(false, false);
+        scriptFile.setExecutable(false, false);
+        // then set them only for the owner
+        scriptFile.setReadable(true, true);
+        // do not restore the writable
         scriptFile.setExecutable(true, true);
       } else {
         if (!isOwnedAndPrivate(scriptFile)) {

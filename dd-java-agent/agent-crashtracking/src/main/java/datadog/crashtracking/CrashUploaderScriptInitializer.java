@@ -78,6 +78,11 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
+      // first clear all privileges
+      scriptDirectory.setReadable(false, false);
+      scriptDirectory.setWritable(false, false);
+      scriptDirectory.setExecutable(false, false);
+      // then set them only for the owner
       scriptDirectory.setReadable(true, true);
       scriptDirectory.setWritable(true, true);
       scriptDirectory.setExecutable(true, true);
