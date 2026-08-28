@@ -528,8 +528,8 @@ public final class Initializer {
    * Removes any group/world permission bits from {@code dir} while leaving the owner's own bits
    * untouched. Unlike {@link #restrictDirectoryToOwnerOnly(File)}, this never adds a permission
    * (e.g. owner write) that the directory did not already have, so a directory an operator
-   * deliberately made non-writable for the owner stays non-writable after repair. On non-POSIX
-   * file systems this is a no-op.
+   * deliberately made non-writable for the owner stays non-writable after repair. On non-POSIX file
+   * systems this is a no-op.
    */
   static void stripGroupAndWorldBits(File dir) {
     if (OperatingSystem.isWindows()) {
