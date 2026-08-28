@@ -4,7 +4,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 /**
  * The {@link AggregateEntry} store of the consuming aggregator thread, keyed on the canonical
@@ -24,12 +23,6 @@ import java.util.function.Predicate;
  * bucket chains silently.
  */
 final class AggregateTable {
-
-  /**
-   * Stale means "not used in this reporting cycle". Held as a {@code static final} so it is a
-   * non-capturing singleton rather than a fresh lambda per eviction.
-   */
-  private static final Predicate<AggregateEntry> STALE = AggregateEntry::isStale;
 
   private final Hashtable.State<AggregateEntry> state;
 
@@ -81,7 +74,7 @@ final class AggregateTable {
    * can still drive the entry count to {@code maxAggregates}, so eviction remains the backstop.
    *
    * <p>The scan that finds a stale entry, and its resume-where-it-left-off amortization, live in
-   * {@link Hashtable#tryReserveOrEvict} -- this class only supplies {@link #STALE}.
+   * {@link Hashtable#tryReserveOrEvict} -- this class only supplies {@link AggregateEntry#isStale}.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
@@ -95,7 +88,7 @@ final class AggregateTable {
     }
     // Miss path. Reserve before building the entry so a refused insert costs no allocation; the
     // reservation evicts a stale entry to make room if the table is already full.
-    if (!Hashtable.tryReserveOrEvict(state, STALE)) {
+    if (!Hashtable.tryReserveOrEvict(state, AggregateEntry::isStale)) {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
@@ -118,7 +111,7 @@ final class AggregateTable {
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    Hashtable.evictAll(state, STALE);
+    Hashtable.evictAll(state, AggregateEntry::isStale);
   }
 
   void clear() {
