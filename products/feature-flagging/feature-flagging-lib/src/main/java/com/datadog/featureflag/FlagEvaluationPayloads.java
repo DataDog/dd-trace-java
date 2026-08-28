@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import datadog.communication.ddagent.TracerVersion;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -158,9 +157,6 @@ final class FlagEvaluationPayloads {
     }
   }
 
-  private static final String SOURCE_NAME = "dd-trace-java";
-  private static final String SOURCE_VERSION = TracerVersion.TRACER_VERSION;
-
   static class FlagEvaluationEvent {
     public final long timestamp;
     public final FlagKeyObject flag;
@@ -172,7 +168,6 @@ final class FlagEvaluationPayloads {
     public final String targeting_key;
     public final Boolean runtime_default_used;
     public final EventContext context;
-    public final SourceObject source;
     public final ErrorObject error;
 
     FlagEvaluationEvent(
@@ -201,7 +196,6 @@ final class FlagEvaluationPayloads {
           (evaluationAttrs != null && !evaluationAttrs.isEmpty())
               ? new EventContext(evaluationAttrs)
               : null;
-      this.source = new SourceObject(SOURCE_NAME, SOURCE_VERSION);
       this.error =
           (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
     }
@@ -287,16 +281,6 @@ final class FlagEvaluationPayloads {
 
     ErrorObject(final String message) {
       this.message = message;
-    }
-  }
-
-  static class SourceObject {
-    public final String name;
-    public final String version;
-
-    SourceObject(final String name, final String version) {
-      this.name = name;
-      this.version = version;
     }
   }
 

@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static java.util.Collections.emptyMap;
+
 import datadog.communication.BackendApi;
 import datadog.communication.HttpResponseException;
 import datadog.communication.http.OkHttpUtils;
@@ -7,6 +9,7 @@ import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
@@ -43,10 +46,22 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       @Nullable final OkHttpUtils.CustomListener requestListener,
       final boolean requestCompression)
       throws IOException {
+    return post(uri, requestBody, responseParser, requestListener, requestCompression, emptyMap());
+  }
+
+  @Override
+  public <T> T post(
+      final String uri,
+      final RequestBody requestBody,
+      final IOThrowingFunction<InputStream, T> responseParser,
+      @Nullable final OkHttpUtils.CustomListener requestListener,
+      final boolean requestCompression,
+      final Map<String, String> requestHeaders)
+      throws IOException {
     final BackendApi selectedApi = activeApi;
     try {
       return selectedApi.post(
-          uri, requestBody, responseParser, requestListener, requestCompression);
+          uri, requestBody, responseParser, requestListener, requestCompression, requestHeaders);
     } catch (final IOException exception) {
       if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
         throw exception;
@@ -56,7 +71,8 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       if (directApi == null) {
         throw exception;
       }
-      return directApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
+      return directApi.post(
+          uri, requestBody, responseParser, requestListener, requestCompression, requestHeaders);
     }
   }
 

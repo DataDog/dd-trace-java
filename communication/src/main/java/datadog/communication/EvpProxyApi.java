@@ -1,10 +1,13 @@
 package datadog.communication;
 
+import static java.util.Collections.emptyMap;
+
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -57,6 +60,18 @@ public class EvpProxyApi implements BackendApi {
       @Nullable OkHttpUtils.CustomListener requestListener,
       boolean requestCompression)
       throws IOException {
+    return post(uri, requestBody, responseParser, requestListener, requestCompression, emptyMap());
+  }
+
+  @Override
+  public <T> T post(
+      String uri,
+      RequestBody requestBody,
+      IOThrowingFunction<InputStream, T> responseParser,
+      @Nullable OkHttpUtils.CustomListener requestListener,
+      boolean requestCompression,
+      Map<String, String> requestHeaders)
+      throws IOException {
     final HttpUrl url = evpProxyUrl.resolve(uri);
 
     Request.Builder requestBuilder =
@@ -65,6 +80,10 @@ public class EvpProxyApi implements BackendApi {
             .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+
+    for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+      requestBuilder.addHeader(header.getKey(), header.getValue());
+    }
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);

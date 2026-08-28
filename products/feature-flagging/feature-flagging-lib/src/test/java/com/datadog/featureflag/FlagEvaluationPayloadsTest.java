@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.communication.ddagent.TracerVersion;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,13 +46,13 @@ class FlagEvaluationPayloadsTest {
     assertObjectWithKey(ev.get("variant"), "on");
     assertObjectWithKey(ev.get("allocation"), "alloc-x");
     assertObjectWithKey(ev.get("flag"), "my-flag");
-    assertSource(ev);
     final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
     assertNotNull(ctx);
     final Map<?, ?> evalAttrs = (Map<?, ?>) ctx.get("evaluation");
     assertNotNull(evalAttrs);
     assertEquals("us-east-1", evalAttrs.get("region"));
     assertFalse(ev.containsKey("reason"));
+    assertFalse(ev.containsKey("source"));
   }
 
   @Test
@@ -98,6 +97,7 @@ class FlagEvaluationPayloadsTest {
     final Map<String, Object> ev = firstEvent(json);
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
+    assertFalse(ev.containsKey("source"));
   }
 
   @Test
@@ -224,7 +224,6 @@ class FlagEvaluationPayloadsTest {
     assertEquals(2.0, ((Number) ev.get("evaluation_count")).doubleValue());
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
-    assertSource(ev);
   }
 
   @Test
@@ -440,13 +439,6 @@ class FlagEvaluationPayloadsTest {
   private static void assertObjectWithKey(final Object object, final String expectedKey) {
     assertTrue(object instanceof Map);
     assertEquals(expectedKey, ((Map<?, ?>) object).get("key"));
-  }
-
-  private static void assertSource(final Map<String, Object> event) {
-    assertTrue(event.get("source") instanceof Map);
-    final Map<?, ?> source = (Map<?, ?>) event.get("source");
-    assertEquals("dd-trace-java", source.get("name"));
-    assertEquals(TracerVersion.TRACER_VERSION, source.get("version"));
   }
 
   private static String repeat(final char c, final int count) {

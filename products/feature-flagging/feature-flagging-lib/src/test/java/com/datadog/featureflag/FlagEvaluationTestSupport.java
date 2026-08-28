@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -132,7 +133,8 @@ final class FlagEvaluationTestSupport {
 
   static List<CapturedJson> flushAndCaptureAll(final TestWriterSetup setup) throws Exception {
     final List<RequestBody> captured = new ArrayList<>();
-    when(setup.mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+    when(setup.mockEvp.post(
+            eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenAnswer(
             inv -> {
               captured.add(inv.getArgument(1));

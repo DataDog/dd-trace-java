@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -313,7 +314,7 @@ class ExposureWriterTests {
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, true))
         .thenReturn(directApi);
-    when(proxyApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+    when(proxyApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenThrow(new SocketTimeoutException("ambiguous timeout"))
         .thenThrow(new ConnectException("definitive refusal"));
     final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
@@ -328,21 +329,24 @@ class ExposureWriterTests {
       poll.eventually(
           () ->
               verify(proxyApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+                  .post(
+                      eq("exposures"), any(RequestBody.class), any(), any(), eq(false), anyMap()));
       MILLISECONDS.sleep(300);
       verify(proxyApi, times(1))
-          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false), anyMap());
       verify(directApi, never())
-          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false), anyMap());
 
       writer.accept(exposures.get(1));
       poll.eventually(
           () ->
               verify(directApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+                  .post(
+                      eq("exposures"), any(RequestBody.class), any(), any(), eq(false), anyMap()));
 
       final ArgumentCaptor<RequestBody> directBody = ArgumentCaptor.forClass(RequestBody.class);
-      verify(directApi).post(eq("exposures"), directBody.capture(), any(), any(), eq(false));
+      verify(directApi)
+          .post(eq("exposures"), directBody.capture(), any(), any(), eq(false), anyMap());
       final Buffer buffer = new Buffer();
       directBody.getValue().writeTo(buffer);
       final ExposuresRequest directRequest =

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -377,7 +378,8 @@ class FlagEvaluationWriterImplTest {
     final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
     final boolean[] interruptedDuringPost = {true};
     final BackendApi mockEvp = mock(BackendApi.class);
-    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+    when(mockEvp.post(
+            eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenAnswer(
             inv -> {
               interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
@@ -406,7 +408,8 @@ class FlagEvaluationWriterImplTest {
     final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
     final RequestBody[] captured = {null};
     final BackendApi mockEvp = mock(BackendApi.class);
-    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+    when(mockEvp.post(
+            eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenAnswer(
             inv -> {
               captured[0] = inv.getArgument(1);
@@ -448,7 +451,8 @@ class FlagEvaluationWriterImplTest {
         writer.enqueue(simpleEvent("busy-flag", "on"));
         try {
           verify(mockEvp, atLeastOnce())
-              .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+              .post(
+                  eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap());
           posted = true;
           break;
         } catch (AssertionError ignored) {
@@ -472,7 +476,8 @@ class FlagEvaluationWriterImplTest {
     setup.handler.flush();
 
     verify(setup.factory).createBackendApi(Intake.EVENT_PLATFORM, false);
-    verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+    verify(mockEvp)
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap());
   }
 
   @Test
@@ -489,7 +494,7 @@ class FlagEvaluationWriterImplTest {
               return null;
             })
         .when(mockEvp)
-        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap());
 
     for (int i = 0; i < 4; i++) {
       final Map<String, Object> attrs = new HashMap<>();
@@ -555,7 +560,8 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
 
     final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
-    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+    when(mockEvp.post(
+            eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenAnswer(
             inv -> {
               captured.add(inv.getArgument(1));
@@ -588,7 +594,8 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
 
     final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
-    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+    when(mockEvp.post(
+            eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap()))
         .thenAnswer(
             inv -> {
               captured.add(inv.getArgument(1));
@@ -654,13 +661,14 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     verify(mockEvp, org.mockito.Mockito.never())
-        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap());
 
     // The bucket must not survive the failed flush. A follow-up healthy event flushes cleanly.
     setup.handler.add(simpleEvent("healthy-flag", "on"));
     setup.handler.drainAndAggregate();
     setup.handler.flush();
-    verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+    verify(mockEvp)
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false), anyMap());
   }
 
   @Test
