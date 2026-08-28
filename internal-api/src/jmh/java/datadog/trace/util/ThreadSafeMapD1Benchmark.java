@@ -116,12 +116,12 @@ public class ThreadSafeMapD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D1.createFixedBuckets(D1Entry.class, CAPACITY);
+      table = ConcurrentHashtable.D1.createCapped(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
-        table.getOrCreate(KEYS[i], D1Entry::new);
+        table.tryGetOrCreateOrNull(KEYS[i], D1Entry::new);
         concurrentHashMap.put(KEYS[i], (long) i);
         skipListMap.put(KEYS[i], (long) i);
         synchronizedHashMap.put(KEYS[i], (long) i);
@@ -163,7 +163,7 @@ public class ThreadSafeMapD1Benchmark {
 
   @Benchmark
   public D1Entry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
-    return s.table.getOrCreate(KEYS[t.next()], D1Entry::new);
+    return s.table.tryGetOrCreateOrNull(KEYS[t.next()], D1Entry::new);
   }
 
   /**

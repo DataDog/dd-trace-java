@@ -196,14 +196,14 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D2.createFixedBuckets(D2Entry.class, CAPACITY);
+      table = ConcurrentHashtable.D2.createCapped(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
         int k2 = SOURCE_K2[i];
-        table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
+        table.tryGetOrCreateOrNull(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
         // populate support table
         SupportEntry se = new SupportEntry(SOURCE_K1[i], k2);
         synchronized (ConcurrentHashtable.getWriteLock(supportBuckets)) {
@@ -272,7 +272,7 @@ public class ThreadSafeMapD2Benchmark {
   @Benchmark
   public D2Entry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
     int i = t.next();
-    return s.table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
+    return s.table.tryGetOrCreateOrNull(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
   }
 
   @Benchmark
