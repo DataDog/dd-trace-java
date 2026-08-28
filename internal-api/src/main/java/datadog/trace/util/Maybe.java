@@ -3,16 +3,16 @@ package datadog.trace.util;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.ObjDoubleConsumer;
 import java.util.function.ObjIntConsumer;
 import java.util.function.ObjLongConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * APMLP-1799 spike -- candidate return shape for fallible operations (e.g. a table's
- * capacity-refusing {@code tryGetOrCreate}), evaluating whether it can be allocation-free under
- * escape analysis. Not wired into any real caller yet.
+ * Candidate return shape for fallible operations (e.g. a table's capacity-refusing {@code
+ * tryGetOrCreate}), evaluating whether it can be allocation-free under escape analysis.
+ *
+ * <p>Not wired into any real caller yet.
  *
  * <p>Deliberately shaped against the {@code Optional}-style merge-with-singleton pitfall: {@link
  * #of} is the only allocation site, always allocates (never returns a shared instance), and holds a
@@ -111,44 +111,27 @@ public final class Maybe<T> {
   }
 
   /**
-   * Primitive-{@code long}-context form of {@link #update(Consumer)}, for the common case where the
-   * mutation needs one caller-supplied {@code long} (e.g. a duration or count) and boxing it into a
-   * captured {@code Long}/generic-context object would be the actual per-call allocation. This
-   * exists so a table wrapping a fallible lookup in {@code Maybe} pays for this shape once, here,
-   * instead of once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s
-   * {@code ObjLongConsumer} overload for the caller-side problem this replaces.
+   * Primitive-context form of {@link #update(Consumer)}, for the common case where the mutation
+   * needs one caller-supplied number (e.g. a duration or count) and boxing it into a captured
+   * {@code Long}/generic-context object would be the actual per-call allocation. This exists so a
+   * table wrapping a fallible lookup in {@code Maybe} pays for this shape once, here, instead of
+   * once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s {@code
+   * ObjLongConsumer} overload for the caller-side problem this replaces.
+   *
+   * <p>Deliberately the <em>only</em> primitive-context overload. An {@code int}/{@code
+   * double}/{@code boolean} sibling was tried and reverted: Java's overload resolution can pick
+   * cleanly between a primitive overload and the generic {@link #update(Object, BiConsumer)} form
+   * for a reference-typed argument (boxing is only considered once no non-boxing candidate
+   * applies), but that guarantee does not extend to a second primitive overload -- {@code update(1,
+   * lambda)} is ambiguous between {@code int} and {@code long} even with no {@code double} overload
+   * in the picture, because {@link ObjIntConsumer} and {@link ObjLongConsumer} are unrelated
+   * interfaces and JLS 15.12.2.5's most-specific-method rule requires every parameter position to
+   * agree, not just the numeric one. Confirmed by direct compilation, not just JLS reading: an
+   * inline lambda call breaks as soon as a second primitive overload exists. A plain {@code int}
+   * argument still widens to {@code long} for free at this single overload -- callers are not
+   * required to have a {@code long} in hand.
    */
   public void update(long context, ObjLongConsumer<? super T> mutator) {
-    if (value != null) {
-      mutator.accept(value, context);
-    }
-  }
-
-  /** {@code int}-context sibling of {@link #update(long, ObjLongConsumer)}. */
-  public void update(int context, ObjIntConsumer<? super T> mutator) {
-    if (value != null) {
-      mutator.accept(value, context);
-    }
-  }
-
-  /**
-   * {@code double}-context sibling of {@link #update(long, ObjLongConsumer)}. Not driven by a known
-   * caller today; kept in step with the {@code int}/{@code double}/{@code long} specializations
-   * {@code Stream}/{@code Optional} carry, on the same anticipated-future-use basis.
-   */
-  public void update(double context, ObjDoubleConsumer<? super T> mutator) {
-    if (value != null) {
-      mutator.accept(value, context);
-    }
-  }
-
-  /**
-   * {@code boolean}-context sibling of {@link #update(long, ObjLongConsumer)}. Unlike the other
-   * primitive forms, this one breaks from the {@code Stream}/{@code Optional} precedent -- the JDK
-   * never shipped a boolean specialization for either -- so {@link ObjBooleanConsumer} is a
-   * hand-rolled interface rather than a reused JDK one.
-   */
-  public void update(boolean context, ObjBooleanConsumer<? super T> mutator) {
     if (value != null) {
       mutator.accept(value, context);
     }

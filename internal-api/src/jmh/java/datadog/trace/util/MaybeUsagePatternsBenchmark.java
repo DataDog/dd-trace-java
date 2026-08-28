@@ -37,12 +37,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * like.</b> {@code badBoxedContextUpdateInlined} was expected to allocate the boxed {@code Long}
  * and, measured here, does not -- with the whole {@code update} call inlined, C2 scalar-replaces
  * the box the same as it would any other short-lived object. That is exactly the "EA-dependent"
- * half of J12's phrase: {@link Maybe#update(long, ObjLongConsumer)} has no box to eliminate in the
- * first place, so it reads 0 B/op *regardless* of whether this call site keeps inlining; the
- * generic-context form's 0 B/op is contingent on inlining holding, which {@code
- * badBoxedContextUpdateUninlined} demonstrates by taking that away via the same {@code
+ * half of J12's phrase: {@link Maybe#update(long, ObjLongConsumer)} has no <em>box</em> to
+ * eliminate in the first place, so it reads 0 B/op regardless of whether the mutator lambda's own
+ * inlining holds; the generic-context form's 0 B/op is contingent on that specific inlining, which
+ * {@code badBoxedContextUpdateUninlined} demonstrates by taking it away via the same {@code
  * -XX:CompileCommand=dontinline} technique {@code EscapeShapeBenchmark} uses for its {@code
- * UninlinedStrategy} arm.
+ * UninlinedStrategy} arm. This is narrower than immunity to every inlining failure: if the
+ * producing method or the {@code update} call itself fails to inline -- a different boundary,
+ * exercised by {@code EscapeShapeBenchmark}'s {@code passedToUninlinedStrategy} arm (24 B/op) --
+ * the {@code Maybe} wrapper itself becomes a real allocation for either overload.
  */
 @Fork(
     value = 2,
