@@ -285,6 +285,45 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   @Test
+  void standaloneAgentSpanActivatesApmScopeForOutgoingPropagation() throws Exception {
+    // When no ambient APM root exists, the agent span must activate its underlying APM span so
+    // that subsequently instrumented outgoing requests become children of it and inherit the pagent
+    // PTags. Verify the active APM span IS the agent's inner span while the agent is open.
+    DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "standalone-agent");
+    try {
+      AgentSpan inner = innerSpan(agentSpan);
+      // The agent span must be its own local root (standalone condition).
+      assertEquals(inner, inner.getLocalRootSpan());
+      // The active APM span must be the agent's inner span.
+      assertEquals(inner, AgentTracer.activeSpan());
+    } finally {
+      agentSpan.finish();
+      // After finish, the standalone scope is closed — no APM span should be active.
+      assertNull(AgentTracer.activeSpan());
+    }
+  }
+
+  @Test
+  void nonStandaloneAgentSpanDoesNotActivateApmScope() throws Exception {
+    // When an APM root already exists (production case), the agent span must NOT override the
+    // active APM scope — the existing root already carries the pagent PTags.
+    try (AgentScope apmScope = startRootApmScope()) {
+      AgentSpan rootApm = apmScope.span();
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "non-standalone-agent");
+      try {
+        // Agent span has an APM parent, so it is not its own local root.
+        AgentSpan inner = innerSpan(agentSpan);
+        assertNull(inner.getLocalRootSpan() == inner ? inner : null); // not local root
+        // Active APM span must still be the original root, not our agent.
+        assertEquals(rootApm, AgentTracer.activeSpan());
+      } finally {
+        agentSpan.finish();
+        apmScope.span().finish();
+      }
+    }
+  }
+
+  @Test
   void distributedParentPagentValuesAreInherited() throws Exception {
     // Simulate a distributed parent: an APM root span with pagent propagation tags already set
     // (e.g. injected by an upstream service during HTTP propagation).
