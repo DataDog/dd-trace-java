@@ -205,9 +205,6 @@ class HaystackHttpCodec {
           String firstValue = firstHeaderValue(value);
           if (null != firstValue) {
             switch (classification) {
-              // the trace and span ids are recorded by the tracer itself, not supplied as caller
-              // baggage: the injector reads them back to reproduce the original 128-bit ids, so
-              // they must not be evicted by caller-supplied Baggage-* headers
               case TRACE_ID:
                 traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
                 addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
@@ -217,8 +214,6 @@ class HaystackHttpCodec {
                 addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
                 break;
               case PARENT_ID:
-                // Nothing reads this back when injecting, so it is ordinary caller-supplied
-                // baggage rather than propagation bookkeeping, and is subject to the limits.
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
                 break;
               case BAGGAGE:
