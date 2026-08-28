@@ -1,6 +1,7 @@
 package datadog.communication;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -45,7 +46,9 @@ class BackendApiFactoryTest {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
       final BackendApiFactory factory =
           new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+              Config.get(),
+              sharedCommunicationObjects(discovery, agent.url("/")),
+              singletonMap("DD-EVP-ORIGIN", "dd-trace-java"));
       final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
 
       assertNotNull(api);
@@ -58,6 +61,7 @@ class BackendApiFactoryTest {
 
       final RecordedRequest request = agent.takeRequest();
       assertEquals("/evp_proxy/v4/api/v2/flagevaluation", request.getPath());
+      assertEquals("dd-trace-java", request.getHeader("DD-EVP-ORIGIN"));
     } finally {
       agent.shutdown();
     }

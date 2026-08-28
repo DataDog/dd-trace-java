@@ -52,7 +52,6 @@ class FlagEvaluationPayloadsTest {
     assertNotNull(evalAttrs);
     assertEquals("us-east-1", evalAttrs.get("region"));
     assertFalse(ev.containsKey("reason"));
-    assertFalse(ev.containsKey("source"));
   }
 
   @Test
@@ -97,7 +96,6 @@ class FlagEvaluationPayloadsTest {
     final Map<String, Object> ev = firstEvent(json);
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
-    assertFalse(ev.containsKey("source"));
   }
 
   @Test

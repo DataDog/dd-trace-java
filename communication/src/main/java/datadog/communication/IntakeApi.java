@@ -1,12 +1,14 @@
 package datadog.communication;
 
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
@@ -36,6 +38,7 @@ public class IntakeApi implements BackendApi {
   private final boolean responseCompression;
   private final HttpUrl hostUrl;
   private final OkHttpClient httpClient;
+  private final Map<String, String> requestHeaders;
 
   public IntakeApi(
       HttpUrl hostUrl,
@@ -44,12 +47,24 @@ public class IntakeApi implements BackendApi {
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
+    this(hostUrl, apiKey, traceId, retryPolicyFactory, httpClient, responseCompression, emptyMap());
+  }
+
+  public IntakeApi(
+      HttpUrl hostUrl,
+      String apiKey,
+      String traceId,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      OkHttpClient httpClient,
+      boolean responseCompression,
+      Map<String, String> requestHeaders) {
     this.hostUrl = hostUrl;
     this.apiKey = apiKey;
     this.traceId = traceId;
     this.retryPolicyFactory = retryPolicyFactory;
     this.responseCompression = responseCompression;
     this.httpClient = httpClient;
+    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
   }
 
   @Override
@@ -59,18 +74,6 @@ public class IntakeApi implements BackendApi {
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable OkHttpUtils.CustomListener requestListener,
       boolean requestCompression)
-      throws IOException {
-    return post(uri, requestBody, responseParser, requestListener, requestCompression, emptyMap());
-  }
-
-  @Override
-  public <T> T post(
-      String uri,
-      RequestBody requestBody,
-      IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
-      boolean requestCompression,
-      Map<String, String> requestHeaders)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
     Request.Builder requestBuilder =

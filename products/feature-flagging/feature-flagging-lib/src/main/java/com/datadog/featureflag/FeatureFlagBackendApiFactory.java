@@ -1,13 +1,17 @@
 package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +20,7 @@ import org.slf4j.LoggerFactory;
 final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
+  static final Map<String, String> REQUEST_HEADERS = requestHeaders();
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
@@ -25,7 +30,10 @@ final class FeatureFlagBackendApiFactory {
       final Config config,
       final SharedCommunicationObjects sharedCommunicationObjects,
       final FeatureFlagEventType eventType) {
-    this(config, new BackendApiFactory(config, sharedCommunicationObjects), eventType);
+    this(
+        config,
+        new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS),
+        eventType);
   }
 
   FeatureFlagBackendApiFactory(
@@ -76,6 +84,13 @@ final class FeatureFlagBackendApiFactory {
         "Feature Flagging {} delivery is disabled because no compatible local EVP proxy or direct intake credentials are available",
         eventType.logName());
     return null;
+  }
+
+  private static Map<String, String> requestHeaders() {
+    final Map<String, String> headers = new HashMap<>(2);
+    headers.put("DD-EVP-ORIGIN", "dd-trace-java");
+    headers.put("DD-EVP-ORIGIN-VERSION", TracerVersion.TRACER_VERSION);
+    return unmodifiableMap(headers);
   }
 
   private boolean hasDirectCredentials() {

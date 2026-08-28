@@ -1,11 +1,16 @@
 package datadog.communication;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -17,10 +22,19 @@ public class BackendApiFactory {
 
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
+  private final Map<String, String> requestHeaders;
 
   public BackendApiFactory(Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+    this(config, sharedCommunicationObjects, emptyMap());
+  }
+
+  public BackendApiFactory(
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      Map<String, String> requestHeaders) {
     this.config = config;
     this.sharedCommunicationObjects = sharedCommunicationObjects;
+    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake) {
@@ -61,7 +75,8 @@ public class BackendApiFactory {
         traceId,
         retryPolicyFactory(),
         sharedCommunicationObjects.getIntakeHttpClient(),
-        responseCompression);
+        responseCompression,
+        requestHeaders);
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
@@ -99,7 +114,8 @@ public class BackendApiFactory {
         subdomain,
         retryPolicyFactory,
         sharedCommunicationObjects.agentHttpClient,
-        responseCompression);
+        responseCompression,
+        requestHeaders);
   }
 
   private static HttpRetryPolicy.Factory retryPolicyFactory() {

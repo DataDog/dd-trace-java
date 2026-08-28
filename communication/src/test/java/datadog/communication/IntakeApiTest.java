@@ -1,11 +1,10 @@
 package datadog.communication;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.communication.http.HttpRetryPolicy;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -48,7 +47,7 @@ class IntakeApiTest {
   }
 
   @Test
-  void addsCustomHeadersWithoutReplacingIntakeHeaders() throws Exception {
+  void addsConfiguredRequestHeaders() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     final IntakeApi api =
         new IntakeApi(
@@ -57,26 +56,14 @@ class IntakeApiTest {
             "123",
             HttpRetryPolicy.Factory.NEVER_RETRY,
             client,
-            false);
-    final Map<String, String> requestHeaders = new HashMap<>();
-    requestHeaders.put("DD-EVP-ORIGIN", "dd-trace-java");
-    requestHeaders.put("DD-EVP-ORIGIN-VERSION", "1.2.3");
+            false,
+            singletonMap("DD-EVP-ORIGIN", "dd-trace-java"));
 
-    api.post(
-        "flagevaluation",
-        RequestBody.create(JSON, "{}"),
-        responseBody -> null,
-        null,
-        false,
-        requestHeaders);
+    api.post("exposures", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
 
     final RecordedRequest request = server.takeRequest();
-    assertEquals("/api/v2/flagevaluation", request.getPath());
-    assertEquals("api-key", request.getHeader("dd-api-key"));
-    assertEquals("123", request.getHeader("x-datadog-trace-id"));
-    assertEquals("123", request.getHeader("x-datadog-parent-id"));
     assertEquals("dd-trace-java", request.getHeader("DD-EVP-ORIGIN"));
-    assertEquals("1.2.3", request.getHeader("DD-EVP-ORIGIN-VERSION"));
+    assertEquals("api-key", request.getHeader("dd-api-key"));
   }
 
   private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {

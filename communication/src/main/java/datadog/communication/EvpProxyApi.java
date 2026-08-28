@@ -1,12 +1,14 @@
 package datadog.communication;
 
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
@@ -36,6 +38,7 @@ public class EvpProxyApi implements BackendApi {
   private final String subdomain;
   private final OkHttpClient httpClient;
   private final boolean responseCompression;
+  private final Map<String, String> requestHeaders;
 
   public EvpProxyApi(
       String traceId,
@@ -44,12 +47,31 @@ public class EvpProxyApi implements BackendApi {
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
+    this(
+        traceId,
+        evpProxyUrl,
+        subdomain,
+        retryPolicyFactory,
+        httpClient,
+        responseCompression,
+        emptyMap());
+  }
+
+  public EvpProxyApi(
+      String traceId,
+      HttpUrl evpProxyUrl,
+      String subdomain,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      OkHttpClient httpClient,
+      boolean responseCompression,
+      Map<String, String> requestHeaders) {
     this.traceId = traceId;
     this.evpProxyUrl = evpProxyUrl.resolve("api/" + API_VERSION + "/");
     this.subdomain = subdomain;
     this.retryPolicyFactory = retryPolicyFactory;
     this.httpClient = httpClient;
     this.responseCompression = responseCompression;
+    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
   }
 
   @Override
@@ -59,18 +81,6 @@ public class EvpProxyApi implements BackendApi {
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable OkHttpUtils.CustomListener requestListener,
       boolean requestCompression)
-      throws IOException {
-    return post(uri, requestBody, responseParser, requestListener, requestCompression, emptyMap());
-  }
-
-  @Override
-  public <T> T post(
-      String uri,
-      RequestBody requestBody,
-      IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
-      boolean requestCompression,
-      Map<String, String> requestHeaders)
       throws IOException {
     final HttpUrl url = evpProxyUrl.resolve(uri);
 

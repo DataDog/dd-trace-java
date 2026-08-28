@@ -1,7 +1,5 @@
 package com.datadog.featureflag;
 
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,7 +15,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -59,22 +56,6 @@ class AgentlessFeatureFlagBackendApiTest {
     assertSame(firstBody, local.requestBodies.get(0));
     assertSame(firstBody, direct.requestBodies.get(0));
     assertSame(secondBody, direct.requestBodies.get(1));
-  }
-
-  @Test
-  void preservesRequestHeadersWhenReplayingRejectedBatch() throws Exception {
-    final RecordingBackendApi local =
-        new RecordingBackendApi(new HttpResponseException(404, "rejected"));
-    final RecordingBackendApi direct = new RecordingBackendApi();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(local, () -> direct, "flag evaluation");
-    final Map<String, String> requestHeaders = singletonMap("DD-EVP-ORIGIN", "dd-trace-java");
-
-    api.post(
-        "flagevaluation", requestBody("evaluation"), stream -> null, null, false, requestHeaders);
-
-    assertSame(requestHeaders, local.requestHeaders.get(0));
-    assertSame(requestHeaders, direct.requestHeaders.get(0));
   }
 
   @ParameterizedTest
@@ -186,7 +167,6 @@ class AgentlessFeatureFlagBackendApiTest {
   private static final class RecordingBackendApi implements BackendApi {
     private IOException failure;
     private final List<RequestBody> requestBodies = new ArrayList<>();
-    private final List<Map<String, String>> requestHeaders = new ArrayList<>();
     private int calls;
 
     private RecordingBackendApi() {
@@ -205,26 +185,8 @@ class AgentlessFeatureFlagBackendApiTest {
         @Nullable final OkHttpUtils.CustomListener requestListener,
         final boolean requestCompression)
         throws IOException {
-      return record(requestBody, emptyMap());
-    }
-
-    @Override
-    public <T> T post(
-        final String uri,
-        final RequestBody requestBody,
-        final IOThrowingFunction<InputStream, T> responseParser,
-        @Nullable final OkHttpUtils.CustomListener requestListener,
-        final boolean requestCompression,
-        final Map<String, String> requestHeaders)
-        throws IOException {
-      return record(requestBody, requestHeaders);
-    }
-
-    private <T> T record(final RequestBody requestBody, final Map<String, String> requestHeaders)
-        throws IOException {
       calls++;
       requestBodies.add(requestBody);
-      this.requestHeaders.add(requestHeaders);
       if (failure != null) {
         throw failure;
       }
