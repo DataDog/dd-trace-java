@@ -1,15 +1,10 @@
 package datadog.communication;
 
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.unmodifiableMap;
-
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -38,7 +33,6 @@ public class IntakeApi implements BackendApi {
   private final boolean responseCompression;
   private final HttpUrl hostUrl;
   private final OkHttpClient httpClient;
-  private final Map<String, String> requestHeaders;
 
   public IntakeApi(
       HttpUrl hostUrl,
@@ -47,24 +41,12 @@ public class IntakeApi implements BackendApi {
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
-    this(hostUrl, apiKey, traceId, retryPolicyFactory, httpClient, responseCompression, emptyMap());
-  }
-
-  public IntakeApi(
-      HttpUrl hostUrl,
-      String apiKey,
-      String traceId,
-      HttpRetryPolicy.Factory retryPolicyFactory,
-      OkHttpClient httpClient,
-      boolean responseCompression,
-      Map<String, String> requestHeaders) {
     this.hostUrl = hostUrl;
     this.apiKey = apiKey;
     this.traceId = traceId;
     this.retryPolicyFactory = retryPolicyFactory;
     this.responseCompression = responseCompression;
     this.httpClient = httpClient;
-    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
   }
 
   @Override
@@ -83,10 +65,6 @@ public class IntakeApi implements BackendApi {
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
-
-    for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
-      requestBuilder.addHeader(header.getKey(), header.getValue());
-    }
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);

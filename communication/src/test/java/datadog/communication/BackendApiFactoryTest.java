@@ -61,7 +61,9 @@ class BackendApiFactoryTest {
 
       final RecordedRequest request = agent.takeRequest();
       assertEquals("/evp_proxy/v4/api/v2/flagevaluation", request.getPath());
+      assertEquals("event-platform-intake", request.getHeader("X-Datadog-EVP-Subdomain"));
       assertEquals("dd-trace-java", request.getHeader("DD-EVP-ORIGIN"));
+      assertEquals("identity", request.getHeader("Accept-Encoding"));
     } finally {
       agent.shutdown();
     }

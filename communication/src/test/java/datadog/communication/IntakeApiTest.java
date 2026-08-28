@@ -1,6 +1,5 @@
 package datadog.communication;
 
-import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.communication.http.HttpRetryPolicy;
@@ -44,26 +43,6 @@ class IntakeApiTest {
   @Test
   void requestsIdentityResponseEncodingWhenCompressionIsDisabled() throws Exception {
     assertEquals("identity", postAndReadAcceptEncoding(false));
-  }
-
-  @Test
-  void addsConfiguredRequestHeaders() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    final IntakeApi api =
-        new IntakeApi(
-            server.url("/api/v2/"),
-            "api-key",
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            false,
-            singletonMap("DD-EVP-ORIGIN", "dd-trace-java"));
-
-    api.post("exposures", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
-
-    final RecordedRequest request = server.takeRequest();
-    assertEquals("dd-trace-java", request.getHeader("DD-EVP-ORIGIN"));
-    assertEquals("api-key", request.getHeader("dd-api-key"));
   }
 
   private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {

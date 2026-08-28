@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +76,8 @@ public class BackendApiFactory {
         apiKey,
         traceId,
         retryPolicyFactory(),
-        sharedCommunicationObjects.getIntakeHttpClient(),
-        responseCompression,
-        requestHeaders);
+        withRequestHeaders(sharedCommunicationObjects.getIntakeHttpClient()),
+        responseCompression);
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
@@ -113,9 +114,25 @@ public class BackendApiFactory {
         evpProxyUrl,
         subdomain,
         retryPolicyFactory,
-        sharedCommunicationObjects.agentHttpClient,
-        responseCompression,
-        requestHeaders);
+        withRequestHeaders(sharedCommunicationObjects.agentHttpClient),
+        responseCompression);
+  }
+
+  private OkHttpClient withRequestHeaders(final OkHttpClient httpClient) {
+    if (requestHeaders.isEmpty()) {
+      return httpClient;
+    }
+    return httpClient
+        .newBuilder()
+        .addInterceptor(
+            chain -> {
+              final Request.Builder requestBuilder = chain.request().newBuilder();
+              for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+                requestBuilder.header(header.getKey(), header.getValue());
+              }
+              return chain.proceed(requestBuilder.build());
+            })
+        .build();
   }
 
   private static HttpRetryPolicy.Factory retryPolicyFactory() {

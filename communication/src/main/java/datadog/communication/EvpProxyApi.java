@@ -1,15 +1,10 @@
 package datadog.communication;
 
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.unmodifiableMap;
-
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -38,7 +33,6 @@ public class EvpProxyApi implements BackendApi {
   private final String subdomain;
   private final OkHttpClient httpClient;
   private final boolean responseCompression;
-  private final Map<String, String> requestHeaders;
 
   public EvpProxyApi(
       String traceId,
@@ -47,31 +41,12 @@ public class EvpProxyApi implements BackendApi {
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
-    this(
-        traceId,
-        evpProxyUrl,
-        subdomain,
-        retryPolicyFactory,
-        httpClient,
-        responseCompression,
-        emptyMap());
-  }
-
-  public EvpProxyApi(
-      String traceId,
-      HttpUrl evpProxyUrl,
-      String subdomain,
-      HttpRetryPolicy.Factory retryPolicyFactory,
-      OkHttpClient httpClient,
-      boolean responseCompression,
-      Map<String, String> requestHeaders) {
     this.traceId = traceId;
     this.evpProxyUrl = evpProxyUrl.resolve("api/" + API_VERSION + "/");
     this.subdomain = subdomain;
     this.retryPolicyFactory = retryPolicyFactory;
     this.httpClient = httpClient;
     this.responseCompression = responseCompression;
-    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
   }
 
   @Override
@@ -90,10 +65,6 @@ public class EvpProxyApi implements BackendApi {
             .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
-
-    for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
-      requestBuilder.addHeader(header.getKey(), header.getValue());
-    }
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
