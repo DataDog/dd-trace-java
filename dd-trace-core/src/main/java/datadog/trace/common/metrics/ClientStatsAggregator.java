@@ -112,13 +112,22 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private volatile PeerTagSchema cachedPeerTagSchema;
 
   /**
-   * Builds the snapshot for a span once the inbox has reserved a slot for it. Bound to this
-   * aggregator once, at construction, so admission costs no allocation at all: the span and the
-   * schema the publish loop hoisted are the two contexts, and everything else the snapshot needs is
-   * reachable from this aggregator.
+   * Builds the snapshot for a span once the inbox has reserved a place for it, or declines the span
+   * if it is not one metrics are computed for. Bound to this aggregator once, at construction, so
+   * admission costs no allocation at all: the span and the schema the publish loop hoisted are the
+   * two contexts, and everything else the snapshot needs is reachable from this aggregator.
+   *
+   * <p>The eligibility test runs here as well as in the first pass of {@link #publish(List)},
+   * because the inbox walks the trace itself and has no way to be handed a filtered view of it
+   * without materialising one. Four field reads a second time is the price of not allocating a list
+   * per trace, and the reason the decision pass can stay separate from the admission pass.
    */
   private final BiContextualProducer<CoreSpan<?>, PeerTagSchema, InboxItem> snapshotProducer =
-      this::snapshot;
+      this::snapshotIfEligible;
+
+  private InboxItem snapshotIfEligible(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
+    return shouldComputeMetric(span, span.isTopLevel()) ? snapshot(span, peerTagSchema) : null;
+  }
 
   /**
    * Previous peer-tag schema, kept until the next reporting cycle.
@@ -424,21 +433,38 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
       // check so the common case skips both the lookup and the getResourceName() call per span.
       final boolean hasIgnoredResources = !ignoredResources.isEmpty();
+      // Two passes, because this loop answers two questions with different scopes. counted and
+      // forceKeep are about the trace: every eligible span contributes, whether or not the inbox
+      // had room for it. Admission is about the inbox: only the spans there was room for. Fused
+      // into one pass they read as one thing; separated, each pass says what it is for.
+      int limit = trace.size();
+      int position = 0;
       for (CoreSpan<?> span : trace) {
-        boolean isTopLevel = span.isTopLevel();
-        if (shouldComputeMetric(span, isTopLevel)) {
+        if (shouldComputeMetric(span, span.isTopLevel())) {
           if (hasIgnoredResources) {
             final CharSequence resourceName = span.getResourceName();
             if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
               // skip publishing all children
+              limit = position;
               break;
             }
           }
           counted++;
-          forceKeep |= publish(span, peerTagSchema);
+          forceKeep |= span.getError() > 0;
         }
+        position++;
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
+      // The inbox reserves a place before calling back, so a full inbox costs nothing beyond the
+      // claim: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. Ineligible
+      // spans are declined by the producer, which is not a drop and not counted as admitted --
+      // so counted minus admitted is exactly the eligible spans that did not fit.
+      List<? extends CoreSpan<?>> admissible =
+          limit == trace.size() ? trace : trace.subList(0, limit);
+      int admitted = inbox.tryPutBatch(admissible, peerTagSchema, snapshotProducer);
+      for (int refused = counted - admitted; refused > 0; refused--) {
+        healthMetrics.onStatsInboxFull();
+      }
     }
     return forceKeep;
   }
@@ -448,20 +474,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
-  }
-
-  private boolean publish(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
-    // The inbox reserves a slot before calling back, so a full inbox costs nothing beyond this
-    // call: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. The old racy
-    // size() >= capacity() pre-check is gone with it.
-    //
-    // A refusal is read as capacity rather than closure because the caller checked isClosed() once
-    // for the trace. A close landing mid-trace mis-attributes that trace's remaining spans, which
-    // is worth not re-reading the flag per span.
-    if (!inbox.tryPut(span, peerTagSchema, snapshotProducer)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    return span.getError() > 0;
   }
 
   /**
