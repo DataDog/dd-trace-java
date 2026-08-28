@@ -8,6 +8,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
@@ -278,6 +279,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         return;
       }
 
+      // Captured before any span is created. A non-null value here means this record is being
+      // consumed either inside a locally active trace, or under a context that the sibling
+      // ContextPropagationAdvice extracted from the record headers and attached to the scope
+      // (it is registered on the same method and runs first). Either way the spans created
+      // below will not own the resulting trace.
+      final AgentSpan localActiveSpan = activeSpan();
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
@@ -296,7 +303,15 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      if (!KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+      // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
+      // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
+      // active when we started (no local parent, no header-extracted parent) and the local root
+      // really is the first span we created here.
+      final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
+      if (!KafkaStreamsDecorator.TRACING_ENABLED
+          && traceConfig().isDataStreamsEnabled()
+          && localActiveSpan == null
+          && span.getLocalRootSpan() == ourLocalRoot) {
         span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
       }
       String applicationId = null;
@@ -347,6 +362,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         return;
       }
 
+      // Captured before any span is created. A non-null value here means this record is being
+      // consumed either inside a locally active trace, or under a context that the sibling
+      // ContextPropagationAdvice extracted from the record headers and attached to the scope
+      // (it is registered on the same method and runs first). Either way the spans created
+      // below will not own the resulting trace.
+      final AgentSpan localActiveSpan = activeSpan();
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
@@ -365,7 +386,15 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      if (!KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+      // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
+      // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
+      // active when we started (no local parent, no header-extracted parent) and the local root
+      // really is the first span we created here.
+      final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
+      if (!KafkaStreamsDecorator.TRACING_ENABLED
+          && traceConfig().isDataStreamsEnabled()
+          && localActiveSpan == null
+          && span.getLocalRootSpan() == ourLocalRoot) {
         span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
       }
       String applicationId = null;

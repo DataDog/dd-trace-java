@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
@@ -167,7 +168,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.DataS
       } else {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
         callbackParentSpan = localActiveSpan;
-        if (!KafkaDecorator.TRACING_ENABLED && Config.get().isDataStreamsEnabled()) {
+        // setSamplingPriority is trace-level: it resolves to the local root span. This 2-arg
+        // startSpan honours the active scope, so `span` may be a child of a customer trace
+        // (localActiveSpan above). Only force the DSM-only drop when `span` is the local root,
+        // otherwise we would silently drop that whole customer trace.
+        if (!KafkaDecorator.TRACING_ENABLED
+            && traceConfig().isDataStreamsEnabled()
+            && span.getLocalRootSpan() == span) {
           span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
         }
       }
