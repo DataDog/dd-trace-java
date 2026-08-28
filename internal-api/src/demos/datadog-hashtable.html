@@ -1,0 +1,2142 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive, source-grounded animation of datadog.trace.util.Hashtable internals and APIs.">
+  <title>Hashtable demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17121f;
+      --muted: #6e6678;
+      --paper: #f7f4f8;
+      --panel: #fffdfd;
+      --line: #ded7e3;
+      --line-strong: #c6bdcf;
+      --purple-950: #271638;
+      --purple-800: #492060;
+      --purple-700: #632477;
+      --purple-600: #7c3a91;
+      --purple-100: #eee3f2;
+      --purple-50: #f8f1fa;
+      --green: #19734b;
+      --green-bg: #e5f4ec;
+      --amber: #a15b00;
+      --amber-bg: #fff0d4;
+      --red: #b93a48;
+      --red-bg: #fbe7e9;
+      --blue: #176c87;
+      --blue-bg: #e1f3f7;
+      --shadow: 0 18px 50px rgba(39, 22, 56, .10);
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(99, 36, 119, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 36, 119, .035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: var(--sans);
+      line-height: 1.5;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--purple-700); }
+    code { font-family: var(--mono); }
+
+    .page-shell {
+      width: min(1480px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      margin: 20px 0 14px;
+      padding: 32px 36px 28px;
+      color: white;
+      background: var(--purple-950);
+      border: 1px solid #3b254e;
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: -80px -50px auto auto;
+      width: 320px;
+      height: 320px;
+      border: 70px solid rgba(188, 132, 203, .12);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      font-weight: 760;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      grid-template-columns: repeat(3, 7px);
+      align-items: end;
+      gap: 3px;
+      height: 22px;
+      padding: 3px 5px;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 6px;
+    }
+
+    .brand-mark i { display: block; width: 7px; background: #c793d6; border-radius: 2px 2px 0 0; }
+    .brand-mark i:nth-child(1) { height: 7px; }
+    .brand-mark i:nth-child(2) { height: 14px; }
+    .brand-mark i:nth-child(3) { height: 10px; }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      color: #dfc7e7;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .source-pill::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      background: #6cd3a4;
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(108,211,164,.12);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 910px;
+      margin-top: 42px;
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: #c793d6;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: .98;
+      letter-spacing: -.052em;
+      text-wrap: balance;
+    }
+
+    h1 code { overflow-wrap: anywhere; }
+
+    .hero-copy > p:last-of-type {
+      max-width: 760px;
+      margin: 19px 0 0;
+      color: #d9d1de;
+      font-size: clamp(15px, 1.5vw, 18px);
+    }
+
+    .fact-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 25px;
+    }
+
+    .fact {
+      padding: 7px 10px;
+      color: #ede6ef;
+      background: rgba(255,255,255,.065);
+      border: 1px solid rgba(255,255,255,.11);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .scene-nav {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin: 14px 0;
+      padding: 8px;
+      background: rgba(255,253,253,.92);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(39, 22, 56, .05);
+    }
+
+    .scene-tab {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 8px 11px;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .2s;
+    }
+
+    .scene-tab:hover { background: var(--purple-50); transform: translateY(-1px); }
+    .scene-tab[aria-selected="true"] { color: white; background: var(--purple-800); border-color: var(--purple-800); }
+
+    .scene-number {
+      display: grid;
+      place-items: center;
+      flex: 0 0 25px;
+      width: 25px;
+      height: 25px;
+      color: var(--purple-700);
+      background: var(--purple-100);
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .scene-tab[aria-selected="true"] .scene-number { color: var(--purple-950); background: white; }
+    .scene-tab-label { display: block; font-size: 12px; font-weight: 750; line-height: 1.2; }
+    .scene-tab-api { display: block; margin-top: 2px; color: var(--muted); font: 10px/1.2 var(--mono); }
+    .scene-tab[aria-selected="true"] .scene-tab-api { color: #d9c2e1; }
+
+    .workbench {
+      display: grid;
+      grid-template-columns: minmax(300px, .78fr) minmax(550px, 1.5fr);
+      min-height: 760px;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .story-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 27px 25px 20px;
+      background: #fbf8fc;
+      border-right: 1px solid var(--line);
+    }
+
+    .story-kicker {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      gap: 7px;
+      margin: 0 0 11px;
+      color: var(--purple-700);
+      font: 700 11px/1 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .story-kicker::before { content: ""; width: 19px; height: 2px; background: var(--purple-600); }
+
+    .story-panel h2 {
+      margin: 0;
+      font-size: clamp(25px, 2.4vw, 36px);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+
+    .story-description {
+      min-height: 78px;
+      margin: 14px 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .callout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      margin-bottom: 17px;
+      padding: 11px 12px;
+      background: var(--amber-bg);
+      border: 1px solid #f1d2a3;
+      border-radius: 9px;
+      color: #714100;
+      font-size: 12px;
+    }
+
+    .callout-mark {
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ddac66;
+      border-radius: 50%;
+      font: 800 11px/1 var(--mono);
+    }
+
+    .code-card {
+      min-height: 282px;
+      overflow: hidden;
+      background: #201927;
+      border: 1px solid #382c43;
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(32, 25, 39, .13);
+    }
+
+    .code-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      height: 39px;
+      padding: 0 11px 0 13px;
+      color: #b9aebf;
+      background: #19141f;
+      border-bottom: 1px solid #3b3044;
+      font: 10px/1 var(--mono);
+    }
+
+    .code-lights { display: inline-flex; gap: 5px; }
+    .code-lights i { display: block; width: 7px; height: 7px; background: #574b61; border-radius: 50%; }
+
+    .copy-button {
+      padding: 5px 8px;
+      color: #c9bdce;
+      background: transparent;
+      border: 1px solid #4c4055;
+      border-radius: 5px;
+      font: 10px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .copy-button:hover { color: white; border-color: #806a8c; }
+
+    .code-lines {
+      max-height: 360px;
+      margin: 0;
+      padding: 12px 0 13px;
+      overflow: auto;
+      color: #e5dfe8;
+      font: 11.5px/1.6 var(--mono);
+      tab-size: 2;
+    }
+
+    .code-line {
+      display: grid;
+      grid-template-columns: 31px 1fr;
+      min-width: max-content;
+      padding: 1px 14px 1px 0;
+      border-left: 3px solid transparent;
+      white-space: pre;
+      transition: background .22s, border-color .22s;
+    }
+
+    .code-line.active {
+      color: white;
+      background: rgba(169, 93, 190, .19);
+      border-left-color: #c884da;
+    }
+
+    .line-number { padding-right: 9px; color: #6f6377; text-align: right; user-select: none; }
+
+    .step-note {
+      display: grid;
+      grid-template-columns: 33px 1fr;
+      gap: 11px;
+      min-height: 78px;
+      margin: 16px 0;
+      padding: 13px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .step-note-number {
+      display: grid;
+      place-items: center;
+      width: 33px;
+      height: 33px;
+      color: white;
+      background: var(--purple-700);
+      border-radius: 9px;
+      font: 800 12px/1 var(--mono);
+    }
+
+    .step-note strong { display: block; margin: 0 0 3px; font-size: 13px; }
+    .step-note p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto auto;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .control-button {
+      display: inline-grid;
+      place-items: center;
+      height: 37px;
+      min-width: 37px;
+      padding: 0 11px;
+      background: white;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .2s;
+    }
+
+    .control-button:hover:not(:disabled) { background: var(--purple-50); border-color: var(--purple-600); transform: translateY(-1px); }
+    .control-button:disabled { opacity: .38; cursor: not-allowed; }
+    .control-button.primary { color: white; background: var(--purple-700); border-color: var(--purple-700); }
+    .control-button.primary:hover:not(:disabled) { background: var(--purple-800); }
+
+    .step-dots { display: flex; justify-content: center; gap: 6px; }
+    .step-dot { width: 7px; height: 7px; padding: 0; background: #d5cdd9; border: 0; border-radius: 50%; cursor: pointer; }
+    .step-dot.current { width: 20px; background: var(--purple-600); border-radius: 4px; }
+    .step-dot.done { background: #a77bb3; }
+
+    .speed-select {
+      height: 37px;
+      padding: 0 27px 0 9px;
+      color: var(--muted);
+      background: white;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      font: 11px/1 var(--mono);
+    }
+
+    .stage-panel {
+      min-width: 0;
+      padding: 20px;
+      background: white;
+    }
+
+    .stage-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(3, minmax(90px, auto));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .operation-card, .metric-card {
+      min-height: 62px;
+      padding: 10px 12px;
+      background: #fbf9fb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .operation-card { min-width: 0; }
+    .metric-label { display: block; margin-bottom: 4px; color: var(--muted); font: 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .operation-value { display: block; overflow: hidden; color: var(--purple-700); font: 700 13px/1.5 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .metric-value { display: block; font: 800 19px/1.2 var(--mono); }
+    .metric-value small { color: var(--muted); font-size: 10px; font-weight: 500; }
+
+    .hash-ribbon {
+      display: grid;
+      grid-template-columns: minmax(90px, 1fr) auto minmax(100px, 1fr) auto minmax(100px, 1fr) auto minmax(75px, .7fr);
+      align-items: stretch;
+      min-height: 68px;
+      margin-bottom: 13px;
+      overflow: hidden;
+      background: var(--purple-50);
+      border: 1px solid #dac9df;
+      border-radius: 10px;
+    }
+
+    .hash-cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 9px 12px; }
+    .hash-cell span { color: var(--muted); font: 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .hash-cell strong { margin-top: 5px; overflow: hidden; font: 700 12px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .hash-arrow { display: grid; place-items: center; width: 22px; color: #9e82a8; font: 17px/1 var(--mono); }
+    .hash-cell.result { color: white; background: var(--purple-700); }
+    .hash-cell.result span { color: #e3cce9; }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 205px;
+      gap: 12px;
+    }
+
+    .bucket-board {
+      position: relative;
+      min-height: 535px;
+      padding: 12px;
+      overflow: hidden;
+      background: #fcfbfc;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .board-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 9px;
+      color: var(--muted);
+      font: 10px/1 var(--mono);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .board-label .fixed-label { color: var(--red); }
+
+    .iterator-band {
+      display: flex;
+      align-items: stretch;
+      gap: 9px;
+      min-height: 52px;
+      margin-bottom: 8px;
+      padding: 7px;
+      overflow-x: auto;
+      background: var(--purple-50);
+      border: 1px solid #d7b9df;
+      border-radius: 8px;
+    }
+
+    .iterator-band[hidden] { display: none; }
+
+    .iterator-instance {
+      display: flex;
+      flex: 0 0 164px;
+      flex-direction: column;
+      justify-content: center;
+      padding: 6px 8px;
+      background: white;
+      border: 1px solid #cfc5d4;
+      border-radius: 6px;
+    }
+
+    .iterator-field span {
+      color: var(--muted);
+      font: 8px/1 var(--mono);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .iterator-instance strong {
+      color: var(--purple-700);
+      font: 700 9px/1.15 var(--mono);
+    }
+
+    .iterator-fields { display: flex; flex: 1 0 470px; gap: 6px; }
+
+    .iterator-field {
+      display: flex;
+      flex: 1 0 108px;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      padding: 6px 8px;
+      background: white;
+      border: 1px solid #cfc5d4;
+      border-radius: 6px;
+    }
+
+    .iterator-field strong {
+      margin-top: 5px;
+      color: var(--ink);
+      font: 700 10px/1.15 var(--mono);
+      overflow-wrap: anywhere;
+    }
+
+    .iterator-field.current { border-color: var(--purple-600); box-shadow: inset 0 0 0 1px var(--purple-600); }
+    .iterator-field.next { border-color: var(--amber); }
+
+    .buckets {
+      display: grid;
+      gap: 6px;
+    }
+
+    .bucket-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: stretch;
+      min-height: 55px;
+      border: 1px solid #e6e0e9;
+      border-radius: 9px;
+      transition: background .25s, border-color .25s, box-shadow .25s;
+    }
+
+    .bucket-row.scanned { background: var(--amber-bg); border-color: #eac788; }
+    .bucket-row.target { background: var(--purple-50); border-color: #b992c4; box-shadow: inset 0 0 0 1px #d7b9df; }
+    .bucket-row.hit-row { background: var(--green-bg); border-color: #94cfb0; }
+
+    .bucket-index {
+      display: grid;
+      place-items: center;
+      color: #86798e;
+      background: #f1edf3;
+      border-right: 1px solid #e0d8e4;
+      border-radius: 8px 0 0 8px;
+      font: 700 11px/1 var(--mono);
+    }
+
+    .bucket-row.target .bucket-index { color: white; background: var(--purple-700); }
+    .bucket-row.scanned .bucket-index { color: #754500; background: #f6dba9; }
+    .bucket-row.hit-row .bucket-index { color: white; background: var(--green); }
+
+    .chain {
+      display: flex;
+      align-items: center;
+      gap: 44px;
+      min-width: 0;
+      padding: 6px 10px;
+      overflow-x: auto;
+    }
+
+    .chain-null {
+      flex: 0 0 auto;
+      color: #86798e;
+      font: 700 9px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .empty-slot { color: #b4aab9; font: 10px/1 var(--mono); }
+
+    .entry-node {
+      position: relative;
+      flex: 0 0 126px;
+      min-width: 0;
+      padding: 7px 9px;
+      background: white;
+      border: 1px solid #cfc5d4;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(39,22,56,.06);
+      animation: node-in .35s ease-out both;
+      transition: border-color .25s, box-shadow .25s, opacity .25s, transform .25s;
+    }
+
+    .entry-node:not(:last-child)::after {
+      content: "next →";
+      position: absolute;
+      top: 50%;
+      left: calc(100% + 4px);
+      width: 38px;
+      color: #9b8da2;
+      font: 8px/1 var(--mono);
+      transform: translateY(-50%);
+    }
+
+    .entry-node.probe { border-color: #dc9a36; box-shadow: 0 0 0 3px rgba(220,154,54,.18); transform: translateY(-2px); }
+    .entry-node.active { border-color: var(--purple-600); box-shadow: 0 0 0 3px rgba(124,58,145,.16); transform: translateY(-2px); }
+    .entry-node.hit { border-color: #41986c; box-shadow: 0 0 0 3px rgba(65,152,108,.16); transform: translateY(-2px); }
+    .entry-node.stale { background: #f7f3f3; border-style: dashed; border-color: #c18e94; }
+    .entry-node.removing { opacity: .28; border-color: var(--red); transform: translateX(9px) rotate(1deg); }
+    .entry-node.replaced { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(23,108,135,.14); }
+
+    .node-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+    .node-type { color: var(--purple-700); font: 800 8px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    .node-hash { color: #96899d; font: 8px/1 var(--mono); }
+    .node-key { display: block; margin-top: 5px; overflow: hidden; font: 700 11px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+    .node-value { display: block; margin-top: 3px; color: var(--muted); font: 9px/1.2 var(--mono); }
+    .node-badge { position: absolute; right: 5px; bottom: 5px; width: 6px; height: 6px; border-radius: 50%; }
+    .entry-node.hit .node-badge { background: var(--green); }
+    .entry-node.probe .node-badge { background: var(--amber); }
+    .entry-node.stale .node-badge { background: var(--red); }
+
+    @keyframes node-in {
+      from { opacity: 0; transform: translateX(-9px) scale(.98); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .side-rail { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+    .rail-card {
+      padding: 12px;
+      background: #fbf9fb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .rail-card h3 { margin: 0 0 9px; color: var(--muted); font: 700 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .pointer-list { display: grid; gap: 7px; }
+    .pointer-item { display: grid; grid-template-columns: 9px 1fr; gap: 7px; align-items: start; color: var(--muted); font-size: 10px; }
+    .pointer-dot { width: 8px; height: 8px; margin-top: 3px; background: #c9becd; border-radius: 2px; }
+    .pointer-item.active { color: var(--ink); font-weight: 700; }
+    .pointer-item.active .pointer-dot { background: var(--purple-600); box-shadow: 0 0 0 3px var(--purple-100); }
+
+    .event-log {
+      flex: 1;
+      min-height: 220px;
+      max-height: 306px;
+      overflow: auto;
+      background: #201927;
+      border-color: #332a3b;
+    }
+
+    .event-log h3 { color: #9d90a5; }
+    .log-list { display: grid; gap: 8px; }
+    .log-entry { display: grid; grid-template-columns: 22px 1fr; gap: 6px; color: #bcb2c1; font: 9px/1.35 var(--mono); }
+    .log-seq { color: #745f80; }
+    .log-entry.current { color: white; }
+    .log-entry.current .log-seq { color: #d696e6; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; }
+    .legend i { width: 8px; height: 8px; border: 2px solid var(--purple-600); border-radius: 2px; }
+    .legend span:nth-child(2) i { border-color: var(--amber); }
+    .legend span:nth-child(3) i { border-color: var(--green); }
+    .legend span:nth-child(4) i { border-style: dashed; border-color: var(--red); }
+
+    .api-section {
+      margin: 46px 0 20px;
+      padding: 28px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 15px 40px rgba(39,22,56,.07);
+    }
+
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .section-head h2 { margin: 0; font-size: clamp(27px, 3vw, 42px); line-height: 1; letter-spacing: -.04em; }
+    .section-head p { max-width: 560px; margin: 0; color: var(--muted); font-size: 13px; }
+
+    .api-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; }
+    .api-tabs { display: grid; align-content: start; gap: 7px; }
+    .api-tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 9px;
+      padding: 11px 12px;
+      text-align: left;
+      background: #fbf9fb;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .api-tab::after { content: "→"; color: #9a8da0; font-family: var(--mono); }
+    .api-tab[aria-selected="true"] { color: white; background: var(--purple-800); border-color: var(--purple-800); }
+    .api-tab[aria-selected="true"]::after { color: white; }
+    .api-tab strong { font: 700 12px/1.2 var(--mono); }
+    .api-tab small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .api-tab[aria-selected="true"] small { color: #d8c7de; }
+
+    .api-content { min-height: 360px; padding: 22px; background: #fbf9fb; border: 1px solid var(--line); border-radius: 12px; }
+    .api-content h3 { margin: 0; font-size: 23px; letter-spacing: -.025em; }
+    .api-content > p { max-width: 760px; margin: 8px 0 18px; color: var(--muted); font-size: 13px; }
+    .signature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .signature { padding: 11px 12px; background: white; border: 1px solid var(--line); border-left: 3px solid #a974b7; border-radius: 7px; }
+    .signature code { display: block; overflow-x: auto; color: var(--purple-800); font-size: 11px; white-space: nowrap; }
+    .signature span { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
+
+    .tradeoff-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .tradeoff { padding: 14px; background: white; border: 1px solid var(--line); border-radius: 9px; }
+    .tradeoff .symbol { display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--purple-700); background: var(--purple-100); border-radius: 7px; font: 800 11px/1 var(--mono); }
+    .tradeoff strong { display: block; font-size: 12px; }
+    .tradeoff p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+
+    .source-section {
+      display: grid;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+      gap: 25px;
+      margin: 14px 0 45px;
+      padding: 28px;
+      color: #e8e1eb;
+      background: var(--purple-950);
+      border: 1px solid #3d2a4c;
+      border-radius: 18px;
+    }
+
+    .source-section h2 { margin: 0; color: white; font-size: 25px; letter-spacing: -.03em; }
+    .source-section p { margin: 9px 0 0; color: #bdb1c3; font-size: 12px; }
+    .source-links { display: grid; gap: 8px; }
+    .source-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; color: #e9dced; text-decoration: none; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11); border-radius: 8px; }
+    .source-link:hover { background: rgba(255,255,255,.09); }
+    .source-link code { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .source-link span { color: #c992d8; font: 12px/1 var(--mono); }
+
+    .footer-note { margin: -28px 0 40px; color: var(--muted); text-align: center; font-size: 10px; }
+
+    @media (max-width: 1120px) {
+      .page-shell { width: min(100% - 24px, 980px); }
+      .scene-nav { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
+      .workbench { grid-template-columns: 1fr; }
+      .story-panel { border-right: 0; border-bottom: 1px solid var(--line); }
+      .story-description { min-height: auto; }
+      .controls { margin-top: 16px; }
+      .stage-grid { grid-template-columns: minmax(0, 1fr) 190px; }
+    }
+
+    @media (max-width: 760px) {
+      .page-shell { width: min(100% - 16px, 680px); }
+      .hero { margin-top: 8px; padding: 23px 20px; border-radius: 14px; }
+      .hero-topline { align-items: flex-start; }
+      .source-pill { max-width: 150px; text-align: right; }
+      .hero-copy { margin-top: 35px; }
+      .scene-nav { margin: 8px 0; border-radius: 11px; }
+      .story-panel, .stage-panel { padding: 16px; }
+      .stage-head { grid-template-columns: repeat(3, 1fr); }
+      .operation-card { grid-column: 1 / -1; }
+      .hash-ribbon { grid-template-columns: 1fr; }
+      .hash-arrow { width: auto; height: 15px; transform: rotate(90deg); }
+      .hash-cell { min-height: 49px; }
+      .stage-grid { grid-template-columns: 1fr; }
+      .bucket-board { min-height: 0; }
+      .side-rail { display: grid; grid-template-columns: repeat(2, 1fr); }
+      .event-log { min-height: 160px; max-height: 210px; }
+      .legend-card { grid-column: 1 / -1; }
+      .api-section { margin-top: 25px; padding: 18px; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 10px; }
+      .api-layout { grid-template-columns: 1fr; }
+      .api-tabs { grid-template-columns: repeat(2, 1fr); }
+      .signature-grid, .tradeoff-grid { grid-template-columns: 1fr; }
+      .source-section { grid-template-columns: 1fr; padding: 20px; }
+    }
+
+    @media (max-width: 470px) {
+      .hero-topline { display: block; }
+      .source-pill { margin-top: 12px; }
+      .fact-row { display: grid; grid-template-columns: repeat(2, 1fr); }
+      .fact { text-align: center; }
+      .story-panel h2 { font-size: 27px; }
+      .controls { grid-template-columns: auto auto 1fr auto; }
+      .speed-select { grid-column: 1 / -1; width: 100%; }
+      .stage-head { grid-template-columns: 1fr 1fr; }
+      .metric-card:last-child { grid-column: 1 / -1; }
+      .bucket-row { grid-template-columns: 34px minmax(0, 1fr); }
+      .entry-node { flex-basis: 116px; }
+      .side-rail { grid-template-columns: 1fr; }
+      .legend-card { grid-column: auto; }
+      .api-tabs { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    }
+  </style>
+  <style>
+    /* Visual language shared with dd-instrument-java/docs/demos/ClassNameTrieDemo.html. */
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f1115;
+      --panel: #1a1d24;
+      --panel-2: #232730;
+      --text: #e6e8eb;
+      --cell-text: #b0b8c8;
+      --muted: #9aa3b2;
+      --accent: #4fc3f7;
+      --accent-text: #0b1014;
+      --accent-2: #ffca28;
+      --match: #50e060;
+      --nomatch: #e57373;
+      --border: #2a2f3a;
+      --code-bg: rgba(79, 195, 247, .12);
+      --read-bg: rgba(255, 202, 40, .14);
+      --match-bg: rgba(80, 224, 96, .14);
+      --fail-bg: rgba(229, 115, 115, .14);
+      --ink: var(--text);
+      --paper: var(--bg);
+      --line: var(--border);
+      --line-strong: #3a414e;
+      --purple-950: var(--bg);
+      --purple-800: #243847;
+      --purple-700: var(--accent);
+      --purple-600: var(--accent);
+      --purple-100: rgba(79, 195, 247, .14);
+      --purple-50: var(--code-bg);
+      --green: var(--match);
+      --green-bg: var(--match-bg);
+      --amber: var(--accent-2);
+      --amber-bg: var(--read-bg);
+      --red: var(--nomatch);
+      --red-bg: var(--fail-bg);
+      --blue: var(--accent);
+      --blue-bg: var(--code-bg);
+      --shadow: none;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f0f2fa;
+      --panel: #ffffff;
+      --panel-2: #eef0fa;
+      --text: #1a1d2e;
+      --cell-text: #31364a;
+      --muted: #5a5f7a;
+      --accent: #0066bb;
+      --accent-text: #ffffff;
+      --accent-2: #9a6800;
+      --match: #1a8f43;
+      --nomatch: #c03030;
+      --border: #d0d4f0;
+      --code-bg: rgba(0, 102, 187, .06);
+      --read-bg: rgba(248, 220, 0, .18);
+      --match-bg: rgba(40, 192, 80, .13);
+      --fail-bg: rgba(192, 48, 48, .12);
+      --ink: var(--text);
+      --paper: var(--bg);
+      --line: var(--border);
+      --line-strong: #b9bfda;
+      --purple-950: var(--panel);
+      --purple-800: #dce8f4;
+      --purple-700: var(--accent);
+      --purple-600: var(--accent);
+      --purple-100: rgba(0, 102, 187, .12);
+      --purple-50: var(--code-bg);
+      --green: var(--match);
+      --green-bg: var(--match-bg);
+      --amber: var(--accent-2);
+      --amber-bg: var(--read-bg);
+      --red: var(--nomatch);
+      --red-bg: var(--fail-bg);
+      --blue: var(--accent);
+      --blue-bg: var(--code-bg);
+      --shadow: none;
+    }
+
+    body {
+      color: var(--text);
+      background: var(--bg);
+      background-image: none;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .app-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      padding: 12px 24px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dd-brand {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+
+    .dd-brand svg { display: block; width: 32px; height: 32px; }
+    .header-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .header-title { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 240px; }
+    .app-header h1 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; letter-spacing: 0; }
+    .app-header .sub { color: var(--muted); font-size: 13px; }
+    .app-header .sub a { color: var(--accent); }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      gap: 7px;
+      margin-left: auto;
+      padding: 4px 2px;
+      color: var(--muted);
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .theme-toggle:hover { color: var(--text); }
+    .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+    .toggle-track { position: relative; width: 40px; height: 22px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 11px; transition: background .25s, border-color .25s; }
+    :root[data-theme="light"] .toggle-track { background: var(--accent); border-color: var(--accent); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--muted); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .25s, background .25s; }
+    :root[data-theme="light"] .toggle-knob { background: white; transform: translateX(18px); }
+
+    .page-shell { width: 100%; max-width: none; margin: 0; padding: 16px; }
+
+    .scene-nav,
+    .workbench,
+    .api-section,
+    .source-section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: none;
+    }
+
+    .scene-nav { margin: 0 0 16px; padding: 6px; }
+    .scene-tab { min-height: 48px; color: var(--text); border-radius: 6px; }
+    .scene-tab:hover { background: var(--panel-2); transform: none; }
+    .scene-tab[aria-selected="true"] { color: var(--text); background: var(--code-bg); border-color: var(--accent); }
+    .scene-number { color: var(--accent); background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; }
+    .scene-tab[aria-selected="true"] .scene-number { color: var(--accent-text); background: var(--accent); }
+    .scene-tab-api, .scene-tab[aria-selected="true"] .scene-tab-api { color: var(--muted); }
+
+    .workbench { min-height: 720px; overflow: hidden; }
+    .story-panel { padding: 16px; background: var(--panel); border-color: var(--border); }
+    .story-kicker { margin-bottom: 8px; color: var(--muted); font-size: 11px; }
+    .story-kicker::before { background: var(--accent); }
+    .story-panel h2 { font-size: 25px; letter-spacing: -.025em; }
+    .story-description { min-height: 66px; margin: 10px 0 14px; color: var(--muted); font-size: 13px; }
+    .story-description code,
+    .callout code,
+    .step-note code,
+    .api-content p code,
+    .signature span code,
+    .tradeoff p code {
+      padding: 1px 4px;
+      color: var(--accent);
+      background: var(--code-bg);
+      border-radius: 3px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .94em;
+    }
+    .callout { margin-bottom: 14px; padding: 9px 10px; color: var(--text); background: var(--read-bg); border-color: var(--accent-2); border-radius: 6px; }
+    .callout-mark { color: var(--accent-2); border-color: var(--accent-2); }
+
+    .code-card { min-height: 266px; background: var(--bg); border-color: var(--border); border-radius: 6px; box-shadow: none; }
+    .code-toolbar { color: var(--muted); background: var(--panel-2); border-color: var(--border); }
+    .code-lights i { background: var(--muted); opacity: .55; }
+    .copy-button { color: var(--cell-text); border-color: var(--border); border-radius: 4px; }
+    .copy-button:hover { color: var(--text); border-color: var(--accent); }
+    .code-lines { color: var(--cell-text); }
+    .code-line.active { color: var(--text); background: var(--code-bg); border-left-color: var(--accent); }
+    .line-number { color: var(--muted); opacity: .62; }
+
+    .code-card { order: 3; }
+    .step-note { order: 1; min-height: 72px; margin: 0 0 10px; padding: 10px; background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .step-note-number { color: var(--accent-text); background: var(--accent); border-radius: 4px; }
+    .step-note p { color: var(--muted); }
+
+    .controls { order: 2; margin: 0 0 12px; }
+    .control-button { height: 34px; min-width: 38px; color: var(--cell-text); background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .control-button:hover:not(:disabled) { color: var(--text); background: var(--panel-2); border-color: var(--accent); transform: none; }
+    .control-button.primary, .control-button.primary:hover:not(:disabled) { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+    .step-dot { background: var(--border); }
+    .step-dot.done { background: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+    .step-dot.current { background: var(--accent); }
+    .speed-select { color: var(--cell-text); background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+
+    .stage-panel { padding: 14px; background: var(--panel); }
+    .operation-card, .metric-card { min-height: 58px; padding: 9px 10px; background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .metric-label { color: var(--muted); }
+    .operation-value { color: var(--accent); }
+    .metric-value small { color: var(--muted); }
+
+    .hash-ribbon { min-height: 62px; background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .hash-cell span { color: var(--muted); }
+    .hash-arrow { color: var(--muted); }
+    .hash-cell.result { color: var(--accent-text); background: var(--accent); }
+    .hash-cell.result span { color: var(--accent-text); opacity: .75; }
+
+    .bucket-board { min-height: 535px; background: var(--panel); border-color: var(--border); border-radius: 6px; }
+    .board-label { color: var(--muted); }
+    .board-label .fixed-label { color: var(--nomatch); }
+    .iterator-band { background: var(--code-bg); border-color: var(--accent); }
+    .iterator-instance, .iterator-field { background: var(--panel); border-color: var(--border); }
+    .iterator-instance strong { color: var(--accent); }
+    .iterator-field strong { color: var(--text); }
+    .iterator-field.current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .iterator-field.next { border-color: var(--accent-2); }
+    .bucket-row { background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .bucket-row.scanned { background: var(--read-bg); border-color: var(--accent-2); }
+    .bucket-row.target { background: var(--code-bg); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .bucket-row.hit-row { background: var(--match-bg); border-color: var(--match); }
+    .bucket-index { color: var(--muted); background: var(--bg); border-color: var(--border); border-radius: 5px 0 0 5px; }
+    .bucket-row.target .bucket-index { color: var(--accent-text); background: var(--accent); }
+    .bucket-row.scanned .bucket-index { color: var(--text); background: var(--read-bg); }
+    .bucket-row.hit-row .bucket-index { color: var(--bg); background: var(--match); }
+    .empty-slot { color: var(--muted); opacity: .65; }
+    .chain-null { color: var(--muted); opacity: .8; }
+
+    .entry-node { background: var(--panel); border-color: var(--border); border-radius: 4px; box-shadow: none; }
+    .entry-node:not(:last-child)::after { color: var(--muted); }
+    .entry-node.probe { border-color: var(--accent-2); box-shadow: 0 0 0 2px var(--accent-2), 0 0 10px color-mix(in srgb, var(--accent-2) 35%, transparent); }
+    .entry-node.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent); }
+    .entry-node.hit { border-color: var(--match); box-shadow: 0 0 0 2px var(--match), 0 0 10px color-mix(in srgb, var(--match) 30%, transparent); }
+    .entry-node.stale { background: var(--fail-bg); border-color: var(--nomatch); }
+    .entry-node.removing { border-color: var(--nomatch); }
+    .entry-node.replaced { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+    .node-type { color: var(--accent); }
+    .node-hash, .node-value { color: var(--muted); }
+    .entry-node.hit .node-badge { background: var(--match); }
+    .entry-node.probe .node-badge { background: var(--accent-2); }
+    .entry-node.stale .node-badge { background: var(--nomatch); }
+
+    .rail-card { background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .rail-card h3, .pointer-item { color: var(--muted); }
+    .pointer-item.active { color: var(--text); }
+    .pointer-dot { background: var(--border); }
+    .pointer-item.active .pointer-dot { background: var(--accent); box-shadow: 0 0 0 2px var(--code-bg); }
+    .event-log { background: var(--bg); border-color: var(--border); }
+    .event-log h3 { color: var(--muted); }
+    .log-entry { color: var(--muted); }
+    .log-entry.current { color: var(--text); }
+    .log-entry.current .log-seq { color: var(--accent); }
+    .legend span { color: var(--muted); }
+    .legend i { border-color: var(--accent); }
+    .legend span:nth-child(2) i { border-color: var(--accent-2); }
+    .legend span:nth-child(3) i { border-color: var(--match); }
+    .legend span:nth-child(4) i { border-color: var(--nomatch); }
+
+    .api-section { margin: 16px 0; padding: 16px; }
+    .eyebrow { color: var(--accent); }
+    .section-head h2 { font-size: 28px; }
+    .section-head p { color: var(--muted); }
+    .api-tab { color: var(--text); background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .api-tab::after { color: var(--muted); }
+    .api-tab[aria-selected="true"] { color: var(--text); background: var(--code-bg); border-color: var(--accent); }
+    .api-tab[aria-selected="true"]::after { color: var(--accent); }
+    .api-tab small, .api-tab[aria-selected="true"] small { color: var(--muted); }
+    .api-content { background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .api-content > p { color: var(--muted); }
+    .signature, .tradeoff { background: var(--panel); border-color: var(--border); border-radius: 4px; }
+    .signature { border-left-color: var(--accent); }
+    .signature code { color: var(--accent); }
+    .signature span, .tradeoff p { color: var(--muted); }
+    .tradeoff .symbol { color: var(--accent); background: var(--code-bg); border-radius: 4px; }
+
+    .source-section { margin: 0 0 16px; padding: 16px; color: var(--text); background: var(--panel); border-color: var(--border); }
+    .source-section h2 { color: var(--text); }
+    .source-section p { color: var(--muted); }
+    .source-link { color: var(--cell-text); background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .source-link:hover { background: var(--code-bg); border-color: var(--accent); }
+    .source-link span { color: var(--accent); }
+    .footer-note { margin: 0 0 8px; color: var(--muted); }
+
+    :root.no-transition *,
+    :root.no-transition *::before,
+    :root.no-transition *::after { transition: none !important; }
+
+    @media (max-width: 760px) {
+      .page-shell { padding: 10px; }
+      .story-panel, .stage-panel { padding: 12px; }
+      .api-section { padding: 12px; }
+    }
+
+    @media (max-width: 600px) {
+      .app-header { padding: 10px 12px; }
+      .app-header .sub { width: 100%; }
+      .controls .control-button { width: 44px; min-width: 44px; height: 44px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .toggle-track, .toggle-knob { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <a href="https://www.datadoghq.com/" class="dd-brand" target="_blank" rel="noopener noreferrer" aria-label="Datadog">
+      <svg viewBox="0 0 32 32" role="img" aria-hidden="true">
+        <rect width="32" height="32" rx="6" fill="#774AA4"/>
+        <path fill="#fff" d="M7 8h8.2c6.3 0 10.3 3 10.3 8s-4 8-10.3 8H7V8zm5.2 4v8h2.7c3.4 0 5.3-1.3 5.3-4s-1.9-4-5.3-4h-2.7z"/>
+      </svg>
+    </a>
+    <span class="header-divider" aria-hidden="true"></span>
+    <div class="header-title">
+      <h1>Hashtable demo</h1>
+      <span class="sub">Animated walkthrough of <code>datadog.trace.util.Hashtable</code> from
+        <a href="../main/java/datadog/trace/util/Hashtable.java">dd-trace-java</a>.
+      </span>
+    </div>
+    <button id="themeBtn" class="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme" aria-pressed="true">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+      </svg>
+      <span class="toggle-track"><span class="toggle-knob"></span></span>
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="3" fill="currentColor"/>
+        <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M10 1v2M10 17v2M1 10h2M17 10h2M3.636 3.636l1.414 1.414M14.95 14.95l1.414 1.414M14.95 5.05l1.414-1.414M3.636 16.364l1.414-1.414"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="page-shell">
+
+    <nav class="scene-nav" id="sceneNav" aria-label="Animation scenarios"></nav>
+
+    <section class="workbench" aria-label="Hashtable animation workbench">
+      <article class="story-panel">
+        <p class="story-kicker" id="storyKicker"></p>
+        <h2 id="storyTitle"></h2>
+        <p class="story-description" id="storyDescription"></p>
+        <div class="callout" id="storyCallout"><span class="callout-mark">!</span><span id="calloutText"></span></div>
+
+        <div class="code-card">
+          <div class="code-toolbar">
+            <span class="code-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span id="codeLabel">Java</span>
+            <button class="copy-button" id="copyCode" type="button">copy</button>
+          </div>
+          <pre class="code-lines" id="codeLines" aria-label="Java code for current scenario"></pre>
+        </div>
+
+        <div class="step-note" aria-live="polite">
+          <span class="step-note-number" id="stepNumber"></span>
+          <div><strong id="stepTitle"></strong><p id="stepExplanation"></p></div>
+        </div>
+
+        <div class="controls" aria-label="Animation controls">
+          <button class="control-button" id="previousStep" type="button" aria-label="Previous step">←</button>
+          <button class="control-button primary" id="playPause" type="button" aria-label="Play animation">▶</button>
+          <div class="step-dots" id="stepDots" aria-label="Choose animation step"></div>
+          <button class="control-button" id="nextStep" type="button" aria-label="Next step">→</button>
+          <select class="speed-select" id="speedSelect" aria-label="Animation speed">
+            <option value="1800">0.75×</option>
+            <option value="1300" selected>1×</option>
+            <option value="850">1.5×</option>
+          </select>
+        </div>
+      </article>
+
+      <article class="stage-panel">
+        <div class="stage-head">
+          <div class="operation-card"><span class="metric-label">Current operation</span><strong class="operation-value" id="operationValue"></strong></div>
+          <div class="metric-card"><span class="metric-label">size</span><strong class="metric-value" id="sizeValue"></strong></div>
+          <div class="metric-card"><span class="metric-label">buckets</span><strong class="metric-value" id="bucketValue"></strong></div>
+          <div class="metric-card"><span class="metric-label">load</span><strong class="metric-value" id="loadValue"></strong></div>
+        </div>
+
+        <div class="hash-ribbon" aria-label="Hash to bucket calculation">
+          <div class="hash-cell"><span>key input</span><strong id="hashKey"></strong></div>
+          <div class="hash-arrow" aria-hidden="true">→</div>
+          <div class="hash-cell"><span>keyHash</span><strong id="hashValue"></strong></div>
+          <div class="hash-arrow" aria-hidden="true">→</div>
+          <div class="hash-cell"><span>bit mask</span><strong id="maskValue"></strong></div>
+          <div class="hash-arrow" aria-hidden="true">→</div>
+          <div class="hash-cell result"><span>bucket</span><strong id="bucketResult"></strong></div>
+        </div>
+
+        <div class="stage-grid">
+          <div class="bucket-board">
+            <div class="board-label"><span>Hashtable.Entry[] buckets</span><span class="fixed-label">fixed · no resize</span></div>
+            <div class="iterator-band" id="iteratorBand" aria-label="MutatingBucketIterator state" hidden>
+              <div class="iterator-instance"><strong>MutatingBucketIterator</strong></div>
+              <div class="iterator-fields" id="iteratorFields"></div>
+            </div>
+            <div class="buckets" id="buckets"></div>
+          </div>
+
+          <aside class="side-rail">
+            <section class="rail-card">
+              <h3>Pointer state</h3>
+              <div class="pointer-list" id="pointerList"></div>
+            </section>
+            <section class="rail-card event-log">
+              <h3>Operation trace</h3>
+              <div class="log-list" id="eventLog"></div>
+            </section>
+            <section class="rail-card legend-card">
+              <h3>Legend</h3>
+              <div class="legend"><span><i></i> active</span><span><i></i> probing</span><span><i></i> hit</span><span><i></i> stale</span></div>
+            </section>
+          </aside>
+        </div>
+      </article>
+    </section>
+
+    <section class="api-section" id="apiReference">
+      <div class="section-head">
+        <div><p class="eyebrow">API map</p><h2>Choose the smallest useful surface</h2></div>
+        <p><code>D1</code> and <code>D2</code> own size accounting. <code>Support</code> exposes the chain mechanics for custom higher-arity entries; its caller owns size and capacity policy.</p>
+      </div>
+      <div class="api-layout">
+        <div class="api-tabs" id="apiTabs" role="tablist" aria-label="Hashtable API families"></div>
+        <div class="api-content" id="apiContent" role="tabpanel"></div>
+      </div>
+    </section>
+
+    <section class="source-section">
+      <div>
+        <p class="eyebrow">Trace it in the checkout</p>
+        <h2>Every animation maps to current source.</h2>
+        <p>The visual table uses eight buckets for readability. Production call sites choose their own fixed capacities—such as 64 tag buckets or a scaled aggregate working set.</p>
+      </div>
+      <div class="source-links">
+        <a class="source-link" href="../main/java/datadog/trace/util/Hashtable.java"><code>internal-api/…/util/Hashtable.java</code><span>↗</span></a>
+        <a class="source-link" href="../../../dd-trace-core/src/main/java/datadog/trace/common/metrics/CardinalityLimitReporter.java"><code>dd-trace-core/…/CardinalityLimitReporter.java</code><span>↗</span></a>
+        <a class="source-link" href="../../../dd-trace-core/src/main/java/datadog/trace/common/metrics/AggregateTable.java"><code>dd-trace-core/…/AggregateTable.java</code><span>↗</span></a>
+      </div>
+    </section>
+    <p class="footer-note">Standalone file · no libraries, fonts, analytics, or network requests</p>
+  </main>
+
+  <script>
+    "use strict";
+
+    const BUCKETS = 8;
+
+    const node = (bucket, id, key, value, hash, state = "", type = "Entry") => ({
+      bucket, id, key, value, hash, state, type
+    });
+
+    const step = (title, explanation, operation, nodes, options = {}) => ({
+      title, explanation, operation, nodes,
+      activeLines: options.activeLines || [],
+      key: options.key ?? "—",
+      hash: options.hash ?? "—",
+      bucket: options.bucket ?? "—",
+      rowState: options.rowState || {},
+      pointers: options.pointers || [],
+      log: options.log || title,
+      size: options.size ?? nodes.filter(n => n.state !== "removing").length,
+      requested: options.requested || "8",
+      bucketNote: options.bucketNote || "",
+      iterator: options.iterator || null,
+      load: options.load,
+      mask: options.mask
+    });
+
+    const scenarios = [
+      {
+        id: "d1",
+        tab: "Single key",
+        api: "D1 · insert / get",
+        kicker: "Scenario 01 · D1",
+        title: "Follow bucket chains, collide, mutate",
+        description: "Each array slot stores the head of a singly linked `Entry` chain. Hash masking chooses the slot; the full `keyHash` and then `matches(key)` identify an entry within that chain.",
+        callout: "`bucket[1]` is an array slot containing an `Entry` reference. `D1.insert` links the new entry to the current value, then stores the new entry in that slot.",
+        codeLabel: "D1 counter entry",
+        code: [
+          "final class CounterEntry extends Hashtable.D1.Entry<CollidingKey> {",
+          "  long count;",
+          "  CounterEntry(CollidingKey key) { super(key); }",
+          "}",
+          "",
+          "Hashtable.D1<CollidingKey, CounterEntry> table =",
+          "    new Hashtable.D1<>(6);",
+          "var first  = new CollidingKey(\"first\", 17);",
+          "var second = new CollidingKey(\"second\", 17);",
+          "var masked = new CollidingKey(\"masked\", 9);",
+          "var third  = new CollidingKey(\"third\", 2);",
+          "var fourth = new CollidingKey(\"fourth\", 7);",
+          "table.insert(new CounterEntry(first));",
+          "table.insert(new CounterEntry(second));",
+          "table.insert(new CounterEntry(masked));",
+          "table.insert(new CounterEntry(third));",
+          "table.insert(new CounterEntry(fourth));",
+          "CounterEntry hit = table.get(first);",
+          "hit.count++;"
+        ],
+        steps: [
+          step("Allocate the bucket array", "`Support.create(6)` rounds the requested capacity up to the next power of two: eight buckets. It never grows later.", "new Hashtable.D1<>(6)", [], {
+            activeLines: [5, 6], requested: "6 → 8", key: "capacity = 6", hash: "sizeFor(6)", bucket: "8 slots", mask: "next power of 2", log: "create(6) → Entry[8]"
+          }),
+          step("Insert the first entry", "hash 17 is masked with 7, so first is stored in bucket 1.", "insert(first)", [node(1, "first", "first", "count = 0", 17, "active", "D1.Entry")], {
+            activeLines: [12], key: "first", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → first", "first.next → null"], requested: "6 → 8", log: "insertHeadEntry(bucket 1, first)"
+          }),
+          step("Prepend a collision", "second is unequal but has the same hash. `insertHeadEntry` links `second.next` to first, then stores second in the array slot.", "insert(second)", [
+            node(1, "second", "second", "count = 0", 17, "active", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry")
+          ], {
+            activeLines: [13], key: "second", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → second", "second.next → first", "first.next → null"], requested: "6 → 8", log: "bucket[1] → second → first → null"
+          }),
+          step("Mask a different hash to bucket 1", "masked has hash 9, while the existing entries have hash 17. Both `9 & 7` and `17 & 7` equal 1, so all three nodes share the same bucket chain.", "insert(masked)", [
+            node(1, "masked", "masked", "count = 0", 9, "active", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry")
+          ], {
+            activeLines: [14], key: "masked", hash: "9", bucket: 1, mask: "9 & 7", rowState: {1: "target"}, pointers: ["bucket[1] → masked", "masked.next → second", "different full hashes · same slot"], requested: "6 → 8", log: "9 & 7 = 17 & 7 = bucket 1"
+          }),
+          step("Spread into bucket 2", "third has hash 2. Masking with 7 keeps the low bits unchanged, so it is stored independently in bucket 2.", "insert(third)", [
+            node(1, "masked", "masked", "count = 0", 9, "", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "active", "D1.Entry")
+          ], {
+            activeLines: [15], key: "third", hash: "2", bucket: 2, rowState: {2: "target"}, pointers: ["bucket[1] → masked", "bucket[2] → third", "third.next → null"], requested: "6 → 8", log: "insertHeadEntry(bucket 2, third)"
+          }),
+          step("Spread into bucket 7", "fourth has hash 7, so it lands at the other end of the eight-slot array without touching either existing chain.", "insert(fourth)", [
+            node(1, "masked", "masked", "count = 0", 9, "", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "", "D1.Entry"),
+            node(7, "fourth", "fourth", "count = 0", 7, "active", "D1.Entry")
+          ], {
+            activeLines: [16], key: "fourth", hash: "7", bucket: 7, rowState: {7: "target"}, pointers: ["bucket[1] → masked", "bucket[2] → third", "bucket[7] → fourth"], requested: "6 → 8", log: "insertHeadEntry(bucket 7, fourth)"
+          }),
+          step("Skip a masked collision", "`get(first)` starts with the entry referenced by bucket 1. masked shares the slot but its full `keyHash` is 9, so lookup skips it without calling `matches(first)`.", "get(first) · hash filter", [
+            node(1, "masked", "masked", "keyHash 9 ≠ 17 · skip", 9, "probe", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "", "D1.Entry"),
+            node(7, "fourth", "fourth", "count = 0", 7, "", "D1.Entry")
+          ], {
+            activeLines: [17], key: "first", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → masked", "candidate.keyHash = 9", "matches(first) not called"], requested: "6 → 8", log: "skip masked · full hash differs"
+          }),
+          step("Test an exact-hash candidate", "second has the required `keyHash` 17, so lookup calls `matches(first)`. The keys are unequal and traversal follows `second.next`.", "get(first) · matches", [
+            node(1, "masked", "masked", "keyHash differs · skipped", 9, "", "D1.Entry"),
+            node(1, "second", "second", "matches? false", 17, "probe", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "", "D1.Entry"),
+            node(7, "fourth", "fourth", "count = 0", 7, "", "D1.Entry")
+          ], {
+            activeLines: [17], key: "first", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["candidate → second", "candidate.keyHash = 17", "matches(first) = false"], requested: "6 → 8", log: "probe second · equality miss"
+          }),
+          step("Return the exact entry", "The third node has the same precomputed `keyHash` and `matches(first)`, so `get` returns that stored object.", "get(first) · hit", [
+            node(1, "masked", "masked", "keyHash differs · skipped", 9, "", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 0", 17, "hit", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "", "D1.Entry"),
+            node(7, "fourth", "fourth", "count = 0", 7, "", "D1.Entry")
+          ], {
+            activeLines: [17], key: "first", hash: "17", bucket: 1, rowState: {1: "hit-row"}, pointers: ["candidate → first", "keyHash = 17 ✓", "matches(first) ✓"], requested: "6 → 8", log: "return first entry"
+          }),
+          step("Mutate in place", "The caller increments a field on the returned entry. No boxed `Long` and no replacement entry are required.", "hit.count++", [
+            node(1, "masked", "masked", "count = 0", 9, "", "D1.Entry"),
+            node(1, "second", "second", "count = 0", 17, "", "D1.Entry"),
+            node(1, "first", "first", "count = 1", 17, "hit", "D1.Entry"),
+            node(2, "third", "third", "count = 0", 2, "", "D1.Entry"),
+            node(7, "fourth", "fourth", "count = 0", 7, "", "D1.Entry")
+          ], {
+            activeLines: [18], key: "first", hash: "17", bucket: 1, rowState: {1: "hit-row"}, pointers: ["hit === first entry", "write count: 0 → 1", "all bucket links unchanged"], requested: "6 → 8", log: "mutate first.count in place"
+          })
+        ]
+      },
+      {
+        id: "d2",
+        tab: "Composite key",
+        api: "D2 · get(k1, k2)",
+        kicker: "Scenario 02 · D2",
+        title: "Two keys, no Pair allocation",
+        description: "`D2` carries both key parts in each entry. `LongHashingUtils` combines their ordinary hash codes as `31L × hash(k1) + hash(k2)`, and `matches` compares both parts.",
+        callout: "Null `D2` key parts contribute 0 to the combined hash. Chain equality still distinguishes colliding combinations.",
+        codeLabel: "D2 route metrics",
+        code: [
+          "final class RouteEntry extends Hashtable.D2.Entry<String, Integer> {",
+          "  long count;",
+          "  RouteEntry(String method, Integer status) { super(method, status); }",
+          "}",
+          "",
+          "Hashtable.D2<String, Integer, RouteEntry> table =",
+          "    new Hashtable.D2<>(8);",
+          "table.insert(new RouteEntry(\"GET\", 200));",
+          "table.insert(new RouteEntry(\"GET\", 500));",
+          "table.insert(new RouteEntry(\"POST\", 200));",
+          "RouteEntry errors = table.get(\"GET\", 500);",
+          "errors.count++;"
+        ],
+        steps: [
+          step("Start a D2 table", "The bucket storage is identical to `D1`. Only hashing and `matches` understand two key parts.", "new Hashtable.D2<>(8)", [], {
+            activeLines: [5, 6], key: "capacity = 8", hash: "sizeFor(8)", bucket: "8 slots", mask: "next power of 2", log: "create D2 backing array"
+          }),
+          step("Combine GET and 200", "`D2` hashes both parts directly. The lookup path does not need to allocate a `Pair` or record.", "insert(\"GET\", 200)", [node(2, "get200", "GET · 200", "count = 0", 2184274, "active", "D2.Entry")], {
+            activeLines: [7], key: "(GET, 200)", hash: "2,184,274", bucket: 2, rowState: {2: "target"}, pointers: ["key1 → GET", "key2 → 200", "bucket[2] → entry"], log: "31 × 70,454 + 200"
+          }),
+          step("The second key changes identity", "GET/500 has the same first key, but a different combined hash and bucket.", "insert(\"GET\", 500)", [
+            node(6, "get500", "GET · 500", "count = 0", 2184574, "active", "D2.Entry"),
+            node(2, "get200", "GET · 200", "count = 0", 2184274, "", "D2.Entry")
+          ], {
+            activeLines: [8], key: "(GET, 500)", hash: "2,184,574", bucket: 6, rowState: {6: "target"}, pointers: ["key1 → GET", "key2 → 500", "bucket[6] → entry"], log: "31 × 70,454 + 500"
+          }),
+          step("A different method joins", "POST/200 hashes independently. Each entry holds its two key fields beside mutable counter state.", "insert(\"POST\", 200)", [
+            node(6, "get500", "GET · 500", "count = 0", 2184574, "", "D2.Entry"),
+            node(2, "get200", "GET · 200", "count = 0", 2184274, "", "D2.Entry"),
+            node(0, "post200", "POST · 200", "count = 0", 76317736, "active", "D2.Entry")
+          ], {
+            activeLines: [9], key: "(POST, 200)", hash: "76,317,736", bucket: 0, rowState: {0: "target"}, pointers: ["key1 → POST", "key2 → 200", "bucket[0] → entry"], log: "insert POST/200"
+          }),
+          step("Lookup compares both keys", "`get(\"GET\", 500)` computes the same 64-bit hash and then requires `matches(GET, 500)`.", "get(\"GET\", 500)", [
+            node(6, "get500", "GET · 500", "count = 0", 2184574, "hit", "D2.Entry"),
+            node(2, "get200", "GET · 200", "count = 0", 2184274, "", "D2.Entry"),
+            node(0, "post200", "POST · 200", "count = 0", 76317736, "", "D2.Entry")
+          ], {
+            activeLines: [10], key: "(GET, 500)", hash: "2,184,574", bucket: 6, rowState: {6: "hit-row"}, pointers: ["candidate.keyHash ✓", "key1 equals GET ✓", "key2 equals 500 ✓"], log: "return GET/500 entry"
+          }),
+          step("Update without a composite object", "The returned `RouteEntry` is the stored node, so its counter changes in place.", "errors.count++", [
+            node(6, "get500", "GET · 500", "count = 1", 2184574, "hit", "D2.Entry"),
+            node(2, "get200", "GET · 200", "count = 0", 2184274, "", "D2.Entry"),
+            node(0, "post200", "POST · 200", "count = 0", 76317736, "", "D2.Entry")
+          ], {
+            activeLines: [11], key: "(GET, 500)", hash: "2,184,574", bucket: 6, rowState: {6: "hit-row"}, pointers: ["errors → stored entry", "write count: 0 → 1", "no Pair allocation"], log: "mutate errors.count"
+          })
+        ]
+      },
+      {
+        id: "create",
+        tab: "Counter pattern",
+        api: "getOrCreate / forEach",
+        kicker: "Scenario 03 · production D1",
+        title: "Accumulate, summarize, clear",
+        description: "`CardinalityLimitReporter` uses `D1` as a tag-name counter table. `getOrCreate` hashes once, walks one linked chain, creates only after a miss, and returns the stored mutable entry either way.",
+        callout: "The creator must build an entry for the same key: `TagBlockEntry::new` calls `super(tag)`, so the returned `Entry.keyHash` matches the lookup hash. The real table has 64 buckets; eight are shown here.",
+        codeLabel: "CardinalityLimitReporter",
+        code: [
+          "final class TagBlockEntry extends Hashtable.D1.Entry<String> {",
+          "  long count;",
+          "  TagBlockEntry(String tag) { super(tag); }",
+          "}",
+          "",
+          "private final Hashtable.D1<String, TagBlockEntry> blockedByTag =",
+          "    new Hashtable.D1<>(TAG_CAPACITY); // 64",
+          "",
+          "void record(String tag, long count) {",
+          "  if (count > 0) {",
+          "    blockedByTag.getOrCreate(tag, TagBlockEntry::new).count += count;",
+          "  }",
+          "}",
+          "",
+          "blockedByTag.forEach(builder, (into, entry) ->",
+          "    into.append(entry.key()).append('=').append(entry.count));",
+          "blockedByTag.clear();"
+        ],
+        steps: [
+          step("The reporter starts empty", "A fixed `D1` table lives across reporting cycles; only its entries are cleared after a log is emitted.", "new D1<>(TAG_CAPACITY)", [], {
+            activeLines: [5, 6], requested: "64 (8 shown)", key: "TAG_CAPACITY", hash: "sizeFor(64)", bucket: "64 slots", mask: "power of 2", log: "reporter table ready"
+          }),
+          step("Hash once and probe the chain", "`getOrCreate(\"env\")` computes hash 100,589 and reads its selected bucket. `bucket[5] → null` is a miss, but the creator has not run during lookup.", "getOrCreate(\"env\") · lookup", [], {
+            activeLines: [8, 9, 10], key: "env", hash: "100,589", bucket: 5, mask: "100589 & 7", rowState: {5: "target"}, pointers: ["bucket[5] → null", "lookup → miss", "creator not called while probing"], requested: "64 (8 shown)", log: "hash env once · reach null"
+          }),
+          step("Create and prepend after the miss", "Only now does `getOrCreate` call `TagBlockEntry::new`. Its constructor passes env to `super(tag)`, producing the same `keyHash`; the new node is stored in bucket 5.", "TagBlockEntry::new · insert", [node(5, "env", "env", "count = 0", 100589, "active", "TagBlock")], {
+            activeLines: [0, 1, 2, 10], key: "env", hash: "100,589", bucket: 5, mask: "100589 & 7", rowState: {5: "target"}, pointers: ["creator.apply(env) → entry", "entry.keyHash = lookup hash", "bucket[5] → env → null"], requested: "64 (8 shown)", log: "create env · prepend at bucket 5"
+          }),
+          step("Mutate the returned entry", "`getOrCreate` returns the newly stored `TagBlockEntry`. The caller then adds three directly to its mutable `count` field.", "returned.count += 3", [node(5, "env", "env", "count = 3", 100589, "hit", "TagBlock")], {
+            activeLines: [10], key: "env", hash: "100,589", bucket: 5, mask: "100589 & 7", rowState: {5: "hit-row"}, pointers: ["returned === bucket[5]", "count: 0 → 3", "no second hash computation"], requested: "64 (8 shown)", log: "return env · add 3"
+          }),
+          step("A second tag is created", "service shares the same low three hash bits in this compact view. It is stored in bucket 5 and links to the existing env entry.", "record(\"service\", 2)", [
+            node(5, "service", "service", "count = 2", 1984153269, "active", "TagBlock"),
+            node(5, "env", "env", "count = 3", 100589, "", "TagBlock")
+          ], {
+            activeLines: [8, 9, 10], key: "service", hash: "1,984,153,269", bucket: 5, rowState: {5: "target"}, pointers: ["bucket[5] → service", "service.next → env", "different full hashes · same slot"], requested: "64 (8 shown)", log: "create service · prepend · add 2"
+          }),
+          step("A hit skips the creator", "The service node shares bucket 5 but has another full hash, so lookup skips it without `matches`. The env node then matches; `TagBlockEntry::new` is not called and the caller adds four.", "record(\"env\", 4)", [
+            node(5, "service", "service", "keyHash differs · skip", 1984153269, "probe", "TagBlock"),
+            node(5, "env", "env", "count = 7", 100589, "hit", "TagBlock")
+          ], {
+            activeLines: [8, 9, 10], key: "env", hash: "100,589", bucket: 5, rowState: {5: "hit-row"}, pointers: ["service.keyHash differs → skip", "env.matches(env) → true", "creator skipped · count: 3 → 7"], requested: "64 (8 shown)", log: "reuse env · skip creator · add 4"
+          }),
+          step("forEach carries context", "The `StringBuilder` is passed as context to a non-capturing `BiConsumer`, avoiding a fresh capturing-lambda allocation at this call site.", "forEach(builder, consumer)", [
+            node(5, "service", "service", "emit service=2", 1984153269, "probe", "TagBlock"),
+            node(5, "env", "env", "emit env=7", 100589, "probe", "TagBlock")
+          ], {
+            activeLines: [14, 15], key: "all entries", hash: "bucket order", bucket: "0 → 7", mask: "full sweep", rowState: {5: "scanned"}, pointers: ["context → builder", "consumer is non-capturing", "result → service=2, env=7"], requested: "64 (8 shown)", log: "summarize every entry"
+          }),
+          step("Clear only after logging", "`Support.clear` fills the bucket array with null and `D1` resets size to zero. The fixed array remains allocated for reuse.", "blockedByTag.clear()", [], {
+            activeLines: [16], key: "all buckets", hash: "Arrays.fill", bucket: "all → null", mask: "reuse array", requested: "64 (8 shown)", pointers: ["buckets[i] → null for every i", "size → 0", "Entry[] retained"], log: "clear entries · keep buckets"
+          })
+        ]
+      },
+      {
+        id: "mutate",
+        tab: "Chain surgery",
+        api: "insertOrReplace / remove",
+        kicker: "Scenario 04 · mutating iterator",
+        title: "Replace and unlink in O(1)",
+        description: "`MutatingBucketIterator` remembers predecessor pointers. After a matching node is found, `replace` or `remove` can splice the chain without walking from its head again.",
+        callout: "The band shows the four references held by `MutatingBucketIterator`; each `CounterEntry` card keeps showing its payload. Replacement and removal detach the old node by setting `oldEntry.next` to null.",
+        codeLabel: "D1 mutation APIs",
+        code: [
+          "table.insert(new CounterEntry(first, 10));",
+          "table.insert(new CounterEntry(second, 20));",
+          "table.insert(new CounterEntry(third, 30)); // all hash 17",
+          "",
+          "CounterEntry prior =",
+          "    table.insertOrReplace(new CounterEntry(second, 99));",
+          "// prior.next() == null after replacement",
+          "",
+          "CounterEntry removed = table.remove(first);",
+          "// removed.next() == null after unlink"
+        ],
+        steps: [
+          step("Build one collision chain", "Three controlled keys share hash 17. Because insertion prepends, their order is third → second → first.", "insert(first, second, third)", [
+            node(1, "third", "third", "value = 30", 17, "", "CounterEntry"),
+            node(1, "second", "second", "value = 20", 17, "", "CounterEntry"),
+            node(1, "first", "first", "value = 10", 17, "", "CounterEntry")
+          ], {
+            activeLines: [0, 1, 2], key: "3 colliding keys", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → third", "third → second", "second → first"], log: "chain length = 3"
+          }),
+          step("Reject the first candidate", "`insertOrReplace` creates a mutating bucket iterator. Its first `next()` returns third; `third.matches(second)` is false, while second has already been prepared as `nextEntry`.", "iter.next() · third", [
+            node(1, "third", "third", "value = 30", 17, "probe", "CounterEntry"),
+            node(1, "second", "second", "value = 20", 17, "", "CounterEntry"),
+            node(1, "first", "first", "value = 10", 17, "", "CounterEntry")
+          ], {
+            activeLines: [4, 5], key: "second", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → third", "third.next → second", "second.next → first"], iterator: [
+              {name: "curPrevEntry", target: "null"},
+              {name: "curEntry", target: "third", state: "current"},
+              {name: "nextPrevEntry", target: "third"},
+              {name: "nextEntry", target: "second", state: "next"}
+            ], log: "third.matches(second) → false"
+          }),
+          step("Match the replacement slot", "The next `next()` advances to second. third becomes `curPrevEntry`, first becomes `nextEntry`, and `second.matches(second)` succeeds.", "iter.next() · second", [
+            node(1, "third", "third", "value = 30", 17, "", "CounterEntry"),
+            node(1, "second", "second", "value = 20", 17, "hit", "CounterEntry"),
+            node(1, "first", "first", "value = 10", 17, "", "CounterEntry")
+          ], {
+            activeLines: [4, 5], key: "second", hash: "17", bucket: 1, rowState: {1: "hit-row"}, pointers: ["bucket[1] → third", "third.next → second", "second.next → first"], iterator: [
+              {name: "curPrevEntry", target: "third"},
+              {name: "curEntry", target: "second", state: "current"},
+              {name: "nextPrevEntry", target: "second"},
+              {name: "nextEntry", target: "first", state: "next"}
+            ], log: "second.matches(second) → true"
+          }),
+          step("Splice in the replacement", "`third.next` is redirected to the new second entry; `replacement.next` takes old `second.next`. Size stays three and the prior entry is returned detached.", "iter.replace(replacement)", [
+            node(1, "third", "third", "value = 30", 17, "", "CounterEntry"),
+            node(1, "second99", "second", "value = 99", 17, "replaced", "replacement"),
+            node(1, "first", "first", "value = 10", 17, "", "CounterEntry")
+          ], {
+            activeLines: [4, 5, 6], key: "second", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["third.next → replacement", "replacement.next → first", "prior.next → null"], iterator: [
+              {name: "curPrevEntry", target: "third"},
+              {name: "curEntry", target: "second (replaced)", state: "current"},
+              {name: "nextPrevEntry", target: "second (replaced)"},
+              {name: "nextEntry", target: "first", state: "next"}
+            ], log: "replace middle · size unchanged"
+          }),
+          step("Find a node to remove", "`remove(first)` creates another iterator over the same hash chain. It arrives at the tail with second (replaced) as its predecessor.", "remove(first)", [
+            node(1, "third", "third", "value = 30", 17, "", "CounterEntry"),
+            node(1, "second99", "second", "value = 99", 17, "probe", "replacement"),
+            node(1, "first", "first", "value = 10", 17, "active", "CounterEntry")
+          ], {
+            activeLines: [8], key: "first", hash: "17", bucket: 1, rowState: {1: "target"}, pointers: ["bucket[1] → third", "replacement.next → first", "first.next → null"], iterator: [
+              {name: "curPrevEntry", target: "second (replaced)"},
+              {name: "curEntry", target: "first", state: "current"},
+              {name: "nextPrevEntry", target: "first"},
+              {name: "nextEntry", target: "null", state: "next"}
+            ], log: "matches(first) at chain tail"
+          }),
+          step("Unlink and detach", "`replacement.next` becomes null, the removed first entry is detached, and `D1` decrements size.", "iter.remove()", [
+            node(1, "third", "third", "value = 30", 17, "", "CounterEntry"),
+            node(1, "second99", "second", "value = 99", 17, "hit", "replacement")
+          ], {
+            activeLines: [8, 9], key: "first", hash: "17", bucket: 1, rowState: {1: "hit-row"}, pointers: ["replacement.next → null", "removed.next → null", "size: 3 → 2"], iterator: [
+              {name: "curPrevEntry", target: "second (replaced)"},
+              {name: "curEntry", target: "null", state: "current"},
+              {name: "nextPrevEntry", target: "second (replaced)"},
+              {name: "nextEntry", target: "null", state: "next"}
+            ], log: "unlink first · return detached entry"
+          })
+        ]
+      },
+      {
+        id: "support",
+        tab: "Custom table",
+        api: "Support · eviction sweep",
+        kicker: "Scenario 05 · production Support",
+        title: "AggregateTable owns the policy",
+        description: "Metric `AggregateTable` retains aggregate identities across reporting cycles. `Support` supplies fixed buckets and unlinking; `AggregateTable` decides that an entry is stale when its current-cycle `hitCount` remains zero.",
+        callout: "`record(…)` abbreviates the caller's `findOrInsert` plus `recordOneDuration` path. Controlled hashes keep the eight-slot view readable; `maxAggregates = 4` remains the independent logical cap.",
+        codeLabel: "AggregateTable lifecycle · abridged",
+        code: [
+          "buckets = Hashtable.Support.create(maxAggregates, MAX_RATIO); // max = 4",
+          "",
+          "record(orders);   // miss → insert → hitCount = 1",
+          "record(checkout); // miss → insert → hitCount = 1",
+          "record(legacy);   // miss → insert → hitCount = 1",
+          "record(search);   // miss → insert → hitCount = 1",
+          "",
+          "// Reporting retains entries but clears their per-cycle state:",
+          "aggregates.forEach(entry -> {",
+          "  writer.add(entry);",
+          "  entry.clearAggregate(); // hitCount = 0",
+          "});",
+          "",
+          "record(orders, 8); record(checkout, 4); record(search, 11);",
+          "// legacy received no current-cycle hit, so hitCount stays 0",
+          "",
+          "// findOrInsert: first search for an existing entry.",
+          "for (AggregateEntry candidate =",
+          "        Hashtable.Support.bucket(buckets, keyHash);",
+          "    candidate != null;",
+          "    candidate = candidate.next()) {",
+          "  if (candidate.keyHash == keyHash",
+          "      && canonical.matches(candidate)) {",
+          "    return candidate; // hit",
+          "  }",
+          "}",
+          "",
+          "// Falling through means this key is absent.",
+          "if (size >= maxAggregates && !evictOneStale()) {",
+          "  return null; // full and every entry is hot",
+          "}",
+          "AggregateEntry entry = canonical.createEntry();",
+          "Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);",
+          "size++;",
+          "",
+          "var iter = Hashtable.Support.mutatingTableIterator(",
+          "    buckets, evictCursor, buckets.length);",
+          "while (iter.hasNext()) {",
+          "  AggregateEntry e = iter.next();",
+          "  if (e.getHitCount() == 0) {",
+          "    int bucket = iter.currentBucket();",
+          "    iter.remove(); size--; evictCursor = bucket;",
+          "    return true;",
+          "  }",
+          "}"
+        ],
+        steps: [
+          step("Create headroom, not resizing", "For `maxAggregates = 4`, scaling by 4/3 and power-of-two rounding produces eight buckets. The logical entry cap remains four.", "Support.create(4, MAX_RATIO)", [], {
+            activeLines: [0], requested: "4 × 4/3 → 8", key: "max = 4", hash: "scaled size = 5", bucket: "8 slots", mask: "next power of 2", log: "allocate fixed Entry[8]"
+          }),
+          step("Build the previous-cycle working set", "Each `record` is a distinct miss: `findOrInsert` inserts an `AggregateEntry`, then `recordOneDuration` sets its `hitCount` to one. legacy is still a normal hot entry; the fourth insert reaches the logical cap.", "record four distinct keys", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "active", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "active", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 1", 12, "active", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "active", "AggregateEntry")
+          ], {
+            activeLines: [2, 3, 4, 5], key: "4 distinct aggregates", hash: "32 · 18 · 12 · 39", bucket: "0, 2, 4, 7", mask: "hash & 7", rowState: {0: "target", 2: "target", 4: "target", 7: "target"}, pointers: ["four misses → four inserts", "each hitCount = 1", "size: 0 → 4 · logical cap"], log: "build four-entry working set"
+          }),
+          step("Report and reset the cycle", "All four entries had a hit, so `expungeStaleAggregates` keeps them. The writer serializes each aggregate, then `clearAggregate` resets `hitCount` to zero without removing its entry.", "writer.add · clearAggregate", [
+            node(0, "orders", "orders", "hitCount: 1 → 0", 32, "probe", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount: 1 → 0", 18, "probe", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount: 1 → 0", 12, "probe", "AggregateEntry"),
+            node(7, "search", "search", "hitCount: 1 → 0", 39, "probe", "AggregateEntry")
+          ], {
+            activeLines: [7, 8, 9, 10, 11], key: "all aggregates", hash: "bucket order", bucket: "0 → 7", mask: "retain entries", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["writer.add(entry)", "clearAggregate → hitCount 0", "size remains 4"], log: "serialize · reset per-cycle counters"
+          }),
+          step("Only three identities return", "In the next cycle, orders, checkout, and search receive points and reuse their entries. No legacy point arrives, so its reset `hitCount` remains zero and it becomes stale.", "record current-cycle hits", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [13, 14], key: "current cycle", hash: "3 reused keys", bucket: "0, 2, 7", mask: "existing entries", rowState: {0: "hit-row", 2: "hit-row", 4: "scanned", 7: "hit-row"}, pointers: ["orders.hitCount → 8", "checkout.hitCount → 4", "legacy.hitCount stays 0"], log: "legacy receives no current-cycle hit"
+          }),
+          step("Search the target bucket", "`bucket` returns the first entry in bucket 5. Here it returns `null`, so the loop has no candidate to test and `findOrInsert` falls through to its miss path.", "findOrInsert(payments) · search", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [16, 17, 18, 19], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["bucket[5] → null", "loop body runs 0 times", "fall through → miss path"], log: "payments bucket is empty · miss"
+          }),
+          step("The miss needs room", "Capacity is checked only after the lookup misses. Because `size == maxAggregates`, `findOrInsert` calls `evictOneStale`; it cannot create and insert payments until that call makes room.", "size == max · evictOneStale()", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [27, 28], key: "payments · absent", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["lookup already missed", "size = max = 4", "evictOneStale() must succeed"], log: "capacity reached · request one eviction"
+          }),
+          step("Start the sweep at bucket 0", "The initial `evictCursor` is zero. The range iterator returns orders first; `hitCount = 8` means it is hot, so the sweep keeps it.", "iter.next() · orders", [
+            node(0, "orders", "orders", "scan · hits = 8", 32, "probe", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [28, 35, 36, 37, 38, 39], key: "eviction candidate", hash: "bucket order", bucket: 0, mask: "range [0, 8)", rowState: {0: "scanned"}, pointers: ["evictCursor = 0", "iterator reaches bucket 0", "orders.hitCount = 8 → keep"], log: "scan orders · hot"
+          }),
+          step("Continue to bucket 2", "The iterator skips empty bucket 1 and returns checkout from bucket 2. Its non-zero `hitCount` also keeps it in the table.", "iter.next() · checkout", [
+            node(0, "orders", "orders", "hits = 8 · kept", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "scan · hits = 4", 18, "probe", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [37, 38, 39], key: "eviction candidate", hash: "bucket order", bucket: 2, mask: "range [0, 8)", rowState: {2: "scanned"}, pointers: ["bucket[1] is empty → skip", "iterator reaches bucket 2", "checkout.hitCount = 4 → keep"], log: "scan checkout · hot"
+          }),
+          step("Find the stale identity", "The next populated bucket is 4. legacy still has `hitCount = 0`, so the policy selects it and reads `currentBucket()` before unlinking.", "iter.next() · legacy", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "curEntry · hits = 0", 12, "stale active", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [37, 38, 39, 40], key: "stale candidate", hash: "12", bucket: 4, rowState: {4: "scanned"}, pointers: ["currentBucket() → 4", "curEntry → legacy", "legacy.hitCount == 0"], log: "select legacy for eviction"
+          }),
+          step("Remove, then insert the miss", "`iter.remove` unlinks legacy, decrements size, and stores bucket 4 in `evictCursor`. `findOrInsert` can then insert payments in bucket 5; the caller records its first hit.", "remove legacy · insert payments", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(5, "payments", "payments", "hits = 1 · new", 61, "active", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [28, 31, 32, 33, 40, 41, 42], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["legacy.next → null", "evictCursor → 4", "bucket[5] → payments"], log: "evict legacy · admit payments"
+          }),
+          step("The next sweep resumes", "A future eviction begins at bucket 4 instead of repeatedly walking orders and checkout. A second `[0, 4)` iterator supplies wrap-around only if the first `[4, 8)` pass finds nothing stale.", "mutatingTableIterator([4, 8))", [
+            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+            node(5, "payments", "payments", "hits = 1", 61, "", "AggregateEntry"),
+            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [35, 36], key: "next eviction", hash: "cursor = 4", bucket: "[4, 8)", mask: "then [0, 4)", rowState: {4: "scanned"}, pointers: ["pass 1 → [4, 8)", "pass 2 → [0, 4)", "skip the prior hot prefix"], log: "resume from last removal bucket"
+          })
+        ]
+      }
+    ];
+
+    const apiFamilies = [
+      {
+        id: "api-d1",
+        title: "Hashtable.D1<K, E>",
+        subtitle: "One key, mutable entry",
+        description: "The convenience table for a single key. Extend `D1.Entry<K>` to store mutable value fields next to the key and its precomputed hash.",
+        signatures: [
+          ["D1(int capacity)", "Rounds to a fixed power-of-two bucket array."],
+          ["TEntry get(K key)", "Returns the stored entry or null."],
+          ["void insert(TEntry entry)", "Prepends without checking for duplicates."],
+          ["TEntry insertOrReplace(TEntry entry)", "Returns and detaches the previous match."],
+          ["TEntry getOrCreate(K key, Function creator)", "Hashes once; creator runs only on a miss and must preserve that hash."],
+          ["TEntry remove(K key)", "Unlinks, detaches, and returns a match."],
+          ["void forEach(Consumer consumer)", "Visits entries in bucket and chain order."],
+          ["void forEach(T context, BiConsumer consumer)", "Context-passing form for non-capturing consumers."],
+          ["int size() · void clear()", "Owned size accounting and reusable fixed storage."]
+        ]
+      },
+      {
+        id: "api-d2",
+        title: "Hashtable.D2<K1, K2, E>",
+        subtitle: "Composite key, no Pair",
+        description: "The two-key convenience table mirrors `D1` while passing both key parts directly through hash and equality checks.",
+        signatures: [
+          ["D2(int capacity)", "Same fixed bucket layout as D1."],
+          ["TEntry get(K1 key1, K2 key2)", "Hashes and matches both key parts."],
+          ["void insert(TEntry entry)", "Prepends the entry at its combined-hash bucket."],
+          ["TEntry insertOrReplace(TEntry entry)", "Replacement matches both stored key fields."],
+          ["TEntry getOrCreate(K1, K2, BiFunction)", "Avoids double hashing and composite lookup objects."],
+          ["TEntry remove(K1 key1, K2 key2)", "Unlinks the exact pair and decrements size."],
+          ["void forEach(…) · void clear()", "Same sweep and reuse operations as D1."],
+          ["D2.Entry.hash(key1, key2)", "LongHashingUtils: 31L × h1 + h2."]
+        ]
+      },
+      {
+        id: "api-support",
+        title: "Hashtable.Support",
+        subtitle: "Mechanics for custom tables",
+        description: "Use these building blocks when an entry has three or more key parts—or when the caller needs its own logical cap, size accounting, and eviction policy.",
+        signatures: [
+          ["create(size) · create(size, scale)", "Allocates a fixed, power-of-two Entry[]."],
+          ["bucketIndex(buckets, keyHash)", "Computes (int) (keyHash & length - 1)."],
+          ["bucket(buckets, keyHash)", "Returns the typed head of a chain."],
+          ["insertHeadEntry(buckets, hash, entry)", "Splices a node at the chain head; no size accounting."],
+          ["bucketIterator(buckets, hash)", "Read-only traversal filtered by exact keyHash."],
+          ["mutatingBucketIterator(buckets, hash)", "Filtered traversal with remove and replace."],
+          ["mutatingTableIterator(buckets[, start, end])", "Full or half-open range sweep with removal."],
+          ["forEach(buckets[, context], consumer)", "Visits every entry."],
+          ["clear(buckets)", "Nulls bucket heads; caller resets its own size."],
+          ["MAX_RATIO = 4.0f / 3.0f", "Inverse 75% target load for initial sizing."]
+        ]
+      },
+      {
+        id: "api-tradeoffs",
+        title: "Design contract",
+        subtitle: "Why and when",
+        description: "This is deliberately smaller than `java.util.HashMap`. The advantage is most visible in hot, thread-confined counter workloads; the caller accepts a narrower contract.",
+        tradeoffs: [
+          ["+", "Low allocation", "Keys and mutable values live in one entry; `D2` avoids composite key objects."],
+          ["#", "Precomputed hash", "`Entry.keyHash` is calculated once at construction and reused."],
+          ["→", "Simple chains", "Collisions prepend to a singly linked bucket chain."],
+          ["!", "Fixed capacity", "The array never resizes; more entries mean deeper chains, not growth."],
+          ["1", "Single-threaded", "No synchronization. External coordination is required for concurrent use."],
+          ["=", "Caller discipline", "`insert` can duplicate keys; `getOrCreate` creators must preserve the lookup hash; custom `Support` callers own size."],
+          ["∅", "Null behavior", "`D1` null uses `Long.MIN_VALUE`; `D2` null parts contribute zero."],
+          ["⌁", "Custom equality", "`D1.Entry.matches` can be overridden for specialized semantics."],
+          ["GC", "Detached removals", "`remove` and `replace` clear the old next pointer for safe reclamation."]
+        ]
+      }
+    ];
+
+    const $ = id => document.getElementById(id);
+    let scenarioIndex = 0;
+    let stepIndex = 0;
+    let timer = null;
+    let apiIndex = 0;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatInlineCode(value) {
+      return escapeHtml(value).replace(/`([^`]+)`/g, "<code>$1</code>");
+    }
+
+    function displayBucket(stepData) {
+      if (typeof stepData.bucket !== "number") return String(stepData.bucket);
+      return String(stepData.bucket);
+    }
+
+    function renderSceneNav() {
+      $("sceneNav").innerHTML = scenarios.map((scene, index) => `
+        <button class="scene-tab" type="button" role="tab" aria-selected="${index === scenarioIndex}" data-scene="${index}">
+          <span class="scene-number">0${index + 1}</span>
+          <span><span class="scene-tab-label">${escapeHtml(scene.tab)}</span><span class="scene-tab-api">${escapeHtml(scene.api)}</span></span>
+        </button>`).join("");
+      document.querySelectorAll("[data-scene]").forEach(button => {
+        button.addEventListener("click", () => selectScenario(Number(button.dataset.scene)));
+      });
+    }
+
+    function renderCode(scene, currentStep) {
+      $("codeLines").innerHTML = scene.code.map((line, index) =>
+        `<span class="code-line ${currentStep.activeLines.includes(index) ? "active" : ""}"><span class="line-number">${index + 1}</span><span>${escapeHtml(line) || " "}</span></span>`
+      ).join("");
+      const active = $("codeLines").querySelector(".active");
+      if (active) {
+        const codePane = $("codeLines");
+        const paneBounds = codePane.getBoundingClientRect();
+        const lineBounds = active.getBoundingClientRect();
+        const lineTop = lineBounds.top - paneBounds.top + codePane.scrollTop;
+        const lineBottom = lineTop + active.offsetHeight;
+        if (lineTop < codePane.scrollTop || lineBottom > codePane.scrollTop + codePane.clientHeight) {
+          codePane.scrollTop = Math.max(0, lineTop - codePane.clientHeight / 3);
+        }
+      }
+    }
+
+    function renderBuckets(currentStep) {
+      const rows = [];
+      for (let bucket = 0; bucket < BUCKETS; bucket++) {
+        const entries = currentStep.nodes.filter(entry => entry.bucket === bucket);
+        const rowClass = currentStep.rowState[bucket] || "";
+        const entriesHtml = entries.map((entry, index) => `
+          <div class="entry-node ${escapeHtml(entry.state)}" style="animation-delay:${index * 45}ms" title="keyHash: ${escapeHtml(entry.hash)}">
+            <div class="node-top"><span class="node-type">${escapeHtml(entry.type)}</span><span class="node-hash">h ${escapeHtml(entry.hash)}</span></div>
+            <strong class="node-key">${escapeHtml(entry.key)}</strong>
+            <span class="node-value">${escapeHtml(entry.value)}</span>
+            <i class="node-badge" aria-hidden="true"></i>
+          </div>`).join("");
+        const tail = entries.length
+          ? '<span class="chain-null">null</span>'
+          : '<span class="empty-slot">null</span>';
+        const chain = `${entriesHtml}${tail}`;
+        rows.push(`<div class="bucket-row ${escapeHtml(rowClass)}"><span class="bucket-index">[${bucket}]</span><div class="chain">${chain}</div></div>`);
+      }
+      $("buckets").innerHTML = rows.join("");
+    }
+
+    function renderIteratorBand(currentStep) {
+      const band = $("iteratorBand");
+      if (!currentStep.iterator) {
+        band.hidden = true;
+        $("iteratorFields").innerHTML = "";
+        return;
+      }
+
+      band.hidden = false;
+      $("iteratorFields").innerHTML = currentStep.iterator.map(field => `
+        <div class="iterator-field ${escapeHtml(field.state || "")}">
+          <span>${escapeHtml(field.name)}</span>
+          <strong>→ ${escapeHtml(field.target)}</strong>
+        </div>`).join("");
+    }
+
+    function renderPointers(currentStep) {
+      const defaults = ["bucket[i]", "curPrevEntry", "curEntry", "nextEntry"];
+      const pointers = currentStep.pointers.length ? currentStep.pointers : defaults;
+      $("pointerList").innerHTML = pointers.map((text, index) => `
+        <div class="pointer-item ${index === 0 || currentStep.pointers.length ? "active" : ""}"><i class="pointer-dot"></i><span>${escapeHtml(text)}</span></div>`).join("");
+    }
+
+    function renderLog(scene) {
+      $("eventLog").innerHTML = scene.steps.slice(0, stepIndex + 1).map((item, index) => `
+        <div class="log-entry ${index === stepIndex ? "current" : ""}"><span class="log-seq">${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(item.log)}</span></div>`).join("");
+      $("eventLog").scrollTop = $("eventLog").scrollHeight;
+    }
+
+    function renderDots(scene) {
+      $("stepDots").innerHTML = scene.steps.map((_, index) => `
+        <button class="step-dot ${index === stepIndex ? "current" : index < stepIndex ? "done" : ""}" type="button" data-step="${index}" aria-label="Go to step ${index + 1}"></button>`).join("");
+      document.querySelectorAll("[data-step]").forEach(button => {
+        button.addEventListener("click", () => {
+          stopPlayback();
+          stepIndex = Number(button.dataset.step);
+          render();
+        });
+      });
+    }
+
+    function render() {
+      const scene = scenarios[scenarioIndex];
+      const currentStep = scene.steps[stepIndex];
+      $("storyKicker").textContent = scene.kicker;
+      $("storyTitle").textContent = scene.title;
+      $("storyDescription").innerHTML = formatInlineCode(scene.description);
+      $("calloutText").innerHTML = formatInlineCode(scene.callout);
+      $("codeLabel").textContent = scene.codeLabel;
+      $("stepNumber").textContent = String(stepIndex + 1).padStart(2, "0");
+      $("stepTitle").textContent = currentStep.title;
+      $("stepExplanation").innerHTML = formatInlineCode(currentStep.explanation);
+      $("operationValue").textContent = currentStep.operation;
+      $("sizeValue").innerHTML = `${currentStep.size}<small> entries</small>`;
+      $("bucketValue").innerHTML = `${BUCKETS}<small> shown</small>`;
+      const load = currentStep.load ?? Math.round(currentStep.size / BUCKETS * 100);
+      $("loadValue").innerHTML = `${load}%<small> shown</small>`;
+      $("hashKey").textContent = currentStep.key;
+      $("hashValue").textContent = currentStep.hash;
+      $("maskValue").textContent = currentStep.mask || (typeof currentStep.bucket === "number" ? `${String(currentStep.hash).replaceAll(",", "")} & 7` : "—");
+      $("bucketResult").textContent = displayBucket(currentStep);
+      $("previousStep").disabled = stepIndex === 0;
+      $("nextStep").disabled = stepIndex === scene.steps.length - 1;
+      renderSceneNav();
+      renderCode(scene, currentStep);
+      renderIteratorBand(currentStep);
+      renderBuckets(currentStep);
+      renderPointers(currentStep);
+      renderLog(scene);
+      renderDots(scene);
+    }
+
+    function selectScenario(index) {
+      stopPlayback();
+      scenarioIndex = index;
+      stepIndex = 0;
+      render();
+      document.querySelector(".workbench").scrollIntoView({block: "start", behavior: "smooth"});
+    }
+
+    function stopPlayback() {
+      if (timer !== null) window.clearInterval(timer);
+      timer = null;
+      $("playPause").textContent = "▶";
+      $("playPause").setAttribute("aria-label", "Play animation");
+    }
+
+    function togglePlayback() {
+      if (timer !== null) {
+        stopPlayback();
+        return;
+      }
+      const scene = scenarios[scenarioIndex];
+      if (stepIndex === scene.steps.length - 1) {
+        stepIndex = 0;
+        render();
+      }
+      $("playPause").textContent = "Ⅱ";
+      $("playPause").setAttribute("aria-label", "Pause animation");
+      timer = window.setInterval(() => {
+        const activeScene = scenarios[scenarioIndex];
+        if (stepIndex >= activeScene.steps.length - 1) {
+          stopPlayback();
+          return;
+        }
+        stepIndex++;
+        render();
+      }, Number($("speedSelect").value));
+    }
+
+    function renderApiTabs() {
+      $("apiTabs").innerHTML = apiFamilies.map((family, index) => `
+        <button class="api-tab" type="button" role="tab" aria-selected="${index === apiIndex}" data-api="${index}">
+          <span><strong>${escapeHtml(family.title.replace("Hashtable.", ""))}</strong><small>${escapeHtml(family.subtitle)}</small></span>
+        </button>`).join("");
+      document.querySelectorAll("[data-api]").forEach(button => {
+        button.addEventListener("click", () => {
+          apiIndex = Number(button.dataset.api);
+          renderApi();
+        });
+      });
+    }
+
+    function renderApi() {
+      const family = apiFamilies[apiIndex];
+      let body;
+      if (family.signatures) {
+        body = `<div class="signature-grid">${family.signatures.map(([signature, description]) => `
+          <div class="signature"><code>${escapeHtml(signature)}</code><span>${formatInlineCode(description)}</span></div>`).join("")}</div>`;
+      } else {
+        body = `<div class="tradeoff-grid">${family.tradeoffs.map(([symbol, title, description]) => `
+          <div class="tradeoff"><span class="symbol">${escapeHtml(symbol)}</span><strong>${escapeHtml(title)}</strong><p>${formatInlineCode(description)}</p></div>`).join("")}</div>`;
+      }
+      $("apiContent").innerHTML = `<h3>${escapeHtml(family.title)}</h3><p>${formatInlineCode(family.description)}</p>${body}`;
+      renderApiTabs();
+    }
+
+    $("previousStep").addEventListener("click", () => {
+      stopPlayback();
+      if (stepIndex > 0) stepIndex--;
+      render();
+    });
+
+    $("nextStep").addEventListener("click", () => {
+      stopPlayback();
+      const scene = scenarios[scenarioIndex];
+      if (stepIndex < scene.steps.length - 1) stepIndex++;
+      render();
+    });
+
+    $("playPause").addEventListener("click", togglePlayback);
+    $("speedSelect").addEventListener("change", () => {
+      if (timer !== null) {
+        stopPlayback();
+        togglePlayback();
+      }
+    });
+
+    $("copyCode").addEventListener("click", async () => {
+      const text = scenarios[scenarioIndex].code.join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        $("copyCode").textContent = "copied";
+      } catch (_) {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        $("copyCode").textContent = "copied";
+      }
+      window.setTimeout(() => $("copyCode").textContent = "copy", 1200);
+    });
+
+    document.addEventListener("keydown", event => {
+      if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) return;
+      if (event.key === "ArrowRight") {
+        const scene = scenarios[scenarioIndex];
+        stopPlayback();
+        if (stepIndex < scene.steps.length - 1) stepIndex++;
+        render();
+      } else if (event.key === "ArrowLeft") {
+        stopPlayback();
+        if (stepIndex > 0) stepIndex--;
+        render();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        togglePlayback();
+      }
+    });
+
+    $("themeBtn").addEventListener("click", () => {
+      const root = document.documentElement;
+      root.classList.add("no-transition");
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      $("themeBtn").setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
+      try {
+        localStorage.setItem("cntTheme", root.dataset.theme);
+      } catch (_) {
+        // Theme persistence is optional for file:// URLs with restricted local storage.
+      }
+      window.requestAnimationFrame(() => root.classList.remove("no-transition"));
+    });
+
+    try {
+      const savedTheme = localStorage.getItem("cntTheme");
+      if (savedTheme === "dark" || savedTheme === "light") {
+        document.documentElement.dataset.theme = savedTheme;
+        $("themeBtn").setAttribute("aria-pressed", String(savedTheme === "dark"));
+      }
+    } catch (_) {
+      // Keep the default dark theme when local storage is unavailable.
+    }
+
+    render();
+    renderApi();
+  </script>
+</body>
+</html>
