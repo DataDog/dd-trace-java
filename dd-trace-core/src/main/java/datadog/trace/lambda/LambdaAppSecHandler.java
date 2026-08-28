@@ -132,13 +132,13 @@ public class LambdaAppSecHandler {
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-if (triggerType==null || !ActiveSubsystems.APPSEC_ACTIVE || span == null)  {
+    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null || triggerType == null) {
       return;
     }
 
     // A null trigger type means processRequestStart never ran, so the invocation was not analysed
     // at all, which is not the same as an unsupported trigger.
-    if (triggerType != null && !triggerType.isHttp()) {
+    if (!triggerType.isHttp()) {
       span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;
     }
