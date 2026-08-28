@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.source
 
 import datadog.compiler.annotations.SourcePath
+import java.nio.file.Paths
 import spock.lang.Specification
 
 class CompilerAidedSourcePathResolverTest extends Specification {
@@ -23,7 +24,7 @@ class CompilerAidedSourcePathResolverTest extends Specification {
     where:
     clazz                             | expectedPath
     AClassWithNoSourceInfoInjected    | []
-    AClassWithSourceInfoInjected      | ["path/to/AClassWithSourceInfoInjected.java"]
+    AClassWithSourceInfoInjected      | [Paths.get("path", "to", "AClassWithSourceInfoInjected.java").toString()]
     AClassWithSourceOutsideRepository | []
   }
 

@@ -22,6 +22,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.util.FlakySpockExtension*",
   "datadog.trace.test.util.MultipartRequestParser*",
   "datadog.trace.test.util.NonRetryable",
+  "datadog.trace.test.util.PortableCommand",
 )
 
 dependencies {

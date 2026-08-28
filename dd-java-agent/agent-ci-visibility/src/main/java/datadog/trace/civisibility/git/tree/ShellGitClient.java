@@ -227,11 +227,14 @@ public class ShellGitClient implements GitClient {
   public String getGitFolder() throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
         Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(
-                    IOUtils::readFully, buildGitCommand("rev-parse", "--absolute-git-dir"))
-                .trim());
+        () -> {
+          String path =
+              commandExecutor
+                  .executeCommand(
+                      IOUtils::readFully, buildGitCommand("rev-parse", "--absolute-git-dir"))
+                  .trim();
+          return Paths.get(path).normalize().toString();
+        });
   }
 
   /**
@@ -248,10 +251,14 @@ public class ShellGitClient implements GitClient {
   public String getRepoRoot() throws IOException, TimeoutException, InterruptedException {
     return executeCommand(
         Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "--show-toplevel"))
-                .trim());
+        () -> {
+          String path =
+              commandExecutor
+                  .executeCommand(
+                      IOUtils::readFully, buildGitCommand("rev-parse", "--show-toplevel"))
+                  .trim();
+          return Paths.get(path).normalize().toString();
+        });
   }
 
   /**

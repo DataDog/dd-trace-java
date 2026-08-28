@@ -15,6 +15,7 @@ build-windows-ci-image:
   hooks:
     pre_get_sources_script:
       - git config --system core.longpaths true
+      - git config --global core.autocrlf false
   script:
     - |
       . .gitlab/windows/ci-common.ps1
@@ -52,6 +53,7 @@ test-base-windows:
   hooks:
     pre_get_sources_script:
       - git config --system core.longpaths true
+      - git config --global core.autocrlf false
   needs:
     - job: build
       artifacts: false

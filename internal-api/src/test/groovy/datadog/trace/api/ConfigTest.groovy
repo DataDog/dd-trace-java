@@ -168,6 +168,7 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
+import java.nio.file.Paths
 
 class ConfigTest extends DDSpecification {
   private static final String PREFIX = "dd."
@@ -1711,7 +1712,7 @@ class ConfigTest extends DDSpecification {
     where:
     // spotless:off
     path                                                        | expectedKey
-    getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key"
+    resourcePath("apikey")                                      | "test-api-key"
     "/path/that/doesnt/exist"                                   | "default-api-key"
     // spotless:on
   }
@@ -1741,7 +1742,7 @@ class ConfigTest extends DDSpecification {
     where:
     // spotless:off
     path                                                            | expectedKey
-    getClass().getClassLoader().getResource("apikey.old").getFile() | "test-api-key-old"
+    resourcePath("apikey.old")                                      | "test-api-key-old"
     "/path/that/doesnt/exist"                                       | "default-api-key"
     // spotless:on
   }
@@ -1770,14 +1771,14 @@ class ConfigTest extends DDSpecification {
 
     where:
     path                                                                 | expectedKey
-    getClass().getClassLoader().getResource("apikey.very-old").getFile() | "test-api-key-very-old"
+    resourcePath("apikey.very-old")                                      | "test-api-key-very-old"
     "/path/that/doesnt/exist"                                            | "default-api-key"
   }
 
   def "verify api key loaded from new option when both new and old are set"() {
     setup:
-    System.setProperty(PREFIX + API_KEY_FILE, getClass().getClassLoader().getResource("apikey").getFile())
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
+    System.setProperty(PREFIX + API_KEY_FILE, resourcePath("apikey"))
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, resourcePath("apikey.old"))
 
     when:
     def config = new Config()
@@ -1788,8 +1789,8 @@ class ConfigTest extends DDSpecification {
 
   def "verify api key loaded from new option when both old and very old are set"() {
     setup:
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_VERY_OLD, getClass().getClassLoader().getResource("apikey.very-old").getFile())
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, resourcePath("apikey.old"))
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_VERY_OLD, resourcePath("apikey.very-old"))
 
     when:
     def config = new Config()
@@ -3574,5 +3575,9 @@ class ConfigTest extends DDSpecification {
     then:
     config.featureFlaggingConfigurationSourcePollIntervalSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
     config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
+  }
+
+  private String resourcePath(String name) {
+    return Paths.get(getClass().getClassLoader().getResource(name).toURI()).toString()
   }
 }
