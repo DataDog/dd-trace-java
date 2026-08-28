@@ -132,7 +132,7 @@ public class LambdaAppSecHandler {
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
+if (triggerType==null || !ActiveSubsystems.APPSEC_ACTIVE || span == null)  {
       return;
     }
 
