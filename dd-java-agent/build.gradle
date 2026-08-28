@@ -413,7 +413,7 @@ dependencies {
 
   testImplementation libs.bundles.test.logging
   testImplementation libs.guava
-  testImplementation libs.okhttp.datadog
+  testImplementation libs.datadog.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar

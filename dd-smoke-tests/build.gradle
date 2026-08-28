@@ -7,7 +7,7 @@ plugins {
 description = 'dd-smoke-tests'
 
 dependencies {
-  api libs.okhttp.datadog
+  api libs.datadog.okhttp
   api libs.testcontainers
   api project(':dd-java-agent:testing')
   api project(':utils:test-agent-utils:decoder')

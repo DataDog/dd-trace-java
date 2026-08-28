@@ -20,8 +20,8 @@ tabletest-formatter = "1.1.2"
 # DataDog libs and forks
 ddprof = "1.49.0"
 dogstatsd = "4.4.5"
-okhttp-datadog = "3.12.15" # Datadog fork
-okio-datadog = "1.17.6" # Datadog fork
+datadog-okhttp = "3.12.15" # Datadog fork
+datadog-okio = "1.17.6" # Datadog fork
 
 # Languages
 ## Groovy
@@ -98,8 +98,8 @@ spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", ve
 # DataDog libs and forks
 ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
 dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
-okhttp-datadog = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp-datadog" }
-okio-datadog = { module = "com.datadoghq.okio:okio", version.ref = "okio-datadog" }
+datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }
+datadog-okio = { module = "com.datadoghq.okio:okio", version.ref = "datadog-okio" }
 
 # Languages
 ## Groovy

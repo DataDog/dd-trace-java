@@ -16,8 +16,8 @@ dependencies {
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))
 
-  api(libs.okio.datadog)
-  api(libs.okhttp.datadog)
+  api(libs.datadog.okio)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api

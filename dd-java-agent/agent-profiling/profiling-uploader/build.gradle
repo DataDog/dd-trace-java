@@ -32,7 +32,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation libs.okhttp.datadog
+  implementation libs.datadog.okhttp
   implementation libs.lz4
   implementation libs.aircompressor
 

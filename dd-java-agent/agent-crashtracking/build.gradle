@@ -22,7 +22,7 @@ dependencies {
   implementation project(':utils:version-utils')
   implementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
-  implementation libs.okhttp.datadog
+  implementation libs.datadog.okhttp
   implementation libs.moshi
 
   testImplementation libs.bundles.junit5

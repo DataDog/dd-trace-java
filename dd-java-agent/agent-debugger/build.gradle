@@ -48,7 +48,7 @@ dependencies {
   implementation libs.bundles.asm
   implementation libs.dogstatsd
   implementation libs.moshi
-  implementation libs.okhttp.datadog
+  implementation libs.datadog.okhttp
   implementation libs.slf4j
 
   // Dependencies needed to compile the test-fixture helpers (LogProbeTestHelper,
