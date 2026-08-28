@@ -41,6 +41,7 @@ public class SamplingMechanism {
   public static final byte REMOTE_USER_RULE = 11;
   public static final byte REMOTE_ADAPTIVE_RULE = 12;
   public static final byte AI_GUARD = 13;
+  public static final byte DATA_STREAMS = 14;
 
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
@@ -68,6 +69,9 @@ public class SamplingMechanism {
       case DATA_JOBS:
         return priority == PrioritySampling.USER_KEEP;
 
+      case DATA_STREAMS:
+        return priority == USER_DROP;
+
       case EXTERNAL_OVERRIDE:
         return false;
     }
@@ -83,7 +87,8 @@ public class SamplingMechanism {
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
     return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)
-        || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
+        || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS)
+        || (Config.get().isDataStreamsEnabled() && mechanism == DATA_STREAMS);
   }
 
   private SamplingMechanism() {}
