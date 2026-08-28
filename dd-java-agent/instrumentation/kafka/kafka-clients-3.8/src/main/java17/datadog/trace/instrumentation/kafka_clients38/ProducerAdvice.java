@@ -8,6 +8,9 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -55,6 +58,9 @@ public class ProducerAdvice {
     } else {
       span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
       callbackParentSpan = localActiveSpan;
+      if (!KafkaDecorator.TRACING_ENABLED && Config.get().isDataStreamsEnabled()) {
+        span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+      }
     }
     PRODUCER_DECORATE.afterStart(span);
     PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
