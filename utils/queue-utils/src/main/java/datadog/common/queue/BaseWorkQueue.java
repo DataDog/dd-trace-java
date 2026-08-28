@@ -165,6 +165,45 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return storeOrRelease(element);
   }
 
+  /**
+   * The per-source-element half of {@link #tryPutBatch(Collection, Object, BiContextualProducer)}.
+   *
+   * <p>Three outcomes collapse into two, because only one of them is a loss. An admitted element
+   * and a declined one both leave the caller nothing to do: the first is in the queue, the second
+   * was never meant to be. Only a refusal — no place to claim, or a backing that would not take
+   * what was produced — hands a source element back and counts a drop.
+   *
+   * @return whether the source element was dealt with, whether by admitting it or by declining it
+   */
+  @StrategyConsumer
+  private <E, C> boolean admitEach(
+      E element,
+      C context,
+      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer) {
+    if (closed || !claimPlace()) {
+      dropped.increment();
+      return false;
+    }
+    T produced;
+    try {
+      produced = producer.produce(element, context);
+    } catch (Throwable t) {
+      releasePlace();
+      throw t;
+    }
+    if (produced == null) {
+      // Declined. The place goes back and the caller hears nothing, because nothing was lost.
+      releasePlace();
+      return true;
+    }
+    if (store(produced)) {
+      return true;
+    }
+    releasePlace();
+    dropped.increment();
+    return false;
+  }
+
   private boolean storeOrRelease(T element) {
     if (element != null && store(element)) {
       return true;
@@ -311,6 +350,25 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     int remaining = elements.size();
     for (T element : elements) {
       if (!tryPut(element)) {
+        if (rejected == null) {
+          rejected = new ArrayList<>(remaining);
+        }
+        rejected.add(element);
+      }
+      remaining--;
+    }
+    return rejected == null ? emptyList() : rejected;
+  }
+
+  @Override
+  public final <E, C> Collection<E> tryPutBatch(
+      Collection<? extends E> source,
+      C context,
+      BiContextualProducer<? super E, ? super C, ? extends T> producer) {
+    List<E> rejected = null;
+    int remaining = source.size();
+    for (E element : source) {
+      if (!admitEach(element, context, producer)) {
         if (rejected == null) {
           rejected = new ArrayList<>(remaining);
         }

@@ -85,6 +85,45 @@ public interface WorkQueue<T> {
   Collection<T> tryPutBatch(Collection<? extends T> elements);
 
   /**
+   * Admits an element per source element, constructing each only once a slot is reserved for it.
+   * The queue owns the walk, so the producer is asked only for elements there is already room for,
+   * and a caller batching work this way never holds capacity of its own.
+   *
+   * <p>The producer may decline a source element by returning {@code null}. That is an explicit
+   * decision by the caller rather than a loss, so a declined element is neither returned as a
+   * reject nor counted against {@link #dropped()}; the place claimed for it is simply given back.
+   * Rejects are the source elements the producer was never asked about, because there was no room
+   * to ask — plus any it produced that the backing then refused. A full queue can therefore hand
+   * back an element the producer would have declined: the place is claimed before the producer is
+   * asked, so the queue does not know, and reports what it does know, which is that it could not
+   * ask.
+   *
+   * <p>{@code context} is the one value the whole batch shares and a source element cannot recover
+   * on its own — a schema, a clock reading, a per-batch buffer. It is read once here rather than
+   * per element, which is the hoist the single-element form spells out in {@link
+   * BiContextualProducer}.
+   *
+   * <p>{@link Collection} rather than {@link Iterable} because admission runs while there is room,
+   * and a queue with a live consumer keeps making room: a source with no end would not terminate.
+   *
+   * <p>Reach for this only when the walk exists to admit and nothing else. The queue stops asking
+   * once it runs out of room, so the producer is the only per-source-element hook a caller gets and
+   * it is reached only for elements there was room for. A loop that also carries something across
+   * its iterations — a count of what it considered, a flag OR-ed over the whole source, a decision
+   * about the batch as a whole — needs every source element regardless of admission, and hands back
+   * more per element than a producer can return. Such a caller keeps its own loop and admits one
+   * element at a time; that is not a shortcoming of the loop.
+   *
+   * @return the source elements that were not admitted, empty if all were
+   * @see BiContextualProducer
+   */
+  @StrategyConsumer
+  <E, C> Collection<E> tryPutBatch(
+      Collection<? extends E> source,
+      C context,
+      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer);
+
+  /**
    * Claims a place without supplying its element, for a caller whose work between claiming and
    * filling cannot be expressed as a {@link Producer}.
    *
