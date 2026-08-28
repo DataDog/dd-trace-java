@@ -82,10 +82,9 @@ public final class Maybe<T> {
   }
 
   /**
-   * Primary intended usage: a guard in front of mutation, e.g. {@code
-   * table.tryGetOrCreateAsTry(key, FooEntry::new).update(FooEntry::inc)}. No-op if the operation
-   * was refused (table full) rather than throwing or requiring the caller to branch on {@link
-   * #isPresent()} first.
+   * Primary intended usage: a guard in front of mutation, e.g. {@code table.tryGetOrCreate(key,
+   * FooEntry::new).update(FooEntry::inc)}. No-op if the operation was refused (table full) rather
+   * than throwing or requiring the caller to branch on {@link #isPresent()} first.
    */
   public void update(Consumer<? super T> mutator) {
     if (value != null) {
