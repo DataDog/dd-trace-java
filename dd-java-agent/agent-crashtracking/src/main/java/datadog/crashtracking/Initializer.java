@@ -523,4 +523,25 @@ public final class Initializer {
     dir.setWritable(true, true);
     dir.setExecutable(true, true);
   }
+
+  /**
+   * Removes any group/world permission bits from {@code dir} while leaving the owner's own bits
+   * untouched. Unlike {@link #restrictDirectoryToOwnerOnly(File)}, this never adds a permission
+   * (e.g. owner write) that the directory did not already have, so a directory an operator
+   * deliberately made non-writable for the owner stays non-writable after repair. On non-POSIX
+   * file systems this is a no-op.
+   */
+  static void stripGroupAndWorldBits(File dir) {
+    if (OperatingSystem.isWindows()) {
+      return;
+    }
+    try {
+      Path path = dir.toPath();
+      Set<PosixFilePermission> perms = EnumSet.copyOf(Files.getPosixFilePermissions(path));
+      perms.removeAll(GROUP_WORLD_BITS);
+      Files.setPosixFilePermissions(path, perms);
+    } catch (IOException | IllegalStateException e) {
+      LOG.debug("Unable to strip group/world permissions for {}: {}", dir, e.getMessage());
+    }
+  }
 }

@@ -7,6 +7,7 @@ import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
 import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.crashtracking.Initializer.isSafeToRepairDirectory;
 import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
+import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
@@ -90,9 +91,10 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
-      // owned by us but possibly left over from an older, less restrictive version: tighten it
-      // down to owner-only before trusting it, then validate the script inside it independently
-      restrictDirectoryToOwnerOnly(scriptDirectory);
+      // owned by us but possibly left over from an older, less restrictive version: strip any
+      // stray group/world bits without touching the owner's own bits, so a directory an operator
+      // deliberately made non-writable stays non-writable
+      stripGroupAndWorldBits(scriptDirectory);
     }
     if (!scriptDirectory.canWrite()) {
       LOG.warn(SEND_TELEMETRY, "Read only directory {}. " + SETUP_FAILURE_MESSAGE, scriptDirectory);

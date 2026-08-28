@@ -9,6 +9,7 @@ import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.crashtracking.Initializer.isSafeToRepairDirectory;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
+import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -70,9 +71,10 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
-      // owned by us but possibly left over from an older, less restrictive version: tighten it
-      // down to owner-only before trusting it, then validate the script inside it independently
-      restrictDirectoryToOwnerOnly(scriptDirectory);
+      // owned by us but possibly left over from an older, less restrictive version: strip any
+      // stray group/world bits without touching the owner's own bits, so a directory an operator
+      // deliberately made non-writable stays non-writable
+      stripGroupAndWorldBits(scriptDirectory);
       // cleanup all stale process-specific generated files in the parent folder of the given OOME
       // notifier script
       runScriptCleanup(scriptDirectory);
