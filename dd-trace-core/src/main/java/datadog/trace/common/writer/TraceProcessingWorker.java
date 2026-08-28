@@ -85,18 +85,25 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
-    CountDownLatch latch = new CountDownLatch(1);
-    FlushEvent flush = new FlushEvent(latch);
-    boolean offered;
-    do {
-      offered = primaryQueue.offer(flush);
-    } while (!offered && serializerThread.isAlive());
+    // flush both queues so sampled-out traces (routed to the secondary queue) aren't
+    // left behind, e.g. when a Lambda invocation's execution environment freezes
+    // right after this synchronous flush returns.
+    CountDownLatch latch = new CountDownLatch(2);
+    offer(primaryQueue, new FlushEvent(latch));
+    offer(secondaryQueue, new FlushEvent(latch));
     try {
       return latch.await(timeout, timeUnit);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
     }
+  }
+
+  private void offer(MessagePassingBlockingQueue<Object> queue, FlushEvent flush) {
+    boolean offered;
+    do {
+      offered = queue.offer(flush);
+    } while (!offered && serializerThread.isAlive());
   }
 
   @Override
