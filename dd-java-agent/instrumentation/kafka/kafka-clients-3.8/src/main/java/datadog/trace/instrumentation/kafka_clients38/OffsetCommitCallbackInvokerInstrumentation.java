@@ -10,7 +10,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 // new - this instrumentation is completely new.
 // the purpose of this class is to provide us with information on consumer group and cluster ID
-public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.Tracing
+public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public OffsetCommitCallbackInvokerInstrumentation() {
     super("kafka", "kafka-3.8");
