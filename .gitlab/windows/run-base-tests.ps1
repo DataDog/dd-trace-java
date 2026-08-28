@@ -57,6 +57,14 @@ try {
 
     $gradleArguments = @(
         $env:GRADLE_TARGET,
+        # Formatting is validated by the dedicated GitLab Spotless job.
+        "-x",
+        "spotlessCheck",
+        # buildSrc is an included build, so it needs qualified exclusions.
+        "-x",
+        ":buildSrc:modifiable-config-agent:spotlessCheck",
+        "-x",
+        ":buildSrc:call-site-instrumentation-plugin:spotlessCheck",
         "-PskipFlakyTests",
         "-PtestJvm=$($env:testJvm)",
         "-Pslot=$($env:CI_SPLIT)",

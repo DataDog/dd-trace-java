@@ -1,5 +1,6 @@
 package datadog.trace.test.util;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -34,6 +35,7 @@ public final class PortableCommand {
     return command;
   }
 
+  @SuppressForbidden
   public static void main(String[] arguments) throws IOException, InterruptedException {
     switch (arguments[0]) {
       case "echo":
