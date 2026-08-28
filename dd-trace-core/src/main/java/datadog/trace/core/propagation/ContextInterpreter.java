@@ -52,8 +52,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
 
-  private Map<String, Integer> baggageItemSizes;
-
   private int baggageItems;
   private int baggageSize;
 
@@ -74,9 +72,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean requestHeaderTagsCommaAllowed;
   private final int baggageMaxItems;
   private final int baggageMaxBytes;
-
-  /** Longest value {@link #addReservedBaggageItem(String, String)} will store, in characters. */
-  private static final int MAX_RESERVED_BAGGAGE_LENGTH = 64;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -242,65 +237,26 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (key == null || value == null || baggageMaxItems == 0 || baggageMaxBytes == 0) {
       return false;
     }
-    final Integer previousItemSize = baggageItemSizes.get(key);
-    final boolean newItem = previousItemSize == null;
-    if (newItem && baggage.containsKey(key)) {
-      // A reserved propagation value already owns this key. Caller-controlled baggage must not
-      // make preservation of that value depend on header visitation order.
-      LOG.debug("Dropping baggage item {}: key is reserved for propagation", key);
-      return false;
-    }
+    final boolean newItem = !baggage.containsKey(key);
     if (newItem && baggageItems >= baggageMaxItems) {
       LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
       return false;
     }
 
-    final long itemSize = (long) key.length() + value.length();
-    final long projectedSize = (long) baggageSize - (newItem ? 0 : previousItemSize) + itemSize;
+    final long projectedSize = (long) baggageSize + key.length() + value.length();
     if (projectedSize > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
       return false;
     }
-    final String decodedValue = HttpCodec.decode(value);
     if (baggage.isEmpty()) {
       baggage = new TreeMap<>();
-      baggageItemSizes = new TreeMap<>();
     }
-    baggage.put(key, decodedValue);
-    // Accepted baggage is bounded by the int-valued baggageMaxBytes configuration.
-    baggageItemSizes.put(key, (int) itemSize);
+    baggage.put(key, HttpCodec.decode(value));
     if (newItem) {
       baggageItems++;
     }
     baggageSize = (int) projectedSize;
     return true;
-  }
-
-  /**
-   * Stores a value the tracer itself round-trips, outside the caller-controlled baggage budget so
-   * that caller-supplied headers cannot evict it. Exempt from the configured limits, but not
-   * unbounded: the value is capped here rather than left to each caller to validate, so the total
-   * retained stays within {@code trace.baggage.max.bytes} plus a fixed amount per reserved key.
-   *
-   * @param key the reserved baggage key.
-   * @param value the value to store, ignored when longer than {@link #MAX_RESERVED_BAGGAGE_LENGTH}.
-   */
-  protected final void addReservedBaggageItem(String key, String value) {
-    if (key == null || value == null || value.length() > MAX_RESERVED_BAGGAGE_LENGTH) {
-      return;
-    }
-    if (baggage.isEmpty()) {
-      baggage = new TreeMap<>();
-      baggageItemSizes = new TreeMap<>();
-    }
-    // A mapped baggage key could collide with a reserved key. Remove its charge before replacing
-    // it so the caller-controlled budget continues to describe the items actually retained.
-    final Integer previousItemSize = baggageItemSizes.remove(key);
-    if (previousItemSize != null) {
-      baggageItems--;
-      baggageSize -= previousItemSize;
-    }
-    baggage.put(key, value);
   }
 
   public ContextInterpreter reset(TraceConfig traceConfig) {
@@ -312,7 +268,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     endToEndStartTime = 0;
     if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
-    baggageItemSizes = Collections.emptyMap();
     baggageItems = 0;
     baggageSize = 0;
     valid = true;

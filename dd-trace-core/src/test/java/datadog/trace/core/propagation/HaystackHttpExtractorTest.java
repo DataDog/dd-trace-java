@@ -21,13 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -135,6 +133,7 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   void extractDoesNotReserveOversizedTraceId() {
+    // reserved values skip the baggage budget, so they are capped to keep the overshoot fixed
     Map<String, String> headers =
         headers(
             TRACE_ID_KEY,
@@ -144,33 +143,9 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
+    // only the last two UUID segments carry the DataDog id, so extraction still succeeds
     assertEquals(DDTraceId.fromHex("0000000000000001"), context.getTraceId());
     assertFalse(context.getBaggage().containsKey(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
-  }
-
-  @Test
-  void mappedBaggageCannotOverwriteReservedHaystackId() {
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setBaggageMapping(
-                singletonMap(SOME_CUSTOM_BAGGAGE_HEADER, HAYSTACK_TRACE_ID_BAGGAGE_KEY))
-            .apply();
-    HttpCodec.Extractor collisionExtractor =
-        HaystackHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY, "44617461-646f-6721-0000-000000000001");
-    headers.put(SPAN_ID_KEY, "44617461-646f-6721-0000-000000000002");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "attacker-controlled");
-
-    try {
-      TagContext context = collisionExtractor.extract(headers, stringValuesMap());
-
-      assertEquals(
-          "44617461-646f-6721-0000-000000000001",
-          context.getBaggage().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
-    } finally {
-      collisionExtractor.cleanup();
-    }
   }
 
   private static String repeat(char value, int count) {

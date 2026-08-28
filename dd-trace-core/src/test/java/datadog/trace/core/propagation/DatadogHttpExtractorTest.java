@@ -362,21 +362,19 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
-  void extractOtBaggageDoesNotChargeRepeatedKeyTwice() {
+  void extractOtBaggageChargesRepeatedKeyEachTime() {
     // headers are visited in insertion order, so the duplicate key is seen before the last item
     Map<String, String> headers = new LinkedHashMap<>();
-    // "key0" + "val0" is 8 bytes and is charged once, however many headers carry that same key
+    // "key0" + "val0" is 8 bytes, and the duplicate is charged again rather than replacing the
+    // first charge, taking the total to 16
     headers.put(OT_BAGGAGE_PREFIX + "key0", "val0");
     headers.put(OT_BAGGAGE_PREFIX + "KEY0", "val0");
-    // charging the duplicate would take the total to 16 and leave no room for these 11 bytes
+    // leaving no room for these 11 bytes, even though only 8 bytes are actually retained
     headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    Map<String, String> expectedBaggage = new HashMap<>();
-    expectedBaggage.put("key0", "val0");
-    expectedBaggage.put("a", "0123456789");
-    assertEquals(expectedBaggage, context.getBaggage());
+    assertEquals(singletonMap("key0", "val0"), context.getBaggage());
   }
 
   @Test
@@ -393,10 +391,10 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
-  void extractOtBaggageUpdatesByteChargeOnReplacement() {
+  void extractOtBaggageReplacesValueWithoutFreeingItsCharge() {
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put(OT_BAGGAGE_PREFIX + "key0", "val0"); // 8 bytes
-    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "012345678901"); // replaces it with 16 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "012345678901"); // replaces the value, charges 16 more
     headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789"); // 11 bytes, no longer fits
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());

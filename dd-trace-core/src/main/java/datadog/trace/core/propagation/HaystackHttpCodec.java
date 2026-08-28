@@ -14,6 +14,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,6 +131,9 @@ class HaystackHttpCodec {
 
     private static final String BAGGAGE_PREFIX_LC = "baggage-";
 
+    // Largest reserved value we accept. Only relevant for traceID/spanID
+    private static final int MAX_RESERVED_ID_LENGTH = 64;
+
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int PARENT_ID = 2;
@@ -240,6 +244,24 @@ class HaystackHttpCodec {
         handleMappedBaggage(key, value);
       }
       return true;
+    }
+
+    /**
+     * Records the value of a reserved key, e.g. traceID/spanID. Ignores baggage item and byte
+     * limits to ensure propagation of key headers. However, if the header exceeds
+     * MAX_RESERVED_ID_LENGTH, value is rejected.
+     *
+     * @param key the reserved baggage key.
+     * @param value the id as it arrived, ignored when longer than {@link #MAX_RESERVED_ID_LENGTH}.
+     */
+    private void addReservedBaggageItem(String key, String value) {
+      if (value == null || value.length() > MAX_RESERVED_ID_LENGTH) {
+        return;
+      }
+      if (baggage.isEmpty()) {
+        baggage = new TreeMap<>();
+      }
+      baggage.put(key, value);
     }
 
     @Override
