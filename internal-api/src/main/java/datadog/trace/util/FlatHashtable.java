@@ -286,6 +286,17 @@ public final class FlatHashtable {
     }
 
     /**
+     * {@link Maybe}-wrapped form of {@link #tryGetOrCreate}, delegating to it as the sole {@link
+     * Maybe#of} call site -- see {@link Maybe}'s class javadoc for why that shape is required to
+     * stay allocation-free. A growable table's {@link Maybe} is always present.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateAsMaybe(
+        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+      return Maybe.of(tryGetOrCreate(key, createStrat));
+    }
+
+    /**
      * Unconditionally adds {@code entry} ({@code true}), or {@code false} if a fixed table is full.
      * Comparison-free and caller-responsible (same contract as {@link FlatHashtable#insert}): the
      * caller must ensure {@code entry}'s key is absent, else it lands shadowed.
@@ -474,6 +485,18 @@ public final class FlatHashtable {
       FlatHashtable.insert(table, created);
       size++;
       return created;
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateAsMaybe}: {@link Maybe}-wrapped form of {@link
+     * #tryGetOrCreate}, delegating to it as the sole {@link Maybe#of} call site.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateAsMaybe(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
+      return Maybe.of(tryGetOrCreate(key1, key2, createStrat));
     }
 
     /**

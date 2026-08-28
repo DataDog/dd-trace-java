@@ -246,6 +246,42 @@ class HashtableD1Test {
   }
 
   @Test
+  void getOrCreateAsMaybeOnMissBuildsEntryViaCreator() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 8);
+    Maybe<StringIntEntry> maybe =
+        table.tryGetOrCreateAsMaybe("foo", k -> new StringIntEntry(k, 42));
+    assertTrue(maybe.isPresent());
+    assertEquals(42, maybe.getOrNull().value);
+    assertSame(table.get("foo"), maybe.getOrNull());
+  }
+
+  @Test
+  void getOrCreateAsMaybeReturnsAbsentOnceAtCapacityButStillReturnsHits() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+
+    assertFalse(table.tryGetOrCreateAsMaybe("c", k -> new StringIntEntry(k, 3)).isPresent());
+    assertEquals(2, table.size());
+
+    Maybe<StringIntEntry> hit = table.tryGetOrCreateAsMaybe("a", k -> new StringIntEntry(k, 999));
+    assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void getOrCreateAsMaybeUpdateAppliesOnlyWhenPresent() {
+    Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 1);
+    table.insert(new StringIntEntry("a", 1));
+
+    ObjLongConsumer<StringIntEntry> add = (e, n) -> e.value += n;
+    table.tryGetOrCreateAsMaybe("a", k -> new StringIntEntry(k, 0)).update(5L, add);
+    assertEquals(6, table.get("a").value);
+
+    table.tryGetOrCreateAsMaybe("b", k -> new StringIntEntry(k, 0)).update(5L, add);
+    assertNull(table.get("b"), "refused create at capacity leaves nothing to update");
+  }
+
+  @Test
   void insertReturnsFalseOnceAtCapacity() {
     Hashtable.D1<String, StringIntEntry> table = Hashtable.D1.createCapped(StringIntEntry.class, 2);
     assertTrue(table.insert(new StringIntEntry("a", 1)));
