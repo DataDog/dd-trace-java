@@ -79,9 +79,12 @@ public final class LLMObsContext {
         updated.with(
             AGENT_VERSION_KEY,
             agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
-    // Always write both pagent keys. null clears stale values from outer scope.
-    updated = updated.with(PAGENT_SPAN_ID_KEY, pagentSpanId);
-    updated = updated.with(PAGENT_NAME_KEY, pagentName);
+    if (pagentSpanId != null && !pagentSpanId.isEmpty()) {
+      updated = updated.with(PAGENT_SPAN_ID_KEY, pagentSpanId);
+      // Always update the name key (null removes it), so an outer agent's name is not
+      // inherited when an inner agent has an unsafe (null) name.
+      updated = updated.with(PAGENT_NAME_KEY, pagentName);
+    }
     return updated.attach();
   }
 

@@ -99,6 +99,53 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   @Test
+  void agentSpanWithTildeInNameStoresIdButNullName() throws Exception {
+    // Tilde (0x7E) is rewritten to '_' by W3C tracestate encoding — disallowed to avoid
+    // downstream name collisions after a tracecontext hop.
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent~name");
+      try {
+        AgentSpan inner = innerSpan(agentSpan);
+        assertEquals(String.valueOf(inner.getSpanId()), inner.getTag(PAGENT_SPAN_ID_TAG));
+        assertNull(inner.getTag(PAGENT_NAME_TAG));
+      } finally {
+        agentSpan.finish();
+        apmScope.span().finish();
+      }
+    }
+  }
+
+  @Test
+  void unsafeNamedInnerAgentClearsOuterAgentNameInContext() throws Exception {
+    // When an unsafe-named inner agent is nested under a named outer agent, descendants of the
+    // inner agent must not inherit the outer agent's name — only its own (null) name.
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
+      try {
+        DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner~unsafe");
+        try {
+          // A tool created under the inner agent should see the inner agent's ID but null name.
+          DDLLMObsSpan tool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool");
+          try {
+            AgentSpan toolInner = innerSpan(tool);
+            AgentSpan innerAgentSpan = innerSpan(innerAgent);
+            assertEquals(
+                String.valueOf(innerAgentSpan.getSpanId()), toolInner.getTag(PAGENT_SPAN_ID_TAG));
+            assertNull(toolInner.getTag(PAGENT_NAME_TAG));
+          } finally {
+            tool.finish();
+          }
+        } finally {
+          innerAgent.finish();
+        }
+      } finally {
+        outerAgent.finish();
+        apmScope.span().finish();
+      }
+    }
+  }
+
+  @Test
   void nonAgentChildUnderAgentInheritsAttribution() throws Exception {
     // All LLMObs spans share the same APM trace so the trace-ID consistency gate passes.
     try (AgentScope apmScope = startRootApmScope()) {
