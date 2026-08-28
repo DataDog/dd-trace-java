@@ -242,22 +242,22 @@ class SmokeMatcherTest {
         trace(span().root()));
 
     // A non-null span type fails the default unless acknowledged with type(...).
-    List<DecodedTrace> typed = Decoder.decodeJson(spanTrace("s", "web", 0)).getTraces();
+    List<DecodedTrace> typed = Decoder.decodeJson(spanTraceJson("s", "web", 0)).getTraces();
     assertThrows(AssertionError.class, () -> assertTraces(typed, trace(span().root())));
     assertTraces(typed, trace(span().root().type("web")));
 
     // An errored span fails the default unless acknowledged with error(true).
-    List<DecodedTrace> errored = Decoder.decodeJson(spanTrace("s", null, 1)).getTraces();
+    List<DecodedTrace> errored = Decoder.decodeJson(spanTraceJson("s", null, 1)).getTraces();
     assertThrows(AssertionError.class, () -> assertTraces(errored, trace(span().root())));
     assertTraces(errored, trace(span().root().error(true)));
 
     // An undefined (empty) service fails the default.
-    List<DecodedTrace> noService = Decoder.decodeJson(spanTrace("", null, 0)).getTraces();
+    List<DecodedTrace> noService = Decoder.decodeJson(spanTraceJson("", null, 0)).getTraces();
     assertThrows(AssertionError.class, () -> assertTraces(noService, trace(span().root())));
   }
 
   /** A single-span trace with a configurable service, span type (nullable), and error flag. */
-  private static String spanTrace(String service, String type, int error) {
+  private static String spanTraceJson(String service, String type, int error) {
     return "[[{\"service\":\""
         + service
         + "\",\"name\":\"op\",\"resource\":\"op\","
@@ -271,7 +271,7 @@ class SmokeMatcherTest {
 
   @Test
   void matchesLinksByTargetSpanIndexPositionally() {
-    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTraceJson(20, 30)).getTraces();
     assertTraces(
         traces,
         trace(
@@ -283,7 +283,7 @@ class SmokeMatcherTest {
 
   @Test
   void matchesLinksByRawIdentifiersAndWildcard() {
-    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTraceJson(20, 30)).getTraces();
     assertTraces(
         traces,
         trace(
@@ -295,7 +295,7 @@ class SmokeMatcherTest {
 
   @Test
   void wrongLinkOrderFails() {
-    List<DecodedTrace> traces = Decoder.decodeJson(linkedTrace(20, 30)).getTraces();
+    List<DecodedTrace> traces = Decoder.decodeJson(linkedTraceJson(20, 30)).getTraces();
     assertThrows(
         AssertionError.class,
         () ->
@@ -312,7 +312,7 @@ class SmokeMatcherTest {
   @Test
   void wrongLinkCountFails() {
     // A single-span trace, so a link-count mismatch is the only thing that can fail.
-    List<DecodedTrace> traces = Decoder.decodeJson(mergeOnlyTrace(20, 30)).getTraces();
+    List<DecodedTrace> traces = Decoder.decodeJson(mergeOnlyTraceJson(20, 30)).getTraces();
     assertTraces(traces, trace(span().operationName("merge").root().links(any(), any())));
     assertThrows(
         AssertionError.class,
@@ -328,7 +328,7 @@ class SmokeMatcherTest {
 
   @Test
   void emptyLinksAssertsNoLinkAndAbsentLinksAssertNothing() {
-    List<DecodedTrace> withLinks = Decoder.decodeJson(mergeOnlyTrace(20)).getTraces();
+    List<DecodedTrace> withLinks = Decoder.decodeJson(mergeOnlyTraceJson(20)).getTraces();
     assertThrows(
         AssertionError.class,
         () -> assertTraces(withLinks, trace(span().operationName("merge").root().links())),
@@ -343,7 +343,7 @@ class SmokeMatcherTest {
 
   @Test
   void matchesLinkFlagsStateAndAttributes() {
-    List<DecodedTrace> traces = Decoder.decodeJson(refinedLinkTrace()).getTraces();
+    List<DecodedTrace> traces = Decoder.decodeJson(refinedLinkTraceJson()).getTraces();
     assertTraces(
         traces,
         trace(
@@ -397,12 +397,12 @@ class SmokeMatcherTest {
   }
 
   /** A single-span trace whose root {@code merge} span links to the given span ids. */
-  private static String mergeOnlyTrace(long... linkedSpanIds) {
+  private static String mergeOnlyTraceJson(long... linkedSpanIds) {
     return "[[" + linkingSpanJson(40, 0, linkedSpanIds) + "]]";
   }
 
   /** One trace: a root, two shards, and a merge span linking to both shards. */
-  private static String linkedTrace(long shardA, long shardB) {
+  private static String linkedTraceJson(long shardA, long shardB) {
     return "[["
         + spanJson("root", 10, 0, 10)
         + ","
@@ -415,7 +415,7 @@ class SmokeMatcherTest {
   }
 
   /** A single-span trace whose link carries flags, a trace state and attributes. */
-  private static String refinedLinkTrace() {
+  private static String refinedLinkTraceJson() {
     return "[[{\"service\":\"s\",\"name\":\"merge\",\"resource\":\"merge\","
         + "\"trace_id\":1,\"span_id\":40,\"parent_id\":0,\"start\":40,\"duration\":1,"
         + "\"error\":0,\"metrics\":{},\"meta\":{\"_dd.span_links\":\""
