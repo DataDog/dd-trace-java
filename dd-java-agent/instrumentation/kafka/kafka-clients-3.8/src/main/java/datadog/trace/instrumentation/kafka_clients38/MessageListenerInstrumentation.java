@@ -12,8 +12,15 @@ import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/**
+ * Applies Code Origin (span origin) advice to Spring Kafka message listeners. This is a purely-APM
+ * concern with no Data Streams behaviour, so it deliberately stays on the {@link
+ * InstrumenterModule.Tracing} base class: {@link InstrumenterModule.DataStreams} ORs {@code
+ * isDataStreamsEnabled()} into {@code isEnabled()}, which would install this instrumentation in
+ * DSM-only deployments where Kafka tracing is off.
+ */
 @AutoService(InstrumenterModule.class)
-public class MessageListenerInstrumentation extends InstrumenterModule.DataStreams
+public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MessageListenerInstrumentation() {
