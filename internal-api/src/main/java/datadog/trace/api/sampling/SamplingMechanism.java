@@ -70,7 +70,7 @@ public class SamplingMechanism {
         return priority == PrioritySampling.USER_KEEP;
 
       case DATA_STREAMS:
-        return priority == USER_DROP;
+        return priority == PrioritySampling.USER_DROP;
 
       case EXTERNAL_OVERRIDE:
         return false;
