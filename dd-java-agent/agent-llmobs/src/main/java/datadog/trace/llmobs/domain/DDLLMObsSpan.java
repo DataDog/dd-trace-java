@@ -149,7 +149,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    if (samplingDecision == null) {
+    if (samplingDecision == null || sampleRate == null) {
       sampleRate = sampler.formattedRate();
       samplingDecision =
           sampler.sample(span.getTraceId().toLong())

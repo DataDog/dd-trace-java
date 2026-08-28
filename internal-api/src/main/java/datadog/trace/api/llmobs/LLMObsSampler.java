@@ -22,10 +22,8 @@ public final class LLMObsSampler {
   }
 
   public LLMObsSampler(final double rate) {
-    // NaN is clamped to 1.0 rather than left alone: every comparison against it is false, which
-    // would otherwise leave the cutoff and the reported rate disagreeing about what happened.
-    final double bounded = Double.isNaN(rate) ? 1.0 : rate;
-    this.rate = bounded < 0.0 ? 0.0 : (bounded > 1.0 ? 1.0 : bounded);
+    // Any rate outside [0.0, 1.0] (including NaN) falls back to 1.0
+    this.rate = (rate >= 0.0 && rate <= 1.0) ? rate : 1.0;
     this.threshold = cutoff(this.rate);
     this.formattedRate = formatRate(this.rate);
   }

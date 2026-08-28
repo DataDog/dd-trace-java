@@ -34,14 +34,12 @@ class LLMObsSamplerTest {
 
   @ParameterizedTest
   @ValueSource(doubles = {-1.0, -0.0001, 1.0001, 2.0, Double.NaN})
-  void clampsOutOfRangeRates(double rate) {
+  void outOfRangeRatesFallBackToKeepingEverything(double rate) {
     LLMObsSampler sampler = new LLMObsSampler(rate);
-    // NaN fails every comparison, so it clamps to the same "keep everything" behaviour as 1.0.
-    if (rate < 0.0) {
-      assertEquals("0", sampler.formattedRate());
-    } else {
-      assertEquals("1", sampler.formattedRate());
-      assertTrue(sampler.sample(1234567890123L));
+    // Including negatives and NaN: a bad rate must never be read as "drop everything".
+    assertEquals("1", sampler.formattedRate());
+    for (long id : new long[] {0L, 1L, -1L, Long.MAX_VALUE, Long.MIN_VALUE, 1234567890123L}) {
+      assertTrue(sampler.sample(id));
     }
   }
 
