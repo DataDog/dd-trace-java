@@ -68,13 +68,13 @@ configurations.configureEach {
 
 ["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
   }
 }
 
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 17)
+    configureCompiler(it, 25, JavaVersion.VERSION_17)
   }
 }
 

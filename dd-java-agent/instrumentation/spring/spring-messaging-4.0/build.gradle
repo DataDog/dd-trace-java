@@ -29,7 +29,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
   def kotlinTaskName = name.replace("Groovy", "Kotlin")
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 17)
+    configureCompiler(it, 25, JavaVersion.VERSION_17)
     classpath += files(tasks.named(kotlinTaskName).map { it.destinationDirectory })
   }
 }

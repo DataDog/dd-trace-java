@@ -20,11 +20,11 @@ tracerJava {
 addTestSuite("latestDepTest")
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
 }
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
   }
 }
 

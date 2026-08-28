@@ -20,10 +20,6 @@ dependencies {
   testImplementation libs.bundles.mockito
 }
 
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
-
 tasks.withType(Test).configureEach {
   javaLauncher = getJavaLauncherFor(11)
 }
