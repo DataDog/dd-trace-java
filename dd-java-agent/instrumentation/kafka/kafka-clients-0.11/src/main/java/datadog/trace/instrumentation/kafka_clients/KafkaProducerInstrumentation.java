@@ -58,7 +58,7 @@ import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
-public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaProducerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaProducerInstrumentation() {
