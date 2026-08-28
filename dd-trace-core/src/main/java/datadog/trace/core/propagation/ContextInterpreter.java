@@ -52,7 +52,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
 
-  private int baggageItems;
+  private int baggageItemCount;
   private int baggageSize;
 
   protected CharSequence lastParentId;
@@ -238,7 +238,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       return false;
     }
     final boolean newItem = !baggage.containsKey(key);
-    if (newItem && baggageItems >= baggageMaxItems) {
+    if (newItem && baggageItemCount >= baggageMaxItems) {
       LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
       return false;
     }
@@ -253,7 +253,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     }
     baggage.put(key, HttpCodec.decode(value));
     if (newItem) {
-      baggageItems++;
+      baggageItemCount++;
     }
     baggageSize = (int) projectedSize;
     return true;
@@ -268,7 +268,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     endToEndStartTime = 0;
     if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
-    baggageItems = 0;
+    baggageItemCount = 0;
     baggageSize = 0;
     valid = true;
     fullContext = true;
