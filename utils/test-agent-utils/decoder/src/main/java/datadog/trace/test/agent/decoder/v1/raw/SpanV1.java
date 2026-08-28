@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.Value;
@@ -146,10 +147,10 @@ public class SpanV1 implements DecodedSpan {
             resource = unpackStreamingString(unpacker, stringTable);
             break;
           case SPAN_FIELD_SPAN_ID:
-            spanId = unpacker.unpackLong();
+            spanId = unpackUnsignedLong(unpacker);
             break;
           case SPAN_FIELD_PARENT_ID:
-            parentId = unpacker.unpackLong();
+            parentId = unpackUnsignedLong(unpacker);
             break;
           case SPAN_FIELD_START:
             start = unpacker.unpackLong();
@@ -373,7 +374,7 @@ public class SpanV1 implements DecodedSpan {
             traceId = unpackTraceId(unpacker);
             break;
           case LINK_FIELD_SPAN_ID:
-            spanId = unpacker.unpackLong();
+            spanId = unpackUnsignedLong(unpacker);
             break;
           case LINK_FIELD_ATTRIBUTES:
             unpackLinkAttributes(unpacker, stringTable, attributes);
@@ -393,6 +394,26 @@ public class SpanV1 implements DecodedSpan {
       links.add(DecodedSpanLinks.link(traceId, spanId, traceFlags, traceState, attributes));
     }
     return unmodifiableList(links);
+  }
+
+  /**
+   * Unpacks an identifier the writer emitted as an unsigned 64-bit value.
+   *
+   * <p>{@code TraceMapperV1} writes span and parent identifiers with {@code writeUnsignedLong}, so
+   * any identifier with its high bit set arrives as a msgpack {@code UINT64}. {@link
+   * MessageUnpacker#unpackLong()} rejects those, so read them through a {@link
+   * java.math.BigInteger} and keep the low-order 64 bits, which is the same two's-complement value
+   * the writer had.
+   *
+   * @param unpacker The message unpacker.
+   * @return The identifier.
+   * @throws IOException If unpacking fails.
+   */
+  private static long unpackUnsignedLong(MessageUnpacker unpacker) throws IOException {
+    if (unpacker.getNextFormat() == MessageFormat.UINT64) {
+      return unpacker.unpackBigInteger().longValue();
+    }
+    return unpacker.unpackLong();
   }
 
   /**
