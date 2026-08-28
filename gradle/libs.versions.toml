@@ -18,7 +18,7 @@ spotless = "8.10.0"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.49.0"
+ddprof = "1.50.0"
 dogstatsd = "4.4.5"
 datadog-okhttp = "3.12.15" # Datadog fork
 datadog-okio = "1.17.6" # Datadog fork
