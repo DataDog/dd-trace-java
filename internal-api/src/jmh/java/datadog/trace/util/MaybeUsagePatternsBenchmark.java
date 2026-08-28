@@ -23,7 +23,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * arms do; the paired "bad" arm exists to make the regression visible rather than theoretical. Run
  * as
  *
- * <pre>./gradlew :internal-api:jmh -Pjmh.includes=TryUsagePatterns -Pjmh.profilers=gc -PtestJvm=17
+ * <pre>
+ * ./gradlew :internal-api:jmh -Pjmh.includes=MaybeUsagePatternsBenchmark -Pjmh.profilers=gc -PtestJvm=17
  * </pre>
  *
  * This is the intended backing example for a perf-review check like "EA-dependent elision on a hot
@@ -67,11 +68,11 @@ public class MaybeUsagePatternsBenchmark {
    * The same update expressed through the generic-context overload instead. {@code Long} is not
    * assignable from {@code long} without boxing, so calling {@link Maybe#update(Object,
    * BiConsumer)} with a {@code long} argument boxes it every time — the exact per-call allocation
-   * {@link Maybe#update(long, ObjLongConsumer)} exists to avoid. Kept as a {@code BiConsumer<Long,
-   * Widget>} rather than inlined at the call site so the two arms below differ only in which
-   * overload is selected, not in lambda shape.
+   * {@link Maybe#update(long, ObjLongConsumer)} exists to avoid. Kept as a {@code
+   * BiConsumer<Widget, Long>} rather than inlined at the call site so the two arms below differ
+   * only in which overload is selected, not in lambda shape.
    */
-  static final BiConsumer<Long, Widget> ADD_BOXED = (delta, w) -> w.count += delta;
+  static final BiConsumer<Widget, Long> ADD_BOXED = (w, delta) -> w.count += delta;
 
   /**
    * Same logic as {@link #ADD_BOXED}, but as a named class rather than a lambda so {@code
@@ -80,14 +81,14 @@ public class MaybeUsagePatternsBenchmark {
    * UninlinedStrategy} is, by the {@code CompileCommand} rather than {@code CompilerControl}, since
    * JMH's processor only reads that annotation from {@code @Benchmark} methods.
    */
-  static final class UninlinedBoxedAdder implements BiConsumer<Long, Widget> {
+  static final class UninlinedBoxedAdder implements BiConsumer<Widget, Long> {
     @Override
-    public void accept(Long delta, Widget w) {
+    public void accept(Widget w, Long delta) {
       w.count += delta;
     }
   }
 
-  static final BiConsumer<Long, Widget> ADD_BOXED_UNINLINED = new UninlinedBoxedAdder();
+  static final BiConsumer<Widget, Long> ADD_BOXED_UNINLINED = new UninlinedBoxedAdder();
 
   /**
    * Deliberately outside {@code Long}'s [-128, 127] cache range -- a cached delta like {@code 1L}

@@ -25,9 +25,16 @@ import javax.annotation.Nullable;
  * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an
  * already-nullable-returning method) rather than once per {@code return} statement -- multiple
- * construction sites inline into a multi-producer phi that fails scalar replacement on every JDK
- * 8-25 once the refusal branch is reachable. See {@code EscapeShapeBenchmark}'s {@code
- * phiOfTwoAllocations} arm for that failure mode in isolation.
+ * construction sites inline into a multi-producer phi that fails scalar replacement on JDK
+ * 8/11/17/21 (measured 16 B/op, {@code MaybeUsagePatternsBenchmark#badMultiConstructionSite}) once
+ * the refusal branch is reachable. On JDK 25, {@code ReduceAllocationMerges} collapses this
+ * specific shape -- two branches allocating the same final type with identical field layout -- back
+ * down to 0 B/op; do not rely on that JDK-25-only behavior, since it is exactly the kind of
+ * EA-dependent elision that can regress silently the moment the two branches stop being trivially
+ * mergeable (e.g. one branch gains extra state). See {@code EscapeShapeBenchmark}'s {@code
+ * phiOfTwoAllocations} arm, which uses two distinct interface implementations rather than one
+ * concrete type and therefore fails to scalar-replace on every JDK including 25 -- a different,
+ * stronger failure mode than the one demonstrated here.
  */
 public final class Maybe<T> {
   @Nullable private final T value;
@@ -47,16 +54,18 @@ public final class Maybe<T> {
    * otherwise have to be re-evaluated or named twice at the call site.
    *
    * <p>Unlike the single-arg {@link #of}, {@code fn} here is typically a <em>capturing</em> lambda
-   * -- it closes over whatever local arguments the caller's method has in scope -- which makes it a
-   * second heap-object candidate distinct from the {@code Maybe} itself. <b>Confirmed
-   * 2026-08-27</b> against a real capacity-refusing lookup method (JDK 8/11/17/25, both a common
-   * and a rare refusal ratio): the capturing lambda scalar-replaces as reliably as a plain
-   * delegating method call does -- see the Hashtable-integration follow-up for that benchmark and
-   * the full numbers. That confirmation is specific to the shape actually measured: a monomorphic
-   * receiver and a {@code fn} built once per call site (not a fresh lambda per invocation) and
-   * applied exactly once. If {@code fn} itself captures something that must be freshly allocated
-   * per call (e.g. a non-singleton creator), that allocation is real regardless of what happens to
-   * the lambda wrapping it.
+   * -- it closes over whatever local arguments the caller's method has in scope, so a fresh lambda
+   * instance is created on every invocation (capturing lambdas are never cached the way a
+   * non-capturing lambda's singleton instance commonly is) -- which makes it a second heap-object
+   * candidate distinct from the {@code Maybe} itself. <b>Confirmed 2026-08-27</b> against a real
+   * capacity-refusing lookup method (JDK 8/11/17/25, both a common and a rare refusal ratio): that
+   * freshly-allocated capturing lambda still scalar-replaces as reliably as a plain delegating
+   * method call does -- see the Hashtable-integration follow-up for that benchmark and the full
+   * numbers. That confirmation is specific to the shape actually measured: a monomorphic receiver
+   * and a {@code fn} that is applied exactly once and does not itself escape (e.g. by being stored
+   * or passed further). If {@code fn} itself captures something that must be freshly allocated per
+   * call (e.g. a non-singleton creator), that allocation is real regardless of what happens to the
+   * lambda wrapping it.
    */
   @Nonnull
   public static <R, T> Maybe<T> of(R receiver, @Nonnull Function<? super R, ? extends T> fn) {
@@ -91,12 +100,13 @@ public final class Maybe<T> {
   /**
    * Generic-context form of {@link #update(Consumer)}, for callers that already have a reusable,
    * non-capturing {@code BiConsumer} (typically a {@code static final}) plus whatever context it
-   * needs -- mirrors {@code Hashtable#forEach}'s {@code (context, entry)} argument order for the
-   * same reason: the entry doesn't need naming at the call site, only the context does.
+   * needs -- {@code (value, context)} to stay consistent with the primitive-context overloads
+   * below, at the cost of departing from {@code Hashtable#forEach}'s {@code (context, entry)}
+   * convention.
    */
-  public <C> void update(C context, BiConsumer<? super C, ? super T> mutator) {
+  public <C> void update(C context, BiConsumer<? super T, ? super C> mutator) {
     if (value != null) {
-      mutator.accept(context, value);
+      mutator.accept(value, context);
     }
   }
 
