@@ -227,6 +227,31 @@ class FlatHashtableD2Test {
   }
 
   @Test
+  void fixedGetOrCreateAsMaybeIsAbsentWhenFullButStillReturnsHits() {
+    FlatHashtable.D2<String, Integer, PairEntry> table = fixed(2);
+    table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 1));
+    table.tryGetOrCreate("b", 2, (k1, k2) -> new PairEntry(k1, k2, 2));
+
+    assertFalse(
+        table.tryGetOrCreateAsMaybe("c", 3, (k1, k2) -> new PairEntry(k1, k2, 3)).isPresent());
+
+    Maybe<PairEntry> hit =
+        table.tryGetOrCreateAsMaybe("a", 1, (k1, k2) -> new PairEntry(k1, k2, 99));
+    assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
+  }
+
+  @Test
+  void growableGetOrCreateAsMaybeIsAlwaysPresent() {
+    FlatHashtable.D2<String, Integer, PairEntry> table = growable(1);
+    for (int i = 0; i < 50; i++) {
+      Maybe<PairEntry> maybe =
+          table.tryGetOrCreateAsMaybe("k", i, (k1, k2) -> new PairEntry(k1, k2, k2));
+      assertTrue(maybe.isPresent());
+    }
+    assertEquals(50, table.size());
+  }
+
+  @Test
   void fixedInsertReturnsFalseWhenFull() {
     FlatHashtable.D2<String, Integer, PairEntry> table = fixed(2);
     assertTrue(table.insert(new PairEntry("a", 1, 1)));

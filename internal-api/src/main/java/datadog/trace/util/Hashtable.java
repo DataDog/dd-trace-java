@@ -337,6 +337,23 @@ public final class Hashtable {
     }
 
     /**
+     * {@link Maybe}-wrapped form of {@link #tryGetOrCreate}, for callers that want to guard the
+     * refused-create case with {@link Maybe#update} rather than a manual null check:
+     *
+     * <pre>{@code
+     * table.tryGetOrCreateAsMaybe(key, Counter::new).update(n, ADD);
+     * }</pre>
+     *
+     * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreate} --
+     * see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateAsMaybe(
+        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreate(key, creator));
+    }
+
+    /**
      * {@link #tryGetOrCreate} followed by {@code updater}, returning whether the update happened.
      *
      * <p>Prefer this over the two-call form for the common read-modify-write shape -- a counter
@@ -648,6 +665,18 @@ public final class Hashtable {
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateAsMaybe}: {@link Maybe}-wrapped form of {@link
+     * #tryGetOrCreate}, delegating to it as the sole {@link Maybe#of} call site.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateAsMaybe(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+      return Maybe.of(tryGetOrCreate(key1, key2, creator));
     }
 
     /**
