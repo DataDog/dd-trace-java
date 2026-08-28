@@ -29,14 +29,22 @@ import org.openjdk.jmh.infra.Blackhole;
  * Maybe}, because the shapes under test are about the compiler's allocation behavior, not about
  * what the wrapped value represents.
  *
- * <p>Three terms recur below. <b>Escape analysis (EA)</b> is the compiler's proof that an allocated
- * object's lifetime is provably confined to the method (or thread) that created it -- it never
- * escapes into a field, a return value visible outside, or a call the compiler cannot see into.
- * <b>Scalar replacement</b> is what C2 does once EA holds: it replaces the object with its
- * individual fields, held in registers or on the stack, so no heap allocation happens at all -- the
- * arms that read 0 B/op below scalar-replaced. <b>{@code ReduceAllocationMerges}</b> (JDK-8287061)
- * is a JDK 21+ extension of that proof to certain merges of two live allocations reaching the same
- * use, which is why a few rows below only drop to 0 starting at JDK 21/25 rather than on every JDK.
+ * <p>The underlying idea, before the terminology: the compiler can sometimes prove a short-lived
+ * object never needs to outlive the method that created it, and when it can, it skips putting that
+ * object on the heap at all -- it keeps the object's fields as plain local values instead. Three
+ * terms for that recur below. <b>Escape analysis (EA)</b> is the compiler's proof step -- showing
+ * an allocated object's lifetime is confined to the method (or thread) that created it, i.e. it
+ * never escapes into a field, a return value visible outside, or a call the compiler cannot see
+ * into. <b>Scalar replacement</b> is what C2 (HotSpot's JIT) does once that proof holds: the object
+ * itself disappears, and its individual fields live in registers or on the stack instead, so no
+ * heap allocation happens -- the arms below that read 0 B/op are exactly the ones EA proved safe.
+ * <b>{@code ReduceAllocationMerges}</b> (JDK-8287061) extends that same proof to one harder case:
+ * an if/else (or similar branch) where each side allocates its own object -- say {@code x = new
+ * Foo()} in one branch and {@code x = new Bar()} in the other -- and the code after the branch
+ * reads {@code x} without knowing which allocation actually ran. Before JDK 21, C2 could not
+ * scalar-replace either allocation once they were merged like this, even if each individually would
+ * have qualified on its own; {@code ReduceAllocationMerges} is what lets it do so starting at JDK
+ * 21, which is why a few rows below only drop to 0 starting at JDK 21/25 rather than on every JDK.
  * All of this is specific to HotSpot's C2 JIT; none of it has been checked against OpenJ9 or
  * GraalVM, which use different compilers with different heuristics and may not scalar-replace the
  * same shapes.
@@ -58,17 +66,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * passedToInlinedStrategy                   0       ?       0       ?       0   @Strategy boundary
  * backingMonomorphic                        0       ?       0       ?       0   one backing
  * backingBimorphic                          0       ?       0       ?       0   two backings
- * phiWithNull                               8       ?       8       ?       0   merge with null
- * phiWithStatic                             8       ?       8       ?       8   merge with a singleton
- * phiWithStaticClosedInFinally              8       ?       8       ?       8   ... the same, whole
- * phiOfTwoAllocations                      16       ?      16       ?      16   merge of two allocations
+ * mergeWithNull                             8       ?       8       ?       0   merge with null
+ * mergeWithStatic                           8       ?       8       ?       8   merge with a singleton
+ * mergeWithStaticClosedInFinally            8       ?       8       ?       8   ... the same, whole
+ * mergeOfTwoAllocations                    16       ?      16       ?      16   merge of two allocations
  * passedToUninlinedStrategy                24       ?      24       ?      24   the same boundary, uninlined
  * backingMegamorphic                       24       ?      24       ?      24   three backings
  * </pre>
  *
  * <p>JDK 8 column measured 2026-08-27 (Zulu 8.72.0.17, this machine, {@code -Pjmh.fork=1}): every
  * arm lands on the same B/op as the 17/25 columns it was checked against, including {@code
- * phiWithNull} staying at 8 rather than following JDK 25's drop to 0 — the {@code
+ * mergeWithNull} staying at 8 rather than following JDK 25's drop to 0 — the {@code
  * ReduceAllocationMerges} relaxation is JDK 21+ only, so 8's floor for this shape is the older,
  * unconditional one.
  *
@@ -80,7 +88,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *       catch is in the same method, so C2 can reduce the throw to control flow; this does not
  *       exercise an unwind through frames.
  *   <li>A merge with a static allocates on every JDK measured, JDK 25 included. The JDK 21
- *       allocation-merge work shows up only in the {@code phiWithNull} row, which goes 8 to 0; a
+ *       allocation-merge work shows up only in the {@code mergeWithNull} row, which goes 8 to 0; a
  *       merge of two live allocations still allocates at 25, because the merged reference is called
  *       through rather than only read from.
  *   <li>Moving the outcome into a field of a single allocation costs nothing, with or without the
@@ -292,19 +300,19 @@ public class EscapeShapeBenchmark {
   }
 
   @Benchmark
-  public void phiOfTwoAllocations(Blackhole bh) {
+  public void mergeOfTwoAllocations(Blackhole bh) {
     Outcome cell = alternate() ? new SingleAllocation(counter) : new AlternateAllocation(counter);
     bh.consume(cell.value());
   }
 
   @Benchmark
-  public void phiWithStatic(Blackhole bh) {
+  public void mergeWithStatic(Blackhole bh) {
     Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
     bh.consume(cell.value());
   }
 
   @Benchmark
-  public void phiWithNull(Blackhole bh) {
+  public void mergeWithNull(Blackhole bh) {
     SingleAllocation cell = alternate() ? new SingleAllocation(counter) : null;
     bh.consume(cell == null ? 0 : cell.value());
   }
@@ -356,7 +364,7 @@ public class EscapeShapeBenchmark {
 
   /** The Optional-style shape, whole: a singleton for one outcome, under try/finally. */
   @Benchmark
-  public void phiWithStaticClosedInFinally(Blackhole bh) {
+  public void mergeWithStaticClosedInFinally(Blackhole bh) {
     Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
     try {
       bh.consume(cell.value());
