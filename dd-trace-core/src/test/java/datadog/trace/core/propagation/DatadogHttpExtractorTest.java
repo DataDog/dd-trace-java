@@ -406,10 +406,10 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "8")
-  void extractOtBaggageCountsEncodedUtf8Bytes() {
+  void extractOtBaggageChargesEncodedValueSize() {
     Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(OT_BAGGAGE_PREFIX + "a", "b"); // 2 bytes
-    headers.put(OT_BAGGAGE_PREFIX + "c", "%E2%99%A5"); // 1-byte key + 9-byte raw value
+    headers.put(OT_BAGGAGE_PREFIX + "a", "b"); // 2 characters
+    headers.put(OT_BAGGAGE_PREFIX + "c", "%E2%99%A5"); // 1 character key + 9 character raw value
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -417,11 +417,11 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @Test
-  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "4")
-  void extractOtBaggageCountsLiteralUtf8Bytes() {
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "3")
+  void extractOtBaggageChargesLiteralUtf8ByCharacterCount() {
     Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(OT_BAGGAGE_PREFIX + "a", "♥"); // 1-byte key + 3-byte UTF-8 value
-    headers.put(OT_BAGGAGE_PREFIX + "b", "c"); // does not fit after the first item
+    headers.put(OT_BAGGAGE_PREFIX + "a", "♥"); // 2 characters
+    headers.put(OT_BAGGAGE_PREFIX + "b", "c"); // 2 more characters, no longer fits
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 

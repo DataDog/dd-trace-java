@@ -31,7 +31,6 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
-import okio.Utf8;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,9 +51,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected int samplingPriority;
   protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
-  private Map<String, Integer> baggageItemBytes;
+
+  private Map<String, Integer> baggageItemSizes;
+
   private int baggageItems;
-  private int baggageBytes;
+  private int baggageSize;
 
   protected CharSequence lastParentId;
   protected CharSequence origin;
@@ -238,11 +239,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean addBaggageItem(String key, String value) {
-    if (key == null || value == null || baggageMaxItems <= 0 || baggageMaxBytes <= 0) {
+    if (key == null || value == null || baggageMaxItems == 0 || baggageMaxBytes == 0) {
       return false;
     }
-    final Integer previousItemBytes = baggageItemBytes.get(key);
-    final boolean newItem = previousItemBytes == null;
+    final Integer previousItemSize = baggageItemSizes.get(key);
+    final boolean newItem = previousItemSize == null;
     if (newItem && baggage.containsKey(key)) {
       // A reserved propagation value already owns this key. Caller-controlled baggage must not
       // make preservation of that value depend on header visitation order.
@@ -253,46 +254,51 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
       return false;
     }
-    // Charge the raw key and value before URL decoding so percent-encoded input keeps its size.
-    final long itemBytes = Utf8.size(key) + Utf8.size(value);
-    final long projectedBytes = (long) baggageBytes - (newItem ? 0 : previousItemBytes) + itemBytes;
-    if (projectedBytes > baggageMaxBytes) {
+
+    final long itemSize = (long) key.length() + value.length();
+    final long projectedSize = (long) baggageSize - (newItem ? 0 : previousItemSize) + itemSize;
+    if (projectedSize > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
       return false;
     }
     final String decodedValue = HttpCodec.decode(value);
     if (baggage.isEmpty()) {
       baggage = new TreeMap<>();
-      baggageItemBytes = new TreeMap<>();
+      baggageItemSizes = new TreeMap<>();
     }
     baggage.put(key, decodedValue);
     // Accepted baggage is bounded by the int-valued baggageMaxBytes configuration.
-    baggageItemBytes.put(key, (int) itemBytes);
+    baggageItemSizes.put(key, (int) itemSize);
     if (newItem) {
       baggageItems++;
     }
-    baggageBytes = (int) projectedBytes;
+    baggageSize = (int) projectedSize;
     return true;
   }
 
-  // Stores a value the tracer itself round-trips, outside the caller-controlled baggage budget so
-  // that caller-supplied headers cannot evict it. Exempt from the configured limits, but not
-  // unbounded: the value is capped here rather than left to each caller to validate, so the total
-  // retained stays within trace.baggage.max.bytes plus a fixed amount per reserved key.
+  /**
+   * Stores a value the tracer itself round-trips, outside the caller-controlled baggage budget so
+   * that caller-supplied headers cannot evict it. Exempt from the configured limits, but not
+   * unbounded: the value is capped here rather than left to each caller to validate, so the total
+   * retained stays within {@code trace.baggage.max.bytes} plus a fixed amount per reserved key.
+   *
+   * @param key the reserved baggage key.
+   * @param value the value to store, ignored when longer than {@link #MAX_RESERVED_BAGGAGE_LENGTH}.
+   */
   protected final void addReservedBaggageItem(String key, String value) {
     if (key == null || value == null || value.length() > MAX_RESERVED_BAGGAGE_LENGTH) {
       return;
     }
     if (baggage.isEmpty()) {
       baggage = new TreeMap<>();
-      baggageItemBytes = new TreeMap<>();
+      baggageItemSizes = new TreeMap<>();
     }
     // A mapped baggage key could collide with a reserved key. Remove its charge before replacing
     // it so the caller-controlled budget continues to describe the items actually retained.
-    final Integer previousItemBytes = baggageItemBytes.remove(key);
-    if (previousItemBytes != null) {
+    final Integer previousItemSize = baggageItemSizes.remove(key);
+    if (previousItemSize != null) {
       baggageItems--;
-      baggageBytes -= previousItemBytes;
+      baggageSize -= previousItemSize;
     }
     baggage.put(key, value);
   }
@@ -306,9 +312,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     endToEndStartTime = 0;
     if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
-    baggageItemBytes = Collections.emptyMap();
+    baggageItemSizes = Collections.emptyMap();
     baggageItems = 0;
-    baggageBytes = 0;
+    baggageSize = 0;
     valid = true;
     fullContext = true;
     httpHeaders = null;

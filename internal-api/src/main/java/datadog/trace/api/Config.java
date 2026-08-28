@@ -1995,9 +1995,13 @@ public class Config {
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_ITEMS,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS));
       traceBaggageMaxBytes =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_BYTES,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES));
 
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
@@ -3430,6 +3434,14 @@ public class Config {
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
+  }
+
+  private static int nonNegativeBaggageLimit(String setting, int value) {
+    if (value < 0) {
+      log.warn("Invalid {}: {}. The value must not be negative. Disabling baggage", setting, value);
+      return 0;
+    }
+    return value;
   }
 
   private static boolean isValidUrl(String url) {
