@@ -321,7 +321,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (manifestName != null && !manifestName.isEmpty()) {
       base.put("name", manifestName);
     } else if (!base.containsKey("name")) {
-      CharSequence sn = span.getSpanName();
+      CharSequence spanName = span.getSpanName();
       if (sn != null && sn.length() > 0) {
         base.put("name", sn.toString());
       }
