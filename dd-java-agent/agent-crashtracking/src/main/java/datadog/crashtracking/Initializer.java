@@ -460,9 +460,7 @@ public final class Initializer {
     }
     try {
       Path path = f.toPath();
-      UserPrincipal owner = Files.getOwner(path);
-      UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
-      if (!jvmUser.equals(owner)) {
+      if (!isJvmOwner(path)) {
         return false;
       }
       Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
@@ -471,5 +469,58 @@ public final class Initializer {
       LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
       return false;
     }
+  }
+
+  private static final Set<PosixFilePermission> GROUP_WORLD_WRITE_BITS =
+      EnumSet.of(PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE);
+
+  /**
+   * Returns {@code true} when {@code dir} is owned by the current JVM user and has no group/world
+   * <em>write</em> bit set; on non-POSIX file systems always returns {@code true}. Unlike {@link
+   * #isOwnedAndPrivate(File)}, stray group/world <em>read</em> or <em>execute</em> bits (e.g. the
+   * {@code 0755} a pre-upgrade version of this initializer, which did not lock down permissions,
+   * could have left behind) do not disqualify the directory here: those bits are safe to tighten in
+   * place with {@link #restrictDirectoryToOwnerOnly(File)} rather than treating the directory as
+   * untrusted. A group/world write bit is still treated as a sign of possible tampering and causes
+   * this method to return {@code false}.
+   */
+  static boolean isSafeToRepairDirectory(File dir) {
+    if (OperatingSystem.isWindows()) {
+      return true;
+    }
+    try {
+      Path path = dir.toPath();
+      if (!isJvmOwner(path)) {
+        return false;
+      }
+      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+      return perms.stream().noneMatch(GROUP_WORLD_WRITE_BITS::contains);
+    } catch (IOException | IllegalStateException e) {
+      LOG.debug("Unable to check ownership/permissions for {}: {}", dir, e.getMessage());
+      return false;
+    }
+  }
+
+  private static boolean isJvmOwner(Path path) throws IOException {
+    UserPrincipal owner = Files.getOwner(path);
+    UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
+    return jvmUser.equals(owner);
+  }
+
+  /**
+   * Clears all permission bits on {@code dir} and then sets read/write/execute for the owner only
+   * (effective {@code 0700}). Used both when a script directory is freshly created (to strip any
+   * group/world bits left over from the process umask) and to repair a pre-existing directory that
+   * is owned by the JVM user but was created by an older, less restrictive version.
+   */
+  static void restrictDirectoryToOwnerOnly(File dir) {
+    // first clear all privileges
+    dir.setReadable(false, false);
+    dir.setWritable(false, false);
+    dir.setExecutable(false, false);
+    // then set them only for the owner
+    dir.setReadable(true, true);
+    dir.setWritable(true, true);
+    dir.setExecutable(true, true);
   }
 }

@@ -111,8 +111,50 @@ public class ScriptInitializerSecurityTest {
   }
 
   @Test
+  void crashUploaderRepairsPreviouslyGeneratedDirectory() throws Exception {
+    // Simulate a directory left behind by a pre-upgrade version of the initializer that did not
+    // lock down permissions: owned by us, but group/world readable+executable (0755) with no
+    // write bits set for group/other.
+    Path scriptDir = tempDir.resolve("legacy_crash_dir");
+    Files.createDirectories(scriptDir);
+    Files.setPosixFilePermissions(scriptDir, PosixFilePermissions.fromString("rwxr-xr-x"));
+
+    Path scriptFile = scriptDir.resolve("dd_crash_uploader.sh");
+    CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log");
+
+    assertTrue(Files.exists(scriptFile), "Script should have been created in the repaired dir");
+    assertPermissions(
+        scriptDir,
+        EnumSet.of(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
+  void oomeNotifierRepairsPreviouslyGeneratedDirectory() throws Exception {
+    Path scriptDir = tempDir.resolve("legacy_oome_dir");
+    Files.createDirectories(scriptDir);
+    Files.setPosixFilePermissions(scriptDir, PosixFilePermissions.fromString("rwxr-xr-x"));
+
+    Path scriptFile = scriptDir.resolve("dd_oome_notifier.sh");
+    OOMENotifierScriptInitializer.initialize(scriptFile + " %p");
+
+    assertTrue(Files.exists(scriptFile), "Script should have been created in the repaired dir");
+    assertPermissions(
+        scriptDir,
+        EnumSet.of(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
   void crashUploaderFreshDirHasExactlyOwnerPermissions() throws Exception {
-    Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
+    // Place the script under a child directory that does not exist yet, so the initializer
+    // must go through its mkdirs()/permission-reset branch rather than the existing-directory
+    // (already owner-only) branch that tempDir itself would take.
+    Path scriptFile = tempDir.resolve("fresh-crash-dir").resolve("dd_crash_uploader.sh");
     CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log");
 
     // The directory is created by mkdirs() (subject to the process umask) before the
@@ -128,7 +170,10 @@ public class ScriptInitializerSecurityTest {
 
   @Test
   void oomeNotifierFreshDirHasExactlyOwnerPermissions() throws Exception {
-    Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
+    // Place the script under a child directory that does not exist yet, so the initializer
+    // must go through its mkdirs()/permission-reset branch rather than the existing-directory
+    // (already owner-only) branch that tempDir itself would take.
+    Path scriptFile = tempDir.resolve("fresh-oome-dir").resolve("dd_oome_notifier.sh");
     OOMENotifierScriptInitializer.initialize(scriptFile + " %p");
 
     assertPermissions(
@@ -137,6 +182,19 @@ public class ScriptInitializerSecurityTest {
             PosixFilePermission.OWNER_READ,
             PosixFilePermission.OWNER_WRITE,
             PosixFilePermission.OWNER_EXECUTE));
+  }
+
+  @Test
+  void crashUploaderScriptFileHasNoGroupOrWorldReadBit() throws Exception {
+    Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
+    CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log");
+
+    // The script is created with FileOutputStream, so its initial mode is subject to the
+    // process umask (e.g. 0644 under a typical 0022 umask). The clear-then-set-owner-only
+    // sequence must strip any inherited group/other bits, not just overlay owner bits on top
+    // of them, otherwise a later JVM start rejects the script via isOwnedAndPrivate().
+    assertPermissions(
+        scriptFile, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
   }
 
   @Test

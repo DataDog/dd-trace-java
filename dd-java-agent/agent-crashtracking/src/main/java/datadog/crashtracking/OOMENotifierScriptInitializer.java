@@ -6,7 +6,9 @@ import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
 import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
+import static datadog.crashtracking.Initializer.isSafeToRepairDirectory;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
+import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -61,13 +63,16 @@ public final class OOMENotifierScriptInitializer {
     File scriptDirectory = scriptFile.getParentFile();
 
     if (scriptDirectory.exists()) {
-      if (!isOwnedAndPrivate(scriptDirectory)) {
+      if (!isSafeToRepairDirectory(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
             "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME notification will not work properly.",
             scriptDirectory);
         return false;
       }
+      // owned by us but possibly left over from an older, less restrictive version: tighten it
+      // down to owner-only before trusting it, then validate the script inside it independently
+      restrictDirectoryToOwnerOnly(scriptDirectory);
       // cleanup all stale process-specific generated files in the parent folder of the given OOME
       // notifier script
       runScriptCleanup(scriptDirectory);
@@ -86,14 +91,7 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
-      // first clear all privileges
-      scriptDirectory.setReadable(false, false);
-      scriptDirectory.setWritable(false, false);
-      scriptDirectory.setExecutable(false, false);
-      // then set them only for the owner
-      scriptDirectory.setReadable(true, true);
-      scriptDirectory.setWritable(true, true);
-      scriptDirectory.setExecutable(true, true);
+      restrictDirectoryToOwnerOnly(scriptDirectory);
     }
 
     try {

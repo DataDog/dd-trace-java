@@ -5,6 +5,8 @@ import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
 import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
+import static datadog.crashtracking.Initializer.isSafeToRepairDirectory;
+import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
@@ -78,23 +80,19 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
-      // first clear all privileges
-      scriptDirectory.setReadable(false, false);
-      scriptDirectory.setWritable(false, false);
-      scriptDirectory.setExecutable(false, false);
-      // then set them only for the owner
-      scriptDirectory.setReadable(true, true);
-      scriptDirectory.setWritable(true, true);
-      scriptDirectory.setExecutable(true, true);
+      restrictDirectoryToOwnerOnly(scriptDirectory);
     } else {
-      if (!isOwnedAndPrivate(scriptDirectory)) {
+      if (!isSafeToRepairDirectory(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Untrusted crash tracking script folder {} (wrong owner or group/world bits set). "
+            "Untrusted crash tracking script folder {} (wrong owner or group/world-writable). "
                 + SETUP_FAILURE_MESSAGE,
             scriptDirectory);
         return false;
       }
+      // owned by us but possibly left over from an older, less restrictive version: tighten it
+      // down to owner-only before trusting it, then validate the script inside it independently
+      restrictDirectoryToOwnerOnly(scriptDirectory);
     }
     if (!scriptDirectory.canWrite()) {
       LOG.warn(SEND_TELEMETRY, "Read only directory {}. " + SETUP_FAILURE_MESSAGE, scriptDirectory);
@@ -142,8 +140,13 @@ public final class CrashUploaderScriptInitializer {
           bw.newLine();
         }
       }
-      scriptFile.setReadable(true, true);
+      // first clear all privileges
+      scriptFile.setReadable(false, false);
       scriptFile.setWritable(false, false);
+      scriptFile.setExecutable(false, false);
+      // then set them only for the owner
+      scriptFile.setReadable(true, true);
+      // do not restore the writable
       scriptFile.setExecutable(true, true);
     } else {
       if (!isOwnedAndPrivate(scriptFile)) {
