@@ -62,6 +62,8 @@ public class DebuggerMetricCollector
     return INSTANCE;
   }
 
+  private DebuggerMetricCollector() {}
+
   public void recordEventDropped(DroppedReason reason) {
     eventDroppedCounters.incrementAndGet(reason.ordinal());
   }
