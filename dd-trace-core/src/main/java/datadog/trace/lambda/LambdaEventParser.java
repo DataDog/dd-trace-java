@@ -95,8 +95,9 @@ final class LambdaEventParser {
         case ALB_MULTI_VALUE:
           return extractAlbData(event, triggerType);
         default:
-          // Unsupported trigger: AppSec skips the invocation entirely, so there is nothing to
-          // extract. The trigger type is carried by the caller, not by this result.
+          // Unsupported trigger: returning EMPTY makes the caller skip the invocation, so there is
+          // nothing to extract. The caller already recorded UNKNOWN as the trigger type, which is
+          // what reports the unsupported event at request end.
           return LambdaRequestData.EMPTY;
       }
     } catch (Exception e) {

@@ -18,8 +18,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Turns a Lambda request body into the shape the AppSec WAF expects. The declared {@code
- * Content-Type} decides how the body is structured; a best-effort JSON parse handles both the
- * JSON-ish types and the case where no type is declared at all.
+ * Content-Type} decides how the body is structured; a best-effort JSON parse handles the JSON-ish
+ * types and a top-level body that declares no type at all.
  *
  * <p>A body is never dropped: any type we cannot structure — and any parse failure — degrades to
  * the raw {@link String}, which the WAF can still match string rules against.
@@ -230,12 +230,13 @@ final class ContentTypeBodyParser {
       if (name == null || name.isEmpty()) {
         continue;
       }
+      final String partContentType = part.header("content-type");
+      final String content = body.substring(part.contentStart, part.contentEnd);
+      // A part that declares no type is kept as a raw string
       final Object value =
-          dispatch(
-              body.substring(part.contentStart, part.contentEnd),
-              part.header("content-type"),
-              depth + 1,
-              context);
+          partContentType == null || partContentType.trim().isEmpty()
+              ? content
+              : dispatch(content, partContentType, depth + 1, context);
       addField(fields, promoted, name, value);
     }
     return fields.isEmpty() ? null : fields;

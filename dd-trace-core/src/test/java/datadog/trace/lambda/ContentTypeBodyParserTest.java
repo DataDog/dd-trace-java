@@ -264,6 +264,26 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
+  void keepsMultipartPartsThatDeclareNoContentTypeAsRawStrings() {
+    // A part with no Content-Type is text/plain per RFC 7578, section 4.4, not a body of unknown
+    // type: a JSON parse would hand the WAF a Double, a Boolean and a Map, so the same form
+    // submitted urlencoded and as multipart would no longer match the same string rules
+    Map<String, Object> fields =
+        multipart(field("amount", "12345"), field("flag", "true"), field("json", "{\"a\":1}"));
+
+    assertEquals("12345", fields.get("amount"));
+    assertEquals("true", fields.get("flag"));
+    assertEquals("{\"a\":1}", fields.get("json"));
+  }
+
+  @Test
+  void keepsMultipartPartsWithAnEmptyContentTypeAsRawStrings() {
+    Map<String, Object> fields = multipart(outer(part("form-data; name=\"amount\"", "", "12345")));
+
+    assertEquals("12345", fields.get("amount"));
+  }
+
+  @Test
   void promotesRepeatedMultipartFieldNamesToAList() {
     Map<String, Object> fields = multipart(field("x", "a"), field("x", "b"), field("x", "c"));
 
