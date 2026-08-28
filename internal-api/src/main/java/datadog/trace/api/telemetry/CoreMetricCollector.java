@@ -4,6 +4,7 @@ import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetricsImpl;
+import datadog.trace.api.metrics.StatsMetrics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +19,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
+  private final StatsMetrics statsMetrics = StatsMetrics.getInstance();
 
   private final BlockingQueue<CoreMetric> metricsQueue;
 
@@ -39,6 +41,32 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
 
   @Override
   public void prepareMetrics() {
+    // Collect the bounded, high-value client-side trace-stats span-collapse counters first, tagged
+    // by collapse reason. There is only a small, fixed set of these; the span-metric registry below
+    // is unbounded (one entry per instrumentation name), so draining it first could fill the queue
+    // and starve the collapse counters indefinitely under high instrumentation counts. Collecting
+    // them up front guarantees they are emitted.
+    for (StatsMetrics.TaggedCounter counter : this.statsMetrics.getTaggedCounters()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+        // counter's delta baseline, so resetting one we then fail to enqueue would drop that delta
+        // for good; the untouched counters are picked up on the next collection cycle.
+        break;
+      }
+      long value = counter.getValueAndReset();
+      if (value == 0) {
+        // Skip not updated counters
+        continue;
+      }
+      CoreMetric metric =
+          new CoreMetric(
+              METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag());
+      if (!this.metricsQueue.offer(metric)) {
+        // Stop adding metrics if the queue is full
+        break;
+      }
+    }
+
     // Collect span metrics
     for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
       String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();

@@ -1,8 +1,7 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-api")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 description = "Feature flagging configuration keys and source resolution"
 

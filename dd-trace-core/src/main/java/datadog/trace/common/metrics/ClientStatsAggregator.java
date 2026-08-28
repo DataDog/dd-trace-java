@@ -21,6 +21,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -307,6 +308,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   TimeUnit reportingIntervalTimeUnit() {
     return reportingIntervalTimeUnit;
+  }
+
+  Aggregator aggregator() {
+    return aggregator;
   }
 
   @Override
@@ -737,5 +742,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     public void run(ClientStatsAggregator target) {
       target.report();
     }
+  }
+
+  @VisibleForTesting
+  boolean isEmpty() {
+    return inbox.isEmpty();
   }
 }

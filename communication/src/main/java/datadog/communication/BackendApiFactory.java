@@ -28,32 +28,59 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake, boolean responseCompression) {
-    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
-
     if (intake.isAgentlessEnabled(config)) {
-      HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
-      String apiKey = config.getApiKey();
-      if (apiKey == null || apiKey.isEmpty()) {
-        throw new FatalAgentMisconfigurationError(
-            "Agentless mode is enabled and api key is not set. Please set application key");
-      }
-      String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-      return new IntakeApi(
-          agentlessUrl,
-          apiKey,
-          traceId,
-          retryPolicyFactory,
-          sharedCommunicationObjects.getIntakeHttpClient(),
-          true);
+      return createDirectIntakeApi(intake, responseCompression);
     }
 
+    BackendApi backendApi = createEvpProxyApi(intake, responseCompression);
+    if (backendApi == null) {
+      log.warn(
+          "Cannot create backend API client since agentless mode is disabled, "
+              + "and agent does not support EVP proxy");
+    }
+    return backendApi;
+  }
+
+  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  public BackendApi createDirectIntakeApi(Intake intake) {
+    return createDirectIntakeApi(intake, true);
+  }
+
+  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
+    HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
+    String apiKey = config.getApiKey();
+    if (apiKey == null || apiKey.isEmpty()) {
+      throw new FatalAgentMisconfigurationError(
+          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY");
+    }
+    String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
+    return new IntakeApi(
+        agentlessUrl,
+        apiKey,
+        traceId,
+        retryPolicyFactory(),
+        sharedCommunicationObjects.getIntakeHttpClient(),
+        responseCompression);
+  }
+
+  /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
+  public @Nullable BackendApi createEvpProxyApi(Intake intake) {
+    return createEvpProxyApi(intake, true);
+  }
+
+  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  public @Nullable BackendApi createEvpProxyApi(Intake intake, boolean responseCompression) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory());
+  }
+
+  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  public @Nullable BackendApi createEvpProxyApi(
+      Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
     if (!featuresDiscovery.supportsEvpProxy()) {
-      log.warn(
-          "Cannot create backend API client since agentless mode is disabled, "
-              + "and agent does not support EVP proxy");
       return null;
     }
     String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
@@ -73,5 +100,9 @@ public class BackendApiFactory {
         retryPolicyFactory,
         sharedCommunicationObjects.agentHttpClient,
         responseCompression);
+  }
+
+  private static HttpRetryPolicy.Factory retryPolicyFactory() {
+    return new HttpRetryPolicy.Factory(5, 100, 2.0, true);
   }
 }

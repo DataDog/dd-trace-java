@@ -4,9 +4,11 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROX
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
@@ -56,6 +58,38 @@ class BackendApiFactoryTest {
 
       final RecordedRequest request = agent.takeRequest();
       assertEquals("/evp_proxy/v4/api/v2/flagevaluation", request.getPath());
+    } finally {
+      agent.shutdown();
+    }
+  }
+
+  @Test
+  void explicitNoRetryProxyPolicyDoesNotReplayAmbiguousFailure() throws Exception {
+    final MockWebServer agent = new MockWebServer();
+    agent.enqueue(new MockResponse().setResponseCode(500).setBody("ambiguous"));
+    agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
+    agent.start();
+    try {
+      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
+      final BackendApiFactory factory =
+          new BackendApiFactory(
+              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+      final BackendApi api =
+          factory.createEvpProxyApi(
+              Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+
+      assertNotNull(api);
+      assertThrows(
+          HttpResponseException.class,
+          () ->
+              api.post(
+                  "flagevaluation",
+                  RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+                  stream -> null,
+                  null,
+                  false));
+
+      assertEquals(1, agent.getRequestCount());
     } finally {
       agent.shutdown();
     }
