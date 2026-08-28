@@ -23,7 +23,7 @@ import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.TopicPartition;
 
 @AutoService(InstrumenterModule.class)
-public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
+public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ConsumerCoordinatorInstrumentation() {
