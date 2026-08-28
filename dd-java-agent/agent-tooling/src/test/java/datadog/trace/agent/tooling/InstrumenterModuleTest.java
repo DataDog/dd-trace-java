@@ -79,12 +79,13 @@ class InstrumenterModuleTest {
 
     // Override InstrumenterConfig to return true for isDataStreamsEnabled()
     InstrumenterConfig originalConfig = InstrumenterConfig.get();
+    boolean originalDataStreamsEnabled = originalConfig.isDataStreamsEnabled();
     setFieldInConfig(originalConfig, "dataStreamsEnabled", true);
 
     try {
       assertTrue(module.isEnabled());
     } finally {
-      setFieldInConfig(originalConfig, "dataStreamsEnabled", false);
+      setFieldInConfig(originalConfig, "dataStreamsEnabled", originalDataStreamsEnabled);
     }
   }
 
