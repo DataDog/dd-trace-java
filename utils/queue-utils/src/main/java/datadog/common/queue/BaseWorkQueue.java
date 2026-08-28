@@ -177,18 +177,15 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * A place spent ahead of the element that will use it. Filling can only ever store, because the
    * room was already taken; abandoning gives the room back. Nothing is held open in the backing, so
    * a consumer never has to wait on one.
-   */
-  /**
-   * Both outcomes, from one allocation site.
    *
-   * <p>A refusal could be a shared singleton, and that is the more obvious design: it saves the
-   * allocation on the path that already lost. What it costs is paid by a caller that sees both
-   * outcomes at one site. Returning either a fresh reservation or a static merges an allocation
-   * with a globally reachable reference at a phi, and escape analysis gives up on the merge, so a
-   * reservation that would have been scalar-replaced away is allocated for real — {@code
-   * AdmissionBenchmark.reserveMixed} measures 12 bytes per call that way and zero this way, on JDK
-   * 17. JDK 21's allocation-merge support does not rescue it: that covers merges of non-escaping
-   * allocations and null, never a static.
+   * <p>Both outcomes come from one allocation site. A refusal could be a shared singleton, and that
+   * is the more obvious design: it saves the allocation on the path that already lost. What it
+   * costs is paid by a caller that sees both outcomes at one site. Returning either a fresh
+   * reservation or a static merges an allocation with a globally reachable reference at a phi, and
+   * escape analysis gives up on the merge, so a reservation that would have been scalar-replaced
+   * away is allocated for real — {@code AdmissionBenchmark.reserveMixed} measures 12 bytes per call
+   * that way and zero this way, on JDK 17. JDK 21's allocation-merge support does not rescue it:
+   * that covers merges of non-escaping allocations and null, never a static.
    *
    * <p>The condition matters, because it is not every caller. A site that only ever sees one
    * outcome — a queue that is effectively always accepting, or the drain loop's always-full
@@ -200,12 +197,20 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    *
    * <p>A refused reservation starts out {@code done}, which is what makes it inert: there is no
    * place to give back and nothing to store, and both methods already short-circuit on that flag.
+   *
+   * <p>Static, with the queue handed in, rather than an inner class holding it implicitly. The
+   * reference is a field of this object either way, so nothing changes at runtime; what changes is
+   * that a reader can see it. That matters here more than it usually would, because the shape above
+   * is asking escape analysis to delete this object and promote its fields to locals — so the field
+   * count is the subject, and a hidden field is a hidden part of the subject.
    */
-  private final class PlaceReservation implements Reservation<T> {
+  private static final class PlaceReservation<T> implements Reservation<T> {
+    private final BaseWorkQueue<T> queue;
     private final boolean granted;
     private boolean done;
 
-    PlaceReservation(boolean granted) {
+    PlaceReservation(BaseWorkQueue<T> queue, boolean granted) {
+      this.queue = queue;
       this.granted = granted;
       this.done = !granted;
     }
@@ -226,7 +231,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         throw new NullPointerException("a queue cannot hold null");
       }
       done = true;
-      store(element);
+      queue.store(element);
     }
 
     @Override
@@ -234,7 +239,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       // Only the reserving thread fills or closes, so a plain flag orders the two correctly.
       if (!done) {
         done = true;
-        releasePlace();
+        queue.releasePlace();
       }
     }
   }
@@ -322,7 +327,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     if (!granted) {
       dropped.increment();
     }
-    return new PlaceReservation(granted);
+    return new PlaceReservation<>(this, granted);
   }
 
   @Override
