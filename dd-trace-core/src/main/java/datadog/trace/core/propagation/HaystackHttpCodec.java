@@ -219,7 +219,7 @@ class HaystackHttpCodec {
               case PARENT_ID:
                 // Nothing reads this back when injecting, so it is ordinary caller-supplied
                 // baggage rather than propagation bookkeeping, and is subject to the limits.
-                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
+                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
                 break;
               case BAGGAGE:
                 {
@@ -261,7 +261,7 @@ class HaystackHttpCodec {
       if (baggage.isEmpty()) {
         baggage = new TreeMap<>();
       }
-      baggage.put(key, value);
+      baggage.put(key, HttpCodec.decode(value));
     }
 
     @Override

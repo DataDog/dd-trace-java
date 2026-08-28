@@ -78,12 +78,15 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractUsesFirstConcatenatedHaystackIdHeaderValue() {
     String traceUuid = "44617461-646f-6721-0000-000000000001";
     String spanUuid = "44617461-646f-6721-0000-000000000002";
+    String parentUuid = "44617461-646f-6721-0000-000000000005";
     Map<String, String> headers =
         headers(
             TRACE_ID_KEY,
             traceUuid + ",44617461-646f-6721-0000-000000000003",
             SPAN_ID_KEY,
-            spanUuid + ",44617461-646f-6721-0000-000000000004");
+            spanUuid + ",44617461-646f-6721-0000-000000000004",
+            PARENT_ID_KEY,
+            parentUuid + ",44617461-646f-6721-0000-000000000006");
 
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
@@ -92,6 +95,7 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
     assertEquals(DDSpanId.from("2"), context.getSpanId());
     assertEquals(traceUuid, context.getBaggage().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
     assertEquals(spanUuid, context.getBaggage().get(HAYSTACK_SPAN_ID_BAGGAGE_KEY));
+    assertEquals(parentUuid, context.getBaggage().get(HAYSTACK_PARENT_ID_BAGGAGE_KEY));
   }
 
   @Test
