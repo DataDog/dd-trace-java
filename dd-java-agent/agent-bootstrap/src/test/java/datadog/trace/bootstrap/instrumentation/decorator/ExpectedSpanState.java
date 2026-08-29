@@ -42,11 +42,6 @@ final class ExpectedSpanState {
     return this;
   }
 
-  ExpectedSpanState tag(String key, CharSequence value) {
-    tags.put(key, String.valueOf(value));
-    return this;
-  }
-
   /**
    * Baked component tag plus the integration name derived from it, as {@code BaseDecorator} does.
    */
