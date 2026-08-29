@@ -182,6 +182,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -674,6 +675,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TEST_AGENT_SESSION_TOKEN;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
@@ -700,6 +702,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STAT
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -740,6 +743,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -1348,6 +1352,8 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean lambdaSnapStartClockResyncEnabled;
+
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
 
@@ -1389,6 +1395,7 @@ public class Config {
   private final boolean azureFunctions;
   private final boolean awsServerless;
   private final String traceAgentPath;
+  private final String testAgentSessionToken;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
@@ -1554,6 +1561,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    lambdaSnapStartClockResyncEnabled =
+        configProvider.getBoolean(
+            TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
+            DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
     cassandraKeyspaceStatementExtractionEnabled =
         configProvider.getBoolean(
             CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
@@ -3199,6 +3210,7 @@ public class Config {
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    testAgentSessionToken = configProvider.getString(TEST_AGENT_SESSION_TOKEN);
     String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
@@ -5164,6 +5176,10 @@ public class Config {
     return awsServerless;
   }
 
+  public boolean isLambdaSnapStartClockResyncEnabled() {
+    return lambdaSnapStartClockResyncEnabled;
+  }
+
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
   }
@@ -5184,6 +5200,10 @@ public class Config {
 
   public String getTraceAgentPath() {
     return traceAgentPath;
+  }
+
+  public String getTestAgentSessionToken() {
+    return testAgentSessionToken;
   }
 
   public List<String> getTraceAgentArgs() {
@@ -5740,6 +5760,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public boolean isOtlpLogsExportEnabled() {
+    return isLogsOtelEnabled() && isLogsOtlpExporterEnabled();
+  }
+
   public int getLogsOtelInterval() {
     return logsOtelInterval;
   }
@@ -5782,6 +5806,11 @@ public class Config {
 
   public boolean isMetricsOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
+  public boolean isOtlpMetricsExportEnabled() {
+    return (isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled())
+        || isOtelTracesSpanMetricsEnabled();
   }
 
   public boolean isMetricsOtelExperimentalEnabled() {
@@ -5838,6 +5867,19 @@ public class Config {
 
   public boolean isTraceOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public boolean isOtlpTracesExportEnabled() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return OTLP_WRITER_TYPE.equals(writerType);
+    }
+    String multiWriterConfig = writerType.substring(MULTI_WRITER_TYPE.length() + 1);
+    for (CharSequence subWriterType : Strings.split(multiWriterConfig, ',')) {
+      if (OTLP_WRITER_TYPE.contentEquals(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getOtlpTracesEndpoint() {

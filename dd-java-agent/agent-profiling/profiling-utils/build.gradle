@@ -1,8 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
+
 // Set properties before any plugins get loaded
 ext {
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.78
 

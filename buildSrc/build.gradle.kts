@@ -2,7 +2,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
@@ -109,6 +109,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  testImplementation("me.champeau.jmh:jmh-gradle-plugin:0.7.3")
 }
 
 tasks.compileKotlin {

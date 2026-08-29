@@ -1,13 +1,11 @@
-import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
 plugins {
   `java-library`
-  id("me.champeau.jmh")
+  id("dd-trace-java.module.internal-api")
+  id("dd-trace-java.jmh-conventions")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 java {
   toolchain {
@@ -154,6 +152,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
+  // Internal cross-module bridge
+  "datadog.trace.api.llmobs.LLMObsInternal",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
@@ -283,18 +283,10 @@ dependencies {
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.jol.core)
 }
 
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-
-  if (project.hasProperty("jmh.includes")) {
-    includes.add(project.property("jmh.includes") as String)
-  }
-
-  if (project.hasProperty("testJvm")) {
-    val testJvmSpec = TestJvmSpec(project)
-    jvm.set(testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath })
-  }
 }

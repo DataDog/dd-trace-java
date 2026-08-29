@@ -21,6 +21,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -133,11 +134,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        AdditionalTagsSchema.from(
-            config.getTraceStatsAdditionalTags(),
-            config.getTraceStatsCardinalityLimit(
-                "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
-            MetricCardinalityLimits.USE_BLOCKED_SENTINEL),
+        additionalTagsSchemaFrom(config),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -165,6 +162,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       OtlpStatsMetricWriter metricWriter) {
     this(
         config.getMetricsIgnoredResources(),
+        additionalTagsSchemaFrom(config),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         NoOpSink.INSTANCE,
@@ -174,6 +172,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         config.getTraceStatsInterval(),
         MILLISECONDS,
         true);
+  }
+
+  private static AdditionalTagsSchema additionalTagsSchemaFrom(Config config) {
+    return AdditionalTagsSchema.from(
+        config.getTraceStatsAdditionalTags(),
+        config.getTraceStatsCardinalityLimit(
+            "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
+        MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
   }
 
   ClientStatsAggregator(
@@ -302,6 +308,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   TimeUnit reportingIntervalTimeUnit() {
     return reportingIntervalTimeUnit;
+  }
+
+  @VisibleForTesting
+  Aggregator aggregator() {
+    return aggregator;
   }
 
   @Override
@@ -732,5 +743,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     public void run(ClientStatsAggregator target) {
       target.report();
     }
+  }
+
+  @VisibleForTesting
+  boolean isEmpty() {
+    return inbox.isEmpty();
   }
 }

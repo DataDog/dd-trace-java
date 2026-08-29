@@ -16,12 +16,48 @@ public interface LLMObsSpan {
   void annotateIO(List<LLMObs.LLMMessage> inputMessages, List<LLMObs.LLMMessage> outputMessages);
 
   /**
+   * Annotate an embedding span with document inputs and a string output.
+   *
+   * @param inputDocuments The input documents of the span
+   * @param outputData The output data of the span in the form of a string
+   */
+  default void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
+    annotateIO((String) null, outputData);
+  }
+
+  /**
+   * Annotate a retrieval span with a string input and document outputs.
+   *
+   * @param inputData The input data of the span in the form of a string
+   * @param outputDocuments The output documents of the span
+   */
+  default void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
+    annotateIO(inputData, (String) null);
+  }
+
+  /**
    * Annotate the span with inputs and outputs
    *
    * @param inputData The input data of the span in the form of a string
    * @param outputData The output data of the span in the form of a string
    */
   void annotateIO(String inputData, String outputData);
+
+  /**
+   * Annotate an LLM span with the prompt used for the LLM call.
+   *
+   * <p>This annotation is ignored for non-LLM spans.
+   *
+   * @param prompt The prompt used for the LLM call
+   */
+  default void annotatePrompt(LLMObs.Prompt prompt) {}
+
+  /**
+   * Annotate the span with the definitions of tools available to the LLM.
+   *
+   * @param toolDefinitions The tool definitions supplied to the LLM
+   */
+  default void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
 
   /**
    * Annotate the span with metadata
