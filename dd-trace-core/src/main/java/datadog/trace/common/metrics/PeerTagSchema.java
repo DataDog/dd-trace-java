@@ -4,7 +4,9 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
 
 /**
@@ -28,7 +30,9 @@ import java.util.Set;
  * </ul>
  *
  * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
- * cycle (with a warn log) via {@code ClientStatsAggregator#resetCardinalityHandlers}.
+ * cycle via {@code ClientStatsAggregator#resetCardinalityHandlers} -- to {@link HealthMetrics} as a
+ * per-cycle count and to the shared {@link CardinalityLimitReporter}, which aggregates by tag name
+ * and emits a rate-limited warn summary.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
@@ -50,6 +54,11 @@ final class PeerTagSchema {
 
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, NO_STATE);
+
+  // Health/telemetry statsD tag per the approved Cardinality Limits RFC (section 5): peer-tag
+  // collapses are reported under the lowercased protobuf field name peer_tags, aggregated across
+  // every configured peer tag rather than per individual tag name.
+  private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:peer_tags"};
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
@@ -78,7 +87,8 @@ final class PeerTagSchema {
               names[i],
               Config.get()
                   .getTraceStatsCardinalityLimit(
-                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE));
+                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE),
+              MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
     }
   }
 
@@ -107,6 +117,35 @@ final class PeerTagSchema {
    */
   UTF8BytesString register(int i, String value) {
     return handlers[i].register(value);
+  }
+
+  /**
+   * Resets cardinality tracking for each peer tag and reports how many values were blocked since
+   * the previous reset.
+   *
+   * <p>The counts are sent to {@link HealthMetrics} for the current reporting cycle. They are also
+   * added to {@code reporter}, which groups them by tag name for a rate-limited warning. Grouping
+   * counts by name ensures they are not lost when a schema rebuild replaces the handlers.
+   *
+   * <p>This method must be called only from the aggregator thread because the handlers are not
+   * thread-safe.
+   */
+  void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    long totalCollapsed = 0;
+    for (int i = 0; i < handlers.length; i++) {
+      long numBlocked = handlers[i].reset();
+      if (numBlocked > 0) {
+        // The human-facing reporter names the specific peer tag that triggered the block.
+        reporter.record(names[i], numBlocked);
+      }
+      totalCollapsed += numBlocked;
+    }
+    // The health metric is reported at the peer_tags field granularity (not per tag name) per the
+    // approved Cardinality Limits RFC.
+    if (totalCollapsed > 0) {
+      healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
+      StatsMetrics.getInstance().onCollapsedSpans(COLLAPSED_STATSD_TAG[0], totalCollapsed);
+    }
   }
 
   int size() {

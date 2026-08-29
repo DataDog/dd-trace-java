@@ -1,12 +1,17 @@
 package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -15,14 +20,14 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
+import datadog.trace.core.otlp.common.OtlpResourceJson;
 import datadog.trace.core.otlp.common.OtlpResourceProto;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link MetricWriter} that exports the client-side trace metrics as a delta-temporality OTLP
@@ -31,8 +36,6 @@ import org.slf4j.LoggerFactory;
  * OTLP histogram data point and pushes it through the shared {@link OtlpMetricsProtoCollector}.
  */
 public final class OtlpStatsMetricWriter implements MetricWriter {
-  private static final Logger log = LoggerFactory.getLogger(OtlpStatsMetricWriter.class);
-
   static final String METRIC_NAME = "traces.span.sdk.metrics.duration";
   static final String METRIC_UNIT = "s";
 
@@ -49,20 +52,27 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String HTTP_ROUTE = "http.route";
   private static final String RPC_RESPONSE_STATUS_CODE = "rpc.response.status_code";
   private static final String STATUS_CODE = "status.code";
-  private static final String STATUS_CODE_ERROR = "ERROR";
+  private static final String STATUS_CODE_OK = "STATUS_CODE_OK";
+  private static final String STATUS_CODE_ERROR = "STATUS_CODE_ERROR";
   private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
+  private static final String DATADOG_IS_TRACE_ROOT = "datadog.is_trace_root";
+  private static final String DATADOG_SERVICE_SOURCE = "datadog.svc_src";
   private static final String DATADOG_ORIGIN = "datadog.origin";
+  private static final String DATADOG_PEER_TAGS = "datadog.peer_tags";
   private static final String SYNTHETICS_ORIGIN = "synthetics";
 
-  @Nullable private final OtlpSender sender;
-  private final boolean otelSemanticsMode;
+  private static final String SPAN_KIND_SERVER = "SPAN_KIND_SERVER";
+  private static final String SPAN_KIND_CLIENT = "SPAN_KIND_CLIENT";
+  private static final String SPAN_KIND_PRODUCER = "SPAN_KIND_PRODUCER";
+  private static final String SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER";
+  private static final String SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL";
 
-  @Nullable private final String defaultService;
+  @Nullable private final OtlpSender sender;
 
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
-  private final OtlpMetricsProtoCollector collector;
+  private final OtlpMetricsCollector collector;
 
   // data points snapshotted during add(), replayed through the visitor in finishBucket()
   private final List<PendingPoint> pending = new ArrayList<>();
@@ -87,34 +97,26 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   public OtlpStatsMetricWriter(Config config) {
     // shared protocol-based sender selection so both OTLP metrics export paths agree
-    this(
-        OtlpMetricsSenderFactory.create(config),
-        config.isTraceOtelSemanticsEnabled(),
-        config.getServiceName());
-    if (this.sender == null) {
-      // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
-      log.warn(
-          "OTLP trace metrics export disabled: unsupported metrics protocol {}. "
-              + "Set OTEL_EXPORTER_OTLP_METRICS_PROTOCOL to grpc or http/protobuf.",
-          config.getOtlpMetricsProtocol());
-    }
+    this(OtlpMetricsSenderFactory.create(config), config.getOtlpMetricsProtocol());
   }
 
-  // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf and
-  // control the semantics mode and default service
-  OtlpStatsMetricWriter(
-      @Nullable OtlpSender sender, boolean otelSemanticsMode, @Nullable String defaultService) {
+  // visible for testing: lets tests inject a capturing sender to decode the emitted payload
+  OtlpStatsMetricWriter(@Nullable OtlpSender sender) {
+    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF);
+  }
+
+  private OtlpStatsMetricWriter(@Nullable OtlpSender sender, OtlpConfig.Protocol protocol) {
     this.sender = sender;
-    this.otelSemanticsMode = otelSemanticsMode;
-    this.defaultService = defaultService;
-    // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
-    // uses the plain vendor-neutral resource (no datadog.*).
-    byte[] resourceMessage =
-        otelSemanticsMode
-            ? OtlpResourceProto.RESOURCE_MESSAGE
-            : OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS;
     this.collector =
-        new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE, true, resourceMessage);
+        protocol == OtlpConfig.Protocol.HTTP_JSON
+            ? new OtlpMetricsJsonCollector(
+                SystemTimeSource.INSTANCE,
+                true,
+                OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+            : new OtlpMetricsProtoCollector(
+                SystemTimeSource.INSTANCE,
+                true,
+                OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
   }
 
   @Override
@@ -159,7 +161,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       }
       OtlpPayload payload = collector.collectMetrics(this::emit, startNanos, endNanos);
       if (payload != OtlpPayload.EMPTY) {
-        sender.send(payload);
+        OtlpTelemetry.getInstance().onMetricsExportAttempt();
+        RemoteApi.Response response = sender.send(payload);
+        OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
       }
     } finally {
       pending.clear();
@@ -193,17 +197,10 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private void emitDataPointAttributes(
       OtlpMetricVisitor metric, AggregateEntry entry, boolean error, boolean allTopLevel) {
-    if (error) {
-      emitStringAttribute(metric, STATUS_CODE, STATUS_CODE_ERROR);
-    }
-    // OTel semconv attrs are emitted in both modes
+    emitStringAttribute(metric, STATUS_CODE, error ? STATUS_CODE_ERROR : STATUS_CODE_OK);
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
-    emitStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
-    // service.name on the point only when the span's service differs from the resource's default
-    UTF8BytesString service = entry.getService();
-    if (service != null && service.length() > 0 && !service.toString().equals(defaultService)) {
-      emitStringAttribute(metric, SERVICE_NAME, service);
-    }
+    emitStringAttribute(metric, SPAN_KIND, canonicalSpanKind(entry.getSpanKind()));
+    emitStringAttribute(metric, SERVICE_NAME, entry.getService());
     if (entry.hasHttpMethod()) {
       emitStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }
@@ -216,18 +213,60 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     if (entry.hasGrpcStatusCode()) {
       emitStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
     }
-    // Default (Datadog) mode: emit datadog.* per-point attributes
-    if (!otelSemanticsMode) {
-      emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
-      emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
-      emitLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
-      if (entry.isSynthetics()) {
-        emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
-      }
+    // additional_metric_tags support is still evolving/TBD across most tracer SDKs.
+    for (UTF8BytesString additionalTag : entry.getAdditionalTags()) {
+      emitAdditionalTag(metric, additionalTag);
+    }
+    emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
+    emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
+    emitBooleanAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel);
+    emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
+    if (entry.hasServiceSource()) {
+      emitStringAttribute(metric, DATADOG_SERVICE_SOURCE, entry.getServiceSource());
+    }
+    if (entry.isSynthetics()) {
+      emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+    }
+    emitPeerTags(metric, entry.getPeerTags());
+  }
+
+  private static void emitPeerTags(OtlpMetricVisitor metric, List<UTF8BytesString> peerTags) {
+    if (peerTags.isEmpty()) {
+      return;
+    }
+    List<String> peerTagValues = new ArrayList<>(peerTags.size());
+    for (UTF8BytesString peerTag : peerTags) {
+      peerTagValues.add(peerTag.toString());
+    }
+    metric.visitAttribute(STRING_ARRAY_ATTRIBUTE, DATADOG_PEER_TAGS, peerTagValues);
+  }
+
+  private static String canonicalSpanKind(CharSequence spanKind) {
+    if (spanKind == null) {
+      return SPAN_KIND_INTERNAL;
+    } else if (Tags.SPAN_KIND_SERVER.contentEquals(spanKind)) {
+      return SPAN_KIND_SERVER;
+    } else if (Tags.SPAN_KIND_CLIENT.contentEquals(spanKind)) {
+      return SPAN_KIND_CLIENT;
+    } else if (Tags.SPAN_KIND_PRODUCER.contentEquals(spanKind)) {
+      return SPAN_KIND_PRODUCER;
+    } else if (Tags.SPAN_KIND_CONSUMER.contentEquals(spanKind)) {
+      return SPAN_KIND_CONSUMER;
+    } else {
+      return SPAN_KIND_INTERNAL;
     }
   }
 
-  // accepts both String literals and UTF8BytesString (both CharSequence); skips null values
+  private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
+    String packed = additionalTag.toString();
+    int separator = packed.indexOf(':');
+    if (separator <= 0) {
+      return;
+    }
+    String key = packed.substring(0, separator);
+    metric.visitAttribute(STRING_ATTRIBUTE, key, packed.substring(separator + 1));
+  }
+
   private static void emitStringAttribute(
       OtlpMetricVisitor metric, String key, @Nullable CharSequence value) {
     if (value != null) {
@@ -237,5 +276,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private static void emitLongAttribute(OtlpMetricVisitor metric, String key, long value) {
     metric.visitAttribute(LONG_ATTRIBUTE, key, value);
+  }
+
+  private static void emitBooleanAttribute(OtlpMetricVisitor metric, String key, boolean value) {
+    metric.visitAttribute(BOOLEAN_ATTRIBUTE, key, value);
   }
 }

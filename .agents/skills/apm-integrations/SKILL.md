@@ -60,9 +60,11 @@ pattern before writing new code. Use it as a template.
 
 Read [Context-Tracking Instrumentation](references/context-tracking.md) and decide whether the library needs `InstrumenterModule.Tracing` (I/O operations that create spans) or `InstrumenterModule.ContextTracking` (async-boundary bridging, no spans).
 
+**If you picked `ContextTracking`:** the same file's "Library-native context maps" section tells you whether the library needs a `*ContextBridge`-style helper (Reactor is the canonical example) in addition to the subscriber-wrapping pattern — read it before moving to Step 5. Its "Wrap placement" section covers where to allocate wrappers and context-store entries to avoid per-operator overhead on hot reactive paths.
+
 ## Step 5 – Write the InstrumenterModule
 
-**Read [InstrumenterModule Guidance](references/instrumenter-module.md).**
+**Read [InstrumenterModule Guidance](references/instrumenter-module.md).** If you're editing an existing module rather than writing a new one, its "Editing an existing module" note applies — read the current file first and change only what the task requires.
 
 ## Step 6 – Write the Decorator
 
@@ -77,7 +79,7 @@ Read [Context-Tracking Instrumentation](references/context-tracking.md) and deci
 
 ## Step 7 – Write the Advice class (highest-risk step)
 
-**Read [Writing the Advice Class](references/advice-class.md) — the highest-risk step.** Pay particular attention to: `@Advice.OnMethodEnter/Exit` annotations; `CallDepthThreadLocalMap` reentrancy guarding; span lifecycle order; and the "Must NOT do" list.
+**Read [Writing the Advice Class](references/advice-class.md) — the highest-risk step.** Pay particular attention to: `@Advice.OnMethodEnter/Exit` annotations; `CallDepthThreadLocalMap` reentrancy guarding; span lifecycle order; and the "Must NOT do" list. If the target wraps or delegates to another async client, its "Do not double-span async HTTP clients" section covers whether to open a second span or rely on context-propagation-only advice. If a returned `CompletableFuture`/`CompletionStage` needs a completion callback, see [Context-Tracking Instrumentation](references/context-tracking.md)'s "Preserving cancellation" section for the read-only-return + named-callback pattern — do not reassign the future with `future = future.whenComplete(...)`.
 
 ## Step 8 – Add SETTER/GETTER adapters (if applicable)
 
@@ -95,9 +97,11 @@ Cover all mandatory test types:
 
 ### 2. Muzzle directives (mandatory)
 
-**Read [Muzzle Directives](references/muzzle.md)** — it covers all three valid patterns and their `assertInverse` rules. Search adjacent module `build.gradle` files for `skipVersions` before declaring a new version-bounded module's muzzle directives.
+**Read [Muzzle Directives](references/muzzle.md)** — it covers all three valid patterns and their `assertInverse` rules. Search adjacent module `build.gradle` files for `skipVersions` before declaring a new version-bounded module's muzzle directives. **If a prior-major-version sibling module already exists in the repo** (e.g. you're writing `rxjava-3.0` and `rxjava-2.0` exists), add the "Namespace-isolation `fail` block" that section describes — it's not optional, it's how CI catches accidental cross-version advice matching.
 
 ### 3. Latest dependency test (mandatory)
+
+If the library's API surface changes across minor versions (deprecated/removed methods, changed signatures), see [Writing Tests](references/tests.md)'s "Version-sensitive tests belong in a separate `latestDepTest` source set" section for which tests belong in `src/test/` vs `src/latestDepTest/`.
 
 Use `latestDepTestImplementation` in `build.gradle` to pin the latest available version. Run with:
 ```bash

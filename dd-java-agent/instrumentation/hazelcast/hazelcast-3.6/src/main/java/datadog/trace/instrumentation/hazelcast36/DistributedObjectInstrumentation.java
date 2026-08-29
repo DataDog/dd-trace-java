@@ -215,14 +215,11 @@ public final class DistributedObjectInstrumentation
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
-      try {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
-      }
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
     }
 
     public static void muzzleCheck(
@@ -276,22 +273,18 @@ public final class DistributedObjectInstrumentation
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
-      try {
-        if (throwable != null) {
-          // There was a synchronous error,
-          // which means we shouldn't wait for a callback to close the span.
-          DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-        } else {
-          future.andThen(new SpanFinishingExecutionCallback(span));
-        }
-      } finally {
+      if (throwable != null) {
+        // There was a synchronous error,
+        // which means we shouldn't wait for a callback to close the span.
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         scope.close();
-        if (throwable != null) {
-          span.finish();
-        }
-        CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
+        span.finish();
+      } else {
+        future.andThen(new SpanFinishingExecutionCallback(span));
+        scope.close();
       }
+      CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
     }
 
     public static void muzzleCheck(

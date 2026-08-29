@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class ServerDecorator extends BaseDecorator {
 
   @Override

@@ -2,11 +2,14 @@ package datadog.trace.core.otlp.common;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.config.GeneralConfig.ENV;
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,12 +17,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -53,8 +60,8 @@ class OtlpResourceProtoTest {
     return props;
   }
 
-  private static Map<String, String> attrs(String... keyValues) {
-    Map<String, String> map = new LinkedHashMap<>();
+  private static Map<String, Object> attrs(String... keyValues) {
+    Map<String, Object> map = new LinkedHashMap<>();
     for (int i = 0; i < keyValues.length; i += 2) {
       map.put(keyValues[i], keyValues[i + 1]);
     }
@@ -62,6 +69,11 @@ class OtlpResourceProtoTest {
     map.put("telemetry.sdk.version", TRACER_VERSION);
     map.put("telemetry.sdk.language", "java");
     return map;
+  }
+
+  @AfterEach
+  void resetProcessTags() {
+    ProcessTags.reset(Config.get());
   }
 
   static Stream<Arguments> resourceMessageCases() {
@@ -148,29 +160,27 @@ class OtlpResourceProtoTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("resourceMessageCases")
   void testBuildResourceMessage(
-      String caseName, Properties properties, Map<String, String> expectedAttributes)
+      String caseName, Properties properties, Map<String, Object> expectedAttributes)
       throws IOException {
     Config config = Config.get(properties);
     byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
 
-    Map<String, String> actualAttributes = parseResourceAttributes(bytes);
+    Map<String, Object> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
   }
 
   /**
    * The datadog-attrs variant ({@code buildResourceMessage(config, datadogResourceAttributes)})
-   * carries {@code datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only
-   * when the experimental process-tag propagation is enabled, so they aren't asserted here.)
+   * carries {@code datadog.runtime_id}; the plain variant omits it.
    */
   @Test
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, String> withDatadog =
+    Map<String, Object> withDatadog =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                config, OtlpResourceProto.datadogResourceAttributes(config)));
-    Map<String, String> plain =
+            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+    Map<String, Object> plain =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
 
@@ -185,19 +195,43 @@ class OtlpResourceProtoTest {
   }
 
   @Test
+  void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
+    Config config =
+        Config.get(
+            props(
+                SERVICE_NAME,
+                "my-service",
+                TAGS,
+                "datadog.process_tags:user-value",
+                EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+                "true"));
+    ProcessTags.reset(config);
+    ProcessTags.addTag("entrypoint.name", "app");
+    ProcessTags.addTag("entrypoint.type", "web");
+
+    Map<String, Object> withDatadog =
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+
+    Object processTags = withDatadog.get("datadog.process_tags");
+    assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
+    assertEquals(ProcessTags.getTagsAsStringList(), processTags);
+  }
+
+  @Test
   void statsComputedVariantCarriesMarker() throws IOException {
     Config withMetrics =
         Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
     Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, String> withMarker =
+    Map<String, Object> withMarker =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(
-                withMetrics, OtlpResourceProto.traceResourceAttributes(withMetrics)));
-    Map<String, String> without =
+                withMetrics, traceResourceAttributes(withMetrics)));
+    Map<String, Object> without =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(
-                withoutMetrics, OtlpResourceProto.traceResourceAttributes(withoutMetrics)));
+                withoutMetrics, traceResourceAttributes(withoutMetrics)));
 
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
@@ -213,9 +247,10 @@ class OtlpResourceProtoTest {
    * <p>{@code buildResourceMessage} returns a length-prefixed message with an outer tag (field 1,
    * LEN wire type) followed by the Resource body size and body. Read the outer tag, then iterate
    * over all {@code Resource.attributes} (field 1, LEN wire type). Each attribute is a {@code
-   * KeyValue} whose {@code value} is an {@code AnyValue} containing a {@code string_value}.
+   * KeyValue} whose {@code value} is an {@code AnyValue} containing either a {@code string_value}
+   * (field 1) or, for {@code datadog.process_tags}, an {@code array_value} (field 5).
    */
-  private static Map<String, String> parseResourceAttributes(byte[] bytes) throws IOException {
+  private static Map<String, Object> parseResourceAttributes(byte[] bytes) throws IOException {
     // Read the outer tag (field 1, LEN wire type) that wraps the Resource body
     CodedInputStream outer = CodedInputStream.newInstance(bytes);
     int outerTag = outer.readTag();
@@ -223,7 +258,7 @@ class OtlpResourceProtoTest {
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(outerTag));
     CodedInputStream resource = outer.readBytes().newCodedInput();
 
-    Map<String, String> attributes = new LinkedHashMap<>();
+    Map<String, Object> attributes = new LinkedHashMap<>();
     while (!resource.isAtEnd()) {
       // Each attribute is Resource.attributes (field 1, LEN wire type)
       int tag = resource.readTag();
@@ -235,15 +270,10 @@ class OtlpResourceProtoTest {
 
       String key = readKeyField(kv);
       CodedInputStream av = readAnyValueField(kv);
-
-      // Read AnyValue.string_value (field 1, LEN)
-      int avTag = av.readTag();
-      assertEquals(1, WireFormat.getTagFieldNumber(avTag), "AnyValue.string_value is field 1");
-      assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(avTag));
-      String value = av.readString();
-      assertTrue(av.isAtEnd(), "no extra fields in AnyValue");
+      Object value = readAnyValueBody(av);
       assertTrue(kv.isAtEnd(), "no extra fields in KeyValue");
 
+      assertFalse(attributes.containsKey(key), "duplicate resource attribute key: " + key);
       attributes.put(key, value);
     }
     return attributes;
@@ -266,5 +296,32 @@ class OtlpResourceProtoTest {
     assertEquals(2, WireFormat.getTagFieldNumber(tag), "KeyValue.value is field 2");
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
     return kv.readBytes().newCodedInput();
+  }
+
+  /** Reads {@code AnyValue.string_value} (field 1) or {@code AnyValue.array_value} (field 5). */
+  private static Object readAnyValueBody(CodedInputStream av) throws IOException {
+    int avTag = av.readTag();
+    int field = WireFormat.getTagFieldNumber(avTag);
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(avTag));
+    Object value;
+    if (field == 5) {
+      value = readArrayValue(av.readBytes().newCodedInput());
+    } else {
+      assertEquals(1, field, "AnyValue.string_value is field 1");
+      value = av.readString();
+    }
+    assertTrue(av.isAtEnd(), "no extra fields in AnyValue");
+    return value;
+  }
+
+  /** Reads {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list. */
+  private static List<String> readArrayValue(CodedInputStream arrayValue) throws IOException {
+    List<String> values = new ArrayList<>();
+    while (!arrayValue.isAtEnd()) {
+      int tag = arrayValue.readTag();
+      assertEquals(1, WireFormat.getTagFieldNumber(tag), "ArrayValue.values is field 1");
+      values.add((String) readAnyValueBody(arrayValue.readBytes().newCodedInput()));
+    }
+    return values;
   }
 }

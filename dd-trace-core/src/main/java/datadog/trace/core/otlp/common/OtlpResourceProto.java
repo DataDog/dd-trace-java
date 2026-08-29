@@ -1,49 +1,24 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourceAttributes;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProcessTags;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
 public final class OtlpResourceProto {
   private OtlpResourceProto() {}
-
-  private static final Set<String> IGNORED_GLOBAL_TAGS =
-      new HashSet<>(
-          Arrays.asList(
-              "service",
-              "env",
-              "version",
-              "service.name",
-              "deployment.environment.name",
-              "service.version",
-              "telemetry.sdk.name",
-              "telemetry.sdk.version",
-              "telemetry.sdk.language"));
-
-  /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
-  private static final String DATADOG_PREFIX = "datadog.";
-
-  /**
-   * Resource attribute added to OTLP trace metrics to ensure calculations are not re-computed in
-   * the Agent
-   */
-  private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
 
   /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
   public static final byte[] RESOURCE_MESSAGE =
@@ -51,8 +26,7 @@ public final class OtlpResourceProto {
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
-   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
-   * mode.
+   * {@code datadog.}). Used by the SDK trace-metrics export.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
       buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
@@ -65,43 +39,11 @@ public final class OtlpResourceProto {
   public static final byte[] TRACE_RESOURCE_MESSAGE =
       buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config, Map<String, String> extraAttributes) {
+  static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
-    String serviceName = config.getServiceName();
-    String env = config.getEnv();
-    String version = config.getVersion();
-
-    writeResourceAttribute(buf, "service.name", serviceName);
-    if (!env.isEmpty()) {
-      writeResourceAttribute(buf, "deployment.environment.name", env);
-    }
-    if (!version.isEmpty()) {
-      writeResourceAttribute(buf, "service.version", version);
-    }
-    if (config.isReportHostName()) {
-      String hostName = config.getHostName();
-      if (hostName != null && !hostName.isEmpty()) {
-        writeResourceAttribute(buf, "host.name", hostName);
-      }
-    }
-    writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
-    writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
-    writeResourceAttribute(buf, "telemetry.sdk.language", "java");
-
-    config
-        .getGlobalTags()
-        .forEach(
-            (key, value) -> {
-              // ignore datadog tags and their otel equivalents that we map above
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))) {
-                writeResourceAttribute(buf, key, value);
-              }
-            });
-
-    for (Map.Entry<String, String> attribute : extraAttributes.entrySet()) {
-      writeResourceAttribute(buf, attribute.getKey(), attribute.getValue());
-    }
+    visitResourceAttributes(
+        config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);
@@ -112,39 +54,14 @@ public final class OtlpResourceProto {
   }
 
   /**
-   * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
-   * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
-   * them from the exported spans.
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
    */
-  static Map<String, String> traceResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
-    if (config.isOtelTracesSpanMetricsEnabled()) {
-      attributes.put(STATS_COMPUTED_KEY, "true");
-    }
-    return attributes;
-  }
-
-  static Map<String, String> datadogResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
-    String runtimeId = config.getRuntimeId();
-    if (runtimeId != null && !runtimeId.isEmpty()) {
-      attributes.put(DATADOG_PREFIX + "runtime_id", runtimeId);
-    }
-    // Process tags arrive as "key:value" pairs; emit each as datadog.<key> = value.
-    List<String> processTags = ProcessTags.getTagsAsStringList();
-    if (processTags != null) {
-      for (String tag : processTags) {
-        int colon = tag.indexOf(':');
-        if (colon > 0) {
-          attributes.put(DATADOG_PREFIX + tag.substring(0, colon), tag.substring(colon + 1));
-        }
-      }
-    }
-    return attributes;
-  }
-
-  private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
+  private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+    if (value instanceof List) {
+      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
+    } else {
+      writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+    }
   }
 }

@@ -51,7 +51,11 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -658,7 +662,7 @@ public class ConfigurationUpdaterTest {
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 introduced Spring6 class
       Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
@@ -669,7 +673,7 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(
         REMOTE_CONFIG,
         singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       verify(inst, times(2)).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());
@@ -715,9 +719,10 @@ public class ConfigurationUpdaterTest {
   @EnabledForJreRange(min = JRE.JAVA_17)
   public void recordWithTypeAnnotation()
       throws IOException, URISyntaxException, UnmodifiableClassException {
-    // make sure record method are not detected as having methodParameters attribute.
-    // /!\ record canonical constructor has the MethodParameters attribute,
-    // but not returned by Class::getDeclaredMethods()
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+      // Fixed since JDK 25.0.4
+      return;
+    }
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
     Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
     Class<?> testClass = loadClass(CLASS_NAME, buffers);

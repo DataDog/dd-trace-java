@@ -53,6 +53,30 @@ Dependencies specific to a particular instrumentation are added to the `build.gr
 directory.
 Declare necessary dependencies under `compileOnly` configuration so they do not leak into the agent jar.
 
+Instrumentation build files should apply the instrumentation module convention plugin instead of applying
+`gradle/java.gradle` directly:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "com.example"
+    module = "example-library"
+    versions = "[1.0,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.example', name: 'example-library', version: '1.0.0'
+}
+```
+
+The module plugin is the supported entry point for instrumentation projects. It keeps the project shape consistent while
+the shared build logic continues to evolve behind the plugin.
+
 ## Muzzle
 
 Muzzle directives are applied at build time from the `build.gradle` file.
@@ -387,6 +411,18 @@ Decorator class names must be in the instrumentation's helper classes since Deco
 instrumentation.
 
 Decorator class names should end in _Decorator._
+
+### Decorators must not throw
+
+Decorator lifecycle hooks (`onError`, `beforeFinish`, …) are called from advice around
+`scope.close()` / `span.finish()`, so a decorator that throws would leak scopes and spans — and
+force every call site into defensive `try/finally` blocks. To prevent this, decorators make
+these public methods `final` and route them through an exception barrier that logs and swallows any
+`Throwable`. `BlockingException` is deliberately re-thrown so AppSec/RASP blocking keeps working.
+
+Subclasses customize behavior by overriding the protected `doOnError` / `doBeforeFinish` hooks
+(**not** the public `onError` / `beforeFinish` methods). Those hooks should still avoid throwing
+(other than `BlockingException`); the barrier is a safety net, not a license to throw.
 
 ## Advice Classes
 

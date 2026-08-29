@@ -147,7 +147,7 @@ abstract class TestcontainersLimitService implements BuildService<BuildServicePa
 }
 
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", TestcontainersLimitService) {
-  maxParallelUsages = 1
+  maxParallelUsages = project.findProperty("testcontainersMaxParallelUsages").toInteger()
 }
 
 // Task for tests that want to run forked in their own separate JVM
@@ -270,21 +270,22 @@ tasks.withType(Test).configureEach {
 }
 
 
-[JavaCompile, ScalaCompile, GroovyCompile].each {
-  type ->
-  tasks.withType(type).configureEach {
-    if (options.fork) {
-      options.forkOptions.with {
-        memoryMaximumSize = "256M"
-      }
-    }
-  }
+tasks.withType(JavaCompile).configureEach {
+  options.forkOptions.memoryMaximumSize = "256M"
 }
 
-if (project.plugins.hasPlugin('kotlin')) {
+tasks.withType(GroovyCompile).configureEach {
+  it.options.forkOptions.memoryMaximumSize = "256M"
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  options.forkOptions.memoryMaximumSize = "256M"
+}
+
+project.pluginManager.withPlugin('kotlin') {
   ['compileKotlin', 'compileTestKotlin'].each {
-    type ->
-    tasks.named(type) {
+    name ->
+    tasks.named(name) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
   }

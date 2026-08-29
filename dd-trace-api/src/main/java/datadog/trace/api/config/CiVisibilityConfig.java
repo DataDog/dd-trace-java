@@ -83,6 +83,8 @@ public final class CiVisibilityConfig {
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";
   public static final String TEST_FAILED_TEST_REPLAY_ENABLED = "test.failed.test.replay.enabled";
+  public static final String CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED =
+      "civisibility.gradle.dependency.verification.enabled";
 
   /* Git PR info */
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";

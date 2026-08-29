@@ -89,15 +89,12 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       final AgentSpan span = scope.span();
-      try {
-        DECORATE.onResponse(span, httpMethod);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(HttpClient.class);
-      }
+      DECORATE.onResponse(span, httpMethod);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(HttpClient.class);
     }
   }
 
