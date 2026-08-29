@@ -81,7 +81,7 @@ class ClientStatsAggregatorTest {
           Collections.singletonList(
               new SimpleSpan("", "", "", "", false, false, false, 0, 0, HTTP_OK)));
 
-      waitUntilAggregatorIsEmpty(aggregator);
+      waitUntilAggregatorIsDrained(aggregator);
       clearInvocations(sink);
       aggregator.forceReport().get(2, SECONDS);
 
@@ -2010,7 +2010,7 @@ class ClientStatsAggregatorTest {
       verify(writer, times(1)).finishBucket();
 
       // second cycle - no updates at all
-      waitUntilAggregatorIsEmpty(aggregator);
+      waitUntilAggregatorIsDrained(aggregator);
       clearInvocations(writer);
       aggregator.forceReport().get(2, SECONDS);
 
@@ -2858,10 +2858,10 @@ class ClientStatsAggregatorTest {
     }
   }
 
-  private void waitUntilAggregatorIsEmpty(ClientStatsAggregator aggregator)
+  private void waitUntilAggregatorIsDrained(ClientStatsAggregator aggregator)
       throws InterruptedException {
     int i = 0;
-    while (!aggregator.isEmpty() && i++ < 100) {
+    while (!aggregator.isDrained() && i++ < 100) {
       Thread.sleep(10);
     }
   }

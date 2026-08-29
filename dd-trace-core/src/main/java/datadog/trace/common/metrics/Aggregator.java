@@ -2,13 +2,14 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.WorkQueue;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +19,7 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<InboxItem> inbox;
+  private final WorkQueue<InboxItem> inbox;
   private final AggregateTable aggregates;
   private final MetricWriter writer;
   private final HealthMetrics healthMetrics;
@@ -45,7 +46,7 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      WorkQueue<InboxItem> inbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -66,7 +67,7 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      WorkQueue<InboxItem> inbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -95,11 +96,13 @@ final class Aggregator implements Runnable {
   public void run() {
     Thread currentThread = Thread.currentThread();
     Drainer drainer = new Drainer();
-    while (!currentThread.isInterrupted() && !drainer.stopped) {
+    while (!currentThread.isInterrupted() && !inbox.isClosed()) {
       try {
-        if (!inbox.isEmpty()) {
-          inbox.drain(drainer);
-        } else {
+        // Take what is there in one pass, the way the old jctools drain did. size() is O(1) on
+        // this queue, so asking costs a read, and anything that arrives mid-pass is simply the
+        // next pass's work. A failing item throws out of process, into the same catch that has
+        // always kept one bad item from ending the drain loop.
+        if (inbox.process(Math.max(1, inbox.size()), drainer) == 0) {
           Thread.sleep(sleepMillis);
         }
       } catch (InterruptedException e) {
@@ -111,9 +114,11 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
-
-    boolean stopped = false;
+  /**
+   * Stateless. Whether the aggregator has stopped is the inbox's closed flag, which the run loop
+   * reads as its own exit condition -- see the {@link StopSignal} branch below.
+   */
+  private final class Drainer implements Consumer<InboxItem> {
 
     @Override
     public void accept(InboxItem item) {
@@ -132,7 +137,7 @@ final class Aggregator implements Runnable {
         // re-aggregated, and flushed on the next report -- where the agent rejects them again,
         // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
         // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
-        if (!stopped) {
+        if (!inbox.isClosed()) {
           aggregates.clear();
           // Clear dirty too -- without this, the next report() would see dirty=true, run
           // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
@@ -143,16 +148,21 @@ final class Aggregator implements Runnable {
         ((SignalItem) item).complete();
       } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
-        if (!stopped) {
+        if (!inbox.isClosed()) {
           report(wallClockTime(), signal);
-          stopped = item instanceof StopSignal;
-          if (stopped) {
+          if (item instanceof StopSignal) {
+            // Closing the inbox *is* stopping. It refuses further admission, so producers stop
+            // building snapshots for a consumer that is on its way out, and it is the condition
+            // this loop already reads to leave -- one piece of state rather than two that have to
+            // agree. Deliberately not shutdown(): anything queued behind STOP stays readable, and
+            // the batch this call sits in keeps being walked.
+            inbox.close();
             signal.complete();
           }
         } else {
           signal.ignore();
         }
-      } else if (item instanceof SpanSnapshot && !stopped) {
+      } else if (item instanceof SpanSnapshot && !inbox.isClosed()) {
         SpanSnapshot snapshot = (SpanSnapshot) item;
         AggregateEntry entry = aggregates.findOrInsert(snapshot);
         if (entry != null) {

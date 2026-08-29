@@ -16,7 +16,9 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.common.queue.Queues;
+import datadog.common.queue.BiContextualProducer;
+import datadog.common.queue.WorkQueue;
+import datadog.common.queue.WorkQueues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -39,7 +41,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   private final Set<String> ignoredResources;
   private final Thread thread;
-  private final MessagePassingQueue<InboxItem> inbox;
+  private final WorkQueue<InboxItem> inbox;
   private final Sink sink;
   private final MetricWriter metricWriter;
   private final Aggregator aggregator;
@@ -109,6 +110,24 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
+
+  /**
+   * Builds the snapshot for a span once the inbox has reserved a place for it, or declines the span
+   * if it is not one metrics are computed for. Bound to this aggregator once, at construction, so
+   * admission costs no allocation at all: the span and the schema the publish loop hoisted are the
+   * two contexts, and everything else the snapshot needs is reachable from this aggregator.
+   *
+   * <p>The eligibility test runs here as well as in the first pass of {@link #publish(List)},
+   * because the inbox walks the trace itself and has no way to be handed a filtered view of it
+   * without materialising one. Four field reads a second time is the price of not allocating a list
+   * per trace, and the reason the decision pass can stay separate from the admission pass.
+   */
+  private final BiContextualProducer<CoreSpan<?>, PeerTagSchema, InboxItem> snapshotProducer =
+      this::snapshotIfEligible;
+
+  private InboxItem snapshotIfEligible(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
+    return shouldComputeMetric(span, span.isTopLevel()) ? snapshot(span, peerTagSchema) : null;
+  }
 
   /**
    * Previous peer-tag schema, kept until the next reporting cycle.
@@ -274,7 +293,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.additionalTagsSchema = additionalTagsSchema;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
-    this.inbox = Queues.mpscArrayQueue(queueSize);
+    this.inbox = WorkQueues.createMpscQueue(queueSize);
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
@@ -346,7 +365,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     boolean published;
     int attempts = 0;
     do {
-      published = inbox.offer(REPORT);
+      published = inbox.tryPut(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
     if (!published) {
@@ -372,8 +391,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     // Try to send the report signal
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
-    while (thread.isAlive() && !published) {
-      published = inbox.offer(reportSignal);
+    // isClosed() as well as isAlive(): the inbox closes the moment STOP is taken, which is
+    // strictly before the thread finishes exiting, so this stops sleeping through that window
+    // waiting on a signal that can no longer be admitted.
+    while (thread.isAlive() && !inbox.isClosed() && !published) {
+      published = inbox.tryPut(reportSignal);
       if (!published) {
         try {
           Thread.sleep(10);
@@ -394,7 +416,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    if (statsExportEnabled()) {
+    // Closed before enabled: closed is a volatile read, where statsExportEnabled() can reach into
+    // feature discovery. Once the aggregator thread has taken STOP the inbox refuses everything,
+    // so asking once here is the whole publish path after shutdown -- rather than a capacity's
+    // worth of snapshots built for a consumer that has already exited, followed by an unbounded
+    // run of inbox-full reports for a queue nobody is draining.
+    if (!inbox.isClosed() && statsExportEnabled()) {
       // Producer-side fast path: one volatile read and use whatever schema is currently cached.
       // The aggregator thread keeps this schema in sync with feature discovery in
       // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
@@ -406,21 +433,38 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
       // check so the common case skips both the lookup and the getResourceName() call per span.
       final boolean hasIgnoredResources = !ignoredResources.isEmpty();
+      // Two passes, because this loop answers two questions with different scopes. counted and
+      // forceKeep are about the trace: every eligible span contributes, whether or not the inbox
+      // had room for it. Admission is about the inbox: only the spans there was room for. Fused
+      // into one pass they read as one thing; separated, each pass says what it is for.
+      int limit = trace.size();
+      int position = 0;
       for (CoreSpan<?> span : trace) {
-        boolean isTopLevel = span.isTopLevel();
-        if (shouldComputeMetric(span, isTopLevel)) {
+        if (shouldComputeMetric(span, span.isTopLevel())) {
           if (hasIgnoredResources) {
             final CharSequence resourceName = span.getResourceName();
             if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
               // skip publishing all children
+              limit = position;
               break;
             }
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, peerTagSchema);
+          forceKeep |= span.getError() > 0;
         }
+        position++;
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
+      // The inbox reserves a place before calling back, so a full inbox costs nothing beyond the
+      // claim: none of the tag lookups, no peer/additional tag arrays, no SpanSnapshot. Ineligible
+      // spans are declined by the producer, which is not a drop and not counted as admitted --
+      // so counted minus admitted is exactly the eligible spans that did not fit.
+      List<? extends CoreSpan<?>> admissible =
+          limit == trace.size() ? trace : trace.subList(0, limit);
+      int admitted = inbox.tryPutBatch(admissible, peerTagSchema, snapshotProducer);
+      for (int refused = counted - admitted; refused > 0; refused--) {
+        healthMetrics.onStatsInboxFull();
+      }
     }
     return forceKeep;
   }
@@ -432,13 +476,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
+  /**
+   * The schema rides along as the second context so the publish loop can keep reading it once per
+   * trace rather than once per span, which is what it did before admission became a callback.
+   * {@code isTopLevel} needs no such carriage: it is a field read on the span itself.
+   */
+  private SpanSnapshot snapshot(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
+    boolean isTopLevel = span.isTopLevel();
     boolean error = span.getError() > 0;
-    // size() is approximate on jctools MPSC queues but good enough for a fast-path overflow check.
-    if (inbox.size() >= inbox.capacity()) {
-      healthMetrics.onStatsInboxFull();
-      return error;
-    }
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -503,11 +548,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             grpcStatusCode,
             additionalTagValues,
             tagAndDuration);
-    if (!inbox.offer(snapshot)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    // force keep keys if there are errors
-    return error;
+    return snapshot;
   }
 
   /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
@@ -679,7 +720,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (null != cancellation) {
       cancellation.cancel();
     }
-    inbox.offer(STOP);
+    inbox.tryPut(STOP);
   }
 
   @Override
@@ -732,7 +773,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // the aggregator drains existing snapshots and ships them on the next report cycle; the
       // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
       // now-empty inbox. Worst case: one extra reporting cycle of stale data.
-      inbox.offer(CLEAR);
+      inbox.tryPut(CLEAR);
     }
   }
 
@@ -744,8 +785,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
   }
 
+  /**
+   * Whether the aggregator thread has taken everything the inbox held. Named for consumption rather
+   * than contents: {@code size()} counts capacity in use, which includes any place claimed but not
+   * yet filled, so "drained" is the question this can actually answer.
+   */
   @VisibleForTesting
-  boolean isEmpty() {
-    return inbox.isEmpty();
+  boolean isDrained() {
+    return inbox.size() == 0;
   }
 }
