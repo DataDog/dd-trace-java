@@ -1,12 +1,12 @@
 package datadog.common.queue;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MpscArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Group;
-import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -14,6 +14,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -53,25 +54,53 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>{@code steady} is the other half, and the commoner one: not full, with a consumer making room
  * as fast as producers take it. It is the only arm where the counter is incremented by a drain
- * while it is decremented by admission, contending on the same line from both directions.
+ * while it is decremented by admission, contending on the same line from both directions. Its
+ * consumer is a thread this class owns rather than a {@code @Group} member; the arm's own note says
+ * why that distinction is load-bearing.
  *
  * <p>Neither cost is visible in {@link AdmissionBenchmark}, which is {@code @Threads(1)} and {@code
  * Scope.Thread} — every thread there gets its own queue, so there is nothing to contend on and
  * nothing to allocate alongside.
  *
- * <p>Results, filled in as they are measured:
+ * <p>Results. Eight threads, one fork, {@code -Pjmh.profilers=gc}, JDK 25, on a machine with other
+ * work on it -- so the absolute numbers run high and the intervals are wide. They are an
+ * impression, not a baseline; {@code refusedRaw} on the same run is the control that says the load
+ * is not what put a microsecond on the other rows.
  *
  * <pre>
- * Benchmark                 (backings)   ns/op    B/op
- * refusedProducer           MPSC         ?        ?
- * refusedProducer           LINKED       ?        ?
- * refusedBuildThenOffer     -            ?        ?
- * refusedQueue              MPSC         ?        ?
- * refusedQueue              LINKED       ?        ?
- * refusedRaw                -            ?        ?
- * steady:produce            MPSC         ?        ?
- * steady:produce            LINKED       ?        ?
+ * Benchmark                 (backings)   ns/op            B/op
+ * refusedProducer           MPSC         1035.8 +- 239    0
+ * refusedProducer           LINKED       1162.5 +- 243    0
+ * refusedQueue              MPSC          963.7 +- 292    0
+ * refusedQueue              LINKED       1229.0 +-  57    0
+ * refusedBuildThenOffer     MPSC          448.9 +-  60    32
+ * refusedBuildThenOffer     LINKED        460.0 +-  16    32
+ * refusedRaw                MPSC            3.4 +-   1    0
+ * refusedRaw                LINKED          3.4 +-   1    0
+ * steady                    MPSC          798.7 +- 266    0
+ * steady                    LINKED       1008.4 +- 724    8.75
  * </pre>
+ *
+ * <p><b>What this says, including the part that does not flatter the API.</b> The permit counter is
+ * the dominant cost at the boundary, by two and a half orders of magnitude: a refused admission is
+ * ~960ns against ~3.4ns for the same rejection taken on jctools' own producer-index CAS. Eight
+ * threads doing two read-modify-writes on one shared line is the whole of that gap. On the MPSC
+ * backing that is being paid for a bound the ring was already enforcing for free.
+ *
+ * <p>And so the premise pair does not come out the way the module's argument wants. {@code
+ * refusedProducer} does hold 0 B/op where {@code refusedBuildThenOffer} pays 32 -- reserve-before-
+ * build does what it claims -- but it is slower in {@code ns/op}, ~1036 against ~449. Read the pair
+ * carefully before concluding anything from it: {@code refusedBuildThenOffer} offers to the raw
+ * queue, so it prices an allocation without a counter, while {@code refusedProducer} prices a
+ * counter without an allocation. It is not one variable. What the two together do establish is the
+ * ordering: under contention at the boundary, the counter costs more than the allocation it avoids.
+ * The allocation win is real and the contention cost is larger, and a call site that is refusing
+ * often is paying for reserve-before-build rather than being paid by it.
+ *
+ * <p>None of which is an argument against the API at a call site that mostly succeeds -- {@code
+ * steady} is the arm for that, and it allocates nothing on the MPSC backing against 8.75 B/op of
+ * linked node on the other. It is an argument for measuring the boundary before putting this in
+ * front of a producer that lives there.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -135,6 +164,11 @@ public class ContendedAdmissionBenchmark {
    */
   private MpscArrayQueue<Object> raw;
 
+  /** The one consumer for {@link #steady}. Owned here, not by JMH -- see that arm's note. */
+  private Thread drain;
+
+  private volatile boolean draining;
+
   @Setup
   public void setUp() {
     queue = create(CAPACITY);
@@ -151,6 +185,25 @@ public class ContendedAdmissionBenchmark {
     while (raw.offer(ELEMENT)) {
       // same, through jctools' own rejection
     }
+    draining = true;
+    drain =
+        new Thread(
+            () -> {
+              while (draining) {
+                // Not timed, and deliberately not throttled: the point is to keep the steady arm
+                // off the capacity boundary and to keep the counter's increment side busy.
+                queue.process(CAPACITY, e -> {});
+              }
+            },
+            "contended-admission-drain");
+    drain.setDaemon(true);
+    drain.start();
+  }
+
+  @TearDown
+  public void tearDown() throws InterruptedException {
+    draining = false;
+    drain.join(SECONDS.toMillis(5));
   }
 
   private WorkQueue<String> create(int capacity) {
@@ -190,22 +243,21 @@ public class ContendedAdmissionBenchmark {
     bh.consume(raw.offer(ELEMENT));
   }
 
-  @Benchmark
-  @Group("steady")
-  @GroupThreads(3)
-  public void produce(Blackhole bh) {
-    bh.consume(queue.tryPut(ELEMENT));
-  }
-
   /**
-   * One consumer, because MPSC allows exactly one. Its own timing is not the point; it is here to
-   * keep {@link #produce} off the boundary and to put the counter's increment side under load at
-   * the same time as its decrement side.
+   * The commoner half: not full, with a consumer making room about as fast as producers take it, so
+   * the counter is incremented by a drain while it is decremented by admission -- contending on the
+   * same line from both directions.
+   *
+   * <p>Every JMH thread is a producer here, and the consumer is the dedicated {@link #drain} thread
+   * started in setup rather than a {@code @Group} member. That is not a stylistic choice. A group's
+   * {@code @GroupThreads(1)} fixes the consumer count *per group*, and JMH instantiates as many
+   * groups as the thread count allows -- so {@code -Pjmh.threads=8} against a group of 4 yields two
+   * consumers. Two concurrent {@code poll()}s on the single-consumer MPSC ring do not fail; they
+   * spin inside jctools' gap-wait and the iteration never ends. Owning the consumer outright makes
+   * the arm correct at any thread count, which is what the project's spot-check flags hand it.
    */
   @Benchmark
-  @Group("steady")
-  @GroupThreads(1)
-  public void consume(Blackhole bh) {
-    bh.consume(queue.process(CAPACITY, bh::consume));
+  public void steady(Blackhole bh) {
+    bh.consume(queue.tryPut(ELEMENT));
   }
 }

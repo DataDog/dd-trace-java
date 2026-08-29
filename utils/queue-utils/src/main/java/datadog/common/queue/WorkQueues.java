@@ -21,6 +21,13 @@ public final class WorkQueues {
    * admission that claims a slot before invoking a producer, so an element that will not fit is
    * never built.
    *
+   * <p>Single Consumer is a requirement, not a characteristic. Producers may be any number of
+   * threads, but every call that takes elements out -- any {@code process}, {@code processOrRetry}
+   * or {@code processOrHandle} overload, plus {@link WorkQueue#clear} and {@link
+   * WorkQueue#shutdown} -- must come from one thread. A second consumer is not rejected and does
+   * not throw: the two can spin inside the ring's gap-wait indefinitely, which presents as a hang
+   * rather than a failure. Use {@link #createMpmcQueue} where more than one thread drains.
+   *
    * @param requestedCapacity the bound. Will be rounded to the next power of two.
    */
   public static <E> WorkQueue<E> createMpscQueue(int requestedCapacity) {
