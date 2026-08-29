@@ -18,11 +18,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
-import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.TraceMatcher;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -34,17 +34,12 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -55,11 +50,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.util.ReferenceCountUtil;
-import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -68,9 +58,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import reactor.core.publisher.Mono;
@@ -78,53 +66,29 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
+public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
   private static final String FIRST_PATH = "/pipelined/first";
   private static final String SECOND_PATH = "/pipelined/second";
   private static final String THIRD_PATH = "/pipelined/third";
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
 
-  private EventLoopGroup eventLoopGroup;
-  private DecodedRequestObserver decodedRequestObserver;
-  private PipeliningHandler handler;
-  private int port;
+  private final DecodedRequestObserver decodedRequestObserver = new DecodedRequestObserver();
+  private final PipeliningHandler handler = new PipeliningHandler();
   private Object appSecSubscriptions;
   private boolean originalAppSecActive;
 
-  @BeforeAll
-  void startServer() throws Exception {
-    eventLoopGroup = new NioEventLoopGroup();
-    decodedRequestObserver = new DecodedRequestObserver();
-    handler = new PipeliningHandler();
-    ServerBootstrap bootstrap =
-        new ServerBootstrap()
-            .group(eventLoopGroup)
-            .channel(NioServerSocketChannel.class)
-            .childHandler(
-                new ChannelInitializer<Channel>() {
-                  @Override
-                  protected void initChannel(Channel ch) {
-                    HttpServerCodec codec = new HttpServerCodec();
-                    ch.pipeline().addLast(codec);
-                    ch.pipeline()
-                        .addAfter(
-                            ch.pipeline().context(codec).name(),
-                            "decoded-request-observer",
-                            decodedRequestObserver);
-                    ch.pipeline().addLast(new HttpObjectAggregator(65536));
-                    ch.pipeline().addLast(handler);
-                  }
-                });
-    Channel channel = bootstrap.bind(0).sync().channel();
-    port = ((InetSocketAddress) channel.localAddress()).getPort();
-  }
-
-  @AfterAll
-  void stopServer() {
-    if (eventLoopGroup != null) {
-      eventLoopGroup.shutdownGracefully();
-    }
+  @Override
+  protected void configurePipeline(Channel ch) {
+    HttpServerCodec codec = new HttpServerCodec();
+    ch.pipeline().addLast(codec);
+    ch.pipeline()
+        .addAfter(
+            ch.pipeline().context(codec).name(),
+            "decoded-request-observer",
+            decodedRequestObserver);
+    ch.pipeline().addLast(new HttpObjectAggregator(65536));
+    ch.pipeline().addLast(handler);
   }
 
   @AfterEach
@@ -140,8 +104,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   @Test
   void createsServerSpanForEachPipelinedRequest() throws Exception {
     handler.expectRequests(3);
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(pipelinedRequests().getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -203,8 +166,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   void requestBlockOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse() throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -221,9 +183,11 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -231,8 +195,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     decodedRequestObserver.expectRequests(3);
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -254,12 +217,14 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
       assertNull(
           handler.inboundException,
           "additional pipelined requests should be swallowed by the existing blocking handler");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -267,8 +232,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -283,19 +247,20 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
 
       handler.writeChunkedResponse();
 
-      assertEquals("response " + FIRST_PATH, readHttpChunkedResponseBody(socket.getInputStream()));
+      assertEquals("response " + FIRST_PATH, readChunkedHttpResponseBody(socket.getInputStream()));
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
   void requestBlockOnLaterPipelinedRequestFollowsEarlierHeaderOnlyResponse() throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -308,23 +273,30 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       assertTrue(
           blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
 
-      handler.writeHeaderOnlyResponse();
+      handler.writeHeaderOnlyResponseHeaders();
 
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 204 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 204 "),
           "first response should be the header-only response");
+      assertFalse(
+          writer.waitForTracesMax(1, 1),
+          "header-only response should remain pending before LastHttpContent");
+
+      handler.writeLastContent();
+
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
   void requestBlockOnLaterPipelinedRequestFollowsEarlierHeadResponse() throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(headRequest(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -340,20 +312,22 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       handler.writeHeadResponse();
 
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 200 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 200 "),
           "first response should be the HEAD response");
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(
+        SORT_BY_START_TIME, serverTrace("HEAD", FIRST_PATH), serverTrace("GET", SECOND_PATH));
   }
 
   @Test
   void lastContentAfterInterimResponseDoesNotCompleteServerSpan() throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -362,10 +336,12 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       handler.writeInterimResponseWithTerminatorThenResponse();
 
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 100 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 100 "),
           "first response should be the interim response");
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH));
   }
 
   @Test
@@ -373,8 +349,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       throws Exception {
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -390,13 +365,15 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       handler.writeEarlyHintsWithTerminatorThenResponse();
 
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 103 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 103 "),
           "first response should be the early hints response");
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -405,8 +382,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     enableAppSec();
     handler.expectRequests(1);
 
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -423,9 +399,11 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
-          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   private static String pipelinedRequests() {
@@ -492,105 +470,16 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   }
 
   private static TraceMatcher serverTrace(String path) {
+    return serverTrace("GET", path);
+  }
+
+  private static TraceMatcher serverTrace(String method, String path) {
     return trace(
         span()
             .root()
             .operationName(Pattern.compile("netty\\.request"))
-            .resourceName(Pattern.compile("GET " + Pattern.quote(path)))
+            .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
             .type("web"));
-  }
-
-  private static String readHttpResponseBody(InputStream in) throws IOException {
-    String headers = readHttpResponseHeaders(in);
-    assertTrue(headers.startsWith("HTTP/1.1 200 "), "unexpected response: " + headers);
-    int contentLength = contentLength(headers);
-    byte[] body = new byte[contentLength];
-    int read = 0;
-    while (read < contentLength) {
-      int count = in.read(body, read, contentLength - read);
-      if (count == -1) {
-        throw new EOFException("response ended before body was complete");
-      }
-      read += count;
-    }
-    return new String(body, UTF_8);
-  }
-
-  private static String readHttpChunkedResponseBody(InputStream in) throws IOException {
-    String headers = readHttpResponseHeaders(in);
-    assertTrue(headers.startsWith("HTTP/1.1 200 "), "unexpected response: " + headers);
-
-    ByteArrayOutputStream body = new ByteArrayOutputStream();
-    while (true) {
-      String chunkSizeLine = readHttpLine(in);
-      int chunkSize = Integer.parseInt(chunkSizeLine, 16);
-      if (chunkSize == 0) {
-        String trailer;
-        do {
-          trailer = readHttpLine(in);
-        } while (!trailer.isEmpty());
-        return body.toString(UTF_8.name());
-      }
-      byte[] chunk = new byte[chunkSize];
-      int read = 0;
-      while (read < chunkSize) {
-        int count = in.read(chunk, read, chunkSize - read);
-        if (count == -1) {
-          throw new EOFException("response ended before chunk was complete");
-        }
-        read += count;
-      }
-      body.write(chunk);
-      String chunkTerminator = readHttpLine(in);
-      assertEquals("", chunkTerminator, "chunk was not followed by CRLF");
-    }
-  }
-
-  private static String readHttpResponseHeaders(InputStream in) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    int state = 0;
-    while (state < 4) {
-      int b = in.read();
-      if (b == -1) {
-        throw new EOFException("response ended before headers were complete");
-      }
-      out.write(b);
-      if ((state == 0 || state == 2) && b == '\r') {
-        state++;
-      } else if ((state == 1 || state == 3) && b == '\n') {
-        state++;
-      } else {
-        state = b == '\r' ? 1 : 0;
-      }
-    }
-    return out.toString(US_ASCII.name());
-  }
-
-  private static String readHttpLine(InputStream in) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    int previous = -1;
-    while (true) {
-      int current = in.read();
-      if (current == -1) {
-        throw new EOFException("response ended before line was complete");
-      }
-      if (previous == '\r' && current == '\n') {
-        byte[] line = out.toByteArray();
-        return new String(line, 0, line.length - 1, US_ASCII);
-      }
-      out.write(current);
-      previous = current;
-    }
-  }
-
-  private static int contentLength(String headers) {
-    for (String line : headers.split("\r\n")) {
-      int separator = line.indexOf(':');
-      if (separator > 0 && "content-length".equalsIgnoreCase(line.substring(0, separator))) {
-        return Integer.parseInt(line.substring(separator + 1).trim());
-      }
-    }
-    throw new AssertionError("missing content-length header: " + headers);
   }
 
   @ChannelHandler.Sharable
@@ -736,7 +625,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
               });
     }
 
-    private void writeHeaderOnlyResponse() {
+    private void writeHeaderOnlyResponseHeaders() {
       ChannelHandlerContext responseContext = context;
       if (responseContext == null) {
         throw new IllegalStateException("no request context captured");
@@ -747,10 +636,20 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
               () -> {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
                 response.headers().set(CONNECTION, KEEP_ALIVE);
-                responseContext.write(response);
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
+                responseContext.writeAndFlush(response);
               });
+    }
+
+    private void writeLastContent() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      responseContext
+          .executor()
+          .execute(
+              () ->
+                  responseContext.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)));
     }
 
     private void writeHeadResponse() {

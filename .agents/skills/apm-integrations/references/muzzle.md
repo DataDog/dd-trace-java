@@ -120,6 +120,10 @@ Add `assertInverse = true` only when you've empirically verified the min via loc
 
 This is common whenever any instrumentation class in the module is compatible with versions below the declared min — `assertInverse` then contradicts that class's compatibility.
 
+**Especially avoid defaulting `assertInverse = true` when hooking a concrete driver class** (as opposed to a JDK SPI — but note you usually should NOT be hooking a concrete driver at all; see instrumenter-module.md). Concrete driver classes tend to be structurally stable across a much wider version range than the `compileOnly`/`testImplementation` coordinate you happened to pin, so the pinned floor is usually the dependency you selected, not any real API-shape boundary. Do not set `assertInverse` unless you can point to a specific API change at the declared minimum; otherwise omit it.
+
+**Do NOT treat a muzzle pass/inverse result as proof your matcher target exists (or doesn't) on a given version.** Muzzle derives its references from the *advice bytecode* plus any explicit additional references — NOT from the strings in `instrumentedType()` or a `named(...)` matcher. So a concrete class named only in a matcher (e.g. `org.postgresql.jdbc.PgStatement`) is a **muzzle blind spot**: an inverse pass on an old artifact does not confirm the matcher would fire there, and a normal pass does not confirm the class is present. If a rule depends on a matcher target existing on a version, back it with an explicit muzzle reference to that type or with a runtime/latest-dep test — do not infer it from the muzzle result. (This is also why `assertInverse` on a matcher-pinned concrete class is unreliable: the inverse assertion tests advice references, which may resolve on versions where the matched concrete class differs or is absent — PostgreSQL, for instance, splits older `jdbc2`/`jdbc3`/`jdbc4` statement classes from the newer `PgPreparedStatement`.)
+
 ## Muzzle range must exclude incompatible major versions
 
 If the library you are instrumenting has a major version break where a newer major version
@@ -172,3 +176,34 @@ muzzle {
 **How to discover these**: when verify fails with a task name that has a doubled module name (e.g., `redis.clients-jedis-jedis-3.6.2`), check the existing production module for the same library at another version. If it has `skipVersions` entries, copy them. This is library-specific tribal knowledge that lives in the existing modules.
 
 When in doubt, **search adjacent module build.gradle files for `skipVersions`** before declaring a new version-bounded module's muzzle directives.
+
+## Namespace-isolation `fail` blocks for major-version siblings
+
+When a library has multiple major versions that must never be instrumented by the same advice — whether published under different `group:module` coordinates (e.g., `io.reactivex.rxjava2:rxjava` vs `io.reactivex.rxjava3:rxjava`) or under the same coordinates at incompatible major versions (e.g., `org.springframework:spring-webflux` at major 5 vs 6) — assert namespace isolation with a `muzzle { fail { ... } }` block:
+
+```groovy
+muzzle {
+  pass {
+    group = "io.reactivex.rxjava3"
+    module = "rxjava"
+    versions = "[3.0.0,)"
+  }
+  // Assert the rxjava3 advice never resolves against rxjava2 — the two namespaces
+  // must not overlap. rxjava3 references io.reactivex.rxjava3.core.*, absent from
+  // the rxjava2 artifact, so muzzle must fail to match it.
+  fail {
+    name = "rxjava2-must-not-match"
+    group = "io.reactivex.rxjava2"
+    module = "rxjava"
+    versions = "[2.0.0,)"
+  }
+}
+```
+
+Muzzle would likely fail naturally on the sibling major anyway (the FQNs usually don't exist in that artifact), but the explicit assertion catches it at CI time with a specific error message instead of a generic muzzle mismatch. Add this block whenever a prior-major sibling module already exists in the repo — whether that sibling uses different Maven coordinates (`rxjava-2.0` vs `rxjava-3.0`, `javax-jms-*` vs `jakarta-jms-*`) or the same coordinates at an incompatible major (`okhttp-2.0` vs `okhttp-3.0`, `jedis-1.4`/`jedis-3.0`/`jedis-4.0`). **Editing an existing module that already has one: preserve it verbatim** — don't drop it as a side effect of regenerating the file.
+
+## `compileOnly` and test-scope dependencies
+
+`compileOnly` pins the API surface your advice compiles against; test scopes (`testImplementation`, `latestDepTestImplementation`, `forkedTestImplementation`, and their `*RuntimeOnly` counterparts) pin what your tests exercise. When writing a new module, choose these deliberately — the version constraint and dependency list are part of the instrumentation's contract, not incidental build config.
+
+**Editing an existing module: preserve every dependency version and entry unless you have a reason to change it.** This includes runtime-only scopes, which don't show up as compile failures if dropped — e.g. `rxjava-3.0` declares `testRuntimeOnly project(':dd-java-agent:instrumentation:rxjava:rxjava-2.0')` to load the sibling instrumenter into the test JVM and verify the two don't cross-fire (the coexistence coverage that pairs with the namespace-isolation `fail` block above). It also includes cross-module `project(...)` test deps that back annotation-driven tests (`@WithSpan`, `@Traced`) and version-drift workaround deps (e.g. a `latestDepTestImplementation` pin needed only because a newer library version requires it). None of these produce a compile error when silently dropped — they just remove coverage.

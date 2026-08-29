@@ -1,4 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
+  extraRepository("confluent-releases", "https://packages.confluent.io/maven/")
+
   pass {
     group = "org.apache.kafka"
     module = "kafka-clients"
@@ -7,8 +13,6 @@ muzzle {
     javaVersion = "17"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_17)

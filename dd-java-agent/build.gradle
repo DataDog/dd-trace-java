@@ -408,12 +408,12 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation libs.okhttp3.mockwebserver
   testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging
   testImplementation libs.guava
-  testImplementation libs.okhttp
+  testImplementation libs.datadog.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
@@ -621,6 +621,10 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
   classpath = objects.fileCollection().from(jarProvider)
   args = ['--list-integrations']
+
+  // Listing integrations only inspects classes and metadata in the assembled agent jar, so it does
+  // not need inherited JAVA_TOOL_OPTIONS.
+  environment.remove('JAVA_TOOL_OPTIONS')
 
   // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
   // fails to load, while the process exits with status 0.

@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     name = 'jaxrs'
@@ -12,9 +17,6 @@ muzzle {
     versions = "[3.0.0.Final,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'java-test-fixtures'
 
 addTestSuite('nettyTest')
 addTestSuite('jettyAsyncTest')

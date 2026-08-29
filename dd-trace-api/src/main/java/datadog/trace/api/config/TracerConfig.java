@@ -32,6 +32,7 @@ public final class TracerConfig {
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String TRACE_AGENT_PATH = "trace.agent.path";
   public static final String TRACE_AGENT_ARGS = "trace.agent.args";
+  public static final String TEST_AGENT_SESSION_TOKEN = "test.agent.session.token";
   public static final String PRIORITY_SAMPLING = "priority.sampling";
   public static final String PRIORITY_SAMPLING_FORCE = "priority.sampling.force";
   @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
@@ -140,6 +141,14 @@ public final class TracerConfig {
   public static final String TRACE_X_DATADOG_TAGS_MAX_LENGTH = "trace.x-datadog-tags.max.length";
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
+
+  /**
+   * Opt-in (defaults to disabled). Resyncs the tracer's clock on every AWS Lambda invocation to fix
+   * drift left by an AWS Lambda SnapStart restore, which the periodic {@link #CLOCK_SYNC_PERIOD}
+   * check can miss. No-op outside an instrumented Lambda invocation.
+   */
+  public static final String TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED =
+      "trace.lambda.snapstart.clock.resync.enabled";
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
 

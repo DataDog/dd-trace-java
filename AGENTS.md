@@ -36,6 +36,7 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
 | Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |

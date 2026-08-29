@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -45,6 +46,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaConsumerInfo",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
@@ -55,5 +57,8 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
     transformer.applyAdvice(
         isMethod().and(named("sendOffsetCommitRequest")).and(takesArguments(1)),
         packageName + ".ConsumerCoordinatorAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("onJoinComplete")).and(takesArguments(4)),
+        packageName + ".JoinGroupAdvice");
   }
 }

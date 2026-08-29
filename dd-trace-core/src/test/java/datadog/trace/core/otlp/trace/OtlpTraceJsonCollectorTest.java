@@ -10,7 +10,10 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import datadog.json.JsonMapper;
 import datadog.trace.api.DDTraceId;
@@ -204,6 +207,30 @@ class OtlpTraceJsonCollectorTest {
             .findFirst()
             .orElseThrow(() -> new AssertionError("child span not found"));
     assertEquals(hexSpanId(((DDSpan) parent).getSpanId()), parsedChild.get("parentSpanId"));
+  }
+
+  @Test
+  void poisonedSpanResetsCollectorForNextTrace() throws IOException {
+    // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
+    DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
+
+    CoreSpan<?> poison = mock(CoreSpan.class);
+    when(poison.samplingPriority()).thenReturn(1);
+    when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
+
+    List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
+    poisonedTrace.add((CoreSpan<?>) realSpan);
+    poisonedTrace.add(poison);
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
+
+    // a normal trace collected afterwards must not see any leftover state from the poisoned one
+    DDSpan normalSpan = startAndFinish("op.normal", "GET /normal", null);
+    collector.addTrace(asList((CoreSpan<?>) normalSpan));
+    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+    assertEquals("GET /normal", parsedSpan.get("name"));
   }
 
   @Test

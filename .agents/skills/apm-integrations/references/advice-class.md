@@ -152,3 +152,36 @@ For route-only enrichers: no `AgentScope`, no `startSpan()`, no `decorator.after
 ### Advice classes must not declare non-constant static fields
 
 `*Advice.java` classes are inlined at instrumentation sites; non-constant static fields (fields that aren't `static final` primitives or string literals) get pulled into every instrumented callsite and violate muzzle's assumptions. Keep only `static final` constants — no logger references, no cached decorators, no state. If you need shared state, put it on a helper class registered via `helperClassNames()`, not on the advice.
+
+### No inline explanatory comments in Advice methods
+
+Do NOT add narrative `//`-comments inside `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` methods to explain *why* wrapping, subscription capture, or span activation happens. If the target helper class (e.g. `TracingSingleObserver`, `TracingRunnable`) already has a class-level Javadoc documenting the intent, duplicating the explanation at the call site is treated as noise by reviewers.
+
+```java
+// ❌ Redundant inline comment (TracingSingleObserver's Javadoc already explains this)
+@Advice.OnMethodEnter(suppress = Throwable.class)
+public static void enter(
+    @Advice.Argument(value = 0, readOnly = false) SingleObserver<Object> observer) {
+  AgentSpan parentSpan = activeSpan();
+  if (parentSpan != null) {
+    // wrap the observer so spans from its events treat the captured span as their parent
+    observer = new TracingSingleObserver<>(observer, parentSpan);
+  }
+}
+
+// ✅ Wrapper's Javadoc carries the explanation
+@Advice.OnMethodEnter(suppress = Throwable.class)
+public static void enter(
+    @Advice.Argument(value = 0, readOnly = false) SingleObserver<Object> observer) {
+  AgentSpan parentSpan = activeSpan();
+  if (parentSpan != null) {
+    observer = new TracingSingleObserver<>(observer, parentSpan);
+  }
+}
+```
+
+Advice bodies are typically short (5–15 lines); the wrapper/helper class is where reviewers look to understand semantics. Inline `//`-comments in advice methods duplicate that documentation, inflate the diff, and drift out of sync with the wrapper's Javadoc.
+
+**When an inline comment IS appropriate:** to explain a non-obvious constraint or hidden invariant the reader cannot recover from the wrapper's Javadoc (e.g. "must run before the delegate's own advice runs because …" — an ordering fact not visible from either class alone). These are rare; the default is no inline comment.
+
+Source: @ygree review on PR #11939 (SingleInstrumentation.java).
