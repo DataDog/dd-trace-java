@@ -731,6 +731,110 @@ class WorkQueueContractTest {
     assertEquals(1, queue.dropped());
   }
 
+  // --- What a null means, one test per place it can appear. ---
+
+  /**
+   * The leak this guards against is silent and permanent: claiming a place and then throwing out of
+   * the backing would shrink capacity by one for the life of the queue, once per call.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullElementThrowsWithoutSpendingAPlace(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    // A null-valued variable, not a literal: a bare tryPut(null) does not compile, because it
+    // cannot tell tryPut(T) from tryPut(Producer). Real callers reach this path through a field.
+    String absent = null;
+    assertThrows(NullPointerException.class, () -> queue.tryPut(absent));
+    assertEquals(0, queue.size());
+    assertEquals(0, queue.dropped(), "a caller's bug is not a dropped element");
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the refused call must not have cost the queue a place");
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullElementThrowsOutOfABatchAndAbandonsTheRest(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertThrows(
+        NullPointerException.class, () -> queue.tryPutBatch(Arrays.asList("a", null, "b")));
+    assertEquals(Arrays.asList("a"), consumeAll(queue), "what came before the null is admitted");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void fillingAReservationWithNullThrowsAndTheReservationStillReleases(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    Reservation<String> place = queue.tryReserve();
+    assertTrue(place.granted());
+    assertThrows(NullPointerException.class, () -> place.fill(null));
+    place.close();
+    assertEquals(0, queue.size());
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+  }
+
+  /**
+   * A producer declining means the same thing in the single-element forms as it does in a batch:
+   * nothing was lost, so nothing is counted. The place has to come back either way.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aProducerDecliningIsNeitherAdmittedNorDropped(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertFalse(queue.tryPut(() -> null));
+    assertFalse(queue.tryPut("ctx", ctx -> null));
+    assertFalse(queue.tryPut("one", "two", (first, second) -> null));
+    assertEquals(0, queue.size());
+    assertEquals(0, queue.dropped(), "a decline is a decision, not a loss");
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "every declined place must have been given back");
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullProducerThrowsAndGivesBackTheClaimedPlace(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertThrows(NullPointerException.class, () -> queue.tryPut("ctx", null));
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the place claimed before the call must not be stranded");
+    }
+  }
+
+  /** A context is the caller's own value; the queue carries it and never looks at it. */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullContextIsCarriedThroughToTheProducer(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertTrue(queue.tryPut((String) null, ctx -> ctx == null ? "absent" : "present"));
+    assertTrue(queue.tryPut(null, null, (first, second) -> first == null ? "both" : "neither"));
+    assertEquals(
+        1,
+        queue.tryPutBatch(
+            Arrays.asList(1), null, (source, context) -> context == null ? "null ctx" : "ctx"));
+    assertEquals(Arrays.asList("absent", "both", "null ctx"), consumeAll(queue));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullRejectHandlerSaysWhatOmittingItSays(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    int admitted =
+        queue.tryPutBatch(
+            Arrays.asList(1, 2, 3, 4, 5, 6), "x", (source, suffix) -> source + suffix, null);
+    assertEquals(CAPACITY, admitted);
+    assertEquals(2, queue.dropped());
+  }
+
   private static List<String> consumeAll(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {

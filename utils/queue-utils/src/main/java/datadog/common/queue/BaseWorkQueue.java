@@ -122,12 +122,14 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   private boolean admit(Object element) {
     if (!claimPlace()) {
+      dropped.increment();
       return false;
     }
     if (store(element)) {
       return true;
     }
     releasePlace();
+    dropped.increment();
     return false;
   }
 
@@ -135,6 +137,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private <C> boolean admit(
       C context, @Strategy ContextualProducer<? super C, ? extends T> producer) {
     if (!claimPlace()) {
+      dropped.increment();
       return false;
     }
     T element;
@@ -153,6 +156,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       C2 second,
       @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
     if (!claimPlace()) {
+      dropped.increment();
       return false;
     }
     T element;
@@ -214,11 +218,22 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     }
   }
 
+  /**
+   * The tail of every producer admission. A {@code null} is the producer declining, which is the
+   * caller's own decision: the place goes back and nothing is counted, because nothing was lost. A
+   * backing that would not take what was produced is a refusal, and is counted. Same three outcomes
+   * as {@link #admitEach}, which walks a source instead of taking one element.
+   */
   private boolean storeOrRelease(T element) {
-    if (element != null && store(element)) {
+    if (element == null) {
+      releasePlace();
+      return false;
+    }
+    if (store(element)) {
       return true;
     }
     releasePlace();
+    dropped.increment();
     return false;
   }
 
@@ -276,9 +291,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       if (done) {
         return;
       }
-      if (element == null) {
-        throw new NullPointerException("a queue cannot hold null");
-      }
+      requireElement(element);
       done = true;
       queue.store(element);
     }
@@ -315,24 +328,25 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final boolean tryPut(T element) {
-    return record(!closed && admit(element));
+    requireElement(element);
+    return closed ? refuseClosed() : admit(element);
   }
 
   @Override
   @SuppressWarnings({"unchecked", "rawtypes"})
   public final boolean tryPut(Producer<? extends T> producer) {
-    return record(!closed && admit(producer, (ContextualProducer) PRODUCE));
+    return closed ? refuseClosed() : admit(producer, (ContextualProducer) PRODUCE);
   }
 
   @Override
   public final <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer) {
-    return record(!closed && admit(context, producer));
+    return closed ? refuseClosed() : admit(context, producer);
   }
 
   @Override
   public final <C1, C2> boolean tryPut(
       C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
-    return record(!closed && admit(first, second, producer));
+    return closed ? refuseClosed() : admit(first, second, producer);
   }
 
   @Override
@@ -556,11 +570,24 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     };
   }
 
-  private boolean record(boolean admitted) {
-    if (!admitted) {
-      dropped.increment();
+  /**
+   * A refusal that never reached a producer, so nothing was built and nothing could have been
+   * declined: the queue was already closed when the attempt began.
+   */
+  private boolean refuseClosed() {
+    dropped.increment();
+    return false;
+  }
+
+  /**
+   * The one place the module says what a {@code null} element is. Neither backing can hold one, so
+   * there is no outcome to report and nothing to count -- only a caller with a bug. Thrown before a
+   * place is claimed, so a rejected call costs the queue nothing.
+   */
+  private static void requireElement(Object element) {
+    if (element == null) {
+      throw new NullPointerException("a queue cannot hold null");
     }
-    return admitted;
   }
 
   @Override

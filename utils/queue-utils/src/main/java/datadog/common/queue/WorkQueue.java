@@ -37,11 +37,27 @@ import java.util.function.Consumer;
  * RetryStrategy}, or {@link #processOrHandle} with an {@link ExceptionHandler} when the answer is
  * only ever to record it and move on. Those are separate names rather than overloads because a
  * lambda or method reference cannot always tell two same-arity callbacks apart.
+ *
+ * <p>Nulls carry meaning in three places and are a bug everywhere else. A <b>context</b> may be
+ * null: the queue carries it to a producer or consumer and never looks at it, so an absent one is
+ * the caller's business. An optional {@link RejectHandler} may be null, which says exactly what the
+ * overload without it says. And a <b>producer's return</b> may be null, which is that producer
+ * declining the element it was asked to build — the place goes back, nothing is admitted, and
+ * nothing is counted against {@link #dropped}, because a decision is not a loss.
+ *
+ * <p>Everything else is required. An <b>element</b> is never null, because neither backing can hold
+ * one: there is no outcome to report, so {@code tryPut} and {@link Reservation#fill fill} throw
+ * instead of returning, and they throw before claiming a place so that a call with a bug in it
+ * costs the queue nothing. A null inside a batch throws partway through, abandoning the rest.
+ * <b>Producers, consumers, retry strategies and exception handlers</b> are required too — a null
+ * there has no sensible reading, and it surfaces as the thrown {@link NullPointerException} of the
+ * call that would have used it, with any place already claimed given back first.
  */
 public interface WorkQueue<T> {
 
   /**
    * @return whether the element was admitted
+   * @throws NullPointerException if the element is null, thrown before a place is claimed
    */
   boolean tryPut(T element);
 
