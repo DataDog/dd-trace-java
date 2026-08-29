@@ -11,12 +11,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +33,21 @@ import java.util.jar.JarOutputStream;
 import org.junit.jupiter.api.Test;
 
 public class NativeLoaderTest {
+  @Test
+  public void createTempFileOnNonPosixFileSystem() throws IOException {
+    try (FileSystem fileSystem = Jimfs.newFileSystem(Configuration.windows())) {
+      assertFalse(fileSystem.supportedFileAttributeViews().contains("posix"));
+      Path tempDir = fileSystem.getPath("C:\\temp");
+
+      Path tempFile = NativeLoader.TempFileHelper.createTempFile(tempDir, "library", "dll");
+
+      assertTrue(Files.isRegularFile(tempFile));
+      assertTrue(tempFile.startsWith(tempDir));
+      assertTrue(tempFile.getFileName().toString().startsWith("library"));
+      assertTrue(tempFile.getFileName().toString().endsWith(".dll"));
+    }
+  }
+
   @Test
   public void preloaded() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").build();

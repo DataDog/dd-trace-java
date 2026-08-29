@@ -10,12 +10,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 /**
  * NativeLoader is intended as a more feature rich replacement for calling {@link
@@ -380,25 +378,19 @@ public final class NativeLoader {
 
     static Path createTempFile(Path tempDir, String libname, String libExt)
         throws IOException, SecurityException {
-      if (!supportsPosix(tempDir)) {
-        if (tempDir == null) {
-          return Files.createTempFile(libname, "." + libExt);
-        }
-        Files.createDirectories(tempDir);
-        return Files.createTempFile(tempDir, libname, "." + libExt);
+      FileAttribute<?>[] fileAttributes = new FileAttribute<?>[0];
+      if (supportsPosix(tempDir)) {
+        fileAttributes =
+            new FileAttribute<?>[] {
+              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+            };
       }
 
-      FileAttribute<Set<PosixFilePermission>> permAttrs =
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
-
       if (tempDir == null) {
-        return Files.createTempFile(libname, "." + libExt, permAttrs);
+        return Files.createTempFile(libname, "." + libExt, fileAttributes);
       } else {
-        Files.createDirectories(
-            tempDir,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-
-        return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
+        Files.createDirectories(tempDir, fileAttributes);
+        return Files.createTempFile(tempDir, libname, "." + libExt, fileAttributes);
       }
     }
 
