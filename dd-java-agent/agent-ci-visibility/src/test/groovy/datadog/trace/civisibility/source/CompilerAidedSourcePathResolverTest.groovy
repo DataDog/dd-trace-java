@@ -1,8 +1,9 @@
 package datadog.trace.civisibility.source
 
 import datadog.compiler.annotations.SourcePath
-import java.nio.file.Paths
 import spock.lang.Specification
+
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
 
 class CompilerAidedSourcePathResolverTest extends Specification {
 
@@ -16,15 +17,16 @@ class CompilerAidedSourcePathResolverTest extends Specification {
 
     when:
     def path = sourcePathResolver.getSourcePaths(clazz)
+    def normalizedPaths = normalizePathSeparators(path)
 
     then:
-    path.size() == expectedPath.size()
-    path.containsAll(expectedPath)
+    normalizedPaths.size() == expectedPath.size()
+    normalizedPaths.containsAll(expectedPath)
 
     where:
     clazz                             | expectedPath
     AClassWithNoSourceInfoInjected    | []
-    AClassWithSourceInfoInjected      | [Paths.get("path", "to", "AClassWithSourceInfoInjected.java").toString()]
+    AClassWithSourceInfoInjected      | ["path/to/AClassWithSourceInfoInjected.java"]
     AClassWithSourceOutsideRepository | []
   }
 

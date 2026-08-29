@@ -2,6 +2,8 @@ package datadog.trace.test.util;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,10 +14,7 @@ public final class PortableCommand {
   private PortableCommand() {}
 
   public static String[] command(String... arguments) {
-    Path executable = Paths.get(System.getProperty("java.home"), "bin", "java");
-    if (!Files.isRegularFile(executable)) {
-      executable = executable.resolveSibling("java.exe");
-    }
+    Path executable = javaExecutable(Paths.get(System.getProperty("java.home")));
 
     Path classpath;
     try {
@@ -35,17 +34,30 @@ public final class PortableCommand {
     return command;
   }
 
+  static Path javaExecutable(Path javaHome) {
+    Path executable = javaHome.resolve("bin").resolve("java");
+    if (!Files.isRegularFile(executable)) {
+      executable = executable.resolveSibling("java.exe");
+    }
+    return executable;
+  }
+
   @SuppressForbidden
   public static void main(String[] arguments) throws IOException, InterruptedException {
+    execute(arguments, System.in, System.out);
+  }
+
+  static void execute(String[] arguments, InputStream input, PrintStream output)
+      throws IOException, InterruptedException {
     switch (arguments[0]) {
       case "echo":
-        System.out.println(arguments[1]);
+        output.println(arguments[1]);
         break;
       case "copy-input":
         byte[] buffer = new byte[1024];
         int read;
-        while ((read = System.in.read(buffer)) != -1) {
-          System.out.write(buffer, 0, read);
+        while ((read = input.read(buffer)) != -1) {
+          output.write(buffer, 0, read);
         }
         break;
       case "sleep":

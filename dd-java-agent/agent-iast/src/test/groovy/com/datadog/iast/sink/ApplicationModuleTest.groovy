@@ -17,6 +17,7 @@ import static com.datadog.iast.model.VulnerabilityType.INSECURE_JSP_LAYOUT
 import static com.datadog.iast.model.VulnerabilityType.SESSION_TIMEOUT
 import static com.datadog.iast.model.VulnerabilityType.VERB_TAMPERING
 import static com.datadog.iast.sink.ApplicationModuleImpl.SESSION_REWRITING_EVIDENCE_VALUE
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
@@ -128,7 +129,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     if (expectedEvidence instanceof Collection) {
       if (expectedVulnType == INSECURE_JSP_LAYOUT) {
         // some of the nested paths can be dropped by the file visitor
-        final parts = (evidence.value as String).split('\n')*.trim()
+        final parts = normalizePathSeparators(evidence.value as String).split('\n')*.trim()
         assert expectedEvidence.any { parts.contains(it) }
       } else {
         expectedEvidence.each {

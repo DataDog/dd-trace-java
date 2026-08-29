@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.source;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.Nonnull;
@@ -76,7 +75,7 @@ public abstract class Utils {
 
   @Nonnull
   public static String toTrieKey(@Nonnull String relativePath) {
-    return stripExtension(relativePath).replace(File.separatorChar, '.');
+    return stripExtension(relativePath).replace('/', '.').replace('\\', '.');
   }
 
   @Nonnull

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -379,6 +380,14 @@ public final class NativeLoader {
 
     static Path createTempFile(Path tempDir, String libname, String libExt)
         throws IOException, SecurityException {
+      if (!supportsPosix(tempDir)) {
+        if (tempDir == null) {
+          return Files.createTempFile(libname, "." + libExt);
+        }
+        Files.createDirectories(tempDir);
+        return Files.createTempFile(tempDir, libname, "." + libExt);
+      }
+
       FileAttribute<Set<PosixFilePermission>> permAttrs =
           PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
@@ -391,6 +400,12 @@ public final class NativeLoader {
 
         return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
       }
+    }
+
+    private static boolean supportsPosix(Path tempDir) {
+      return (tempDir == null ? FileSystems.getDefault() : tempDir.getFileSystem())
+          .supportedFileAttributeViews()
+          .contains("posix");
     }
 
     static boolean delete(File tempFile) {

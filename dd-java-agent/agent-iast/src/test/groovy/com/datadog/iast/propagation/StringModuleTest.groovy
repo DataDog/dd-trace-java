@@ -22,6 +22,7 @@ import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taint
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 import static com.datadog.iast.taint.TaintUtils.taintObject
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -1018,14 +1019,14 @@ class StringModuleTest extends IastModuleImplTestBase {
     }
     final formatted = String.format(format, args as Object[])
     final expected = getStringFromTaintFormat(expectedTainted)
-    assert expected == formatted // validate expectation is OK
+    assert expected == normalizeLineEndings(formatted) // validate expectation is OK
 
     when:
     module.onStringFormat(format, args as Object[], formatted)
 
     then:
     final tainted = to.get(formatted)
-    final formattedResult = taintFormat(formatted, tainted?.ranges)
+    final formattedResult = normalizeLineEndings(taintFormat(formatted, tainted?.ranges))
     assert formattedResult == expectedTainted: tainted?.ranges
 
     where:
@@ -1046,9 +1047,9 @@ class StringModuleTest extends IastModuleImplTestBase {
     'Hello ==>%s<=='                | ['World!']                          | 'Hello ==>World!<==' // tainted placeholder [non tainted parameter]
     'He==>llo %s!<=='               | ['World']                           | 'He==>llo <====>World<====>!<==' // tainted placeholder (2) [non tainted parameter]
     'He==>llo %s!<=='               | ['W==>or<==ld']                     | 'He==>llo <==W==>or<==ld==>!<==' // tainted placeholder (3) [mixing with tainted parameter]
-    'Hello %n %n %s!%n'             | ['W==>or<==ld']                     | 'Hello ' + System.lineSeparator() + ' ' + System.lineSeparator() + ' W==>or<==ld!' + System.lineSeparator() // platform newline
+    'Hello %n %n %s!%n'             | ['W==>or<==ld']                     | 'Hello \n \n W==>or<==ld!\n' // \n character
     'Hello %% %% %s!%%'             | ['W==>or<==ld']                     | 'Hello % % W==>or<==ld!%' // % character
-    '==>Hello %n %s!<=='            | ['World']                           | '==>Hello <====>' + System.lineSeparator() + '<====> <====>World<====>!<==' // platform newline in tainted format (each placeholder generates a separate range)
+    '==>Hello %n %s!<=='            | ['World']                           | '==>Hello <====>\n<====> <====>World<====>!<==' // \n character in tainted format (each placeholder generates a separate range)
     '==>Hello %% %s!<=='            | ['World']                           | '==>Hello <====>%<====> <====>World<====>!<==' // % character in tainted format (each placeholder generates a separate range)
   }
 

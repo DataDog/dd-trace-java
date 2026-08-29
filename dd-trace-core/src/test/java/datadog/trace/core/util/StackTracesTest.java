@@ -1,10 +1,12 @@
 package datadog.trace.core.util;
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import datadog.environment.OperatingSystem;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -112,19 +114,22 @@ class StackTracesTest {
   @MethodSource("testTruncateArguments")
   void testTruncate(int limit, String expected) {
     assertEquals(
-        normalizePlatformDifferences(expected),
-        normalizePlatformDifferences(StackTraces.truncate(TRACE, limit)));
+        normalizeTruncatedTrace(expected),
+        normalizeTruncatedTrace(StackTraces.truncate(TRACE, limit)));
   }
 
-  private static String normalizePlatformDifferences(String trace) {
-    return trace
-        .replace("\r\n", "\n")
+  private static String normalizeTruncatedTrace(String trace) {
+    String normalizedTrace = normalizeLineEndings(trace);
+    if (!OperatingSystem.isWindows()) {
+      return normalizedTrace;
+    }
+    return normalizedTrace
         // Native line endings change the exact character split around a centre cut. The content on
         // the adjacent partial lines is intentionally unspecified; the marker and all complete
         // lines remain exact.
         .replaceAll(
-            "(?m)^.*\\n(\\t\\.\\.\\. trace centre-cut to \\d+ chars \\.\\.\\.\\n).*$",
-            "<cut-head>\n$1<cut-tail>");
+        "(?m)^.*\\n(\\t\\.\\.\\. trace centre-cut to \\d+ chars \\.\\.\\.\\n).*$",
+        "<cut-head>\n$1<cut-tail>");
   }
 
   static Stream<Arguments> testTruncateArguments() {

@@ -5,6 +5,8 @@ import datadog.trace.api.civisibility.domain.Language
 import java.nio.file.Paths
 import spock.lang.Specification
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
+
 class RepoIndexTest extends Specification {
 
   def "test serialization and deserialization"() {
@@ -29,9 +31,11 @@ class RepoIndexTest extends Specification {
 
     then:
     deserialized.getSourcePaths(RepoIndexTest).size() == 1
-    deserialized.getSourcePaths(RepoIndexTest).contains(sourcePath("myClassSourceRoot", myClassName))
+    normalizePathSeparators(deserialized.getSourcePaths(RepoIndexTest)).contains(
+      "myClassSourceRoot/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension)
     deserialized.getSourcePaths(RepoIndexSourcePathResolverTest).size() == 1
-    deserialized.getSourcePaths(RepoIndexSourcePathResolverTest).contains(sourcePath("myOtherClassSourceRoot", myOtherClassName))
+    normalizePathSeparators(deserialized.getSourcePaths(RepoIndexSourcePathResolverTest)).contains(
+      "myOtherClassSourceRoot/" + myOtherClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension)
   }
 
   def "test serialization and deserialization with duplicate keys"() {
@@ -47,8 +51,8 @@ class RepoIndexTest extends Specification {
       new RepoIndex.SourceRoot("sourceRoot2", Language.GROOVY))
 
     def duplicateKeys = [(myClassName): [
-        sourcePath("sourceRoot1", myClassName),
-        sourcePath("sourceRoot2", myClassName)
+        "sourceRoot1/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension,
+        "sourceRoot2/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension
       ]]
 
     def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
@@ -60,7 +64,10 @@ class RepoIndexTest extends Specification {
     then:
     def paths = deserialized.getSourcePaths(RepoIndexTest)
     paths.size() == 2
-    paths.containsAll([sourcePath("sourceRoot1", myClassName), sourcePath("sourceRoot2", myClassName)])
+    normalizePathSeparators(paths).containsAll([
+      "sourceRoot1/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension,
+      "sourceRoot2/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension
+    ])
   }
 
   def "test getSourcePaths returns all paths for duplicate key"() {
@@ -75,8 +82,8 @@ class RepoIndexTest extends Specification {
       new RepoIndex.SourceRoot("debug", Language.GROOVY),
       new RepoIndex.SourceRoot("release", Language.GROOVY))
 
-    def expectedPath1 = sourcePath("debug", myClassName)
-    def expectedPath2 = sourcePath("release", myClassName)
+    def expectedPath1 = "debug/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension
+    def expectedPath2 = "release/" + myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension
     def duplicateKeys = [(myClassName): [expectedPath1, expectedPath2]]
 
     def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
@@ -86,7 +93,7 @@ class RepoIndexTest extends Specification {
 
     then:
     paths.size() == 2
-    paths.containsAll([expectedPath1, expectedPath2])
+    normalizePathSeparators(paths).containsAll([expectedPath1, expectedPath2])
   }
 
   def "test getSourcePaths returns single path for non-duplicate key"() {
@@ -98,7 +105,7 @@ class RepoIndexTest extends Specification {
     def trie = trieBuilder.buildTrie()
 
     def sourceRoots = Arrays.asList(
-      new RepoIndex.SourceRoot("src/main/groovy", Language.GROOVY))
+      new RepoIndex.SourceRoot(Paths.get("src", "main", "groovy").toString(), Language.GROOVY))
 
     def repoIndex = new RepoIndex(trie, Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
@@ -107,7 +114,8 @@ class RepoIndexTest extends Specification {
 
     then:
     paths.size() == 1
-    paths.first() == sourcePath("src/main/groovy", myClassName)
+    normalizePathSeparators(paths.first()) == "src/main/groovy/" +
+      myClassName.replace('.' as char, '/' as char) + Language.GROOVY.extension
   }
 
   def "test source root uses its filesystem separator"() {
@@ -116,9 +124,5 @@ class RepoIndexTest extends Specification {
 
     expect:
     sourceRoot.resolveSourcePath("example.MyClass") == "src\\main\\groovy\\example\\MyClass.groovy"
-  }
-
-  private static String sourcePath(String sourceRoot, String className) {
-    return Paths.get(sourceRoot, className.replace('.' as char, File.separatorChar) + Language.GROOVY.extension).toString()
   }
 }

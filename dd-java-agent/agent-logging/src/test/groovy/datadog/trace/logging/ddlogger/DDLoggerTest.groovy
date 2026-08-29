@@ -10,6 +10,7 @@ import org.slf4j.Logger
 import static datadog.trace.logging.simplelogger.SLCompatSettings.Names
 import static datadog.trace.logging.simplelogger.SLCompatSettings.Keys
 import static datadog.trace.logging.simplelogger.SLCompatSettings.Defaults
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
 
 class DDLoggerTest extends LogValidatingSpecification {
 

@@ -6,10 +6,12 @@ import spock.lang.Specification
 
 import java.text.SimpleDateFormat
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
+
 class SLCompatHelperTest extends Specification {
 
   private static String normalizedOutput(ByteArrayOutputStream outputStream) {
-    outputStream.toString().replace("\r\n", "\n")
+    normalizeLineEndings(outputStream.toString())
   }
 
   private class NoStackException extends Exception {

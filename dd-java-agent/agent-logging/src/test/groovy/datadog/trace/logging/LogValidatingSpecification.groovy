@@ -3,6 +3,8 @@ package datadog.trace.logging
 import org.slf4j.Marker
 import spock.lang.Specification
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
+
 abstract class LogValidatingSpecification extends Specification {
   LogValidator createValidator(String loggerName) {
     new LogValidator(loggerName)
@@ -21,10 +23,6 @@ abstract class LogValidatingSpecification extends Specification {
     }
     assert current == expected
     validator.output.reset()
-  }
-
-  protected static String normalizeLineEndings(String value) {
-    value.replace("\r\n", "\n")
   }
 
   class LogValidator {
