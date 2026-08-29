@@ -113,20 +113,13 @@ public final class Maybe<T> {
    * once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s {@code
    * ObjLongConsumer} overload for the caller-side problem this replaces.
    *
-   * <p>Deliberately the <em>only</em> primitive-context overload of {@code update}. An {@code
-   * int}/{@code boolean} sibling was tried and reverted: Java's overload resolution can pick
-   * cleanly between a primitive overload and the generic {@link #update(Object, BiConsumer)} form
-   * for a reference-typed argument (boxing is only considered once no non-boxing candidate
-   * applies), but that guarantee does not extend to a second primitive overload -- {@code update(1,
-   * lambda)} is ambiguous between {@code int} and {@code long} even with no {@code double} overload
-   * in the picture, because {@link ObjIntConsumer} and {@link ObjLongConsumer} are unrelated
-   * interfaces and JLS 15.12.2.5's most-specific-method rule requires every parameter position to
-   * agree, not just the numeric one. Confirmed by direct compilation, not just JLS reading: an
-   * inline lambda call breaks as soon as a second primitive overload exists. A plain {@code int}
-   * argument still widens to {@code long} for free at this single overload -- callers are not
-   * required to have a {@code long} in hand. {@code double} context is rare enough not to bother
-   * keeping pretty -- see {@link #updateDouble} for that case, given its own name to sidestep the
-   * ambiguity rather than trying to squeeze it into an overload.
+   * <p>Deliberately the <em>only</em> primitive-context overload of {@code update}. A second one
+   * (e.g. {@code int}) was tried and reverted: with two primitive overloads, {@code update(1,
+   * lambda)} becomes ambiguous between them at an inline-lambda call site, since {@link
+   * ObjIntConsumer} and {@link ObjLongConsumer} are unrelated interfaces -- confirmed by direct
+   * compilation. A plain {@code int} argument still widens to {@code long} for free here, so
+   * callers without a {@code long} in hand are unaffected. {@code double} context is rare enough to
+   * get its own name instead -- see {@link #updateDouble} -- rather than risk that ambiguity.
    */
   public void update(long context, ObjLongConsumer<? super T> mutator) {
     if (value != null) {
