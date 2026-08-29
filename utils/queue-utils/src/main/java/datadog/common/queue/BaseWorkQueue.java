@@ -120,16 +120,20 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     available.incrementAndGet();
   }
 
+  /**
+   * Counts nothing, unlike the producer admissions below. This one is shared with the retry path,
+   * where a refusal is a step rather than an outcome: a strategy handed a refused retry may still
+   * place the item somewhere else, and only its {@link RetryStrategy#onFailure} return says whether
+   * the item was finally lost. Each caller counts its own outcome, once.
+   */
   private boolean admit(Object element) {
     if (!claimPlace()) {
-      dropped.increment();
       return false;
     }
     if (store(element)) {
       return true;
     }
     releasePlace();
-    dropped.increment();
     return false;
   }
 
@@ -329,7 +333,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @Override
   public final boolean tryPut(T element) {
     requireElement(element);
-    return closed ? refuseClosed() : admit(element);
+    if (closed || !admit(element)) {
+      dropped.increment();
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -551,11 +559,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return new RetryQueue<T>() {
       @Override
       public boolean retry(T item) {
-        if (closed || !admit(new Retry<>(item, attempt))) {
-          dropped.increment();
-          return false;
-        }
-        return true;
+        // No counting here. A refused retry is one step of a decision the strategy is still
+        // making; the item is counted lost exactly once, when onFailure reports it gave up.
+        return !closed && admit(new Retry<>(item, attempt));
       }
 
       @Override

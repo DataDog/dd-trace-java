@@ -835,6 +835,85 @@ class WorkQueueContractTest {
     assertEquals(2, queue.dropped());
   }
 
+  // --- One lost item, one drop, however many steps it took to lose it. ---
+
+  /**
+   * The counting bug this pins: a refused retry used to be counted where it was refused AND again
+   * where the strategy gave up, so one lost item moved dropped() by more than one. The stress
+   * test's conservation invariant could not see it, because it never retries.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aRefusedRetryIsCountedOnceWhenTheStrategyGivesUp(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+    assertEquals(0, queue.dropped());
+    AtomicBoolean retryRefused = new AtomicBoolean();
+    assertTrue(
+        queue.processOrRetry(
+            item -> {
+              throw new IllegalStateException("consumer failed on " + item);
+            },
+            (item, attempt, failure, retryQueue) -> {
+              // Take the place the failed item vacated, so the retry has nowhere to land.
+              assertTrue(queue.tryPut("filler"));
+              retryRefused.set(!retryQueue.retry(item));
+              return false;
+            }));
+    assertTrue(retryRefused.get(), "the queue was full again, so the retry had to be refused");
+    assertEquals(1, queue.dropped(), "one item was lost, so dropped() moves by exactly one");
+  }
+
+  /**
+   * {@code onFailure} returning true is the strategy saying it took responsibility. The queue takes
+   * it at its word, which is the residue of counting the outcome rather than the step.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aRefusedRetryIsNotCountedWhenTheStrategyReportsItHandledIt(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+    assertTrue(
+        queue.processOrRetry(
+            item -> {
+              throw new IllegalStateException("consumer failed on " + item);
+            },
+            (item, attempt, failure, retryQueue) -> {
+              assertTrue(queue.tryPut("filler"));
+              assertFalse(retryQueue.retry(item));
+              return true;
+            }));
+    assertEquals(0, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aSuccessfulRetryCountsNothing(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+    AtomicInteger seenAttempt = new AtomicInteger();
+    assertTrue(
+        queue.processOrRetry(
+            item -> {
+              throw new IllegalStateException("consumer failed on " + item);
+            },
+            (item, attempt, failure, retryQueue) -> {
+              seenAttempt.set(attempt);
+              return retryQueue.retry(item);
+            }));
+    assertEquals(1, seenAttempt.get(), "the first failure reports attempt 1");
+    assertEquals(0, queue.dropped(), "nothing was lost");
+    assertEquals(CAPACITY, queue.size(), "the retried item took a place again");
+  }
+
   private static List<String> consumeAll(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {
