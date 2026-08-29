@@ -278,10 +278,17 @@ public interface WorkQueue<T> {
   void clear();
 
   /**
-   * Atomically {@link #close() closes} and {@link #clear() clears}.
+   * {@link #close() Closes} and then {@link #clear() clears} — the flag before the discard, so a
+   * producer that has not started yet cannot begin.
    *
-   * <p>Sequencing the two separately leaves a window — a producer already past the closed check, an
-   * in-flight retry lease — through which work can land in a queue nothing will drain again.
+   * <p>Not atomic, and not made atomic by being one call. A producer already past the closed check,
+   * or an in-flight retry lease, can still store its element after the discard has run, and that
+   * element then sits in a queue nothing will drain again. Ordering the flag first bounds the
+   * survivors to those already in flight rather than eliminating them.
+   *
+   * <p>A caller that needs the queue provably empty has to quiesce its producers first and shut
+   * down after. The queue cannot do that half on the caller's behalf: it knows when it is closed,
+   * but not who is still holding a place or how long they mean to hold it.
    */
   void shutdown();
 }
