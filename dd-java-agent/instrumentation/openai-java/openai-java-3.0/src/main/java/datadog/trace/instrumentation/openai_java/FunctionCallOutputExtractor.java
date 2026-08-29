@@ -3,13 +3,19 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.models.responses.ResponseInputItem;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Helper class to handle FunctionCallOutput.output() method changes between openai-java versions.
+ * Helper class to handle FunctionCallOutput method changes between openai-java versions.
  *
- * <p>In version 3.x: output() returns String In version 4.0+: output() returns Output)
+ * <ul>
+ *   <li>Version 3.x: {@code output()} returns {@code String}.
+ *   <li>Version 4.0+: {@code output()} returns {@code Output}.
+ *   <li>Versions before 4.54: {@code callId()} returns {@code String}.
+ *   <li>Version 4.54+: {@code callId()} returns {@code Optional<String>}.
+ * </ul>
  */
 public class FunctionCallOutputExtractor {
   private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
@@ -19,11 +25,13 @@ public class FunctionCallOutputExtractor {
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
 
+  private static final MethodHandle CALL_ID_METHOD;
   private static final MethodHandle OUTPUT_METHOD;
   private static final MethodHandle IS_STRING_METHOD;
   private static final MethodHandle AS_STRING_METHOD;
 
   static {
+    CALL_ID_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "callId");
     OUTPUT_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "output");
 
     Class<?> outputClass = null;
@@ -44,6 +52,20 @@ public class FunctionCallOutputExtractor {
       IS_STRING_METHOD = null;
       AS_STRING_METHOD = null;
     }
+  }
+
+  public static String getCallIdAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
+    try {
+      Object callId = METHOD_HANDLES.invoke(CALL_ID_METHOD, functionCallOutput);
+      if (callId instanceof Optional) {
+        callId = ((Optional<?>) callId).orElse(null);
+      }
+      if (callId == null || callId instanceof String) {
+        return (String) callId;
+      }
+    } catch (Throwable ignored) {
+    }
+    return null;
   }
 
   public static String getOutputAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
