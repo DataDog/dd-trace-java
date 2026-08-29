@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.util.Hashtable.BucketIterator;
 import datadog.trace.util.Hashtable.MutatingBucketIterator;
@@ -199,6 +200,21 @@ class HashtableTest {
       assertSame(b, buckets[0]);
       assertSame(a, b.next());
       assertNull(a.next());
+    }
+
+    @Test
+    void insertHeadEntryOfAlreadyLinkedEntryTripsAssertion() {
+      assumeTrue(assertionsEnabled(), "assert-guard test requires -ea");
+      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.Entry[] buckets = table.buckets;
+      StringIntEntry a = new StringIntEntry("a", 1);
+      StringIntEntry b = new StringIntEntry("b", 2);
+      Hashtable.insertHeadEntryAt(buckets, 0, a);
+      Hashtable.insertHeadEntryAt(buckets, 0, b); // chain is now b -> a, so b.next() != null
+      assertThrows(
+          AssertionError.class,
+          () -> Hashtable.insertHeadEntryAt(buckets, 1, b),
+          "re-inserting an already-linked entry corrupts the chain and must be caught");
     }
   }
 
@@ -922,5 +938,11 @@ class HashtableTest {
       assertEquals("a", evicted.key);
       assertNull(table.buckets[0]);
     }
+  }
+
+  private static boolean assertionsEnabled() {
+    boolean enabled = false;
+    assert enabled = true;
+    return enabled;
   }
 }

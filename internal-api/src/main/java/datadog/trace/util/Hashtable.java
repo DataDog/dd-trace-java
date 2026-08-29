@@ -253,7 +253,10 @@ public final class Hashtable {
     /**
      * Unconditionally adds {@code newEntry} ({@code true}), or {@code false} if the table is
      * already at capacity. Caller-responsible: {@code newEntry}'s key must be absent, else it lands
-     * shadowed behind the existing entry.
+     * shadowed behind the existing entry. {@code newEntry} must also be a fresh entry, not already
+     * linked into this or any other table's bucket chain -- reinserting an already-linked entry
+     * corrupts the chain it's still part of (guarded by an assertion in {@link
+     * #insertHeadEntryAt(Hashtable.Entry[], int, Hashtable.Entry)}).
      */
     public boolean insert(@Nonnull TEntry newEntry) {
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
@@ -1802,6 +1805,8 @@ public final class Hashtable {
       if (oldCurEntry == null) {
         throw new IllegalStateException();
       }
+      assert replacementEntry.next() == null
+          : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
 
       Hashtable.Entry oldNext = oldCurEntry.next();
       replacementEntry.setNext(oldNext);
