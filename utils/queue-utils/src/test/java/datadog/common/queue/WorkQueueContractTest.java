@@ -449,6 +449,65 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("a"));
   }
 
+  /**
+   * Closing is a bias applied to the permit count rather than a flag beside it, so the three ways
+   * that encoding could leak are worth pinning: applying it twice, reading a size through it, and
+   * giving places back underneath it.
+   *
+   * <p>These pin the behaviour; none of them currently catches its own implementation slip, and it
+   * is worth being straight about why. The offset is a multiple of 2^32, so {@code size()}'s cast
+   * back to {@code int} erases the bias whether or not the unbiasing is there; the offset is far
+   * enough from either threshold that neither repeated closes nor a full queue's worth of returned
+   * places can reach it. They are guards against a future change to the offset or to the width of
+   * either, which is when all three become reachable at once.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void closingTwiceSaysWhatClosingOnceSaid(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+
+    queue.close();
+    queue.close();
+    queue.close();
+
+    assertTrue(queue.isClosed(), "still closed, not closed three times over");
+    assertFalse(queue.tryPut("a"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aClosedQueueStillReportsWhatItHolds(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertTrue(queue.tryPut("a"));
+    assertTrue(queue.tryPut("b"));
+
+    queue.close();
+
+    assertEquals(2, queue.size(), "closing must not be visible as a size");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void drainingAfterCloseDoesNotReopen(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i));
+    }
+    queue.close();
+
+    // Every drained element hands a place back, so a full queue's worth of releases runs the
+    // count as far back toward the bias as it can go.
+    List<String> drained = new ArrayList<>();
+    while (queue.process(drained::add)) {
+      // drain it dry
+    }
+
+    assertEquals(CAPACITY, drained.size(), "close does not stop consumption");
+    assertEquals(0, queue.size());
+    assertTrue(queue.isClosed(), "returned places must not climb out of the closed state");
+    assertFalse(queue.tryPut("after"));
+  }
+
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
   void retryCanPartitionFailedWorkIntoSeveralItems(

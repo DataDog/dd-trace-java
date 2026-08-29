@@ -7,14 +7,14 @@ import datadog.trace.api.function.StrategyConsumer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
  * Everything a {@link WorkQueue} does that does not depend on how elements are stored: the bound,
- * admission, reservations, the closed flag, drop counting, and the consume-and-maybe-retry cycle.
+ * admission, reservations, the closed state, drop counting, and the consume-and-maybe-retry cycle.
  *
  * <p>Subclasses supply two storage primitives, {@link #store} and {@link #retrieve}, and neither
  * needs to enforce anything. The bound lives here, as a count of places still available: admission
@@ -58,21 +58,41 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    */
   private final LongAdder dropped = new LongAdder();
 
-  private volatile boolean closed;
+  /**
+   * Subtracted from {@link #state} once, by {@link #close()}. Closing then costs no flag of its
+   * own: it drives the permit count so far negative that no claim can ever succeed again, so a
+   * closed queue refuses through the same comparison that a full one does and admission has one
+   * word to read instead of two that have to agree.
+   *
+   * <p>Large enough to be unreachable from either side. Permits start at no more than {@link
+   * Integer#MAX_VALUE} and only places actually claimed are ever given back, so releases after a
+   * close cannot climb the offset; and the count is a {@code long} precisely because an unbounded
+   * queue seeds it with {@code Integer.MAX_VALUE}, which leaves an {@code int} no room above the
+   * bound to put this.
+   */
+  private static final long CLOSED_OFFSET = 1L << 40;
+
+  /** Any state below this has {@link #CLOSED_OFFSET} applied to it, and nothing else can be. */
+  private static final long CLOSED_MARK = -(1L << 39);
 
   /**
-   * Places still available, not places used. The bound is then a comparison against zero rather
-   * than against a capacity that has to be loaded and that an unbounded queue has to be branched
-   * around: seeded with {@link Integer#MAX_VALUE} it is a queue no backlog can exhaust, on the same
-   * code path as any other.
+   * Places still available, not places used, biased by {@link #CLOSED_OFFSET} once closed. The
+   * bound is then a comparison against zero rather than against a capacity that has to be loaded
+   * and that an unbounded queue has to be branched around: seeded with {@link Integer#MAX_VALUE} it
+   * is a queue no backlog can exhaust, on the same code path as any other.
    */
-  private final AtomicInteger available;
+  private final AtomicLong state;
 
   private final int capacity;
 
   BaseWorkQueue(int capacity) {
     this.capacity = capacity;
-    this.available = new AtomicInteger(capacity);
+    this.state = new AtomicLong(capacity);
+  }
+
+  /** The places left, with the closed bias taken back off. */
+  private static long permits(long state) {
+    return state < CLOSED_MARK ? state + CLOSED_OFFSET : state;
   }
 
   /**
@@ -102,6 +122,14 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * to be rejected anyway — and no retry under contention, which is where a CAS loop is at its
    * worst.
    *
+   * <p>A plain read comes first, and it is what makes a refusal cheap. Without it a rejected
+   * admission paid two read-modify-writes on the one line every producer is already fighting over,
+   * at the capacity boundary, which is exactly where the most threads arrive at once -- {@code
+   * ContendedAdmissionBenchmark} priced that at roughly 960ns against 3.4ns for the same rejection
+   * taken on the backing's own producer index. A queue that is full, or closed, now turns a
+   * claimant away with a load. The decrement stays authoritative, so the bound is unaffected: the
+   * read can only cause a refusal, never an admission.
+   *
    * <p>The bound itself is exact: the queue never holds more than {@code capacity} elements and
    * open reservations together. What is approximate is who gets turned away. Claimants racing at
    * the boundary can drive the count below zero between them and all give their places back, so an
@@ -109,15 +137,18 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * when it is already at the boundary, where the caller is dropping work regardless.
    */
   private boolean claimPlace() {
-    if (available.decrementAndGet() >= 0) {
+    if (state.get() < 1) {
+      return false;
+    }
+    if (state.decrementAndGet() >= 0) {
       return true;
     }
-    available.incrementAndGet();
+    state.incrementAndGet();
     return false;
   }
 
   private void releasePlace() {
-    available.incrementAndGet();
+    state.incrementAndGet();
   }
 
   /**
@@ -189,7 +220,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       C context,
       @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
       @Strategy RejectHandler<? super E> onRejected) {
-    if (closed || !claimPlace()) {
+    if (!claimPlace()) {
       reject(element, onRejected);
       return false;
     }
@@ -327,13 +358,13 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @Override
   public final int size() {
     // Claimants at the boundary can transiently drive the count below zero before backing out.
-    return Math.max(0, capacity - available.get());
+    return (int) Math.max(0, capacity - permits(state.get()));
   }
 
   @Override
   public final boolean tryPut(T element) {
     requireElement(element);
-    if (closed || !admit(element)) {
+    if (!admit(element)) {
       dropped.increment();
       return false;
     }
@@ -343,18 +374,18 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @Override
   @SuppressWarnings({"unchecked", "rawtypes"})
   public final boolean tryPut(Producer<? extends T> producer) {
-    return closed ? refuseClosed() : admit(producer, (ContextualProducer) PRODUCE);
+    return admit(producer, (ContextualProducer) PRODUCE);
   }
 
   @Override
   public final <C> boolean tryPut(C context, ContextualProducer<? super C, ? extends T> producer) {
-    return closed ? refuseClosed() : admit(context, producer);
+    return admit(context, producer);
   }
 
   @Override
   public final <C1, C2> boolean tryPut(
       C1 first, C2 second, BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
-    return closed ? refuseClosed() : admit(first, second, producer);
+    return admit(first, second, producer);
   }
 
   @Override
@@ -417,7 +448,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final Reservation<T> tryReserve() {
-    boolean granted = !closed && claimPlace();
+    boolean granted = claimPlace();
     if (!granted) {
       dropped.increment();
     }
@@ -561,7 +592,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       public boolean retry(T item) {
         // No counting here. A refused retry is one step of a decision the strategy is still
         // making; the item is counted lost exactly once, when onFailure reports it gave up.
-        return !closed && admit(new Retry<>(item, attempt));
+        return admit(new Retry<>(item, attempt));
       }
 
       @Override
@@ -574,15 +605,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         return all;
       }
     };
-  }
-
-  /**
-   * A refusal that never reached a producer, so nothing was built and nothing could have been
-   * declined: the queue was already closed when the attempt began.
-   */
-  private boolean refuseClosed() {
-    dropped.increment();
-    return false;
   }
 
   /**
@@ -603,12 +625,20 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final void close() {
-    closed = true;
+    long current;
+    do {
+      current = state.get();
+      if (current < CLOSED_MARK) {
+        // Already closed. Applying the offset twice would walk the state toward a second
+        // threshold nothing checks, and the second close has nothing left to say.
+        return;
+      }
+    } while (!state.compareAndSet(current, current - CLOSED_OFFSET));
   }
 
   @Override
   public final boolean isClosed() {
-    return closed;
+    return state.get() < CLOSED_MARK;
   }
 
   @Override
@@ -618,7 +648,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final void shutdown() {
-    closed = true;
+    close();
     discardAll();
   }
 }
