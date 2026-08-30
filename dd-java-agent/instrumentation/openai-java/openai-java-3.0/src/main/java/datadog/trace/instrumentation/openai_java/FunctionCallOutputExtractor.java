@@ -7,16 +7,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Helper class to handle FunctionCallOutput method changes between openai-java versions.
- *
- * <ul>
- *   <li>Version 3.x: {@code output()} returns {@code String}.
- *   <li>Version 4.0+: {@code output()} returns {@code Output}.
- *   <li>Versions before 4.54: {@code callId()} returns {@code String}.
- *   <li>Version 4.54+: {@code callId()} returns {@code Optional<String>}.
- * </ul>
- */
+/** Helper class to handle FunctionCallOutput method changes between openai-java versions. */
 public class FunctionCallOutputExtractor {
   private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
 
@@ -54,6 +45,14 @@ public class FunctionCallOutputExtractor {
     }
   }
 
+  /**
+   * Extracts the function call ID across openai-java versions.
+   *
+   * <ul>
+   *   <li>Versions before 4.54: {@code callId()} returns {@code String}.
+   *   <li>Version 4.54+: {@code callId()} returns {@code Optional<String>}.
+   * </ul>
+   */
   public static String getCallIdAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
     try {
       Object callId = METHOD_HANDLES.invoke(CALL_ID_METHOD, functionCallOutput);
@@ -68,6 +67,14 @@ public class FunctionCallOutputExtractor {
     return null;
   }
 
+  /**
+   * Extracts the function call output across openai-java versions.
+   *
+   * <ul>
+   *   <li>Version 3.x: {@code output()} returns {@code String}.
+   *   <li>Version 4.0+: {@code output()} returns {@code Output}.
+   * </ul>
+   */
   public static String getOutputAsString(ResponseInputItem.FunctionCallOutput functionCallOutput) {
     try {
       Object output = METHOD_HANDLES.invoke(OUTPUT_METHOD, functionCallOutput);
