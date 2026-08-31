@@ -373,6 +373,64 @@
       border-left-color: #c884da;
     }
 
+    .code-line.context {
+      background: var(--amber-bg);
+      border-left-color: var(--amber);
+    }
+
+    .code-line.result {
+      background: var(--green-bg);
+      border-left-color: var(--green);
+    }
+
+    .code-line.preview {
+      background: var(--code-bg);
+      border-left: 3px dashed var(--blue);
+    }
+
+    .code-line.section {
+      margin-top: 5px;
+      color: var(--muted);
+      background: var(--panel-2);
+      border-top: 1px solid var(--border);
+      font-weight: 700;
+    }
+
+    .line-marker,
+    .node-marker {
+      display: inline-grid;
+      place-items: center;
+      color: var(--accent-text);
+      background: var(--accent);
+      border-radius: 50%;
+      font: 800 9px/1 var(--mono);
+    }
+
+    .line-marker {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      vertical-align: -2px;
+    }
+
+    .code-flow-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      padding: 6px 12px;
+      color: var(--muted);
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+      font: 9px/1 var(--mono);
+    }
+
+    .code-flow-legend[hidden] { display: none; }
+    .code-flow-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .code-flow-legend i { width: 9px; height: 9px; border: 2px solid var(--accent); border-radius: 2px; }
+    .code-flow-legend .waiting { border-color: var(--amber); }
+    .code-flow-legend .returned { border-color: var(--green); }
+    .code-flow-legend .preview { border-style: dashed; border-color: var(--blue); }
+
     .line-number { padding-right: 9px; color: #6f6377; text-align: right; user-select: none; }
 
     .step-note {
@@ -661,6 +719,16 @@
     .entry-node.stale { background: #f7f3f3; border-style: dashed; border-color: #c18e94; }
     .entry-node.removing { opacity: .28; border-color: var(--red); transform: translateX(9px) rotate(1deg); }
     .entry-node.replaced { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(23,108,135,.14); }
+
+    .node-marker {
+      position: absolute;
+      top: -7px;
+      left: -7px;
+      width: 18px;
+      height: 18px;
+      box-shadow: 0 0 0 2px var(--panel);
+      z-index: 1;
+    }
 
     .node-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
     .node-type { color: var(--purple-700); font: 800 8px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
@@ -1194,6 +1262,12 @@
             <span id="codeLabel">Java</span>
             <button class="copy-button" id="copyCode" type="button">copy</button>
           </div>
+          <div class="code-flow-legend" id="codeFlowLegend" hidden>
+            <span><i></i>executing now</span>
+            <span><i class="waiting"></i>caller waiting</span>
+            <span><i class="returned"></i>completed / returned</span>
+            <span><i class="preview"></i>preview only</span>
+          </div>
           <pre class="code-lines" id="codeLines" aria-label="Java code for current scenario"></pre>
         </div>
 
@@ -1292,13 +1366,17 @@
 
     const BUCKETS = 8;
 
-    const node = (bucket, id, key, value, hash, state = "", type = "Entry") => ({
-      bucket, id, key, value, hash, state, type
+    const node = (bucket, id, key, value, hash, state = "", type = "Entry", marker = "") => ({
+      bucket, id, key, value, hash, state, type, marker
     });
 
     const step = (title, explanation, operation, nodes, options = {}) => ({
       title, explanation, operation, nodes,
       activeLines: options.activeLines || [],
+      contextLines: options.contextLines || [],
+      resultLines: options.resultLines || [],
+      previewLines: options.previewLines || [],
+      lineMarkers: options.lineMarkers || {},
       key: options.key ?? "—",
       hash: options.hash ?? "—",
       bucket: options.bucket ?? "—",
@@ -1639,138 +1717,210 @@
         kicker: "Scenario 05 · production Support",
         title: "AggregateTable owns the policy",
         description: "Metric `AggregateTable` retains aggregate identities across reporting cycles. `Support` supplies fixed buckets and unlinking; `AggregateTable` decides that an entry is stale when its current-cycle `hitCount` remains zero.",
-        callout: "`record(…)` abbreviates the caller's `findOrInsert` plus `recordOneDuration` path. Controlled hashes keep the eight-slot view readable; `maxAggregates = 4` remains the independent logical cap.",
-        codeLabel: "AggregateTable lifecycle · abridged",
+        callout: "Each `record(key)` represents one point: the caller invokes `findOrInsert`, then `recordOneDuration` on the returned entry. Controlled hashes keep the eight-slot view readable; `maxAggregates = 4` remains the independent logical cap.",
+        codeLabel: "AggregateTable call flow · abridged",
+        codeSections: [0, 7, 14, 21, 27, 47, 53],
         code: [
+          "// Scenario setup",
           "buckets = Hashtable.Support.create(maxAggregates, MAX_RATIO); // max = 4",
+          "record(orders);",
+          "record(checkout);",
+          "record(legacy);",
+          "record(search);",
           "",
-          "record(orders);   // miss → insert → hitCount = 1",
-          "record(checkout); // miss → insert → hitCount = 1",
-          "record(legacy);   // miss → insert → hitCount = 1",
-          "record(search);   // miss → insert → hitCount = 1",
-          "",
-          "// Reporting retains entries but clears their per-cycle state:",
+          "// Aggregator.report",
+          "aggregates.expungeStaleAggregates();",
           "aggregates.forEach(entry -> {",
           "  writer.add(entry);",
-          "  entry.clearAggregate(); // hitCount = 0",
+          "  entry.clearAggregate();",
           "});",
           "",
-          "record(orders, 8); record(checkout, 4); record(search, 11);",
-          "// legacy received no current-cycle hit, so hitCount stays 0",
+          "// Next cycle: three identities receive one point each",
+          "record(orders);",
+          "record(checkout);",
+          "record(search);",
+          "// legacy receives no point, so hitCount stays 0",
+          "record(payments);",
           "",
-          "// findOrInsert: first search for an existing entry.",
-          "for (AggregateEntry candidate =",
-          "        Hashtable.Support.bucket(buckets, keyHash);",
-          "    candidate != null;",
-          "    candidate = candidate.next()) {",
-          "  if (candidate.keyHash == keyHash",
-          "      && canonical.matches(candidate)) {",
-          "    return candidate; // hit",
-          "  }",
+          "// Caller · Aggregator",
+          "void record(SpanSnapshot snapshot) {",
+          "  AggregateEntry entry = aggregates.findOrInsert(snapshot);",
+          "  if (entry != null) entry.recordOneDuration(...);",
           "}",
           "",
-          "// Falling through means this key is absent.",
-          "if (size >= maxAggregates && !evictOneStale()) {",
-          "  return null; // full and every entry is hot",
-          "}",
-          "AggregateEntry entry = canonical.createEntry();",
-          "Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);",
-          "size++;",
-          "",
-          "var iter = Hashtable.Support.mutatingTableIterator(",
-          "    buckets, evictCursor, buckets.length);",
-          "while (iter.hasNext()) {",
-          "  AggregateEntry e = iter.next();",
-          "  if (e.getHitCount() == 0) {",
-          "    int bucket = iter.currentBucket();",
-          "    iter.remove(); size--; evictCursor = bucket;",
-          "    return true;",
+          "// Callee · AggregateTable.findOrInsert",
+          "AggregateEntry findOrInsert(SpanSnapshot snapshot) {",
+          "  canonical.populateFrom(snapshot);",
+          "  long keyHash = canonical.keyHash;",
+          "  for (AggregateEntry candidate =",
+          "          Hashtable.Support.bucket(buckets, keyHash);",
+          "      candidate != null;",
+          "      candidate = candidate.next()) {",
+          "    if (candidate.keyHash == keyHash",
+          "        && canonical.matches(candidate)) return candidate;",
           "  }",
+          "",
+          "  if (size >= maxAggregates && !evictOneStale()) return null;",
+          "",
+          "  AggregateEntry entry = canonical.createEntry();",
+          "  Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);",
+          "  size++;",
+          "  return entry;",
+          "}",
+          "",
+          "// Callee · AggregateTable.evictOneStale",
+          "boolean evictOneStale() {",
+          "  return evictOneStaleInRange(evictCursor, buckets.length)",
+          "      || evictOneStaleInRange(0, evictCursor);",
+          "}",
+          "",
+          "// Callee · AggregateTable.evictOneStaleInRange",
+          "boolean evictOneStaleInRange(int start, int end) {",
+          "  var iter = Hashtable.Support.mutatingTableIterator(",
+          "      buckets, start, end);",
+          "  while (iter.hasNext()) {",
+          "    AggregateEntry e = iter.next();",
+          "    if (e.getHitCount() == 0) {",
+          "      int bucket = iter.currentBucket();",
+          "      iter.remove();",
+          "      size--;",
+          "      evictCursor = bucket;",
+          "      return true;",
+          "    }",
+          "  }",
+          "  return false;",
           "}"
         ],
         steps: [
-          step("Create headroom, not resizing", "For `maxAggregates = 4`, scaling by 4/3 and power-of-two rounding produces eight buckets. The logical entry cap remains four.", "Support.create(4, MAX_RATIO)", [], {
-            activeLines: [0], requested: "4 × 4/3 → 8", key: "max = 4", hash: "scaled size = 5", bucket: "8 slots", mask: "next power of 2", log: "allocate fixed Entry[8]"
+          step("Allocate fixed bucket storage", "For `maxAggregates = 4`, scaling by 4/3 and power-of-two rounding produces eight buckets. The logical entry cap remains four.", "Support.create(4, MAX_RATIO)", [], {
+            activeLines: [1], requested: "4 × 4/3 → 8", key: "max = 4", hash: "scaled size = 5", bucket: "8 slots", mask: "next power of 2", log: "allocate fixed Entry[8]"
           }),
           step("Build the previous-cycle working set", "Each `record` is a distinct miss: `findOrInsert` inserts an `AggregateEntry`, then `recordOneDuration` sets its `hitCount` to one. legacy is still a normal hot entry; the fourth insert reaches the logical cap.", "record four distinct keys", [
-            node(0, "orders", "orders", "hitCount = 1", 32, "active", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hitCount = 1", 18, "active", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hitCount = 1", 12, "active", "AggregateEntry"),
-            node(7, "search", "search", "hitCount = 1", 39, "active", "AggregateEntry")
+            node(0, "orders", "orders", "hitCount = 1", 32, "active", "AggregateEntry", "1"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "active", "AggregateEntry", "2"),
+            node(4, "legacy", "legacy", "hitCount = 1", 12, "active", "AggregateEntry", "3"),
+            node(7, "search", "search", "hitCount = 1", 39, "active", "AggregateEntry", "4")
           ], {
-            activeLines: [2, 3, 4, 5], key: "4 distinct aggregates", hash: "32 · 18 · 12 · 39", bucket: "0, 2, 4, 7", mask: "hash & 7", rowState: {0: "target", 2: "target", 4: "target", 7: "target"}, pointers: ["four misses → four inserts", "each hitCount = 1", "size: 0 → 4 · logical cap"], log: "build four-entry working set"
+            activeLines: [2, 3, 4, 5], lineMarkers: {2: "1", 3: "2", 4: "3", 5: "4"}, key: "4 distinct aggregates", hash: "32 · 18 · 12 · 39", bucket: "0, 2, 4, 7", mask: "hash & 7", rowState: {0: "target", 2: "target", 4: "target", 7: "target"}, pointers: ["①–④ map each call to its entry", "each hitCount = 1", "size: 0 → 4 · logical cap"], log: "build four-entry working set"
           }),
-          step("Report and reset the cycle", "All four entries had a hit, so `expungeStaleAggregates` keeps them. The writer serializes each aggregate, then `clearAggregate` resets `hitCount` to zero without removing its entry.", "writer.add · clearAggregate", [
-            node(0, "orders", "orders", "hitCount: 1 → 0", 32, "probe", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hitCount: 1 → 0", 18, "probe", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hitCount: 1 → 0", 12, "probe", "AggregateEntry"),
-            node(7, "search", "search", "hitCount: 1 → 0", 39, "probe", "AggregateEntry")
+          step("Expunge finds nothing stale", "Reporting first calls `expungeStaleAggregates`. It visits every entry, but all four have `hitCount = 1`, so every bucket link and the table size remain unchanged.", "report → expungeStaleAggregates", [
+            node(0, "orders", "orders", "hitCount = 1 · keep", 32, "probe", "AggregateEntry", "∀"),
+            node(2, "checkout", "checkout", "hitCount = 1 · keep", 18, "probe", "AggregateEntry", "∀"),
+            node(4, "legacy", "legacy", "hitCount = 1 · keep", 12, "probe", "AggregateEntry", "∀"),
+            node(7, "search", "search", "hitCount = 1 · keep", 39, "probe", "AggregateEntry", "∀")
           ], {
-            activeLines: [7, 8, 9, 10, 11], key: "all aggregates", hash: "bucket order", bucket: "0 → 7", mask: "retain entries", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["writer.add(entry)", "clearAggregate → hitCount 0", "size remains 4"], log: "serialize · reset per-cycle counters"
+            activeLines: [8], lineMarkers: {8: "∀"}, key: "all aggregates", hash: "bucket order", bucket: "0 → 7", mask: "hitCount != 0", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["∀ maps the sweep to every entry", "hitCount = 1 → keep", "size remains 4"], log: "expunge sweep · keep all four"
           }),
-          step("Only three identities return", "In the next cycle, orders, checkout, and search receive points and reuse their entries. No legacy point arrives, so its reset `hitCount` remains zero and it becomes stale.", "record current-cycle hits", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("Write and reset every retained entry", "The following `forEach` writes each retained aggregate and calls `clearAggregate`. The same ∀ marker shows that one loop body applies to all four entry cards.", "writer.add → clearAggregate", [
+            node(0, "orders", "orders", "hitCount: 1 → 0", 32, "probe", "AggregateEntry", "∀"),
+            node(2, "checkout", "checkout", "hitCount: 1 → 0", 18, "probe", "AggregateEntry", "∀"),
+            node(4, "legacy", "legacy", "hitCount: 1 → 0", 12, "probe", "AggregateEntry", "∀"),
+            node(7, "search", "search", "hitCount: 1 → 0", 39, "probe", "AggregateEntry", "∀")
           ], {
-            activeLines: [13, 14], key: "current cycle", hash: "3 reused keys", bucket: "0, 2, 7", mask: "existing entries", rowState: {0: "hit-row", 2: "hit-row", 4: "scanned", 7: "hit-row"}, pointers: ["orders.hitCount → 8", "checkout.hitCount → 4", "legacy.hitCount stays 0"], log: "legacy receives no current-cycle hit"
+            activeLines: [9, 10, 11, 12], resultLines: [8], lineMarkers: {9: "∀"}, key: "all retained entries", hash: "bucket order", bucket: "0 → 7", mask: "forEach", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["∀ → each retained entry", "writer.add(entry)", "clearAggregate → hitCount 0"], log: "serialize · reset per-cycle counters"
           }),
-          step("Search the target bucket", "`bucket` returns the first entry in bucket 5. Here it returns `null`, so the loop has no candidate to test and `findOrInsert` falls through to its miss path.", "findOrInsert(payments) · search", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("Only three identities return", "In the next cycle, orders, checkout, and search each receive one point and reuse their entries. No legacy point arrives, so its reset `hitCount` remains zero and it becomes stale.", "record three current-cycle points", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "hit", "AggregateEntry", "1"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "hit", "AggregateEntry", "2"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "hit", "AggregateEntry", "3")
           ], {
-            activeLines: [16, 17, 18, 19], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["bucket[5] → null", "loop body runs 0 times", "fall through → miss path"], log: "payments bucket is empty · miss"
+            activeLines: [14, 15, 16, 17, 18], lineMarkers: {15: "1", 16: "2", 17: "3"}, key: "3 returning aggregates", hash: "32 · 18 · 39", bucket: "0, 2, 7", mask: "existing entries", rowState: {0: "hit-row", 2: "hit-row", 4: "scanned", 7: "hit-row"}, pointers: ["①–③ map calls to reused entries", "three hitCounts: 0 → 1", "legacy stays 0 → stale"], log: "three identities return · legacy stays stale"
           }),
-          step("The miss needs room", "Capacity is checked only after the lookup misses. Because `size == maxAggregates`, `findOrInsert` calls `evictOneStale`; it cannot create and insert payments until that call makes room.", "size == max · evictOneStale()", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("A payments point enters the caller", "The scenario now supplies one payments point. No table code has run yet, so the schema is unchanged and the caller is about to enter its normal lookup-and-record path.", "record(payments)", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [27, 28], key: "payments · absent", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["lookup already missed", "size = max = 4", "evictOneStale() must succeed"], log: "capacity reached · request one eviction"
+            activeLines: [19], key: "payments", hash: "not computed", bucket: "pending", mask: "caller", pointers: ["new SpanSnapshot → payments", "table still has 4 entries", "enter Aggregator.record"], log: "payments point enters caller"
           }),
-          step("Start the sweep at bucket 0", "The initial `evictCursor` is zero. The range iterator returns orders first; `hitCount = 8` means it is hot, so the sweep keeps it.", "iter.next() · orders", [
-            node(0, "orders", "orders", "scan · hits = 8", 32, "probe", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("The caller asks AggregateTable", "`Aggregator.record` calls `findOrInsert(payments)` and waits for an entry. The amber line is the waiting scenario call; the cyan line is executing now.", "record → findOrInsert(payments)", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [28, 35, 36, 37, 38, 39], key: "eviction candidate", hash: "bucket order", bucket: 0, mask: "range [0, 8)", rowState: {0: "scanned"}, pointers: ["evictCursor = 0", "iterator reaches bucket 0", "orders.hitCount = 8 → keep"], log: "scan orders · hot"
+            activeLines: [23], contextLines: [19], key: "payments", hash: "snapshot", bucket: "pending", mask: "enter callee", pointers: ["record(payments) waits", "entry = findOrInsert(snapshot)", "enter AggregateTable"], log: "caller waits for findOrInsert"
           }),
-          step("Continue to bucket 2", "The iterator skips empty bucket 1 and returns checkout from bucket 2. Its non-zero `hitCount` also keeps it in the table.", "iter.next() · checkout", [
-            node(0, "orders", "orders", "hits = 8 · kept", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "scan · hits = 4", 18, "probe", "AggregateEntry"),
-            node(4, "legacy", "legacy", "hits = 0 · stale", 12, "stale", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("Search payments' bucket", "`findOrInsert` canonicalizes payments to hash 61 and reads bucket 5. It gets `null`, so the loop condition is false, the body and `candidate.next()` do not run, and lookup falls through to the miss path.", "findOrInsert · bucket[5] → null", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [37, 38, 39], key: "eviction candidate", hash: "bucket order", bucket: 2, mask: "range [0, 8)", rowState: {2: "scanned"}, pointers: ["bucket[1] is empty → skip", "iterator reaches bucket 2", "checkout.hitCount = 4 → keep"], log: "scan checkout · hot"
+            activeLines: [29, 30, 31, 32, 33], contextLines: [23], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["bucket[5] → null", "candidate != null → false", "fall through → miss path"], log: "payments bucket is empty · miss"
           }),
-          step("Find the stale identity", "The next populated bucket is 4. legacy still has `hitCount = 0`, so the policy selects it and reads `currentBucket()` before unlinking.", "iter.next() · legacy", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
+          step("The miss calls the eviction policy", "The capacity test is true because `size == maxAggregates`. Evaluation pauses inside the condition while `evictOneStale()` tries to make room; `findOrInsert` cannot yet choose between returning `null` and inserting.", "findOrInsert waits → evictOneStale()", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [39], contextLines: [23], key: "payments · absent", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["size >= max → true", "call evictOneStale()", "findOrInsert waits for boolean"], log: "capacity reached · enter eviction policy"
+          }),
+          step("Open the first cursor range", "`evictOneStale` evaluates its first range call. With `evictCursor = 0`, `evictOneStaleInRange` creates an iterator for `[0, 8)`; both caller lines remain amber while the range method executes.", "findOrInsert → evictOneStale → range [0, 8)", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [55, 56], contextLines: [39, 49], key: "eviction range", hash: "cursor = 0", bucket: "[0, 8)", mask: "start = 0 · end = 8", pointers: ["findOrInsert waits at capacity test", "evictOneStale waits on range 1", "iterator covers buckets 0 through 7"], log: "open first eviction range [0, 8)"
+          }),
+          step("Scan orders and keep it", "The iterator returns orders from bucket 0. Its non-zero `hitCount` makes the stale test false, so no unlinking lines run and the iterator continues.", "range iterator · orders", [
+            node(0, "orders", "orders", "scan · hitCount = 1", 32, "probe", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [57, 58, 59], contextLines: [39, 49], key: "eviction candidate", hash: "bucket order", bucket: 0, mask: "range [0, 8)", rowState: {0: "scanned"}, pointers: ["iter.next() → orders", "orders.hitCount = 1", "stale test false → keep"], log: "scan orders · hot"
+          }),
+          step("Scan checkout and keep it", "The iterator skips empty bucket 1 and returns checkout from bucket 2. Its `hitCount` is also non-zero, so the unlinking block remains unexecuted.", "range iterator · checkout", [
+            node(0, "orders", "orders", "hitCount = 1 · kept", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "scan · hitCount = 1", 18, "probe", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 0 · stale", 12, "stale", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [57, 58, 59], contextLines: [39, 49], key: "eviction candidate", hash: "bucket order", bucket: 2, mask: "range [0, 8)", rowState: {2: "scanned"}, pointers: ["bucket[1] is empty → skip", "iter.next() → checkout", "stale test false → keep"], log: "scan checkout · hot"
+          }),
+          step("Select legacy as stale", "The next populated bucket is 4. legacy has `hitCount = 0`, so the test succeeds and `currentBucket()` captures bucket 4 before any link changes.", "range iterator · legacy", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
             node(4, "legacy", "legacy", "curEntry · hits = 0", 12, "stale active", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [37, 38, 39, 40], key: "stale candidate", hash: "12", bucket: 4, rowState: {4: "scanned"}, pointers: ["currentBucket() → 4", "curEntry → legacy", "legacy.hitCount == 0"], log: "select legacy for eviction"
+            activeLines: [57, 58, 59, 60], contextLines: [39, 49], key: "stale candidate", hash: "12", bucket: 4, rowState: {4: "scanned"}, pointers: ["iter.next() → legacy", "legacy.hitCount == 0", "currentBucket() → 4"], log: "select legacy for eviction"
           }),
-          step("Remove, then insert the miss", "`iter.remove` unlinks legacy, decrements size, and stores bucket 4 in `evictCursor`. `findOrInsert` can then insert payments in bucket 5; the caller records its first hit.", "remove legacy · insert payments", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(5, "payments", "payments", "hits = 1 · new", 61, "active", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("Unlink legacy and return true", "The range method unlinks legacy, changes `size` from four to three, stores bucket 4 in `evictCursor`, and returns `true`. Bucket 4 now points to `null`; payments has not been created yet.", "unlink legacy → return true", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [28, 31, 32, 33, 40, 41, 42], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["legacy.next → null", "evictCursor → 4", "bucket[5] → payments"], log: "evict legacy · admit payments"
+            activeLines: [61, 62, 63, 64], contextLines: [39, 49], key: "legacy", hash: "12", bucket: 4, rowState: {4: "target"}, pointers: ["bucket[4] → null · legacy detached", "size: 4 → 3 · evictCursor: 0 → 4", "return true to evictOneStale"], log: "unlink legacy · make one slot available"
           }),
-          step("The next sweep resumes", "A future eviction begins at bucket 4 instead of repeatedly walking orders and checkout. A second `[0, 4)` iterator supplies wrap-around only if the first `[4, 8)` pass finds nothing stale.", "mutatingTableIterator([4, 8))", [
-            node(0, "orders", "orders", "hits = 8", 32, "", "AggregateEntry"),
-            node(2, "checkout", "checkout", "hits = 4", 18, "", "AggregateEntry"),
-            node(5, "payments", "payments", "hits = 1", 61, "", "AggregateEntry"),
-            node(7, "search", "search", "hits = 11", 39, "", "AggregateEntry")
+          step("Resume findOrInsert and admit payments", "The `true` result makes `!evictOneStale()` false, so `findOrInsert` skips `return null`. It creates payments with `hitCount = 0`, inserts it in bucket 5, restores `size` to four, and returns the entry.", "eviction returned → insert payments", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(5, "payments", "payments", "hitCount = 0 · new", 61, "active", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
           ], {
-            activeLines: [35, 36], key: "next eviction", hash: "cursor = 4", bucket: "[4, 8)", mask: "then [0, 4)", rowState: {4: "scanned"}, pointers: ["pass 1 → [4, 8)", "pass 2 → [0, 4)", "skip the prior hot prefix"], log: "resume from last removal bucket"
+            activeLines: [41, 42, 43, 44], contextLines: [23], resultLines: [39, 49, 64], key: "payments", hash: "61", bucket: 5, rowState: {5: "target"}, pointers: ["evictOneStale() → true · skip null return", "bucket[5] → payments · hitCount 0", "size: 3 → 4 · return entry"], log: "resume findOrInsert · admit payments"
+          }),
+          step("The caller records the first hit", "`findOrInsert` has returned the stored payments entry. The caller resumes at `recordOneDuration`, changing its `hitCount` from zero to one; no bucket link changes.", "findOrInsert returns → recordOneDuration", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(5, "payments", "payments", "hitCount: 0 → 1", 61, "hit", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            activeLines: [24], resultLines: [44], key: "payments entry", hash: "61", bucket: 5, rowState: {5: "hit-row"}, pointers: ["findOrInsert → payments entry", "entry != null → true", "recordOneDuration → hitCount 1"], log: "caller records payments first hit"
+          }),
+          step("Preview the next cursor range", "No eviction runs in this frame. It previews a future call: because `evictCursor = 4`, range one starts at bucket 4; only if that range returns false does short-circuit OR evaluate the wrap-around range `[0, 4)`.", "preview only · next eviction", [
+            node(0, "orders", "orders", "hitCount = 1", 32, "", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1", 18, "", "AggregateEntry"),
+            node(5, "payments", "payments", "hitCount = 1", 61, "", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1", 39, "", "AggregateEntry")
+          ], {
+            previewLines: [49, 50], key: "future miss", hash: "cursor = 4", bucket: "[4, 8)", mask: "then [0, 4)", rowState: {4: "target"}, pointers: ["preview only · schema is unchanged", "next pass 1 → [4, 8)", "pass 2 → [0, 4) only if pass 1 fails"], log: "preview next sweep from cursor 4"
           })
         ]
       }
@@ -1883,10 +2033,25 @@
     }
 
     function renderCode(scene, currentStep) {
-      $("codeLines").innerHTML = scene.code.map((line, index) =>
-        `<span class="code-line ${currentStep.activeLines.includes(index) ? "active" : ""}"><span class="line-number">${index + 1}</span><span>${escapeHtml(line) || " "}</span></span>`
-      ).join("");
-      const active = $("codeLines").querySelector(".active");
+      $("codeFlowLegend").hidden = scene.id !== "support";
+      $("codeLines").innerHTML = scene.code.map((line, index) => {
+        const state = currentStep.activeLines.includes(index)
+          ? "active"
+          : currentStep.contextLines.includes(index)
+            ? "context"
+            : currentStep.resultLines.includes(index)
+              ? "result"
+              : currentStep.previewLines.includes(index)
+                ? "preview"
+                : "";
+        const section = (scene.codeSections || []).includes(index) ? "section" : "";
+        const marker = currentStep.lineMarkers[index]
+          ? `<i class="line-marker">${escapeHtml(currentStep.lineMarkers[index])}</i>`
+          : "";
+        return `<span class="code-line ${state} ${section}"><span class="line-number">${index + 1}</span><span>${marker}${escapeHtml(line) || " "}</span></span>`;
+      }).join("");
+      const active = $("codeLines").querySelector(".active")
+        || $("codeLines").querySelector(".context, .result, .preview");
       if (active) {
         const codePane = $("codeLines");
         const paneBounds = codePane.getBoundingClientRect();
@@ -1906,6 +2071,7 @@
         const rowClass = currentStep.rowState[bucket] || "";
         const entriesHtml = entries.map((entry, index) => `
           <div class="entry-node ${escapeHtml(entry.state)}" style="animation-delay:${index * 45}ms" title="keyHash: ${escapeHtml(entry.hash)}">
+            ${entry.marker ? `<span class="node-marker">${escapeHtml(entry.marker)}</span>` : ""}
             <div class="node-top"><span class="node-type">${escapeHtml(entry.type)}</span><span class="node-hash">h ${escapeHtml(entry.hash)}</span></div>
             <strong class="node-key">${escapeHtml(entry.key)}</strong>
             <span class="node-value">${escapeHtml(entry.value)}</span>
