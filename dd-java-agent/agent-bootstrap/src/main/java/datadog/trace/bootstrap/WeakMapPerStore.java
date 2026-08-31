@@ -11,6 +11,17 @@ import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
 public final class WeakMapPerStore<K, V> {
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static Object get(final Object key, final int storeId) {
+    return getContextStore(storeId).weakStore().get(key);
+  }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static void put(final Object key, final int storeId, final Object context) {
+    getContextStore(storeId).weakStore().put(key, context);
+  }
+
   private static final int MAX_SIZE = 50_000;
 
   private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
@@ -18,17 +29,17 @@ public final class WeakMapPerStore<K, V> {
   WeakMapPerStore() {}
 
   @SuppressWarnings("unchecked")
-  public V get(final K key) {
+  V get(final K key) {
     return (V) map.get(key);
   }
 
-  public void put(final K key, final V context) {
+  void put(final K key, final V context) {
     if (map.size() < MAX_SIZE) {
       map.put(key, context);
     }
   }
 
-  public V getOrPut(final K key, final V context) {
+  V getOrPut(final K key, final V context) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
@@ -48,7 +59,7 @@ public final class WeakMapPerStore<K, V> {
     return existingContext;
   }
 
-  public V getOrCompute(K key, KeyAwareFactory<? super K, V> contextFactory) {
+  V getOrCompute(K key, KeyAwareFactory<? super K, V> contextFactory) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
@@ -69,22 +80,12 @@ public final class WeakMapPerStore<K, V> {
   }
 
   @SuppressWarnings("unchecked")
-  public V remove(final K key) {
+  V remove(final K key) {
     return (V) map.remove(key);
   }
 
   @VisibleForTesting
   int size() {
     return map.size();
-  }
-
-  /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static Object get(final Object key, final int storeId) {
-    return getContextStore(storeId).weakStore().get(key);
-  }
-
-  /** Injection helper that immediately delegates to the weak-map for the given context store. */
-  public static void put(final Object key, final int storeId, final Object context) {
-    getContextStore(storeId).weakStore().put(key, context);
   }
 }
