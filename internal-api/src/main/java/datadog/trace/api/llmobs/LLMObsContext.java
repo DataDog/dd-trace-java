@@ -79,14 +79,14 @@ public final class LLMObsContext {
         updated.with(
             AGENT_VERSION_KEY,
             agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
-    if (parentAgentSpanId != null && !parentAgentSpanId.isEmpty()) {
-      updated = updated.with(PAGENT_SPAN_ID_KEY, parentAgentSpanId);
-      // Always update the name key even when parentAgentName is null. Per the Context API
-      // contract (Context.java: "Mapping to a null value will remove the key-value from the
-      // context copy"), with(key, null) clears any name set by an outer agent scope, so a
-      // descendant of an unsafe-named inner agent never inherits the outer agent's name.
-      updated = updated.with(PAGENT_NAME_KEY, parentAgentName);
-    }
+    // Always write both pagent keys. Per the Context API contract (Context.java: "Mapping to a
+    // null value will remove the key-value from the context copy"), with(key, null) clears any
+    // stale value inherited from an outer scope. This prevents two leakage scenarios:
+    //   1. An unsafe-named inner agent must not let descendants see the outer agent's name.
+    //   2. A non-agent span whose trace-ID gate blocked attribution must not let its same-trace
+    //      children pick up a pagent ID that belongs to a different trace.
+    updated = updated.with(PAGENT_SPAN_ID_KEY, parentAgentSpanId);
+    updated = updated.with(PAGENT_NAME_KEY, parentAgentName);
     return updated.attach();
   }
 
