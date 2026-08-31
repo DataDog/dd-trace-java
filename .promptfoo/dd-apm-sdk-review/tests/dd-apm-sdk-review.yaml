@@ -94,3 +94,73 @@
         3. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE) and
            a final READY TO PUSH / DO NOT PUSH statement.
       threshold: 0.8
+
+- description: "Security (control) — JVM crash-handler flag set before trust/ownership validation completes (mined from dd-trace-java PR #11613 review comment, pre-fix code; java has no security.md override yet)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java b/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java
+      @@ -358,10 +358,16 @@ private static void initializeCrashUploader(FlagAccess flags) {
+      +      // set the JVM flag
+      +      boolean rslt = flags.setValue("OnError", onErrorVal);
+      +      if (!rslt && LOG.isDebugEnabled()) {
+      +        LOG.debug(
+      +            SEND_TELEMETRY,
+      +            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+      +            onErrorVal);
+      +      }
+      +
+      +      // validate the script directory/file is owned by this JVM user and not
+      +      // group/world-writable before trusting it; if a pre-existing dir/script
+      +      // fails this check, initialize() returns false and skips writing config.
+      +      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: not-icontains
+      value: "git diff"
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that the JVM handler flag (`OnError`) is set to the target script/path
+           BEFORE `CrashUploaderScriptInitializer.initialize(...)` — the ownership/trust
+           validation — has run and returned a result. It is not enough to note that a
+           validation step exists; the report must call out the ordering problem: if
+           `initialize(...)` later rejects the path (e.g. pre-existing dir/script not
+           owned by the JVM user, or group/world-writable), the flag has already been
+           committed to the untrusted path and the JVM crash handler will still execute
+           it on a crash.
+        2. Classifies this as a security finding (P0 or P1, not merely a style/maintainability
+           nit) — this is a security control that can be silently bypassed (the check runs
+           but has no effect on the already-configured handler), which is exactly the P0
+           bar in this repo's severity rubric ("security control can be silently bypassed").
+        3. Recommends gating the flag-setter on the validator's result (e.g.
+           `if (initialize(...)) { flags.setValue(...) }`) or clearing/restoring the flag
+           on validation failure — not just "add more logging" or "add a comment".
+        4. States the verdict line as exactly `Verdict: BLOCK` (not
+           APPROVE_WITH_COMMENTS or APPROVE — this repo's severity rubric maps a P0
+           finding to BLOCK with no exception) and ends with the final statement
+           `DO NOT PUSH` (not READY TO PUSH).
+      threshold: 0.8
