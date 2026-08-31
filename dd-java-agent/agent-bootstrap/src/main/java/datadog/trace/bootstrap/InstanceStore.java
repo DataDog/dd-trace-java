@@ -61,7 +61,7 @@ public final class InstanceStore<T> {
    * @param instanceFactory the factory to create instances
    * @return final associated instance
    */
-  public T putIfAbsent(String key, Supplier<T> instanceFactory) {
+  public T getOrCreate(String key, Supplier<T> instanceFactory) {
     return store.computeIfAbsent(key, k -> instanceFactory.get());
   }
 

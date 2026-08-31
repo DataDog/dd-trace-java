@@ -30,7 +30,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Object context) {
+  public Object getOrPut(final Object key, final Object context) {
     if (key instanceof FieldBackedContextAccessor) {
       final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
       Object existingContext = accessor.$get$__datadogContext$(storeId);
@@ -45,18 +45,12 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
       }
       return existingContext;
     } else {
-      return weakStore().putIfAbsent(key, context);
+      return weakStore().getOrPut(key, context);
     }
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Factory<Object> contextFactory) {
-    return computeIfAbsent(key, contextFactory);
-  }
-
-  @Override
-  public Object computeIfAbsent(
-      Object key, KeyAwareFactory<? super Object, Object> contextFactory) {
+  public Object getOrCompute(Object key, KeyAwareFactory<? super Object, Object> contextFactory) {
     if (key instanceof FieldBackedContextAccessor) {
       final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
       Object existingContext = accessor.$get$__datadogContext$(storeId);
@@ -71,7 +65,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
       }
       return existingContext;
     } else {
-      return weakStore().computeIfAbsent(key, contextFactory);
+      return weakStore().getOrCompute(key, contextFactory);
     }
   }
 

@@ -65,7 +65,7 @@ public interface ContextStore<K, C> {
    * @param context new context instance to put
    * @return old instance if it was present, or new instance
    */
-  C putIfAbsent(K key, C context);
+  C getOrPut(K key, C context);
 
   /**
    * Put new context instance if key is absent. Uses context factory to avoid creating objects if
@@ -75,7 +75,9 @@ public interface ContextStore<K, C> {
    * @param contextFactory factory instance to produce new context object
    * @return old instance if it was present, or new instance
    */
-  C putIfAbsent(K key, Factory<C> contextFactory);
+  default C getOrCreate(K key, Factory<C> contextFactory) {
+    return getOrCompute(key, contextFactory);
+  }
 
   /**
    * Put new context instance if key is absent. Uses context factory to avoid creating objects if
@@ -85,7 +87,7 @@ public interface ContextStore<K, C> {
    * @param contextFactory factory instance to produce new context object
    * @return old instance if it was present, or new instance
    */
-  C computeIfAbsent(K key, KeyAwareFactory<? super K, C> contextFactory);
+  C getOrCompute(K key, KeyAwareFactory<? super K, C> contextFactory);
 
   /**
    * Removes the existing value for key and return it.

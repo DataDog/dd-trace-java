@@ -19,17 +19,12 @@ public class ConcurrentHashMapContextStore<K, C> implements ContextStore<K, C> {
   }
 
   @Override
-  public C putIfAbsent(K key, C context) {
+  public C getOrPut(K key, C context) {
     return m.computeIfAbsent(key, k -> context);
   }
 
   @Override
-  public C putIfAbsent(K key, Factory<C> contextFactory) {
-    return m.computeIfAbsent(key, k -> contextFactory.create());
-  }
-
-  @Override
-  public C computeIfAbsent(K key, KeyAwareFactory<? super K, C> contextFactory) {
+  public C getOrCompute(K key, KeyAwareFactory<? super K, C> contextFactory) {
     return m.computeIfAbsent(key, contextFactory::create);
   }
 
