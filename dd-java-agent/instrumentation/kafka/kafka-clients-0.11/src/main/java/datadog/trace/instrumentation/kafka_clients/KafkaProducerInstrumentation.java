@@ -65,7 +65,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.DataS
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaProducerInstrumentation() {
-    super("kafka", "kafka-0.11");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override

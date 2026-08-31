@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public OffsetCommitCallbackInvokerInstrumentation() {
-    super("kafka", "kafka-3.8");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
