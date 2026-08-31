@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -88,6 +89,15 @@ import javax.annotation.concurrent.ThreadSafe;
  * hand-written path; the two mutating ones do <b>not</b> lock, so call them only inside the
  * caller's {@code synchronized (getWriteLock(buckets))} block. The entry's chain pointer is written
  * for you by those helpers — custom tables never touch it directly.
+ *
+ * <p><b>A sequence of self-locking calls is not atomic.</b> Each self-locking helper takes and
+ * releases the monitor on its own, so two of them in a row leave a window in between. That matters
+ * for any multi-step protocol over one table — notably reserving a slot with {@link
+ * #tryReserveOrEvict} and then filling it with {@link #insertReserved}: a {@link #drain} or {@link
+ * #clear} landing in the gap resets the {@link SizeManager} while the reservation is outstanding,
+ * and the later insert then links an entry the count no longer knows about, so a capped table
+ * drifts silently past its cap. Hold {@code synchronized (getWriteLock(state))} across the whole
+ * protocol; the monitor is reentrant, so the self-locking calls nest inside it cleanly.
  */
 public final class ConcurrentHashtable {
   private ConcurrentHashtable() {}
@@ -752,6 +762,10 @@ public final class ConcurrentHashtable {
      * table is full. Returns {@code true} with a slot reserved, or {@code false} if the table was
      * full and nothing was evictable — in which case {@code buckets} is untouched and the caller
      * should drop the datum.
+     *
+     * <p>The write lock must be held across the insert that consumes the reservation, not merely
+     * across this call: {@link #reset()} (via a table-level drain or clear) zeroes the count, and a
+     * reservation taken before it is silently voided.
      */
     @GuardedBy("getWriteLock(buckets)")
     public <TEntry extends Entry> boolean tryReserveOrEvict(
@@ -780,6 +794,11 @@ public final class ConcurrentHashtable {
 
     /** Zeroes both the live count and the eviction scan position. */
     @GuardedBy("getWriteLock(buckets)")
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification =
+            "cursor is read and written only under synchronized (getWriteLock(buckets)); SpotBugs"
+                + " cannot model that dynamic guard")
     public void reset() {
       size.set(0);
       cursor = 0;
@@ -817,6 +836,12 @@ public final class ConcurrentHashtable {
       return null;
     }
 
+    @GuardedBy("getWriteLock(buckets)")
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification =
+            "cursor is read and written only under synchronized (getWriteLock(buckets)); SpotBugs"
+                + " cannot model that dynamic guard")
     @Nullable
     private <TEntry extends Entry> TEntry evictOneInRange(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
@@ -843,6 +868,11 @@ public final class ConcurrentHashtable {
      * nothing later to resume from.
      */
     @GuardedBy("getWriteLock(buckets)")
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification =
+            "cursor is read and written only under synchronized (getWriteLock(buckets)); SpotBugs"
+                + " cannot model that dynamic guard")
     public <TEntry extends Entry> int evictAll(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
         @Nonnull Predicate<? super TEntry> evictable) {
@@ -918,6 +948,12 @@ public final class ConcurrentHashtable {
    * Reserves a slot in {@code state} for a fresh insert, evicting one entry matching {@code
    * evictable} if the table is full. {@code false} means full with nothing evictable — the caller
    * should drop the datum. Self-locking.
+   *
+   * <p><b>Pairing with an insert:</b> the reservation this takes is only meaningful until the next
+   * {@link #drain} or {@link #clear}, either of which resets the {@link SizeManager}. Because this
+   * call releases the monitor before returning, a caller that follows it with {@link
+   * #insertReserved} must hold {@code synchronized (getWriteLock(state))} across <b>both</b> calls
+   * — see {@link #insertReserved} for the shape.
    */
   public static <TEntry extends Entry> boolean tryReserveOrEvict(
       @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
@@ -1100,11 +1136,25 @@ public final class ConcurrentHashtable {
    * refuse before it builds anything:
    *
    * <pre>{@code
-   * if (!tryReserveOrEvict(state, evictable)) {
-   *   return null;                       // refused -- no entry was built
+   * synchronized (getWriteLock(state)) {     // ONE critical section for both steps
+   *   if (!tryReserveOrEvict(state, evictable)) {
+   *     return null;                         // refused -- no entry was built
+   *   }
+   *   insertReserved(state, keyHash, buildEntry());
    * }
-   * insertReserved(state, keyHash, buildEntry());
    * }</pre>
+   *
+   * <p>The enclosing block is required, not stylistic. {@link #tryReserveOrEvict} is self-locking
+   * and releases the monitor before it returns, so without it a {@link #drain} or {@link #clear}
+   * can land between the reservation and this insert, reset the {@link SizeManager}, and leave this
+   * insert linking an entry that the count no longer accounts for -- an undercount that never
+   * heals, and on a {@link State#createCapped} table a cap that is quietly exceeded from then on.
+   * The monitor is reentrant, so wrapping the self-locking call costs nothing.
+   *
+   * <p>Because the entry is built inside that block, {@code buildEntry()} must not throw: a throw
+   * after the reservation is taken leaks a slot for the life of the table. When the build is
+   * fallible, use the {@link D1#tryGetOrCreateOrNull} shape instead, which checks capacity, builds,
+   * links, and only then increments.
    *
    * <p>Distinct from {@link #insertHeadEntryFor(AtomicReferenceArray, long, Entry)}, which reserves
    * as it inserts; calling that one here would count the entry twice. {@link D1} and {@link D2} do

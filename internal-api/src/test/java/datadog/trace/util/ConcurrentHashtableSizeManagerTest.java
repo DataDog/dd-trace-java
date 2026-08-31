@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.test.util.PollingConditions;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
 
@@ -242,11 +243,13 @@ class ConcurrentHashtableSizeManagerTest {
     // Table is full: tryReserveOrEvict evicts "a" and reserves the freed slot for the caller, who
     // is now responsible for splicing in the entry that occupies it -- via insertReserved, since
     // the reservation already happened and a plain insertHeadEntryAt/increment would double-count.
-    boolean reserved = ConcurrentHashtable.tryReserveOrEvict(state, e -> true);
-    assertTrue(reserved);
-    assertEquals(1, ConcurrentHashtable.estimateSize(state));
-    assertNull(state.buckets.get(0)); // "a" was evicted; the reserved slot has no entry yet
+    // Both steps go in ONE critical section: tryReserveOrEvict is self-locking, so on its own it
+    // leaves a window where a drain/clear could reset the count out from under the reservation.
     synchronized (ConcurrentHashtable.getWriteLock(state)) {
+      boolean reserved = ConcurrentHashtable.tryReserveOrEvict(state, e -> true);
+      assertTrue(reserved);
+      assertEquals(1, ConcurrentHashtable.estimateSize(state));
+      assertNull(state.buckets.get(0)); // "a" was evicted; the reserved slot has no entry yet
       ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
     }
 
@@ -263,6 +266,42 @@ class ConcurrentHashtableSizeManagerTest {
     assertNotNull(viaEvictOne);
     assertEquals("b", viaEvictOne.label);
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
+  }
+
+  /**
+   * Holding the write lock across {@code tryReserveOrEvict} + {@code insertReserved} keeps a
+   * concurrent {@link ConcurrentHashtable#clear(ConcurrentHashtable.State)} out of the gap. Were
+   * the clear able to land in between, its {@code SizeManager.reset()} would void the outstanding
+   * reservation and the insert would link an entry the count never learns about -- an undercount
+   * that never heals, and a capped table quietly over its cap from then on.
+   */
+  @Test
+  void clearCannotInterleaveBetweenReservationAndInsert() throws InterruptedException {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
+    insertAt(state, 0, "a");
+    state.sizeManager.increment();
+    assertTrue(ConcurrentHashtable.isFull(state));
+
+    Thread clearer = new Thread(() -> ConcurrentHashtable.clear(state), "clearer");
+    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+      clearer.start();
+      // Wait until the clear is definitely queued on the monitor we hold, so the interleaving under
+      // test is the one actually attempted rather than one the scheduler happened to avoid.
+      new PollingConditions()
+          .eventually(() -> assertEquals(Thread.State.BLOCKED, clearer.getState()));
+
+      assertTrue(ConcurrentHashtable.tryReserveOrEvict(state, e -> true));
+      ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
+      assertEquals(1, ConcurrentHashtable.estimateSize(state));
+    }
+    clearer.join();
+
+    // The clear ran strictly after the pair, so the table is exactly post-clear: no entry, no
+    // count, and -- the point -- the two agree.
+    assertEquals(0, ConcurrentHashtable.estimateSize(state));
+    assertNull(state.buckets.get(0));
+    assertFalse(ConcurrentHashtable.isFull(state));
   }
 
   private static void assertNotNullLabel(
