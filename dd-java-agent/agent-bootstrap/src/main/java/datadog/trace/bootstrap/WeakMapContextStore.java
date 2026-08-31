@@ -1,40 +1,29 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
 
 /**
- * Weak {@link ContextStore} that acts as a fall-back when field-injection isn't possible.
+ * Weak "map-per-store" fall-back to track contexts when field-injection isn't possible.
  *
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
-final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
-  private static final int DEFAULT_MAX_SIZE = 50_000;
+final class WeakMapContextStore<K, V> {
+  private static final int MAX_SIZE = 50_000;
 
-  private final int maxSize;
   private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
 
-  public WeakMapContextStore(int maxSize) {
-    this.maxSize = maxSize;
-  }
-
-  public WeakMapContextStore() {
-    this(DEFAULT_MAX_SIZE);
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   public V get(final K key) {
     return (V) map.get(key);
   }
 
-  @Override
   public void put(final K key, final V context) {
-    if (map.size() < maxSize) {
+    if (map.size() < MAX_SIZE) {
       map.put(key, context);
     }
   }
 
-  @Override
   public V getOrPut(final K key, final V context) {
     V existingContext = get(key);
     if (null == existingContext) {
@@ -55,7 +44,6 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     return existingContext;
   }
 
-  @Override
   public V getOrCompute(K key, KeyAwareFactory<? super K, V> contextFactory) {
     V existingContext = get(key);
     if (null == existingContext) {
@@ -76,7 +64,6 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     return existingContext;
   }
 
-  @Override
   @SuppressWarnings("unchecked")
   public V remove(final K key) {
     return (V) map.remove(key);
