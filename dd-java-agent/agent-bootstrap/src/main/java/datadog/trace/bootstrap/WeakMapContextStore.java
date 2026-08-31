@@ -40,10 +40,10 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     if (null == existingContext) {
       // This whole part with using synchronized is only because
       // we want to avoid prematurely calling the factory if
-      // someone else is doing a putIfAbsent at the same time.
+      // someone else is doing a getOrPut at the same time.
       // There is still the possibility that there is a concurrent
       // call to put that will win, but that is indistinguishable
-      // from the put happening right after the putIfAbsent.
+      // from the put happening right after the getOrPut.
       synchronized (map) {
         existingContext = get(key);
         if (null == existingContext) {
@@ -61,10 +61,10 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     if (null == existingContext) {
       // This whole part with using synchronized is only because
       // we want to avoid prematurely calling the factory if
-      // someone else is doing a putIfAbsent at the same time.
+      // someone else is doing a getOrCompute at the same time.
       // There is still the possibility that there is a concurrent
       // call to put that will win, but that is indistinguishable
-      // from the put happening right after the putIfAbsent.
+      // from the put happening right after the getOrCompute.
       synchronized (map) {
         existingContext = get(key);
         if (null == existingContext) {
