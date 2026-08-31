@@ -279,5 +279,4 @@ class DDLLMObsSpanAgentAttributionTest {
       firstRoot.finish();
     }
   }
-
 }

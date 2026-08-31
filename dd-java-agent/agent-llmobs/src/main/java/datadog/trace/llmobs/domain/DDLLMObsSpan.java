@@ -157,8 +157,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
-    this.hasAgentVersion = resolvedAgentVersion != null && !resolvedAgentVersion.isEmpty();
-    if (this.hasAgentVersion) {
+    if (resolvedAgentVersion != null && !resolvedAgentVersion.isEmpty()) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, resolvedAgentVersion);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
@@ -196,7 +195,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
         LLMObsContext.attach(
             span.spanContext(), sessionId, resolvedAgentVersion, resolvedParentAgentSpanId,
             resolvedParentAgentName);
-
   }
 
   /**
