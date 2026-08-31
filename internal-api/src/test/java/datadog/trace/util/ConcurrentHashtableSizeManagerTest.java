@@ -201,7 +201,7 @@ class ConcurrentHashtableSizeManagerTest {
   }
 
   @Test
-  void resetZeroesCountAndScanPosition() {
+  void releaseGivesBackRemovedSlotsAndRestartsScan() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
     insertAt(state, 2, "a");
@@ -209,7 +209,9 @@ class ConcurrentHashtableSizeManagerTest {
     evictOne(state, e -> true); // advances the cursor to 2, count back to 0
     state.sizeManager.increment(); // pretend a fresh entry was inserted
 
-    state.sizeManager.reset();
+    // One entry is live and counted; releasing that one slot brings the count back to zero and
+    // restarts the scan -- unlike a blanket zeroing, this only gives back what was removed.
+    state.sizeManager.release(1);
     assertEquals(0, state.sizeManager.estimateSize());
 
     TestEntry e0 = insertAt(state, 0, "e0");
@@ -217,7 +219,7 @@ class ConcurrentHashtableSizeManagerTest {
     state.sizeManager.increment();
     state.sizeManager.increment();
     TestEntry evicted = evictOne(state, e -> true);
-    assertSame(e0, evicted); // scan restarted from bucket 0, per reset()
+    assertSame(e0, evicted); // scan restarted from bucket 0, per release()
     assertSame(e3, state.buckets.get(3));
   }
 
@@ -269,11 +271,11 @@ class ConcurrentHashtableSizeManagerTest {
   }
 
   /**
-   * Holding the write lock across {@code tryReserveOrEvict} + {@code insertReserved} keeps a
-   * concurrent {@link ConcurrentHashtable#clear(ConcurrentHashtable.State)} out of the gap. Were
-   * the clear able to land in between, its {@code SizeManager.reset()} would void the outstanding
-   * reservation and the insert would link an entry the count never learns about -- an undercount
-   * that never heals, and a capped table quietly over its cap from then on.
+   * Holding the table lock across {@code tryReserveOrEvict} + {@code insertReserved} still keeps a
+   * concurrent {@link ConcurrentHashtable#clear(ConcurrentHashtable.State)} out of the gap -- the
+   * belt-and-braces version of the protocol. {@link
+   * #reservationSurvivesAClearLandingBetweenReserveAndInsert()} covers the case that matters more
+   * now: the pair does not actually need one critical section.
    */
   @Test
   void clearCannotInterleaveBetweenReservationAndInsert() throws InterruptedException {
@@ -302,6 +304,78 @@ class ConcurrentHashtableSizeManagerTest {
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
     assertNull(state.buckets.get(0));
     assertFalse(ConcurrentHashtable.isFull(state));
+  }
+
+  /**
+   * A clear landing squarely between the reservation and the insert must not void the reservation.
+   * It cannot, because {@link ConcurrentHashtable.SizeManager#release(int)} subtracts what the
+   * sweep removed instead of zeroing the count -- so the claim taken before the clear is still a
+   * claim after it, and the entry the caller then links is accounted for.
+   *
+   * <p>Zeroing would leave the count one below reality here, permanently: eviction decrements too,
+   * so nothing later repairs it, and a capped table admits one extra entry from then on.
+   */
+  @Test
+  void reservationSurvivesAClearLandingBetweenReserveAndInsert() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.State.createCapped(TestEntry.class, 2);
+    insertAt(state, 0, "a");
+    state.sizeManager.increment();
+
+    // Reserve, with no lock held across what follows.
+    assertTrue(ConcurrentHashtable.tryReserveOrEvict(state, e -> false));
+    assertEquals(2, ConcurrentHashtable.estimateSize(state)); // "a" plus our reservation
+
+    // The sweep lands in the gap, removing the one entry that exists. Our slot is not its to give
+    // back, so the count drops by exactly one.
+    ConcurrentHashtable.clear(state);
+    assertEquals(1, ConcurrentHashtable.estimateSize(state));
+
+    // The reservation is still good, and filling it leaves the count matching the entries present.
+    synchronized (ConcurrentHashtable.getWriteLockAt(state, 0)) {
+      ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
+    }
+    assertEquals(1, ConcurrentHashtable.estimateSize(state));
+    assertNotNullLabel(state, 0, "reserved");
+    assertFalse(ConcurrentHashtable.isFull(state));
+  }
+
+  /**
+   * Two reservers racing at the cap cannot both get through: {@code tryReserve} claims first and
+   * refunds on overshoot, so the count is never left above {@link
+   * ConcurrentHashtable.SizeManager#capacity()} once both have finished -- and it achieves that
+   * without a lock.
+   */
+  @Test
+  void concurrentReserversCannotBothPassTheCap() throws InterruptedException {
+    for (int attempt = 0; attempt < 200; attempt++) {
+      ConcurrentHashtable.SizeManager sizeManager = new ConcurrentHashtable.SizeManager(1);
+      java.util.concurrent.atomic.AtomicInteger granted =
+          new java.util.concurrent.atomic.AtomicInteger();
+      java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+      Runnable reserve =
+          () -> {
+            try {
+              start.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            if (sizeManager.tryReserve()) {
+              granted.incrementAndGet();
+            }
+          };
+      Thread t1 = new Thread(reserve, "reserve-1");
+      Thread t2 = new Thread(reserve, "reserve-2");
+      t1.start();
+      t2.start();
+      start.countDown();
+      t1.join();
+      t2.join();
+
+      assertEquals(1, granted.get(), "exactly one reserver should win a capacity of 1");
+      assertEquals(1, sizeManager.estimateSize());
+    }
   }
 
   private static void assertNotNullLabel(
