@@ -66,8 +66,9 @@ public final class Accumulator {
    * stripe, sized to {@code values.length} plus at least one trailing cache line of padding so
    * adjacent stripe rows don't false-share.
    *
-   * <p>Stripe count is fixed at a power of two derived from {@link Runtime#availableProcessors()};
-   * it is not a per-call knob (see {@link #stripeCount()}).
+   * <p>Stripe count is fixed at a power of two oversized to roughly 2x {@link
+   * Runtime#availableProcessors()} (minimum 4); it is not a per-call knob (see {@link
+   * #stripeCount()}).
    *
    * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
    * @return a new {@code long[stripeCount][paddedWidth]} array, zero-initialized
@@ -188,13 +189,21 @@ public final class Accumulator {
   }
 
   /**
-   * A fixed, power-of-two stripe count sized to {@link Runtime#availableProcessors()} (rounded down
-   * to the nearest power of two, minimum one). Not exposed as a per-call override: a mandatory
+   * A fixed, power-of-two stripe count deliberately oversized to roughly 2x {@link
+   * Runtime#availableProcessors()} (minimum 4). Not exposed as a per-call override: a mandatory
    * sizing knob on every caller fails the "print test" of self-explanatory API design.
+   *
+   * <p>Sizing to exactly the core count leaves stripe collisions likely under real contention
+   * (birthday-paradox math: with {@code n} contending threads and {@code m} stripes, expected
+   * colliding pairs are {@code n(n-1)/(2m)}) -- and a collision costs a blocking {@code
+   * synchronized} wait, not a cheap CAS retry. Doubling the stripe count roughly quarters that
+   * collision count for a one-time, per-accumulator memory cost, at the price of a slightly more
+   * expensive (but far rarer) {@link #accumulateAnd} drain -- the right trade given {@link #inc}/
+   * {@link #add} run on every call while {@link #accumulateAnd} runs on a reporting cadence.
    */
   private static int stripeCount() {
     int cpus = Runtime.getRuntime().availableProcessors();
-    return Integer.highestOneBit(Math.max(1, cpus));
+    return Math.max(4, 2 * Integer.highestOneBit(Math.max(1, cpus)));
   }
 
   /** Rounds {@code width} up to a whole number of cache lines, plus one full trailing line. */
