@@ -19,8 +19,8 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 
 /**
- * Compares lambda {@code Runnable} allocation and submission with no agent, wrapping, and field
- * injection.
+ * Compares lambda {@code Runnable} allocation, execution, and submission with no agent, wrapping,
+ * and field injection.
  *
  * <ul>
  *   <li>{@link NoAgent} — baseline, no agent.
@@ -30,8 +30,9 @@ import org.openjdk.jmh.annotations.TearDown;
  *       field-injected, so no wrapper is allocated and identity is preserved.
  * </ul>
  *
- * <p>With the GC profiler, {@code allocateCapturingRunnable} isolates the injected field's object
- * size cost while {@code submitLambda} includes the wrapper allocation tradeoff. Run with:
+ * <p>{@code runUntracedLambda} isolates the advice cost when no context was attached. With the GC
+ * profiler, {@code allocateCapturingRunnable} isolates the injected field's object size cost while
+ * {@code submitLambda} includes the wrapper allocation tradeoff. Run with:
  *
  * <pre>{@code
  * ./gradlew :dd-java-agent:benchmark:jmh \
@@ -82,10 +83,28 @@ public abstract class LambdaExecutorBenchmark {
     public void run() {}
   }
 
+  @State(Scope.Thread)
+  public static class DirectRunState {
+    Runnable runnable;
+    int executions;
+
+    @Setup
+    public void setup() {
+      runnable = () -> executions++;
+    }
+  }
+
   /** Allocates an untraced capturing Runnable. */
   @Benchmark
   public Runnable allocateCapturingRunnable(CapturingLambdaState state) {
     return state::run;
+  }
+
+  /** Executes an already-created lambda Runnable without an active trace. */
+  @Benchmark
+  public int runUntracedLambda(DirectRunState state) {
+    state.runnable.run();
+    return state.executions;
   }
 
   /** Submit a lambda Runnable to the executor under an active trace, and wait for it to run. */
@@ -134,9 +153,9 @@ public abstract class LambdaExecutorBenchmark {
   @Fork
   public static class NoAgent extends LambdaExecutorBenchmark {}
 
-  @Fork(jvmArgsAppend = AGENT)
+  @Fork(jvmArgsAppend = {AGENT, "-Ddd.trace.lambda.enabled=false"})
   public static class AgentLambdaOff extends LambdaExecutorBenchmark {}
 
-  @Fork(jvmArgsAppend = {AGENT, "-Ddd.trace.lambda.enabled=true"})
+  @Fork(jvmArgsAppend = AGENT)
   public static class AgentLambdaOn extends LambdaExecutorBenchmark {}
 }

@@ -53,11 +53,6 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String instrumentedType() {
     return METAFACTORY;
   }

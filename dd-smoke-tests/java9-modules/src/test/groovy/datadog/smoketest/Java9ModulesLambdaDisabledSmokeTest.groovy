@@ -4,13 +4,13 @@ import datadog.environment.JavaVirtualMachine
 import datadog.environment.OperatingSystem
 import spock.lang.IgnoreIf
 
-/** Verifies field injection adds the required read edge to a named module. */
+/** Verifies lambda transformation can be disabled for a named module. */
 @IgnoreIf({
   OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64() && JavaVirtualMachine.isJ9()
 })
-class Java9ModulesLambdaSmokeTest extends Java9ModulesSmokeTest {
+class Java9ModulesLambdaDisabledSmokeTest extends Java9ModulesSmokeTest {
   @Override
   def javaProperties() {
-    return super.javaProperties() + "-Ddd.trace.lambda.enabled=true"
+    return super.javaProperties() + "-Ddd.trace.lambda.enabled=false"
   }
 }
