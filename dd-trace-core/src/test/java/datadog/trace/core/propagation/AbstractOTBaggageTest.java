@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
  * style independent: every codec carrying caller baggage runs this suite as a {@code @Nested} class
  * of its extractor test, supplying only the wire format.
  */
-abstract class AbstractBaggageLimitsTest {
+abstract class AbstractOTBaggageTest {
 
   /** Returns the extractor under test, built by the enclosing extractor test. */
   protected abstract HttpCodec.Extractor extractor();

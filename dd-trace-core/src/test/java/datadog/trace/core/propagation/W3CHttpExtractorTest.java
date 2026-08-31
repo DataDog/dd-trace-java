@@ -54,7 +54,7 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @Nested
-  class BaggageLimits extends AbstractBaggageLimitsTest {
+  class BaggageLimits extends AbstractOTBaggageTest {
     @Override
     protected HttpCodec.Extractor extractor() {
       return W3CHttpExtractorTest.this.extractor;

@@ -45,7 +45,7 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @Nested
-  class BaggageLimits extends AbstractBaggageLimitsTest {
+  class BaggageLimits extends AbstractOTBaggageTest {
     @Override
     protected HttpCodec.Extractor extractor() {
       return HaystackHttpExtractorTest.this.extractor;

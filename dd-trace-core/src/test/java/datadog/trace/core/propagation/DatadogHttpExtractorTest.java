@@ -351,7 +351,7 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @Nested
-  class BaggageLimits extends AbstractBaggageLimitsTest {
+  class BaggageLimits extends AbstractOTBaggageTest {
     @Override
     protected HttpCodec.Extractor extractor() {
       return DatadogHttpExtractorTest.this.extractor;
