@@ -53,7 +53,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> baggage;
 
   private int baggageItemCount;
-  private int baggageSize;
+  private int baggageBytes;
 
   protected CharSequence lastParentId;
   protected CharSequence origin;
@@ -237,14 +237,18 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (key == null || value == null || baggageMaxItems == 0 || baggageMaxBytes == 0) {
       return false;
     }
-    final boolean newItem = !baggage.containsKey(key);
-    if (newItem && baggageItemCount >= baggageMaxItems) {
+    final String oldValue = baggage.get(key);
+    if (oldValue == null && baggageItemCount >= baggageMaxItems) {
       LOG.debug("Dropping baggage item {}: item limit {} reached", key, baggageMaxItems);
       return false;
     }
 
-    final long projectedSize = (long) baggageSize + key.length() + value.length();
-    if (projectedSize > baggageMaxBytes) {
+    final long projectedBytes =
+        oldValue == null
+            ? (long) baggageBytes + key.length() + value.length()
+            : (long) baggageBytes + value.length() - oldValue.length();
+
+    if (projectedBytes > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
       return false;
     }
@@ -252,10 +256,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       baggage = new TreeMap<>();
     }
     baggage.put(key, HttpCodec.decode(value));
-    if (newItem) {
+    if (oldValue == null) {
       baggageItemCount++;
     }
-    baggageSize = (int) projectedSize;
+    baggageBytes = (int) projectedBytes;
     return true;
   }
 
@@ -269,7 +273,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
     baggageItemCount = 0;
-    baggageSize = 0;
+    baggageBytes = 0;
     valid = true;
     fullContext = true;
     httpHeaders = null;

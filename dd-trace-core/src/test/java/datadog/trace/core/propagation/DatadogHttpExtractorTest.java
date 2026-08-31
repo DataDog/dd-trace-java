@@ -362,19 +362,22 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
-  void extractOtBaggageChargesRepeatedKeyEachTime() {
+  void extractOtBaggageChargesRepeatedKeyOnce() {
     // headers are visited in insertion order, so the duplicate key is seen before the last item
     Map<String, String> headers = new LinkedHashMap<>();
-    // "key0" + "val0" is 8 bytes, and the duplicate is charged again rather than replacing the
-    // first charge, taking the total to 16
+    // "key0" + "val0" is 8 bytes, and the duplicate refunds the value it replaces, so the total
+    // stays at 8 rather than doubling
     headers.put(OT_BAGGAGE_PREFIX + "key0", "val0");
     headers.put(OT_BAGGAGE_PREFIX + "KEY0", "val0");
-    // leaving no room for these 11 bytes, even though only 8 bytes are actually retained
+    // leaving room for these 11 bytes, taking the total to 19
     headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(singletonMap("key0", "val0"), context.getBaggage());
+    Map<String, String> expected = new HashMap<>();
+    expected.put("key0", "val0");
+    expected.put("a", "0123456789");
+    assertEquals(expected, context.getBaggage());
   }
 
   @Test
@@ -391,15 +394,19 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
-  void extractOtBaggageReplacesValueWithoutFreeingItsCharge() {
+  void extractOtBaggageChargesOnlyTheDeltaWhenReplacingAValue() {
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put(OT_BAGGAGE_PREFIX + "key0", "val0"); // 8 bytes
-    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "012345678901"); // replaces the value, charges 16 more
-    headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789"); // 11 bytes, no longer fits
+    // replaces the value, charging the 8 byte difference rather than another 16 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "012345678901");
+    headers.put(OT_BAGGAGE_PREFIX + "a", "0123456"); // 8 bytes, taking the total to exactly 24
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(singletonMap("key0", "012345678901"), context.getBaggage());
+    Map<String, String> expected = new HashMap<>();
+    expected.put("key0", "012345678901");
+    expected.put("a", "0123456");
+    assertEquals(expected, context.getBaggage());
   }
 
   @Test
