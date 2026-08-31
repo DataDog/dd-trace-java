@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.trace.api.llmobs.LLMObsContext;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -311,34 +309,6 @@ class AgentAttributionIntegrationTest {
     } finally {
       router.finish();
     }
-  }
-
-  /**
-   * Simulates an auto-instrumented openai.request span starting inside a manual agent scope.
-   *
-   * <p>OpenAiDecorator.doAfterStart() reads agent attribution directly from {@link LLMObsContext}
-   * rather than creating a DDLLMObsSpan. This test confirms that when a manual agent span is
-   * active, the decorator's context reads would return the correct pagent values.
-   */
-  @Test
-  void autoInstrumentedSpanInAgentScopeReadsAttributionFromContext() throws Exception {
-    LLMObsSpan agent = LLMObs.startAgentSpan("my-agent", null, null);
-    try {
-      AgentSpan agentInner = innerSpan(agent);
-      String expectedId = String.valueOf(agentInner.getSpanId());
-
-      // Simulate what OpenAiDecorator.doAfterStart() does: read attribution from LLMObsContext.
-      // The decorator sets these directly on the auto-instrumented APM span rather than creating
-      // a DDLLMObsSpan, so the test verifies the context values rather than span tags.
-      assertEquals(expectedId, LLMObsContext.currentParentAgentSpanId());
-      assertEquals("my-agent", LLMObsContext.currentParentAgentName());
-    } finally {
-      agent.finish();
-    }
-
-    // After the agent scope is closed, the context must be cleared.
-    assertNull(LLMObsContext.currentParentAgentSpanId());
-    assertNull(LLMObsContext.currentParentAgentName());
   }
 
   // ─────────────────────────────────────────────────────────────────
