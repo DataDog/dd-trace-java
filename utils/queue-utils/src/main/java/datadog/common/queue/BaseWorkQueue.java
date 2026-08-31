@@ -802,7 +802,26 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     }
   }
 
-  /** Allocated only once a consumer has thrown. See {@link RetryStrategy#onFailure}. */
+  /**
+   * Built per failure rather than held in a field, which is the more expensive-looking of the two
+   * and is the right one.
+   *
+   * <p>A field-held lease would allocate never, but it cannot carry {@code attempt}: one lease per
+   * queue means one mutable attempt number, and {@code WorkQueues#createMpmcQueue} exists so that
+   * several threads can drain at once, so two consumers failing together would overwrite each
+   * other's. The alternatives are putting {@code attempt} back into {@link RetryQueue#retry} -- a
+   * parameter every strategy must thread through whether it cares or not -- or paying for this
+   * object.
+   *
+   * <p>Usually it does not get paid. {@code RetryLeaseBenchmark} measures 0 B/op wherever C2 can
+   * inline {@link RetryStrategy#onFailure} and see that the lease does not escape, which covers a
+   * strategy in a {@code static final} field at any number of loaded strategy types -- a constant
+   * receiver devirtualizes by resolution and never consults the profile -- and a strategy behind a
+   * mutable field while that call site stays bimorphic. It costs 24 bytes in the remaining case: a
+   * non-constant strategy at a megamorphic call site. That is once per consumer failure, next to a
+   * throw that already cost far more, and it is exactly the shape where a shared mutable lease
+   * would have been racing.
+   */
   private RetryQueue<T> lease(int attempt) {
     return new RetryQueue<T>() {
       @Override
