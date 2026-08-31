@@ -35,18 +35,19 @@ public final class WorkQueues {
   }
 
   /**
-   * Creates a bounded Multiple Producer, Multiple Consumer buffer backed by a {@link
-   * ConcurrentLinkedQueue}.
+   * Creates a bounded Multiple Producer, Multiple Consumer buffer backed by an MPMC array queue.
    *
-   * <p>For call sites that need several consumers. It keeps the linked queue's per-element node, so
-   * it buys the admission and lifecycle contract, an enforceable bound and a constant-time {@link
-   * WorkQueue#size()}, but not the allocation win — prefer {@link #createMpscQueue} where a single
-   * consumer is possible.
+   * <p>For call sites that need several consumers. No per-element node, so it costs an admission
+   * and a drain about what the MPSC ring does; prefer {@link #createMpscQueue} anyway where a
+   * single consumer is possible, because the MPSC ring is cheaper still and does not have to ride
+   * out the MPMC ring's transient refusals — see {@link MpmcWorkQueue} for what those are and why
+   * claiming a place first makes them harmless.
    *
-   * @param capacity the bound
+   * @param requestedCapacity the bound. Will be rounded to the next power of two, and raised to two
+   *     if it is less than that.
    */
-  public static <E> WorkQueue<E> createMpmcQueue(int capacity) {
-    return new LinkedWorkQueue<>(capacity);
+  public static <E> WorkQueue<E> createMpmcQueue(int requestedCapacity) {
+    return MpmcWorkQueue.bounded(requestedCapacity);
   }
 
   /**
@@ -57,8 +58,12 @@ public final class WorkQueues {
    * items abandoned by a retry strategy. Intended as a migration step for call sites that are
    * unbounded today: adopt the interface here, then pick a bound and move to {@link
    * #createMpscQueue}.
+   *
+   * <p>Linked rather than array-backed because there is no capacity to size an array from. JCTools'
+   * unbounded MPMC queue would avoid the per-element node, but exists only in an {@code Unsafe}
+   * form, which {@link Queues} deliberately steps away from on Java 25 and later.
    */
   public static <E> WorkQueue<E> createUnboundedMpmcQueue() {
-    return new LinkedWorkQueue<>(Integer.MAX_VALUE);
+    return MpmcWorkQueue.unbounded();
   }
 }

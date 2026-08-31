@@ -68,18 +68,18 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>
  * (backings) (batchSize)   producer ns/op   neighbour ns/op   neighbour refused%
- * MPSC        8    batched         1009.5             240.7                 64.6
- * MPSC        8    looping         1306.6             135.3                 81.4
- * MPSC        32   batched         1991.5             162.3                 76.6
- * MPSC        32   looping         5332.0             162.3                 78.6
- * LINKED      8    batched         2375.7             483.1                 47.5
- * LINKED      8    looping         4331.3             469.1                 38.5
- * LINKED      32   batched         5643.3             426.1                 67.0
- * LINKED      32   looping        18442.5             563.3                 28.1
+ * MPSC        8    batched         1038.3             232.7                 67.6
+ * MPSC        8    looping         2331.8             294.9                 49.2
+ * MPSC        32   batched         1637.3             213.2                 67.6
+ * MPSC        32   looping         7392.9             221.2                 68.0
+ * MPMC        8    batched          705.1             170.7                 81.4
+ * MPMC        8    looping         1479.7             185.6                 79.7
+ * MPMC        32   batched         1389.4             186.9                 78.5
+ * MPMC        32   looping         3894.4             121.0                 89.1
  * </pre>
  *
- * <p><b>The producer column is the finding.</b> Batching wins everywhere it is contended, by 1.3x
- * at eight elements on MPSC and by 3.3x at thirty-two on LINKED, and the advantage grows with the
+ * <p><b>The producer column is the finding.</b> Batching wins everywhere it is contended, by 2.1x
+ * at eight elements on MPMC and by 4.5x at thirty-two on MPSC, and the advantage grows with the
  * batch -- the opposite of {@link BatchAdmissionBenchmark}, where the same code at one thread is
  * about 2ns per element slower. That is the whole case for batch claiming stated in two tables: it
  * buys nothing from the instruction it removes and a great deal from the cache line it stops
@@ -87,10 +87,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p><b>The neighbour columns do not resolve.</b> The timings move in opposite directions on the
  * two backings and every gap sits inside its own interval. The refusal rates do have a shape --
- * LINKED neighbours refuse 67% next to a batcher against 28% next to a loop -- but that is not the
- * claim window, or not only. One consumer bounds total admissions, so a producer that admits three
- * times faster takes three times the share, and its neighbours find the queue full more often. That
- * is the batcher succeeding, not the cap leaking.
+ * every neighbour refuses more often the faster its neighbour admits -- but that is not the claim
+ * window, or not only. One consumer bounds total admissions, so a producer that admits three times
+ * faster takes three times the share, and its neighbours find the queue full more often. That is
+ * the batcher succeeding, not the cap leaking.
  *
  * <p>Which means this benchmark does not yet separate the two effects it was built to tell apart: a
  * neighbour refused because places are transiently claimed, and a neighbour refused because
@@ -109,7 +109,7 @@ public class ContendedBatchAdmissionBenchmark {
 
   public enum Backings {
     MPSC,
-    LINKED
+    MPMC
   }
 
   /**
@@ -144,7 +144,7 @@ public class ContendedBatchAdmissionBenchmark {
 
   private static final String ELEMENT = "element";
 
-  @Param({"MPSC", "LINKED"})
+  @Param({"MPSC", "MPMC"})
   public Backings backings;
 
   @Param({"8", "32"})

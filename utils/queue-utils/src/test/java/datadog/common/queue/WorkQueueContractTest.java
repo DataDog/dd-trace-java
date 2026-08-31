@@ -435,6 +435,107 @@ class WorkQueueContractTest {
   }
 
   @org.junit.jupiter.api.Test
+  void aBoundedMpmcQueueRoundsItsCapacityUpToTheRing() {
+    // The bound is the ring's own capacity, not the number asked for, so the counter and the ring
+    // can never disagree about what full means. A caller asking for 100 gets 128.
+    WorkQueue<String> queue = WorkQueues.createMpmcQueue(100);
+    for (int i = 0; i < 128; i++) {
+      assertTrue(queue.tryPut("e" + i), "place " + i + " should have been there");
+    }
+    assertFalse(queue.tryPut("overflow"));
+    assertEquals(128, queue.size());
+  }
+
+  @org.junit.jupiter.api.Test
+  void aBoundedMpmcQueueTooSmallForTheRingIsRaisedRatherThanRefused() {
+    // JCTools will not build a ring of one. Rounding up is the established answer to a capacity
+    // the ring cannot honour, and throwing here would only surprise a caller who asked for less.
+    WorkQueue<String> queue = WorkQueues.createMpmcQueue(1);
+    assertTrue(queue.tryPut("a"));
+    assertTrue(queue.tryPut("b"));
+    assertFalse(queue.tryPut("c"));
+  }
+
+  @org.junit.jupiter.api.Test
+  void severalProducersAndConsumersOnAnArrayRingLoseNothingAndLeakNoPlace()
+      throws InterruptedException {
+    // The MPMC ring refuses an offer, and reports empty on a poll, while another thread is midway
+    // through publishing to the slot in question -- on a queue that is neither full nor empty.
+    // Admission claims a place before it stores, so such a refusal can only mean "not yet" and the
+    // backing retries. If that reasoning is wrong, it is wrong here: elements go missing without
+    // being counted as dropped, or their places never come back.
+    int capacity = 64;
+    int producers = 4;
+    int consumers = 4;
+    int perProducer = 20_000;
+    WorkQueue<String> queue = WorkQueues.createMpmcQueue(capacity);
+    CountDownLatch start = new CountDownLatch(1);
+    AtomicInteger admitted = new AtomicInteger();
+    AtomicInteger consumed = new AtomicInteger();
+    AtomicBoolean draining = new AtomicBoolean(true);
+    List<Thread> threads = new ArrayList<>();
+    for (int c = 0; c < consumers; c++) {
+      Thread drain =
+          new Thread(
+              () -> {
+                while (draining.get()) {
+                  if (queue.process(item -> consumed.incrementAndGet())) {
+                    continue;
+                  }
+                  Thread.yield();
+                }
+                // Once the producers are done, take what is left.
+                while (queue.process(item -> consumed.incrementAndGet())) {
+                  // drain to empty
+                }
+              });
+      threads.add(drain);
+      drain.start();
+    }
+    List<Thread> admitters = new ArrayList<>();
+    for (int p = 0; p < producers; p++) {
+      Thread admit =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                for (int i = 0; i < perProducer; i++) {
+                  if (queue.tryPut("e" + i)) {
+                    admitted.incrementAndGet();
+                  }
+                }
+              });
+      admitters.add(admit);
+      admit.start();
+    }
+    start.countDown();
+    for (Thread admit : admitters) {
+      admit.join(SECONDS.toMillis(30));
+      assertFalse(admit.isAlive(), "producer did not finish");
+    }
+    draining.set(false);
+    for (Thread drain : threads) {
+      drain.join(SECONDS.toMillis(30));
+      assertFalse(drain.isAlive(), "consumer did not finish");
+    }
+    assertEquals(
+        producers * perProducer,
+        admitted.get() + queue.dropped(),
+        "every element was either admitted or counted as dropped");
+    assertEquals(admitted.get(), consumed.get(), "every admitted element came back out");
+    // The decisive one: if a retry had given up and the place had not come back, or a spurious
+    // empty read had stranded an element, the queue would now hold fewer than capacity places.
+    for (int i = 0; i < capacity; i++) {
+      assertTrue(queue.tryPut("after" + i), "place " + i + " was lost");
+    }
+    assertFalse(queue.tryPut("overflow"));
+  }
+
+  @org.junit.jupiter.api.Test
   void unboundedQueueNeverRejects() {
     WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     for (int i = 0; i < 1000; i++) {

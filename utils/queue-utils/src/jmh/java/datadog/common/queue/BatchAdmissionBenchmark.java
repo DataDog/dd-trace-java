@@ -57,19 +57,28 @@ import org.openjdk.jmh.infra.Blackhole;
  * loopOfElements     MPSC        32              456.7         14.3
  * batchOfElements    MPSC        128            2084.0         16.3
  * loopOfElements     MPSC        128            1825.2         14.3
- * batchOfElements    LINKED      4                83.2         20.8
- * loopOfElements     LINKED      4                83.7         20.9
- * batchOfElements    LINKED      32              660.3         20.6
- * loopOfElements     LINKED      32              648.5         20.3
- * batchOfElements    LINKED      128            2613.3         20.4
- * loopOfElements     LINKED      128            2510.0         19.6
+ * batchOfElements    MPMC        4                84.4         21.1
+ * loopOfElements     MPMC        4                83.7         20.9
+ * batchOfElements    MPMC        8               169.8         21.2
+ * loopOfElements     MPMC        8               170.2         21.3
+ * batchOfElements    MPMC        32              700.1         21.9
+ * loopOfElements     MPMC        32              692.4         21.6
+ * batchOfElements    MPMC        128            2785.1         21.8
+ * loopOfElements     MPMC        128            2804.0         21.9
  * </pre>
+ *
+ * <p>Every arm allocates nothing measurable now that the multi-consumer backing is array-backed
+ * rather than linked. The MPMC rows above were within a nanosecond per element of these on the
+ * linked queue, which manufactured a node per element to get there -- 24 bytes an element, priced
+ * in {@link BackingOverheadBenchmark}. Time at parity, allocation gone, is the whole of what that
+ * swap bought; the 8ns per operation the structures differ by in isolation does not survive the
+ * admission machinery being laid on top of it.
  *
  * <p>The producer arms track the element arms to within a nanosecond per element at every size, on
  * both backings, so they are left out of the table above; the claim is what they share and the
  * producer call is inlined away.
  *
- * <p><b>Batching is slower here, by about 2ns per element on MPSC and a shade on LINKED.</b> That
+ * <p><b>Batching is slower here, by about 2ns per element on MPSC and not at all on MPMC.</b> That
  * is the honest ceiling on the saving, and it is negative: an uncontended atomic add is a few
  * cycles, and removing 31 of them out of 32 does not pay for walking an iterator and refilling a
  * claim. Some of that gap is the iterator itself rather than the claim bookkeeping -- the loop arm
@@ -98,7 +107,7 @@ public class BatchAdmissionBenchmark {
 
   public enum Backings {
     MPSC,
-    LINKED
+    MPMC
   }
 
   /** Comfortably above the largest batch, so no arm is admitting at the bound. */
@@ -112,7 +121,7 @@ public class BatchAdmissionBenchmark {
   private static final BiContextualProducer<String, String, String> PRODUCER =
       (source, context) -> source;
 
-  @Param({"MPSC", "LINKED"})
+  @Param({"MPSC", "MPMC"})
   public Backings backings;
 
   @Param({"4", "8", "32", "128"})

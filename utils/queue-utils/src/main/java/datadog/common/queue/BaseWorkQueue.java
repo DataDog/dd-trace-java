@@ -123,7 +123,13 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * site is free; a third makes it megamorphic, measured at 24 bytes and roughly three times the
    * time per call — paid by callers that only ever touch one backing. A third backing is therefore
    * a decision about every existing caller, and the point at which to replace this template method
-   * with a per-caller strategy so the sites stay separate.
+   * with a per-caller strategy so the sites stay separate. It is also why a backing that wants to
+   * hold two structures branches on a field of its own rather than arriving here as two types.
+   *
+   * <p>A place has already been claimed, so a backing that can refuse transiently is expected to
+   * retry rather than report the refusal — a {@code false} from here is taken as a drop and
+   * counted, and there is no way for the queue to tell a structure saying "full" from one saying
+   * "not yet". {@link MpmcWorkQueue} is the case that matters.
    */
   abstract boolean store(Object element);
 
@@ -131,6 +137,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * @return the next stored object, or {@code null} if there was none
    */
   abstract Object retrieve();
+
+  /**
+   * How many times {@link #discardAll} will re-read a backing that says empty while the count says
+   * otherwise, before it believes the backing.
+   */
+  private static final int DRAIN_ATTEMPTS = 64;
 
   /**
    * Spends a place, and gives it back if there was none to spend, rather than looping on a
@@ -408,9 +420,24 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return element;
   }
 
+  /**
+   * Empties the queue, giving every place back as it goes.
+   *
+   * <p>An empty read is not taken at face value while {@link #size} still reports work. A backing
+   * may report empty with an element in it — the MPMC ring does, for the width of another thread's
+   * publish — and stopping there would leave elements behind holding their places, which for {@link
+   * #clear} and {@link #shutdown} is the difference between emptying the queue and appearing to.
+   * The re-read is bounded, because {@code size} also counts places claimed by producers that have
+   * not stored yet, and a producer still running would otherwise keep this loop here forever.
+   */
   private void discardAll() {
-    while (take() != null) {
-      // give every place back as it goes
+    int emptyReads = 0;
+    while (true) {
+      if (take() != null) {
+        emptyReads = 0;
+      } else if (size() <= 0 || ++emptyReads >= DRAIN_ATTEMPTS) {
+        return;
+      }
     }
   }
 

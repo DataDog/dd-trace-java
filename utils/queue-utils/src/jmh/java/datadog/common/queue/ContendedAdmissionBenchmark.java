@@ -73,21 +73,27 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>
  * Benchmark                 (backings)   before ns/op   after ns/op   B/op
- * refusedProducer           MPSC             1035.8           8.2     0
- * refusedProducer           LINKED           1162.5           9.0     0
- * refusedQueue              MPSC              963.7           7.9     0
- * refusedQueue              LINKED           1229.0           7.9     0
- * refusedBuildThenOffer     MPSC              448.9         422.0     32
- * refusedBuildThenOffer     LINKED            460.0         422.0     32
- * refusedRaw                MPSC                3.4           2.9     0
- * refusedRaw                LINKED              3.4           3.0     0
- * steady                    MPSC              798.7         125.4     0
- * steady                    LINKED           1008.4         146.8     1.4
+ * refusedProducer           MPSC             1035.8           7.3     0
+ * refusedProducer           MPMC             1162.5           7.2     0
+ * refusedQueue              MPSC              963.7           7.2     0
+ * refusedQueue              MPMC             1229.0           7.3     0
+ * refusedBuildThenOffer     MPSC              448.9         212.7     32
+ * refusedBuildThenOffer     MPMC              460.0         228.7     32
+ * refusedRaw                MPSC                3.4           2.5     0
+ * refusedRaw                MPMC                3.4           2.6     0
+ * steady                    MPSC              798.7         489.7     0
+ * steady                    MPMC             1008.4         252.8     0
  * </pre>
+ *
+ * <p>The {@code before} column predates two changes, not one: the MPMC rows were taken when that
+ * backing was a {@link java.util.concurrent.ConcurrentLinkedQueue} rather than an array ring. They
+ * are kept because the column exists to show the 120x, which is a property of the counter and not
+ * of the structure underneath it -- the refusal never reaches the backing at all. The {@code after}
+ * column is a single fresh run of everything, so the arms are comparable with each other.
  *
  * <p><b>What this measured.</b> Two read-modify-writes on one shared line, taken by eight threads
  * at the capacity boundary, cost about 120x what the same rejection costs when the first of them is
- * a load instead. A refusal is now ~7.9ns against ~2.9ns for jctools' own producer-index CAS, so
+ * a load instead. A refusal is now ~7.3ns against ~2.5ns for jctools' own producer-index CAS, so
  * the permit counter costs on the order of 5ns over a bound the ring was already enforcing --
  * against ~960ns before, where it dwarfed everything else the API does. {@code steady} moved with
  * it, and for the same reason: eight producers against one drain thread keep the queue saturated,
@@ -98,6 +104,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * of that baseline is this machine's other work amplifying the contention, threads losing their
  * slice mid-sequence with the line hot. The ~7.9ns is tight and the mechanism is not in doubt; a
  * quiet run will likely show a smaller multiple against a smaller before.
+ *
+ * <p>{@code steady} is the one arm where the two backings now separate, and by more than their
+ * intervals: 252.8ns against 489.7ns, the MPMC ring ahead of the MPSC one. Eight producers against
+ * a single drain thread is a shape the multi-consumer ring is built for and the single-consumer
+ * ring is not, and the gap is not evidence about admission -- read it as the drain, not the claim.
  *
  * <p>Attribution, since two changes landed together: this is the read, not the folding of the
  * closed flag into the count. Removing a volatile boolean load cannot account for 950ns. Folding it
@@ -122,7 +133,7 @@ public class ContendedAdmissionBenchmark {
 
   public enum Backings {
     MPSC,
-    LINKED
+    MPMC
   }
 
   /** Big enough that the steady arm is not living at the boundary by accident. */
@@ -154,7 +165,7 @@ public class ContendedAdmissionBenchmark {
   private static final Producer<Payload> BUILDER =
       () -> new Payload(ELEMENT, ELEMENT, System.nanoTime());
 
-  @Param({"MPSC", "LINKED"})
+  @Param({"MPSC", "MPMC"})
   public Backings backings;
 
   /** Never full, drained concurrently by {@link #consume}. */

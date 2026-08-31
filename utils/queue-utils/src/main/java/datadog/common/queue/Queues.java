@@ -2,9 +2,11 @@ package datadog.common.queue;
 
 import datadog.environment.JavaVirtualMachine;
 import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.varhandle.MpmcVarHandleArrayQueue;
 import org.jctools.queues.varhandle.MpscVarHandleArrayQueue;
 import org.jctools.queues.varhandle.SpmcVarHandleArrayQueue;
 import org.jctools.queues.varhandle.SpscVarHandleArrayQueue;
@@ -41,6 +43,27 @@ public final class Queues {
       return new MpscVarHandleArrayQueue<>(requestedCapacity);
     }
     return new MpscArrayQueue<>(requestedCapacity);
+  }
+
+  /**
+   * Creates a Multiple Producer, Multiple Consumer (MPMC) array-backed queue.
+   *
+   * <p>Non-linearizable, and deliberately so: {@code offer} can refuse and {@code poll} can report
+   * empty while another thread is midway through publishing to the slot they are looking at, on a
+   * queue that is neither full nor empty. Measured at roughly 0.24% of offers with four producers
+   * and four consumers on a queue of eight. A caller that treats a refusal as "full" will therefore
+   * drop work it had room for; either retry, or hold the bound somewhere the queue cannot lie about
+   * -- which is what {@link WorkQueues#createMpmcQueue} does.
+   *
+   * @param requestedCapacity the requested capacity of the queue. Will be rounded to the next power
+   *     of two, and is not permitted to be less than two.
+   * @return a new {@link MessagePassingQueue} instance suitable for MPMC usage
+   */
+  public static <E> MessagePassingQueue<E> mpmcArrayQueue(int requestedCapacity) {
+    if (CAN_USE_VARHANDLES) {
+      return new MpmcVarHandleArrayQueue<>(requestedCapacity);
+    }
+    return new MpmcArrayQueue<>(requestedCapacity);
   }
 
   /**
