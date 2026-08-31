@@ -1,0 +1,40 @@
+model: claude-opus-4-8
+runs: 3
+
+instruction_files:
+  - .agents/skills/dd-apm-sdk-review/SKILL.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/security.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/design.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/maintainability.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md
+  - dd-apm-sdk-review-overrides/reviewers/performance.md
+  - dd-apm-sdk-review-overrides/reviewers/design.md
+  - dd-apm-sdk-review-overrides/reviewers/conventions.md
+  - dd-apm-sdk-review-overrides/reviewers/maintainability.md
+
+default_level: gate
+presets:
+  gate:
+    cases:
+      - java-perf-lens-wrong-collection-001
+      - java-perf-pipeline-full-review-002
+    runs: 5
+  minimum:
+    cases: ["java-perf-lens-wrong-collection-001"]
+    runs: 3
+  full:
+    runs: 3
+
+# These thresholds decide when a *blocking* case's pairwise regression actually FAILs.
+# Copied from dd-trace-dotnet's config.yaml (DataDog/dd-trace-dotnet PR #8845) as a
+# starting point — not yet calibrated against our own cases.
+policy:
+  noise_threshold: 1.0
+  pairwise_win_floor: 0.45
+  blocking_fail_floor: 0.45
+  blocking_fail_ci_upper: 0.55

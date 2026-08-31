@@ -1,0 +1,89 @@
+name: dd-apm-sdk-review
+version: "0.1"
+
+cases:
+  - id: java-perf-lens-wrong-collection-001
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (reviewers/performance.md, its
+      dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      following method. No git checkout available — this snippet is the entire change to
+      review.
+
+      ```java
+      private final Map<String, Object> sessionCache = new LinkedHashMap<>();
+
+      void recordSession(String sessionId, Object payload) {
+        sessionCache.put(sessionId, payload);
+      }
+      ```
+    expected_criteria:
+      - Flags the LinkedHashMap as the wrong collection type per addendum J12 — order
+        isn't relied on here, so a plain HashMap is the lighter fix.
+      - Also flags, independently or as part of the same finding, that the map is
+        unbounded and keyed by a high-cardinality value (sessionId) — a SEV-1 concern
+        under universal check #3, mapped to P0 or P1 per performance.md's SEV-to-P
+        mapping section.
+      - Names HashMap as the concrete fix, not just "reconsider the data structure."
+    bad_signals:
+      - Treats the LinkedHashMap choice as a pure style nit with no cost explanation.
+      - Misses the unbounded / high-cardinality aspect entirely.
+      - Invents a Datadog-internal collection type name that doesn't exist in this
+        repo's toolkit (Strings, SubSequence, HashingUtils, Hashtable, RE2J).
+
+  - id: java-perf-pipeline-full-review-002
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/security.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/design.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/maintainability.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+      - dd-apm-sdk-review-overrides/reviewers/design.md
+      - dd-apm-sdk-review-overrides/reviewers/performance.md
+      - dd-apm-sdk-review-overrides/reviewers/conventions.md
+      - dd-apm-sdk-review-overrides/reviewers/maintainability.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      index 1111111..2222222 100644
+      --- a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      +++ b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      @@ -10,6 +10,10 @@ class SpanCache {
+      -  private final Map<String, Span> byResource = new HashMap<>();
+      +  private final Map<String, Span> byResource = new LinkedHashMap<>();
+      +
+      +  String describe(String resourceName) {
+      +    return String.format("resource=%s", resourceName);
+      +  }
+      ```
+    expected_criteria:
+      - The report's Mode line states pasted diff / no git (e.g. "pasted diff, no git").
+      - Includes a "Rule files used" section listing which reviewer files were used, per
+        report-template.md.
+      - Raises a performance finding on the LinkedHashMap swap (J12) and/or the hot-path
+        String.format call (J10), classified under the report's P0/P1/P2 sections, not
+        the internal SEV vocabulary.
+      - States an explicit verdict line (BLOCK / APPROVE_WITH_COMMENTS / APPROVE) and a
+        final READY TO PUSH / DO NOT PUSH statement.
+      - The maintainability lens does not invent its own release-note or public-API
+        policy — per its override (dd-apm-sdk-review-overrides/reviewers/maintainability.md),
+        it defers to conventions.md's actual policy (no changelog file; the PR title is
+        the release note) rather than asking for a CHANGELOG.md entry.
+    bad_signals:
+      - Attempts to run git commands despite the change set being pasted inline.
+      - The maintainability lens asks for a CHANGELOG.md or changelog entry to be added.
+      - Skips straight to a verdict with no per-lens findings or "Rule files used" section.
+      - Reports SEV-1 / SEV-2 labels in the final report without resolving them to
+        P0/P1/P2.

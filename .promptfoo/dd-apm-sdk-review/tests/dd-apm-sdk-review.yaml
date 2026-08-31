@@ -1,0 +1,96 @@
+- description: "Lens-direct — performance.md flags a wrong/unbounded collection (J12 + universal #3)"
+  vars:
+    input: |
+      Apply this repo's performance-review criteria (reviewers/performance.md, its
+      dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      following method. No git checkout available — this snippet is the entire change to
+      review.
+
+      ```java
+      private final Map<String, Object> sessionCache = new LinkedHashMap<>();
+
+      void recordSession(String sessionId, Object payload) {
+        sessionCache.put(sessionId, payload);
+      }
+      ```
+  assert:
+    # Deterministic pre-filters: fast, free, catch the clearest failure modes outright.
+    - type: icontains
+      value: "LinkedHashMap"
+    - type: icontains
+      value: "HashMap"
+    - type: not-icontains
+      value: "ConcurrentHashtable"
+      metric: no-hallucinated-toolkit-name
+    # Nuanced judgment: did it actually reason about *why*, and did it catch both findings?
+    - type: llm-rubric
+      value: |
+        The review response must satisfy ALL of the following, or it fails:
+        1. Flags the LinkedHashMap as the wrong collection type (this repo's performance
+           rubric addendum J12): explains that ordering isn't relied on here, and
+           recommends a plain HashMap as the concrete fix — not a vague "reconsider the
+           data structure" and not merely a style nit with no cost explanation.
+        2. Separately flags that the map is unbounded and keyed by a high-cardinality
+           value (sessionId) — a SEV-1-class concern under this rubric's universal
+           check #3 — and classifies the finding under this skill's P0/P1/P2 scale
+           (not left as a bare "SEV-1" label with no P-mapping).
+        3. Does not invent a Datadog-internal collection/utility type name that isn't
+           part of this repo's real toolkit (Strings, SubSequence, HashingUtils,
+           Hashtable, RE2J).
+      threshold: 0.8
+
+- description: "Full-pipeline — dd-apm-sdk-review skill on a pasted diff, no git"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      index 1111111..2222222 100644
+      --- a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      +++ b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      @@ -10,6 +10,10 @@ class SpanCache {
+      -  private final Map<String, Span> byResource = new HashMap<>();
+      +  private final Map<String, Span> byResource = new LinkedHashMap<>();
+      +
+      +  String describe(String resourceName) {
+      +    return String.format("resource=%s", resourceName);
+      +  }
+      ```
+  assert:
+
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "pasted diff, no git"
+    - type: icontains
+      value: "Rule files used"
+    - type: not-icontains
+      value: "git diff"
+      metric: no-attempted-git-commands
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Raises a performance finding on the LinkedHashMap swap (addendum J12) and/or
+           the newly-added hot-path String.format call (addendum J10).
+        2. Classifies every finding under this report's P0/P1/P2 sections — never leaves
+           a finding stated only in the performance lens's internal SEV-1/SEV-2/SEV-3
+           vocabulary with no P-level mapping.
+        3. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE) and
+           a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
