@@ -11,6 +11,7 @@ import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -68,6 +69,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String mlApp;
   private final boolean hasSessionId;
   private final ContextScope scope;
+  // Non-null only for agent-kind spans started without an ambient APM root. Activating the
+  // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
+  // they inherit agent attribution correctly.
+  private final AgentScope standaloneApmScope;
 
   private boolean finished = false;
 
@@ -201,6 +206,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
             resolvedAgentVersion,
             resolvedParentAgentSpanId,
             resolvedParentAgentName);
+
+    // For standalone agent spans (no ambient APM root), activate the underlying APM span so
+    // that child LLMObs spans share the same trace ID and pass the trace-ID gate. Without
+    // this, children start a fresh APM trace, the gate rejects the agent context, and
+    // agent attribution is silently dropped.
+    standaloneApmScope =
+        Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span
+            ? AgentTracer.activateSpan(span)
+            : null;
   }
 
   @Override
@@ -642,6 +656,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
       return;
     }
     span.finish();
+    if (standaloneApmScope != null) {
+      standaloneApmScope.close();
+    }
     scope.close();
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
