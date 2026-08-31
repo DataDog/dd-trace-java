@@ -19,7 +19,8 @@ public final class LambdaTask {
     try {
       final CountDownLatch latch = new CountDownLatch(1);
       final Runnable task = latch::countDown;
-      assertFieldInjection(task, Boolean.getBoolean("dd.trace.lambda.enabled"));
+      assertFieldInjection(
+          task, Boolean.parseBoolean(System.getProperty("dd.trace.lambda.enabled", "true")));
       pool.execute(task);
       if (!latch.await(10, TimeUnit.SECONDS)) {
         throw new IllegalStateException("lambda task did not run");

@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import org.junit.jupiter.api.Test;
 
-@WithConfig(key = "trace.lambda.enabled", value = "true")
 @WithConfig(key = "trace.runnable.enabled", value = "false")
 public class ClojureAFnIntegrationTest extends AbstractInstrumentationTest {
 
