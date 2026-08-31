@@ -52,8 +52,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
   private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
       LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
-  private static final String PAGENT_NAME_TAG_INTERNAL =
-      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
+  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
