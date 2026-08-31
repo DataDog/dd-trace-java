@@ -65,6 +65,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String mlApp;
   private final ContextScope scope;
   private final boolean hasSessionId;
+  private final boolean hasAgentVersion;
 
   private boolean finished = false;
 
@@ -75,6 +76,17 @@ public class DDLLMObsSpan implements LLMObsSpan {
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags) {
+    this(kind, spanName, mlApp, sessionId, serviceName, wellKnownTags, null);
+  }
+
+  public DDLLMObsSpan(
+      @Nonnull String kind,
+      String spanName,
+      @Nonnull String mlApp,
+      String sessionId,
+      @Nonnull String serviceName,
+      WellKnownTags wellKnownTags,
+      String agentVersion) {
 
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
@@ -108,6 +120,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // leakage) must not contribute either tag.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
+    String resolvedAgentVersion = agentVersion;
     if (null != parent) {
       if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
@@ -127,6 +140,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
             sessionId = inherited;
           }
         }
+        // Inherit agent_version from the enclosing agent span, if this span doesn't set its own.
+        // An explicit value always wins, so a nested agent's own version overrides an ancestor's
+        // for its own subtree, matching session_id's explicit-wins semantics.
+        if (agentVersion == null || agentVersion.isEmpty()) {
+          String inherited = LLMObsContext.currentAgentVersion();
+          if (inherited != null && !inherited.isEmpty()) {
+            resolvedAgentVersion = inherited;
+          }
+        }
       }
     }
 
@@ -134,9 +156,14 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
+    this.hasAgentVersion = resolvedAgentVersion != null && !resolvedAgentVersion.isEmpty();
+    if (this.hasAgentVersion) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, resolvedAgentVersion);
+    }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    // Propagate the effective sessionId to descendant LLMObs spans via the context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId);
+    // Propagate the effective sessionId and agent_version to descendant LLMObs spans via the
+    // context.
+    scope = LLMObsContext.attach(span.spanContext(), sessionId, resolvedAgentVersion);
   }
 
   @Override
