@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX;
@@ -19,6 +21,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import java.util.HashMap;
@@ -47,6 +50,34 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   protected HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return W3CHttpCodec.newExtractor(config, traceConfigSupplier);
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+  void extractOtBaggageStopsAtItemLimit() {
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < 50; i++) {
+      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+    }
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(3, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
+  void extractOtBaggageStopsAtByteLimit() {
+    // with single digit indices each stored item is "keyN" + "valueN" = 10 bytes, so 2 fit in 24
+    // bytes and a third would take the total to 30
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < 10; i++) {
+      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+    }
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(2, context.getBaggage().size());
   }
 
   @TableTest({

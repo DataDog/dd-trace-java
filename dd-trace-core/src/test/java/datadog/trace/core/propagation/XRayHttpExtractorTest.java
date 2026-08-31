@@ -1,8 +1,12 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
+import static datadog.trace.core.propagation.XRayTestHelper.zeroPadId;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -13,6 +17,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +31,52 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   protected HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return XRayHttpCodec.newExtractor(config, traceConfigSupplier);
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+  void extractTraceHeaderBaggageStopsAtItemLimit() {
+    TagContext context =
+        this.extractor.extract(headers(X_AMZN_TRACE_ID, baggageHeader(50)), stringValuesMap());
+
+    assertEquals(3, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
+  void extractTraceHeaderBaggageStopsAtByteLimit() {
+    // with single digit indices each stored item is "keyN" + "valueN" = 10 bytes, so 2 fit in 24
+    // bytes and a third would take the total to 30
+    TagContext context =
+        this.extractor.extract(headers(X_AMZN_TRACE_ID, baggageHeader(9)), stringValuesMap());
+
+    assertEquals(2, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+  void extractTraceHeaderKeepsParsingContextAfterBaggageLimit() {
+    // reaching the baggage limit must not stop the header being parsed: the trace context segments
+    // can appear after the `key=value` segments that exhausted the limit
+    TagContext context =
+        this.extractor.extract(
+            headers(
+                X_AMZN_TRACE_ID, baggageHeader(50) + ";Parent=" + zeroPadId("2") + ";Sampled=1"),
+            stringValuesMap());
+
+    assertEquals(3, context.getBaggage().size());
+    assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
+    assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
+    assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
+  }
+
+  private static String baggageHeader(int itemCount) {
+    // a single X-Amzn-Trace-Id header carries an arbitrary number of `key=value` segments
+    StringBuilder header = new StringBuilder("Root=1-00000000-00000000").append(zeroPadId("1"));
+    for (int i = 0; i < itemCount; i++) {
+      header.append(";key").append(i).append("=value").append(i);
+    }
+    return header.toString();
   }
 
   @TableTest({
@@ -44,9 +95,9 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
     // spotless:off
     Map<String, String> headers = headers(
         X_AMZN_TRACE_ID, "Root=1-00000000-00000000"
-            + XRayTestHelper.zeroPadId(traceId)
+            + zeroPadId(traceId)
             + ";Parent="
-            + XRayTestHelper.zeroPadId(spanId)
+            + zeroPadId(spanId)
             + samplingPriority
             + ";=empty key;empty value=;=;;",
         SOME_HEADER, "my-interesting-info",
@@ -131,17 +182,14 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
     Map<String, String> headers =
         headers(
             X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000"
-                + XRayTestHelper.zeroPadId(traceId)
-                + ";Parent="
-                + XRayTestHelper.zeroPadId(spanId));
+            "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId));
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.fromHex(expectedTraceIdHex), context.getTraceId());
-    assertEquals(XRayTestHelper.zeroPadId(traceId), context.getTraceId().toHexStringPadded(16));
+    assertEquals(zeroPadId(traceId), context.getTraceId().toHexStringPadded(16));
     assertEquals(expectedSpanId, context.getSpanId());
-    assertEquals(XRayTestHelper.zeroPadId(spanId), DDSpanId.toHexStringPadded(context.getSpanId()));
+    assertEquals(zeroPadId(spanId), DDSpanId.toHexStringPadded(context.getSpanId()));
   }
 
   @TableTest({
@@ -154,9 +202,9 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
         headers(
             X_AMZN_TRACE_ID,
             "Root=1-00000000-00000000"
-                + XRayTestHelper.zeroPadId(traceId)
+                + zeroPadId(traceId)
                 + ";Parent="
-                + XRayTestHelper.zeroPadId(spanId)
+                + zeroPadId(spanId)
                 + ";k1=v1;t0="
                 + endToEndStartTime
                 + ";k2=v2");

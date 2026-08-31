@@ -289,6 +289,34 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
+  void appSecIsSkippedAndReportedUnsupportedForNonHttpEvent() throws IOException {
+    String eventJson = "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    new HandlerStreaming().handleRequest(input, output, newContext());
+
+    assertFalse(appSecStarted);
+    assertNull(capturedMethod);
+    assertNull(capturedPath);
+    assertTrue(capturedHeaders.isEmpty());
+    assertNull(capturedBody);
+    assertFalse(appSecEnded);
+    assertNull(capturedResponseStatus);
+    // Tag matching is exhaustive, so this also asserts the span carries no http.* tag
+    assertTraces(
+        trace(
+            span()
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)
+                .tags(
+                    defaultTags(),
+                    tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.unsupported_event_type", is(1)))));
+  }
+
+  @Test
   void responseCallbacksAreInvokedForJsonEncodedResponse() throws IOException {
     String eventJson =
         "{"
@@ -382,7 +410,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(capturedResponseHeaders.isEmpty());
     assertNull(capturedResponseBody);
     assertFalse(responseHeaderDoneCalled);
-    assertTrue(appSecEnded);
+    // AppSec skipped the invocation entirely, so there is no request context to end
+    assertFalse(appSecEnded);
     assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
