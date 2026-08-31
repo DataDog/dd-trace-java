@@ -92,11 +92,11 @@ public enum Prioritization {
             // send dropped traces for single span sampling
             return spanSampling.offer(trace)
                 ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
-                : PublishResult.DROPPED_BUFFER_OVERFLOW;
+                : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
           }
           return secondary.offer(trace)
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
-              : PublishResult.DROPPED_BUFFER_OVERFLOW;
+              : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
         default:
           blockingOffer(primary, trace);
           return PublishResult.ENQUEUED_FOR_SERIALIZATION;
@@ -135,14 +135,14 @@ public enum Prioritization {
             // send dropped traces for single span sampling
             return spanSampling.offer(trace)
                 ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
-                : PublishResult.DROPPED_BUFFER_OVERFLOW;
+                : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
           }
           if (droppingPolicy.active()) {
             return PublishResult.DROPPED_BY_POLICY;
           }
           return secondary.offer(trace)
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
-              : PublishResult.DROPPED_BUFFER_OVERFLOW;
+              : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
         default:
           return primary.offer(trace)
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
