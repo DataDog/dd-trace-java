@@ -196,7 +196,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
     scope =
         LLMObsContext.attach(
-            span.spanContext(), sessionId, resolvedAgentVersion, resolvedParentAgentSpanId,
+            span.spanContext(),
+            sessionId,
+            resolvedAgentVersion,
+            resolvedParentAgentSpanId,
             resolvedParentAgentName);
   }
 
