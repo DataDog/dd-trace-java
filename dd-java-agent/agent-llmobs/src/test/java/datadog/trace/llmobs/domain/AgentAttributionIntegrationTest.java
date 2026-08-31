@@ -74,11 +74,11 @@ class AgentAttributionIntegrationTest {
     return (AgentSpan) SPAN_FIELD.get(llmObsSpan);
   }
 
-  private static String pagentSpanId(LLMObsSpan span) throws Exception {
+  private static String parentAgentSpanId(LLMObsSpan span) throws Exception {
     return (String) innerSpan(span).getTag(PAGENT_SPAN_ID_TAG);
   }
 
-  private static String pagentName(LLMObsSpan span) throws Exception {
+  private static String parentAgentName(LLMObsSpan span) throws Exception {
     return (String) innerSpan(span).getTag(PAGENT_NAME_TAG);
   }
 
@@ -91,8 +91,8 @@ class AgentAttributionIntegrationTest {
     LLMObsSpan agent = LLMObs.startAgentSpan("router", null, null);
     try {
       AgentSpan inner = innerSpan(agent);
-      assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId(agent));
-      assertEquals("router", pagentName(agent));
+      assertEquals(String.valueOf(inner.getSpanId()), parentAgentSpanId(agent));
+      assertEquals("router", parentAgentName(agent));
     } finally {
       agent.finish();
     }
@@ -107,8 +107,8 @@ class AgentAttributionIntegrationTest {
 
       LLMObsSpan llm = LLMObs.startLLMSpan("gpt-4-call", "gpt-4", "openai", null, null);
       try {
-        assertEquals(expectedId, pagentSpanId(llm));
-        assertEquals("router", pagentName(llm));
+        assertEquals(expectedId, parentAgentSpanId(llm));
+        assertEquals("router", parentAgentName(llm));
       } finally {
         llm.finish();
       }
@@ -129,8 +129,8 @@ class AgentAttributionIntegrationTest {
         LLMObsSpan tool = LLMObs.startToolSpan("web-search", null, null);
         try {
           // Tool must point to the agent, not the intermediate LLM.
-          assertEquals(expectedId, pagentSpanId(tool));
-          assertEquals("orchestrator", pagentName(tool));
+          assertEquals(expectedId, parentAgentSpanId(tool));
+          assertEquals("orchestrator", parentAgentName(tool));
         } finally {
           tool.finish();
         }
@@ -154,8 +154,8 @@ class AgentAttributionIntegrationTest {
         LLMObsSpan tool = LLMObs.startToolSpan("search", null, null);
         try {
           // Tool must point to inner-executor, not outer-router.
-          assertEquals(expectedId, pagentSpanId(tool));
-          assertEquals("inner-executor", pagentName(tool));
+          assertEquals(expectedId, parentAgentSpanId(tool));
+          assertEquals("inner-executor", parentAgentName(tool));
         } finally {
           tool.finish();
         }
@@ -170,8 +170,8 @@ class AgentAttributionIntegrationTest {
       LLMObsSpan siblingLlm =
           LLMObs.startLLMSpan("post-executor-llm", "gpt-4", "openai", null, null);
       try {
-        assertEquals(outerExpectedId, pagentSpanId(siblingLlm));
-        assertEquals("outer-router", pagentName(siblingLlm));
+        assertEquals(outerExpectedId, parentAgentSpanId(siblingLlm));
+        assertEquals("outer-router", parentAgentName(siblingLlm));
       } finally {
         siblingLlm.finish();
       }
@@ -184,26 +184,26 @@ class AgentAttributionIntegrationTest {
   void noAgentAncestorProducesNoAttributionTags() throws Exception {
     LLMObsSpan llm = LLMObs.startLLMSpan("standalone-llm", "gpt-4", "openai", null, null);
     try {
-      assertNull(pagentSpanId(llm));
-      assertNull(pagentName(llm));
+      assertNull(parentAgentSpanId(llm));
+      assertNull(parentAgentName(llm));
     } finally {
       llm.finish();
     }
   }
 
   @Test
-  void agentWithUnsafeNameHasNullPagentName() throws Exception {
+  void agentWithUnsafeNameHasNullParentAgentName() throws Exception {
     // Comma is a delimiter in x-datadog-tags — must be rejected.
     LLMObsSpan agent = LLMObs.startAgentSpan("bad,agent", null, null);
     try {
-      assertNotNull(pagentSpanId(agent)); // ID is still set
-      assertNull(pagentName(agent)); // name is null because unsafe
+      assertNotNull(parentAgentSpanId(agent)); // ID is still set
+      assertNull(parentAgentName(agent)); // name is null because unsafe
 
       // Children inherit the ID but also get null name.
       LLMObsSpan tool = LLMObs.startToolSpan("child-tool", null, null);
       try {
-        assertEquals(pagentSpanId(agent), pagentSpanId(tool));
-        assertNull(pagentName(tool));
+        assertEquals(parentAgentSpanId(agent), parentAgentSpanId(tool));
+        assertNull(parentAgentName(tool));
       } finally {
         tool.finish();
       }
@@ -213,12 +213,12 @@ class AgentAttributionIntegrationTest {
   }
 
   @Test
-  void agentWithTildeInNameHasNullPagentName() throws Exception {
+  void agentWithTildeInNameHasNullParentAgentName() throws Exception {
     // Tilde (0x7E) is rewritten by W3C tracestate encoding — must be rejected.
     LLMObsSpan agent = LLMObs.startAgentSpan("agent~v2", null, null);
     try {
-      assertNotNull(pagentSpanId(agent));
-      assertNull(pagentName(agent));
+      assertNotNull(parentAgentSpanId(agent));
+      assertNull(parentAgentName(agent));
     } finally {
       agent.finish();
     }
@@ -246,8 +246,8 @@ class AgentAttributionIntegrationTest {
 
       LLMObsSpan planningLlm = LLMObs.startLLMSpan("planning-llm", "gpt-4", "openai", null, null);
       try {
-        assertEquals(routerId, pagentSpanId(planningLlm));
-        assertEquals("router-agent", pagentName(planningLlm));
+        assertEquals(routerId, parentAgentSpanId(planningLlm));
+        assertEquals("router-agent", parentAgentName(planningLlm));
       } finally {
         planningLlm.finish();
       }
@@ -259,16 +259,16 @@ class AgentAttributionIntegrationTest {
 
         LLMObsSpan toolCall = LLMObs.startToolSpan("tool-call", null, null);
         try {
-          assertEquals(executorId, pagentSpanId(toolCall));
-          assertEquals("executor-agent", pagentName(toolCall));
+          assertEquals(executorId, parentAgentSpanId(toolCall));
+          assertEquals("executor-agent", parentAgentName(toolCall));
         } finally {
           toolCall.finish();
         }
 
         LLMObsSpan resultLlm = LLMObs.startLLMSpan("result-llm", "gpt-4", "openai", null, null);
         try {
-          assertEquals(executorId, pagentSpanId(resultLlm));
-          assertEquals("executor-agent", pagentName(resultLlm));
+          assertEquals(executorId, parentAgentSpanId(resultLlm));
+          assertEquals("executor-agent", parentAgentName(resultLlm));
         } finally {
           resultLlm.finish();
         }
@@ -279,8 +279,8 @@ class AgentAttributionIntegrationTest {
       // After executor finishes, summary-llm should attribute back to router.
       LLMObsSpan summaryLlm = LLMObs.startLLMSpan("summary-llm", "gpt-4", "openai", null, null);
       try {
-        assertEquals(routerId, pagentSpanId(summaryLlm));
-        assertEquals("router-agent", pagentName(summaryLlm));
+        assertEquals(routerId, parentAgentSpanId(summaryLlm));
+        assertEquals("router-agent", parentAgentName(summaryLlm));
       } finally {
         summaryLlm.finish();
       }

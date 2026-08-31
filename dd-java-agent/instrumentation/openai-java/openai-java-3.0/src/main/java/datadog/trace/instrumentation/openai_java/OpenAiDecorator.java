@@ -136,12 +136,12 @@ public class OpenAiDecorator extends ClientDecorator {
 
       // Inherit agent attribution from the active LLMObs parent so that auto-instrumented
       // LLM spans appear under the correct agent in the LLM Trace Explorer.
-      String pagentSpanId = LLMObsContext.currentParentAgentSpanId();
-      if (pagentSpanId != null) {
-        span.setTag(CommonTags.PAGENT_SPAN_ID, pagentSpanId);
-        String pagentName = LLMObsContext.currentParentAgentName();
-        if (pagentName != null) {
-          span.setTag(CommonTags.PAGENT_NAME, pagentName);
+      String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+      if (parentAgentSpanId != null) {
+        span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+        String parentAgentName = LLMObsContext.currentParentAgentName();
+        if (parentAgentName != null) {
+          span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
         }
       }
     }

@@ -69,8 +69,8 @@ public final class LLMObsContext {
       AgentSpanContext ctx,
       String sessionId,
       String agentVersion,
-      String pagentSpanId,
-      String pagentName) {
+      String parentAgentSpanId,
+      String parentAgentName) {
     Context updated = Context.current().with(CONTEXT_KEY, ctx);
     if (sessionId != null && !sessionId.isEmpty()) {
       updated = updated.with(SESSION_ID_KEY, sessionId);
@@ -79,11 +79,11 @@ public final class LLMObsContext {
         updated.with(
             AGENT_VERSION_KEY,
             agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
-    if (pagentSpanId != null && !pagentSpanId.isEmpty()) {
-      updated = updated.with(PAGENT_SPAN_ID_KEY, pagentSpanId);
+    if (parentAgentSpanId != null && !parentAgentSpanId.isEmpty()) {
+      updated = updated.with(PAGENT_SPAN_ID_KEY, parentAgentSpanId);
       // Always update the name key (null removes it), so an outer agent's name is not
       // inherited when an inner agent has an unsafe (null) name.
-      updated = updated.with(PAGENT_NAME_KEY, pagentName);
+      updated = updated.with(PAGENT_NAME_KEY, parentAgentName);
     }
     return updated.attach();
   }

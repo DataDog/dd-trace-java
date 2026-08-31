@@ -972,7 +972,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void testNoAgentAttributionBlockWhenPagentSpanIdAbsent() throws Exception {
+  void testNoAgentAttributionBlockWhenParentAgentSpanIdAbsent() throws Exception {
     LLMObsSpanMapper mapper = new LLMObsSpanMapper();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 

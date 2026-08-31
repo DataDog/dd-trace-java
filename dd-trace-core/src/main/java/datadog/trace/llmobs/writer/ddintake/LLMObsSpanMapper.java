@@ -400,9 +400,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String inputPromptTag = LLMOBS_TAG_PREFIX + INPUT_PROMPT;
       boolean hasInput = tagsToRemapToMeta.containsKey(inputTag);
       boolean hasInputPrompt = tagsToRemapToMeta.containsKey(inputPromptTag);
-      Object pagentSpanIdVal = tagsToRemapToMeta.get(PAGENT_SPAN_ID_TAG_INTERNAL_FULL);
+      Object parentAgentSpanIdVal = tagsToRemapToMeta.get(PAGENT_SPAN_ID_TAG_INTERNAL_FULL);
       boolean hasAgentAttribution =
-          pagentSpanIdVal instanceof String && !((String) pagentSpanIdVal).isEmpty();
+          parentAgentSpanIdVal instanceof String && !((String) parentAgentSpanIdVal).isEmpty();
       boolean hasAgentAttributionName =
           tagsToRemapToMeta.containsKey(PAGENT_NAME_TAG_INTERNAL_FULL);
       Object inputPrompt = null;
@@ -502,7 +502,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
             writable.writeNull();
           }
           writable.writeUTF8(PAGENT_SPAN_ID);
-          writable.writeString((String) pagentSpanIdVal, null);
+          writable.writeString((String) parentAgentSpanIdVal, null);
           continue;
         } else if (key.equals(INPUT) || key.equals(OUTPUT)) {
           boolean isDocumentIO =

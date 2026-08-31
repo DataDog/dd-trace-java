@@ -66,11 +66,11 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent");
       try {
         AgentSpan inner = innerSpan(agentSpan);
-        String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
-        String pagentName = (String) inner.getTag(PAGENT_NAME_TAG);
+        String parentAgentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
+        String parentAgentName = (String) inner.getTag(PAGENT_NAME_TAG);
 
-        assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
-        assertEquals("my-agent", pagentName);
+        assertEquals(String.valueOf(inner.getSpanId()), parentAgentSpanId);
+        assertEquals("my-agent", parentAgentName);
       } finally {
         agentSpan.finish();
         apmScope.span().finish();
@@ -85,11 +85,11 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "bad,agent");
       try {
         AgentSpan inner = innerSpan(agentSpan);
-        String pagentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
-        Object pagentName = inner.getTag(PAGENT_NAME_TAG);
+        String parentAgentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
+        Object parentAgentName = inner.getTag(PAGENT_NAME_TAG);
 
-        assertEquals(String.valueOf(inner.getSpanId()), pagentSpanId);
-        assertNull(pagentName);
+        assertEquals(String.valueOf(inner.getSpanId()), parentAgentSpanId);
+        assertNull(parentAgentName);
       } finally {
         agentSpan.finish();
         apmScope.span().finish();
@@ -151,13 +151,13 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "parent-agent");
       try {
         AgentSpan agentInner = innerSpan(agentSpan);
-        String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
+        String expectedParentAgentSpanId = String.valueOf(agentInner.getSpanId());
 
         // Created while agentSpan's ContextScope is active — should inherit attribution
         DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
         try {
           AgentSpan toolInner = innerSpan(toolSpan);
-          assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
+          assertEquals(expectedParentAgentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
           assertEquals("parent-agent", toolInner.getTag(PAGENT_NAME_TAG));
         } finally {
           toolSpan.finish();
@@ -175,7 +175,7 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "root-agent");
       try {
         AgentSpan agentInner = innerSpan(agentSpan);
-        String expectedPagentSpanId = String.valueOf(agentInner.getSpanId());
+        String expectedParentAgentSpanId = String.valueOf(agentInner.getSpanId());
 
         DDLLMObsSpan llmSpan = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "intermediate-llm");
         try {
@@ -183,7 +183,7 @@ class DDLLMObsSpanAgentAttributionTest {
           try {
             AgentSpan toolInner = innerSpan(toolSpan);
             // Tool must point to the original agent, not the intermediate LLM span
-            assertEquals(expectedPagentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
+            assertEquals(expectedParentAgentSpanId, toolInner.getTag(PAGENT_SPAN_ID_TAG));
             assertEquals("root-agent", toolInner.getTag(PAGENT_NAME_TAG));
           } finally {
             toolSpan.finish();
@@ -222,7 +222,7 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
       try {
         AgentSpan outerInner = innerSpan(outerAgent);
-        String outerPagentSpanId = String.valueOf(outerInner.getSpanId());
+        String outerParentAgentSpanId = String.valueOf(outerInner.getSpanId());
 
         DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
         innerAgent.finish();
@@ -232,7 +232,7 @@ class DDLLMObsSpanAgentAttributionTest {
         DDLLMObsSpan siblingTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "sibling-tool");
         try {
           AgentSpan siblingInner = innerSpan(siblingTool);
-          assertEquals(outerPagentSpanId, siblingInner.getTag(PAGENT_SPAN_ID_TAG));
+          assertEquals(outerParentAgentSpanId, siblingInner.getTag(PAGENT_SPAN_ID_TAG));
           assertEquals("outer-agent", siblingInner.getTag(PAGENT_NAME_TAG));
         } finally {
           siblingTool.finish();

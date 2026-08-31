@@ -169,13 +169,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
 
     // Resolve agent attribution (O(1)): identify the nearest agent-kind ancestor.
-    String resolvedPagentSpanId = null;
-    String resolvedPagentName = null;
+    String resolvedParentAgentSpanId = null;
+    String resolvedParentAgentName = null;
 
     if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
       // This span is itself an agent — it becomes the nearest ancestor for its descendants.
-      resolvedPagentSpanId = String.valueOf(span.getSpanId());
-      resolvedPagentName = agentNameWireSafe(spanName) ? spanName : null;
+      resolvedParentAgentSpanId = String.valueOf(span.getSpanId());
+      resolvedParentAgentName = agentNameWireSafe(spanName) ? spanName : null;
     } else {
       // Inherit from in-process LLMObs parent only when the context belongs to the same trace.
       // Matches the gate applied to parent_id and session_id above: a stale LLMObsContext
@@ -183,50 +183,24 @@ public class DDLLMObsSpan implements LLMObsSpan {
       // different trace. In production the DD agent always establishes a root APM scope, so
       // all LLMObs spans within a request share one trace and this check passes.
       if (null != parent && parent.getTraceId() == span.getTraceId()) {
-        resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
-        resolvedPagentName = LLMObsContext.currentParentAgentName();
+        resolvedParentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        resolvedParentAgentName = LLMObsContext.currentParentAgentName();
       }
     }
 
     // Store pagent values as internal tags so the serializer can emit agent_attribution.
-    if (resolvedPagentSpanId != null) {
-      span.setTag(PAGENT_SPAN_ID_TAG_INTERNAL, resolvedPagentSpanId);
-      if (resolvedPagentName != null) {
-        span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedPagentName);
+    if (resolvedParentAgentSpanId != null) {
+      span.setTag(PAGENT_SPAN_ID_TAG_INTERNAL, resolvedParentAgentSpanId);
+      if (resolvedParentAgentName != null) {
+        span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedParentAgentName);
       }
-    }
-
-<<<<<<< HEAD
-    // If this span is an agent, stamp the root trace's propagation tags for outgoing distributed
-    // calls. Save the previous values first so finish() can restore them — this supports nested
-    // agent spans where an inner agent must not permanently overwrite the outer agent's
-    // attribution.
-    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
-      AgentSpanContext rootCtx = span.getLocalRootSpan().spanContext();
-      if (rootCtx instanceof LLMObsPropagationAccess) {
-        LLMObsPropagationAccess access = (LLMObsPropagationAccess) rootCtx;
-        previousPagentSpanId = access.getParentAgentSpanId();
-        previousPagentName = access.getParentAgentName();
-        access.setParentAgentSpanId(resolvedPagentSpanId);
-        // Always call setParentAgentName (even null) to clear a stale name from a previous agent.
-        access.setParentAgentName(resolvedPagentName);
-      } else {
-        previousPagentSpanId = null;
-        previousPagentName = null;
-      }
-    } else {
-      previousPagentSpanId = null;
-      previousPagentName = null;
     }
 
     // Propagate sessionId, agent_version, and agent attribution to descendant LLMObs spans.
-=======
-    // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
->>>>>>> 7b2ab19e6d (revert(llmobs): remove distributed agent attribution propagation via PTags)
     scope =
         LLMObsContext.attach(
-            span.spanContext(), sessionId, resolvedAgentVersion, resolvedPagentSpanId,
-            resolvedPagentName);
+            span.spanContext(), sessionId, resolvedAgentVersion, resolvedParentAgentSpanId,
+            resolvedParentAgentName);
 
     // In the standalone case — an agent span with no ambient APM root — activate the underlying
     // APM span so that subsequent auto-instrumented outgoing calls (HTTP, gRPC, …) are created as
