@@ -81,8 +81,10 @@ public final class LLMObsContext {
             agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
     if (parentAgentSpanId != null && !parentAgentSpanId.isEmpty()) {
       updated = updated.with(PAGENT_SPAN_ID_KEY, parentAgentSpanId);
-      // Always update the name key (null removes it), so an outer agent's name is not
-      // inherited when an inner agent has an unsafe (null) name.
+      // Always update the name key even when parentAgentName is null. Per the Context API
+      // contract (Context.java: "Mapping to a null value will remove the key-value from the
+      // context copy"), with(key, null) clears any name set by an outer agent scope, so a
+      // descendant of an unsafe-named inner agent never inherits the outer agent's name.
       updated = updated.with(PAGENT_NAME_KEY, parentAgentName);
     }
     return updated.attach();

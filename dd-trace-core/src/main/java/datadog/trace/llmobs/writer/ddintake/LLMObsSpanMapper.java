@@ -112,8 +112,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
   private static final String PAGENT_SPAN_ID_TAG_INTERNAL_FULL =
-      LLMOBS_TAG_PREFIX + "pagent_span_id";
-  private static final String PAGENT_NAME_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "pagent_name";
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
+  private static final String PAGENT_NAME_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;

@@ -15,4 +15,8 @@ public class LLMObsTags {
   public static final String MODEL_PROVIDER = "model_provider";
   public static final String TOOL_DEFINITIONS = "tool_definitions";
   public static final String AGENT_MANIFEST = "agent_manifest";
+
+  // Agent attribution
+  public static final String PAGENT_SPAN_ID = "pagent_span_id";
+  public static final String PAGENT_NAME = "pagent_name";
 }

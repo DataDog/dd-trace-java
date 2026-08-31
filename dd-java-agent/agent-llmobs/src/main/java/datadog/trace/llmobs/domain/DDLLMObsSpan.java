@@ -50,8 +50,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
-  private static final String PAGENT_SPAN_ID_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_span_id";
-  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + "pagent_name";
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
+  private static final String PAGENT_NAME_TAG_INTERNAL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
@@ -199,9 +201,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   /**
    * Returns true if the agent name is safe to include in the x-datadog-tags header: printable ASCII
-   * only (0x20–0x7E), no commas (delimiter), no semicolons. Max 256 UTF-8 bytes. Since the loop
-   * rejects all non-ASCII (c > 0x7E), every character that passes is single-byte in UTF-8, so
-   * length() is an exact byte-count proxy.
+   * only (0x20–0x7D, exclusive of tilde 0x7E), no commas (delimiter), no semicolons. Max 256 UTF-8
+   * bytes. Since the loop rejects tilde and above (c >= 0x7E), every character that passes is
+   * single-byte in UTF-8, so length() is an exact byte-count proxy.
    */
   private static boolean agentNameWireSafe(String name) {
     if (name == null || name.length() > 256) {
