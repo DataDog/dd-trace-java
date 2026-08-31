@@ -61,10 +61,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext,
-        RequestContext,
-        TraceSegment,
-        ProfilerContext {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";

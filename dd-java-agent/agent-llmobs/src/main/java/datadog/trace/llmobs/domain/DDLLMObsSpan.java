@@ -186,7 +186,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
         resolvedPagentSpanId = LLMObsContext.currentParentAgentSpanId();
         resolvedPagentName = LLMObsContext.currentParentAgentName();
       }
-
     }
 
     // Store pagent values as internal tags so the serializer can emit agent_attribution.

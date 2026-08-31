@@ -176,5 +176,4 @@ public abstract class PropagationTags {
   }
 
   public abstract void updateAndLockDecisionMaker(PropagationTags source);
-
 }
