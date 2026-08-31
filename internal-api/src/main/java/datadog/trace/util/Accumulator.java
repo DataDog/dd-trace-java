@@ -1,27 +1,27 @@
 package datadog.trace.util;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import java.util.Arrays;
 import java.util.function.Consumer;
+import javax.annotation.ParametersAreNonnullByDefault;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * A striped accumulator primitive: {@code LongAdder}'s write scalability, without {@code
  * LongAdder}'s reset hazard.
  *
- * <p>{@code LongAdder} is reached for reflexively as "a cheap atomic counter," but it solves a
- * narrower problem (genuine many-thread write contention) and its {@code sumThenReset()} is
- * documented as <b>not atomic</b> against concurrent updates: it walks its cells summing-then-
- * zeroing one at a time, so an increment landing on a cell after it's summed but before it's zeroed
- * is silently and permanently lost. {@link #accumulateAnd} closes that window by combining and
- * resetting each stripe under the same lock that guards its writers, so no increment can land in
- * the gap.
+ * <p>{@code LongAdder#sumThenReset()} is documented as <b>not atomic</b> against concurrent
+ * updates: an increment landing on a cell after it's summed but before it's zeroed is silently and
+ * permanently lost. {@link #accumulateAndReset} closes that window by combining and resetting each
+ * stripe under the same lock that guards its writers.
  *
  * <p>Each stripe's state is a bare {@code long[]}, not a named-field struct. An {@code enum}
  * assigns a name to each position via its ordinal, so name and position are the same declaration
  * and cannot drift apart. This also makes {@link #combine} and {@link #reset} generic, branchless,
- * fixed-trip-count array loops -- exactly the shape C2's superword optimizer reliably
- * auto-vectorizes -- so they are implemented once here instead of once per caller.
+ * fixed-trip-count array loops -- the shape designed to take advantage of SIMD / vector operations
+ * on modern hardware -- so they are implemented once here instead of once per caller.
  *
  * <pre>{@code
  * enum MyCounters { FOO, BAR }
@@ -33,28 +33,14 @@ import java.util.function.Consumer;
  *   Accumulator.inc(stripe, MyCounters.BAR);
  * });
  *
- * long[] drained = Accumulator.accumulateAnd(data); // combine + reset, atomically per stripe
+ * long[] drained = Accumulator.accumulateAndReset(data); // combine + reset, atomically per stripe
  * long foo = drained[MyCounters.FOO.ordinal()];
  * }</pre>
  *
- * <p>Non-additive counters (max, "ever seen" bitmask, first-occurrence timestamp) are out of scope:
- * the per-stripe operation this class provides is {@code +=} via {@link #inc}/{@link #add},
- * combined with {@code +=} in {@link #combine}. A stripeable operator only needs to be associative
- * and commutative, not literally addition, but no such escape hatch is wired up here -- add one (a
- * caller-supplied {@code LongBinaryOperator} strategy) only when a real candidate needs it.
- *
- * <p>This class is a pure namespace over caller-owned {@code long[][]} state, in the same style as
- * {@link Hashtable} and {@link FlatHashtable} -- it allocates no container object and is not itself
- * a strategy consumer's receiver.
- *
- * <p><b>Not built here (deliberately):</b> a struct-{@code T}-per-stripe fallback, for a subsystem
- * whose per-stripe state doesn't fit named {@code long} slots, with mutate/combine/extract as
- * {@code @Strategy}-annotated seams -- reach for it only if a real candidate can't be expressed as
- * an enum-keyed {@code long[]}. Likewise a raw/embedded tier (caller owns the stripe array
- * directly, no owning container) -- a reserve tool for a future {@code dd-trace-core}
- * hottest-per-span-path candidate, not needed by the current reporting-cadence migration targets.
- * Neither is stubbed out; build it when a real caller needs it (see APMLP-1779).
+ * <p>This class is a pure namespace over caller-owned {@code long[][]} state -- it allocates no
+ * container object and is not itself a strategy consumer's receiver.
  */
+@ParametersAreNonnullByDefault
 public final class Accumulator {
   private Accumulator() {}
 
@@ -129,7 +115,7 @@ public final class Accumulator {
   /**
    * Runs {@code mutator} against the calling thread's stripe under a single held lock -- the escape
    * hatch for performing several related updates atomically with respect to a concurrent {@link
-   * #accumulateAnd}.
+   * #accumulateAndReset}.
    *
    * @param mutator a strategy over the selected stripe; keep it small and non-capturing so it
    *     inlines into the lock's critical section
@@ -151,7 +137,7 @@ public final class Accumulator {
    * @return a new array the same length as one stripe's row, indexed by the enum's {@code
    *     ordinal()} for the positions actually in use (trailing padding positions are always zero)
    */
-  public static long[] accumulateAnd(long[][] data) {
+  public static long[] accumulateAndReset(long[][] data) {
     long[] acc = new long[data[0].length];
     for (long[] stripe : data) {
       synchronized (stripe) {
@@ -165,6 +151,7 @@ public final class Accumulator {
   /**
    * {@code acc[i] += stripe[i]} for every index -- a fixed-trip-count loop C2 can auto-vectorize.
    */
+  @GuardedBy("stripe")
   private static void combine(long[] acc, long[] stripe) {
     for (int i = 0; i < acc.length; i++) {
       acc[i] += stripe[i];
@@ -172,6 +159,7 @@ public final class Accumulator {
   }
 
   /** Zeroes every position of {@code stripe}, via the JVM-intrinsic {@link Arrays#fill}. */
+  @GuardedBy("stripe")
   private static void reset(long[] stripe) {
     Arrays.fill(stripe, 0L);
   }
@@ -184,7 +172,7 @@ public final class Accumulator {
    */
   private static long[] stripeOf(long[][] data) {
     int mask = data.length - 1;
-    int idx = (int) (Thread.currentThread().getId() & mask);
+    int idx = (int) (ThreadSupport.threadId() & mask);
     return data[idx];
   }
 
@@ -198,8 +186,9 @@ public final class Accumulator {
    * colliding pairs are {@code n(n-1)/(2m)}) -- and a collision costs a blocking {@code
    * synchronized} wait, not a cheap CAS retry. Doubling the stripe count roughly quarters that
    * collision count for a one-time, per-accumulator memory cost, at the price of a slightly more
-   * expensive (but far rarer) {@link #accumulateAnd} drain -- the right trade given {@link #inc}/
-   * {@link #add} run on every call while {@link #accumulateAnd} runs on a reporting cadence.
+   * expensive (but far rarer) {@link #accumulateAndReset} drain -- the right trade given {@link
+   * #inc}/ {@link #add} run on every call while {@link #accumulateAndReset} runs on a reporting
+   * cadence.
    */
   private static int stripeCount() {
     int cpus = Runtime.getRuntime().availableProcessors();

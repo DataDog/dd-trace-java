@@ -31,7 +31,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * accumulatorIncrement_highContention} from ~0.097 us/op to ~0.040 us/op -- fewer threads collide
  * on a stripe, so fewer of them pay {@code synchronized}'s blocking wait instead of a cheap
  * fast-path lock. It is still roughly 4-5x slower than {@code longAdderIncrement} (a collision-free
- * CAS retry beats even an uncontended monitor enter/exit), and {@code accumulateAnd} under
+ * CAS retry beats even an uncontended monitor enter/exit), and {@code accumulateAndReset} under
  * concurrent writers got correspondingly more expensive (~7.5us to ~15.5us) since draining now
  * walks twice as many stripes while writers are actively landing on them. Read {@code
  * accumulatorIncrement_highContention} not as "Accumulator beats LongAdder under contention" (it
@@ -179,14 +179,14 @@ public class AccumulatorBenchmark {
   @Threads(1)
   public void accumulatorAccumulateAnd_lowContention(Blackhole blackhole) {
     Accumulator.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.accumulateAnd(accumulator));
+    blackhole.consume(Accumulator.accumulateAndReset(accumulator));
   }
 
   @Benchmark
   @Threads(Threads.MAX)
   public void accumulatorAccumulateAnd_highContention(Blackhole blackhole) {
     Accumulator.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.accumulateAnd(accumulator));
+    blackhole.consume(Accumulator.accumulateAndReset(accumulator));
   }
 
   @Benchmark

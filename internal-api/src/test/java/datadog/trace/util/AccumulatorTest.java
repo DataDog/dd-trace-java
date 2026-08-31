@@ -21,7 +21,7 @@ class AccumulatorTest {
   @Test
   void freshAccumulatorSumsToZero() {
     long[][] data = Accumulator.create(Counters.values());
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     for (Counters c : Counters.values()) {
       assertEquals(0L, drained[c.ordinal()]);
     }
@@ -34,7 +34,7 @@ class AccumulatorTest {
     Accumulator.inc(data, Counters.FOO);
     Accumulator.inc(data, Counters.BAR);
 
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     assertEquals(2L, drained[Counters.FOO.ordinal()]);
     assertEquals(1L, drained[Counters.BAR.ordinal()]);
     assertEquals(0L, drained[Counters.BAZ.ordinal()]);
@@ -46,7 +46,7 @@ class AccumulatorTest {
     Accumulator.add(data, Counters.BAZ, 41L);
     Accumulator.add(data, Counters.BAZ, 1L);
 
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     assertEquals(42L, drained[Counters.BAZ.ordinal()]);
   }
 
@@ -61,7 +61,7 @@ class AccumulatorTest {
           Accumulator.add(stripe, Counters.BAR, 5L);
         });
 
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     assertEquals(2L, drained[Counters.FOO.ordinal()]);
     assertEquals(5L, drained[Counters.BAR.ordinal()]);
   }
@@ -71,10 +71,10 @@ class AccumulatorTest {
     long[][] data = Accumulator.create(Counters.values());
     Accumulator.inc(data, Counters.FOO);
 
-    long[] first = Accumulator.accumulateAnd(data);
+    long[] first = Accumulator.accumulateAndReset(data);
     assertEquals(1L, first[Counters.FOO.ordinal()]);
 
-    long[] second = Accumulator.accumulateAnd(data);
+    long[] second = Accumulator.accumulateAndReset(data);
     for (Counters c : Counters.values()) {
       assertEquals(0L, second[c.ordinal()]);
     }
@@ -83,7 +83,7 @@ class AccumulatorTest {
   @Test
   void drainedRowsAreAllTheSameLength() {
     long[][] data = Accumulator.create(Counters.values());
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     assertEquals(data[0].length, drained.length);
     assertTrue(drained.length >= Counters.values().length);
   }
@@ -119,7 +119,7 @@ class AccumulatorTest {
       pool.shutdown();
     }
 
-    long[] drained = Accumulator.accumulateAnd(data);
+    long[] drained = Accumulator.accumulateAndReset(data);
     assertEquals((long) threadCount * incrementsPerThread, drained[Counters.FOO.ordinal()]);
   }
 
@@ -138,7 +138,7 @@ class AccumulatorTest {
       pool.execute(
           () -> {
             while (!stop.get()) {
-              long[] drained = Accumulator.accumulateAnd(data);
+              long[] drained = Accumulator.accumulateAndReset(data);
               synchronized (runningTotal) {
                 runningTotal[0] += drained[Counters.FOO.ordinal()];
               }
@@ -157,7 +157,7 @@ class AccumulatorTest {
 
       assertTrue(done.await(30, TimeUnit.SECONDS));
       stop.set(true);
-      long[] finalDrain = Accumulator.accumulateAnd(data);
+      long[] finalDrain = Accumulator.accumulateAndReset(data);
       synchronized (runningTotal) {
         runningTotal[0] += finalDrain[Counters.FOO.ordinal()];
       }
