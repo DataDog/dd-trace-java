@@ -816,12 +816,12 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * <p>Usually it does not get paid. C2 deletes the lease wherever it can inline {@link
    * RetryStrategy#onFailure} and see that the lease does not escape, and it can do that whenever
    * the strategy's exact class is knowable without consulting a receiver profile: {@code
-   * RetryLeaseBenchmark} measures 0 B/op for a {@code static final} strategy, for an inline lambda,
-   * and for an inline capturing lambda, at any number of loaded strategy types. The one shape that
-   * pays is a strategy loaded from an ordinary field -- {@code final} does not help, HotSpot does
-   * not trust non-static finals -- reaching a call site that has gone megamorphic. There it is 24
-   * bytes, once per consumer failure, next to a throw that already cost far more, and it is exactly
-   * the shape where a shared mutable lease would have been racing.
+   * RetryLeaseBenchmark} measures 0 B/op at any number of loaded strategy types for a {@code static
+   * final} strategy, for an inline lambda capturing or not, and for a field declared at a concrete
+   * final class. The one shape that pays is an interface-typed field -- {@code final} does not
+   * help, HotSpot does not trust non-static finals -- reaching a megamorphic call site. There it is
+   * 24 bytes, once per consumer failure, next to a throw that already cost far more, and it is
+   * exactly the shape where a shared mutable lease would have been racing.
    */
   private RetryQueue<T> lease(int attempt) {
     return new RetryQueue<T>() {

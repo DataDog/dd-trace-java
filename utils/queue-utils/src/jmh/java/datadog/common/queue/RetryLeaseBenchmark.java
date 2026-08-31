@@ -40,35 +40,44 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Results:
  *
  * <pre>
- * gc.alloc.rate.norm, B/op          ONE   TWO   FOUR      ns/op
- * succeeds                            0     0      0       21.3
- * failsAndGivesUp (static final)      0     0      0       22.5
- * failsAndGivesUpInline (lambda)      0     0      0       22.6
- * failsAndGivesUpCapturing            0     0      0       21.1
- * failsAndGivesUpVirtual (field)      0     0     24       21.8
- * failsAndRetries                    24    24     24       41.6
- * failsWithHandler (control)          0     0      0       22.5
+ * gc.alloc.rate.norm, B/op            ONE   TWO   FOUR      ns/op
+ * succeeds                              0     0      0       21.3
+ * failsAndGivesUp (static final)        0     0      0       22.8
+ * failsAndGivesUpInline (lambda)        0     0      0       22.4
+ * failsAndGivesUpCapturing              0     0      0       21.2
+ * failsAndGivesUpExactField             0     0      0       22.4
+ * failsAndGivesUpVirtual (iface field)  0     0     24       22.6
+ * failsAndRetries                      24    24     24       41.6
+ * failsWithHandler (control)            0     0      0       22.5
  * </pre>
  *
  * <p>JDK 25, {@code -Pjmh.forks=2}. Three things are visible, and only the third was the one being
  * looked for.
  *
- * <p><b>What the strategy is bound to decides everything.</b> Four of the five failure arms run the
- * same strategy and differ only in how the call site reaches it. Three of them cost nothing at any
- * number of loaded implementations: a {@code static final} field, which is a trusted constant; an
- * inline non-capturing lambda, whose {@code invokedynamic} links through a {@code ConstantCallSite}
- * and folds to the same thing without a field to declare; and -- the surprise -- an inline
- * <i>capturing</i> lambda, which is not a constant at all but whose allocation site is right there
- * in the caller, so C2 knows the exact type anyway and scalar-replaces the capture. What they share
- * is that C2 knows the receiver's exact class without asking the profile. Only {@code
- * failsAndGivesUpVirtual}, which loads the identical object from a non-final instance field, has to
- * ask -- and at {@code FOUR} the profile has nothing useful to say.
+ * <p><b>What the strategy is bound to decides everything.</b> Five failure arms run the same policy
+ * and differ only in how the call site reaches it. Four cost nothing at any number of loaded
+ * implementations, by two different routes. Three of them make the <i>value</i> known: a {@code
+ * static final} field is a trusted constant; an inline non-capturing lambda links through a {@code
+ * ConstantCallSite} and folds to the same thing without a field to declare; an inline
+ * <i>capturing</i> lambda folds to nothing at all, but its allocation site sits in the caller, so
+ * the exact class is visible anyway and the capture scalar-replaces. The fourth makes the
+ * <i>type</i> known: {@code failsAndGivesUpExactField} reads a deliberately non-final field
+ * declared at a concrete final class, where every value it could hold has the same klass. Only
+ * {@code failsAndGivesUpVirtual}, an interface-typed field, has neither and must ask the receiver
+ * profile -- which at {@code FOUR} has nothing useful to say.
  *
- * <p>So the discipline is not "hoist the strategy into a field"; a plain {@code final} instance
- * field is the one shape here that fails, because HotSpot does not trust it ({@code
- * TrustFinalNonStaticFields} is off) and a human reads it as bound-once regardless. The capturing
- * arm's zero is the narrower claim of the two: the capture is free because everything around it
- * inlined, and the same lambda stored into a field and read back later would allocate.
+ * <p>The two routes are not interchangeable, and which one is available depends on the situation
+ * rather than on taste. A per-instance policy cannot use the value route at all: folding {@code
+ * this.strategy} needs the holder to be a constant too, so no amount of finality helps an object
+ * allocated at runtime. It has only the type route -- which means a named class, because a lambda's
+ * class is unnameable and the tightest a field holding one can be declared is the abstract
+ * interface. A shared policy can use either. So: singleton policy, {@code static final} or an
+ * inline lambda; per-instance policy, a named final class with the field declared at it. The
+ * failure in this table is what trying to use the first shape for the second situation looks like.
+ *
+ * <p>Note also what {@code failsAndGivesUpCapturing} does <i>not</i> say. Its capture is free
+ * because everything around it inlined; store that same lambda into a field and read it back and
+ * both the capture and the devirtualization are gone.
  *
  * <p><b>The lease costs 24 bytes, in one shape.</b> Those 24 bytes -- an object header, the
  * captured queue, the captured attempt number -- appear only in the virtual arm at {@code FOUR},
@@ -154,6 +163,25 @@ public class RetryLeaseBenchmark {
 
   private WorkQueue<String> other;
 
+  /**
+   * The same policy as {@link #GIVE_UP}, written as a named final class so a field can be declared
+   * at its exact type. A lambda cannot be used here: its class is unnameable, so the tightest a
+   * field holding one can be declared is the functional interface.
+   */
+  static final class GiveUp implements RetryStrategy<String> {
+    @Override
+    public boolean onFailure(String i, int attempt, Throwable f, RetryQueue<String> q) {
+      return false;
+    }
+  }
+
+  /**
+   * Deliberately not {@code final}: the point of the arm is that the <i>declared type</i> carries
+   * the answer. {@link GiveUp} is a final class, so every value this field can hold has exactly
+   * that klass, and C2 resolves {@code onFailure} off the type without needing to trust the value.
+   */
+  private GiveUp exact;
+
   /** Captured by {@link #failsAndGivesUpCapturing}, so that lambda cannot be hoisted. */
   private int mixer;
 
@@ -161,6 +189,7 @@ public class RetryLeaseBenchmark {
   public void setUp(Blackhole bh) {
     queue = WorkQueues.createMpscQueue(1024);
     bound = GIVE_UP;
+    exact = new GiveUp();
     other = WorkQueues.createMpscQueue(1024);
     // Drive the extra strategy types through the same onFailure site the measured loop uses, so
     // the only thing the parameter varies is how many types that site has seen.
@@ -226,6 +255,17 @@ public class RetryLeaseBenchmark {
     queue.tryPut(ELEMENT);
     int floor = mixer++;
     return queue.processOrRetry(THROWS, (item, attempt, failure, q) -> attempt < floor);
+  }
+
+  /**
+   * A field again, but declared at a concrete final class instead of the interface -- the shape
+   * {@link #failsAndGivesUpVirtual} is missing, and the only way a per-instance strategy can be
+   * devirtualized, since an instance field's value is never a trusted constant.
+   */
+  @Benchmark
+  public boolean failsAndGivesUpExactField() {
+    queue.tryPut(ELEMENT);
+    return queue.processOrRetry(THROWS, exact);
   }
 
   /** The control: the same throw down the handler branch, which is never handed a lease. */
