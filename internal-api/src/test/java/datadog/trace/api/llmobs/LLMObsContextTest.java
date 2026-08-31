@@ -172,8 +172,7 @@ class LLMObsContextTest {
   @Test
   void fiveArgAttachStoresAllFields() {
     AgentSpanContext ctx = mock(AgentSpanContext.class);
-    try (ContextScope scope =
-        LLMObsContext.attach(ctx, "session-1", "v2", "span-99", "my-agent")) {
+    try (ContextScope scope = LLMObsContext.attach(ctx, "session-1", "v2", "span-99", "my-agent")) {
       assertEquals(ctx, LLMObsContext.current());
       assertEquals("session-1", LLMObsContext.currentSessionId());
       assertEquals("v2", LLMObsContext.currentAgentVersion());
