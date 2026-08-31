@@ -41,6 +41,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
+  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
+  private static final String MANUAL_FRAMEWORK = "manual";
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
       LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
   private static final String INSTRUMENTATION_METHOD_ANNOTATED = "annotated";
@@ -289,6 +291,86 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(INPUT_PROMPT, annotatedPrompt);
     span.setTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD, INSTRUMENTATION_METHOD_ANNOTATED);
+  }
+
+  @Override
+  public void annotateAgentManifest(LLMObs.AgentManifest manifest) {
+    if (finished || manifest == null) {
+      return;
+    }
+    if (!Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
+      LOGGER.warn(
+          "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
+      return;
+    }
+    // Read existing manifest (may be null on first call)
+    Object existing = span.getTag(AGENT_MANIFEST);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> base =
+        (existing instanceof Map)
+            ? new LinkedHashMap<>((Map<String, Object>) existing)
+            : new LinkedHashMap<>();
+    mergeManifest(base, manifest);
+    base.put("framework", MANUAL_FRAMEWORK);
+    span.setTag(AGENT_MANIFEST, base);
+  }
+
+  private void mergeManifest(Map<String, Object> base, LLMObs.AgentManifest manifest) {
+    // name: new non-empty wins, else keep existing, else span name
+    String manifestName = manifest.getName();
+    if (manifestName != null && !manifestName.isEmpty()) {
+      base.put("name", manifestName);
+    } else if (!base.containsKey("name")) {
+      CharSequence spanName = span.getSpanName();
+      if (spanName != null && spanName.length() > 0) {
+        base.put("name", spanName.toString());
+      }
+    }
+    // instructions
+    String instructions = manifest.getInstructions();
+    if (instructions != null && !instructions.isEmpty()) {
+      base.put("instructions", instructions);
+    }
+    // model
+    String model = manifest.getModel();
+    if (model != null && !model.isEmpty()) {
+      base.put("model", model);
+    }
+    // model_settings: shallow merge
+    Map<String, Object> modelSettings = manifest.getModelSettings();
+    if (modelSettings != null && !modelSettings.isEmpty()) {
+      @SuppressWarnings("unchecked")
+      Map<String, Object> existingSettings =
+          (base.get("model_settings") instanceof Map)
+              ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
+              : new LinkedHashMap<>();
+      existingSettings.putAll(modelSettings);
+      base.put("model_settings", existingSettings);
+    }
+    // tools: replace if non-null non-empty
+    List<LLMObs.AgentTool> tools = manifest.getTools();
+    if (tools != null && !tools.isEmpty()) {
+      List<Map<String, Object>> toolList = new ArrayList<>();
+      for (LLMObs.AgentTool tool : tools) {
+        String toolName = tool == null ? null : tool.getName();
+        if (toolName == null || toolName.isEmpty()) {
+          LOGGER.warn("agent manifest tool missing required name; skipping");
+          continue;
+        }
+        Map<String, Object> toolMap = new LinkedHashMap<>();
+        toolMap.put("name", toolName);
+        if (tool.getDescription() != null) {
+          toolMap.put("description", tool.getDescription());
+        }
+        if (tool.getParameters() != null && !tool.getParameters().isEmpty()) {
+          toolMap.put("parameters", new LinkedHashMap<>(tool.getParameters()));
+        }
+        toolList.add(toolMap);
+      }
+      if (!toolList.isEmpty()) {
+        base.put("tools", toolList);
+      }
+    }
   }
 
   private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
