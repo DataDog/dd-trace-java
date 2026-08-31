@@ -4,32 +4,32 @@ import datadog.trace.bootstrap.ContextStore;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class ConcurrentHashMapContextStore<K, C> implements ContextStore<K, C> {
-
-  private final ConcurrentMap<K, C> m = new ConcurrentHashMap<>();
+/** Substitute {@link ContextStore} that uses strong-references to track contexts. */
+public class StrongMapContextStore<K, C> implements ContextStore<K, C> {
+  private final ConcurrentMap<K, C> map = new ConcurrentHashMap<>();
 
   @Override
   public C get(K key) {
-    return m.get(key);
+    return map.get(key);
   }
 
   @Override
   public void put(K key, C context) {
-    m.put(key, context);
+    map.put(key, context);
   }
 
   @Override
   public C getOrPut(K key, C context) {
-    return m.computeIfAbsent(key, k -> context);
+    return map.computeIfAbsent(key, k -> context);
   }
 
   @Override
   public C getOrCompute(K key, KeyAwareFactory<? super K, C> contextFactory) {
-    return m.computeIfAbsent(key, contextFactory::create);
+    return map.computeIfAbsent(key, contextFactory::create);
   }
 
   @Override
   public C remove(K key) {
-    return m.remove(key);
+    return map.remove(key);
   }
 }

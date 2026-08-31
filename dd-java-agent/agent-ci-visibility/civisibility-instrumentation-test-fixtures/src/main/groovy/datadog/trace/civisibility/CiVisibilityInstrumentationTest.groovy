@@ -43,7 +43,7 @@ import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.test.ExecutionStrategy
-import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
+import datadog.trace.civisibility.utils.StrongMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.ListWriter
@@ -269,8 +269,8 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       { testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities) },
       moduleName,
       false,
-      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
+      suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+      testStore != null ? testStore : new StrongMapContextStore<>())
     }
   }
 
