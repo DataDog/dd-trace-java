@@ -11,7 +11,6 @@ import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -68,10 +67,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String mlApp;
   private final ContextScope scope;
   private final boolean hasSessionId;
-  // Non-null only when this is a standalone agent span (no ambient APM root). Activating the
-  // underlying APM span as a scope ensures outgoing HTTP instrumentation creates spans under this
-  // agent, so they share the same APM trace and pick up the pagent PTags stamped on the root.
-  private final AgentScope standaloneApmScope;
 
   private boolean finished = false;
 
@@ -202,16 +197,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.spanContext(), sessionId, resolvedAgentVersion, resolvedParentAgentSpanId,
             resolvedParentAgentName);
 
-    // In the standalone case — an agent span with no ambient APM root — activate the underlying
-    // APM span so that subsequent auto-instrumented outgoing calls (HTTP, gRPC, …) are created as
-    // children of this agent and therefore inherit the pagent PTags stamped on its root context.
-    // When an APM root already exists (e.g. the DD agent's HTTP server span), this span is NOT its
-    // own local root and activation is skipped; the existing root already carries the pagent PTags.
-    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span) {
-      standaloneApmScope = AgentTracer.activateSpan(span);
-    } else {
-      standaloneApmScope = null;
-    }
   }
 
   /**
@@ -669,9 +654,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     span.finish();
     scope.close();
-    if (standaloneApmScope != null) {
-      standaloneApmScope.close();
-    }
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
     LLMObsMetricCollector.get()
