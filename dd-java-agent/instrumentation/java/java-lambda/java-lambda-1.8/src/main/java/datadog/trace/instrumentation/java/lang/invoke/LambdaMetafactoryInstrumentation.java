@@ -48,6 +48,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
   private static final String LAMBDA_CLASS_NAME_FIELD = "lambdaClassName";
   private static final String TARGET_CLASS_FIELD = "targetClass";
   private static final String INTERFACE_CLASS_FIELD = "interfaceClass";
+  private static final String LEGACY_INTERFACE_CLASS_FIELD = "samBase";
 
   public LambdaMetafactoryInstrumentation() {
     super("lambda");
@@ -82,7 +83,18 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
     public boolean matches(TypeDescription target) {
       return declaresField(target, LAMBDA_CLASS_NAME_FIELD, String.class.getName())
           && declaresField(target, TARGET_CLASS_FIELD, Class.class.getName())
-          && declaresField(target, INTERFACE_CLASS_FIELD, Class.class.getName());
+          && interfaceClassField(target) != null;
+    }
+
+    static String interfaceClassField(TypeDescription type) {
+      // JDK 8 and 11 use samBase; newer JDKs use interfaceClass.
+      if (declaresField(type, INTERFACE_CLASS_FIELD, Class.class.getName())) {
+        return INTERFACE_CLASS_FIELD;
+      }
+      if (declaresField(type, LEGACY_INTERFACE_CLASS_FIELD, Class.class.getName())) {
+        return LEGACY_INTERFACE_CLASS_FIELD;
+      }
+      return null;
     }
 
     private static boolean declaresField(TypeDescription type, String name, String fieldType) {
@@ -124,17 +136,22 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
         MethodList<?> methods,
         int writerFlags,
         int readerFlags) {
-      return new MetafactoryClassVisitor(classVisitor, instrumentedType.getInternalName());
+      return new MetafactoryClassVisitor(
+          classVisitor,
+          instrumentedType.getInternalName(),
+          HasMetafactoryFields.interfaceClassField(instrumentedType));
     }
   }
 
   private static final class MetafactoryClassVisitor extends ClassVisitor {
     private final String slashClassName;
+    private final String interfaceClassField;
     private boolean injected;
 
-    MetafactoryClassVisitor(ClassVisitor cv, String slashClassName) {
+    MetafactoryClassVisitor(ClassVisitor cv, String slashClassName, String interfaceClassField) {
       super(OpenedClassReader.ASM_API, cv);
       this.slashClassName = slashClassName;
+      this.interfaceClassField = interfaceClassField;
     }
 
     @Override
@@ -144,7 +161,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
       // The byte-generation method changed in JDK 25.
       if (("spinInnerClass".equals(name) || "generateInnerClass".equals(name))
           && "()Ljava/lang/Class;".equals(descriptor)) {
-        return new MetafactoryMethodVisitor(api, mv, slashClassName, this);
+        return new MetafactoryMethodVisitor(api, mv, slashClassName, interfaceClassField, this);
       }
       return mv;
     }
@@ -161,15 +178,18 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
 
   private static final class MetafactoryMethodVisitor extends MethodVisitor {
     private final String slashClassName;
+    private final String interfaceClassField;
     private final MetafactoryClassVisitor declaringVisitor;
 
     MetafactoryMethodVisitor(
         int api,
         MethodVisitor mv,
         String slashClassName,
+        String interfaceClassField,
         MetafactoryClassVisitor declaringVisitor) {
       super(api, mv);
       this.slashClassName = slashClassName;
+      this.interfaceClassField = interfaceClassField;
       this.declaringVisitor = declaringVisitor;
     }
 
@@ -198,7 +218,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
         super.visitVarInsn(Opcodes.ALOAD, 0);
         // Allows the helper to reject non-allowlisted interfaces before full matching.
         super.visitFieldInsn(
-            Opcodes.GETFIELD, slashClassName, INTERFACE_CLASS_FIELD, "Ljava/lang/Class;");
+            Opcodes.GETFIELD, slashClassName, interfaceClassField, "Ljava/lang/Class;");
         super.visitMethodInsn(
             Opcodes.INVOKESTATIC,
             Type.getInternalName(LambdaTransformerHelper.class),

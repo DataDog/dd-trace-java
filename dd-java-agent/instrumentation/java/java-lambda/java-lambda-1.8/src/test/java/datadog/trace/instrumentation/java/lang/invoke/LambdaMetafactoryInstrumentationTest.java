@@ -47,8 +47,7 @@ class LambdaMetafactoryInstrumentationTest {
     ClassWriter out = new ClassWriter(0);
     ClassVisitor visitor =
         new MetafactoryVisitorWrapper()
-            .wrap(
-                TypeDescription.ForLoadedType.of(Object.class), out, null, null, null, null, 0, 0);
+            .wrap(realMetafactoryDescription(), out, null, null, null, null, 0, 0);
     new ClassReader(in.toByteArray()).accept(visitor, 0);
 
     AtomicBoolean found = new AtomicBoolean(false);
@@ -177,12 +176,27 @@ class LambdaMetafactoryInstrumentationTest {
 
   /** Verifies every field read by the injected bytecode, including inherited fields. */
   @Test
-  void structureMatcherAcceptsTheRealMetafactory() throws Exception {
-    TypeDescription metafactory =
-        TypeDescription.ForLoadedType.of(
-            Class.forName("java.lang.invoke.InnerClassLambdaMetafactory"));
+  void structureMatcherAcceptsTheRealMetafactory() {
+    assertTrue(
+        new LambdaMetafactoryInstrumentation()
+            .structureMatcher()
+            .matches(realMetafactoryDescription()));
+  }
 
-    assertTrue(new LambdaMetafactoryInstrumentation().structureMatcher().matches(metafactory));
+  @Test
+  void structureMatcherAcceptsCurrentInterfaceField() {
+    assertTrue(
+        new LambdaMetafactoryInstrumentation()
+            .structureMatcher()
+            .matches(TypeDescription.ForLoadedType.of(CurrentMetafactoryFields.class)));
+  }
+
+  @Test
+  void structureMatcherAcceptsLegacyInterfaceField() {
+    assertTrue(
+        new LambdaMetafactoryInstrumentation()
+            .structureMatcher()
+            .matches(TypeDescription.ForLoadedType.of(LegacyMetafactoryFields.class)));
   }
 
   @Test
@@ -191,6 +205,27 @@ class LambdaMetafactoryInstrumentationTest {
         new LambdaMetafactoryInstrumentation()
             .structureMatcher()
             .matches(TypeDescription.ForLoadedType.of(Object.class)));
+  }
+
+  private static TypeDescription realMetafactoryDescription() {
+    try {
+      return TypeDescription.ForLoadedType.of(
+          Class.forName("java.lang.invoke.InnerClassLambdaMetafactory"));
+    } catch (ClassNotFoundException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static final class CurrentMetafactoryFields {
+    private String lambdaClassName;
+    private Class<?> targetClass;
+    private Class<?> interfaceClass;
+  }
+
+  private static final class LegacyMetafactoryFields {
+    private String lambdaClassName;
+    private Class<?> targetClass;
+    private Class<?> samBase;
   }
 
   @Test
