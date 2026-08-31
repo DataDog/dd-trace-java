@@ -48,6 +48,7 @@ dependencies {
   api libs.bytebuddyagent
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation project(':utils:test-junit-utils')
   testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 

@@ -4,25 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
-import datadog.trace.api.InstrumenterConfig;
-import java.lang.reflect.Field;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WithConfigExtension.class)
 class InstrumenterModuleTest {
-
-  private static final Field ENABLED_FIELD = getEnabledField();
-
-  private static Field getEnabledField() {
-    try {
-      Field field = InstrumenterModule.class.getDeclaredField("enabled");
-      field.setAccessible(true);
-      return field;
-    } catch (NoSuchFieldException e) {
-      throw new ExceptionInInitializerError(e);
-    }
-  }
 
   @Test
   void testDataStreamsIsApplicableWithTracing() {
@@ -66,94 +56,47 @@ class InstrumenterModuleTest {
   }
 
   @Test
-  void testDataStreamsIsEnabledWhenDataStreamsEnabledOverridesFalse()
-      throws IllegalAccessException {
-    // When DSM is enabled, isEnabled() should return true even if super.isEnabled() is false
-    // This tests the edge case where trace.kafka.enabled=false but DSM is explicitly enabled
+  @WithConfig(key = "trace.test-kafka-module.enabled", value = "false")
+  @WithConfig(key = "data.streams.enabled", value = "true")
+  void testDataStreamsIsEnabledWhenDataStreamsEnabledOverridesFalse() {
+    // When tracing for this integration is disabled but DSM is explicitly enabled,
+    // isEnabled() should still return true.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
-    // Set the enabled field to false to simulate disabled tracing
-    ENABLED_FIELD.setBoolean(module, false);
-
-    // Override InstrumenterConfig to return true for isDataStreamsEnabled()
-    InstrumenterConfig originalConfig = InstrumenterConfig.get();
-    boolean originalDataStreamsEnabled = originalConfig.isDataStreamsEnabled();
-    setFieldInConfig(originalConfig, "dataStreamsEnabled", true);
-
-    try {
-      assertTrue(module.isEnabled());
-    } finally {
-      setFieldInConfig(originalConfig, "dataStreamsEnabled", originalDataStreamsEnabled);
-    }
+    assertTrue(module.isEnabled());
   }
 
   @Test
-  void testDataStreamsIsEnabledWhenSuperEnabledIsTrue() throws IllegalAccessException {
-    // When super.isEnabled() is true, isEnabled() should return true regardless of DSM state
+  @WithConfig(key = "trace.test-kafka-module.enabled", value = "true")
+  @WithConfig(key = "data.streams.enabled", value = "false")
+  void testDataStreamsIsEnabledWhenSuperEnabledIsTrue() {
+    // When super.isEnabled() is true, isEnabled() should return true regardless of DSM state.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
-    // Set the enabled field to true to simulate enabled tracing
-    ENABLED_FIELD.setBoolean(module, true);
-
-    // Ensure DSM is disabled
-    InstrumenterConfig originalConfig = InstrumenterConfig.get();
-    boolean originalDataStreamsEnabled = originalConfig.isDataStreamsEnabled();
-    setFieldInConfig(originalConfig, "dataStreamsEnabled", false);
-
-    try {
-      assertTrue(module.isEnabled());
-    } finally {
-      setFieldInConfig(originalConfig, "dataStreamsEnabled", originalDataStreamsEnabled);
-    }
+    assertTrue(module.isEnabled());
   }
 
   @Test
-  void testDataStreamsIsEnabledWhenBothEnabled() throws IllegalAccessException {
-    // When both super.isEnabled() and DSM are enabled, isEnabled() should return true
+  @WithConfig(key = "trace.test-kafka-module.enabled", value = "true")
+  @WithConfig(key = "data.streams.enabled", value = "true")
+  void testDataStreamsIsEnabledWhenBothEnabled() {
+    // When both super.isEnabled() and DSM are enabled, isEnabled() should return true.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
-    ENABLED_FIELD.setBoolean(module, true);
-
-    InstrumenterConfig originalConfig = InstrumenterConfig.get();
-    boolean originalDataStreamsEnabled = originalConfig.isDataStreamsEnabled();
-    setFieldInConfig(originalConfig, "dataStreamsEnabled", true);
-
-    try {
-      assertTrue(module.isEnabled());
-    } finally {
-      setFieldInConfig(originalConfig, "dataStreamsEnabled", originalDataStreamsEnabled);
-    }
+    assertTrue(module.isEnabled());
   }
 
   @Test
-  void testDataStreamsIsEnabledWhenBothDisabled() throws IllegalAccessException {
-    // When both super.isEnabled() and DSM are disabled, isEnabled() should return false
+  @WithConfig(key = "trace.test-kafka-module.enabled", value = "false")
+  @WithConfig(key = "data.streams.enabled", value = "false")
+  void testDataStreamsIsEnabledWhenBothDisabled() {
+    // When both super.isEnabled() and DSM are disabled, isEnabled() should return false.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
-    ENABLED_FIELD.setBoolean(module, false);
-
-    InstrumenterConfig originalConfig = InstrumenterConfig.get();
-    boolean originalDataStreamsEnabled = originalConfig.isDataStreamsEnabled();
-    setFieldInConfig(originalConfig, "dataStreamsEnabled", false);
-
-    try {
-      assertFalse(module.isEnabled());
-    } finally {
-      setFieldInConfig(originalConfig, "dataStreamsEnabled", originalDataStreamsEnabled);
-    }
-  }
-
-  private static void setFieldInConfig(Object target, String fieldName, Object value) {
-    try {
-      Field field = target.getClass().getDeclaredField(fieldName);
-      field.setAccessible(true);
-      field.set(target, value);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new RuntimeException(e);
-    }
+    assertFalse(module.isEnabled());
   }
 }

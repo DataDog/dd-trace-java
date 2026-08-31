@@ -31,6 +31,10 @@ import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends MessagingClientDecorator {
   private static final String KAFKA = "kafka";
+  // Kept in sync with the names each kafka-clients-3.8 instrumentation module passes to its own
+  // super(...) constructor call, so TRACING_ENABLED can't drift from what is actually registered.
+  public static final String INTEGRATION_NAME = KAFKA;
+  public static final String LEGACY_INTEGRATION_NAME = "kafka-3.8";
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
   public static final CharSequence KAFKA_CONSUME =
       UTF8BytesString.create(
@@ -47,7 +51,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final boolean TRACING_ENABLED =
       InstrumenterConfig.get()
           .isIntegrationEnabled(
-              Arrays.asList("kafka", "kafka-3.8"),
+              Arrays.asList(INTEGRATION_NAME, LEGACY_INTEGRATION_NAME),
               InstrumenterConfig.get().isIntegrationsEnabled());
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
   private final String spanKind;

@@ -64,7 +64,21 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaStreamTaskInstrumentation() {
-    super("kafka", "kafka-streams");
+    super(KafkaStreamsDecorator.INTEGRATION_NAME, KafkaStreamsDecorator.LEGACY_INTEGRATION_NAME);
+  }
+
+  // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
+  // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
+  // active when we started (no local parent, no header-extracted parent) and the local root
+  // really is the first span we created here.
+  private static void maybeDropForDataStreamsOnly(
+      final AgentSpan span, final AgentSpan localActiveSpan, final AgentSpan ourLocalRoot) {
+    if (!KafkaStreamsDecorator.TRACING_ENABLED
+        && traceConfig().isDataStreamsEnabled()
+        && localActiveSpan == null
+        && span.getLocalRootSpan() == ourLocalRoot) {
+      span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+    }
   }
 
   @Override
@@ -303,17 +317,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
-      // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
-      // active when we started (no local parent, no header-extracted parent) and the local root
-      // really is the first span we created here.
       final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
-      if (!KafkaStreamsDecorator.TRACING_ENABLED
-          && traceConfig().isDataStreamsEnabled()
-          && localActiveSpan == null
-          && span.getLocalRootSpan() == ourLocalRoot) {
-        span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
-      }
+      maybeDropForDataStreamsOnly(span, localActiveSpan, ourLocalRoot);
       String applicationId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
@@ -386,17 +391,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
-      // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
-      // active when we started (no local parent, no header-extracted parent) and the local root
-      // really is the first span we created here.
       final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
-      if (!KafkaStreamsDecorator.TRACING_ENABLED
-          && traceConfig().isDataStreamsEnabled()
-          && localActiveSpan == null
-          && span.getLocalRootSpan() == ourLocalRoot) {
-        span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
-      }
+      maybeDropForDataStreamsOnly(span, localActiveSpan, ourLocalRoot);
       String applicationId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();

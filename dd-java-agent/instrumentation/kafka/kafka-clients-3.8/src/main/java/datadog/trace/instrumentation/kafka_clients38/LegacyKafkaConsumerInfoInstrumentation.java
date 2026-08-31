@@ -30,7 +30,7 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
         Instrumenter.WithTypeStructure {
 
   public LegacyKafkaConsumerInfoInstrumentation() {
-    super("kafka", "kafka-3.8");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
