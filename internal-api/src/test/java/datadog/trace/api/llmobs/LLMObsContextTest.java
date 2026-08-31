@@ -101,6 +101,63 @@ class LLMObsContextTest {
   }
 
   @Test
+  void currentAgentVersionReturnsNullWhenNoContextAttached() {
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void attachWithoutAgentVersionLeavesAgentVersionNull() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, null)) {
+      assertNull(LLMObsContext.currentAgentVersion());
+    }
+  }
+
+  @Test
+  void attachWithAgentVersionStoresIt() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, "v3")) {
+      assertEquals(ctx, LLMObsContext.current());
+      assertEquals("v3", LLMObsContext.currentAgentVersion());
+    }
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void attachWithEmptyAgentVersionIgnoresAgentVersion() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, "")) {
+      assertNull(LLMObsContext.currentAgentVersion());
+    }
+  }
+
+  @Test
+  void nestedScopesRestoreParentAgentVersionOnClose() {
+    AgentSpanContext outer = mock(AgentSpanContext.class);
+    AgentSpanContext inner = mock(AgentSpanContext.class);
+    try (ContextScope outerScope = LLMObsContext.attach(outer, null, "v1")) {
+      assertEquals("v1", LLMObsContext.currentAgentVersion());
+      try (ContextScope innerScope = LLMObsContext.attach(inner, null, "v2")) {
+        assertEquals("v2", LLMObsContext.currentAgentVersion());
+      }
+      assertEquals("v1", LLMObsContext.currentAgentVersion());
+    }
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void childScopeInheritsParentAgentVersion() {
+    AgentSpanContext parent = mock(AgentSpanContext.class);
+    AgentSpanContext child = mock(AgentSpanContext.class);
+    try (ContextScope parentScope = LLMObsContext.attach(parent, null, "v3")) {
+      try (ContextScope childScope = LLMObsContext.attach(child)) {
+        assertEquals(child, LLMObsContext.current());
+        assertEquals("v3", LLMObsContext.currentAgentVersion());
+      }
+    }
+  }
+
+  @Test
   void samplingValuesReturnNullWhenNoContextAttached() {
     assertNull(LLMObsContext.currentSamplingDecision());
     assertNull(LLMObsContext.currentSampleRate());
@@ -119,7 +176,7 @@ class LLMObsContextTest {
   void attachWithSamplingDecisionStoresDecisionAndRate() {
     AgentSpanContext ctx = mock(AgentSpanContext.class);
     try (ContextScope scope =
-        LLMObsContext.attach(ctx, null, "0.25", LLMObsContext.SAMPLING_DECISION_DROPPED)) {
+        LLMObsContext.attach(ctx, null, null, "0.25", LLMObsContext.SAMPLING_DECISION_DROPPED)) {
       assertEquals(
           LLMObsContext.SAMPLING_DECISION_DROPPED, LLMObsContext.currentSamplingDecision());
       assertEquals("0.25", LLMObsContext.currentSampleRate());
@@ -132,7 +189,7 @@ class LLMObsContextTest {
   void attachWithNullSamplingDecisionIgnoresSampleRate() {
     AgentSpanContext ctx = mock(AgentSpanContext.class);
     // The rate is only meaningful alongside a decision, so it is not stored on its own.
-    try (ContextScope scope = LLMObsContext.attach(ctx, null, "0.25", null)) {
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, null, "0.25", null)) {
       assertNull(LLMObsContext.currentSamplingDecision());
       assertNull(LLMObsContext.currentSampleRate());
     }
@@ -143,12 +200,30 @@ class LLMObsContextTest {
     AgentSpanContext parent = mock(AgentSpanContext.class);
     AgentSpanContext child = mock(AgentSpanContext.class);
     try (ContextScope parentScope =
-        LLMObsContext.attach(parent, null, "1", LLMObsContext.SAMPLING_DECISION_SAMPLED)) {
+        LLMObsContext.attach(parent, null, null, "1", LLMObsContext.SAMPLING_DECISION_SAMPLED)) {
       try (ContextScope childScope = LLMObsContext.attach(child)) {
         assertEquals(child, LLMObsContext.current());
         assertEquals(
             LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
         assertEquals("1", LLMObsContext.currentSampleRate());
+      }
+    }
+  }
+
+  @Test
+  void attachPropagatesSessionIdAgentVersionAndSamplingTogether() {
+    AgentSpanContext parent = mock(AgentSpanContext.class);
+    AgentSpanContext child = mock(AgentSpanContext.class);
+    // All three propagation mechanisms coexist on one context and are inherited together.
+    try (ContextScope parentScope =
+        LLMObsContext.attach(
+            parent, "session-abc", "v7", "0.5", LLMObsContext.SAMPLING_DECISION_SAMPLED)) {
+      try (ContextScope childScope = LLMObsContext.attach(child)) {
+        assertEquals("session-abc", LLMObsContext.currentSessionId());
+        assertEquals("v7", LLMObsContext.currentAgentVersion());
+        assertEquals(
+            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+        assertEquals("0.5", LLMObsContext.currentSampleRate());
       }
     }
   }

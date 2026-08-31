@@ -20,27 +20,60 @@ public final class LLMObsContext {
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
+  private static final ContextKey<String> AGENT_VERSION_KEY =
+      ContextKey.named("llmobs_agent_version");
   private static final ContextKey<String> SAMPLE_RATE_KEY = ContextKey.named("llmobs_sample_rate");
   private static final ContextKey<String> SAMPLING_DECISION_KEY =
       ContextKey.named("llmobs_sampling_decision");
 
+  /**
+   * Attach an LLMObs span context, leaving any inherited session_id/agent_version from an enclosing
+   * scope untouched (see {@link #currentSessionId()}, {@link #currentAgentVersion()}).
+   */
   public static ContextScope attach(AgentSpanContext ctx) {
-    return attach(ctx, null);
-  }
-
-  public static ContextScope attach(AgentSpanContext ctx, String sessionId) {
-    return attach(ctx, sessionId, null, null);
+    return Context.current().with(CONTEXT_KEY, ctx).attach();
   }
 
   /**
-   * Attach an LLMObs span context, optionally propagating a session_id and a sampling decision to
-   * descendant LLMObs spans. When sessionId is non-null and non-empty, child LLMObs spans started
-   * under this context that do not specify their own sessionId will inherit it via {@link
-   * #currentSessionId()}.
+   * Attach an LLMObs span context, optionally propagating a session_id to descendant LLMObs spans.
+   * When sessionId is non-null and non-empty, child LLMObs spans started under this context that do
+   * not specify their own sessionId will inherit it via {@link #currentSessionId()}. A null or
+   * empty sessionId clears any session_id inherited from an enclosing scope.
+   */
+  public static ContextScope attach(AgentSpanContext ctx, String sessionId) {
+    return Context.current()
+        .with(CONTEXT_KEY, ctx)
+        .with(SESSION_ID_KEY, emptyToNull(sessionId))
+        .attach();
+  }
+
+  /**
+   * Attach an LLMObs span context, optionally propagating a session_id and an agent_version to
+   * descendant LLMObs spans. See {@link #attach(AgentSpanContext, String)}. Same
+   * clears-if-null-or-empty semantics apply to agentVersion via {@link #currentAgentVersion()} —
+   * callers (e.g. {@code DDLLMObsSpan}) are expected to pass the already-resolved effective value,
+   * so that a stale value from an unrelated context is always cleared rather than silently carried
+   * forward.
+   */
+  public static ContextScope attach(AgentSpanContext ctx, String sessionId, String agentVersion) {
+    return Context.current()
+        .with(CONTEXT_KEY, ctx)
+        .with(SESSION_ID_KEY, emptyToNull(sessionId))
+        .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
+        .attach();
+  }
+
+  /**
+   * Attach an LLMObs span context, propagating a session_id, an agent_version, and a sampling
+   * decision to descendant LLMObs spans. See {@link #attach(AgentSpanContext, String, String)} —
+   * the same clears-if-null-or-empty semantics apply to every value, so callers are expected to
+   * pass already-resolved effective values.
    *
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
    * values are carried pre-formatted so that every span in the trace reports byte-identical values.
+   * The rate travels only alongside a decision — a rate on its own says nothing about whether the
+   * trace was kept — so a null decision clears both.
    *
    * <p><strong>In-process only.</strong> This context is not serialized into distributed trace
    * headers, so each service in a distributed trace decides independently. Because the decision is
@@ -50,16 +83,19 @@ public final class LLMObsContext {
    * here. Closing that gap needs propagated trace tags mirroring the existing {@code _dd.p.ksr}.
    */
   public static ContextScope attach(
-      AgentSpanContext ctx, String sessionId, String sampleRate, String samplingDecision) {
-    Context updated = Context.current().with(CONTEXT_KEY, ctx);
-    if (sessionId != null && !sessionId.isEmpty()) {
-      updated = updated.with(SESSION_ID_KEY, sessionId);
-    }
-    if (samplingDecision != null) {
-      updated =
-          updated.with(SAMPLING_DECISION_KEY, samplingDecision).with(SAMPLE_RATE_KEY, sampleRate);
-    }
-    return updated.attach();
+      AgentSpanContext ctx,
+      String sessionId,
+      String agentVersion,
+      String sampleRate,
+      String samplingDecision) {
+    String decision = emptyToNull(samplingDecision);
+    return Context.current()
+        .with(CONTEXT_KEY, ctx)
+        .with(SESSION_ID_KEY, emptyToNull(sessionId))
+        .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
+        .with(SAMPLING_DECISION_KEY, decision)
+        .with(SAMPLE_RATE_KEY, decision == null ? null : emptyToNull(sampleRate))
+        .attach();
   }
 
   public static AgentSpanContext current() {
@@ -71,6 +107,14 @@ public final class LLMObsContext {
    */
   public static String currentSessionId() {
     return Context.current().get(SESSION_ID_KEY);
+  }
+
+  /**
+   * Return the agent_version propagated from an enclosing agent span, or null if no ancestor set
+   * one.
+   */
+  public static String currentAgentVersion() {
+    return Context.current().get(AGENT_VERSION_KEY);
   }
 
   /**
@@ -88,5 +132,9 @@ public final class LLMObsContext {
    */
   public static String currentSamplingDecision() {
     return Context.current().get(SAMPLING_DECISION_KEY);
+  }
+
+  private static String emptyToNull(String value) {
+    return value != null && !value.isEmpty() ? value : null;
   }
 }
