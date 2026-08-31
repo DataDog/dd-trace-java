@@ -99,6 +99,12 @@ public class ExcludeFilter {
     SKIP_TYPE_PREFIXES
         .get(ExcludeType.EXECUTOR)
         .add("io.netty.util.concurrent.SingleThreadEventExecutor.");
+    // OkHttp 4.x+'s internal TaskRunner worker-loop Runnable polls its own task queue and can
+    // block inside a single run() call for the backend's idle-timeout duration, not just for one
+    // logical HTTP request. Capturing a caller's span continuation on it holds that trace open
+    // until the internal loop happens to idle out, instead of until the caller's own work
+    // finishes.
+    SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("okhttp3.internal.concurrent.TaskRunner$");
     // Don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
     // outside of the event loop on close() and wrapping them in FutureTask interferes with that
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("com.aerospike.client.async.NioEventLoop");
