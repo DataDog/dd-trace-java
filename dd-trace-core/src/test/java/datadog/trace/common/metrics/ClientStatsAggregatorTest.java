@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,8 +79,7 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       aggregator.publish(
-          Collections.singletonList(
-              new SimpleSpan("", "", "", "", false, false, false, 0, 0, HTTP_OK)));
+          singletonList(new SimpleSpan("", "", "", "", false, false, false, 0, 0, HTTP_OK)));
 
       waitUntilAggregatorIsEmpty(aggregator);
       clearInvocations(sink);
@@ -116,10 +116,10 @@ class ClientStatsAggregatorTest {
 
       // publish ignored resource names
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0, HTTP_OK)));
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                   "",
                   "",
@@ -159,17 +159,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -208,7 +198,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
 
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                       "service", "operation", null, "type", false, true, false, 0, 100, HTTP_OK)
                   .setTag(Tags.SPAN_KIND, "baz")));
@@ -230,17 +220,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -279,7 +259,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
 
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                       "service",
                       "operation",
@@ -327,17 +307,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            true)) {
+        createClientStatsAggregator(features, sink, writer, true)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -387,7 +357,7 @@ class ClientStatsAggregatorTest {
       if (httpEndpoint != null) {
         span.setTag("http.endpoint", httpEndpoint);
       }
-      aggregator.publish(Collections.singletonList(span));
+      aggregator.publish(singletonList(span));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -429,17 +399,7 @@ class ClientStatsAggregatorTest {
         .thenReturn(new LinkedHashSet<>(Arrays.asList("country", "georegion")));
 
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -565,17 +525,7 @@ class ClientStatsAggregatorTest {
     when(features.peerTags())
         .thenReturn(new LinkedHashSet<>(Arrays.asList("peer.hostname", "_dd.base_service")));
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -614,7 +564,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
 
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                       "service",
                       "operation",
@@ -653,17 +603,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -702,7 +642,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
 
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                       "service",
                       "operation",
@@ -733,17 +673,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       long duration = 100;
       List<SimpleSpan> trace =
           Arrays.asList(
@@ -863,17 +793,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            true)) {
+        createClientStatsAggregator(features, sink, writer, true)) {
       aggregator.start();
 
       // Cycle 1: publish multiple spans with same endpoint
@@ -972,7 +892,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < count; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service",
                         "operation",
@@ -1066,17 +986,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            true)) {
+        createClientStatsAggregator(features, sink, writer, true)) {
       aggregator.start();
 
       // publish spans with different combinations
@@ -1261,17 +1171,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            true)) {
+        createClientStatsAggregator(features, sink, writer, true)) {
       aggregator.start();
 
       // publish spans with and without HTTP tags
@@ -1385,17 +1285,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       // publish spans with different service name source
@@ -1530,17 +1420,8 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(
+            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -1580,7 +1461,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < 11; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1633,17 +1514,7 @@ class ClientStatsAggregatorTest {
     when(features.peerTags()).thenReturn(emptySet());
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, healthMetrics, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -1658,7 +1529,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < maxAggregates + 1; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1691,17 +1562,7 @@ class ClientStatsAggregatorTest {
     when(features.peerTags()).thenReturn(emptySet());
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, healthMetrics, sink, writer, maxAggregates, false)) {
       aggregator.start();
 
       // fill cache and flush — entries are cleared (hitCount=0) but stay in the LRU
@@ -1716,7 +1577,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < maxAggregates; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1747,7 +1608,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = maxAggregates; i < maxAggregates * 2; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1779,17 +1640,8 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(
+            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -1814,7 +1666,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < 5; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1866,7 +1718,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 1; i < 5; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -1934,17 +1786,8 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(
+            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -1969,7 +1812,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < 5; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -2030,17 +1873,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            1,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, maxAggregates, 1, SECONDS, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -2064,7 +1897,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < 5; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                         "service" + i,
                         "operation",
@@ -2115,17 +1948,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            1,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, maxAggregates, 1, SECONDS, false)) {
       long duration = 100;
       aggregator.start();
 
@@ -2143,7 +1966,7 @@ class ClientStatsAggregatorTest {
 
       for (int i = 0; i < 5; ++i) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                     "service" + i,
                     "operation",
@@ -2172,17 +1995,7 @@ class ClientStatsAggregatorTest {
     Sink sink = mock(Sink.class);
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            1,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, maxAggregates, 1, SECONDS, false)) {
       aggregator.start();
 
       Boolean flushed = aggregator.forceReport().get(10, SECONDS);
@@ -2200,19 +2013,9 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(false);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            200,
-            MILLISECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, 10, 200, MILLISECONDS, false)) {
       List<SimpleSpan> spans =
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                   "service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK));
       aggregator.start();
@@ -2242,17 +2045,7 @@ class ClientStatsAggregatorTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            maxAggregates,
-            QUEUE_SIZE,
-            1,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, maxAggregates, 1, SECONDS, false)) {
 
       // call forceReport before start
       CompletableFuture<Boolean> async =
@@ -2283,17 +2076,7 @@ class ClientStatsAggregatorTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -2377,17 +2160,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       // publishing spans with different http.method and http.endpoint
@@ -2487,17 +2260,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            true)) {
+        createClientStatsAggregator(features, sink, writer, true)) {
       aggregator.start();
 
       // publishing spans with different http.method and http.endpoint
@@ -2643,17 +2406,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            10,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, sink, writer, false)) {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
@@ -2770,17 +2523,7 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            256,
-            QUEUE_SIZE,
-            REPORTING_INTERVAL,
-            SECONDS,
-            false)) {
+        createClientStatsAggregator(features, HealthMetrics.NO_OP, sink, writer, 256, false)) {
       aggregator.start();
 
       // publish SERVICE+1 distinct services to fill and overflow the cardinality budget
@@ -2800,7 +2543,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
       for (int i = 0; i <= MetricCardinalityLimits.SERVICE; i++) {
         aggregator.publish(
-            Collections.singletonList(
+            singletonList(
                 new SimpleSpan(
                     "svc-" + i, "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)));
       }
@@ -2834,7 +2577,7 @@ class ClientStatsAggregatorTest {
           .finishBucket();
       String overflowServiceName = "svc-" + MetricCardinalityLimits.SERVICE;
       aggregator.publish(
-          Collections.singletonList(
+          singletonList(
               new SimpleSpan(
                   overflowServiceName,
                   "op",
@@ -2864,5 +2607,55 @@ class ClientStatsAggregatorTest {
     while (!aggregator.isEmpty() && i++ < 100) {
       Thread.sleep(10);
     }
+  }
+
+  private static ClientStatsAggregator createClientStatsAggregator(
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetrics,
+      Sink sink,
+      MetricWriter writer,
+      int maxAggregates,
+      boolean includeEndpointInMetrics) {
+    return new ClientStatsAggregator(
+        emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        maxAggregates,
+        QUEUE_SIZE,
+        REPORTING_INTERVAL,
+        SECONDS,
+        includeEndpointInMetrics);
+  }
+
+  private static ClientStatsAggregator createClientStatsAggregator(
+      DDAgentFeaturesDiscovery features,
+      Sink sink,
+      MetricWriter writer,
+      int maxAggregates,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
+    return new ClientStatsAggregator(
+        emptySet(),
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        writer,
+        maxAggregates,
+        QUEUE_SIZE,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  private static ClientStatsAggregator createClientStatsAggregator(
+      DDAgentFeaturesDiscovery features,
+      Sink sink,
+      MetricWriter writer,
+      boolean includeEndpointInMetrics) {
+    return createClientStatsAggregator(
+        features, HealthMetrics.NO_OP, sink, writer, 10, includeEndpointInMetrics);
   }
 }
