@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -79,34 +80,15 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   @Test
-  void agentSpanWithUnsafeNameStoresIdButNullName() throws Exception {
-    // Comma is a separator in x-datadog-tags header — disallowed
+  void agentSpanNameIsPreservedRegardlessOfCharacters() throws Exception {
+    // Agent names are stored as-is — no character restrictions since the only wire consumer
+    // is the msgpack intake mapper, which accepts any string.
     try (AgentScope apmScope = startRootApmScope()) {
-      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "bad,agent");
-      try {
-        AgentSpan inner = innerSpan(agentSpan);
-        String parentAgentSpanId = (String) inner.getTag(PAGENT_SPAN_ID_TAG);
-        Object parentAgentName = inner.getTag(PAGENT_NAME_TAG);
-
-        assertEquals(String.valueOf(inner.getSpanId()), parentAgentSpanId);
-        assertNull(parentAgentName);
-      } finally {
-        agentSpan.finish();
-        apmScope.span().finish();
-      }
-    }
-  }
-
-  @Test
-  void agentSpanWithTildeInNameStoresIdButNullName() throws Exception {
-    // Tilde (0x7E) is rewritten to '_' by W3C tracestate encoding — disallowed to avoid
-    // downstream name collisions after a tracecontext hop.
-    try (AgentScope apmScope = startRootApmScope()) {
-      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent~name");
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "router~v2,résumé");
       try {
         AgentSpan inner = innerSpan(agentSpan);
         assertEquals(String.valueOf(inner.getSpanId()), inner.getTag(PAGENT_SPAN_ID_TAG));
-        assertNull(inner.getTag(PAGENT_NAME_TAG));
+        assertEquals("router~v2,résumé", inner.getTag(PAGENT_NAME_TAG));
       } finally {
         agentSpan.finish();
         apmScope.span().finish();
@@ -115,22 +97,20 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   @Test
-  void unsafeNamedInnerAgentClearsOuterAgentNameInContext() throws Exception {
-    // When an unsafe-named inner agent is nested under a named outer agent, descendants of the
-    // inner agent must not inherit the outer agent's name — only its own (null) name.
+  void innerAgentNameOverridesOuterAgentNameForDescendants() throws Exception {
+    // Descendants of an inner agent must see the inner agent's name, not the outer agent's.
     try (AgentScope apmScope = startRootApmScope()) {
       DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
       try {
-        DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner~unsafe");
+        DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
         try {
-          // A tool created under the inner agent should see the inner agent's ID but null name.
           DDLLMObsSpan tool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool");
           try {
             AgentSpan toolInner = innerSpan(tool);
             AgentSpan innerAgentSpan = innerSpan(innerAgent);
             assertEquals(
                 String.valueOf(innerAgentSpan.getSpanId()), toolInner.getTag(PAGENT_SPAN_ID_TAG));
-            assertNull(toolInner.getTag(PAGENT_NAME_TAG));
+            assertEquals("inner-agent", toolInner.getTag(PAGENT_NAME_TAG));
           } finally {
             tool.finish();
           }
@@ -277,6 +257,37 @@ class DDLLMObsSpanAgentAttributionTest {
       secondRoot.finish();
       agentSpan.finish();
       firstRoot.finish();
+    }
+  }
+
+  @Test
+  void manifestNameOverridesSpanNameForPagent() throws Exception {
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "span-name");
+      try {
+        AgentSpan inner = innerSpan(agentSpan);
+        // Before manifest: pagent name is the span name.
+        assertEquals("span-name", inner.getTag(PAGENT_NAME_TAG));
+
+        agentSpan.annotateAgentManifest(
+            LLMObs.AgentManifest.builder().name("manifest-name").build());
+
+        // After manifest: pagent name on this span updates to the manifest name.
+        assertEquals("manifest-name", inner.getTag(PAGENT_NAME_TAG));
+
+        // Descendants started after annotateAgentManifest also see the manifest name.
+        DDLLMObsSpan tool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
+        try {
+          assertEquals(
+              String.valueOf(inner.getSpanId()), innerSpan(tool).getTag(PAGENT_SPAN_ID_TAG));
+          assertEquals("manifest-name", innerSpan(tool).getTag(PAGENT_NAME_TAG));
+        } finally {
+          tool.finish();
+        }
+      } finally {
+        agentSpan.finish();
+        apmScope.span().finish();
+      }
     }
   }
 }

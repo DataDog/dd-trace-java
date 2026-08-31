@@ -67,8 +67,11 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final AgentSpan span;
   private final String spanKind;
   private final String mlApp;
-  private final ContextScope scope;
   private final boolean hasSessionId;
+  // Non-null only for agent-kind spans; stored so annotateAgentManifest can re-attach context.
+  private final String agentAttributionSpanId;
+  private final String effectiveSessionId;
+  private ContextScope scope;
 
   private boolean finished = false;
 
@@ -156,6 +159,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    this.effectiveSessionId = this.hasSessionId ? sessionId : null;
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
@@ -170,8 +174,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
       // This span is itself an agent — it becomes the nearest ancestor for its descendants.
+      // Use the span name as the initial pagent name; annotateAgentManifest() will update it
+      // to the manifest name if one is provided later.
       resolvedParentAgentSpanId = String.valueOf(span.getSpanId());
-      resolvedParentAgentName = agentNameWireSafe(spanName) ? spanName : null;
+      resolvedParentAgentName = spanName;
     } else {
       // Inherit from in-process LLMObs parent only when the context belongs to the same trace.
       // Matches the gate applied to parent_id and session_id above: a stale LLMObsContext
@@ -192,30 +198,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // Propagate sessionId, agent_version, and agent attribution to descendant LLMObs spans.
+    this.agentAttributionSpanId = resolvedParentAgentSpanId;
+
+    // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
     scope =
         LLMObsContext.attach(
             span.spanContext(), sessionId, resolvedAgentVersion, resolvedParentAgentSpanId,
             resolvedParentAgentName);
-  }
-
-  /**
-   * Returns true if the agent name is safe to include in the x-datadog-tags header: printable ASCII
-   * only (0x20–0x7D, exclusive of tilde 0x7E), no commas (delimiter), no semicolons. Max 256 UTF-8
-   * bytes. Since the loop rejects tilde and above (c >= 0x7E), every character that passes is
-   * single-byte in UTF-8, so length() is an exact byte-count proxy.
-   */
-  private static boolean agentNameWireSafe(String name) {
-    if (name == null || name.length() > 256) {
-      return false;
-    }
-    for (int i = 0; i < name.length(); i++) {
-      char c = name.charAt(i);
-      if (c < 0x20 || c >= 0x7E || c == ',' || c == ';') {
-        return false;
-      }
-    }
-    return true;
   }
 
   @Override
@@ -392,6 +381,22 @@ public class DDLLMObsSpan implements LLMObsSpan {
     mergeManifest(base, manifest);
     base.put("framework", MANUAL_FRAMEWORK);
     span.setTag(AGENT_MANIFEST, base);
+
+    // Sync pagent name to the manifest name. The manifest name takes priority over the span name
+    // used at construction. Update both the internal tag (used by the serializer for this span's
+    // own agent_attribution) and the LLMObsContext scope (so descendants started after this call
+    // inherit the manifest name). Assumes no child LLMObs scopes are open when called.
+    String manifestName = (String) base.get("name");
+    span.setTag(PAGENT_NAME_TAG_INTERNAL, manifestName);
+    ContextScope old = scope;
+    scope =
+        LLMObsContext.attach(
+            span.spanContext(),
+            effectiveSessionId,
+            LLMObsContext.currentAgentVersion(),
+            agentAttributionSpanId,
+            manifestName);
+    old.close();
   }
 
   private void mergeManifest(Map<String, Object> base, LLMObs.AgentManifest manifest) {
