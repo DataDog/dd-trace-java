@@ -100,6 +100,8 @@ final class TypeFactory {
 
   boolean createOutlines = OUTLINING_ENABLED;
 
+  boolean transformingLambda;
+
   ClassLoader originalClassLoader;
 
   ClassLoader currentClassLoader;
@@ -157,6 +159,14 @@ final class TypeFactory {
     if (installing) {
       originalClassLoader = currentClassLoader;
     }
+  }
+
+  void beginLambdaTransform() {
+    transformingLambda = true;
+  }
+
+  void endLambdaTransform() {
+    transformingLambda = false;
   }
 
   /** Once matching is complete we need full descriptions for the actual transformation. */
@@ -258,11 +268,9 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
-    // The class being transformed must always be described from the bytes we were handed. A
-    // cached description under the same name may belong to a different class - lambda proxies
-    // generated for one declaring class all share a name - and rebuilding from it would drop
-    // whatever that description lacks, such as an interface.
-    SharedTypeInfo<TypeDescription> sharedType = name.equals(targetName) ? null : types.find(name);
+    // Same-owner lambdas share a symbolic name, so build their target from the supplied bytes.
+    SharedTypeInfo<TypeDescription> sharedType =
+        transformingLambda && name.equals(targetName) ? null : types.find(name);
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);

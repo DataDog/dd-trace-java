@@ -4,11 +4,7 @@ import datadog.environment.JavaVirtualMachine
 import datadog.environment.OperatingSystem
 import spock.lang.IgnoreIf
 
-/**
- * Runs the modular application with lambda field-injection enabled. The lambda's generated class
- * belongs to the application's named module, which reaches the injected types only if the agent
- * adds a read edge while transforming it.
- */
+/** Verifies field injection adds the required read edge to a named module. */
 @IgnoreIf({
   OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64() && JavaVirtualMachine.isJ9()
 })

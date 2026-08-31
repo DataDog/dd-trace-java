@@ -1,21 +1,11 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
 import java.lang.instrument.ClassFileTransformer;
 import java.util.function.Function;
 
-/**
- * Routes generated lambda classes through the agent's transformer, passing the module of the class
- * that declares the lambda.
- *
- * <p>The module-less {@code transform} overload reports {@code JavaModule.UNSUPPORTED} to
- * ByteBuddy, which then skips the read edge that field-injected classes need to reach {@code
- * FieldBackedContextAccessor}. A lambda declared in a named module would be transformed
- * successfully and then fail to define, surfacing as an {@code InternalError} at the lambda's call
- * site.
- *
- * <p>This class is only used on Java 9+; for Java 8 the module-less overload is complete.
- */
+/** Routes generated lambdas through the module-aware Java 9+ transformer overload. */
 public final class DDJava9LambdaTransformer implements LambdaTransformer {
 
   /** Read reflectively by the agent installer, which cannot name {@link Module} itself. */
@@ -35,6 +25,7 @@ public final class DDJava9LambdaTransformer implements LambdaTransformer {
 
   @Override
   public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
+    TypePoolFacade.beginLambdaTransform();
     try {
       return classFileTransformer.transform(
           targetClass.getModule(),
@@ -45,6 +36,8 @@ public final class DDJava9LambdaTransformer implements LambdaTransformer {
           classBytes);
     } catch (Throwable ignored) {
       return null;
+    } finally {
+      TypePoolFacade.endLambdaTransform();
     }
   }
 }
