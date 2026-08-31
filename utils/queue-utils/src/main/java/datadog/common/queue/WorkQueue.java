@@ -10,6 +10,73 @@ import java.util.function.Consumer;
  * A bounded handoff point between producers and a consumer, with admission that never builds an
  * element it is going to reject.
  *
+ * <h2>Why to use this instead of a queue and a call site</h2>
+ *
+ * Every failure below was found in this tree, in code that offers into a {@code
+ * java.util.concurrent} queue by hand. They are not hypothetical, and none of them is anyone's
+ * carelessness -- each is what the shape of {@code offer} invites. The last column is the honest
+ * one: this API makes some of them impossible, some merely unlikely, and one it only makes
+ * explicit.
+ *
+ * <table border="1">
+ *   <caption>Hand-rolled admission failures, and what this API does about them</caption>
+ *   <tr><th>Failure</th><th>Seen as</th><th>Here</th></tr>
+ *   <tr>
+ *     <td>The {@code offer} return is discarded, so a drop is invisible</td>
+ *     <td>Seven call sites in {@code RumInjectorMetrics}; two in {@code WafMetricCollector};
+ *         {@code ProductChangeCollector}; {@code IntegrationsCollector}</td>
+ *     <td><b>Impossible.</b> The count lives in the queue, not at the call site, so ignoring the
+ *         return of {@code tryPut} still leaves the loss on {@link #dropped}</td>
+ *   </tr>
+ *   <tr>
+ *     <td>The same queue is handled two ways in one class</td>
+ *     <td>{@code WafMetricCollector} tests the return at a dozen sites and drops it at two</td>
+ *     <td><b>Impossible.</b> Consistency is not a per-site discipline when the queue counts</td>
+ *   </tr>
+ *   <tr>
+ *     <td>State is destroyed to build an element that is then refused, losing it permanently</td>
+ *     <td>{@code WafMetricCollector} does {@code getAndSet(i, 0)} on a counter, then abandons the
+ *         metric if the queue is full -- the delta is gone. {@code CoreMetricCollector} carries a
+ *         comment about avoiding exactly this, so it is known</td>
+ *     <td><b>Impossible</b> if admission is reached through a producer or a {@link Reservation}: the
+ *         place is claimed before the source is consumed, so there is no window in which a caller
+ *         has destroyed something it cannot hand off</td>
+ *   </tr>
+ *   <tr>
+ *     <td>The first refusal abandons the rest of the batch, silently</td>
+ *     <td>{@code WafMetricCollector} returns out of its publish loop on a failed offer</td>
+ *     <td><b>Impossible.</b> {@link #tryPutBatch} reports how many it admitted, or hands back the
+ *         elements it refused, so a partial admission is a number rather than a guess</td>
+ *   </tr>
+ *   <tr>
+ *     <td>A capacity check that another thread invalidates before the offer</td>
+ *     <td>{@code CoreMetricCollector}'s {@code remainingCapacity() == 0};
+ *         {@code FlagEvaluationWriterImpl}'s {@code size() < capacity()}, whose javadoc correctly
+ *         calls itself best-effort</td>
+ *     <td><b>Impossible.</b> The check <i>is</i> the claim -- a granted place cannot be taken by a
+ *         racing producer, so there is no check-then-act to lose</td>
+ *   </tr>
+ *   <tr>
+ *     <td>The element is built before anyone asks whether there is room</td>
+ *     <td>Most sites, since the element is the argument to {@code offer}</td>
+ *     <td><b>Unlikely.</b> The producer forms make the cheap order the natural one, but
+ *         {@link #tryPut(Object)} still lets a caller build first, on purpose, for elements that
+ *         already exist</td>
+ *   </tr>
+ *   <tr>
+ *     <td>An unbounded queue, so pressure becomes heap</td>
+ *     <td>{@code ProductChangeCollector} and {@code IntegrationsCollector} are
+ *         {@code new LinkedBlockingQueue<>()}</td>
+ *     <td><b>Only made explicit.</b> A bound is required unless a caller names
+ *         {@code WorkQueues.createUnboundedMpmcQueue}, which is a decision rather than a default</td>
+ *   </tr>
+ * </table>
+ *
+ * <p>Worth reading {@code FlagEvaluationWriterImpl} as the counter-example: it is bounded, it
+ * counts its drops, it surfaces the count as a metric, and it documents its own race honestly. It
+ * is proof the discipline is achievable by hand -- at the cost of that team working it out and
+ * writing it down themselves, which is the cost this module exists to pay once.
+ *
  * <p>Capacity is fixed by construction. A queue never grows in response to fullness: full means
  * drop and count. Admission claims a place before invoking any producer, so a rejected element is
  * never constructed at all — the guarantee that makes it safe to hand this a producer that
