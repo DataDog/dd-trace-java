@@ -1803,21 +1803,21 @@
           ], {
             activeLines: [2, 3, 4, 5], lineMarkers: {2: "1", 3: "2", 4: "3", 5: "4"}, key: "4 distinct aggregates", hash: "32 · 18 · 12 · 39", bucket: "0, 2, 4, 7", mask: "hash & 7", rowState: {0: "target", 2: "target", 4: "target", 7: "target"}, pointers: ["①–④ map each call to its entry", "each hitCount = 1", "size: 0 → 4 · logical cap"], log: "build four-entry working set"
           }),
-          step("Expunge finds nothing stale", "Reporting first calls `expungeStaleAggregates`. It visits every entry, but all four have `hitCount = 1`, so every bucket link and the table size remain unchanged.", "report → expungeStaleAggregates", [
-            node(0, "orders", "orders", "hitCount = 1 · keep", 32, "probe", "AggregateEntry", "∀"),
-            node(2, "checkout", "checkout", "hitCount = 1 · keep", 18, "probe", "AggregateEntry", "∀"),
-            node(4, "legacy", "legacy", "hitCount = 1 · keep", 12, "probe", "AggregateEntry", "∀"),
-            node(7, "search", "search", "hitCount = 1 · keep", 39, "probe", "AggregateEntry", "∀")
+          step("Expunge finds nothing stale", "Reporting first calls `expungeStaleAggregates`, which checks every entry and removes only entries whose `hitCount` is zero. All four have `hitCount = 1`, so it removes nothing: the same four entries remain and `size` stays four.", "report → expungeStaleAggregates", [
+            node(0, "orders", "orders", "hitCount = 1 · keep", 32, "probe", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount = 1 · keep", 18, "probe", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount = 1 · keep", 12, "probe", "AggregateEntry"),
+            node(7, "search", "search", "hitCount = 1 · keep", 39, "probe", "AggregateEntry")
           ], {
-            activeLines: [8], lineMarkers: {8: "∀"}, key: "all aggregates", hash: "bucket order", bucket: "0 → 7", mask: "hitCount != 0", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["∀ maps the sweep to every entry", "hitCount = 1 → keep", "size remains 4"], log: "expunge sweep · keep all four"
+            activeLines: [8], key: "all aggregates", hash: "bucket order", bucket: "0 → 7", mask: "hitCount != 0", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["scan all four entries", "no entry has hitCount = 0", "remove nothing · size stays 4"], log: "expunge sweep · keep all four"
           }),
-          step("Write and reset every retained entry", "The following `forEach` writes each retained aggregate and calls `clearAggregate`. The same ∀ marker shows that one loop body applies to all four entry cards.", "writer.add → clearAggregate", [
-            node(0, "orders", "orders", "hitCount: 1 → 0", 32, "probe", "AggregateEntry", "∀"),
-            node(2, "checkout", "checkout", "hitCount: 1 → 0", 18, "probe", "AggregateEntry", "∀"),
-            node(4, "legacy", "legacy", "hitCount: 1 → 0", 12, "probe", "AggregateEntry", "∀"),
-            node(7, "search", "search", "hitCount: 1 → 0", 39, "probe", "AggregateEntry", "∀")
+          step("Write and reset every retained entry", "The following `forEach` visits the four retained entries. For each one, `writer.add` serializes its current data and `clearAggregate` resets its `hitCount` to zero. All four cards are highlighted because the same loop body applies to each entry.", "writer.add → clearAggregate", [
+            node(0, "orders", "orders", "hitCount: 1 → 0", 32, "probe", "AggregateEntry"),
+            node(2, "checkout", "checkout", "hitCount: 1 → 0", 18, "probe", "AggregateEntry"),
+            node(4, "legacy", "legacy", "hitCount: 1 → 0", 12, "probe", "AggregateEntry"),
+            node(7, "search", "search", "hitCount: 1 → 0", 39, "probe", "AggregateEntry")
           ], {
-            activeLines: [9, 10, 11, 12], resultLines: [8], lineMarkers: {9: "∀"}, key: "all retained entries", hash: "bucket order", bucket: "0 → 7", mask: "forEach", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["∀ → each retained entry", "writer.add(entry)", "clearAggregate → hitCount 0"], log: "serialize · reset per-cycle counters"
+            activeLines: [9, 10, 11, 12], key: "all retained entries", hash: "bucket order", bucket: "0 → 7", mask: "forEach", rowState: {0: "scanned", 2: "scanned", 4: "scanned", 7: "scanned"}, pointers: ["forEach visits all four entries", "writer.add(entry)", "clearAggregate → hitCount 0"], log: "serialize · reset per-cycle counters"
           }),
           step("Only three identities return", "In the next cycle, orders, checkout, and search each receive one point and reuse their entries. No legacy point arrives, so its reset `hitCount` remains zero and it becomes stale.", "record three current-cycle points", [
             node(0, "orders", "orders", "hitCount = 1", 32, "hit", "AggregateEntry", "1"),
@@ -2050,16 +2050,21 @@
           : "";
         return `<span class="code-line ${state} ${section}"><span class="line-number">${index + 1}</span><span>${marker}${escapeHtml(line) || " "}</span></span>`;
       }).join("");
-      const active = $("codeLines").querySelector(".active")
-        || $("codeLines").querySelector(".context, .result, .preview");
-      if (active) {
+      const activeLines = [...$("codeLines").querySelectorAll(".active")];
+      const focusedLines = activeLines.length
+        ? activeLines
+        : [...$("codeLines").querySelectorAll(".context, .result, .preview")];
+      if (focusedLines.length) {
         const codePane = $("codeLines");
         const paneBounds = codePane.getBoundingClientRect();
-        const lineBounds = active.getBoundingClientRect();
-        const lineTop = lineBounds.top - paneBounds.top + codePane.scrollTop;
-        const lineBottom = lineTop + active.offsetHeight;
-        if (lineTop < codePane.scrollTop || lineBottom > codePane.scrollTop + codePane.clientHeight) {
-          codePane.scrollTop = Math.max(0, lineTop - codePane.clientHeight / 3);
+        const firstBounds = focusedLines[0].getBoundingClientRect();
+        const lastBounds = focusedLines[focusedLines.length - 1].getBoundingClientRect();
+        const groupTop = firstBounds.top - paneBounds.top + codePane.scrollTop;
+        const groupBottom = lastBounds.bottom - paneBounds.top + codePane.scrollTop;
+        if (groupTop < codePane.scrollTop || groupBottom > codePane.scrollTop + codePane.clientHeight) {
+          const groupHeight = groupBottom - groupTop;
+          const availableSpace = codePane.clientHeight - groupHeight;
+          codePane.scrollTop = Math.max(0, groupTop - Math.max(18, availableSpace / 2));
         }
       }
     }
