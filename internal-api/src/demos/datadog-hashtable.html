@@ -348,9 +348,10 @@
     .copy-button:hover { color: white; border-color: #806a8c; }
 
     .code-lines {
-      max-height: 360px;
+      height: 388px;
+      max-height: none;
       margin: 0;
-      padding: 12px 0 13px;
+      padding: 12px 0;
       overflow: auto;
       color: #e5dfe8;
       font: 11.5px/1.6 var(--mono);
@@ -437,12 +438,14 @@
       display: grid;
       grid-template-columns: 33px 1fr;
       gap: 11px;
-      min-height: 78px;
-      margin: 16px 0;
-      padding: 13px;
-      background: white;
-      border: 1px solid var(--line);
-      border-radius: 10px;
+      height: 112px;
+      min-height: 0;
+      margin: 0;
+      padding: 10px;
+      overflow: auto;
+      background: var(--panel-2);
+      border: 0;
+      border-top: 1px solid var(--line);
     }
 
     .step-note-number {
@@ -1097,7 +1100,7 @@
     .line-number { color: var(--muted); opacity: .62; }
 
     .code-card { order: 3; }
-    .step-note { order: 1; min-height: 72px; margin: 0 0 10px; padding: 10px; background: var(--panel-2); border-color: var(--border); border-radius: 6px; }
+    .step-note { background: var(--panel-2); border-color: var(--border); }
     .step-note-number { color: var(--accent-text); background: var(--accent); border-radius: 4px; }
     .step-note p { color: var(--muted); }
 
@@ -1269,18 +1272,17 @@
             <span><i class="preview"></i>preview only</span>
           </div>
           <pre class="code-lines" id="codeLines" aria-label="Java code for current scenario"></pre>
-        </div>
-
-        <div class="step-note" aria-live="polite">
-          <span class="step-note-number" id="stepNumber"></span>
-          <div><strong id="stepTitle"></strong><p id="stepExplanation"></p></div>
+          <div class="step-note" id="stepNote" aria-live="polite">
+            <span class="step-note-number" id="stepNumber"></span>
+            <div><strong id="stepTitle"></strong><p id="stepExplanation"></p></div>
+          </div>
         </div>
 
         <div class="controls" aria-label="Animation controls">
-          <button class="control-button" id="previousStep" type="button" aria-label="Previous step">←</button>
+          <button class="control-button" id="previousStep" type="button" aria-label="Previous step" aria-keyshortcuts="ArrowLeft">←</button>
           <button class="control-button primary" id="playPause" type="button" aria-label="Play animation">▶</button>
           <div class="step-dots" id="stepDots" aria-label="Choose animation step"></div>
-          <button class="control-button" id="nextStep" type="button" aria-label="Next step">→</button>
+          <button class="control-button" id="nextStep" type="button" aria-label="Next step" aria-keyshortcuts="ArrowRight">→</button>
           <select class="speed-select" id="speedSelect" aria-label="Animation speed">
             <option value="1800">0.75×</option>
             <option value="1300" selected>1×</option>
@@ -2057,13 +2059,14 @@
       if (focusedLines.length) {
         const codePane = $("codeLines");
         const paneBounds = codePane.getBoundingClientRect();
+        const visibleHeight = codePane.clientHeight;
         const firstBounds = focusedLines[0].getBoundingClientRect();
         const lastBounds = focusedLines[focusedLines.length - 1].getBoundingClientRect();
         const groupTop = firstBounds.top - paneBounds.top + codePane.scrollTop;
         const groupBottom = lastBounds.bottom - paneBounds.top + codePane.scrollTop;
-        if (groupTop < codePane.scrollTop || groupBottom > codePane.scrollTop + codePane.clientHeight) {
+        if (groupTop < codePane.scrollTop || groupBottom > codePane.scrollTop + visibleHeight) {
           const groupHeight = groupBottom - groupTop;
-          const availableSpace = codePane.clientHeight - groupHeight;
+          const availableSpace = visibleHeight - groupHeight;
           codePane.scrollTop = Math.max(0, groupTop - Math.max(18, availableSpace / 2));
         }
       }
@@ -2228,18 +2231,17 @@
       renderApiTabs();
     }
 
-    $("previousStep").addEventListener("click", () => {
-      stopPlayback();
-      if (stepIndex > 0) stepIndex--;
-      render();
-    });
-
-    $("nextStep").addEventListener("click", () => {
+    function moveStep(delta) {
       stopPlayback();
       const scene = scenarios[scenarioIndex];
-      if (stepIndex < scene.steps.length - 1) stepIndex++;
+      const nextIndex = Math.max(0, Math.min(scene.steps.length - 1, stepIndex + delta));
+      if (nextIndex === stepIndex) return;
+      stepIndex = nextIndex;
       render();
-    });
+    }
+
+    $("previousStep").addEventListener("click", () => moveStep(-1));
+    $("nextStep").addEventListener("click", () => moveStep(1));
 
     $("playPause").addEventListener("click", togglePlayback);
     $("speedSelect").addEventListener("change", () => {
@@ -2267,17 +2269,16 @@
     });
 
     document.addEventListener("keydown", event => {
-      if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) return;
+      const target = event.target instanceof HTMLElement ? event.target : document.activeElement;
+      const isEditing = target.matches("input, select, textarea, [contenteditable='true']");
+      if (isEditing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (event.key === "ArrowRight") {
-        const scene = scenarios[scenarioIndex];
-        stopPlayback();
-        if (stepIndex < scene.steps.length - 1) stepIndex++;
-        render();
+        event.preventDefault();
+        moveStep(1);
       } else if (event.key === "ArrowLeft") {
-        stopPlayback();
-        if (stepIndex > 0) stepIndex--;
-        render();
-      } else if (event.key === " ") {
+        event.preventDefault();
+        moveStep(-1);
+      } else if (event.key === " " && target.tagName !== "BUTTON") {
         event.preventDefault();
         togglePlayback();
       }
