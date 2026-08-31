@@ -1820,3 +1820,70 @@ class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientTe
     producer?.close()
   }
 }
+
+// Regression guard for the poll-span suppression site: KafkaConsumerInfoInstrumentation's
+// RecordsAdvice creates a standalone "kafka.poll" span/trace around every consumer.poll() call
+// whenever DSM is enabled, regardless of whether Kafka APM tracing itself is enabled. Unlike the
+// other cases above, this test intentionally keeps the "kafka.poll" trace instead of relying on
+// the base class's DROP_KAFKA_POLL filter, so the assertion actually observes what gets written.
+class KafkaClientDataStreamsOnlyPollSpanForkedTest extends KafkaClientTestBase {
+  static final ListWriter.Filter ACCEPT_ALL = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return true
+    }
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("integrations.enabled", "false")
+    injectSysConfig("data.streams.enabled", "true")
+  }
+
+  def setup() {
+    // Undo the base class's DROP_KAFKA_POLL filter: this test needs to see the "kafka.poll" trace.
+    TEST_WRITER.setFilter(ACCEPT_ALL)
+  }
+
+  @Override
+  String service() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  def "poll span is forced to USER_DROP when kafka tracing is disabled and DSM is enabled"() {
+    setup:
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, 0)))
+
+    when: "the consumer polls with no active local trace and no records to consume"
+    KafkaTestUtils.getRecords(consumer)
+
+    then: "the standalone kafka.poll trace is forced to USER_DROP, so it is not billed as APM"
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER[0]
+    trace.size() == 1
+    trace[0].getResourceName().toString() == "kafka.poll"
+    trace[0].getSamplingPriority() == PrioritySampling.USER_DROP
+
+    cleanup:
+    consumer?.close()
+  }
+}

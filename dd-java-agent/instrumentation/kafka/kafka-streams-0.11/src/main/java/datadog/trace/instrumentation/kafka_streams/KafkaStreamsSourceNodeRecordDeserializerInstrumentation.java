@@ -20,7 +20,7 @@ public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaStreamsSourceNodeRecordDeserializerInstrumentation() {
-    super("kafka", "kafka-streams");
+    super(KafkaStreamsDecorator.INTEGRATION_NAME, KafkaStreamsDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override

@@ -139,3 +139,30 @@ class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientDa
     producer?.close()
   }
 }
+
+/**
+ * Regression guard for the poll-span suppression site: KafkaConsumerInfoInstrumentation's
+ * RecordsAdvice creates a standalone "kafka.poll" span/trace around every consumer.poll() call
+ * whenever DSM is enabled, regardless of whether Kafka APM tracing itself is enabled.
+ */
+class KafkaClientDataStreamsOnlyPollSpanForkedTest extends KafkaClientDataStreamsOnlyForkedTest {
+
+  def "poll span is forced to USER_DROP"() {
+    setup:
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, 0)))
+
+    when: "the consumer polls with no active local trace and no records to consume"
+    KafkaTestUtils.getRecords(consumer)
+
+    then: "the standalone kafka.poll trace is forced to USER_DROP, so it is not billed as APM"
+    def pollSpan = findSpan("kafka.poll")
+    pollSpan != null
+    pollSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+
+    cleanup:
+    consumer?.close()
+  }
+}
