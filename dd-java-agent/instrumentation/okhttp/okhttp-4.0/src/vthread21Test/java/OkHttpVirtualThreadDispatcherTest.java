@@ -52,6 +52,7 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
 
   private static HttpServer mockServer;
   private static String baseUrl;
+  private static ExecutorService mockServerExecutor;
 
   @BeforeAll
   static void startServer() throws IOException {
@@ -66,7 +67,8 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
         });
     // Default executor is single-threaded — give the server real concurrency so the test isn't
     // bottlenecked on the mock backend itself.
-    mockServer.setExecutor(Executors.newCachedThreadPool());
+    mockServerExecutor = Executors.newCachedThreadPool();
+    mockServer.setExecutor(mockServerExecutor);
     mockServer.start();
     baseUrl =
         "http://"
@@ -80,6 +82,10 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
     if (mockServer != null) {
       mockServer.stop(0);
       mockServer = null;
+    }
+    if (mockServerExecutor != null) {
+      mockServerExecutor.shutdown();
+      mockServerExecutor = null;
     }
   }
 
