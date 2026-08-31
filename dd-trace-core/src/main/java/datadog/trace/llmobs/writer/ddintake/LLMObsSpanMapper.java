@@ -443,7 +443,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // whenever it is in the map regardless of whether pagent_span_id is also present.
       // When pagent_span_id exists but is invalid (non-string or empty), the whole
       // agent_attribution block is skipped; subtract 1 for that entry too.
-      boolean hasInvalidPagentSpanId =
+      boolean hasInvalidParentAgentSpanId =
           tagsToRemapToMeta.containsKey(PAGENT_SPAN_ID_TAG_INTERNAL_FULL) && !hasAgentAttribution;
       int metaSize =
           tagsToRemapToMeta.size()
@@ -452,7 +452,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
               + 1
               + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
               - (hasAgentAttributionName ? 1 : 0)
-              - (hasInvalidPagentSpanId ? 1 : 0);
+              - (hasInvalidParentAgentSpanId ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);

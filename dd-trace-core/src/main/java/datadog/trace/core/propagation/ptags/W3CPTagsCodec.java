@@ -187,23 +187,21 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    W3CPTags result =
-        new W3CPTags(
-            tagsFactory,
-            tagPairs,
-            decisionMakerTagValue,
-            traceIdTagValue,
-            traceSource,
-            samplingPriority,
-            origin,
-            value,
-            firstMemberStart,
-            ddMemberStart,
-            ddMemberValueEnd,
-            maxUnknownSize,
-            lastParentId,
-            orgPropagationMarkerTagValue);
-    return result;
+    return new W3CPTags(
+        tagsFactory,
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        traceSource,
+        samplingPriority,
+        origin,
+        value,
+        firstMemberStart,
+        ddMemberStart,
+        ddMemberValueEnd,
+        maxUnknownSize,
+        lastParentId,
+        orgPropagationMarkerTagValue);
   }
 
   @Override
