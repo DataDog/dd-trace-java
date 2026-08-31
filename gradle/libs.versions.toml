@@ -14,11 +14,11 @@ google-java-format = "1.36.1"
 greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
-spotless = "8.10.0"
+spotless = "8.10.1"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.49.0"
+ddprof = "1.50.0"
 dogstatsd = "4.4.5"
 datadog-okhttp = "3.12.15" # Datadog fork
 datadog-okio = "1.17.6" # Datadog fork
@@ -42,7 +42,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.10.1"
-byte-buddy = "1.18.10"
+byte-buddy = "1.18.12"
 instrument-java = "0.0.4"
 
 # Benchmarks

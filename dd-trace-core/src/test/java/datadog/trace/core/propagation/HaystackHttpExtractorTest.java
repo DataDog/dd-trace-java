@@ -1,10 +1,13 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_PARENT_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_SPAN_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX;
+import static datadog.trace.core.propagation.HaystackHttpCodec.PARENT_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
@@ -20,6 +23,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +37,127 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   protected HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return HaystackHttpCodec.newExtractor(config, traceConfigSupplier);
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+  void extractBaggageStopsAtItemLimit() {
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < 50; i++) {
+      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+    }
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(3, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
+  void extractKeepsHaystackIdsWhenBaggageLimitReached() {
+    // the Haystack ids are recorded by the tracer for lossless injection, so caller supplied
+    // Baggage-* headers must not be able to evict them by exhausting the item limit
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < 50; i++) {
+      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+    }
+    headers.put(TRACE_ID_KEY, "44617461-646f-6721-0000-000000000001");
+    headers.put(SPAN_ID_KEY, "44617461-646f-6721-0000-000000000002");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(
+        "44617461-646f-6721-0000-000000000001",
+        context.getBaggage().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
+    assertEquals(
+        "44617461-646f-6721-0000-000000000002",
+        context.getBaggage().get(HAYSTACK_SPAN_ID_BAGGAGE_KEY));
+  }
+
+  @Test
+  void extractUsesFirstConcatenatedHaystackIdHeaderValue() {
+    String traceUuid = "44617461-646f-6721-0000-000000000001";
+    String spanUuid = "44617461-646f-6721-0000-000000000002";
+    String parentUuid = "44617461-646f-6721-0000-000000000005";
+    Map<String, String> headers =
+        headers(
+            TRACE_ID_KEY,
+            traceUuid + ",44617461-646f-6721-0000-000000000003",
+            SPAN_ID_KEY,
+            spanUuid + ",44617461-646f-6721-0000-000000000004",
+            PARENT_ID_KEY,
+            parentUuid + ",44617461-646f-6721-0000-000000000006");
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(DDTraceId.from(1), context.getTraceId());
+    assertEquals(DDSpanId.from("2"), context.getSpanId());
+    assertEquals(traceUuid, context.getBaggage().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
+    assertEquals(spanUuid, context.getBaggage().get(HAYSTACK_SPAN_ID_BAGGAGE_KEY));
+    assertEquals(parentUuid, context.getBaggage().get(HAYSTACK_PARENT_ID_BAGGAGE_KEY));
+  }
+
+  @Test
+  void extractRetainsParentIdAsBaggage() {
+    // Parent-ID is not read back when injecting, so it is kept as ordinary caller baggage and
+    // still propagated downstream as Baggage-Haystack-Parent-ID
+    Map<String, String> headers =
+        headers(
+            TRACE_ID_KEY,
+            "44617461-646f-6721-0000-000000000001",
+            SPAN_ID_KEY,
+            "44617461-646f-6721-0000-000000000002",
+            PARENT_ID_KEY,
+            "44617461-646f-6721-0000-000000000003");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(
+        "44617461-646f-6721-0000-000000000003",
+        context.getBaggage().get(HAYSTACK_PARENT_ID_BAGGAGE_KEY));
+  }
+
+  @Test
+  void extractDropsOversizedParentId() {
+    // unlike the reserved trace and span ids, Parent-ID is subject to the baggage limits
+    Map<String, String> headers =
+        headers(
+            TRACE_ID_KEY,
+            "44617461-646f-6721-0000-000000000001",
+            SPAN_ID_KEY,
+            "44617461-646f-6721-0000-000000000002",
+            PARENT_ID_KEY,
+            repeat('x', 10_000));
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertFalse(context.getBaggage().containsKey(HAYSTACK_PARENT_ID_BAGGAGE_KEY));
+  }
+
+  @Test
+  void extractDoesNotReserveOversizedTraceId() {
+    // reserved values skip the baggage budget, so they are capped to keep the overshoot fixed
+    Map<String, String> headers =
+        headers(
+            TRACE_ID_KEY,
+            repeat('a', 10_000) + "-646f-6721-0000-000000000001",
+            SPAN_ID_KEY,
+            "44617461-646f-6721-0000-000000000002");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    // only the last two UUID segments carry the DataDog id, so extraction still succeeds
+    assertEquals(DDTraceId.fromHex("0000000000000001"), context.getTraceId());
+    assertFalse(context.getBaggage().containsKey(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
+  }
+
+  private static String repeat(char value, int count) {
+    StringBuilder result = new StringBuilder(count);
+    for (int i = 0; i < count; i++) {
+      result.append(value);
+    }
+    return result.toString();
   }
 
   @TableTest({
