@@ -359,7 +359,6 @@
     }
 
     .code-line {
-      position: relative;
       display: grid;
       grid-template-columns: 31px 1fr;
       min-width: max-content;
@@ -387,19 +386,7 @@
 
     .code-line.preview {
       background: var(--code-bg);
-      border-left-color: transparent;
-    }
-
-    .code-line.preview::before {
-      content: "";
-      position: absolute;
-      top: 2px;
-      bottom: 2px;
-      left: -3px;
-      width: 3px;
-      background: var(--blue);
-      border-radius: 1px;
-      pointer-events: none;
+      border-left-color: color-mix(in srgb, var(--blue) 65%, var(--muted));
     }
 
     .code-line.section {
@@ -443,7 +430,7 @@
     .code-flow-legend i { width: 9px; height: 9px; border: 2px solid var(--accent); border-radius: 2px; }
     .code-flow-legend .waiting { border-color: var(--amber); }
     .code-flow-legend .returned { border-color: var(--green); }
-    .code-flow-legend .preview { border-style: dashed; border-color: var(--blue); }
+    .code-flow-legend .preview { border-color: color-mix(in srgb, var(--blue) 65%, var(--muted)); }
 
     .line-number { padding-right: 9px; color: #6f6377; text-align: right; user-select: none; }
 
