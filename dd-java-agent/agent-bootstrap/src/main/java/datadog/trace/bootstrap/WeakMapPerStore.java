@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStore;
+
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
 
@@ -8,10 +10,12 @@ import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
  *
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
-final class WeakMapContextStore<K, V> {
+public final class WeakMapPerStore<K, V> {
   private static final int MAX_SIZE = 50_000;
 
   private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
+
+  WeakMapPerStore() {}
 
   @SuppressWarnings("unchecked")
   public V get(final K key) {
@@ -72,5 +76,15 @@ final class WeakMapContextStore<K, V> {
   @VisibleForTesting
   int size() {
     return map.size();
+  }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static Object get(final Object key, final int storeId) {
+    return getContextStore(storeId).weakStore().get(key);
+  }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static void put(final Object key, final int storeId, final Object context) {
+    getContextStore(storeId).weakStore().put(key, context);
   }
 }
