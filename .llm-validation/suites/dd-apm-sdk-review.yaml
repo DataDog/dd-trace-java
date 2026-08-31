@@ -25,7 +25,7 @@ cases:
         isn't relied on here, so a plain HashMap is the lighter fix.
       - Also flags, independently or as part of the same finding, that the map is
         unbounded and keyed by a high-cardinality value (sessionId) — a SEV-1 concern
-        under universal check #3, mapped to P0 or P1 per performance.md's SEV-to-P
+        under universal check three, mapped to P0 or P1 per performance.md's SEV-to-P
         mapping section.
       - Names HashMap as the concrete fix, not just "reconsider the data structure."
     bad_signals:
