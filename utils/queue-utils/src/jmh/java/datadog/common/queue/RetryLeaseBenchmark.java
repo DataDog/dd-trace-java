@@ -40,30 +40,46 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Results:
  *
  * <pre>
- * gc.alloc.rate.norm, B/op        ONE   TWO   FOUR      ns/op
- * succeeds                          0     0      0       21.3
- * failsAndGivesUp                   0     0      0       22.1
- * failsAndGivesUpVirtual            0     0     24       22.4
- * failsAndRetries                  24    24     24       41.6
- * failsWithHandler (control)        0     0      0       22.5
+ * gc.alloc.rate.norm, B/op          ONE   TWO   FOUR      ns/op
+ * succeeds                            0     0      0       21.3
+ * failsAndGivesUp (static final)      0     0      0       22.5
+ * failsAndGivesUpInline (lambda)      0     0      0       22.6
+ * failsAndGivesUpCapturing            0     0      0       21.1
+ * failsAndGivesUpVirtual (field)      0     0     24       21.8
+ * failsAndRetries                    24    24     24       41.6
+ * failsWithHandler (control)          0     0      0       22.5
  * </pre>
  *
- * <p>JDK 25, {@code -Pjmh.forks=2}. Two separate things are visible, and the first was not the one
- * being looked for.
+ * <p>JDK 25, {@code -Pjmh.forks=2}. Three things are visible, and only the third was the one being
+ * looked for.
  *
- * <p>A {@code static final} strategy never pays for the lease, at any number of loaded types.
- * {@code failsAndGivesUp} reads zero at {@code FOUR}, where the receiver profile is thoroughly
- * polluted, because the profile is not what C2 consulted: the field is a constant, so the exact
- * receiver class is known outright and {@code onFailure} devirtualizes by static resolution. {@code
- * failsAndGivesUpVirtual} is the identical strategy behind a non-final field, and that arm does
- * move -- zero while the site stays bimorphic, 24 bytes once it does not. Those 24 bytes are the
- * lease: an object header, the captured queue, and the captured attempt number.
+ * <p><b>What the strategy is bound to decides everything.</b> Four of the five failure arms run the
+ * same strategy and differ only in how the call site reaches it. Three of them cost nothing at any
+ * number of loaded implementations: a {@code static final} field, which is a trusted constant; an
+ * inline non-capturing lambda, whose {@code invokedynamic} links through a {@code ConstantCallSite}
+ * and folds to the same thing without a field to declare; and -- the surprise -- an inline
+ * <i>capturing</i> lambda, which is not a constant at all but whose allocation site is right there
+ * in the caller, so C2 knows the exact type anyway and scalar-replaces the capture. What they share
+ * is that C2 knows the receiver's exact class without asking the profile. Only {@code
+ * failsAndGivesUpVirtual}, which loads the identical object from a non-final instance field, has to
+ * ask -- and at {@code FOUR} the profile has nothing useful to say.
  *
- * <p>{@code failsAndRetries} allocates 24 bytes at every type count, including where the lease is
- * provably free. That is the {@code Retry} wrapper the re-admitted item is boxed in, not the lease,
- * and only an item actually resubmitted pays it. {@code failsWithHandler} takes the same throw down
- * the {@link ExceptionHandler} branch, which is never handed a lease, and reads zero throughout --
- * so the 24 bytes in the virtual arm are the lease rather than something else on the failure path.
+ * <p>So the discipline is not "hoist the strategy into a field"; a plain {@code final} instance
+ * field is the one shape here that fails, because HotSpot does not trust it ({@code
+ * TrustFinalNonStaticFields} is off) and a human reads it as bound-once regardless. The capturing
+ * arm's zero is the narrower claim of the two: the capture is free because everything around it
+ * inlined, and the same lambda stored into a field and read back later would allocate.
+ *
+ * <p><b>The lease costs 24 bytes, in one shape.</b> Those 24 bytes -- an object header, the
+ * captured queue, the captured attempt number -- appear only in the virtual arm at {@code FOUR},
+ * which is exactly where {@code onFailure} stopped inlining and C2 could no longer see that the
+ * lease does not escape. {@code failsWithHandler} takes the same throw down the {@link
+ * ExceptionHandler} branch, which is never handed a lease, and reads zero throughout, so the 24
+ * bytes are the lease rather than something else on the failure path.
+ *
+ * <p><b>Retrying costs 24 bytes always.</b> {@code failsAndRetries} allocates at every type count,
+ * including where the lease is provably free. That is the {@code Retry} wrapper the re-admitted
+ * item is boxed in, not the lease, and only an item actually resubmitted pays it.
  *
  * <p>Timing says nothing either way; every arm that fails once is within noise of every other, and
  * an allocation this size is invisible next to a throw.
@@ -138,6 +154,9 @@ public class RetryLeaseBenchmark {
 
   private WorkQueue<String> other;
 
+  /** Captured by {@link #failsAndGivesUpCapturing}, so that lambda cannot be hoisted. */
+  private int mixer;
+
   @Setup
   public void setUp(Blackhole bh) {
     queue = WorkQueues.createMpscQueue(1024);
@@ -184,6 +203,29 @@ public class RetryLeaseBenchmark {
   public boolean failsAndGivesUpVirtual() {
     queue.tryPut(ELEMENT);
     return queue.processOrRetry(THROWS, bound);
+  }
+
+  /**
+   * The same strategy written at the call site instead of stored anywhere. A non-capturing lambda
+   * links through a {@code ConstantCallSite}, so the {@code invokedynamic} folds to a constant oop
+   * of exact type -- the same thing a {@code static final} field gives C2, without the field.
+   */
+  @Benchmark
+  public boolean failsAndGivesUpInline() {
+    queue.tryPut(ELEMENT);
+    return queue.processOrRetry(THROWS, (item, attempt, failure, q) -> false);
+  }
+
+  /**
+   * The same lambda made capturing, which is the mistake the inline form invites. It has to be
+   * built per call, so nothing folds to a constant -- but the allocation site is still exactly
+   * typed, so how much that costs is a separate question from devirtualization.
+   */
+  @Benchmark
+  public boolean failsAndGivesUpCapturing() {
+    queue.tryPut(ELEMENT);
+    int floor = mixer++;
+    return queue.processOrRetry(THROWS, (item, attempt, failure, q) -> attempt < floor);
   }
 
   /** The control: the same throw down the handler branch, which is never handed a lease. */
