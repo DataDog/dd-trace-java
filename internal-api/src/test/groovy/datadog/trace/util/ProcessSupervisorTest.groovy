@@ -8,8 +8,8 @@ import spock.util.concurrent.PollingConditions
 // would be calling "ps -e" repeatedly
 class ProcessSupervisorTest extends DDSpecification {
   ProcessBuilder createProcessBuilder() {
-    // Creates a process that never returns
-    return new ProcessBuilder(PortableCommand.command("sleep", Long.MAX_VALUE.toString()))
+    // Creates a process that never returns on its own
+    return new ProcessBuilder(PortableCommand.runForever())
   }
 
   def "Process killed when supervisor closed"() {

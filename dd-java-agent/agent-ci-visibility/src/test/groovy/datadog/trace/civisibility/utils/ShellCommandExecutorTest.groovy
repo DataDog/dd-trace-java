@@ -19,7 +19,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, SHELL_COMMAND_TIMEOUT)
 
     when:
-    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.command("echo", "this is a test"))
+    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.echo("this is a test"))
 
     then:
     output.trim() == "this is a test"
@@ -30,7 +30,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, SHELL_COMMAND_TIMEOUT)
 
     when:
-    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, "this is a test".bytes, *PortableCommand.command("copy-input"))
+    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, "this is a test".bytes, *PortableCommand.cat())
 
     then:
     output.trim() == "this is a test"
@@ -41,7 +41,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, 1_000)
 
     when:
-    shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.command("sleep", "2000"))
+    shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.sleep(2))
 
     then:
     thrown TimeoutException
