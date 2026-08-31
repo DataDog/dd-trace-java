@@ -5,8 +5,8 @@ import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.llmobs.LLMObsIntakeWorker;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -14,6 +14,14 @@ import javax.annotation.Nullable;
 public abstract class LLMObsEval {
   private static final String METRIC_TYPE_SCORE = "score";
   private static final String METRIC_TYPE_CATEGORICAL = "categorical";
+
+  private static final String EVENT_KIND_EVALUATION = "evaluation";
+
+  /**
+   * Discriminates evaluations from feedback, mirroring dd-trace-py and dd-trace-js. Purely
+   * additive: the rest of the v1 payload is unchanged.
+   */
+  public final String event_kind = EVENT_KIND_EVALUATION;
 
   public final String trace_id;
   public final String span_id;
@@ -37,15 +45,18 @@ public abstract class LLMObsEval {
     this.ml_app = mlApp;
     this.metric_type = metricType;
     this.label = label;
-    if (tags != null) {
-      List<String> tagsList = new ArrayList<>(tags.size());
-      for (Map.Entry<String, Object> entry : tags.entrySet()) {
-        tagsList.add(entry.getKey() + ":" + entry.getValue());
-      }
-      this.tags = tagsList;
-    } else {
-      this.tags = null;
-    }
+    this.tags = tags == null ? null : IntakeTags.flatten(tags);
+  }
+
+  /**
+   * Returns a serializer turning a batch of evaluations into an intake request body.
+   *
+   * @return the batch serializer
+   */
+  public static LLMObsIntakeWorker.BatchSerializer<LLMObsEval> batchSerializer() {
+    Moshi moshi = new Moshi.Builder().add(LLMObsEval.class, new Adapter()).build();
+    JsonAdapter<Request> requestAdapter = moshi.adapter(Request.class);
+    return batch -> requestAdapter.toJson(new Request(batch));
   }
 
   public static final class Adapter extends JsonAdapter<LLMObsEval> {

@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 /*
  * Integration for Hibernate between 3.5 and 4.
  * Has the same logic as the Hibernate 4+ integration, but is copied rather than sharing a codebase. This is because
@@ -23,8 +27,6 @@ muzzle {
     versions = "[6,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
