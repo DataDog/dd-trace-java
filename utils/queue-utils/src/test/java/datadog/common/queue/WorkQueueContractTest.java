@@ -1,5 +1,6 @@
 package datadog.common.queue;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
@@ -820,6 +822,12 @@ class WorkQueueContractTest {
     assertThrows(
         NullPointerException.class, () -> queue.tryPutBatch(Arrays.asList("a", null, "b")));
     assertEquals(Arrays.asList("a"), consumeAll(queue), "what came before the null is admitted");
+    // A batch claims places for a run of elements before it looks at any of them, so the throw
+    // leaves places claimed for the null and for everything behind it. They have to come back, or
+    // every null costs the queue room permanently.
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the throw must not have cost the queue a place");
+    }
   }
 
   @ParameterizedTest(name = "{0}")
@@ -971,6 +979,107 @@ class WorkQueueContractTest {
     assertEquals(1, seenAttempt.get(), "the first failure reports attempt 1");
     assertEquals(0, queue.dropped(), "nothing was lost");
     assertEquals(CAPACITY, queue.size(), "the retried item took a place again");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aBatchLongerThanOneClaimKeepsClaiming(String name, IntFunction<WorkQueue<String>> factory) {
+    // Deliberately more than the per-claim cap, so the batch cannot be served by one claim. A
+    // short grant is not the end of the batch, and this is what says so. A power of two, because
+    // the MPSC backing takes the bound from the ring it rounded up to.
+    int size = 64;
+    WorkQueue<String> queue = factory.apply(size);
+    List<String> elements = new ArrayList<>();
+    for (int i = 0; i < size; i++) {
+      elements.add("e" + i);
+    }
+    assertTrue(queue.tryPutBatch(elements).isEmpty(), "there was room for all of them");
+    assertEquals(size, queue.size());
+    assertEquals(0, queue.dropped());
+    assertEquals(elements, consumeAll(queue));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aBatchLongerThanOneClaimStopsExactlyAtCapacity(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    int size = 64;
+    WorkQueue<String> queue = factory.apply(size);
+    List<String> elements = new ArrayList<>();
+    for (int i = 0; i < size + 10; i++) {
+      elements.add("e" + i);
+    }
+    Collection<String> rejected = queue.tryPutBatch(elements);
+    assertEquals(10, rejected.size(), "short by exactly the overflow, not by a whole claim");
+    assertEquals(elements.subList(size, size + 10), new ArrayList<>(rejected));
+    assertEquals(size, queue.size());
+    assertEquals(10, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aBatchClaimsNothingOnceClosed(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    queue.close();
+    List<String> elements = Arrays.asList("a", "b", "c");
+    assertEquals(elements, new ArrayList<>(queue.tryPutBatch(elements)));
+    assertEquals(0, queue.size(), "a closed queue took nothing");
+    assertEquals(3, queue.dropped());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void batchesAndSingleAdmissionsRacingCannotBetweenThemPassTheBound(
+      String name, IntFunction<WorkQueue<String>> factory) throws InterruptedException {
+    // A batch claim spends several places with one add and gives back what it could not use. If
+    // the giving back were wrong in either direction the bound would move: too little back and the
+    // queue silently shrinks, too much and it overfills. Racing the two shapes against each other
+    // is what makes an arithmetic slip visible.
+    int capacity = 64;
+    int threads = 8;
+    WorkQueue<String> queue = factory.apply(capacity);
+    CountDownLatch start = new CountDownLatch(1);
+    AtomicInteger admitted = new AtomicInteger();
+    List<Thread> racers = new ArrayList<>();
+    for (int t = 0; t < threads; t++) {
+      boolean batching = t % 2 == 0;
+      Thread racer =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                if (batching) {
+                  List<String> batch = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h");
+                  admitted.addAndGet(batch.size() - queue.tryPutBatch(batch).size());
+                } else {
+                  for (int i = 0; i < 8; i++) {
+                    if (queue.tryPut("s" + i)) {
+                      admitted.incrementAndGet();
+                    }
+                  }
+                }
+              });
+      racers.add(racer);
+      racer.start();
+    }
+    start.countDown();
+    for (Thread racer : racers) {
+      racer.join(SECONDS.toMillis(10));
+      assertFalse(racer.isAlive(), "racer did not finish");
+    }
+    assertEquals(admitted.get(), queue.size(), "every admission that reported took a place");
+    assertTrue(admitted.get() <= capacity, "the bound held: " + admitted.get() + " > " + capacity);
+    // Whatever was refused, the places are all accounted for: draining gives back exactly what
+    // went in, and the queue then takes a full capacity again.
+    assertEquals(admitted.get(), consumeAll(queue).size());
+    for (int i = 0; i < capacity; i++) {
+      assertTrue(queue.tryPut("after" + i), "place " + i + " was lost");
+    }
+    assertFalse(queue.tryPut("overflow"));
   }
 
   private static List<String> consumeAll(WorkQueue<String> queue) {

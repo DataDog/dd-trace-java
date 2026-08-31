@@ -6,6 +6,7 @@ import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -74,6 +75,21 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /** Any state below this has {@link #CLOSED_OFFSET} applied to it, and nothing else can be. */
   private static final long CLOSED_MARK = -(1L << 39);
+
+  /**
+   * The most places one call will claim at a time, however long the batch.
+   *
+   * <p>This is not a fairness knob. A claim drives the shared count down by its own size until the
+   * unused part comes back, and every other producer's admission begins with a comparison of that
+   * count against zero -- so an oversized claim turns concurrent single admissions away for the
+   * width of the claim, at the boundary, where the most threads are arriving. The cap is a bound on
+   * how many neighbours one batching producer can make refuse, which is why it is modest rather
+   * than as large as batches get. Claims are also clamped to what the count says is available, so
+   * this bounds the dip a claim takes deliberately; the rest is the race the single claim already
+   * runs. {@code ContendedAdmissionBenchmark} prices both halves: what batching saves the batcher,
+   * and what it costs the producers next to it.
+   */
+  private static final int MAX_BATCH_CLAIM = 32;
 
   /**
    * Places still available, not places used, biased by {@link #CLOSED_OFFSET} once closed. The
@@ -152,6 +168,52 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   /**
+   * Spends up to {@code wanted} places at once, and grants what was there rather than refusing
+   * because all of it was not. {@link #claimPlace} is this sequence with {@code wanted} of one.
+   *
+   * <p>A batch that claimed all-or-nothing would refuse the whole call when one place was short,
+   * which is a refusal the caller cannot distinguish from a full queue and cannot act on -- it had
+   * room for all but one. Granting the shortfall exactly removes that outcome by construction,
+   * without a retry at a smaller size: the initial read already says how large the claim can
+   * usefully be, so the scaling down is a clamp against a load this path was paying anyway, not a
+   * second trip.
+   *
+   * <p>The shape is {@link #claimPlace}'s, and deliberately so: one atomic add on the common path,
+   * a second only where the count went negative, and no compare-and-set loop. It reads {@link
+   * #state} raw rather than through {@link #permits}, for the same reason that one does -- a closed
+   * queue is biased far below zero, so it fails the first comparison and is turned away by a load,
+   * and a close landing mid-claim drives the count so negative that the whole claim is given back.
+   *
+   * <p>What a short grant means is therefore narrower than it looks. It is not proof the queue is
+   * full: concurrent claimants can each back out and leave places neither of them took. Callers
+   * loop until a claim comes back empty rather than treating the first short grant as the end.
+   *
+   * @return the places granted, between zero and {@code wanted}
+   */
+  private int claimPlaces(int wanted) {
+    long available = state.get();
+    if (available < 1) {
+      return 0;
+    }
+    int ask = (int) Math.min(wanted, available);
+    long after = state.addAndGet(-ask);
+    if (after >= 0) {
+      return ask;
+    }
+    // Short by exactly the deficit -- and if a close landed in between, the deficit is the whole
+    // claim, so the offset is restored untouched.
+    int give = (int) Math.min(-after, ask);
+    state.addAndGet(give);
+    return ask - give;
+  }
+
+  private void releasePlaces(int places) {
+    if (places != 0) {
+      state.addAndGet(places);
+    }
+  }
+
+  /**
    * Counts nothing, unlike the producer admissions below. This one is shared with the retry path,
    * where a refusal is a step rather than an outcome: a strategy handed a refused retry may still
    * place the item somewhere else, and only its {@link RetryStrategy#onFailure} return says whether
@@ -205,25 +267,22 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   /**
-   * The per-source-element half of {@link #tryPutBatch(Collection, Object, BiContextualProducer)}.
+   * The per-source-element half of {@link #tryPutBatch(Collection, Object, BiContextualProducer)},
+   * entered with a place already claimed for this element by the batch's own claim.
    *
    * <p>Three outcomes, two of which report as not admitted for different reasons. A decline is the
-   * caller's own decision, so it gives its place back and counts nothing. A refusal — no place to
-   * claim, or a backing that would not take what was produced — gives the place back where there is
-   * one and counts a drop.
+   * caller's own decision, so it gives its place back and counts nothing. A backing that would not
+   * take what was produced is a refusal: the place goes back and a drop is counted. The third way
+   * to fail -- no place at all -- cannot arise here, because the caller does not enter without one.
    *
    * @return whether the source element was admitted
    */
   @StrategyConsumer
-  private <E, C> boolean admitEach(
+  private <E, C> boolean admitEachClaimed(
       E element,
       C context,
       @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
       @Strategy RejectHandler<? super E> onRejected) {
-    if (!claimPlace()) {
-      reject(element, onRejected);
-      return false;
-    }
     T produced;
     try {
       produced = producer.produce(element, context);
@@ -388,37 +447,111 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return admit(first, second, producer);
   }
 
+  /**
+   * One claim for a run of elements rather than one per element, which is what makes a batch worth
+   * calling rather than a loop the caller could have written.
+   *
+   * <p>The loop stops on an empty claim, not on a short one. A short grant is not evidence the
+   * queue is full -- see {@link #claimPlaces} -- so treating it as the end would drop elements
+   * there was room for, which is the failure this shape exists to avoid.
+   *
+   * <p>What it does not remove is the backing's own per-element cost: a claimed place still has to
+   * be stored, and the MPSC ring charges a producer-index compare-and-set for each one. This halves
+   * the atomics per element on that backing, near enough; it does not get to one.
+   */
   @Override
   @SafeVarargs
   public final Collection<T> tryPutBatch(T... elements) {
     List<T> rejected = null;
-    for (int i = 0; i < elements.length; i++) {
-      T element = elements[i];
-      if (!tryPut(element)) {
+    int index = 0;
+    int length = elements.length;
+    while (index < length) {
+      int granted = claimPlaces(Math.min(length - index, MAX_BATCH_CLAIM));
+      if (granted == 0) {
+        // Refusals run to the end far more often than not: once the queue is full it stays full
+        // for the rest of the pass unless a consumer intervenes. Sizing for the remainder is an
+        // exact fit in that case and an over-fit in the other, and either beats regrowing.
         if (rejected == null) {
-          // Refusals run to the end far more often than not: once the queue is full it stays full
-          // for the rest of the pass unless a consumer intervenes. Sizing for the remainder is an
-          // exact fit in that case and an over-fit in the other, and either beats regrowing.
-          rejected = new ArrayList<>(elements.length - i);
+          rejected = new ArrayList<>(length - index);
         }
-        rejected.add(element);
+        for (; index < length; index++) {
+          T element = elements[index];
+          requireElement(element);
+          dropped.increment();
+          rejected.add(element);
+        }
+        break;
+      }
+      int end = index + granted;
+      try {
+        for (; index < end; index++) {
+          T element = elements[index];
+          requireElement(element);
+          if (!store(element)) {
+            releasePlace();
+            dropped.increment();
+            if (rejected == null) {
+              rejected = new ArrayList<>(length - index);
+            }
+            rejected.add(element);
+          }
+        }
+      } catch (Throwable t) {
+        // A null element throws out of the batch. The places claimed for it and for everything
+        // after it in this run were never spent, and have to go back before the throw leaves.
+        releasePlaces(end - index);
+        throw t;
       }
     }
     return rejected == null ? emptyList() : rejected;
   }
 
+  /** As {@link #tryPutBatch(Object[])}, over a collection. */
   @Override
   public final Collection<T> tryPutBatch(Collection<? extends T> elements) {
     List<T> rejected = null;
     int remaining = elements.size();
-    for (T element : elements) {
-      if (!tryPut(element)) {
+    Iterator<? extends T> source = elements.iterator();
+    while (remaining > 0) {
+      int granted = claimPlaces(Math.min(remaining, MAX_BATCH_CLAIM));
+      if (granted == 0) {
         if (rejected == null) {
           rejected = new ArrayList<>(remaining);
         }
-        rejected.add(element);
+        while (source.hasNext()) {
+          T element = source.next();
+          requireElement(element);
+          dropped.increment();
+          rejected.add(element);
+        }
+        break;
       }
-      remaining--;
+      int unspent = granted;
+      try {
+        while (unspent > 0 && source.hasNext()) {
+          T element = source.next();
+          requireElement(element);
+          unspent--;
+          remaining--;
+          if (!store(element)) {
+            releasePlace();
+            dropped.increment();
+            if (rejected == null) {
+              rejected = new ArrayList<>(remaining + 1);
+            }
+            rejected.add(element);
+          }
+        }
+      } catch (Throwable t) {
+        releasePlaces(unspent);
+        throw t;
+      }
+      if (unspent > 0) {
+        // The collection ran out before the claim did -- size() lied, or lies under concurrent
+        // modification. Give back what was never spent rather than losing it to the count.
+        releasePlaces(unspent);
+        break;
+      }
     }
     return rejected == null ? emptyList() : rejected;
   }
@@ -431,6 +564,13 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return tryPutBatch(source, context, producer, null);
   }
 
+  /**
+   * As {@link #tryPutBatch(Object[])}, asking a producer for each element that already has a place.
+   *
+   * <p>A declined element gives its place straight back to the count, so it does not consume the
+   * batch's room -- but it does consume this run's claim, which is why the loop keeps claiming
+   * until one comes back empty rather than stopping at the first run that did not fill.
+   */
   @Override
   public final <E, C> int tryPutBatch(
       Collection<? extends E> source,
@@ -438,9 +578,35 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       BiContextualProducer<? super E, ? super C, ? extends T> producer,
       RejectHandler<? super E> onRejected) {
     int admitted = 0;
-    for (E element : source) {
-      if (admitEach(element, context, producer, onRejected)) {
-        admitted++;
+    int remaining = source.size();
+    Iterator<? extends E> elements = source.iterator();
+    while (remaining > 0) {
+      int granted = claimPlaces(Math.min(remaining, MAX_BATCH_CLAIM));
+      if (granted == 0) {
+        // No place, so the producer is never asked -- the whole point of the API, kept at the end
+        // of a batch as well as at the start of one.
+        while (elements.hasNext()) {
+          reject(elements.next(), onRejected);
+        }
+        break;
+      }
+      int unspent = granted;
+      try {
+        while (unspent > 0 && elements.hasNext()) {
+          E element = elements.next();
+          unspent--;
+          remaining--;
+          if (admitEachClaimed(element, context, producer, onRejected)) {
+            admitted++;
+          }
+        }
+      } catch (Throwable t) {
+        releasePlaces(unspent);
+        throw t;
+      }
+      if (unspent > 0) {
+        releasePlaces(unspent);
+        break;
       }
     }
     return admitted;
