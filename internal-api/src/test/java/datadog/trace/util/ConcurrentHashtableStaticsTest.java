@@ -46,9 +46,31 @@ class ConcurrentHashtableStaticsTest {
   void getWriteLockIsStableAndNonNull() {
     AtomicReferenceArray<IntEntry> buckets =
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
-    Object lock = ConcurrentHashtable.getWriteLock(buckets);
+    Object lock = ConcurrentHashtable.getWriteLock(buckets, 3L);
     assertNotNull(lock);
-    assertSame(lock, ConcurrentHashtable.getWriteLock(buckets));
+    assertSame(lock, ConcurrentHashtable.getWriteLock(buckets, 3L));
+    // The keyHash form is defined as the index form under bucketIndex.
+    assertSame(
+        lock,
+        ConcurrentHashtable.getWriteLockAt(buckets, ConcurrentHashtable.bucketIndex(buckets, 3L)));
+  }
+
+  /**
+   * The three accessors name three scopes, but a single-lock table answers all of them with one
+   * monitor. Asserting that pins today's granularity as a deliberate choice rather than an
+   * accident: if it ever changes, this is the test that says so, and callers that asked for the
+   * scope they actually mutate keep working.
+   */
+  @Test
+  void allWriteLockScopesResolveToOneMonitorToday() {
+    AtomicReferenceArray<IntEntry> buckets =
+        ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
+    Object table = ConcurrentHashtable.getTableWriteLock(buckets);
+    assertNotNull(table);
+    for (int index = 0; index < buckets.length(); index++) {
+      assertSame(table, ConcurrentHashtable.getWriteLockAt(buckets, index));
+      assertSame(table, ConcurrentHashtable.getWriteLock(buckets, index));
+    }
   }
 
   @Test
@@ -85,7 +107,7 @@ class ConcurrentHashtableStaticsTest {
     AtomicReferenceArray<IntEntry> buckets =
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8); // mask 7
     IntEntry e = new IntEntry(9, 1); // keyHash 9 → bucket 1
-    synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
+    synchronized (ConcurrentHashtable.getWriteLock(buckets, e.keyHash)) {
       ConcurrentHashtable.insertHeadEntryFor(buckets, e.keyHash, e);
     }
     assertSame(e, ConcurrentHashtable.bucketFor(buckets, 9L)); // masks keyHash to the bucket index
@@ -226,7 +248,7 @@ class ConcurrentHashtableStaticsTest {
     AtomicReferenceArray<IntEntry> buckets =
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
     IntEntry e = new IntEntry(1, 1);
-    synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
+    synchronized (ConcurrentHashtable.getWriteLockAt(buckets, 0)) {
       ConcurrentHashtable.insertHeadEntryAt(buckets, 0, e);
     }
     assertThrows(AssertionError.class, () -> ConcurrentHashtable.unlink(buckets, 0, null, e));
@@ -325,7 +347,7 @@ class ConcurrentHashtableStaticsTest {
   /**
    * Minimal hand-written table over a caller-owned {@link AtomicReferenceArray}, following the
    * documented recipe: lock-free pre-check, then re-check + mutate under {@code
-   * getWriteLock(buckets)}.
+   * getWriteLock(buckets, keyHash)}.
    */
   private static final class IntTable {
     final AtomicReferenceArray<IntEntry> buckets;
@@ -353,7 +375,7 @@ class ConcurrentHashtableStaticsTest {
           return e;
         }
       }
-      synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
+      synchronized (ConcurrentHashtable.getWriteLockAt(buckets, index)) {
         for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {
             return e;
@@ -374,7 +396,7 @@ class ConcurrentHashtableStaticsTest {
           return e;
         }
       }
-      synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
+      synchronized (ConcurrentHashtable.getWriteLockAt(buckets, index)) {
         for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {
             return e;
@@ -390,7 +412,7 @@ class ConcurrentHashtableStaticsTest {
 
     IntEntry remove(int key) {
       int index = ConcurrentHashtable.bucketIndex(buckets, key);
-      synchronized (ConcurrentHashtable.getWriteLock(buckets)) {
+      synchronized (ConcurrentHashtable.getWriteLockAt(buckets, index)) {
         IntEntry prev = null;
         for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {
           if (e.matches(key)) {

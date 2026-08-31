@@ -83,7 +83,7 @@ class ConcurrentHashtableSizeManagerTest {
     assertEquals(1, state.sizeManager.estimateSize());
 
     TestEntry entry = new TestEntry(0, "reserved");
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       ConcurrentHashtable.insertReserved(state, entry.keyHash, entry);
     }
 
@@ -234,7 +234,7 @@ class ConcurrentHashtableSizeManagerTest {
   void stateLevelTryReserveOrEvictAndEvictOneAndEvictAllDelegateToSizeManager() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getWriteLockAt(state, 0)) {
       ConcurrentHashtable.insertHeadEntryAt(state, 0, new TestEntry(0, "a"));
     }
     state.sizeManager.increment();
@@ -245,7 +245,7 @@ class ConcurrentHashtableSizeManagerTest {
     // the reservation already happened and a plain insertHeadEntryAt/increment would double-count.
     // Both steps go in ONE critical section: tryReserveOrEvict is self-locking, so on its own it
     // leaves a window where a drain/clear could reset the count out from under the reservation.
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       boolean reserved = ConcurrentHashtable.tryReserveOrEvict(state, e -> true);
       assertTrue(reserved);
       assertEquals(1, ConcurrentHashtable.estimateSize(state));
@@ -258,7 +258,7 @@ class ConcurrentHashtableSizeManagerTest {
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
     assertFalse(ConcurrentHashtable.isFull(state));
 
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getWriteLockAt(state, 0)) {
       ConcurrentHashtable.insertHeadEntryAt(state, 0, new TestEntry(0, "b"));
     }
     state.sizeManager.increment();
@@ -284,7 +284,7 @@ class ConcurrentHashtableSizeManagerTest {
     assertTrue(ConcurrentHashtable.isFull(state));
 
     Thread clearer = new Thread(() -> ConcurrentHashtable.clear(state), "clearer");
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       clearer.start();
       // Wait until the clear is definitely queued on the monitor we hold, so the interleaving under
       // test is the one actually attempted rather than one the scheduler happened to avoid.
@@ -315,7 +315,7 @@ class ConcurrentHashtableSizeManagerTest {
   private static TestEntry insertAt(
       ConcurrentHashtable.State<TestEntry> state, int index, String label) {
     TestEntry entry = new TestEntry(index, label);
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getWriteLockAt(state, index)) {
       ConcurrentHashtable.insertHeadEntryAt(state, index, entry);
     }
     return entry;
@@ -324,7 +324,7 @@ class ConcurrentHashtableSizeManagerTest {
   /** {@code sizeManager.tryReserveOrEvict}, taking the write lock {@code @GuardedBy} requires. */
   private static boolean tryReserveOrEvict(
       ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
     }
   }
@@ -332,7 +332,7 @@ class ConcurrentHashtableSizeManagerTest {
   /** {@code sizeManager.evictOne}, taking the write lock {@code @GuardedBy} requires. */
   private static TestEntry evictOne(
       ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.evictOne(state.buckets, evictable);
     }
   }
@@ -340,7 +340,7 @@ class ConcurrentHashtableSizeManagerTest {
   /** {@code sizeManager.evictAll}, taking the write lock {@code @GuardedBy} requires. */
   private static int evictAll(
       ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
-    synchronized (ConcurrentHashtable.getWriteLock(state)) {
+    synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.evictAll(state.buckets, evictable);
     }
   }
