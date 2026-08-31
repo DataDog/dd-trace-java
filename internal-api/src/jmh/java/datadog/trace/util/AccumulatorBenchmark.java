@@ -55,6 +55,30 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>(This run had some background noise from another session on the measurement machine; the
  * {@code lowContention} rows and the {@code highContention} directional deltas are reliable, but
  * treat the exact {@code highContention} magnitudes as approximate.)
+ *
+ * <p><b>{@code longAdderGroup*}: is a "just fix it with LongAdder" helper actually cheaper?</b>
+ * {@code groupInc}/{@code groupAccumulateAnd} are the natural correct fix using {@code LongAdder}
+ * as the payload: one {@code LongAdder} per counter, with a per-counter lock guarding <em>both</em>
+ * the increment and the drain (locking only the drain does nothing -- {@code sumThenReset()}'s
+ * internal race is against the {@code LongAdder}'s own CAS-based {@code add()}, not against any
+ * lock a caller takes). This closes the same reset hazard as {@link Accumulator}, but stripes by
+ * <em>counter</em> instead of by <em>thread</em>. <code>
+ * AccumulatorBenchmark.accumulatorIncrement_highContention         avgt    6   0.029 ±  0.051  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAnd_highContention     avgt    6  13.431 ±  5.876  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_highContention      avgt    6   0.294 ±  0.088  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention  avgt    6   0.549 ±  0.291  us/op
+ * </code> Not "similar cost" -- a clean trade-off inversion. With this benchmark's single counter,
+ * {@code longAdderGroup}'s per-counter lock collapses to one lock for every thread (no thread-based
+ * distribution at all), so it loses badly on the write path: ~10x worse than {@code Accumulator}'s
+ * thread-sharded stripes. But its drain only has that one lock to acquire, so it wins big there:
+ * ~24x better than {@code Accumulator}, which always walks all 16 stripes on every drain regardless
+ * of counter count. That asymmetry is the whole story: {@code longAdderGroup}'s drain cost scales
+ * with <em>number of counters</em> (more counters -&gt; more locks to drain), while {@code
+ * Accumulator}'s drain cost is fixed at stripe count, independent of counter count. Which design
+ * actually wins for a given caller depends on that caller's counter cardinality and whether its
+ * write traffic concentrates on a few hot counters (favors thread-sharding) or spreads across many
+ * (favors counter-sharding) -- not measured here, and worth checking against the real migration
+ * targets before treating either number as the general answer.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
@@ -71,6 +95,35 @@ public class AccumulatorBenchmark {
   private final LongAdder adder = new LongAdder();
   private final long[][] accumulator = Accumulator.create(Counter.values());
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
+  private final LongAdder[] longAdderGroup = {new LongAdder()};
+
+  /**
+   * The natural "just use LongAdder" fix for the reset hazard: one {@code LongAdder} per counter,
+   * with a per-counter lock guarding both the increment and the drain -- external locking around
+   * only the drain does nothing, since {@code sumThenReset()}'s internal race is against the {@code
+   * LongAdder}'s own CAS-based {@code add()}, not against any lock a caller takes. This is the fair
+   * comparison point: it closes the same hazard {@link Accumulator} does, but stripes by
+   * <em>counter</em> (one lock per enum constant) instead of by <em>thread</em> (one lock per
+   * stripe, shared by all counters) -- so N threads hammering the *same* counter contend on one
+   * lock regardless of core count, with no thread-bucket distribution at all.
+   */
+  private static void groupInc(LongAdder[] group, int ordinal) {
+    LongAdder counter = group[ordinal];
+    synchronized (counter) {
+      counter.add(1L);
+    }
+  }
+
+  private static long[] groupAccumulateAnd(LongAdder[] group) {
+    long[] acc = new long[group.length];
+    for (int i = 0; i < group.length; i++) {
+      LongAdder counter = group[i];
+      synchronized (counter) {
+        acc[i] = counter.sumThenReset();
+      }
+    }
+    return acc;
+  }
 
   @Benchmark
   @Threads(1)
@@ -134,5 +187,31 @@ public class AccumulatorBenchmark {
   public void accumulatorAccumulateAnd_highContention(Blackhole blackhole) {
     Accumulator.inc(accumulator, Counter.HITS);
     blackhole.consume(Accumulator.accumulateAnd(accumulator));
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void longAdderGroupIncrement_lowContention() {
+    groupInc(longAdderGroup, Counter.HITS.ordinal());
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void longAdderGroupIncrement_highContention() {
+    groupInc(longAdderGroup, Counter.HITS.ordinal());
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void longAdderGroupAccumulateAnd_lowContention(Blackhole blackhole) {
+    groupInc(longAdderGroup, Counter.HITS.ordinal());
+    blackhole.consume(groupAccumulateAnd(longAdderGroup));
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void longAdderGroupAccumulateAnd_highContention(Blackhole blackhole) {
+    groupInc(longAdderGroup, Counter.HITS.ordinal());
+    blackhole.consume(groupAccumulateAnd(longAdderGroup));
   }
 }
