@@ -70,10 +70,10 @@ abstract class AbstractOTBaggageTest {
   void chargesRepeatedKeyOnce() {
     Map<String, String> baggage =
         extractBaggage(
-            baggageHeaders(baggageItems("key0", "val0", "key0", "val0", "a", "0123456789")));
+            baggageHeaders(baggageItems("key0", "val0", "a", "0123456789", "key0", "val1")));
 
     Map<String, String> expected = new HashMap<>();
-    expected.put("key0", "val0");
+    expected.put("key0", "val1");
     expected.put("a", "0123456789");
     assertEquals(expected, baggage);
   }
