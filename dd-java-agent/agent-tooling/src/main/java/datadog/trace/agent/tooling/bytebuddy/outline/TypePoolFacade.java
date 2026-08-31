@@ -49,6 +49,14 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().beginTransform(name, bytecode);
   }
 
+  public static void beginLambdaTransform() {
+    typeFactory.get().beginLambdaTransform();
+  }
+
+  public static void endLambdaTransform() {
+    typeFactory.get().endLambdaTransform();
+  }
+
   /** Switch to full descriptions, needed for the actual class transformation. */
   public static void enableFullDescriptions() {
     typeFactory.get().enableFullDescriptions();

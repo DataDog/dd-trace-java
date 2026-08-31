@@ -23,7 +23,7 @@ public final class TPEHelper {
   // If legacy is enabled, we will try to propagate via wrapping, if not we will try to propagate
   // via storing the state in the existing field in the Runnable
   private static final boolean useWrapping;
-  // A ThreadPoolExecutor with one of these types will newer be propagated/wrapped
+  // A ThreadPoolExecutor with one of these types will never be propagated/wrapped
   private static final Set<String> excludedClasses;
   // A ThreadLocal to store the Scope between beforeExecute and afterExecute if wrapping is not used
   private static final ThreadLocal<ContextScope> threadLocalScope;
@@ -31,15 +31,11 @@ public final class TPEHelper {
   private static final ClassValue<Boolean> WRAP =
       GenericClassValue.of(
           input -> {
-            // If the lambda class was field-injected (via the metafactory instrumentation) it can
-            // carry the State context-store field directly, so there is no need to wrap it.
             if (FieldBackedContextAccessor.class.isAssignableFrom(input)) {
               return false;
             }
             String className = input.getName();
-            // We should always wrap anonymous lambda classes since we can't inject fields into
-            // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
-            // their class name which is not allowed in 'normal' classes.
+            // Wrap anonymous lambda classes that were not field-injected.
             return className.indexOf('/', className.lastIndexOf('.')) > 0;
           });
 
