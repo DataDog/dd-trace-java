@@ -9,13 +9,17 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.lang.reflect.Field;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -31,6 +35,9 @@ class AgentAttributionIntegrationTest {
 
   private static CoreTracer tracer;
   private static LLMObs.LLMObsSpanFactory previousFactory;
+
+  private AgentSpan apmRootSpan;
+  private AgentScope apmRootScope;
 
   static {
     try {
@@ -64,6 +71,21 @@ class AgentAttributionIntegrationTest {
     LLMObsInternal.setSpanFactory(previousFactory);
     TracerInstaller.forceInstallGlobalTracer(null);
     tracer.close();
+  }
+
+  @BeforeEach
+  void startApmScope() {
+    // In production the DD agent always activates an APM scope (e.g. http.request) before user
+    // code calls LLMObs APIs. Without a shared root APM span every DDLLMObsSpan starts its own
+    // trace, causing trace-ID mismatches that block in-process agent attribution propagation.
+    apmRootSpan = AgentTracer.get().buildSpan("apm", "http.server.request").start();
+    apmRootScope = AgentTracer.activateSpan(apmRootSpan);
+  }
+
+  @AfterEach
+  void stopApmScope() {
+    apmRootScope.close();
+    apmRootSpan.finish();
   }
 
   // ─────────────────────────────────────────────────────────────────
