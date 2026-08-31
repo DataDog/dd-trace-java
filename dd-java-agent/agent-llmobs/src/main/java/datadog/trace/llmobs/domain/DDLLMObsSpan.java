@@ -182,8 +182,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       // Inherit from in-process LLMObs parent only when the context belongs to the same trace.
       // Matches the gate applied to parent_id and session_id above: a stale LLMObsContext
       // leaked across an async boundary would otherwise attribute a span to an agent from a
-      // different trace. In production the DD agent always establishes a root APM scope, so
-      // all LLMObs spans within a request share one trace and this check passes.
+      // different trace. For standalone agent spans (no ambient APM root), standaloneApmScope
+      // ensures descendants are started under the agent's APM span so this gate passes.
       if (null != parent && parent.getTraceId() == span.getTraceId()) {
         resolvedParentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
