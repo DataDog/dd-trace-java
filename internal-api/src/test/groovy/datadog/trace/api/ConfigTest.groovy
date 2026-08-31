@@ -1417,6 +1417,20 @@ class ConfigTest extends DDSpecification {
     envName << ["DD_PROXY_NO_PROXY", "NO_PROXY", "no_proxy"]
   }
 
+  def "no-proxy configuration preserves wildcard and single-character hosts"() {
+    setup:
+    environmentVariables.set(envName, "*,a b")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.noProxyHosts == ["*", "a", "b"] as Set
+
+    where:
+    envName << ["DD_PROXY_NO_PROXY", "NO_PROXY", "no_proxy"]
+  }
+
   def "verify mapping configs on tracer for #mapString"() {
     setup:
     System.setProperty(PREFIX + HEADER_TAGS + ".legacy.parsing.enabled", "true")

@@ -180,4 +180,13 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     "http://user:pass@proxy:3128"   | "http://user:pass@proxy:3128/"
     "https://unsupported.example"   | null
   }
+
+  void 'wildcard no-proxy host bypasses configured HTTPS proxy'() {
+    given:
+    def proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("proxy.example", 8181))
+    def selector = new SharedCommunicationObjects.IntakeProxySelector(proxy, ["*"] as Set)
+
+    expect:
+    selector.select(new URI("https://event-platform-intake.datadoghq.com")) == [Proxy.NO_PROXY]
+  }
 }

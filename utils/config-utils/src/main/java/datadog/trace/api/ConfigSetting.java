@@ -30,6 +30,7 @@ public final class ConfigSetting {
               "dd.api-key",
               "dd.profiling.api-key",
               "dd.profiling.apikey",
+              "proxy.https",
               "test.agent.session.token",
               "DD_TEST_AGENT_SESSION_TOKEN"));
 

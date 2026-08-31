@@ -6302,13 +6302,13 @@ public class Config {
     for (; i < str.length(); ++i) {
       char c = str.charAt(i);
       if (c == ',' || (splitOnWS && Character.isWhitespace(c))) {
-        if (i - start - 1 > 0) {
+        if (i - start > 0) {
           result.add(str.substring(start, i));
         }
         start = i + 1;
       }
     }
-    if (i - start - 1 > 0) {
+    if (i - start > 0) {
       result.add(str.substring(start));
     }
     return Collections.unmodifiableSet(result);

@@ -49,6 +49,7 @@ public class ConfigSettingTest {
     "dd.api-key           | dd.api-key                  | somevalue | <hidden>     ",
     "dd.profiling.api-key | dd.profiling.api-key        | somevalue | <hidden>     ",
     "dd.profiling.apikey  | dd.profiling.apikey         | somevalue | <hidden>     ",
+    "HTTPS proxy          | proxy.https                 | somevalue | <hidden>     ",
     "session token prop   | test.agent.session.token    | somevalue | <hidden>     ",
     "session token env    | DD_TEST_AGENT_SESSION_TOKEN | somevalue | <hidden>     ",
     "some.other.key       | some.other.key              | somevalue | somevalue    "

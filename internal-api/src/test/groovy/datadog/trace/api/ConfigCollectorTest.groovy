@@ -191,6 +191,19 @@ class ConfigCollectorTest extends DDSpecification {
     collected.get(ConfigOrigin.ENV).get('DD_API_KEY').stringValue() == '<hidden>'
   }
 
+  def "hide HTTPS proxy credentials"() {
+    setup:
+    ConfigCollector.get().collect()
+    injectEnvConfig("DD_PROXY_HTTPS", "http://user:password@proxy.example:8080")
+
+    expect:
+    ConfigCollector.get()
+      .collect()
+      .get(ConfigOrigin.ENV)
+      .get(TracerConfig.PROXY_HTTPS)
+      .stringValue() == '<hidden>'
+  }
+
   def "collects common setting default values"() {
     when:
     def defaultConfigByKey = ConfigCollector.get().collect().get(ConfigOrigin.DEFAULT)
