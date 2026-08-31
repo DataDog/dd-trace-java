@@ -155,6 +155,8 @@ public final class Memoizer {
     @Override
     protected boolean doMatch(TypeDescription target) {
       String targetName = target.getName();
+      // Same-owner hidden lambdas share a symbolic name. Bypass these caches before supporting
+      // lambda interfaces with different matcher results.
       if (noMatchFilter.contains(targetName)
           || "java.lang.Object".equals(targetName)
           || target.isPrimitive()) {

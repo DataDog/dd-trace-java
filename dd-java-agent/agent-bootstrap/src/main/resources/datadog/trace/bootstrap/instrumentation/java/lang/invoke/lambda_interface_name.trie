@@ -1,0 +1,7 @@
+# Generates 'LambdaInterfaceNameTrie.java'
+
+# Exact functional interfaces whose generated lambda classes should be sent through the agent's
+# matching and transformation pipeline. Keep this list narrow: the lookup runs for every lambda
+# linkage in the application.
+
+1 java.lang.Runnable

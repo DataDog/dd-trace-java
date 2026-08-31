@@ -14,6 +14,7 @@ tasks.named("compileJava") {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-  // executor context propagation across the field-injected lambda
+  testImplementation 'org.clojure:clojure:1.11.1'
+  // Runs the existing Runnable propagation advice on injected lambdas.
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
 }

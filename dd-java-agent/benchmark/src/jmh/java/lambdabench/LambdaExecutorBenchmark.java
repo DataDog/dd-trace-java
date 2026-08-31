@@ -19,8 +19,8 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 
 /**
- * Measures the executor task-submission path for a lambda {@code Runnable}. Compare the three
- * nested fork variants (run with {@code -prof gc}):
+ * Compares lambda {@code Runnable} allocation and submission with no agent, wrapping, and field
+ * injection.
  *
  * <ul>
  *   <li>{@link NoAgent} — baseline, no agent.
@@ -30,13 +30,18 @@ import org.openjdk.jmh.annotations.TearDown;
  *       field-injected, so no wrapper is allocated and identity is preserved.
  * </ul>
  *
- * <p>The headline metric is {@code ·gc.alloc.rate.norm} (bytes/op): the delta between {@code
- * AgentLambdaOff} and {@code AgentLambdaOn} on {@link #submitLambda} is the wrapper allocation we
- * removed. Lives outside the {@code datadog.*} package on purpose — {@code LambdaTransformerHelper}
- * skips agent-owned lambdas, and a real application's lambdas are not under {@code datadog.*}.
+ * <p>With the GC profiler, {@code allocateCapturingRunnable} isolates the injected field's object
+ * size cost while {@code submitLambda} includes the wrapper allocation tradeoff. Run with:
+ *
+ * <pre>{@code
+ * ./gradlew :dd-java-agent:benchmark:jmh \
+ *   '-Pjmh.includes=LambdaExecutorBenchmark.*allocateCapturingRunnable' \
+ *   -Pjmh.profilers=gc
+ * }</pre>
  */
 public abstract class LambdaExecutorBenchmark {
 
+  // Must remain outside datadog.* because the helper skips agent-owned lambdas.
   // Relative to the JMH working directory, which Gradle sets to this project's directory.
   private static final String AGENT = "-javaagent:build/agent/dd-java-agent.jar";
 
@@ -72,6 +77,17 @@ public abstract class LambdaExecutorBenchmark {
     }
   }
 
+  @State(Scope.Thread)
+  public static class CapturingLambdaState {
+    public void run() {}
+  }
+
+  /** Allocates an untraced capturing Runnable. */
+  @Benchmark
+  public Runnable allocateCapturingRunnable(CapturingLambdaState state) {
+    return state::run;
+  }
+
   /** Submit a lambda Runnable to the executor under an active trace, and wait for it to run. */
   @Benchmark
   public void submitLambda(ExecutorState state) throws InterruptedException {
@@ -105,7 +121,6 @@ public abstract class LambdaExecutorBenchmark {
   @Trace(operationName = "parent")
   private void runUnderTrace(ExecutorService pool) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    // lambda Runnable: this is the task whose propagation strategy (wrap vs field) we compare
     pool.execute(latch::countDown);
     latch.await();
   }

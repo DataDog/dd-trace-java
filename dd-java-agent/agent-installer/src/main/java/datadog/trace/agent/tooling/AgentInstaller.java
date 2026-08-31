@@ -266,12 +266,7 @@ public class AgentInstaller {
     }
   }
 
-  /**
-   * Exposes the installed transformer to the {@code InnerClassLambdaMetafactory} instrumentation so
-   * generated lambda classes can be run through the same matching + field-injection pipeline before
-   * they are defined. Leaving the holder unset disables lambda field-injection, which is always
-   * safe: tasks then fall back to being wrapped.
-   */
+  /** Registers the installed class-file transformer for generated lambdas. */
   private static void registerLambdaTransformer(final ClassFileTransformer classFileTransformer) {
     LambdaTransformer lambdaTransformer = newLambdaTransformer(classFileTransformer);
     if (null != lambdaTransformer) {
@@ -280,13 +275,8 @@ public class AgentInstaller {
   }
 
   /**
-   * On Java 9+ the transformer must be given the module declaring the lambda, otherwise ByteBuddy
-   * skips the read edge that field-injected classes need and lambdas in named modules become
-   * undefinable. If that transformer cannot be loaded we return {@code null} rather than falling
-   * back to the module-less one, which would be the very defect we are avoiding.
-   *
-   * <p>Uses an anonymous class (not a lambda) so this bootstrapping code does not itself depend on
-   * the metafactory we just instrumented.
+   * Java 9+ requires the module-aware transformer for injected read edges. Failure must disable
+   * lambda transformation rather than fall back to the module-less overload.
    */
   @SuppressWarnings("unchecked")
   private static LambdaTransformer newLambdaTransformer(
@@ -306,9 +296,11 @@ public class AgentInstaller {
         return null;
       }
     }
+    // Avoid invoking the instrumented metafactory while installing its transformer.
     return new LambdaTransformer() {
       @Override
       public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
+        TypePoolFacade.beginLambdaTransform();
         try {
           return classFileTransformer.transform(
               targetClass.getClassLoader(),
@@ -318,6 +310,8 @@ public class AgentInstaller {
               classBytes);
         } catch (Throwable ignored) {
           return null;
+        } finally {
+          TypePoolFacade.endLambdaTransform();
         }
       }
     };
