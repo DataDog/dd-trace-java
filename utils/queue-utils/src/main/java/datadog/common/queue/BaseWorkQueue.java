@@ -348,7 +348,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * The tail of every producer admission. A {@code null} is the producer declining, which is the
    * caller's own decision: the place goes back and nothing is counted, because nothing was lost. A
    * backing that would not take what was produced is a refusal, and is counted. Same three outcomes
-   * as {@link #admitEach}, which walks a source instead of taking one element.
+   * as {@link #admitEachClaimed}, which walks a source instead of taking one element.
    */
   private boolean storeOrRelease(T element) {
     if (element == null) {
@@ -419,7 +419,11 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
       requireElement(element);
       done = true;
-      queue.store(element);
+      // Through the same tail as every other admission, and not a bare store: a backing is allowed
+      // to give up -- MpmcWorkQueue does, past its retry bound -- and a place spent on an element
+      // the backing would not take has to come back, once, counted. Discarding this return was
+      // safe only while no backing could refuse an element it had already claimed room for.
+      queue.storeOrRelease(element);
     }
 
     @Override
@@ -798,7 +802,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     }
   }
 
-  /** Allocated only once a consumer has thrown, and never escapes {@link #onFailure}. */
+  /** Allocated only once a consumer has thrown. See {@link RetryStrategy#onFailure}. */
   private RetryQueue<T> lease(int attempt) {
     return new RetryQueue<T>() {
       @Override

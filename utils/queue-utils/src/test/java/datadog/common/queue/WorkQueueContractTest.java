@@ -1183,6 +1183,49 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("overflow"));
   }
 
+  /**
+   * A backing that claims to be unable to store anything, so the one outcome no real backing
+   * produces on demand -- a refusal of an element a place was already claimed for -- can be tested
+   * at all. {@link MpmcWorkQueue} reaches it by exhausting its retry bound, which a test cannot
+   * provoke reliably.
+   */
+  private static final class RefusingWorkQueue<T> extends BaseWorkQueue<T> {
+    RefusingWorkQueue(int capacity) {
+      super(capacity);
+    }
+
+    @Override
+    boolean store(Object element) {
+      return false;
+    }
+
+    @Override
+    Object retrieve() {
+      return null;
+    }
+  }
+
+  @org.junit.jupiter.api.Test
+  void aRefusedFillGivesThePlaceBackAndCountsTheDrop() {
+    RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
+    try (Reservation<String> place = queue.tryReserve()) {
+      assertTrue(place.granted());
+      place.fill("lost");
+    }
+    assertEquals(0, queue.size(), "the place was not given back");
+    assertEquals(1, queue.dropped(), "the lost element was not counted");
+    // And the capacity is still usable, which is the part a leaked place would break.
+    assertTrue(queue.tryReserve().granted(), "the place was lost for good");
+  }
+
+  @org.junit.jupiter.api.Test
+  void aRefusedStoreOnAPlainPutIsCountedOnce() {
+    RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
+    assertFalse(queue.tryPut("lost"));
+    assertEquals(0, queue.size());
+    assertEquals(1, queue.dropped(), "a refusal counted more or less than once");
+  }
+
   private static List<String> consumeAll(WorkQueue<String> queue) {
     List<String> consumed = new ArrayList<>();
     while (queue.process(consumed::add)) {
