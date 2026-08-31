@@ -13,14 +13,12 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
 import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
-import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -35,6 +33,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -335,19 +334,15 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
   void extractMappedBaggageIsSubjectToTheItemLimit() {
-    // mapped baggage shares the budget with the baggage read off the wire, so only one of the two
-    // mapped headers is kept
-    Map<String, String> headers =
-        headers(
-            SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue",
-            SOME_CUSTOM_BAGGAGE_HEADER_2, "otherMappedBaggageValue");
+    // mapped baggage shares the item budget with the baggage read off the wire, so the wire item
+    // is dropped once the mapped header has claimed the only slot
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
+    headers.put(OT_BAGGAGE_PREFIX + "wireKey", "wireValue");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(1, context.getBaggage().size());
-    assertTrue(
-        asList(SOME_BAGGAGE, SOME_CASE_SENSITIVE_BAGGAGE)
-            .containsAll(context.getBaggage().keySet()));
+    assertEquals(singletonMap(SOME_BAGGAGE, "mappedBaggageValue"), context.getBaggage());
   }
 
   @Nested
