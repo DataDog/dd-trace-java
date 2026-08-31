@@ -311,6 +311,9 @@
     }
 
     .code-card {
+      display: flex;
+      flex-direction: column;
+      height: 540px;
       min-height: 282px;
       overflow: hidden;
       background: #201927;
@@ -321,6 +324,7 @@
 
     .code-toolbar {
       display: flex;
+      flex: 0 0 39px;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
@@ -348,7 +352,9 @@
     .copy-button:hover { color: white; border-color: #806a8c; }
 
     .code-lines {
-      height: 388px;
+      flex: 1 1 auto;
+      height: auto;
+      min-height: 0;
       max-height: none;
       margin: 0;
       padding: 12px 0;
@@ -416,6 +422,7 @@
 
     .code-flow-legend {
       display: flex;
+      flex: 0 0 auto;
       flex-wrap: wrap;
       gap: 6px 12px;
       padding: 6px 12px;
@@ -436,6 +443,7 @@
 
     .step-note {
       display: grid;
+      flex: 0 0 auto;
       grid-template-columns: 33px 1fr;
       align-items: start;
       gap: 11px;
