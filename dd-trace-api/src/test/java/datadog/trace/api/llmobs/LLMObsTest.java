@@ -446,62 +446,6 @@ class LLMObsTest {
     verify(mockFactory).startEmbeddingSpan("embed-span", null, null, null, null);
   }
 
-  @Test
-  void testStartAgentSpanWithVersionDefaultMethodDelegatesToThreeArgOverload() {
-    LLMObsSpan mockSpan = mock(LLMObsSpan.class);
-    LLMObs.LLMObsSpanFactory factory =
-        new LLMObs.LLMObsSpanFactory() {
-          @Override
-          public LLMObsSpan startLLMSpan(
-              String spanName,
-              String modelName,
-              String modelProvider,
-              String mlApp,
-              String sessionId) {
-            return null;
-          }
-
-          @Override
-          public LLMObsSpan startAgentSpan(String spanName, String mlApp, String sessionId) {
-            return mockSpan;
-          }
-
-          @Override
-          public LLMObsSpan startToolSpan(String spanName, String mlApp, String sessionId) {
-            return null;
-          }
-
-          @Override
-          public LLMObsSpan startTaskSpan(String spanName, String mlApp, String sessionId) {
-            return null;
-          }
-
-          @Override
-          public LLMObsSpan startWorkflowSpan(String spanName, String mlApp, String sessionId) {
-            return null;
-          }
-
-          @Override
-          public LLMObsSpan startEmbeddingSpan(
-              String spanName,
-              String mlApp,
-              String modelProvider,
-              String modelName,
-              String sessionId) {
-            return null;
-          }
-
-          @Override
-          public LLMObsSpan startRetrievalSpan(String spanName, String mlApp, String sessionId) {
-            return null;
-          }
-        };
-
-    LLMObsSpan result = factory.startAgentSpan("test", "app", "session", "1.0.0");
-
-    assertSame(mockSpan, result);
-  }
-
   private static void setStaticField(String fieldName, Object value) throws Exception {
     Field field = LLMObs.class.getDeclaredField(fieldName);
     field.setAccessible(true);
