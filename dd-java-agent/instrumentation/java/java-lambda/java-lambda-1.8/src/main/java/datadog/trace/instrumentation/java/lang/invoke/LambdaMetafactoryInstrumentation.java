@@ -4,6 +4,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.JavaModuleOpenProvider;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,6 +51,11 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
 
   public LambdaMetafactoryInstrumentation() {
     super("lambda");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && !Platform.isNativeImageBuilder();
   }
 
   @Override
