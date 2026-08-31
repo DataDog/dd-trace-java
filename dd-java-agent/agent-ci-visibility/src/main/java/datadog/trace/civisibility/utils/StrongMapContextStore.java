@@ -20,7 +20,8 @@ public class StrongMapContextStore<K, C> implements ContextStore<K, C> {
 
   @Override
   public C getOrPut(K key, C context) {
-    return map.computeIfAbsent(key, k -> context);
+    C existing = map.putIfAbsent(key, context);
+    return existing != null ? existing : context;
   }
 
   @Override
