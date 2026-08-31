@@ -437,12 +437,11 @@
     .step-note {
       display: grid;
       grid-template-columns: 33px 1fr;
+      align-items: start;
       gap: 11px;
-      height: 112px;
-      min-height: 0;
+      min-height: 72px;
       margin: 0;
       padding: 10px;
-      overflow: auto;
       background: var(--panel-2);
       border: 0;
       border-top: 1px solid var(--line);
@@ -1745,8 +1744,8 @@
         codeLabel: "AggregateTable call flow · abridged",
         codeSections: [0, 7, 14, 21, 27, 47, 53],
         code: [
-          "// Scenario setup",
-          "buckets = Hashtable.Support.create(maxAggregates, MAX_RATIO); // max = 4",
+          "// Scenario setup · maxAggregates = 4",
+          "buckets = Hashtable.Support.create(maxAggregates, MAX_RATIO);",
           "record(orders);",
           "record(checkout);",
           "record(legacy);",
