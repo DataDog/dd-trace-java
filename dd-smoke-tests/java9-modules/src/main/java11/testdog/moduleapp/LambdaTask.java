@@ -19,8 +19,7 @@ public final class LambdaTask {
     try {
       final CountDownLatch latch = new CountDownLatch(1);
       final Runnable task = latch::countDown;
-      assertFieldInjection(
-          task, Boolean.parseBoolean(System.getProperty("dd.trace.lambda.enabled", "true")));
+      assertFieldInjection(task);
       pool.execute(task);
       if (!latch.await(10, TimeUnit.SECONDS)) {
         throw new IllegalStateException("lambda task did not run");
@@ -30,19 +29,15 @@ public final class LambdaTask {
     }
   }
 
-  private static void assertFieldInjection(final Runnable task, final boolean expected) {
+  private static void assertFieldInjection(final Runnable task) {
     final List<String> interfaces = new ArrayList<>();
     for (final Class<?> type : task.getClass().getInterfaces()) {
       interfaces.add(type.getName());
     }
     final boolean injected = interfaces.contains(FIELD_BACKED_CONTEXT_ACCESSOR);
-    if (injected != expected) {
+    if (!injected) {
       throw new IllegalStateException(
-          "expected lambda field-injection="
-              + expected
-              + " but was "
-              + injected
-              + "; "
+          "expected lambda field-injection; "
               + task.getClass().getName()
               + " implements "
               + interfaces);
