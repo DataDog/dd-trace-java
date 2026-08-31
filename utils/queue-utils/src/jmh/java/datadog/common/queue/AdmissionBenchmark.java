@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -28,32 +29,52 @@ import org.openjdk.jmh.infra.Blackhole;
  * steady state. The element itself is preallocated in every arm, including the producer ones, so
  * what is being compared is the admission machinery and not the cost of building an element.
  *
- * <p>The {@code backings} parameter is the template-method question: {@code ONE} loads a single
- * concrete subclass, so {@code store} is monomorphic and C2 inlines it outright; {@code BOTH} loads
- * two, which C2 still inlines behind a type guard. A third backing would be the cliff. Measuring
- * both is how we find out whether the inheritance layout costs anything today, or only threatens
- * to.
+ * <p>The {@code backings} parameter is the template-method question. {@code store} and {@code
+ * retrieve} are one call site each, shared by every backing in the process, so their receiver
+ * profile is global: {@code ONE} loads a single concrete subclass and C2 inlines through them,
+ * {@code BOTH} loads two and it still does behind a type guard, {@code THREE} is the cliff. Every
+ * arm drives two extra queues through the same sites for the same number of iterations, so the
+ * traffic is identical and only the number of distinct types in it changes.
  *
- * <p>Results, filled in as they are measured:
+ * <p>Results:
  *
  * <pre>
- * Benchmark                (backings)    ns/op    B/op
- * tryPutElement            ONE           ?        ?
- * tryPutElement            BOTH          ?        ?
- * tryPutContextual         ONE           ?        ?
- * tryPutContextual         BOTH          ?        ?
- * tryPutBiContextual       ONE           ?        ?
- * tryPutBiContextual       BOTH          ?        ?
- * reserveAndFill           ONE           20.4     0
- * reserveAndFill           BOTH          20.6     0
- * reserveRefused           ONE           13.8     0
- * reserveRefused           BOTH          13.9     0
- * reserveMixed             ONE           13.6     0     (12 with a shared refusal singleton)
- * reserveMixed             BOTH          13.6     0     (12 with a shared refusal singleton)
+ * Benchmark             ONE     BOTH    THREE    THREE-ONE
+ * tryPutElement        21.19   20.88   22.44      +1.3
+ * tryPutProducer       20.82   20.89   21.81      +1.0
+ * tryPutContextual     20.83   20.86   22.85      +2.0
+ * tryPutBiContextual   21.25   21.29   21.83      +0.6
+ * reserveAndFill       21.04   22.92   27.61      +6.6
+ * reserveMixed         12.69   12.75   13.71      +1.0
+ * reserveRefused        8.45    7.25    7.16       0
  * </pre>
  *
- * <p>JDK 17, one machine, {@code -Pjmh.forks=1}. The single-outcome arms cannot distinguish the two
- * refusal designs; only {@code reserveMixed} can.
+ * <p>JDK 25, {@code -Pjmh.forks=2}, ns/op. Every arm allocates 0.01 B/op or less, {@code THREE}
+ * included. Error bars are within ±0.6 except {@code reserveAndFill} at {@code BOTH} (±4.3) and
+ * {@code THREE} (±2.3), and {@code reserveRefused} at {@code ONE} (±1.9).
+ *
+ * <p>Two things to read off it. A second backing is free — every arm is flat from {@code ONE} to
+ * {@code BOTH}. A third is not free but is small: one to two nanoseconds on a twenty-one nanosecond
+ * operation, because an admit-and-drain pays two uncontended atomics and a ring compare-and-set,
+ * and an out-of-line call is little against memory ordering. {@code reserveRefused} is the control:
+ * it never reaches {@code store}, and it does not move.
+ *
+ * <p>{@code reserveAndFill} is the exception worth knowing about, at roughly 30%. Its {@code store}
+ * happens inside {@link Reservation#fill} on an object that only exists if escape analysis deletes
+ * it, so that arm is not paying for a virtual call so much as for a longer chain of optimizations
+ * having to survive one. The allocation still goes away — the reservation is still scalar-replaced
+ * at {@code THREE} — but the call it wraps no longer folds into the caller. A caller admitting
+ * through a reservation is the one with something to lose from a third backing.
+ *
+ * <p>The refusal-design figure that {@link BaseWorkQueue} cites lives here too, and is unchanged by
+ * any of the above: {@code reserveMixed} measured 12 B/op when a refused reservation was a shared
+ * singleton and 0 B/op when it is its own allocation, on JDK 17. Only that arm can tell the two
+ * designs apart — {@code reserveAndFill} and {@code reserveRefused} each see a single outcome, so
+ * C2 prunes the branch that never runs and there is no merge left to defeat escape analysis.
+ *
+ * <p>{@link ThirdBackingWorkQueue} is the third type, and lives in this source set rather than in
+ * the module: the question is what a third backing <i>would</i> cost, and shipping one to find out
+ * would answer a different question.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -66,7 +87,8 @@ public class AdmissionBenchmark {
 
   public enum Backings {
     ONE,
-    BOTH
+    BOTH,
+    THREE
   }
 
   private static final String ELEMENT = "element";
@@ -78,7 +100,7 @@ public class AdmissionBenchmark {
   private static final BiContextualProducer<String, String, String> BI_CONTEXTUAL =
       (first, second) -> first;
 
-  @Param({"ONE", "BOTH"})
+  @Param({"ONE", "BOTH", "THREE"})
   public Backings backings;
 
   /** Alternates the reserving queue in {@link #reserveMixed}, so one site sees both outcomes. */
@@ -91,23 +113,44 @@ public class AdmissionBenchmark {
   private WorkQueue<String> full;
 
   /**
-   * Present only to put a second concrete subclass into the profile. Its call sites are the same
-   * ones the queue under test uses, which is exactly the pollution being measured.
+   * Two more queues driven through the same call sites as the queue under test, and the whole of
+   * what the parameter varies. Every arm allocates both and drives both, so the traffic arriving at
+   * {@code store} and {@code retrieve} is identical; only the number of distinct types in it
+   * changes. An arm that skipped the loop would also differ in how hard its call sites had been
+   * exercised before measurement, which is not the question being asked.
    */
-  private WorkQueue<String> other;
+  private WorkQueue<String> second;
+
+  private WorkQueue<String> third;
 
   @Setup
-  public void setUp(Blackhole bh) {
+  public void setUp() {
     queue = WorkQueues.createMpscQueue(1024);
     full = WorkQueues.createMpscQueue(1);
     full.tryPut(ELEMENT);
-    if (backings == Backings.BOTH) {
-      other = WorkQueues.createMpmcQueue(1024);
-      // Warm the other backing through the same methods, so both types reach the call sites.
-      for (int i = 0; i < 20_000; i++) {
-        other.tryPut(ELEMENT);
-        other.process(bh::consume);
-      }
+    second =
+        backings == Backings.ONE
+            ? WorkQueues.createMpscQueue(1024)
+            : WorkQueues.createMpmcQueue(1024);
+    third =
+        backings == Backings.THREE
+            ? new ThirdBackingWorkQueue<>(1024)
+            : WorkQueues.createMpscQueue(1024);
+  }
+
+  /**
+   * Runs the other backings through the same methods, so every loaded type reaches the shared call
+   * sites. Repeated before every iteration rather than once per trial: the measured loop drives one
+   * type only, and a profile that saw the others just once at startup is not the profile a process
+   * with several live backings actually has.
+   */
+  @Setup(Level.Iteration)
+  public void pollute(Blackhole bh) {
+    for (int i = 0; i < 20_000; i++) {
+      second.tryPut(ELEMENT);
+      second.process(bh::consume);
+      third.tryPut(ELEMENT);
+      third.process(bh::consume);
     }
   }
 

@@ -48,14 +48,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private static final ContextualProducer<Producer<Object>, Object> PRODUCE = Producer::produce;
 
   /**
-   * The answer to every refused claim: a reservation that holds nothing, discards whatever is
-   * filled into it, and has nothing to give back. It holds no state, so one instance serves every
-   * queue and every element type.
-   *
-   * <p>Filling it is a no-op rather than a throw. The queue is full exactly when a caller can least
-   * afford a surprise, and an exception raised only under backpressure is a bug that waits for
-   * production to appear. The drop is already counted, by {@link #tryReserve} at the moment of
-   * refusal.
+   * Everything the queue lost, counted once each: refused admissions, elements a backing would not
+   * take, and items a retry strategy finally gave up on. Not a bound and not read on the admission
+   * path, so a {@link LongAdder}'s striping is free here and its contended write is what matters.
    */
   private final LongAdder dropped = new LongAdder();
 
@@ -115,21 +110,46 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * Stores an element in a place already claimed for it, so this can only fail if the backing
    * refuses for a reason of its own.
    *
-   * @return whether the element was stored
-   */
-  /**
-   * The one call site every backing funnels through, which is why the count of backings loaded in a
-   * process is an admission cost and not only a dispatch cost. At one or two implementations this
-   * site is free; a third makes it megamorphic, measured at 24 bytes and roughly three times the
-   * time per call — paid by callers that only ever touch one backing. A third backing is therefore
-   * a decision about every existing caller, and the point at which to replace this template method
-   * with a per-caller strategy so the sites stay separate. It is also why a backing that wants to
-   * hold two structures branches on a field of its own rather than arriving here as two types.
-   *
    * <p>A place has already been claimed, so a backing that can refuse transiently is expected to
    * retry rather than report the refusal — a {@code false} from here is taken as a drop and
    * counted, and there is no way for the queue to tell a structure saying "full" from one saying
    * "not yet". {@link MpmcWorkQueue} is the case that matters.
+   *
+   * <h2>What a third backing would cost here</h2>
+   *
+   * <p>This is one call site shared by every backing in the process, so its receiver profile is
+   * global rather than per-caller: a queue used nowhere near yours still writes into it. At one or
+   * two implementations C2 inlines through it; at three it stops, and {@code -XX:+PrintInlining}
+   * reports {@code store} and {@code retrieve} as {@code failed to inline: virtual call} on both
+   * JDK 17 and JDK 25. So the cliff is real and it is easy to fall off — a third backing is a
+   * decision about every existing caller, not only about its own.
+   *
+   * <p>It is also, measured, worth one or two nanoseconds. {@code AdmissionBenchmark}'s {@code
+   * THREE} arm is the standing version of that experiment: 20.8ns against 21.8ns per
+   * admit-and-drain for {@code tryPut(Producer)}, the same shape across the other admission forms,
+   * and no allocation difference at all. The reason is that an admit-and-drain pays two uncontended
+   * atomics on the permit count and a compare-and-set inside the ring, and an out-of-line call is
+   * little against memory ordering. Contention widens the atomics and narrows this further, and
+   * batching does not change it either, because the drain still returns a place per element.
+   *
+   * <p>One path is worse: admitting through a {@link Reservation} costs about 30% more, because
+   * {@link Reservation#fill}'s {@code store} sits at the end of a chain of optimizations that has
+   * to survive a call that no longer folds away. The reservation is still scalar-replaced, so it is
+   * time and not garbage — but a caller admitting that way is the one with something to lose.
+   *
+   * <p>Which is the useful form of the warning. Do not add a third backing to buy throughput,
+   * because there is none here to buy; weigh it against a few percent and against the reader. And
+   * if a path ever admits without touching an atomic, measure again there, because that is where
+   * this would start to matter. The repair, if it comes to it, is to stop sharing the site: let
+   * each backing implement the public interface and forward into this class, so the receiver is an
+   * exact final type at the top of the inlining tree and the call devirtualizes by static
+   * resolution rather than by profile.
+   *
+   * <p>None of that applies to a backing that holds two <i>structures</i> behind one type, which is
+   * why {@link MpmcWorkQueue} branches on a field of its own rather than arriving here as two
+   * classes. A predictable branch costs nothing and adds no receiver.
+   *
+   * @return whether the element was stored
    */
   abstract boolean store(Object element);
 
