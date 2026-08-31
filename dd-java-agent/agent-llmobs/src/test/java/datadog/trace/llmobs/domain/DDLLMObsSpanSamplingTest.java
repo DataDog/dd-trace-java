@@ -125,7 +125,7 @@ class DDLLMObsSpanSamplingTest {
     WellKnownTags tags =
         new WellKnownTags("runtime-id", "hostname", "test", "service", "version", "java");
     return new DDLLMObsSpan(
-        Tags.LLMOBS_LLM_SPAN_KIND, "span", "ml-app", null, "service", tags, sampler);
+        Tags.LLMOBS_LLM_SPAN_KIND, "span", "ml-app", null, "service", tags, null, sampler);
   }
 
   private static AgentSpan spanOf(DDLLMObsSpan llmObsSpan) throws IllegalAccessException {
