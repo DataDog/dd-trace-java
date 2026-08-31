@@ -710,7 +710,7 @@ public final class ConcurrentHashtable {
      * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
      */
     @GuardedBy("getWriteLock(buckets)")
-    private int cursor;
+    private volatile int cursor;
 
     public SizeManager(int capacity) {
       this.capacity = capacity;
