@@ -228,6 +228,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+
+    cleanup:
+    test.finish()
   }
 
   def "test llm span string input formatted to messages"() {
@@ -509,6 +512,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     innerSpan.getTag(INPUT) == null
     innerSpan.getTag(INPUT_PROMPT) == null
     innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == null
+
+    cleanup:
+    test.finish()
 
     where:
     spanKind << [

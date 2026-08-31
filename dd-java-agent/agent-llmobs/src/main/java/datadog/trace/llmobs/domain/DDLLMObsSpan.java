@@ -11,6 +11,7 @@ import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -63,6 +64,11 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String mlApp;
   private final ContextScope scope;
   private final boolean hasSessionId;
+  // Non-null only for a standalone agent span (no ambient APM root). Activating the underlying
+  // APM span ensures that subsequently auto-instrumented outgoing calls (HTTP, gRPC, …) are
+  // created as children of this agent, keeping all LLMObs spans in one APM trace so the
+  // trace-ID consistency gate in the constructor does not break parent_id / session_id inheritance.
+  private final AgentScope standaloneApmScope;
 
   private boolean finished = false;
 
@@ -135,6 +141,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     // Propagate the effective sessionId to descendant LLMObs spans via the context.
     scope = LLMObsContext.attach(span.spanContext(), sessionId);
+
+    // When there is no ambient APM root, activate this span so subsequent auto-instrumented
+    // outgoing calls become children of it, keeping all LLMObs spans within one APM trace.
+    // Without this, each new DDLLMObsSpan would start a fresh APM root with a different trace ID,
+    // causing the trace-ID consistency gate above to reject parent_id and session_id inheritance.
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span) {
+      standaloneApmScope = AgentTracer.activateSpan(span);
+    } else {
+      standaloneApmScope = null;
+    }
   }
 
   @Override
@@ -493,6 +509,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     span.finish();
     scope.close();
+    if (standaloneApmScope != null) {
+      standaloneApmScope.close();
+    }
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
     LLMObsMetricCollector.get()
