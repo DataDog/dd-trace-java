@@ -266,24 +266,14 @@ class DDLLMObsSpanAgentAttributionTest {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "span-name");
       try {
         AgentSpan inner = innerSpan(agentSpan);
-        // Before manifest: pagent name is the span name.
         assertEquals("span-name", inner.getTag(PAGENT_NAME_TAG));
 
         agentSpan.annotateAgentManifest(
             LLMObs.AgentManifest.builder().name("manifest-name").build());
 
-        // After manifest: pagent name on this span updates to the manifest name.
+        // The internal tag (used by the serializer for this span's agent_attribution) updates
+        // to the manifest name. Context-propagated pagent name for children remains the span name.
         assertEquals("manifest-name", inner.getTag(PAGENT_NAME_TAG));
-
-        // Descendants started after annotateAgentManifest also see the manifest name.
-        DDLLMObsSpan tool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
-        try {
-          assertEquals(
-              String.valueOf(inner.getSpanId()), innerSpan(tool).getTag(PAGENT_SPAN_ID_TAG));
-          assertEquals("manifest-name", innerSpan(tool).getTag(PAGENT_NAME_TAG));
-        } finally {
-          tool.finish();
-        }
       } finally {
         agentSpan.finish();
         apmScope.span().finish();

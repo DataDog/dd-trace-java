@@ -67,10 +67,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String spanKind;
   private final String mlApp;
   private final boolean hasSessionId;
-  // Non-null only for agent-kind spans; stored so annotateAgentManifest can re-attach context.
-  private final String agentAttributionSpanId;
-  private final String effectiveSessionId;
-  private ContextScope scope;
+  private final ContextScope scope;
 
   private boolean finished = false;
 
@@ -158,7 +155,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
-    this.effectiveSessionId = this.hasSessionId ? sessionId : null;
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
@@ -196,8 +192,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
         span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedParentAgentName);
       }
     }
-
-    this.agentAttributionSpanId = resolvedParentAgentSpanId;
 
     // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
     scope =
@@ -381,21 +375,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     base.put("framework", MANUAL_FRAMEWORK);
     span.setTag(AGENT_MANIFEST, base);
 
-    // Sync pagent name to the manifest name. The manifest name takes priority over the span name
-    // used at construction. Update both the internal tag (used by the serializer for this span's
-    // own agent_attribution) and the LLMObsContext scope (so descendants started after this call
-    // inherit the manifest name). Assumes no child LLMObs scopes are open when called.
-    String manifestName = (String) base.get("name");
-    span.setTag(PAGENT_NAME_TAG_INTERNAL, manifestName);
-    ContextScope old = scope;
-    scope =
-        LLMObsContext.attach(
-            span.spanContext(),
-            effectiveSessionId,
-            LLMObsContext.currentAgentVersion(),
-            agentAttributionSpanId,
-            manifestName);
-    old.close();
+    // Sync pagent name to the manifest name so the serializer emits the manifest name in
+    // agent_attribution. The manifest name takes priority over the span name set at construction.
+    span.setTag(PAGENT_NAME_TAG_INTERNAL, (String) base.get("name"));
   }
 
   private void mergeManifest(Map<String, Object> base, LLMObs.AgentManifest manifest) {
