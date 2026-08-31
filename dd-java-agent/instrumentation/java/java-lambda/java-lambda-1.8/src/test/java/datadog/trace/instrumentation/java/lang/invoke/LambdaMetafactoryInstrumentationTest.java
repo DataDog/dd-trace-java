@@ -10,6 +10,7 @@ import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
 import static net.bytebuddy.jar.asm.Opcodes.POP;
 import static net.bytebuddy.jar.asm.Opcodes.V1_8;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransforme
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import datadog.trace.instrumentation.java.lang.invoke.LambdaMetafactoryInstrumentation.MetafactoryVisitorWrapper;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -31,9 +33,6 @@ class LambdaMetafactoryInstrumentationTest {
   private static final String HELPER =
       "datadog/trace/bootstrap/instrumentation/java/lang/invoke/LambdaTransformerHelper";
 
-  /**
-   * Builds a class with a single method, transforms it, and reports whether transform() was hit.
-   */
   private static boolean injectsTransformCall(
       String methodName, String methodDescriptor, ClassBody body) {
     ClassWriter in = new ClassWriter(0);
@@ -176,12 +175,7 @@ class LambdaMetafactoryInstrumentationTest {
             }));
   }
 
-  /**
-   * Guards the {@code GETFIELD}s emitted by the visitor: if a JDK renames or drops any field this
-   * fails here rather than as a {@code NoSuchFieldError} in every lambda linkage. {@code
-   * targetClass} and {@code interfaceClass} are declared by the superclass, so this also covers the
-   * hierarchy walk.
-   */
+  /** Verifies every field read by the injected bytecode, including inherited fields. */
   @Test
   void structureMatcherAcceptsTheRealMetafactory() throws Exception {
     TypeDescription metafactory =
@@ -219,6 +213,100 @@ class LambdaMetafactoryInstrumentationTest {
       LambdaTransformerHolder.set(null);
     }
   }
+
+  @Test
+  void exactRunnableInterfaceUsesTransformer() {
+    byte[] originalBytes = new byte[0];
+    AtomicBoolean transformed = new AtomicBoolean();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes) -> {
+          transformed.set(true);
+          return classBytes;
+        });
+    try {
+      byte[] result =
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Runnable.class);
+
+      assertSame(originalBytes, result);
+      assertTrue(transformed.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
+
+  @Test
+  void runnableSubinterfaceBypassesTransformer() {
+    byte[] originalBytes = new byte[0];
+    AtomicBoolean transformed = new AtomicBoolean();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes) -> {
+          transformed.set(true);
+          return classBytes;
+        });
+    try {
+      byte[] result =
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, RunnableSubtype.class);
+
+      assertSame(originalBytes, result);
+      assertFalse(transformed.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
+
+  @Test
+  void transformerFailureFallsBackAndDoesNotPoisonNextLambda() {
+    byte[] originalBytes = new byte[0];
+    byte[] transformedBytes = new byte[1];
+    AtomicInteger calls = new AtomicInteger();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes) -> {
+          if (calls.getAndIncrement() == 0) {
+            throw new IllegalStateException("expected test failure");
+          }
+          return transformedBytes;
+        });
+    try {
+      assertSame(
+          originalBytes,
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Runnable.class));
+      assertSame(
+          transformedBytes,
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Runnable.class));
+      assertEquals(2, calls.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
+
+  @Test
+  void nullTransformFallsBackAndDoesNotPoisonNextLambda() {
+    byte[] originalBytes = new byte[0];
+    byte[] transformedBytes = new byte[1];
+    AtomicInteger calls = new AtomicInteger();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes) ->
+            calls.getAndIncrement() == 0 ? null : transformedBytes);
+    try {
+      assertSame(
+          originalBytes,
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Runnable.class));
+      assertSame(
+          transformedBytes,
+          LambdaTransformerHelper.transform(
+              originalBytes, "test/Lambda", Object.class, Runnable.class));
+      assertEquals(2, calls.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
+
+  private interface RunnableSubtype extends Runnable {}
 
   @FunctionalInterface
   private interface ClassBody {

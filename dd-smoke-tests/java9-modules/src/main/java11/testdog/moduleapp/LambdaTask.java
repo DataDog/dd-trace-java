@@ -7,13 +7,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Links a lambda {@code Runnable} from inside the application's named module.
- *
- * <p>Lives outside {@code datadog.*} on purpose: the agent skips lambdas declared by classes with
- * that prefix to avoid instrumenting itself, so a task in the application's own {@code
- * datadog.smoketest} package would never exercise this path.
- */
+/** Links a Runnable lambda from a named module and outside the ignored {@code datadog.*} prefix. */
 public final class LambdaTask {
   private static final String FIELD_BACKED_CONTEXT_ACCESSOR =
       "datadog.trace.bootstrap.FieldBackedContextAccessor";
@@ -35,10 +29,6 @@ public final class LambdaTask {
     }
   }
 
-  /**
-   * Checked in both directions: an untransformed lambda is what a silently disabled feature looks
-   * like, and an injected one with the flag off would mean the flag no longer gates.
-   */
   private static void assertFieldInjection(final Runnable task, final boolean expected) {
     final List<String> interfaces = new ArrayList<>();
     for (final Class<?> type : task.getClass().getInterfaces()) {

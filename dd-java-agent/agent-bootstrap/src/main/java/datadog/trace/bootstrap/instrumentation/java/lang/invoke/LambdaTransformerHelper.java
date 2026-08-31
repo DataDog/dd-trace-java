@@ -3,41 +3,27 @@ package datadog.trace.bootstrap.instrumentation.java.lang.invoke;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Entry point invoked from instrumented {@code java.lang.invoke.InnerClassLambdaMetafactory}. The
- * metafactory instrumentation injects a call to {@link #transform(byte[], String, Class, Class)}
- * right after the lambda class bytes are generated and before the class is defined, so eligible
- * lambdas get the agent's field-injection and advice applied like ordinary classes.
- *
- * <p>The JVM still defines the lambda as a hidden/anonymous class; only the bytes it defines are
- * replaced. This never throws: any problem returns the original bytes (mirroring how {@code
- * sun.instrument.TransformerManager} swallows {@code ClassFileTransformer} errors).
- */
+/** Transforms eligible lambda bytes before definition, falling back to the original on failure. */
 public final class LambdaTransformerHelper {
   private static final Logger log = LoggerFactory.getLogger(LambdaTransformerHelper.class);
 
-  // While transforming a lambda the agent / ByteBuddy may itself create lambdas; we must not
-  // recurse into transformation for those.
+  // Agent transformation may itself create lambdas.
   private static final ThreadLocal<Boolean> TRANSFORMING = new ThreadLocal<>();
 
   private LambdaTransformerHelper() {}
 
   /**
-   * @param classBytes the generated lambda class bytes (on the stack from {@code toByteArray()})
+   * @param classBytes the generated lambda class bytes
    * @param lambdaClassName internal (slash-separated) name of the generated lambda class
    * @param targetClass the class declaring the lambda
    * @param interfaceClass the functional interface implemented by the lambda
    * @return possibly transformed bytes; the original bytes on any failure
    */
   public static byte[] transform(
-      byte[] classBytes,
-      String lambdaClassName,
-      Class<?> targetClass,
-      Class<?> interfaceClass) {
+      byte[] classBytes, String lambdaClassName, Class<?> targetClass, Class<?> interfaceClass) {
     try {
-      // Only Runnable lambdas benefit from field-backed executor context propagation. Avoid sending
-      // every other lambda through the agent's full matching and transformation pipeline.
-      if (interfaceClass == null || !Runnable.class.isAssignableFrom(interfaceClass)) {
+      // Only exact allowlisted interfaces enter the transformer.
+      if (interfaceClass == null || LambdaInterfaceNameTrie.apply(interfaceClass.getName()) != 1) {
         return classBytes;
       }
       LambdaTransformer transformer = LambdaTransformerHolder.get();
