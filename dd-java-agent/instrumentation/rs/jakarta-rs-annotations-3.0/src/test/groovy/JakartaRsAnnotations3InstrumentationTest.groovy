@@ -219,6 +219,49 @@ class JakartaRsAnnotations3InstrumentationTest extends InstrumentationSpecificat
     }
   }
 
+  def "resource method exception with an embedded out-of-range status falls back to normal error handling"() {
+    setup:
+    // A misbehaving custom Response reporting a negative "unknown" status must not be used to
+    // index into the configured server-error statuses.
+    def response = Stub(Response) {
+      getStatus() >> -1
+      getStatusInfo() >> Stub(Response.StatusType) {
+        getStatusCode() >> -1
+        getReasonPhrase() >> "Custom"
+        getFamily() >> Response.Status.Family.OTHER
+      }
+    }
+    def obj = new Jakarta() {
+        @GET
+        @Path("/custom-status")
+        void call() {
+          throw new WebApplicationException(response)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    def ex = thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /custom-status"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-status"
+            errorTags(WebApplicationException, ex.message)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "resource method with a plain exception is still flagged as an error"() {
     setup:
     def obj = new Jakarta() {

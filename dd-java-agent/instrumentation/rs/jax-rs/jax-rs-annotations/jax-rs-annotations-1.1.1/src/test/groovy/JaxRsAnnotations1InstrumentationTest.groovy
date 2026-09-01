@@ -14,6 +14,8 @@ import javax.ws.rs.POST
 import javax.ws.rs.PUT
 import javax.ws.rs.Path
 import javax.ws.rs.WebApplicationException
+import javax.ws.rs.core.MultivaluedMap
+import javax.ws.rs.core.Response
 
 class JaxRsAnnotations1InstrumentationTest extends InstrumentationSpecification {
 
@@ -200,6 +202,57 @@ class JaxRsAnnotations1InstrumentationTest extends InstrumentationSpecification 
             "$Tags.COMPONENT" "jax-rs-controller"
             "$Tags.HTTP_ROUTE" "/internal-error"
             errorTags(WebApplicationException)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception with an embedded out-of-range status falls back to normal error handling"() {
+    setup:
+    // A hand-rolled Response (e.g. from a custom implementation) reporting a negative "unknown"
+    // status must not be used to index into the configured server-error statuses.
+    def response = new Response() {
+        @Override
+        Object getEntity() {
+          return null
+        }
+
+        @Override
+        int getStatus() {
+          return -1
+        }
+
+        @Override
+        MultivaluedMap getMetadata() {
+          return null
+        }
+      }
+    def obj = new Jax() {
+        @GET
+        @Path("/custom-status")
+        void call() {
+          throw new WebApplicationException(response)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    def ex = thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jax-rs.request"
+          resourceName "GET /custom-status"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-status"
+            errorTags(WebApplicationException, ex.message)
             defaultTags()
           }
         }
