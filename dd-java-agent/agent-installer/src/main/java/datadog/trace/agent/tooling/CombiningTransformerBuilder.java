@@ -197,6 +197,10 @@ public final class CombiningTransformerBuilder
     }
   }
 
+  String[] lambdaInterfaces() {
+    return lambdaMatchers.keySet().toArray(new String[0]);
+  }
+
   private void buildTypeMatcher(Instrumenter member, int transformationId) {
 
     if (member instanceof Instrumenter.ForSingleType) {

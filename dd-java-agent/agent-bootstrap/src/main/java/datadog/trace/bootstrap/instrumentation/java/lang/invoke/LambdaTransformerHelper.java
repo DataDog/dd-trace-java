@@ -23,7 +23,11 @@ public final class LambdaTransformerHelper {
       byte[] classBytes, String lambdaClassName, Class<?> targetClass, Class<?> interfaceClass) {
     try {
       // Only exact allowlisted interfaces enter the transformer.
-      if (interfaceClass == null || LambdaInterfaceNameTrie.apply(interfaceClass.getName()) != 1) {
+      if (interfaceClass == null) {
+        return classBytes;
+      }
+      String interfaceName = interfaceClass.getName();
+      if (LambdaInterfaceNameTrie.apply(interfaceName) != 1) {
         return classBytes;
       }
       LambdaTransformer transformer = LambdaTransformerHolder.get();
@@ -48,8 +52,7 @@ public final class LambdaTransformerHelper {
       TRANSFORMING.set(Boolean.TRUE);
       try {
         byte[] result =
-            transformer.transform(
-                lambdaClassName, targetClass, classBytes, interfaceClass.getName());
+            transformer.transform(lambdaClassName, targetClass, classBytes, interfaceName);
         if (result == null) {
           log.debug("Lambda {} not transformed", lambdaClassName);
           return classBytes;
