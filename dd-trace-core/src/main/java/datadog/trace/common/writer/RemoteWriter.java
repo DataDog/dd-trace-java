@@ -96,8 +96,7 @@ public abstract class RemoteWriter implements Writer {
             } else {
               rlLog.warn(
                   "Dropped a kept trace due to a buffer overflow: [{} spans]."
-                      + " Traces are being produced faster than they can be sent to the agent;"
-                      + " consider raising dd.writer.queue.size",
+                      + " Traces are being produced faster than they can be sent to the agent.",
                   trace.size());
             }
             handleDroppedTrace(trace);
@@ -105,6 +104,18 @@ public abstract class RemoteWriter implements Writer {
           case DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT:
             // Only sampled-out traces were lost, so this is not worth alarming the user over.
             log.debug("Dropped a sampled-out trace due to a buffer overflow: {}", trace);
+            handleDroppedTrace(trace);
+            break;
+          case DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN:
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Dropped a single span sampling candidate due to a buffer overflow: {}", trace);
+            } else {
+              rlLog.warn(
+                  "Dropped a single span sampling candidate due to a buffer overflow: [{} spans]."
+                      + " Traces are being produced faster than they can be sent to the agent.",
+                  trace.size());
+            }
             handleDroppedTrace(trace);
             break;
         }

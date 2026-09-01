@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW;
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,8 +72,8 @@ class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
     ILoggingEvent event = appender.list.get(0);
     assertEquals(Level.WARN, event.getLevel());
     assertTrue(
-        event.getFormattedMessage().contains("dd.writer.queue.size"),
-        "the warning should tell the user what to do about it: " + event.getFormattedMessage());
+        event.getFormattedMessage().contains("kept trace"),
+        "the warning should say a kept trace was lost: " + event.getFormattedMessage());
   }
 
   @Test
@@ -83,6 +84,19 @@ class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
         Collections.emptyList(),
         appender.list,
         "losing an already sampled-out trace must not warn the user");
+  }
+
+  @Test
+  void warnsWhenASingleSpanSamplingCandidateIsLostToOverflow() {
+    write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN);
+
+    assertEquals(1, appender.list.size());
+    ILoggingEvent event = appender.list.get(0);
+    assertEquals(Level.WARN, event.getLevel());
+    assertTrue(
+        event.getFormattedMessage().contains("single span sampling"),
+        "the warning should say a single span sampling candidate was lost: "
+            + event.getFormattedMessage());
   }
 
   /**

@@ -85,6 +85,10 @@ public enum Prioritization {
     @Override
     public <T extends CoreSpan<T>> PublishResult publish(
         T root, int priority, final List<T> trace) {
+      if (root.isForceKeep()) {
+        blockingOffer(primary, trace);
+        return PublishResult.ENQUEUED_FOR_SERIALIZATION;
+      }
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
@@ -92,7 +96,7 @@ public enum Prioritization {
             // send dropped traces for single span sampling
             return spanSampling.offer(trace)
                 ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
-                : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
+                : PublishResult.DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN;
           }
           return secondary.offer(trace)
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
@@ -135,7 +139,7 @@ public enum Prioritization {
             // send dropped traces for single span sampling
             return spanSampling.offer(trace)
                 ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
-                : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
+                : PublishResult.DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN;
           }
           if (droppingPolicy.active()) {
             return PublishResult.DROPPED_BY_POLICY;

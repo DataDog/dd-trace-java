@@ -21,7 +21,14 @@ public interface PrioritizationStrategy {
      * trace stats itself, so the sole consequence is a small loss of accuracy in agent-computed
      * stats; with client-side stats enabled they are discarded before reaching a queue.
      */
-    DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT
+    DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT,
+    /**
+     * A trace that sampling decided to drop could not be offered to the single span sampling queue
+     * because that queue was full. Unlike {@link #DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT}, this is not
+     * a stats-only loss: the trace's spans were candidates to be individually kept by single span
+     * sampling, so losing them can mean losing spans that would otherwise have reached the UI.
+     */
+    DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN
   }
 
   <T extends CoreSpan<T>> PublishResult publish(T root, int priority, List<T> trace);
