@@ -1,5 +1,7 @@
 package datadog.common.queue;
 
+import javax.annotation.Nonnull;
+
 /**
  * The capability to resubmit work after a consumer failure.
  *
@@ -16,9 +18,12 @@ public interface RetryQueue<T> {
    * {@code false} is what says the item was finally given up on. This is the overload every
    * ordinary strategy wants: it resubmits without allocating the array the varargs form needs.
    *
+   * @param item the failed item, which must not be {@code null}: a resubmission travels wrapped in
+   *     its attempt count, and the wrapper is what the admission path null-checks, so a null here
+   *     is not turned away -- it reaches the next consumer instead
    * @return whether the item was resubmitted
    */
-  boolean retry(T item);
+  boolean retry(@Nonnull T item);
 
   /**
    * Resubmits several items in place of the failed item.
@@ -28,8 +33,9 @@ public interface RetryQueue<T> {
    * counted here; a strategy that partially resubmits and returns {@code true} is telling the queue
    * the remainder was its own to lose.
    *
+   * @param items the replacement items, none of which may be {@code null}
    * @return whether every item was resubmitted
    */
   @SuppressWarnings("unchecked")
-  boolean retry(T... items);
+  boolean retry(@Nonnull T... items);
 }
