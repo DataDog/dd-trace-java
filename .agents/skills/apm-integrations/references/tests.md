@@ -4,7 +4,7 @@
 
 ## 1. Instrumentation test (mandatory)
 
-**Write Groovy/Spock tests for instrumentation tests** (per `AGENTS.md`: "Only use Groovy / Spock tests for instrumentation and smoke tests"). Full Java instrumentation test support is not yet available. Adding new `.groovy` files to a PR will trigger the `Enforce Groovy Migration` bot — add the `tag: override groovy enforcement` label to bypass it.
+**Write Groovy/Spock tests for instrumentation tests** (per `AGENTS.md`: "Only use Groovy / Spock tests for instrumentation and smoke tests"). This is unconditional — including for modules whose existing siblings happen to use Java/JUnit — an existing Java-DSL sibling is NOT license to add more Java tests; do not migrate a Groovy family to Java either. Confirm what the family is on with `ls src/test/` on the module's master version and its version-siblings (e.g. `jedis-1.4/`, `jedis-4.0/` for `jedis-3.0`) before writing tests. This file also shows Java `AbstractInstrumentationTest` examples below; those exist ONLY to illustrate style rules (no-banner-comments, error-path coverage) for modules that are ALREADY on the Java/JUnit DSL — they are NOT a license to introduce Java into a Groovy family. Introducing a `src/test/java/**` test into a module whose siblings are `src/test/groovy/**` diverges from master's style and can trip the Java DSL's stricter tag matcher, producing spurious CI failures that are NOT instrumentation defects. Adding new `.groovy` files to a PR will trigger the `Enforce Groovy Migration` bot — add the `tag: override groovy enforcement` label to bypass it.
 
 - Groovy/Spock test class in `src/test/groovy/datadog/trace/instrumentation/<framework>/`
 - Verify: spans created, tags set, errors propagated, resource names correct
@@ -129,9 +129,10 @@ Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (
 
 Do NOT insert banner-style separator comments (e.g. `// --------- Successful completion ---------`) inside test files to group related test methods. Banner comments have unclear scope, don't render usefully in IDEs, and add review burden without a benefit that justifies the noise.
 
-**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc:
+**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc.
 
 ```java
+// Java example, style only — same rule applies to Groovy/Spock (see DSL rule above)
 // ❌ Banner comments
 class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
   // ---------------------------------------------------------------------------
