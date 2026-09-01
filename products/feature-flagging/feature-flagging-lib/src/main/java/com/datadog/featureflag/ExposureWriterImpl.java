@@ -29,6 +29,7 @@ public class ExposureWriterImpl implements ExposureWriter {
   private static final String EXPOSURES_ROUTE = "exposures";
 
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
+  private final ExposureAdmissionCache admissionCache;
   private final Thread serializerThread;
 
   public ExposureWriterImpl(final SharedCommunicationObjects sco, final Config config) {
@@ -56,6 +57,7 @@ public class ExposureWriterImpl implements ExposureWriter {
       final FeatureFlagBackendApiFactory backendApiFactory,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
+    this.admissionCache = new ExposureAdmissionCache(capacity);
     final ExposureSerializingHandler serializer =
         new ExposureSerializingHandler(
             backendApiFactory,
@@ -76,6 +78,7 @@ public class ExposureWriterImpl implements ExposureWriter {
   @Override
   public void close() {
     FeatureFlaggingGateway.removeExposureListener(this);
+    admissionCache.close();
     if (this.serializerThread.isAlive()) {
       this.serializerThread.interrupt();
     }
@@ -83,7 +86,21 @@ public class ExposureWriterImpl implements ExposureWriter {
 
   @Override
   public void accept(final ExposureEvent event) {
-    queue.offer(event);
+    synchronized (admissionCache.lockFor(event)) {
+      if (admissionCache.isClosed()) {
+        return;
+      }
+      if (queue.offer(event)) {
+        admissionCache.add(event);
+      }
+    }
+  }
+
+  @Override
+  public boolean shouldCapture(
+      final String flag, final String subject, final String variant, final String allocation) {
+    return !admissionCache.isClosed()
+        && !admissionCache.contains(flag, subject, variant, allocation);
   }
 
   @VisibleForTesting

@@ -16,7 +16,16 @@ public abstract class FeatureFlaggingGateway {
     void activate();
   }
 
-  public interface ExposureListener extends Consumer<ExposureEvent> {}
+  public interface ExposureListener extends Consumer<ExposureEvent> {
+    /**
+     * Returns whether this listener needs a complete event for the supplied exposure identity. The
+     * default preserves the behavior of listeners that do not implement early admission.
+     */
+    default boolean shouldCapture(
+        final String flag, final String subject, final String variant, final String allocation) {
+      return true;
+    }
+  }
 
   public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {}
 
@@ -78,6 +87,17 @@ public abstract class FeatureFlaggingGateway {
 
   public static void removeExposureListener(final ExposureListener listener) {
     EXPOSURE_LISTENERS.remove(listener);
+  }
+
+  /** Returns whether at least one listener needs a complete event for this exposure identity. */
+  public static boolean shouldCaptureExposure(
+      final String flag, final String subject, final String variant, final String allocation) {
+    for (final ExposureListener listener : EXPOSURE_LISTENERS) {
+      if (listener.shouldCapture(flag, subject, variant, allocation)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static void dispatch(final ExposureEvent event) {

@@ -26,6 +26,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -40,6 +41,7 @@ import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -698,34 +700,16 @@ public class DDEvaluatorTest {
 
   @MethodSource("flatteningTestCases")
   @ParameterizedTest
-  public void testFlattening(
+  public void testExposureContextFlattening(
       final Map<String, Object> attributes, final Map<String, Object> expected) {
     final EvaluationContext context =
         new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
-    final Map<String, Object> result = DDEvaluator.flattenContext(context);
+    final Map<String, Object> result = DDEvaluator.copyExposureContext(context).attrs;
 
     assertThat(result.size(), equalTo(expected.size()));
     for (final Map.Entry<String, Object> entry : expected.entrySet()) {
       assertThat(result, hasEntry(entry.getKey(), entry.getValue()));
     }
-  }
-
-  @Test
-  public void testDeeplyNestedContextIsTruncatedRatherThanOverflowingTheStack() {
-    Value nested = new Value("leaf");
-    for (int i = 0; i < 10_000; i++) {
-      nested = new Value(singletonList(nested));
-    }
-    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
-
-    final Map<String, Object> result = DDEvaluator.flattenContext(context);
-
-    final StringBuilder truncatedKey = new StringBuilder("deep");
-    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
-      truncatedKey.append("[0]");
-    }
-    assertThat(result.size(), equalTo(1));
-    assertThat(result, hasEntry(truncatedKey.toString(), null));
   }
 
   @Test
@@ -835,6 +819,69 @@ public class DDEvaluatorTest {
     assertThat(result.attrs, hasEntry("region", "us-east-1"));
     assertThat(result.attrs.containsKey("targetingKey"), equalTo(false));
     assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyExposureContextPreservesTargetingKey() {
+    final MutableContext context = new MutableContext("user-42").add("region", "us-east-1");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyExposureContext(context);
+
+    assertThat(result.attrs, hasEntry("targetingKey", "user-42"));
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyExposureContextCapsFieldCount() {
+    final MutableContext context = new MutableContext("user-42");
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS + 100; i++) {
+      context.add(String.format("k%04d", i), "v");
+    }
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyExposureContext(context);
+
+    assertThat(result.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(result.truncatedReason, equalTo("max_context_fields"));
+  }
+
+  @Test
+  public void testDispatchExposureChecksAdmissionBeforeContextCapture() {
+    final List<ExposureEvent> captured = new ArrayList<>();
+    final FeatureFlaggingGateway.ExposureListener listener =
+        new FeatureFlaggingGateway.ExposureListener() {
+          @Override
+          public boolean shouldCapture(
+              final String flag,
+              final String subject,
+              final String variant,
+              final String allocation) {
+            return captured.isEmpty();
+          }
+
+          @Override
+          public void accept(final ExposureEvent event) {
+            captured.add(event);
+          }
+        };
+    final MutableContext context = new MutableContext("user-42").add("region", "first");
+    final ProviderEvaluation<String> evaluation =
+        ProviderEvaluation.<String>builder()
+            .value("on-value")
+            .variant("on")
+            .flagMetadata(ImmutableMetadata.builder().addString("allocationKey", "alloc-1").build())
+            .build();
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      DDEvaluator.dispatchExposure("flag", evaluation, context);
+      context.add("region", "changed");
+      DDEvaluator.dispatchExposure("flag", evaluation, context);
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
+
+    assertThat(captured.size(), equalTo(1));
+    assertThat(captured.get(0).subject.attributes, hasEntry("region", "first"));
   }
 
   @Test

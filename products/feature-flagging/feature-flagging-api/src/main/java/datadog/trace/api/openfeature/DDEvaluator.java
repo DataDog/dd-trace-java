@@ -20,7 +20,6 @@ import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
-import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Structure;
@@ -29,14 +28,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,8 +52,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
    * list/structure would overflow that thread's stack - and a StackOverflowError is not caught by
    * the LinkageError | Exception guards that keep telemetry from breaking an evaluation. Values
-   * below the limit are truncated to null, the same way the cycle guard truncates. Kept aligned
-   * with the cross-SDK RFC target (4).
+   * below the limit are omitted. Kept aligned with the cross-SDK RFC target (4).
    */
   static final int MAX_SNAPSHOT_DEPTH = 4;
 
@@ -648,20 +642,26 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return Double.parseDouble(String.valueOf(value));
   }
 
-  private static <T> void dispatchExposure(
+  static <T> void dispatchExposure(
       final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
     final String allocationKey = allocationKey(evaluation);
     final String variantKey = evaluation.getVariant();
     if (allocationKey == null || variantKey == null) {
       return;
     }
+    final String subjectKey = context.getTargetingKey();
+    if (!FeatureFlaggingGateway.shouldCaptureExposure(
+        flag, subjectKey, variantKey, allocationKey)) {
+      return;
+    }
+    final Map<String, Object> attributes = copyExposureContext(context).attrs;
     final ExposureEvent event =
         new ExposureEvent(
             System.currentTimeMillis(),
             new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
             new datadog.trace.api.featureflag.exposure.Flag(flag),
             new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
+            new Subject(subjectKey, attributes));
 
     FeatureFlaggingGateway.dispatch(event);
   }
@@ -669,96 +669,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
     final ImmutableMetadata meta = resolution.getFlagMetadata();
     return meta == null ? null : meta.getString("allocationKey");
-  }
-
-  static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {
-    return flattenValues(snapshotValues(context));
-  }
-
-  static Map<String, Value> snapshotValues(final EvaluationContext context) {
-    final HashMap<String, Value> values = new HashMap<>();
-    final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
-    for (final String key : context.keySet()) {
-      values.put(key, snapshotValue(context.getValue(key), seenContainers, 0));
-    }
-    return values;
-  }
-
-  private static Value snapshotValue(
-      final Value value, final Set<Object> seenContainers, final int depth) {
-    if (value == null) {
-      return null;
-    } else if (value.isNull()) {
-      return new Value();
-    } else if (value.isBoolean()) {
-      return new Value(value.asBoolean());
-    } else if (value.isNumber()) {
-      final Object number = value.asObject();
-      return number instanceof Integer
-          ? new Value((Integer) number)
-          : new Value(((Number) number).doubleValue());
-    } else if (value.isString()) {
-      return new Value(value.asString());
-    } else if (value.isInstant()) {
-      return new Value(value.asInstant());
-    } else if (value.isList()) {
-      final List<Value> list = value.asList();
-      if (depth >= MAX_SNAPSHOT_DEPTH || !seenContainers.add(list)) {
-        return new Value();
-      }
-      final List<Value> snapshot = new ArrayList<>(list.size());
-      for (final Value item : list) {
-        snapshot.add(snapshotValue(item, seenContainers, depth + 1));
-      }
-      seenContainers.remove(list);
-      return new Value(Collections.unmodifiableList(snapshot));
-    } else if (value.isStructure()) {
-      final Structure structure = value.asStructure();
-      if (depth >= MAX_SNAPSHOT_DEPTH || !seenContainers.add(structure)) {
-        return new Value();
-      }
-      final Map<String, Value> snapshot = new HashMap<>();
-      for (final String key : structure.keySet()) {
-        snapshot.put(key, snapshotValue(structure.getValue(key), seenContainers, depth + 1));
-      }
-      seenContainers.remove(structure);
-      return new Value(new ImmutableStructure(snapshot));
-    }
-    throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
-  }
-
-  static AbstractMap<String, Object> flattenValues(final Map<String, Value> values) {
-    final HashMap<String, Object> result = new HashMap<>();
-    final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
-    for (final Map.Entry<String, Value> root : values.entrySet()) {
-      final Deque<FlattenEntry> deque = new LinkedList<>();
-      deque.push(new FlattenEntry(root.getKey(), root.getValue()));
-      while (!deque.isEmpty()) {
-        final FlattenEntry entry = deque.pop();
-        final Value value = entry.value;
-        if (value == null) {
-          result.put(entry.key, null);
-        } else if (value.isList()) {
-          final List<Value> list = value.asList();
-          if (seenContainers.add(list)) {
-            for (int i = 0; i < list.size(); i++) {
-              deque.push(new FlattenEntry(entry.key + "[" + i + "]", list.get(i)));
-            }
-          }
-        } else if (value.isStructure()) {
-          final Structure structure = value.asStructure();
-          if (seenContainers.add(structure)) {
-            for (final String property : structure.keySet()) {
-              deque.push(
-                  new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
-            }
-          }
-        } else {
-          result.put(entry.key, convertValue(value));
-        }
-      }
-    }
-    return result;
   }
 
   private static Object convertValue(final Value value) {
@@ -855,6 +765,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    * canonical-key sorting happens once in the aggregator, off the hot path.
    */
   static CopyResult copyPrunedContext(final EvaluationContext context) {
+    return copyPrunedContext(context, false);
+  }
+
+  /**
+   * Builds the bounded exposure attributes. The targeting key stays in the attributes to preserve
+   * the existing exposure payload. The subject ID also carries the targeting key.
+   */
+  static CopyResult copyExposureContext(final EvaluationContext context) {
+    return copyPrunedContext(context, true);
+  }
+
+  private static CopyResult copyPrunedContext(
+      final EvaluationContext context, final boolean includeTargetingKey) {
     if (context == null) {
       return new CopyResult(Collections.emptyMap(), null);
     }
@@ -870,7 +793,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
         break;
       }
-      if (EvaluationContext.TARGETING_KEY.equals(key)) {
+      if (!includeTargetingKey && EvaluationContext.TARGETING_KEY.equals(key)) {
         continue;
       }
       copyPrunedValue(out, key, context.getValue(key), seen, 0, reasonMask);
@@ -971,15 +894,5 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @FunctionalInterface
   private interface SemverComparator {
     boolean compare(int ordering);
-  }
-
-  private static class FlattenEntry {
-    private final String key;
-    private final Value value;
-
-    private FlattenEntry(final String key, final Value value) {
-      this.key = key;
-      this.value = value;
-    }
   }
 }
