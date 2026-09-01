@@ -4,6 +4,7 @@ import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
 import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -14,12 +15,22 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlagBackendApiFactoryTest {
+
+  @Test
+  void configuresSdkIdentityHeadersForAllFeatureFlagEventTypes() {
+    assertEquals(
+        "dd-trace-java", FeatureFlagBackendApiFactory.REQUEST_HEADERS.get("DD-EVP-ORIGIN"));
+    assertEquals(
+        TracerVersion.TRACER_VERSION,
+        FeatureFlagBackendApiFactory.REQUEST_HEADERS.get("DD-EVP-ORIGIN-VERSION"));
+  }
 
   @Test
   void remoteConfigUsesOnlyLocalEvpProxy() {
