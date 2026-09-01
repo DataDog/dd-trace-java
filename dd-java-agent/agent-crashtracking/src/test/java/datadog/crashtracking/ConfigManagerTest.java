@@ -9,14 +9,39 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.util.PidHelper;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class ConfigManagerTest {
+
+  @AfterEach
+  public void resetCachedCfgFile() throws ReflectiveOperationException {
+    setCachedCfgFile(null);
+    clearPendingEntries();
+  }
+
+  private static void setCachedCfgFile(File cfgFile) throws ReflectiveOperationException {
+    Field field = ConfigManager.class.getDeclaredField("cfgFile");
+    field.setAccessible(true);
+    field.set(null, cfgFile);
+  }
+
+  private static void clearPendingEntries() throws ReflectiveOperationException {
+    Field field = ConfigManager.class.getDeclaredField("pendingEntries");
+    field.setAccessible(true);
+    ((Map<?, ?>) field.get(null)).clear();
+  }
+
   @Test
   public void testConfigWriteAndRead() throws IOException {
     Config config = mock(Config.class);
@@ -42,6 +67,107 @@ public class ConfigManagerTest {
     assertFalse(deserialized.agentless);
     assertTrue(deserialized.sendToErrorTracking);
     assertTrue(deserialized.extendedInfoEnabled);
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryPreservesUnknownKeysAndPatchesTarget() throws IOException {
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File scriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File cfgFile = new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    cfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(
+        scriptFile, "agent", "/path/to/agent.jar", "hs_err", "/tmp/hs_err.log");
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(deserialized);
+    assertEquals("1.2.3", deserialized.wafRulesVersion);
+
+    String content = new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+    assertTrue(content.contains("agent=/path/to/agent.jar"));
+    assertTrue(content.contains("hs_err=/tmp/hs_err.log"));
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "4.5.6");
+    ConfigManager.StoredConfig updated = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(updated);
+    assertEquals("4.5.6", updated.wafRulesVersion);
+    String updatedContent =
+        new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+    assertTrue(updatedContent.contains("agent=/path/to/agent.jar"));
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryDoesNotThrowWhenNoCfgFileCached()
+      throws ReflectiveOperationException {
+    setCachedCfgFile(null);
+    Assertions.assertDoesNotThrow(
+        () -> ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3"));
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryIsAppliedOncePendingCfgFileIsWritten() throws IOException {
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File scriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File cfgFile = new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    cfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(scriptFile);
+
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(deserialized);
+    assertEquals("1.2.3", deserialized.wafRulesVersion);
+  }
+
+  @Test
+  public void testWriteConfigToPathWithoutCachingDoesNotAffectUpdateCrashConfigEntryTarget()
+      throws IOException {
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File crashUploaderScriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File crashUploaderCfgFile =
+        new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    crashUploaderCfgFile.deleteOnExit();
+    File oomeScriptFile = new File(tmpDir, "dd_oome_notifier.sh");
+    File oomeCfgFile = new File(tmpDir, "dd_oome_notifier_pid" + PidHelper.getPid() + ".cfg");
+    oomeCfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(crashUploaderScriptFile);
+    ConfigManager.writeConfigToPathWithoutCaching(oomeScriptFile, "agent", "/path/to/agent.jar");
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    ConfigManager.StoredConfig crashUploaderConfig =
+        ConfigManager.readConfig(Config.get(), crashUploaderCfgFile);
+    Assertions.assertNotNull(crashUploaderConfig);
+    assertEquals("1.2.3", crashUploaderConfig.wafRulesVersion);
+
+    ConfigManager.StoredConfig oomeConfig = ConfigManager.readConfig(Config.get(), oomeCfgFile);
+    Assertions.assertNotNull(oomeConfig);
+    Assertions.assertNull(oomeConfig.wafRulesVersion);
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryNoOpWhenKeyOrValueIsNull() throws IOException {
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File scriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File cfgFile = new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    cfgFile.deleteOnExit();
+    ConfigManager.writeConfigToPath(scriptFile);
+
+    String contentBefore = new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+
+    ConfigManager.updateCrashConfigEntry(null, "1.2.3");
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", null);
+
+    String contentAfter = new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+    assertEquals(contentBefore, contentAfter);
   }
 
   @Test
