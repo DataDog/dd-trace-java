@@ -383,7 +383,7 @@ class WorkQueueContractTest {
       // drain
     }
 
-    assertEquals(3, attempts.get());
+    assertEquals(4, attempts.get(), "three retries on top of the original consumption");
   }
 
   @ParameterizedTest(name = "{0}")
