@@ -1,0 +1,9 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+dependencies {
+  compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
+
+  testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
+}
