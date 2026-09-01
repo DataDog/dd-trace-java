@@ -61,6 +61,58 @@ Examples of such SPIs:
 
 Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice (and the `compileOnly`/injection approach) in the PR so a reviewer sees the dependency was considered.
 
+**Worked example — hooking a registration/factory point instead of the query methods (R2DBC + `r2dbc-proxy`):**
+
+1. **Advice target is the factory, not the query.** Hook `io.r2dbc.spi.ConnectionFactories.find(ConnectionFactoryOptions)` — NOT `Statement.execute()` / `Batch.execute()`. Replace the returned `ConnectionFactory` using `@Advice.AssignReturned.ToReturned` on method exit:
+
+   ```java
+   @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+   @Advice.AssignReturned.ToReturned
+   public static ConnectionFactory wrap(
+       @Advice.Return ConnectionFactory factory,
+       @Advice.Argument(0) ConnectionFactoryOptions options) {
+     return R2dbcTracingSupport.wrapConnectionFactory(factory, options);
+   }
+   ```
+
+   Do NOT use a writable `@Advice.Return(readOnly = false) Publisher<...> ...` here — binding a reactive-streams interface to a writable return against a concrete `Mono`/`Flux` result fails Byte Buddy transformation. `@Advice.AssignReturned.ToReturned` sidesteps this because it substitutes the value rather than mutating a typed slot.
+
+2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` declared `compileOnly`):
+
+   ```java
+   public static ConnectionFactory wrapConnectionFactory(
+       ConnectionFactory factory, ConnectionFactoryOptions options) {
+     ProxyConfig cfg = new ProxyConfig();
+     cfg.addListener(new TraceProxyListener(options));
+     return ProxyConnectionFactory.builder(factory, cfg).build();
+   }
+   ```
+
+3. **Listener drives the span lifecycle** — implements `ProxyMethodExecutionListener`; stash the span on the query's own value store (the interception library already carries one per call — do not add a separate `ContextStore` keyed on the driver object):
+
+   ```java
+   public class TraceProxyListener implements ProxyMethodExecutionListener {
+     @Override
+     public void beforeQuery(QueryExecutionInfo qei) {
+       AgentSpan span = startSpan(...);
+       DECORATE.afterStart(span);
+       DECORATE.onStatement(span, qei);
+       qei.getValueStore().put(SPAN_KEY, span);
+     }
+     @Override
+     public void afterQuery(QueryExecutionInfo qei) {
+       AgentSpan span = qei.getValueStore().get(SPAN_KEY, AgentSpan.class);
+       if (qei.getThrowable() != null) DECORATE.onError(span, qei.getThrowable());
+       DECORATE.beforeFinish(span);
+       span.finish();
+     }
+   }
+   ```
+
+   `beforeQuery`/`afterQuery` fire once per logical operation and `r2dbc-proxy` itself owns completion/error/**cancel** — you do not hand-roll a `Publisher` wrapper to catch those.
+
+Net result: 1 advice (factory hook) + 1 wrap helper + 1 listener class — smaller than the method-advice alternative (which needs per-method advice on both `Statement.execute()` and `Batch.execute()`, plus a hand-rolled cancel-safe `Publisher` wrapper) and correct by construction on cancellation. The same shape applies to any other SPI in the examples list above: hook the registration/interceptor-installation point, not the client's own operational methods.
+
 ### Before writing a new module, scan for an existing one
 
 Before creating `dd-java-agent/instrumentation/$framework/$framework-$version/`, check whether `dd-java-agent/instrumentation/$framework/` already exists and what's in it.
