@@ -275,11 +275,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
   // spotless:on
 
-  @TableTest({
-    "cid",
-    "   ",
-    "'' "
-  })
+  @TableTest({"cid", "   ", "'' "})
   void readEntityIDReturnNullIfContainerIdIsNotDefinedAndIsHostCgroupNamespace(String cid) {
     ContainerInfo containerInfo = new ContainerInfo();
     containerInfo.setContainerId(cid);
