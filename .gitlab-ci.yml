@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '90cf5c67a3e68ce369d31c0d7a750016f97f61a0' # pinned by "Update apm-sdks-benchmarks reference" workflow
+    ref: &apm_sdks_benchmarks_sha '0899730be7696774b222937adfc6583932c050e1' # pinned by "Update apm-sdks-benchmarks reference" workflow
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -53,7 +53,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.7.0" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.7.1" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -189,6 +189,12 @@ default:
     KUBERNETES_CPU_REQUEST: 10
     KUBERNETES_MEMORY_REQUEST: 20Gi
     KUBERNETES_MEMORY_LIMIT: 20Gi
+
+.tier_xl:
+  variables: &tier_xl_variables
+    <<: *tier_l_variables
+    KUBERNETES_MEMORY_REQUEST: 32Gi
+    KUBERNETES_MEMORY_LIMIT: 32Gi
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
@@ -362,7 +368,7 @@ build:
 build_tests:
   extends: .gradle_build
   variables:
-    <<: *tier_l_variables
+    <<: *tier_xl_variables
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
   parallel:
