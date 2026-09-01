@@ -134,6 +134,13 @@ public class WriterFactory {
       }
     }
 
+    // In Lambda the execution environment can freeze as soon as the handler returns, before a
+    // writer's periodic flush timer next fires -- flush synchronously so buffered events (e.g.
+    // LLM Observability spans) aren't lost when that happens.
+    boolean isServerlessDefault =
+        config.isAgentConfiguredUsingDefault()
+            && ServerlessInfo.get().isRunningInServerlessEnvironment();
+
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
@@ -147,6 +154,7 @@ public class WriterFactory {
               .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
+              .alwaysFlush(isServerlessDefault)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
@@ -167,8 +175,7 @@ public class WriterFactory {
 
     } else { // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
-      if (config.isAgentConfiguredUsingDefault()
-          && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      if (isServerlessDefault) {
         if (!ServerlessInfo.get().hasExtension()) {
           log.info(
               "Detected serverless environment. Serverless extension has not been detected, using PrintingWriter");
