@@ -181,14 +181,11 @@ class AccumulatorTest {
     counters.inc(Counters.FOO);
     counters.inc(Counters.FOO);
     counters.add(Counters.BAR, 5L);
-    counters.update(
-        stripe -> {
-          Accumulator.EmbeddingSupport.inc(stripe, Counters.BAZ);
-        });
+    counters.update(stripe -> stripe.inc(Counters.BAZ));
 
-    long[] drained = counters.accumulateAndReset();
-    assertEquals(2L, drained[Counters.FOO.ordinal()]);
-    assertEquals(5L, drained[Counters.BAR.ordinal()]);
-    assertEquals(1L, drained[Counters.BAZ.ordinal()]);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(2L, drained.get(Counters.FOO));
+    assertEquals(5L, drained.get(Counters.BAR));
+    assertEquals(1L, drained.get(Counters.BAZ));
   }
 }

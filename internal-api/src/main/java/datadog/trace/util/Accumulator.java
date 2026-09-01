@@ -21,12 +21,12 @@ import javax.annotation.concurrent.GuardedBy;
  * Accumulator<MyCounters> counters = Accumulator.of(MyCounters.values());
  * counters.inc(MyCounters.FOO);
  * counters.update(stripe -> {
- *   Accumulator.EmbeddingSupport.inc(stripe, MyCounters.FOO);
- *   Accumulator.EmbeddingSupport.inc(stripe, MyCounters.BAR);
+ *   stripe.inc(MyCounters.FOO);
+ *   stripe.inc(MyCounters.BAR);
  * });
  *
- * long[] drained = counters.accumulateAndReset(); // combine + reset, atomically per stripe
- * long foo = drained[MyCounters.FOO.ordinal()];
+ * Accumulator.Counts<MyCounters> drained = counters.accumulateAndReset(); // atomically per stripe
+ * long foo = drained.get(MyCounters.FOO);
  * }</pre>
  *
  * @see EmbeddingSupport
@@ -56,26 +56,83 @@ public final class Accumulator<E extends Enum<E>> {
   }
 
   /**
-   * Runs {@code mutator} against the calling thread's stripe under a single held lock -- the escape
-   * hatch for performing several related updates atomically with respect to a concurrent {@link
-   * #accumulateAndReset}.
+   * Runs {@code mutator} against a typed view of the calling thread's stripe under a single held
+   * lock -- the escape hatch for performing several related updates atomically with respect to a
+   * concurrent {@link #accumulateAndReset}.
    *
    * @param mutator a strategy over the selected stripe; keep it small and non-capturing so it
-   *     inlines into the lock's critical section
+   *     inlines into the lock's critical section, and don't let the {@link Stripe} escape it (store
+   *     it, return it, hand it to another thread) -- see {@link Stripe}
    */
   @StrategyConsumer
-  public void update(@Strategy Consumer<long[]> mutator) {
-    EmbeddingSupport.update(data, mutator);
+  public void update(@Strategy Consumer<Stripe<E>> mutator) {
+    long[] stripe = EmbeddingSupport.stripeOf(data);
+    synchronized (stripe) {
+      mutator.accept(new Stripe<>(stripe));
+    }
   }
 
   /**
-   * Combines and resets every stripe, returning the sum.
+   * A typed view over one stripe, handed to an {@link #update} strategy: the same enum-ordinal type
+   * checking {@link Accumulator} provides at the top level, applied inside the critical section
+   * too.
    *
-   * @return a new array indexed by the enum's {@code ordinal()}
+   * <p>Constructed fresh under the held lock on every {@link #update} call. A well-behaved {@link
+   * Strategy} mutator -- small, non-capturing, and never storing or returning this object -- lets
+   * escape analysis prove it doesn't escape the inlined call and scalar-replace it, so no
+   * allocation survives to run time. Break those rules (capture it in a field, return it, hand it
+   * to another thread) and it degrades to a real, per-call allocation instead of a compile-time
+   * fiction with no correctness difference either way -- just a cost one.
+   */
+  public static final class Stripe<E extends Enum<E>> {
+    private final long[] stripe;
+
+    private Stripe(long[] stripe) {
+      this.stripe = stripe;
+    }
+
+    /** Increments the counter named by {@code key} in this stripe by one. */
+    public void inc(E key) {
+      EmbeddingSupport.inc(stripe, key);
+    }
+
+    /** Adds {@code delta} to the counter named by {@code key} in this stripe. */
+    public void add(E key, long delta) {
+      EmbeddingSupport.add(stripe, key, delta);
+    }
+  }
+
+  /**
+   * Combines and resets every stripe, returning the sum as a typed view.
+   *
+   * @return the sum, keyed by the enum's {@code ordinal()}
    * @see EmbeddingSupport#accumulateAndReset
    */
-  public long[] accumulateAndReset() {
-    return EmbeddingSupport.accumulateAndReset(data);
+  public Counts<E> accumulateAndReset() {
+    return new Counts<>(EmbeddingSupport.accumulateAndReset(data));
+  }
+
+  /**
+   * A typed view over a drained {@code long[]}, returned by {@link #accumulateAndReset}: the same
+   * enum-ordinal type checking {@link Accumulator} provides on writes, applied to the read side
+   * too.
+   *
+   * <p>Unlike {@link Stripe}, this is expected to escape -- the caller holds and reads it after the
+   * call returns -- so it's a real, per-drain allocation, not a scalar-replacement candidate.
+   * That's fine: {@link #accumulateAndReset} runs on a reporting cadence, not per {@link
+   * #inc}/{@link #add} call.
+   */
+  public static final class Counts<E extends Enum<E>> {
+    private final long[] counts;
+
+    private Counts(long[] counts) {
+      this.counts = counts;
+    }
+
+    /** The counter named by {@code key}. */
+    public long get(E key) {
+      return counts[key.ordinal()];
+    }
   }
 
   /**
