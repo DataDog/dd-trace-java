@@ -2,6 +2,7 @@ package datadog.trace.api.telemetry;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -19,11 +20,7 @@ import org.slf4j.LoggerFactory;
  * Collects telemetry metrics for LLM Observability spans.
  *
  * <p>Counts are aggregated per tag combination in-process and emitted as one point per metrics
- * interval. Emitting one point of value 1 per span instead would under-report badly: points are
- * timestamped at second granularity, so every point a series produces within the same second
- * collapses to a single value at the metrics intake, capping the reported rate at roughly 1/s per
- * series regardless of the real span rate. This matches how {@link CoreMetricCollector} and the
- * other tracers (dd-trace-py, dd-trace-js) report counts.
+ * interval.
  */
 public final class LLMObsMetricCollector
     implements MetricCollector<LLMObsMetricCollector.LLMObsMetric> {
@@ -49,13 +46,13 @@ public final class LLMObsMetricCollector
   private static final String HAS_SESSION_ID_FALSE = "has_session_id:0";
 
   /**
-   * Upper bound on the number of distinct tag combinations tracked concurrently. Tag values are
-   * drawn from bounded sets (a handful of integrations and span kinds, plus four booleans), so this
-   * is only a guard against an unexpected high-cardinality source. It is also kept low enough that
-   * several {@link #prepareMetrics()} intervals can be staged without overflowing {@link
-   * MetricCollector#RAW_QUEUE_SIZE} before the next {@link #drain()}.
+   * Upper bound on the number of distinct tag combinations tracked. Tag values are drawn from
+   * bounded sets (integrations, span kinds, and four booleans), so legitimate cardinality is in the
+   * low hundreds at the 8-integration scale the tag caches are sized for; this only guards against
+   * an unexpected high-cardinality source. Entries are never removed (see {@link
+   * #prepareMetrics()}), so this is a lifetime ceiling, not a concurrent one.
    */
-  static final int MAX_TAG_COMBINATIONS = 128;
+  static final int MAX_TAG_COMBINATIONS = 512;
 
   private final BlockingQueue<LLMObsMetric> metricsQueue;
   private final DDCache<String, String> integrationTagCache;
@@ -63,8 +60,7 @@ public final class LLMObsMetricCollector
 
   /**
    * Counter per tag combination, aggregated in-process and flushed once per metrics interval by
-   * {@link #prepareMetrics()}. Counting here rather than enqueuing one entry per span is what keeps
-   * the reported count accurate at high span rates.
+   * {@link #prepareMetrics()}.
    */
   private final ConcurrentHashMap<List<String>, LongAdder> spanFinishedCounters;
 
@@ -112,11 +108,13 @@ public final class LLMObsMetricCollector
     if (counter == null) {
       // Soft bound: concurrent recorders may overshoot slightly, which is fine for a guard.
       if (spanFinishedCounters.size() >= MAX_TAG_COMBINATIONS) {
-        log.debug(
-            "Dropping telemetry metric {} for {}: tag combination limit ({}) reached",
-            SPAN_FINISHED_METRIC,
-            integration,
-            MAX_TAG_COMBINATIONS);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Dropping telemetry metric {} for {}: tag combination limit ({}) reached",
+              SPAN_FINISHED_METRIC,
+              integration,
+              MAX_TAG_COMBINATIONS);
+        }
         return;
       }
       counter = spanFinishedCounters.computeIfAbsent(tags, key -> new LongAdder());
@@ -163,6 +161,7 @@ public final class LLMObsMetricCollector
   }
 
   /** Clears all staged counters and metrics. Visible for testing only. */
+  @VisibleForTesting
   public void resetForTesting() {
     spanFinishedCounters.clear();
     metricsQueue.clear();
