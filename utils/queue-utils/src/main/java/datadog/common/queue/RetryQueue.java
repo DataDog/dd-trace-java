@@ -11,11 +11,10 @@ public interface RetryQueue<T> {
    * Resubmits the failed item.
    *
    * <p>The failed item's place was given back when it was consumed, so this claims a place like any
-   * other admission and can be rejected if the queue filled up behind it. A refusal is not itself
-   * counted as a drop: the item is counted once, when {@link RetryStrategy#onFailure} returns
-   * {@code false} to say the strategy gave up. A strategy that cannot resubmit must therefore
-   * report that, or the item is lost without being counted. This is the overload every ordinary
-   * strategy wants: it resubmits without allocating the array the varargs form needs.
+   * other admission and can be rejected if the queue filled up behind it. A refusal here is one
+   * step of the strategy's decision, not its outcome; {@link RetryStrategy#onFailure} returning
+   * {@code false} is what says the item was finally given up on. This is the overload every
+   * ordinary strategy wants: it resubmits without allocating the array the varargs form needs.
    *
    * @return whether the item was resubmitted
    */

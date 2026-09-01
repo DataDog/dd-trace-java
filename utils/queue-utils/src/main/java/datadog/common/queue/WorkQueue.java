@@ -15,23 +15,24 @@ import java.util.function.Consumer;
  * Every failure below was found in this tree, in code that offers into a {@code
  * java.util.concurrent} queue by hand. They are not hypothetical, and none of them is anyone's
  * carelessness -- each is what the shape of {@code offer} invites. The last column is the honest
- * one: this API makes some of them impossible, some merely unlikely, and one it only makes
- * explicit.
+ * one: this API makes some of them impossible, some merely unlikely, one it only makes explicit,
+ * and one it does not address at all.
  *
  * <table border="1">
  *   <caption>Hand-rolled admission failures, and what this API does about them</caption>
  *   <tr><th>Failure</th><th>Seen as</th><th>Here</th></tr>
  *   <tr>
- *     <td>The {@code offer} return is discarded, so a drop is invisible</td>
- *     <td>Seven call sites in {@code RumInjectorMetrics}; two in {@code WafMetricCollector};
- *         {@code ProductChangeCollector}; {@code IntegrationsCollector}</td>
- *     <td><b>Impossible.</b> The count lives in the queue, not at the call site, so ignoring the
- *         return of {@code tryPut} still leaves the loss on {@link #dropped}</td>
- *   </tr>
- *   <tr>
- *     <td>The same queue is handled two ways in one class</td>
- *     <td>{@code WafMetricCollector} tests the return at a dozen sites and drops it at two</td>
- *     <td><b>Impossible.</b> Consistency is not a per-site discipline when the queue counts</td>
+ *     <td>The refusal is discarded, so a drop is invisible</td>
+ *     <td>Seven call sites in {@code RumInjectorMetrics}; two in {@code WafMetricCollector}, which
+ *         tests the return at a dozen sites and drops it at two; {@code ProductChangeCollector};
+ *         {@code IntegrationsCollector}</td>
+ *     <td><b>Not addressed.</b> Refusal is reported only through the return value, so a caller
+ *         that ignores it loses the element as silently as before. A drop counter owned by the
+ *         queue would cover this and is deliberately not in this version -- every other refusal
+ *         here is already reported synchronously, so it would have been a safety net for a
+ *         negligent caller rather than new information, and nothing yet surfaces it. What does
+ *         help is that {@link #tryPutBatch} answers for a whole drain at once, leaving one return
+ *         to ignore where a hand-rolled loop leaves one per element</td>
  *   </tr>
  *   <tr>
  *     <td>State is destroyed to build an element that is then refused, losing it permanently</td>
@@ -75,12 +76,14 @@ import java.util.function.Consumer;
  * <p>Worth reading {@code FlagEvaluationWriterImpl} as the counter-example: it is bounded, it
  * counts its drops, it surfaces the count as a metric, and it documents its own race honestly. It
  * is proof the discipline is achievable by hand -- at the cost of that team working it out and
- * writing it down themselves, which is the cost this module exists to pay once.
+ * writing it down themselves, which is the cost this module exists to pay once. Note that its drop
+ * counter is the one part of it this API does not replace: counting and publishing a refusal stays
+ * the caller's, which is the same division {@code FlagEvaluationWriterImpl} already chose.
  *
  * <p>Capacity is fixed by construction. A queue never grows in response to fullness: full means
- * drop and count. Admission claims a place before invoking any producer, so a rejected element is
- * never constructed at all — the guarantee that makes it safe to hand this a producer that
- * allocates heavily, since the allocation cannot happen on the path where it would be wasted.
+ * refuse. Admission claims a place before invoking any producer, so a rejected element is never
+ * constructed at all — the guarantee that makes it safe to hand this a producer that allocates
+ * heavily, since the allocation cannot happen on the path where it would be wasted.
  *
  * <p>What is claimed is capacity, never a position, so a producer never holds up a consumer. It
  * does hold a place other producers could have used, though: work that blocks, or that takes
@@ -109,8 +112,8 @@ import java.util.function.Consumer;
  * null: the queue carries it to a producer or consumer and never looks at it, so an absent one is
  * the caller's business. An optional {@link RejectHandler} may be null, which says exactly what the
  * overload without it says. And a <b>producer's return</b> may be null, which is that producer
- * declining the element it was asked to build — the place goes back, nothing is admitted, and
- * nothing is counted against {@link #dropped}, because a decision is not a loss.
+ * declining the element it was asked to build — the place goes back and nothing is admitted, which
+ * reads as a refusal to the caller even though nothing was lost.
  *
  * <p>Everything else is required. An <b>element</b> is never null, because neither backing can hold
  * one: there is no outcome to report, so {@code tryPut} and {@link Reservation#fill fill} throw
@@ -173,15 +176,15 @@ public interface WorkQueue<T> {
    * and a caller batching work this way never holds capacity of its own.
    *
    * <p>The producer may decline a source element by returning {@code null}. That is an explicit
-   * decision by the caller rather than a loss, so a declined element is not counted against {@link
-   * #dropped()} and does not count as admitted; the place claimed for it is simply given back.
+   * decision by the caller rather than a loss, so a declined element does not count as admitted;
+   * the place claimed for it is simply given back.
    *
    * <p>A count rather than the refused source elements, because the count is the number a caller
    * can act on and the elements are not. A caller that knows how many it meant to admit gets the
    * exact shortfall by subtraction, with its own declines excluded from both sides. The refused
    * elements cannot be that precise: a place is claimed before the producer is asked, so a full
    * queue cannot tell a genuine refusal from an element the producer would have declined anyway,
-   * and hands back — and counts against {@link #dropped()} — some of each.
+   * and hands back some of each.
    *
    * <p>{@code context} is the one value the whole batch shares and a source element cannot recover
    * on its own — a schema, a clock reading, a per-batch buffer. It is read once here rather than
@@ -324,12 +327,6 @@ public interface WorkQueue<T> {
   <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer);
 
   int size();
-
-  /**
-   * @return how many elements have been rejected on admission, or abandoned by a {@link
-   *     RetryStrategy}, over this queue's lifetime
-   */
-  long dropped();
 
   /**
    * Stops future admission, leaving current contents alone so a consumer can finish its backlog.

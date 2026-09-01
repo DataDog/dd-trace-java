@@ -9,13 +9,12 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
  * Everything a {@link WorkQueue} does that does not depend on how elements are stored: the bound,
- * admission, reservations, the closed state, drop counting, and the consume-and-maybe-retry cycle.
+ * admission, reservations, the closed state, and the consume-and-maybe-retry cycle.
  *
  * <p>Subclasses supply two storage primitives, {@link #store} and {@link #retrieve}, and neither
  * needs to enforce anything. The bound lives here, as a count of places still available: admission
@@ -46,13 +45,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /** Non-capturing adapters, so the producer forms share one admission path without allocating. */
   private static final ContextualProducer<Producer<Object>, Object> PRODUCE = Producer::produce;
-
-  /**
-   * Everything the queue lost, counted once each: refused admissions, elements a backing would not
-   * take, and items a retry strategy finally gave up on. Not a bound and not read on the admission
-   * path, so a {@link LongAdder}'s striping is free here and its contended write is what matters.
-   */
-  private final LongAdder dropped = new LongAdder();
 
   /**
    * Subtracted from {@link #state} once, by {@link #close()}. Closing then costs no flag of its
@@ -111,9 +103,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * refuses for a reason of its own.
    *
    * <p>A place has already been claimed, so a backing that can refuse transiently is expected to
-   * retry rather than report the refusal — a {@code false} from here is taken as a drop and
-   * counted, and there is no way for the queue to tell a structure saying "full" from one saying
-   * "not yet". {@link MpmcWorkQueue} is the case that matters.
+   * retry rather than report the refusal — a {@code false} from here loses the element, and there
+   * is no way for the queue to tell a structure saying "full" from one saying "not yet". {@link
+   * MpmcWorkQueue} is the case that matters.
    *
    * <h2>What a third backing would cost here</h2>
    *
@@ -246,10 +238,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   /**
-   * Counts nothing, unlike the producer admissions below. This one is shared with the retry path,
-   * where a refusal is a step rather than an outcome: a strategy handed a refused retry may still
-   * place the item somewhere else, and only its {@link RetryStrategy#onFailure} return says whether
-   * the item was finally lost. Each caller counts its own outcome, once.
+   * Shared with the retry path, where a refusal is a step rather than an outcome: a strategy handed
+   * a refused retry may still place the item somewhere else, and only its {@link
+   * RetryStrategy#onFailure} return says whether the item was finally lost.
    */
   private boolean admit(Object element) {
     if (!claimPlace()) {
@@ -266,7 +257,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private <C> boolean admit(
       C context, @Strategy ContextualProducer<? super C, ? extends T> producer) {
     if (!claimPlace()) {
-      dropped.increment();
       return false;
     }
     T element;
@@ -285,7 +275,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       C2 second,
       @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer) {
     if (!claimPlace()) {
-      dropped.increment();
       return false;
     }
     T element;
@@ -303,9 +292,10 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
    * entered with a place already claimed for this element by the batch's own claim.
    *
    * <p>Three outcomes, two of which report as not admitted for different reasons. A decline is the
-   * caller's own decision, so it gives its place back and counts nothing. A backing that would not
-   * take what was produced is a refusal: the place goes back and a drop is counted. The third way
-   * to fail -- no place at all -- cannot arise here, because the caller does not enter without one.
+   * caller's own decision, and gives its place back. A backing that would not take what was
+   * produced is a refusal, and gives its place back too, but is reported to {@link RejectHandler}
+   * where a decline is not. The third way to fail -- no place at all -- cannot arise here, because
+   * the caller does not enter without one.
    *
    * @return whether the source element was admitted
    */
@@ -323,7 +313,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       throw t;
     }
     if (produced == null) {
-      // Declined. The place goes back and nothing is counted, because nothing was lost.
+      // Declined. The place goes back, and no handler is told, because nothing was lost.
       releasePlace();
       return false;
     }
@@ -338,7 +328,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /** {@code null} rather than a no-op handler, so the count-only form adds a test and no call. */
   @StrategyConsumer
   private <E> void reject(E element, @Strategy RejectHandler<? super E> onRejected) {
-    dropped.increment();
     if (onRejected != null) {
       onRejected.onRejected(element);
     }
@@ -346,9 +335,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /**
    * The tail of every producer admission. A {@code null} is the producer declining, which is the
-   * caller's own decision: the place goes back and nothing is counted, because nothing was lost. A
-   * backing that would not take what was produced is a refusal, and is counted. Same three outcomes
-   * as {@link #admitEachClaimed}, which walks a source instead of taking one element.
+   * caller's own decision, so the place goes back and nothing was lost. A backing that would not
+   * take what was produced is a refusal. Both report as not admitted. Same three outcomes as {@link
+   * #admitEachClaimed}, which walks a source instead of taking one element.
    */
   private boolean storeOrRelease(T element) {
     if (element == null) {
@@ -359,7 +348,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       return true;
     }
     releasePlace();
-    dropped.increment();
     return false;
   }
 
@@ -421,7 +409,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       done = true;
       // Through the same tail as every other admission, and not a bare store: a backing is allowed
       // to give up -- MpmcWorkQueue does, past its retry bound -- and a place spent on an element
-      // the backing would not take has to come back, once, counted. Discarding this return was
+      // the backing would not take has to come back exactly once. Discarding this return was
       // safe only while no backing could refuse an element it had already claimed room for.
       queue.storeOrRelease(element);
     }
@@ -474,11 +462,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   @Override
   public final boolean tryPut(T element) {
     requireElement(element);
-    if (!admit(element)) {
-      dropped.increment();
-      return false;
-    }
-    return true;
+    return admit(element);
   }
 
   @Override
@@ -528,7 +512,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         for (; index < length; index++) {
           T element = elements[index];
           requireElement(element);
-          dropped.increment();
           rejected.add(element);
         }
         break;
@@ -540,7 +523,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
           requireElement(element);
           if (!store(element)) {
             releasePlace();
-            dropped.increment();
             if (rejected == null) {
               rejected = new ArrayList<>(length - index);
             }
@@ -572,7 +554,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
         while (source.hasNext()) {
           T element = source.next();
           requireElement(element);
-          dropped.increment();
           rejected.add(element);
         }
         break;
@@ -586,7 +567,6 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
           remaining--;
           if (!store(element)) {
             releasePlace();
-            dropped.increment();
             if (rejected == null) {
               rejected = new ArrayList<>(remaining + 1);
             }
@@ -665,11 +645,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final Reservation<T> tryReserve() {
-    boolean granted = claimPlace();
-    if (!granted) {
-      dropped.increment();
-    }
-    return new PlaceReservation<>(this, granted);
+    return new PlaceReservation<>(this, claimPlace());
   }
 
   @Override
@@ -751,6 +727,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
       // Counted before the consumer runs: a throw carries the count away with it either way, and
       // an item handed over is consumed whether or not the consumer made anything of it.
+      // (This count is the return of process(limit, ..), not a drop count.)
       consumed++;
       consume(raw, consumer, context, biConsumer, null, null);
     }
@@ -794,10 +771,13 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
     } catch (Throwable failure) {
       if (exceptionHandler != null) {
-        dropped.increment();
         exceptionHandler.handle(item, failure);
-      } else if (!retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1))) {
-        dropped.increment();
+      } else {
+        // The return says whether the strategy gave up, and nothing here reads it: with no drop
+        // counter, an item a strategy abandons is lost without the caller of processOrRetry being
+        // told -- processOrRetry reports only whether there was an item. It is the one loss in this
+        // class that has no synchronous channel back to the caller. See the PR notes.
+        retryStrategy.onFailure(item, attempt + 1, failure, lease(attempt + 1));
       }
     }
   }
@@ -827,8 +807,8 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
     return new RetryQueue<T>() {
       @Override
       public boolean retry(T item) {
-        // No counting here. A refused retry is one step of a decision the strategy is still
-        // making; the item is counted lost exactly once, when onFailure reports it gave up.
+        // A refused retry is one step of a decision the strategy is still making, not an
+        // outcome; whether the item is finally lost is what onFailure's return reports.
         return admit(new Retry<>(item, attempt));
       }
 
@@ -846,18 +826,13 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /**
    * The one place the module says what a {@code null} element is. Neither backing can hold one, so
-   * there is no outcome to report and nothing to count -- only a caller with a bug. Thrown before a
-   * place is claimed, so a rejected call costs the queue nothing.
+   * there is no outcome to report -- only a caller with a bug. Thrown before a place is claimed, so
+   * a rejected call costs the queue nothing.
    */
   private static void requireElement(Object element) {
     if (element == null) {
       throw new NullPointerException("a queue cannot hold null");
     }
-  }
-
-  @Override
-  public final long dropped() {
-    return dropped.sum();
   }
 
   @Override

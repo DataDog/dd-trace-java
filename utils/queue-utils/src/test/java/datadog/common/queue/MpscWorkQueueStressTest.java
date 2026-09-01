@@ -16,9 +16,10 @@ import org.junit.jupiter.api.Test;
  * producers claiming slots against a single consumer freeing them.
  *
  * <p>What is being checked is conservation. Every element a producer was told it admitted must
- * reach the consumer exactly once, and every element it was told was rejected must be counted as
- * dropped — so admitted plus dropped accounts for everything offered, with nothing lost, duplicated
- * or invented in between.
+ * reach the consumer exactly once, and every admission must be told one thing or the other — so
+ * admitted plus refused, as the producers themselves saw it, accounts for everything offered, with
+ * nothing lost, duplicated or invented in between. The producers keep that tally, because the
+ * return of {@code tryPut} is the only report a refusal gets.
  */
 class MpscWorkQueueStressTest {
 
@@ -33,6 +34,7 @@ class MpscWorkQueueStressTest {
     WorkQueue<Integer> queue = WorkQueues.createMpscQueue(CAPACITY);
     AtomicIntegerArray timesSeen = new AtomicIntegerArray(TOTAL);
     AtomicInteger admitted = new AtomicInteger();
+    AtomicInteger refused = new AtomicInteger();
     AtomicInteger consumed = new AtomicInteger();
 
     CountDownLatch start = new CountDownLatch(1);
@@ -49,6 +51,8 @@ class MpscWorkQueueStressTest {
                     int value = producer * PER_PRODUCER + i;
                     if (queue.tryPut(value)) {
                       admitted.incrementAndGet();
+                    } else {
+                      refused.incrementAndGet();
                     }
                   }
                 } finally {
@@ -91,7 +95,8 @@ class MpscWorkQueueStressTest {
 
     assertEquals(
         admitted.get(), consumed.get(), "every admitted element reaches the consumer once");
-    assertEquals(TOTAL - admitted.get(), queue.dropped(), "every rejection is counted");
+    assertEquals(
+        TOTAL - admitted.get(), refused.get(), "every rejection was reported to its producer");
     assertEquals(0, queue.size());
 
     for (int value = 0; value < TOTAL; value++) {
@@ -110,10 +115,8 @@ class MpscWorkQueueStressTest {
     while (queue.tryPut(0)) {
       // fill it, and leave it full — nothing consumes
     }
-    // the loop above ends on a rejection, which is itself a drop
-    long droppedWhileFilling = queue.dropped();
-
     AtomicInteger produced = new AtomicInteger();
+    AtomicInteger refusedAfterFull = new AtomicInteger();
     AtomicInteger admittedAfterFull = new AtomicInteger();
     CountDownLatch start = new CountDownLatch(1);
     CountDownLatch done = new CountDownLatch(PRODUCERS);
@@ -134,6 +137,8 @@ class MpscWorkQueueStressTest {
                             });
                     if (landed) {
                       admittedAfterFull.incrementAndGet();
+                    } else {
+                      refusedAfterFull.incrementAndGet();
                     }
                   }
                 } finally {
@@ -151,9 +156,9 @@ class MpscWorkQueueStressTest {
     assertEquals(0, admittedAfterFull.get(), "a full queue admits nothing");
     assertEquals(0, produced.get(), "no element may be built for a slot that was never claimed");
     assertEquals(
-        droppedWhileFilling + (long) PRODUCERS * PER_PRODUCER,
-        queue.dropped(),
-        "every rejected admission is counted");
+        (long) PRODUCERS * PER_PRODUCER,
+        refusedAfterFull.get(),
+        "every rejected admission was reported to its producer");
   }
 
   /**

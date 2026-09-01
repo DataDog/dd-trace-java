@@ -54,10 +54,9 @@ public final class WorkQueues {
    * Creates an unbounded Multiple Producer, Multiple Consumer buffer backed by a {@link
    * ConcurrentLinkedQueue}.
    *
-   * <p>Unbounded means admission never rejects and {@link WorkQueue#dropped()} only ever counts
-   * items abandoned by a retry strategy. Intended as a migration step for call sites that are
-   * unbounded today: adopt the interface here, then pick a bound and move to {@link
-   * #createMpscQueue}.
+   * <p>Unbounded means admission never rejects, so the only element this can lose is one a retry
+   * strategy gives up on. Intended as a migration step for call sites that are unbounded today:
+   * adopt the interface here, then pick a bound and move to {@link #createMpscQueue}.
    *
    * <p>Linked rather than array-backed because there is no capacity to size an array from. JCTools'
    * unbounded MPMC queue would avoid the per-element node, but exists only in an {@code Unsafe}

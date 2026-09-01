@@ -34,7 +34,7 @@ class WorkQueueContractTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void admitsUpToCapacityThenDrops(String name, IntFunction<WorkQueue<String>> factory) {
+  void admitsUpToCapacityThenRefuses(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
@@ -42,7 +42,6 @@ class WorkQueueContractTest {
     assertEquals(CAPACITY, queue.size());
     assertFalse(queue.tryPut("overflow"));
     assertEquals(CAPACITY, queue.size());
-    assertEquals(1, queue.dropped());
   }
 
   /** The point of the whole API: a rejected element is never built. */
@@ -79,7 +78,6 @@ class WorkQueueContractTest {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     Collection<String> rejected = queue.tryPutBatch("a", "b", "c", "d", "e", "f");
     assertEquals(Arrays.asList("e", "f"), new ArrayList<>(rejected));
-    assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -89,7 +87,6 @@ class WorkQueueContractTest {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     Collection<String> rejected = queue.tryPutBatch(Arrays.asList("a", "b", "c", "d", "e", "f"));
     assertEquals(Arrays.asList("e", "f"), new ArrayList<>(rejected));
-    assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -101,16 +98,14 @@ class WorkQueueContractTest {
         queue.tryPutBatch(Arrays.asList(1, 2, 3), "x", (source, suffix) -> source + suffix);
     assertEquals(3, admitted);
     assertEquals(Arrays.asList("1x", "2x", "3x"), consumeAll(queue));
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aDeclinedSourceElementIsNeitherAdmittedNorDropped(
-      String name, IntFunction<WorkQueue<String>> factory) {
+  void aDeclinedSourceElementIsNotAdmitted(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
-    // Every other element declined. Returning null is the caller's own decision, so it counts
-    // against neither the admitted total nor dropped(): the caller already knows it declined.
+    // Every other element declined. Returning null is the caller's own decision, so it does not
+    // count against the admitted total: the caller already knows it declined.
     int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6),
@@ -118,7 +113,6 @@ class WorkQueueContractTest {
             (source, suffix) -> source % 2 == 0 ? null : source + suffix);
     assertEquals(3, admitted);
     assertEquals(Arrays.asList("1x", "3x", "5x"), consumeAll(queue));
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -136,7 +130,6 @@ class WorkQueueContractTest {
             (source, suffix) -> source % 2 == 0 ? null : source + suffix);
     assertEquals(CAPACITY, admitted);
     assertEquals(Arrays.asList("1x", "3x", "5x", "7x"), consumeAll(queue));
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -159,26 +152,31 @@ class WorkQueueContractTest {
     assertEquals(2, intended - admitted);
     // And the producer was only ever asked about elements there was already room for.
     assertEquals(Arrays.asList(1, 2, 3, 4), asked);
-    assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aSourceElementTheProducerWouldHaveDeclinedIsStillDroppedOnceFull(
+  void aSourceElementTheProducerWouldHaveDeclinedIsStillRefusedOnceFull(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     // The odd elements fill the queue exactly, so element 8 never gets a place -- even though the
     // producer would have declined it. The place is claimed before the producer is asked, so the
-    // queue cannot know that, and counts what is true from where it stands: it could not ask.
-    // This is why dropped() is approximate for a declining producer and the shortfall is not.
+    // queue cannot know that, and reports what is true from where it stands: it could not ask.
+    // This is why the reject handler is approximate for a declining producer and the shortfall
+    // by subtraction is not.
+    List<Integer> refused = new ArrayList<>();
     int admitted =
         queue.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8),
             "x",
-            (source, suffix) -> source % 2 == 0 ? null : source + suffix);
+            (source, suffix) -> source % 2 == 0 ? null : source + suffix,
+            refused::add);
     assertEquals(CAPACITY, admitted);
     assertEquals(Arrays.asList("1x", "3x", "5x", "7x"), consumeAll(queue));
-    assertEquals(1, queue.dropped());
+    assertEquals(
+        Arrays.asList(8),
+        refused,
+        "element 8 was refused for want of a place, though it would have been declined");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -198,7 +196,6 @@ class WorkQueueContractTest {
             });
     assertEquals(0, admitted);
     assertFalse(asked.get(), "a closed queue must not ask the producer for anything");
-    assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -215,7 +212,6 @@ class WorkQueueContractTest {
             rejected::add);
     assertEquals(CAPACITY, admitted);
     assertEquals(Arrays.asList(5, 6), rejected);
-    assertEquals(2, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -234,7 +230,6 @@ class WorkQueueContractTest {
             rejected::add);
     assertEquals(3, admitted);
     assertTrue(rejected.isEmpty(), "a declined element is the caller's own decision");
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -277,7 +272,6 @@ class WorkQueueContractTest {
             (item, failure) -> seen.add(item + ":" + failure.getMessage())));
 
     assertEquals(Arrays.asList("a:boom"), seen, "the handler is told which item died");
-    assertEquals(1, queue.dropped());
     assertEquals(0, queue.size());
     assertFalse(queue.process(item -> fail("nothing should be left")));
   }
@@ -296,7 +290,6 @@ class WorkQueueContractTest {
             (item, failure) -> fail("handler ran for a consumer that did not throw")));
 
     assertEquals(Arrays.asList("a"), consumed);
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -327,7 +320,6 @@ class WorkQueueContractTest {
             "without a strategy the queue takes no view on failure");
 
     assertEquals("boom", thrown.getMessage());
-    assertEquals(0, queue.dropped(), "a failure the caller sees is not a silent drop");
     assertEquals(0, queue.size(), "the item was still consumed off the queue");
   }
 
@@ -345,7 +337,6 @@ class WorkQueueContractTest {
             },
             giveUp),
         "the return value reports work found, not consumer success");
-    assertEquals(1, queue.dropped(), "an abandoned item is counted");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -373,7 +364,6 @@ class WorkQueueContractTest {
 
     assertEquals(2, attempts.get(), "consumed twice: original plus one retry");
     assertEquals(Arrays.asList(1, 2), reported, "attempt counts survive re-admission");
-    assertEquals(1, queue.dropped(), "giving up loses the item");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -463,7 +453,7 @@ class WorkQueueContractTest {
     // through publishing to the slot in question -- on a queue that is neither full nor empty.
     // Admission claims a place before it stores, so such a refusal can only mean "not yet" and the
     // backing retries. If that reasoning is wrong, it is wrong here: elements go missing without
-    // being counted as dropped, or their places never come back.
+    // any producer being told, or their places never come back.
     int capacity = 64;
     int producers = 4;
     int consumers = 4;
@@ -471,6 +461,7 @@ class WorkQueueContractTest {
     WorkQueue<String> queue = WorkQueues.createMpmcQueue(capacity);
     CountDownLatch start = new CountDownLatch(1);
     AtomicInteger admitted = new AtomicInteger();
+    AtomicInteger refused = new AtomicInteger();
     AtomicInteger consumed = new AtomicInteger();
     AtomicBoolean draining = new AtomicBoolean(true);
     List<Thread> threads = new ArrayList<>();
@@ -506,6 +497,8 @@ class WorkQueueContractTest {
                 for (int i = 0; i < perProducer; i++) {
                   if (queue.tryPut("e" + i)) {
                     admitted.incrementAndGet();
+                  } else {
+                    refused.incrementAndGet();
                   }
                 }
               });
@@ -524,8 +517,8 @@ class WorkQueueContractTest {
     }
     assertEquals(
         producers * perProducer,
-        admitted.get() + queue.dropped(),
-        "every element was either admitted or counted as dropped");
+        admitted.get() + refused.get(),
+        "every element was either admitted or refused, and the refusal was reported");
     assertEquals(admitted.get(), consumed.get(), "every admitted element came back out");
     // The decisive one: if a retry had given up and the place had not come back, or a spurious
     // empty read had stranded an element, the queue would now hold fewer than capacity places.
@@ -542,7 +535,6 @@ class WorkQueueContractTest {
       assertTrue(queue.tryPut("e" + i));
     }
     assertEquals(1000, queue.size());
-    assertEquals(0, queue.dropped());
   }
 
   @org.junit.jupiter.api.Test
@@ -633,7 +625,6 @@ class WorkQueueContractTest {
     }
 
     assertEquals(Arrays.asList("a", "b"), consumed);
-    assertEquals(0, queue.dropped(), "partitioned work is not lost");
   }
 
   // A reservation claims capacity on every backing; only the array backing also holds position.
@@ -669,7 +660,6 @@ class WorkQueueContractTest {
     // abandoned. What both backings promise is that nothing is ever consumed for it.
     assertTrue(consumeAll(queue).isEmpty(), "an abandoned place produces no element");
     assertEquals(0, queue.size());
-    assertEquals(0, queue.dropped(), "abandoning a place the caller claimed is not a rejection");
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i), "the abandoned capacity is usable again");
     }
@@ -685,7 +675,6 @@ class WorkQueueContractTest {
     }
     Reservation<String> refused = queue.tryReserve();
     assertFalse(refused.granted(), "a refusal is a reservation, never null");
-    assertEquals(1, queue.dropped(), "a place that could not be claimed counts like a rejection");
 
     refused.fill("discarded");
     refused.close();
@@ -750,7 +739,6 @@ class WorkQueueContractTest {
       }
     }
     assertEquals(1000, queue.size());
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -833,7 +821,6 @@ class WorkQueueContractTest {
 
     assertEquals(Arrays.asList("a", "b"), consumed, "the failing item was handed over");
     assertEquals(1, queue.size(), "what was behind it is left for the next drain");
-    assertEquals(0, queue.dropped(), "a failure the caller sees is not a drop");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -890,7 +877,6 @@ class WorkQueueContractTest {
             }));
 
     assertFalse(produced.get(), "a full queue must not build what it is going to reject");
-    assertEquals(1, queue.dropped());
   }
 
   // --- What a null means, one test per place it can appear. ---
@@ -909,7 +895,6 @@ class WorkQueueContractTest {
     String absent = null;
     assertThrows(NullPointerException.class, () -> queue.tryPut(absent));
     assertEquals(0, queue.size());
-    assertEquals(0, queue.dropped(), "a caller's bug is not a dropped element");
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i), "the refused call must not have cost the queue a place");
     }
@@ -952,14 +937,12 @@ class WorkQueueContractTest {
    */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aProducerDecliningIsNeitherAdmittedNorDropped(
-      String name, IntFunction<WorkQueue<String>> factory) {
+  void aProducerDecliningIsNotAdmitted(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     assertFalse(queue.tryPut(() -> null));
     assertFalse(queue.tryPut("ctx", ctx -> null));
     assertFalse(queue.tryPut("one", "two", (first, second) -> null));
     assertEquals(0, queue.size());
-    assertEquals(0, queue.dropped(), "a decline is a decision, not a loss");
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i), "every declined place must have been given back");
     }
@@ -995,30 +978,35 @@ class WorkQueueContractTest {
   @MethodSource("boundedQueues")
   void aNullRejectHandlerSaysWhatOmittingItSays(
       String name, IntFunction<WorkQueue<String>> factory) {
-    WorkQueue<String> queue = factory.apply(CAPACITY);
-    int admitted =
-        queue.tryPutBatch(
+    WorkQueue<String> withNull = factory.apply(CAPACITY);
+    int admittedWithNull =
+        withNull.tryPutBatch(
             Arrays.asList(1, 2, 3, 4, 5, 6), "x", (source, suffix) -> source + suffix, null);
-    assertEquals(CAPACITY, admitted);
-    assertEquals(2, queue.dropped());
+    WorkQueue<String> without = factory.apply(CAPACITY);
+    int admittedWithout =
+        without.tryPutBatch(
+            Arrays.asList(1, 2, 3, 4, 5, 6), "x", (source, suffix) -> source + suffix);
+    assertEquals(CAPACITY, admittedWithNull);
+    assertEquals(admittedWithout, admittedWithNull);
+    assertEquals(consumeAll(without), consumeAll(withNull));
   }
 
-  // --- One lost item, one drop, however many steps it took to lose it. ---
+  // --- Retry is a step, not an outcome. ---
 
   /**
-   * The counting bug this pins: a refused retry used to be counted where it was refused AND again
-   * where the strategy gave up, so one lost item moved dropped() by more than one. The stress
-   * test's conservation invariant could not see it, because it never retries.
+   * A retry has to claim a place like any other admission, so a queue that refilled behind the
+   * failed item refuses it. This is the one loss with no channel back to the caller: {@code
+   * processOrRetry} returns only whether there was an item, so the strategy's own return is the
+   * only report that the item was given up on, and nothing here reads it.
    */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aRefusedRetryIsCountedOnceWhenTheStrategyGivesUp(
+  void aRefusedRetryIsReportedToTheStrategyWhenTheQueueRefilled(
       String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
     }
-    assertEquals(0, queue.dropped());
     AtomicBoolean retryRefused = new AtomicBoolean();
     assertTrue(
         queue.processOrRetry(
@@ -1032,37 +1020,11 @@ class WorkQueueContractTest {
               return false;
             }));
     assertTrue(retryRefused.get(), "the queue was full again, so the retry had to be refused");
-    assertEquals(1, queue.dropped(), "one item was lost, so dropped() moves by exactly one");
-  }
-
-  /**
-   * {@code onFailure} returning true is the strategy saying it took responsibility. The queue takes
-   * it at its word, which is the residue of counting the outcome rather than the step.
-   */
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("boundedQueues")
-  void aRefusedRetryIsNotCountedWhenTheStrategyReportsItHandledIt(
-      String name, IntFunction<WorkQueue<String>> factory) {
-    WorkQueue<String> queue = factory.apply(CAPACITY);
-    for (int i = 0; i < CAPACITY; i++) {
-      assertTrue(queue.tryPut("e" + i));
-    }
-    assertTrue(
-        queue.processOrRetry(
-            item -> {
-              throw new IllegalStateException("consumer failed on " + item);
-            },
-            (item, attempt, failure, retryQueue) -> {
-              assertTrue(queue.tryPut("filler"));
-              assertFalse(retryQueue.retry(item));
-              return true;
-            }));
-    assertEquals(0, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
-  void aSuccessfulRetryCountsNothing(String name, IntFunction<WorkQueue<String>> factory) {
+  void aSuccessfulRetryTakesAPlaceAgain(String name, IntFunction<WorkQueue<String>> factory) {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     for (int i = 0; i < CAPACITY; i++) {
       assertTrue(queue.tryPut("e" + i));
@@ -1078,7 +1040,6 @@ class WorkQueueContractTest {
               return retryQueue.retry(item);
             }));
     assertEquals(1, seenAttempt.get(), "the first failure reports attempt 1");
-    assertEquals(0, queue.dropped(), "nothing was lost");
     assertEquals(CAPACITY, queue.size(), "the retried item took a place again");
   }
 
@@ -1096,7 +1057,6 @@ class WorkQueueContractTest {
     }
     assertTrue(queue.tryPutBatch(elements).isEmpty(), "there was room for all of them");
     assertEquals(size, queue.size());
-    assertEquals(0, queue.dropped());
     assertEquals(elements, consumeAll(queue));
   }
 
@@ -1114,7 +1074,6 @@ class WorkQueueContractTest {
     assertEquals(10, rejected.size(), "short by exactly the overflow, not by a whole claim");
     assertEquals(elements.subList(size, size + 10), new ArrayList<>(rejected));
     assertEquals(size, queue.size());
-    assertEquals(10, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -1125,7 +1084,6 @@ class WorkQueueContractTest {
     List<String> elements = Arrays.asList("a", "b", "c");
     assertEquals(elements, new ArrayList<>(queue.tryPutBatch(elements)));
     assertEquals(0, queue.size(), "a closed queue took nothing");
-    assertEquals(3, queue.dropped());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -1206,24 +1164,24 @@ class WorkQueueContractTest {
   }
 
   @org.junit.jupiter.api.Test
-  void aRefusedFillGivesThePlaceBackAndCountsTheDrop() {
+  void aRefusedFillGivesThePlaceBack() {
     RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
     try (Reservation<String> place = queue.tryReserve()) {
       assertTrue(place.granted());
       place.fill("lost");
     }
     assertEquals(0, queue.size(), "the place was not given back");
-    assertEquals(1, queue.dropped(), "the lost element was not counted");
     // And the capacity is still usable, which is the part a leaked place would break.
     assertTrue(queue.tryReserve().granted(), "the place was lost for good");
   }
 
   @org.junit.jupiter.api.Test
-  void aRefusedStoreOnAPlainPutIsCountedOnce() {
+  void aRefusedStoreOnAPlainPutIsReportedAndLeaksNoPlace() {
     RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
     assertFalse(queue.tryPut("lost"));
     assertEquals(0, queue.size());
-    assertEquals(1, queue.dropped(), "a refusal counted more or less than once");
+    // And the place came back, which is the part a leak would break.
+    assertTrue(queue.tryReserve().granted(), "the place was lost for good");
   }
 
   private static List<String> consumeAll(WorkQueue<String> queue) {
