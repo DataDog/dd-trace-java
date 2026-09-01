@@ -155,9 +155,7 @@ public final class Memoizer {
     @Override
     protected boolean doMatch(TypeDescription target) {
       String targetName = target.getName();
-      // Same-owner hidden lambdas share a symbolic name. Bypass these caches before supporting
-      // lambda interfaces with different matcher results.
-      if (noMatchFilter.contains(targetName)
+      if ((isCacheable(target) && noMatchFilter.contains(targetName))
           || "java.lang.Object".equals(targetName)
           || target.isPrimitive()) {
         return false;
@@ -168,7 +166,7 @@ public final class Memoizer {
   }
 
   static BitSet memoizeHierarchy(TypeDescription type, Map<String, BitSet> localMemos) {
-    if (noMatchFilter.contains(type.getName())) {
+    if (isCacheable(type) && noMatchFilter.contains(type.getName())) {
       return NO_MATCH;
     } else {
       return doMemoize(type, localMemos);
@@ -178,13 +176,14 @@ public final class Memoizer {
   static BitSet doMemoize(TypeDescription type, Map<String, BitSet> localMemos) {
 
     String name = type.getName();
+    boolean cacheable = isCacheable(type);
     BitSet memo = localMemos.get(name);
     if (null != memo) {
       return memo; // short-circuit circular references
     }
 
     long fromTick = InstrumenterMetrics.tick();
-    SharedTypeInfo<BitSet> sharedMemo = memos.find(name);
+    SharedTypeInfo<BitSet> sharedMemo = cacheable ? memos.find(name) : null;
     if (null != sharedMemo) {
       if (namesAreUnique || name.startsWith("java.") || sameOrigin(type, sharedMemo)) {
         InstrumenterMetrics.reuseTypeMemo(fromTick);
@@ -235,16 +234,20 @@ public final class Memoizer {
 
     // update no-match filter if there's no interesting matches and result is complete
     if (memo.nextSetBit(INTERNAL_MATCHERS) < 0 && !memo.get(isPartial.matcherId)) {
-      noMatchFilter.add(name);
+      if (cacheable) {
+        noMatchFilter.add(name);
+      }
       return NO_MATCH;
     }
 
-    // otherwise share result for this location (other locations may have different results)
-    if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
-      memos.share(name, 0, null, memo);
-    } else {
-      WithLocation origin = (WithLocation) type;
-      memos.share(name, origin.getClassLoaderId(), origin.getClassFile(), memo);
+    if (cacheable) {
+      // otherwise share result for this location (other locations may have different results)
+      if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
+        memos.share(name, 0, null, memo);
+      } else {
+        WithLocation origin = (WithLocation) type;
+        memos.share(name, origin.getClassLoaderId(), origin.getClassFile(), memo);
+      }
     }
 
     return memo;
@@ -253,6 +256,10 @@ public final class Memoizer {
   /** Any type not recorded as a definite "no-match" is a potential match. */
   static boolean potentialMatch(String name) {
     return !noMatchFilter.contains(name);
+  }
+
+  private static boolean isCacheable(TypeDescription type) {
+    return !(type instanceof WithLocation) || ((WithLocation) type).isCacheable();
   }
 
   private static boolean sameOrigin(TypeDescription type, SharedTypeInfo<BitSet> sharedMemo) {

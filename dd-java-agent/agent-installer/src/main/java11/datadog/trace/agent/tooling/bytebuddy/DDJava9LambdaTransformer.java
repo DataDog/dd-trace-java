@@ -24,8 +24,9 @@ public final class DDJava9LambdaTransformer implements LambdaTransformer {
   }
 
   @Override
-  public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
-    TypePoolFacade.beginLambdaTransform();
+  public byte[] transform(
+      String slashClassName, Class<?> targetClass, byte[] classBytes, String interfaceClassName) {
+    TypePoolFacade.beginLambdaTransform(interfaceClassName);
     try {
       return classFileTransformer.transform(
           targetClass.getModule(),
