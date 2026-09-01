@@ -15,6 +15,8 @@ public class InputAttributeInjector {
     }
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
+      // note: injection allows non-datadog style propogation (W3C, B3)
+      // which the extension does not yet extract
       defaultPropagator().inject(context, writer, TextMapInjectAdapter.SETTER);
       writer.endObject();
       return writer.toString();
