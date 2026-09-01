@@ -767,6 +767,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
+    if (!Config.get().isSparkTaskSpanOnFailureEnabled()) {
+      return;
+    }
+
     AgentSpan stageSpan = stageSpans.get(stageSpanKey);
     if (stageSpan == null) {
       return;
