@@ -1,0 +1,658 @@
+- description: "Lens-direct — performance.md flags a wrong/unbounded collection (J12 + universal #3)"
+  vars:
+    input: |
+      Apply this repo's performance-review criteria (reviewers/performance.md, its
+      .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      following method. No git checkout available — this snippet is the entire change to
+      review.
+
+      ```java
+      private final Map<String, Object> sessionCache = new LinkedHashMap<>();
+
+      void recordSession(String sessionId, Object payload) {
+        sessionCache.put(sessionId, payload);
+      }
+      ```
+  assert:
+    # Deterministic pre-filters: fast, free, catch the clearest failure modes outright.
+    - type: icontains
+      value: "LinkedHashMap"
+    - type: icontains
+      value: "HashMap"
+    - type: not-icontains
+      value: "ConcurrentHashtable"
+      metric: no-hallucinated-toolkit-name
+    # Nuanced judgment: did it actually reason about *why*, and did it catch both findings?
+    - type: llm-rubric
+      value: |
+        The review response must satisfy ALL of the following, or it fails:
+        1. Flags the LinkedHashMap as the wrong collection type (this repo's performance
+           rubric addendum J12): explains that ordering isn't relied on here, and
+           recommends a plain HashMap as the concrete fix — not a vague "reconsider the
+           data structure" and not merely a style nit with no cost explanation.
+        2. Separately flags that the map is unbounded and keyed by a high-cardinality
+           value (sessionId) — a SEV-1-class concern under this rubric's universal
+           check #3 — and classifies the finding under this skill's P0/P1/P2 scale
+           (not left as a bare "SEV-1" label with no P-mapping).
+        3. Does not invent a Datadog-internal collection/utility type name that isn't
+           part of this repo's real toolkit (Strings, SubSequence, HashingUtils,
+           Hashtable, RE2J).
+      threshold: 0.8
+
+- description: "Full-pipeline — dd-apm-sdk-review skill on a pasted diff, no git"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      index 1111111..2222222 100644
+      --- a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      +++ b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      @@ -10,6 +10,10 @@ class SpanCache {
+      -  private final Map<String, Span> byResource = new HashMap<>();
+      +  private final Map<String, Span> byResource = new LinkedHashMap<>();
+      +
+      +  String describe(String resourceName) {
+      +    return String.format("resource=%s", resourceName);
+      +  }
+      ```
+  assert:
+
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "pasted diff, no git"
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Raises a performance finding on the LinkedHashMap swap (addendum J12) and/or
+           the newly-added hot-path String.format call (addendum J10).
+        2. Classifies every finding under this report's P0/P1/P2 sections — never leaves
+           a finding stated only in the performance lens's internal SEV-1/SEV-2/SEV-3
+           vocabulary with no P-level mapping.
+        3. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE) and
+           a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
+
+- description: "Security (control) — JVM crash-handler flag set before trust/ownership validation completes (mined from dd-trace-java PR #11613 review comment, pre-fix code; java has no security.md override yet)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java b/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java
+      @@ -358,10 +358,16 @@ private static void initializeCrashUploader(FlagAccess flags) {
+      +      // set the JVM flag
+      +      boolean rslt = flags.setValue("OnError", onErrorVal);
+      +      if (!rslt && LOG.isDebugEnabled()) {
+      +        LOG.debug(
+      +            SEND_TELEMETRY,
+      +            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+      +            onErrorVal);
+      +      }
+      +
+      +      // validate the script directory/file is owned by this JVM user and not
+      +      // group/world-writable before trusting it; if a pre-existing dir/script
+      +      // fails this check, initialize() returns false and skips writing config.
+      +      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that the JVM handler flag (`OnError`) is set to the target script/path
+           BEFORE `CrashUploaderScriptInitializer.initialize(...)` — the ownership/trust
+           validation — has run and returned a result. It is not enough to note that a
+           validation step exists; the report must call out the ordering problem: if
+           `initialize(...)` later rejects the path (e.g. pre-existing dir/script not
+           owned by the JVM user, or group/world-writable), the flag has already been
+           committed to the untrusted path and the JVM crash handler will still execute
+           it on a crash.
+        2. Classifies this as a security finding (P0 or P1, not merely a style/maintainability
+           nit) — this is a security control that can be silently bypassed (the check runs
+           but has no effect on the already-configured handler), which is exactly the P0
+           bar in this repo's severity rubric ("security control can be silently bypassed").
+        3. Recommends gating the flag-setter on the validator's result (e.g.
+           `if (initialize(...)) { flags.setValue(...) }`) or clearing/restoring the flag
+           on validation failure — not just "add more logging" or "add a comment".
+        4. States the verdict line as exactly `Verdict: BLOCK` (not
+           APPROVE_WITH_COMMENTS or APPROVE — this repo's severity rubric maps a P0
+           finding to BLOCK with no exception) and ends with the final statement
+           `DO NOT PUSH` (not READY TO PUSH).
+      threshold: 0.8
+
+- description: "Logic bug — capture expressions evaluated before the send/sampling decision is final (mined from dd-trace-java PR #12207 fix;)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java b/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java
+      @@ -700,6 +700,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContext.Status {
+      +  // PR #12207: processCaptureExpressions() runs for every hit, regardless of
+      +  // whether the probe's condition/sampler has already decided this hit will
+      +  // not be sent. logStatus.shouldSend() reflects that effective send decision
+      +  // and is already computed by the caller before this method runs.
+      +  private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
+      +    if (captureExpressions == null) {
+      +      return;
+      +    }
+      +    for (CaptureExpression captureExpression : captureExpressions) {
+      +      try {
+      +        context.addCaptureExpression(captureExpression.evaluate(context));
+      +      } catch (Exception ex) {
+      +        DEBUGGER_METRICS.increment(EVALUATION_ERROR);
+      +        reportEvaluationError(captureExpression, ex);
+      +      }
+      +    }
+      +  }
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that `processCaptureExpressions()` evaluates every capture expression
+           as soon as `captureExpressions` is non-null, without checking
+           `logStatus.shouldSend()` — the effective send/sampling decision that the
+           caller has already computed before this method runs. It is not enough to
+           note "there's a null check here"; the report must call out that the method
+           does expensive/fallible work (expression evaluation) even when the hit's
+           condition or sampler has already decided the hit will not be sent.
+        2. Explains the concrete consequence: a hit that is rejected or rate-limited
+           still pays for expression evaluation, so a broken/failing capture
+           expression on a hot method produces an unthrottled stream of evaluation
+           errors (`reportEvaluationError`) for every hit, not just the ones actually
+           sent — i.e. this is a reliability/performance concern, not a cosmetic one.
+        3. Recommends gating the evaluation loop on the send decision, e.g.
+           `if (captureExpressions == null || !logStatus.shouldSend()) { return; }`,
+           rather than just "add rate limiting to the error reporting" or "wrap in a
+           broader try/catch".
+        4. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
+
+- description: "Logic bug — SQS queue name tag derived from only one of two upstream fields (mined from dd-trace-java PR #12159 fix; pre-fix code)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/instrumentation/aws-java/aws-java-sdk-2.2/src/main/java/datadog/trace/instrumentation/aws/v2/AwsSdkClientDecorator.java b/dd-java-agent/instrumentation/aws-java/aws-java-sdk-2.2/src/main/java/datadog/trace/instrumentation/aws/v2/AwsSdkClientDecorator.java
+      @@ -150,10 +150,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse> {
+      +      // PR #12159: tag the SQS queue name for observability dashboards. The SDK
+      +      // request model exposes both a "QueueUrl" field (always present on
+      +      // SendMessage/DeleteMessage/batch receive calls) and an optional
+      +      // "QueueName" field (only populated by some request types).
+      +      request
+      +          .getValueForField("QueueUrl", String.class)
+      +          .ifPresent(
+      +              url -> {
+      +                span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+      +                setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+      +              });
+      +      request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that the queue-name tag (`setQueueName`) is only set from the
+           optional `QueueName` field, and is never derived from the `QueueUrl`
+           field even though `QueueUrl` is always tagged on the same span. It is not
+           enough to note that `QueueName` is `Optional`/might be absent; the report
+           must call out that the code has no fallback that parses the queue name out
+           of the URL when `QueueName` isn't populated.
+        2. Explains the concrete consequence: any SQS request type where the SDK only
+           populates `QueueUrl` (e.g. a batch receive/delete/send call) silently ships
+           with no queue-name tag at all, producing incomplete telemetry (missing
+           `aws.queue.name`/`queuename` tag) rather than a crash or exception — i.e.
+           this is a data-completeness/observability gap, not a correctness bug that
+           throws.
+        3. Recommends deriving the queue name from the URL (e.g. taking the last path
+           segment / "file name" of the `QueueUrl`) as a fallback whenever `QueueName`
+           is absent, rather than only "handle the Optional.empty() case" or "log a
+           warning when QueueName is missing".
+        4. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
+
+- description: "Resource leak — jar entry InputStream and Files.walk() directory stream never closed (mined from dd-trace-java PR #12143 fix; pre-fix code)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/symbol/SymbolAggregator.java b/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/symbol/SymbolAggregator.java
+      @@ -270,10 +270,10 @@ public class SymbolAggregator {
+      +  // PR #12143: parse a single .class entry out of the scanned jar and hand its
+      +  // bytes to parseClass(). jarFile itself is opened in a try-with-resources
+      +  // block by the caller.
+      +  private void parseJarEntry(
+      +      SymDBReport symDBReport,
+      +      JarFile jarFile,
+      +      JarEntry jarEntry,
+      +      Path jarPath,
+      +      ByteArrayOutputStream baos,
+      +      byte[] buffer) {
+      +    LOGGER.debug("parsing jarEntry class: {}", jarEntry.getName());
+      +    try {
+      +      InputStream inputStream = jarFile.getInputStream(jarEntry);
+      +      int readBytes;
+      +      baos.reset();
+      +      while ((readBytes = inputStream.read(buffer)) != -1) {
+      +        baos.write(buffer, 0, readBytes);
+      +      }
+      +      parseClass(symDBReport, jarEntry.getName(), baos.toByteArray(), jarPath.toString());
+      +    } catch (IOException ex) {
+      +      LOGGER.warn("Failed to parse jar entry {}", jarEntry.getName(), ex);
+      +    }
+      +  }
+      +
+      +  // Directory-scan counterpart of the jar path above: walks jarPath looking for
+      +  // .class files on disk instead of inside a jar.
+      +  private void scanDirectory(
+      +      Path jarPath,
+      +      Set<String> alreadyScannedJars,
+      +      ByteArrayOutputStream baos,
+      +      byte[] buffer,
+      +      SymDBReport symDBReport) {
+      +    try {
+      +      Files.walk(jarPath)
+      +          // explicitly no follow links walking the directory to avoid cycles
+      +          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+      +          .filter(path -> path.toString().endsWith(".class"))
+      +          .forEach(path -> parseClassFile(symDBReport, path, baos, buffer));
+      +    } catch (IOException ex) {
+      +      LOGGER.warn("Failed to walk directory {}", jarPath, ex);
+      +    }
+      +    alreadyScannedJars.add(jarPath.toString());
+      +  }
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that `parseJarEntry()` obtains `inputStream` from
+           `jarFile.getInputStream(jarEntry)` and never closes it — no
+           try-with-resources, no explicit `close()` in a `finally`. It is not
+           enough to note that the method reads bytes into a buffer; the report must
+           call out the missing close of the `InputStream` itself.
+        2. Explains the concrete consequence: leaving the entry stream open means the
+           `JarFile` cannot return its native `Inflater` to its internal cache, so
+           each `.class` entry scanned allocates a fresh native/off-heap
+           decompression context instead of reusing one — scanning a large jar can
+           burst hundreds of MB of native memory and risks OOM-killing a
+           memory-constrained container. This must be framed as a resource leak, not
+           a style nit.
+        3. Separately flags, as its own finding, that `scanDirectory()`'s
+           `Files.walk(jarPath)` call is also never closed (the returned
+           `Stream<Path>` holds an open directory handle) — do not fold this into
+           the `parseJarEntry` finding just because both are on the same theme.
+        4. Recommends wrapping both the `InputStream` and the `Files.walk()` stream
+           in try-with-resources, not merely "add a finally block that logs" or
+           "catch a broader exception type".
+        5. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
+
+- description: "Logic bug — encoder assumes a single wire representation for a polymorphic field (mined from dd-trace-java PR #12107 fix; pre-fix code)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV1.java b/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV1.java
+      @@ -203,12 +203,12 @@ public final class TraceMapperV1 implements TraceMapper {
+      +  // PR #12107: eventsObject comes from the SPAN_EVENTS tag. Most call paths set
+      +  // it as a List (structured events built in-process), but the OTel bridge sets
+      +  // it as a pre-serialized JSON string (a CharSequence) instead.
+      +  private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
+      +    writable.writeInt(fieldId);
+      +    if (!(eventsObject instanceof List) || ((List<?>) eventsObject).isEmpty()) {
+      +      writable.startArray(0);
+      +      return;
+      +    }
+      +
+      +    List<?> events = (List<?>) eventsObject;
+      +    int encodableCount = 0;
+      +    for (Object event : events) {
+      +      if (isEncodableSpanEvent(event)) {
+      +        encodableCount++;
+      +      }
+      +    }
+      +    writable.startArray(encodableCount);
+      +    for (Object event : events) {
+      +      if (isEncodableSpanEvent(event)) {
+      +        encodeSpanEvent(writable, (Map<?, ?>) event);
+      +      }
+      +    }
+      +  }
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that `encodeSpanEvents()` treats any `eventsObject` that is not an
+           instanceof `List` as empty (`!(eventsObject instanceof List)`), even though
+           the comment states a second call path (the OTel bridge) supplies span
+           events as a pre-serialized JSON string (a `CharSequence`), not a `List`.
+           It is not enough to note that the method handles empty/null defensively;
+           the report must call out that a non-`List` input is silently treated as
+           "no events" rather than being recognized as an alternate valid
+           representation of the same data.
+        2. Explains the concrete consequence: spans produced via the OTel bridge (or
+           any other call path that sets span events as a JSON string instead of a
+           `List`) will have their span events silently dropped from the encoded v1
+           payload — no exception, no log, just an empty events array — i.e. this is
+           a silent data-loss bug, not a crash.
+        3. Recommends adding a parsing/normalization step that recognizes the
+           `CharSequence`/JSON-string representation and converts it into a `List`
+           before the existing List-shaped encoding logic runs, rather than only
+           "add a null check" or "log a warning when eventsObject isn't a List".
+        4. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
+
+- description: "Serialization bug — stateful mapper reused across writes without resetting per-payload state (mined from dd-trace-java PR #12096 fix; pre-fix code)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java b/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java
+      @@ -300,10 +300,20 @@ public final class TraceMapperV0_4 implements TraceMapper {
+      +  // PR #12096: process/propagation tags (dd-p-*) must be written once per
+      +  // payload, on the first span of the trace chunk currently being mapped.
+      +  // This TraceMapperV0_4 instance is held by DDAgentWriter and reused across
+      +  // every trace chunk sent for the lifetime of the writer.
+      +  private boolean firstSpanWritten;
+      +
+      +  @Override
+      +  public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+      +    writable.startArray(trace.size());
+      +    for (int i = 0; i < trace.size(); i++) {
+      +      CoreSpan<?> span = trace.get(i);
+      +      writeSpanFields(writable, span);
+      +      span.processTagsAndBaggage(
+      +          metaWriter
+      +              .withWritable(writable)
+      +              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+      +      firstSpanWritten = true;
+      +    }
+      +  }
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that `firstSpanWritten` is an instance field on `TraceMapperV0_4`
+           that is only ever set to `true` (at the end of the first span of the
+           first chunk it maps) and is never reset back to `false` at the start of
+           `map()`. It is not enough to note that the flag exists or that it drives
+           the `!firstSpanWritten` argument; the report must call out that nothing
+           re-initializes it before mapping the next trace chunk.
+        2. Explains the concrete consequence given that this mapper instance is
+           reused/held across every trace chunk sent for the writer's lifetime (per
+           the comment): once the first chunk ever mapped sets `firstSpanWritten` to
+           `true`, every subsequent, unrelated trace chunk mapped by the same
+           instance sees `!firstSpanWritten == false` for its own first span, so
+           process/propagation tags (`dd-p-*` baggage) are silently never written
+           for any chunk after the first one — not a crash, a silent cross-payload
+           data-loss bug caused by leaked state on a reused object.
+        3. Recommends resetting `firstSpanWritten` to `false` at the start of each
+           `map()` call (or introducing an explicit `reset()` hook invoked before
+           each `map()` invocation), rather than only "make the field volatile" or
+           "add logging when tags are skipped".
+        4. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
+      threshold: 0.8
