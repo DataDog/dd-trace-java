@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.NoEscape;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -33,7 +34,13 @@ import javax.annotation.Nullable;
  * phiOfTwoAllocations} arm, which uses two distinct interface implementations rather than one
  * concrete type and therefore fails to scalar-replace on every JDK including 25 -- a different,
  * stronger failure mode than the one demonstrated here.
+ *
+ * <p>{@link NoEscape}: the scalar-replacement discipline above only holds while a {@code Maybe} is
+ * constructed, consumed (typically via {@link #update}/{@link #getOrNull}), and discarded within
+ * one call frame. Storing an instance in a field or collection forces the JIT to materialize it as
+ * a real, permanent allocation, defeating the reason it exists.
  */
+@NoEscape
 public final class Maybe<T> {
   @Nullable private final T value;
 

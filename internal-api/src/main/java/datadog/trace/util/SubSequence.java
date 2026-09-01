@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.NoEscape;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -14,7 +15,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * (an offset + length into the existing backing array), so the same parse allocates nothing per
  * slice. Use it for transient, read-only views; materialize a real <code>String</code> only when
  * the value must be retained or handed off.
+ *
+ * <p>{@link NoEscape}: because a <code>SubSequence</code> shares its parent <code>String</code>'s
+ * backing array, holding one anywhere longer-lived than the call that produced it (a field, a
+ * cache, a collection) pins the entire parent string alive for as long as the view survives.
  */
+@NoEscape
 public final class SubSequence implements CharSequence {
   public static final SubSequence EMPTY = new SubSequence("", 0, 0);
 
