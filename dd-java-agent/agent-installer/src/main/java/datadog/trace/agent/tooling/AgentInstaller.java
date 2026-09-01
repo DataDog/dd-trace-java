@@ -259,7 +259,7 @@ public class AgentInstaller {
     InstrumenterState.resetDefaultState();
     try {
       ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
-      registerLambdaTransformer(classFileTransformer);
+      registerLambdaTransformer(classFileTransformer, transformerBuilder.lambdaInterfaces());
       return classFileTransformer;
     } finally {
       SharedTypePools.endInstall();
@@ -267,11 +267,26 @@ public class AgentInstaller {
   }
 
   /** Registers the installed class-file transformer for generated lambdas. */
-  private static void registerLambdaTransformer(final ClassFileTransformer classFileTransformer) {
-    LambdaTransformer lambdaTransformer = newLambdaTransformer(classFileTransformer);
-    if (null != lambdaTransformer) {
-      LambdaTransformerHolder.set(lambdaTransformer);
+  private static void registerLambdaTransformer(
+      final ClassFileTransformer classFileTransformer, final String[] lambdaInterfaces) {
+    LambdaTransformer transformer =
+        lambdaInterfaces.length == 0 ? null : newLambdaTransformer(classFileTransformer);
+    LambdaTransformerHolder.set(filterLambdaTransformer(transformer, lambdaInterfaces));
+  }
+
+  static LambdaTransformer filterLambdaTransformer(
+      final LambdaTransformer transformer, final String[] lambdaInterfaces) {
+    if (transformer == null) {
+      return null;
     }
+    return (className, targetClass, classBytes, interfaceName) -> {
+      for (String enabledInterface : lambdaInterfaces) {
+        if (enabledInterface.equals(interfaceName)) {
+          return transformer.transform(className, targetClass, classBytes, interfaceName);
+        }
+      }
+      return null;
+    };
   }
 
   /**
