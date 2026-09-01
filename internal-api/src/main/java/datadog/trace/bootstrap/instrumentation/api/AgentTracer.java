@@ -68,6 +68,14 @@ public class AgentTracer {
     return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
+  /**
+   * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
+   */
+  public static AgentSpan startSpan(
+      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+    return get().startSpan(prototype, operationName);
+  }
+
   public static AgentScope activateSpan(final AgentSpan span) {
     return get().activateSpan(span);
   }
