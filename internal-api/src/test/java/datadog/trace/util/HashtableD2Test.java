@@ -43,6 +43,36 @@ class HashtableD2Test {
   }
 
   @Test
+  void removeIfUnlinksMatchingPairsAndDecrementsSize() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
+    PairEntry ab = new PairEntry("a", 1, 100);
+    PairEntry ac = new PairEntry("a", 2, 200);
+    PairEntry bb = new PairEntry("b", 1, 300);
+    table.insert(ab);
+    table.insert(ac);
+    table.insert(bb);
+
+    assertTrue(table.removeIf(e -> e.key1().equals("a")));
+
+    assertEquals(1, table.size());
+    assertNull(table.get("a", 1));
+    assertNull(table.get("a", 2));
+    assertSame(bb, table.get("b", 1));
+  }
+
+  @Test
+  void removeIfReturnsFalseAndLeavesTableUntouchedWhenNothingMatches() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
+    PairEntry ab = new PairEntry("a", 1, 100);
+    table.insert(ab);
+
+    assertFalse(table.removeIf(e -> false));
+
+    assertEquals(1, table.size());
+    assertSame(ab, table.get("a", 1));
+  }
+
+  @Test
   void tryInsertOrReplaceMatchesOnBothKeys() {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry first = new PairEntry("k", 7, 1);
