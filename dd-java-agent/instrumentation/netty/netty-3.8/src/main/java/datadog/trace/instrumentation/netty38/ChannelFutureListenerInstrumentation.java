@@ -99,7 +99,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
 
       final ContextContinuation continuation =
           contextStore
-              .putIfAbsent(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
+              .getOrCreate(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
               .getConnectionContinuation();
       contextStore.get(future.getChannel()).setConnectionContinuation(null);
       if (continuation == null) {
