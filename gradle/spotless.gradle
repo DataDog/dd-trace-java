@@ -53,8 +53,8 @@ spotless {
       targetExclude('src/test/resources/**', buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
-      tableTestFormatter(libs.versions.tabletest.formatter.get())
       googleJavaFormat(libs.versions.google.java.format.get())
+      tableTestFormatter(libs.versions.tabletest.formatter.get())
     }
   }
 

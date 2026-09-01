@@ -165,13 +165,11 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assertInstanceOf(Map.class, agentResponse.get().get("rate_by_service"));
   }
 
-  // spotless:off
   @TableTest({
     "scenario | protocol",
     "V0_5     | V0_5    ",
     "V0_4     | V0_4    "
   })
-  // spotless:on
   void sendingTracesSucceeds(ProtocolVersion protocol) throws IOException {
     beforeTest(protocol);
 
@@ -187,13 +185,11 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assertInstanceOf(Map.class, agentResponse.get().get("rate_by_service"));
   }
 
-  // spotless:off
   @TableTest({
     "scenario     | protocol",
     "empty traces | V0_5    ",
     "empty traces | V0_4    "
   })
-  // spotless:on
   void sendingEmptyTracesToUnixDomainSocketSucceeds(ProtocolVersion protocol) throws IOException {
     beforeTest(protocol);
 
@@ -209,13 +205,11 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assertInstanceOf(Map.class, agentResponse.get().get("rate_by_service"));
   }
 
-  // spotless:off
   @TableTest({
     "scenario | protocol",
     "V0_5     | V0_5    ",
     "V0_4     | V0_4    "
   })
-  // spotless:on
   void sendingTracesToUnixDomainSocketSucceeds(ProtocolVersion protocol) throws IOException {
     beforeTest(protocol);
 
