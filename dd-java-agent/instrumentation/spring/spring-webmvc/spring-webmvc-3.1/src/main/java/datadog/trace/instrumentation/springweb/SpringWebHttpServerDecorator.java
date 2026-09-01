@@ -4,7 +4,6 @@ import static datadog.trace.api.Pair.of;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
-import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
@@ -15,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.MappedExceptionStatus;
 import java.lang.reflect.Method;
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
@@ -160,11 +160,8 @@ public class SpringWebHttpServerDecorator
     if (status == null) {
       status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
     }
-    if (status != null) {
-      span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
-      span.setError(
-          Config.get().getHttpServerErrorStatuses().get(status),
-          ErrorPriorities.HTTP_SERVER_DECORATOR);
+    if (MappedExceptionStatus.flagIfPresent(
+        span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR, status)) {
       return;
     }
     super.doOnError(span, throwable, errorPriority);
@@ -172,7 +169,9 @@ public class SpringWebHttpServerDecorator
 
   private static Integer extractResponseStatus(final Throwable throwable) {
     Throwable current = throwable;
-    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+    for (int depth = 0;
+        current != null && depth < MappedExceptionStatus.MAX_CAUSE_CHAIN_DEPTH;
+        depth++, current = current.getCause()) {
       if (RESPONSE_STATUS_EXCEPTION_GET_STATUS != null
           && RESPONSE_STATUS_EXCEPTION_GET_STATUS.getDeclaringClass().isInstance(current)) {
         try {

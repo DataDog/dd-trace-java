@@ -24,7 +24,9 @@ public final class ConfiguredResponseStatusExceptions {
       return null;
     }
     Throwable current = throwable;
-    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+    for (int depth = 0;
+        current != null && depth < MappedExceptionStatus.MAX_CAUSE_CHAIN_DEPTH;
+        depth++, current = current.getCause()) {
       for (Class<?> type : new ClassHierarchyIterable(current.getClass())) {
         String methodName = accessors.get(type.getName());
         if (methodName != null) {
