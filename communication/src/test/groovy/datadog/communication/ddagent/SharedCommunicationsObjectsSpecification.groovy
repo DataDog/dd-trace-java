@@ -90,8 +90,6 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.isCiVisibilityEnabled()
     1 * config.getAgentTimeout()
     1 * config.isForceClearTextHttpForIntakeClient()
-    1 * config.getHttpsProxy()
-    1 * config.getNoProxyHosts()
     0 * _
     sco.agentUrl.is(url)
     sco.agentHttpClient.is(okHttpClient)
@@ -137,56 +135,5 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
 
     then:
     client != null
-  }
-
-  void 'configures standard HTTPS proxy for intake while preserving no-proxy hosts'() {
-    given:
-    Config config = Mock()
-    sco.agentUrl = HttpUrl.get("http://example.com")
-    sco.agentHttpClient = Mock(OkHttpClient)
-    sco.monitoring = Monitoring.DISABLED
-    sco.featuresDiscovery = Mock(DDAgentFeaturesDiscovery)
-
-    when:
-    sco.createRemaining(config)
-    def selector = sco.getIntakeHttpClient().proxySelector()
-
-    then:
-    1 * config.isCiVisibilityEnabled() >> false
-    1 * config.getAgentTimeout() >> 1
-    1 * config.isForceClearTextHttpForIntakeClient() >> false
-    1 * config.getHttpsProxy() >> "http://proxy.example:8181"
-    1 * config.getNoProxyHosts() >> (["direct.example", ".internal.example"] as Set)
-    0 * _
-
-    and:
-    def selected = selector.select(new URI("https://event-platform-intake.datadoghq.com"))
-    selected.size() == 1
-    selected[0].type() == Proxy.Type.HTTP
-    selected[0].address() == new InetSocketAddress("proxy.example", 8181)
-    selector.select(new URI("https://direct.example")) == [Proxy.NO_PROXY]
-    selector.select(new URI("https://service.internal.example")) == [Proxy.NO_PROXY]
-  }
-
-  void 'parses supported HTTPS proxy forms without logging credentials'() {
-    expect:
-    SharedCommunicationObjects.parseHttpsProxy(configured)?.toString() == expected
-
-    where:
-    configured                      | expected
-    null                            | null
-    ""                              | null
-    "proxy.example:8080"            | "http://proxy.example:8080/"
-    "http://user:pass@proxy:3128"   | "http://user:pass@proxy:3128/"
-    "https://unsupported.example"   | null
-  }
-
-  void 'wildcard no-proxy host bypasses configured HTTPS proxy'() {
-    given:
-    def proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("proxy.example", 8181))
-    def selector = new SharedCommunicationObjects.IntakeProxySelector(proxy, ["*"] as Set)
-
-    expect:
-    selector.select(new URI("https://event-platform-intake.datadoghq.com")) == [Proxy.NO_PROXY]
   }
 }

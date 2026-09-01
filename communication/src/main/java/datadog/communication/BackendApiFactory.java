@@ -76,7 +76,7 @@ public class BackendApiFactory {
     if (followRedirects) {
       return intakeHttpClient;
     }
-    return intakeHttpClient.newBuilder().followRedirects(false).followSslRedirects(false).build();
+    return intakeHttpClient.newBuilder().followRedirects(false).build();
   }
 
   private static HttpUrl buildDirectIntakeUrl(Intake intake, Config config) {
@@ -100,14 +100,7 @@ public class BackendApiFactory {
             .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
             .addPathSegment("")
             .build();
-    if (!url.isHttps()
-        || !url.username().isEmpty()
-        || !url.password().isEmpty()
-        || !url.host().equalsIgnoreCase(expectedHost)
-        || url.port() != 443
-        || !url.encodedPath().equals("/api/" + Intake.EVENT_PLATFORM.getVersion() + "/")
-        || url.encodedQuery() != null
-        || url.encodedFragment() != null) {
+    if (!url.host().equalsIgnoreCase(expectedHost)) {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
     return url;

@@ -3586,15 +3586,6 @@
         "aliases": []
       }
     ],
-    "DD_PROXY_HTTPS": [
-      {
-        "version": "A",
-        "type": "string",
-        "default": null,
-        "aliases": [],
-        "sensitive": true
-      }
-    ],
     "DD_PROXY_NO_PROXY": [
       {
         "version": "A",

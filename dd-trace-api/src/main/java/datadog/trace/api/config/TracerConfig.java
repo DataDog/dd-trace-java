@@ -29,7 +29,6 @@ public final class TracerConfig {
   public static final String AGENT_TIMEOUT = "trace.agent.timeout";
   public static final String FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT =
       "force.clear.text.http.for.intake.client";
-  public static final String PROXY_HTTPS = "proxy.https";
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String TRACE_AGENT_PATH = "trace.agent.path";
   public static final String TRACE_AGENT_ARGS = "trace.agent.args";

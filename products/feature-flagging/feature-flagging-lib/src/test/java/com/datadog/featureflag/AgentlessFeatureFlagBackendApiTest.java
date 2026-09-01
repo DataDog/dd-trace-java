@@ -94,23 +94,18 @@ class AgentlessFeatureFlagBackendApiTest {
 
   @ParameterizedTest
   @ValueSource(ints = {429, 500})
-  void staysOnLocalRouteAfterNonFallbackHttpFailure(final int statusCode) {
-    assertNoDirectSwitch(new HttpResponseException(statusCode, "non-fallback"));
+  void doesNotReplayAmbiguousHttpFailure(final int statusCode) {
+    assertNoDirectReplay(new HttpResponseException(statusCode, "ambiguous"));
   }
 
   @Test
-  void switchesFutureBatchToDirectIntakeAfterTimeout() throws Exception {
-    assertFutureBatchUsesDirectIntake(new SocketTimeoutException("timed out"));
+  void doesNotReplayTimeout() {
+    assertNoDirectReplay(new SocketTimeoutException("timed out"));
   }
 
   @Test
-  void switchesFutureBatchToDirectIntakeAfterConnectionReset() throws Exception {
-    assertFutureBatchUsesDirectIntake(new SocketException("connection reset"));
-  }
-
-  @Test
-  void switchesFutureBatchToDirectIntakeAfterBrokenPipe() throws Exception {
-    assertFutureBatchUsesDirectIntake(new SocketException("broken pipe"));
+  void doesNotReplayConnectionReset() {
+    assertNoDirectReplay(new SocketException("connection reset"));
   }
 
   @Test
@@ -138,7 +133,7 @@ class AgentlessFeatureFlagBackendApiTest {
     assertEquals(1, directApiCreations.get());
   }
 
-  private static void assertNoDirectSwitch(final IOException failure) {
+  private static void assertNoDirectReplay(final IOException failure) {
     final RecordingBackendApi local = new RecordingBackendApi(failure);
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
@@ -154,41 +149,10 @@ class AgentlessFeatureFlagBackendApiTest {
     assertThrows(
         IOException.class,
         () -> api.post("flagevaluation", requestBody("evaluation"), stream -> null, null, false));
-    assertThrows(
-        IOException.class,
-        () -> api.post("flagevaluation", requestBody("next"), stream -> null, null, false));
-
-    assertEquals(2, local.calls);
-    assertEquals(0, direct.calls);
-    assertEquals(0, directApiCreations.get());
-  }
-
-  private static void assertFutureBatchUsesDirectIntake(final IOException failure)
-      throws Exception {
-    final RecordingBackendApi local = new RecordingBackendApi(failure);
-    final RecordingBackendApi direct = new RecordingBackendApi();
-    final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            local,
-            () -> {
-              directApiCreations.incrementAndGet();
-              return direct;
-            },
-            "flag evaluation");
-    final RequestBody ambiguousBody = requestBody("ambiguous");
-    final RequestBody nextBody = requestBody("next");
-
-    assertThrows(
-        IOException.class,
-        () -> api.post("flagevaluation", ambiguousBody, stream -> null, null, false));
-    api.post("flagevaluation", nextBody, stream -> null, null, false);
 
     assertEquals(1, local.calls);
-    assertEquals(1, direct.calls);
-    assertEquals(1, directApiCreations.get());
-    assertSame(ambiguousBody, local.requestBodies.get(0));
-    assertSame(nextBody, direct.requestBodies.get(0));
+    assertEquals(0, direct.calls);
+    assertEquals(0, directApiCreations.get());
   }
 
   private static RequestBody requestBody(final String value) {

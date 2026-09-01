@@ -54,7 +54,6 @@ public class ConfigSettingTest {
     "profiling API env    | DD_PROFILING_API_KEY        | somevalue | <hidden>     ",
     "profiling APIKEY env | DD_PROFILING_APIKEY         | somevalue | <hidden>     ",
     "proxy password       | profiling.proxy.password    | somevalue | <hidden>     ",
-    "HTTPS proxy          | proxy.https                 | somevalue | <hidden>     ",
     "session token prop   | test.agent.session.token    | somevalue | <hidden>     ",
     "session token env    | DD_TEST_AGENT_SESSION_TOKEN | somevalue | <hidden>     ",
     "non-sensitive key    | some.other.key              | somevalue | somevalue    "

@@ -11,25 +11,13 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
-import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.SocketAddress;
-import java.net.URI;
 import java.security.Security;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
-import okhttp3.Credentials;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
@@ -55,9 +43,6 @@ public class SharedCommunicationObjects {
    * this client is not configured to use UDS or named pipe.
    */
   private volatile OkHttpClient intakeHttpClient;
-
-  private volatile HttpUrl intakeHttpsProxy;
-  private volatile Set<String> intakeNoProxyHosts = Collections.emptySet();
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public long httpClientTimeout;
@@ -93,8 +78,6 @@ public class SharedCommunicationObjects {
             : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
 
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
-    intakeHttpsProxy = parseHttpsProxy(config.getHttpsProxy());
-    intakeNoProxyHosts = config.getNoProxyHosts();
 
     if (agentUrl == null) {
       agentUrl = parseAgentUrl(config);
@@ -286,94 +269,11 @@ public class SharedCommunicationObjects {
 
     synchronized (this) {
       if (this.intakeHttpClient == null) {
-        OkHttpClient intakeClient =
+        this.intakeHttpClient =
             OkHttpUtils.buildHttpClient(
                 forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
-        if (intakeHttpsProxy != null) {
-          final Proxy proxy =
-              new Proxy(
-                  Proxy.Type.HTTP,
-                  new InetSocketAddress(intakeHttpsProxy.host(), intakeHttpsProxy.port()));
-          final OkHttpClient.Builder builder =
-              intakeClient
-                  .newBuilder()
-                  .proxySelector(new IntakeProxySelector(proxy, intakeNoProxyHosts));
-          if (!intakeHttpsProxy.username().isEmpty()) {
-            final String credential =
-                Credentials.basic(intakeHttpsProxy.username(), intakeHttpsProxy.password());
-            builder.proxyAuthenticator(
-                (route, response) ->
-                    response
-                        .request()
-                        .newBuilder()
-                        .header("Proxy-Authorization", credential)
-                        .build());
-          }
-          intakeClient = builder.build();
-        }
-        this.intakeHttpClient = intakeClient;
       }
       return this.intakeHttpClient;
-    }
-  }
-
-  @Nullable
-  static HttpUrl parseHttpsProxy(@Nullable final String configuredProxy) {
-    if (configuredProxy == null || configuredProxy.trim().isEmpty()) {
-      return null;
-    }
-    final String candidate =
-        configuredProxy.contains("://") ? configuredProxy : "http://" + configuredProxy;
-    final HttpUrl proxy = HttpUrl.parse(candidate);
-    if (proxy == null || !"http".equalsIgnoreCase(proxy.scheme())) {
-      log.warn("Ignoring invalid HTTPS proxy configuration");
-      return null;
-    }
-    return proxy;
-  }
-
-  static final class IntakeProxySelector extends ProxySelector {
-    private static final List<Proxy> DIRECT = Collections.singletonList(Proxy.NO_PROXY);
-
-    private final Proxy proxy;
-    private final Set<String> noProxyHosts;
-
-    IntakeProxySelector(final Proxy proxy, final Set<String> noProxyHosts) {
-      this.proxy = proxy;
-      this.noProxyHosts = noProxyHosts;
-    }
-
-    @Override
-    public List<Proxy> select(final URI uri) {
-      final String host = uri.getHost();
-      if (host != null && shouldBypassProxy(host)) {
-        return DIRECT;
-      }
-      if ("https".equalsIgnoreCase(uri.getScheme())) {
-        return Collections.singletonList(proxy);
-      }
-      return AgentProxySelector.INSTANCE.select(uri);
-    }
-
-    @Override
-    public void connectFailed(
-        final URI uri, final SocketAddress address, final IOException failure) {
-      AgentProxySelector.INSTANCE.connectFailed(uri, address, failure);
-    }
-
-    private boolean shouldBypassProxy(final String host) {
-      final String normalizedHost = host.toLowerCase(Locale.ROOT);
-      for (final String configuredHost : noProxyHosts) {
-        final String normalized = configuredHost.trim().toLowerCase(Locale.ROOT);
-        if ("*".equals(normalized)
-            || normalizedHost.equals(normalized)
-            || (normalized.startsWith(".")
-                && (normalizedHost.equals(normalized.substring(1))
-                    || normalizedHost.endsWith(normalized)))) {
-          return true;
-        }
-      }
-      return false;
     }
   }
 }

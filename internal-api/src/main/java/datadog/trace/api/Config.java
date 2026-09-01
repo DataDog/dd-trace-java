@@ -661,7 +661,6 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
-import static datadog.trace.api.config.TracerConfig.PROXY_HTTPS;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
@@ -923,7 +922,6 @@ public class Config {
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
-  private final String httpsProxy;
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
@@ -1694,27 +1692,8 @@ public class Config {
     forceClearTextHttpForIntakeClient =
         configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
 
-    String configuredHttpsProxy = configProvider.getString(PROXY_HTTPS);
-    if (configuredHttpsProxy == null) {
-      configuredHttpsProxy = ConfigHelper.env("HTTPS_PROXY");
-      if (configuredHttpsProxy == null) {
-        configuredHttpsProxy = ConfigHelper.env("https_proxy");
-      }
-    }
-    httpsProxy = configuredHttpsProxy;
-
-    // DD_PROXY_NO_PROXY historically accepted spaces; standard NO_PROXY aliases use commas.
-    String configuredNoProxyHosts = configProvider.getString(PROXY_NO_PROXY);
-    if (configuredNoProxyHosts == null) {
-      configuredNoProxyHosts = ConfigHelper.env("NO_PROXY");
-      if (configuredNoProxyHosts == null) {
-        configuredNoProxyHosts = ConfigHelper.env("no_proxy");
-      }
-    }
-    noProxyHosts =
-        configuredNoProxyHosts == null
-            ? Collections.emptySet()
-            : parseStringIntoSetOfNonEmptyStrings(configuredNoProxyHosts);
+    // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
+    noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -3653,10 +3632,6 @@ public class Config {
 
   public boolean isForceClearTextHttpForIntakeClient() {
     return forceClearTextHttpForIntakeClient;
-  }
-
-  public String getHttpsProxy() {
-    return httpsProxy;
   }
 
   public Set<String> getNoProxyHosts() {
@@ -6314,13 +6289,13 @@ public class Config {
     for (; i < str.length(); ++i) {
       char c = str.charAt(i);
       if (c == ',' || (splitOnWS && Character.isWhitespace(c))) {
-        if (i - start > 0) {
+        if (i - start - 1 > 0) {
           result.add(str.substring(start, i));
         }
         start = i + 1;
       }
     }
-    if (i - start > 0) {
+    if (i - start - 1 > 0) {
       result.add(str.substring(start));
     }
     return Collections.unmodifiableSet(result);

@@ -59,6 +59,7 @@ class BackendApiFactoryTest {
         "datadoghq.com/path",
         "datadoghq.com?query=value",
         "datadoghq.com#fragment",
+        "dätadoghq.com",
         "data doghq.com",
         " datadoghq.com",
         "datadoghq.com ",
