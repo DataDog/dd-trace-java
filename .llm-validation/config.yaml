@@ -12,6 +12,8 @@ instruction_files:
   - .agents/skills/dd-apm-sdk-review/reviewers/maintainability.md
   - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
   - .agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md
+  - .agents/dd-apm-sdk-review-overrides/repo-context.md
+  - .agents/dd-apm-sdk-review-overrides/reviewers/security.md
   - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
   - .agents/dd-apm-sdk-review-overrides/reviewers/design.md
   - .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md

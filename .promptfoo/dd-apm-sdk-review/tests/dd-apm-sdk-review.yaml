@@ -80,8 +80,21 @@
       value: "pasted diff, no git"
     - type: icontains
       value: "Rule files used"
-    - type: not-icontains
-      value: "git diff"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
       metric: no-attempted-git-commands
     - type: llm-rubric
       value: |
@@ -137,8 +150,21 @@
 
     - type: icontains
       value: "Rule files used"
-    - type: not-icontains
-      value: "git diff"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
       metric: no-attempted-git-commands
 
     - type: llm-rubric
@@ -163,4 +189,90 @@
            APPROVE_WITH_COMMENTS or APPROVE — this repo's severity rubric maps a P0
            finding to BLOCK with no exception) and ends with the final statement
            `DO NOT PUSH` (not READY TO PUSH).
+      threshold: 0.8
+
+- description: "Logic bug — capture expressions evaluated before the send/sampling decision is final (mined from dd-trace-java PR #12207 fix; pre-fix code, no override rule for this pattern yet)"
+  vars:
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java b/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java
+      @@ -700,6 +700,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContext.Status {
+      +  // PR #12207: processCaptureExpressions() runs for every hit, regardless of
+      +  // whether the probe's condition/sampler has already decided this hit will
+      +  // not be sent. logStatus.shouldSend() reflects that effective send decision
+      +  // and is already computed by the caller before this method runs.
+      +  private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
+      +    if (captureExpressions == null) {
+      +      return;
+      +    }
+      +    for (CaptureExpression captureExpression : captureExpressions) {
+      +      try {
+      +        context.addCaptureExpression(captureExpression.evaluate(context));
+      +      } catch (Exception ex) {
+      +        DEBUGGER_METRICS.increment(EVALUATION_ERROR);
+      +        reportEvaluationError(captureExpression, ex);
+      +      }
+      +    }
+      +  }
+      ```
+  assert:
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          if (call.name !== 'Skill') return false;
+          const blob = JSON.stringify(call.input || {});
+          return blob.includes('dd-apm-sdk-review');
+        });
+        return hit || {
+          pass: false,
+          score: 0,
+          reason: 'Skill tool was not invoked with dd-apm-sdk-review. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+
+    - type: icontains
+      value: "Rule files used"
+    - type: javascript
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls || [];
+        const hit = calls.some((call) => {
+          const name = (call.name || '').toLowerCase();
+          if (name !== 'bash' && name !== 'git') return false;
+          const blob = JSON.stringify(call.input || {});
+          return /\bgit\b/.test(blob);
+        });
+        return !hit || {
+          pass: false,
+          score: 0,
+          reason: 'A git command was actually invoked despite no git checkout being available. toolCalls=' +
+            JSON.stringify(calls.map((c) => ({ name: c.name, input: c.input })))
+        };
+      metric: no-attempted-git-commands
+
+    - type: llm-rubric
+      value: |
+        The review report must satisfy ALL of the following, or it fails:
+        1. Flags that `processCaptureExpressions()` evaluates every capture expression
+           as soon as `captureExpressions` is non-null, without checking
+           `logStatus.shouldSend()` — the effective send/sampling decision that the
+           caller has already computed before this method runs. It is not enough to
+           note "there's a null check here"; the report must call out that the method
+           does expensive/fallible work (expression evaluation) even when the hit's
+           condition or sampler has already decided the hit will not be sent.
+        2. Explains the concrete consequence: a hit that is rejected or rate-limited
+           still pays for expression evaluation, so a broken/failing capture
+           expression on a hot method produces an unthrottled stream of evaluation
+           errors (`reportEvaluationError`) for every hit, not just the ones actually
+           sent — i.e. this is a reliability/performance concern, not a cosmetic one.
+        3. Recommends gating the evaluation loop on the send decision, e.g.
+           `if (captureExpressions == null || !logStatus.shouldSend()) { return; }`,
+           rather than just "add rate limiting to the error reporting" or "wrap in a
+           broader try/catch".
+        4. States an explicit verdict line (BLOCK, APPROVE_WITH_COMMENTS, or APPROVE)
+           and a final READY TO PUSH / DO NOT PUSH statement.
       threshold: 0.8
