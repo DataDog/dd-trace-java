@@ -28,7 +28,7 @@ import org.openjdk.jol.info.GraphLayout;
  * they are on the telemetry paths this class targets.
  *
  * <p>Measured on a 10-CPU machine (JDK 1.8.0_382 Zulu), 4 counters, {@code
- * Accumulator.stripeCount()} = 16:
+ * Accumulator.EmbeddingSupport.stripeCount()} = 16:
  *
  * <pre>{@code
  * fresh:      4 LongAdders =    160 bytes, Accumulator = 2384 bytes
@@ -78,7 +78,7 @@ class AccumulatorFootprintTest {
   @Test
   void freshFootprint() {
     LongAdder[] adders = freshAdders();
-    long[][] accumulator = Accumulator.create(Counters.values());
+    long[][] accumulator = Accumulator.EmbeddingSupport.create(Counters.values());
 
     long adderBytes = bytes((Object) adders);
     long accumulatorBytes = bytes(accumulator);
@@ -133,7 +133,7 @@ class AccumulatorFootprintTest {
     }
 
     long contendedAdderBytes = bytes((Object) adders);
-    long[][] accumulator = Accumulator.create(Counters.values());
+    long[][] accumulator = Accumulator.EmbeddingSupport.create(Counters.values());
     long accumulatorBytes = bytes(accumulator);
 
     System.out.printf(
@@ -143,5 +143,8 @@ class AccumulatorFootprintTest {
     assertTrue(
         contendedAdderBytes >= freshAdderBytes,
         "contended LongAdder footprint should never shrink below the fresh footprint");
+    assertTrue(
+        accumulatorBytes < contendedAdderBytes,
+        "Accumulator's fixed footprint should be smaller than N contended LongAdders");
   }
 }

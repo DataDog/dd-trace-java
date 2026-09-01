@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.LongAdder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Group;
+import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -20,9 +22,15 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * {@link Accumulator} vs {@link LongAdder} vs the {@code ConcurrentHashMap.computeIfAbsent(key, k
  * -> new AtomicLong())} anti-pattern, at one thread (no contention) and at {@link Threads#MAX}
- * (heavy contention). The CHM variant allocates its counter under the bucket's bin lock on first
- * sight of a key -- exactly the pathology {@link Accumulator} exists to avoid -- so its comparison
- * here is against that allocation-under-lock step, not against a pre-warmed map.
+ * (heavy contention). The CHM variant allocates its counter under the bucket's bin lock the first
+ * time its one constant key is seen -- exactly the pathology {@link Accumulator} exists to avoid --
+ * but since the map is a {@code @State(Scope.Benchmark)} field shared across the whole run, that
+ * allocation happens exactly once; every sampled op after it hits the warmed, already-present fast
+ * path. So this measures steady-state {@code computeIfAbsent} lookup overhead on an
+ * already-populated map, not the one-time allocation-under-lock cost -- still a useful number (a
+ * fixed, small key set that's allocated once and hit for the life of the process, as {@code
+ * WafMetricCollector}-style CHM counters are, spends nearly all its time in this same warmed path),
+ * just not the pathology the name of this benchmark might suggest.
  *
  * <p><b>Contention result to note:</b> at low contention, {@code accumulatorIncrement} is
  * essentially free and on par with {@code longAdderIncrement}. At {@code Threads.MAX} (10 threads
@@ -93,7 +101,7 @@ public class AccumulatorBenchmark {
   }
 
   private final LongAdder adder = new LongAdder();
-  private final long[][] accumulator = Accumulator.create(Counter.values());
+  private final long[][] accumulator = Accumulator.EmbeddingSupport.create(Counter.values());
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
   private final LongAdder[] longAdderGroup = {new LongAdder()};
 
@@ -140,13 +148,13 @@ public class AccumulatorBenchmark {
   @Benchmark
   @Threads(1)
   public void accumulatorIncrement_lowContention() {
-    Accumulator.inc(accumulator, Counter.HITS);
+    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
   }
 
   @Benchmark
   @Threads(Threads.MAX)
   public void accumulatorIncrement_highContention() {
-    Accumulator.inc(accumulator, Counter.HITS);
+    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
   }
 
   @Benchmark
@@ -178,15 +186,46 @@ public class AccumulatorBenchmark {
   @Benchmark
   @Threads(1)
   public void accumulatorAccumulateAnd_lowContention(Blackhole blackhole) {
-    Accumulator.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.accumulateAndReset(accumulator));
+    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
   }
 
+  /**
+   * A deliberately pessimistic topology: every thread both writes and drains on every op, so {@code
+   * Threads.MAX} threads are all draining concurrently. Real callers don't do this -- see {@code
+   * accumulatorMixed-write}/{@code accumulatorMixed-drain} below for the "many writers, one rare
+   * drainer" shape this class actually targets. Kept as the worst-case upper bound: no production
+   * topology should be more contended on {@link Accumulator.EmbeddingSupport#accumulateAndReset}
+   * than this.
+   */
   @Benchmark
   @Threads(Threads.MAX)
   public void accumulatorAccumulateAnd_highContention(Blackhole blackhole) {
-    Accumulator.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.accumulateAndReset(accumulator));
+    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
+  }
+
+  /**
+   * The realistic counterpart to {@code accumulatorAccumulateAnd_highContention}: many writer
+   * threads incrementing, and a single dedicated thread polling {@link
+   * Accumulator.EmbeddingSupport#accumulateAndReset} -- not every thread doing both on every op.
+   * {@code accumulatorMixed-write} measures increment cost while a drain is actively contending for
+   * stripe locks; {@code accumulatorMixed-drain} measures the drain's own cost under that same live
+   * write pressure. The 4:1 writer:drainer ratio is illustrative of "many writers, rare drain," not
+   * tuned to a specific core count.
+   */
+  @Benchmark
+  @Group("accumulatorMixed")
+  @GroupThreads(4)
+  public void accumulatorMixed_write() {
+    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+  }
+
+  @Benchmark
+  @Group("accumulatorMixed")
+  @GroupThreads(1)
+  public void accumulatorMixed_drain(Blackhole blackhole) {
+    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
   }
 
   @Benchmark
