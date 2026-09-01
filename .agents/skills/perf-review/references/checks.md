@@ -33,12 +33,15 @@ Fixed-signature, mechanically checkable:
 - using a string-API where an id-API exists on a hot decorator
 - the existing convention rules (e.g. don't extract one-shot instrumentation methods to constants)
 - a field (instance or static, directly or as a generic type argument) declared with an
-  `@NoEscape`-annotated type (`datadog.trace.api.function.NoEscape`) — the annotation's own
-  javadoc carries a self-contained "Checker contract" section (trigger / not-a-trigger /
-  violation example / compliant example) written so this can be checked from the diff alone,
-  with no other context needed. **flag-with-confidence** — SEV-2/3 (SEV-1 if the annotated type
-  shares backing storage with something large, per its own javadoc). Current wearers:
-  `SubSequence`, `Maybe` (see J7 below for `SubSequence`'s specific retention-vs-transient
+  `@NoEscape`-annotated type (`datadog.trace.api.function.NoEscape`), with no comment at the
+  declaration justifying the retention — the annotation's own javadoc carries a self-contained
+  "Checker contract" section (trigger / not-a-trigger / violation example / compliant example)
+  written so this can be checked from the diff alone, with no other context needed. The
+  underlying rule is "should", not "must" (RFC-2119 sense): a trigger is a presumptive
+  finding, not an automatic failure — a field with a `// Retained on purpose: <reason>`-style
+  comment is compliant. **flag-with-confidence** — SEV-2/3 (SEV-1 if the annotated type shares
+  backing storage with something large, per its own javadoc). Current wearers: `SubSequence`,
+  `Maybe` (see J7 below for `SubSequence`'s specific retention-vs-transient
   discriminator).
 - *(grows as patterns prove mechanically checkable — migrate them off the AI as they stabilize)*
 
