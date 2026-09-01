@@ -33,6 +33,8 @@ import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
@@ -69,7 +71,11 @@ public class DDEvaluatorTest {
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
   private static final Moshi MOSHI =
-      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
+      new Moshi.Builder()
+          .add(Date.class, new DateAdapter())
+          .add(ShardAdapter.FACTORY)
+          .add(FlagMapAdapter.FACTORY)
+          .build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
@@ -78,6 +84,7 @@ public class DDEvaluatorTest {
       MOSHI.adapter(FIXTURE_LIST_TYPE);
   private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
       ThreadLocal.withInitial(HashMap::new);
+  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -224,6 +231,36 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testEvaluateUnsignedShardRange() {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    // The selected shard is above Integer.MAX_VALUE, so this test proves that evaluation uses
+    // unsigned semantics after binary-compatible int storage.
+    final Shard shard =
+        new Shard(
+            "salt",
+            singletonList(new ShardRange((int) 3_699_531_192L, (int) 3_699_531_193L)),
+            (int) MAX_UNSIGNED_INT);
+    final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "target",
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+
+    final EvaluationContext context =
+        new MutableContext("target").setTargetingKey("high-shard-user");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, context);
+
+    assertThat(details.getValue(), equalTo(1));
+    assertThat(details.getReason(), equalTo("SPLIT"));
+    assertThat(details.getVariant(), equalTo("on"));
   }
 
   // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
@@ -521,6 +558,8 @@ public class DDEvaluatorTest {
       // Equal
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3.4.5.6", "1.2.3.4.5.6", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.2.3.4.5.7", "1.2.3.4.5.6", true),
       // Not equal
       Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
       Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
@@ -550,7 +589,7 @@ public class DDEvaluatorTest {
       Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
       // Invalid attribute does not match
       Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
       Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
       Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
       // Non-string attribute does not match
@@ -610,6 +649,24 @@ public class DDEvaluatorTest {
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "invalid-semver", false, semverContext("1.2.3"));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+  }
+
+  @Test
+  public void testEvaluateMalformedFlagReturnsParseError() {
+    final Map<String, Flag> flags = new HashMap<>();
+    final Map<String, String> invalidFlags = new HashMap<>();
+    invalidFlags.put("malformed-flag", "invalid_flag");
+    final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
+    config.invalidFlags = invalidFlags;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(config);
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "malformed-flag", false, new MutableContext());
 
     assertThat(details.getValue(), equalTo(false));
     assertThat(details.getReason(), equalTo(ERROR.name()));
@@ -1048,6 +1105,74 @@ public class DDEvaluatorTest {
     Map<String, Object> flagMetadata = emptyMap();
   }
 
+  /**
+   * Mirrors the production parser's binary-compatible uint32 representation for fixture parsing.
+   */
+  private static final class ShardAdapter extends JsonAdapter<Shard> {
+    private static final JsonAdapter.Factory FACTORY =
+        (type, annotations, moshi) -> {
+          if (!annotations.isEmpty() || type != Shard.class) {
+            return null;
+          }
+          return new ShardAdapter(moshi.adapter(ShardJson.class));
+        };
+
+    private final JsonAdapter<ShardJson> delegate;
+
+    private ShardAdapter(final JsonAdapter<ShardJson> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Shard fromJson(final JsonReader reader) throws IOException {
+      final ShardJson shard = delegate.fromJson(reader);
+      if (shard == null) {
+        return null;
+      }
+      final List<ShardRange> ranges;
+      if (shard.ranges == null) {
+        ranges = null;
+      } else {
+        ranges = new ArrayList<>();
+        for (final ShardRangeJson range : shard.ranges) {
+          ranges.add(
+              range == null
+                  ? null
+                  : new ShardRange(
+                      toUnsignedInt(range.start, "range start"),
+                      toUnsignedInt(range.end, "range end")));
+        }
+      }
+      return new Shard(shard.salt, ranges, toUnsignedInt(shard.totalShards, "totalShards"));
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Shard value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static int toUnsignedInt(final Long value, final String fieldName) {
+    if (value == null) {
+      return 0;
+    }
+    if (value < 0 || value > MAX_UNSIGNED_INT) {
+      throw new IllegalArgumentException("flag contains an invalid " + fieldName + " value");
+    }
+    return value.intValue();
+  }
+
+  private static final class ShardJson {
+    String salt;
+    List<ShardRangeJson> ranges;
+    Long totalShards;
+  }
+
+  private static final class ShardRangeJson {
+    Long start;
+    Long end;
+  }
+
   /** Reads the flags map with per-flag failure isolation, matching the production parser. */
   private static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
     private static final Type FLAGS_TYPE =
@@ -1097,13 +1222,77 @@ public class DDEvaluatorTest {
         return;
       }
       for (final Allocation allocation : flag.allocations) {
-        if (allocation == null || allocation.splits == null) {
+        if (allocation == null) {
+          continue;
+        }
+        validateConditionOperands(flagKey, allocation);
+        if (allocation.splits == null) {
           continue;
         }
         for (final Split split : allocation.splits) {
-          if (split != null && split.shards == null) {
+          if (split == null) {
+            continue;
+          }
+          if (split.shards == null) {
             throw new IllegalArgumentException(
                 "flag \"" + flagKey + "\" contains a split with missing shards");
+          }
+          for (final Shard shard : split.shards) {
+            if (shard == null
+                || Integer.toUnsignedLong(shard.totalShards) == 0
+                || shard.ranges == null) {
+              throw new IllegalArgumentException(
+                  "flag \"" + flagKey + "\" contains invalid shards");
+            }
+            for (final ShardRange range : shard.ranges) {
+              if (range == null) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" contains an invalid shard range");
+              }
+            }
+          }
+        }
+      }
+    }
+
+    private static void validateConditionOperands(
+        final String flagKey, final Allocation allocation) {
+      if (allocation.rules == null) {
+        return;
+      }
+      for (final Rule rule : allocation.rules) {
+        if (rule == null || rule.conditions == null) {
+          continue;
+        }
+        for (final ConditionConfiguration condition : rule.conditions) {
+          if (condition == null || condition.operator == null) {
+            continue;
+          }
+          switch (condition.operator) {
+            case LT:
+            case LTE:
+            case GT:
+            case GTE:
+              if (!(condition.value instanceof Number)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-numeric condition");
+              }
+              break;
+            case ONE_OF:
+            case NOT_ONE_OF:
+              if (!(condition.value instanceof List)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-list condition");
+              }
+              break;
+            case IS_NULL:
+              if (!(condition.value instanceof Boolean)) {
+                throw new IllegalArgumentException(
+                    "flag \"" + flagKey + "\" has a non-boolean condition");
+              }
+              break;
+            default:
+              break;
           }
         }
       }

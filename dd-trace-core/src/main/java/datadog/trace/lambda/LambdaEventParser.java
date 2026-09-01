@@ -94,8 +94,9 @@ final class LambdaEventParser {
         case ALB_MULTI_VALUE:
           return extractAlbData(event, triggerType);
         default:
-          log.debug("Unknown trigger type, attempting generic extraction");
-          return extractGenericData(event);
+          // Unsupported trigger: AppSec skips the invocation entirely, so there is nothing to
+          // extract. The trigger type is carried by the caller, not by this result.
+          return LambdaRequestData.EMPTY;
       }
     } catch (Exception e) {
       log.debug("Failed to parse event data from JSON", e);
@@ -444,69 +445,6 @@ final class LambdaEventParser {
         null);
   }
 
-  /** Generic data extraction for unknown trigger types (fallback) */
-  private static LambdaRequestData extractGenericData(Map<String, Object> event) {
-    Map<String, String> headers = extractHeadersWithCookies(event);
-    Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-    Map<String, List<String>> queryParameters =
-        extractQueryParameters(event.get("queryStringParameters"));
-    Object body = extractBody(event);
-
-    String method = null;
-    String path = null;
-    String sourceIp = null;
-
-    // Try to extract from requestContext if available
-    Object requestContextObj = event.get("requestContext");
-    if (requestContextObj instanceof Map) {
-      Map<?, ?> requestContext = (Map<?, ?>) requestContextObj;
-
-      Object httpObj = requestContext.get("http");
-      if (httpObj instanceof Map) {
-        Map<?, ?> http = (Map<?, ?>) httpObj;
-        method = (String) http.get("method");
-        path = (String) http.get("path");
-        sourceIp = (String) http.get("sourceIp");
-      } else {
-        Object methodObj = requestContext.get("httpMethod");
-        if (methodObj != null) {
-          method = String.valueOf(methodObj);
-        }
-
-        Object identityObj = requestContext.get("identity");
-        if (identityObj instanceof Map) {
-          Map<?, ?> identity = (Map<?, ?>) identityObj;
-          sourceIp = (String) identity.get("sourceIp");
-        }
-      }
-    }
-
-    // Try root level fields
-    if (method == null) {
-      Object methodObj = event.get("httpMethod");
-      if (methodObj != null) {
-        method = String.valueOf(methodObj);
-      }
-    }
-    if (path == null) {
-      Object pathObj = event.get("path");
-      if (pathObj != null) {
-        path = String.valueOf(pathObj);
-      }
-    }
-
-    return new LambdaRequestData(
-        headers,
-        method,
-        path,
-        sourceIp,
-        null,
-        LambdaTriggerType.UNKNOWN,
-        pathParameters,
-        queryParameters,
-        body);
-  }
-
   /**
    * Looks a header up in a map produced by {@link #extractHeaders}, whose keys are already
    * lowercased, so {@code lowerCaseName} must be lowercase for a match.
@@ -790,8 +728,22 @@ final class LambdaEventParser {
     LAMBDA_URL, // Lambda Function URL
     UNKNOWN; // Unknown or unsupported trigger
 
+    /**
+     * Whitelist rather than {@code != UNKNOWN} so a trigger type added later defaults to non-HTTP,
+     * and therefore to being skipped by AppSec, until it is deliberately listed here.
+     */
     boolean isHttp() {
-      return this != UNKNOWN;
+      switch (this) {
+        case API_GATEWAY_V1_REST:
+        case API_GATEWAY_V2_HTTP:
+        case API_GATEWAY_V2_WEBSOCKET:
+        case ALB:
+        case ALB_MULTI_VALUE:
+        case LAMBDA_URL:
+          return true;
+        default:
+          return false;
+      }
     }
   }
 

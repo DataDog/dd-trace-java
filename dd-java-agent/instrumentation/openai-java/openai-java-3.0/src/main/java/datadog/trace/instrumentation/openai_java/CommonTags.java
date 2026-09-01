@@ -31,6 +31,7 @@ interface CommonTags {
   String SERVICE = TAG_PREFIX + "service";
   String PARENT_ID = TAG_PREFIX + "parent_id";
   String SESSION_ID = TAG_PREFIX + LLMObsTags.SESSION_ID;
+  String AGENT_VERSION = TAG_PREFIX + LLMObsTags.AGENT_VERSION;
 
   String TOOL_DEFINITIONS = TAG_PREFIX + "tool_definitions";
 
