@@ -40,7 +40,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void tryReserveOrEvictReservesDirectlyWhenUnderCapacity() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 2);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 2);
 
     boolean reserved = tryReserveOrEvict(state, e -> true);
     assertTrue(reserved);
@@ -51,7 +51,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void tryReserveOrEvictEvictsWhenFullAndSomethingMatches() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 1);
     TestEntry existing = insertAt(state, 0, "existing");
     assertTrue(state.sizeManager.tryReserve());
     assertTrue(state.sizeManager.isFull());
@@ -65,7 +65,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void tryReserveOrEvictFailsAndLeavesTableUntouchedWhenNothingEvictable() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 1);
     TestEntry existing = insertAt(state, 0, "existing");
     assertTrue(state.sizeManager.tryReserve());
 
@@ -78,7 +78,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void insertReservedSplicesWithoutTouchingTheCountAfterATryReserve() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 2);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 2);
     assertTrue(state.sizeManager.tryReserve());
     assertEquals(1, state.sizeManager.estimateSize());
 
@@ -95,7 +95,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void evictOneReturnsNullAndLeavesCountUnchangedWhenNothingMatches() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     insertAt(state, 0, "a");
     state.sizeManager.increment();
 
@@ -107,7 +107,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void evictOneUnlinksMatchAndDecrementsCount() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     TestEntry a = insertAt(state, 0, "a");
     TestEntry b = insertAt(state, 1, "b");
     state.sizeManager.increment();
@@ -130,7 +130,7 @@ class ConcurrentHashtableSizeManagerTest {
   void evictOneResumesFromLastEvictedBucketAndWrapsAround() {
     // Bucket-array length 4: keyHash i lands in bucket i.
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     TestEntry e0 = insertAt(state, 0, "e0");
     insertAt(state, 2, "e2");
     TestEntry e3 = insertAt(state, 3, "e3");
@@ -159,7 +159,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void evictAllRemovesEveryMatchAndReturnsCount() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 8);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 8);
     for (int i = 0; i < 6; i++) {
       insertAt(state, i, "e" + i);
       state.sizeManager.increment();
@@ -179,7 +179,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void evictAllResetsCursorSoSubsequentEvictOneScansFromBucketZero() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     insertAt(state, 2, "a");
     state.sizeManager.increment();
     // Advance the cursor away from 0 via a successful eviction at bucket 2.
@@ -203,7 +203,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void releaseGivesBackRemovedSlotsAndRestartsScan() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 4);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     insertAt(state, 2, "a");
     state.sizeManager.increment();
     evictOne(state, e -> true); // advances the cursor to 2, count back to 0
@@ -226,7 +226,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void stateCreateCappedBundlesBucketsAndSizeManager() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 3);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 3);
     assertEquals(0, state.sizeManager.estimateSize());
     assertEquals(3, state.sizeManager.capacity());
     assertTrue(state.buckets.length() >= 3);
@@ -235,7 +235,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void stateLevelTryReserveOrEvictAndEvictOneAndEvictAllDelegateToSizeManager() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 1);
     synchronized (ConcurrentHashtable.getWriteLockAt(state, 0)) {
       ConcurrentHashtable.insertHeadEntryAt(state, 0, new TestEntry(0, "a"));
     }
@@ -280,7 +280,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void clearCannotInterleaveBetweenReservationAndInsert() throws InterruptedException {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 1);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 1);
     insertAt(state, 0, "a");
     state.sizeManager.increment();
     assertTrue(ConcurrentHashtable.isFull(state));
@@ -318,7 +318,7 @@ class ConcurrentHashtableSizeManagerTest {
   @Test
   void reservationSurvivesAClearLandingBetweenReserveAndInsert() {
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.State.createCapped(TestEntry.class, 2);
+        ConcurrentHashtable.State.createBounded(TestEntry.class, 2);
     insertAt(state, 0, "a");
     state.sizeManager.increment();
 

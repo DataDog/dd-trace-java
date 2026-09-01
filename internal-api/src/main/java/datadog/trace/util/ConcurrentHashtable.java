@@ -15,122 +15,26 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Concurrent hash table providing lock-free reads and locked writes for {@link D1} (single-key) and
- * {@link D2} (composite-key) tables.
+ * Fixed-capacity concurrent hash tables with lock-free reads and serialized writes.
  *
- * <p>The API deliberately mirrors {@link Hashtable} so the two are familiar to use, but the two
- * share <b>no implementation</b>: {@code ConcurrentHashtable} carries its own {@link Entry}
- * hierarchy with a {@code volatile} chain pointer and its own write paths. The single-threaded and
- * concurrent variants evolve under different constraints (the concurrent one must reason about the
- * memory model on every mutation), so coupling them through a shared base would be a hazard, not a
- * convenience.
+ * <p>{@link D1} accepts one key. {@link D2} accepts two key parts directly. Both store
+ * caller-defined {@link Entry} objects in separate-chained buckets and never resize.
  *
- * <p>Like {@link Hashtable}, capacity is fixed at construction and the table does not resize.
- * Unlike {@link Hashtable}, all operations are safe for concurrent access without external
- * synchronization.
+ * <p>Bucket heads live in an {@link AtomicReferenceArray}. Its volatile {@code set}/{@code get}
+ * semantics publish an inserted entry and its initialized fields to lock-free readers. The volatile
+ * {@code next} links likewise make chain splices visible. A read racing a removal may observe
+ * either state; removed entries retain their link so a reader already on the chain can still finish
+ * traversing it.
  *
- * <p>The primary advantage over {@link java.util.concurrent.ConcurrentHashMap} for composite-key
- * use cases is that {@link D2#get(Object, Object)} and {@link D2#tryGetOrCreate(Object, Object,
- * BiFunction)} accept key parts directly — no composite key object is allocated for the lookup.
- * {@code ConcurrentHashMap} requires a wrapper object whose ownership may transfer to the map on
- * insert; escape analysis must conservatively assume the key escapes even on hit paths, preventing
- * scalar replacement.
+ * <p>{@link D2} structurally avoids a temporary composite key. With a conventional concurrent map,
+ * that wrapper may be retained on insertion, so HotSpot cannot reliably scalar-replace it through
+ * escape analysis. Avoiding the wrapper matters on the tracer's hot lookup paths.
  *
- * <p><b>Memory model.</b> Bucket slots are held in an {@link AtomicReferenceArray}, so each {@link
- * D1#get}/{@link D2#get} begins with a volatile read of the slot. The chain {@code next} pointer is
- * {@code volatile} as well, so every step of a chain walk is a volatile read. This is what makes
- * <em>removal</em> safe: a splice (re-pointing a predecessor's {@code next} past the removed entry,
- * or replacing the bucket head) is a volatile write that lock-free readers observe. The cost is a
- * volatile read per chain step and a slightly more expensive insert; the benefit is that the table
- * supports removal — {@link D1#remove}, {@link D1#removeIf}, {@link D1#drain}, and {@link D1#clear}
- * — rather than being append-only. {@link D1#drain} is the read-and-reset primitive for flush/
- * publish workflows: it removes every entry while handing each to a caller-supplied sink.
- *
- * <p><b>Removal and in-flight readers.</b> A removed entry's own {@code next} pointer is left
- * intact (it is never nulled). A reader that had already advanced onto the entry being removed must
- * still be able to follow {@code next} forward to the rest of the chain; the detached entry is
- * simply unreachable for new lookups and becomes garbage once no in-flight reader references it. A
- * concurrent lookup racing a removal may observe either the pre- or post-removal state — both are
- * valid linearizations.
- *
- * <p><b>Custom tables (higher arity / primitive keys).</b> Use {@link D1} or {@link D2} when their
- * object-key constraints are acceptable — they handle synchronization internally. When you need
- * primitive key components, three-or-more key parts, or extra per-entry value fields, drive the
- * table yourself with the static building blocks on this class: allocate the spine with {@link
- * #createFixedBuckets(Class, int)}, then operate on it with {@link #bucketFor} / {@link #bucketAt},
- * {@link #unlink}, {@link #removeIf}, {@link #drain}, {@link #clear}, and {@link #forEach}. This is
- * the same "static functions over a caller-owned array" shape as {@link Hashtable} (see how {@code
- * AggregateTable} uses {@code Hashtable}); the calling class then owns the array and exposes
- * whatever operations it needs. Subclass {@link Entry} directly for such tables.
- *
- * <p><b>Locking model.</b> Writes are guarded by monitors obtained from this class, never by
- * locking on an object the caller picked. Ask for the lock that covers the <em>scope</em> you are
- * about to mutate: {@link #getWriteLock(AtomicReferenceArray, long)} (or {@link
- * #getWriteLockAt(AtomicReferenceArray, int)}) for one key's bucket, and {@link
- * #getTableWriteLock(AtomicReferenceArray)} for anything spanning every bucket. Treat what comes
- * back as opaque rather than assuming it is the array. Reads are lock-free: {@link #bucketFor} /
- * {@link #bucketAt} walks and {@link #forEach} take no lock and are safe from any thread. The
- * whole-table mutators — {@link #removeIf}, {@link #drain}, {@link #clear} — are
- * <b>self-locking</b>, so a custom table calls them directly with no lock of its own. The only
- * writes a custom table performs by hand are single-key insert and remove; each is an atomic
- * check-then-write that the caller wraps in {@code synchronized (getWriteLock(buckets, keyHash))}
- * so it excludes other writers and the self-locking mutators (they nest cleanly with it):
- *
- * <ol>
- *   <li>Lock-free pre-check: walk the chain via {@link #bucketFor} / {@link #bucketAt}; return if
- *       found.
- *   <li>{@code synchronized (getWriteLock(buckets, keyHash))} — take the monitor covering that key.
- *   <li>Re-check under the lock (another thread may have inserted between step 1 and step 2).
- *   <li>Insert: build the entry and publish it with {@link #insertHeadEntryFor} / {@link
- *       #insertHeadEntryAt}. Remove: splice it out with {@link #unlink}. Both are volatile writes
- *       that lock-free readers observe atomically.
- * </ol>
- *
- * <p>{@link #bucketFor} / {@link #bucketAt} (a lock-free read), {@link #insertHeadEntryFor} /
- * {@link #insertHeadEntryAt}, and {@link #unlink} are the single-slot primitives for that
- * hand-written path; the two mutating ones do <b>not</b> lock, so call them only inside the
- * caller's {@code synchronized (getWriteLock(buckets, keyHash))} block. The entry's chain pointer
- * is written for you by those helpers — custom tables never touch it directly.
- *
- * <p><b>A sequence of self-locking calls is not atomic.</b> Each self-locking helper takes and
- * releases the monitor on its own, so two of them in a row leave a window in between. That matters
- * for any multi-step protocol over one table: hold one lock across the whole thing, and note the
- * monitor is reentrant, so the self-locking calls nest inside it cleanly.
- *
- * <p>The protocol that used to need that — reserve a slot with {@link #tryReserveOrEvict}, then
- * fill it with {@link #insertReserved} — no longer does, and why is worth recording, because the
- * reason generalizes. A {@link #drain} or {@link #clear} landing in the gap used to zero the {@link
- * SizeManager}, discarding the outstanding reservation and leaving the count permanently below
- * reality — drift no later eviction repairs, since eviction decrements too. The repair was not a
- * wider lock but honest arithmetic: the sweeps now subtract what they actually removed ({@link
- * SizeManager#release(int)}), so a reservation survives one, and {@link SizeManager#tryReserve()}
- * claims first and refunds on overshoot, so it needs no lock at all. <em>Prefer making a step
- * atomic on its own over holding a lock across steps.</em>
- *
- * <p><b>On striping.</b> Every accessor above returns the same monitor today: writes to the whole
- * table serialize. The three accessors exist so that granularity is a choice this class can revisit
- * without touching its callers — a striped implementation would make {@link
- * #getWriteLockAt(AtomicReferenceArray, int)} resolve to a per-stripe monitor and leave {@link
- * #getWriteLock(AtomicReferenceArray, long)} unchanged at every call site. Two things would still
- * have to be settled first, and every {@code getTableWriteLock} use marks one of them:
- *
- * <ul>
- *   <li><b>Capacity accounting needs no lock.</b> {@link SizeManager#tryReserve()} claims a slot
- *       and refunds on overshoot, which is atomic on its own, and the sweeps subtract what they
- *       removed rather than zeroing. What stays lock-dependent is the {@code isFull()}-then-{@code
- *       increment()} ordering {@link D1#tryGetOrCreateOrNull} uses so a fallible {@code creator}
- *       cannot leak a slot — and that one can tolerate admitting slightly over the cap instead.
- *   <li><b>Eviction scans every bucket.</b> {@link SizeManager#evictOne} walks the whole table from
- *       a shared cursor, so it needs every stripe. Confining it to the target stripe would make it
- *       stripeable, at the cost of turning approximate table-wide round-robin into per-stripe
- *       round-robin. That choice also decides the cursor: per-stripe it stays a plain {@code int}
- *       guarded by its stripe, while a cursor still shared across stripes becomes a genuine race to
- *       either accept as a best-effort hint or make {@code volatile}.
- * </ul>
- *
- * <p>The motivation, when it comes, is not write throughput on a read-mostly structure: it is that
- * {@link D1#tryGetOrCreateOrNull} runs the caller's {@code creator} inside the lock, so a burst of
- * misses on <em>different</em> keys serializes.
+ * <p>{@link D1} and {@link D2} manage locking and capacity internally. For primitive or
+ * higher-arity keys, subclass {@link Entry} and use the static helpers. {@link #bucketFor}, {@link
+ * #bucketAt}, and {@link #forEach} are lock-free. {@link #removeIf}, {@link #drain}, and {@link
+ * #clear} acquire the table write lock internally. Follow each mutation helper's locking contract
+ * and treat the monitor returned by the lock helpers as opaque.
  */
 public final class ConcurrentHashtable {
   private ConcurrentHashtable() {}
@@ -221,17 +125,14 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Creates a single-key table capped at {@code maxCapacity} entries: a {@link State} whose
-     * bucket array is sized with load-factor headroom over {@code maxCapacity} and whose {@link
-     * SizeManager} enforces {@code maxCapacity} as the approximate entry-count limit consulted by
-     * {@link #tryGetOrCreate}. The {@code entryClass} pins the concrete entry type so the compiler
-     * infers both {@code K} and {@code TEntry} at the call site — e.g. {@code
-     * D1.createCapped(MyEntry.class, 64)}. Capacity is fixed; the table does not resize.
+     * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
+     * used only to infer the concrete entry type; entries are created by the functions passed to
+     * the insertion methods. The table does not resize.
      */
     @Nonnull
-    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createCapped(
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D1<>(State.createCapped(entryClass, maxCapacity));
+      return new D1<>(State.createBounded(entryClass, maxCapacity));
     }
 
     public int size() {
@@ -290,8 +191,10 @@ public final class ConcurrentHashtable {
             return curEntry;
           }
         }
-        // Deliberately isFull() -> create -> increment, not a pre-reserved slot: creator runs
-        // between the check and the link and may throw, so reserving up front could leak a slot.
+        // isFull() is checked before creating the entry, not before reserving a slot for it:
+        // creator.apply() can throw, and if we'd already reserved (incremented) the slot, a
+        // throwing creator would leak that reservation forever. So we accept the entry only after
+        // creator succeeds, then increment.
         if (state.sizeManager.isFull()) {
           return null;
         }
@@ -388,23 +291,11 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Removes every entry, passing each removed entry to {@code sink} as it is unlinked — the
-     * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
-     * an event emitter, etc.). The whole drain runs under the table-level lock, so it is atomic
-     * with respect to other writers; {@code sink} therefore runs under the lock and should be cheap
-     * (accumulate into a collection rather than doing heavy work inline). Equivalent to {@code
-     * forEach}-then-{@code clear} but in a single locked pass that observes exactly what was
-     * removed.
+     * Removes all entries and passes each one to {@code sink} while holding the table write lock.
+     * The sink should be quick and must not throw. If it throws, the partial drain is not rolled
+     * back and the size is not adjusted.
      *
-     * <p>A capturing-lambda {@code sink} is fine here — drain is a rare flush operation — but a
-     * context-passing overload is offered for callers that prefer to avoid the allocation.
-     *
-     * <p><b>Contract:</b> {@code sink} must not throw. Entries are detached as the sweep proceeds
-     * and {@code size} is reset only after it completes, so a {@code sink} that throws part-way
-     * leaves those already-detached entries gone while {@code size()} still reports the pre-drain
-     * count. The drain is not rolled back; a throwing sink is a caller error that also means a
-     * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
-     * a path that only matters when the caller is already in error.
+     * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       ConcurrentHashtable.drain(state, sink);
@@ -438,11 +329,9 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Two-key (composite-key) concurrent hash table. Lock-free on hit; locked on miss/mutation.
-   *
-   * <p>Key parts are passed directly to {@link #get} and {@link #getOrCreate}, eliminating the
-   * per-lookup composite key object allocation that {@code ConcurrentHashMap<Pair<K1,K2>, V>}
-   * requires.
+   * Two-key concurrent hash table. Key parts are passed directly to {@link #get} and {@link
+   * #tryGetOrCreate}, avoiding a composite wrapper whose allocation would otherwise rely on HotSpot
+   * escape analysis to disappear. Reads are lock-free; misses and mutations acquire the write lock.
    *
    * @param <K1> first key type
    * @param <K2> second key type
@@ -499,17 +388,14 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Creates a composite-key table capped at {@code maxCapacity} entries: a {@link State} whose
-     * bucket array is sized with load-factor headroom over {@code maxCapacity} and whose {@link
-     * SizeManager} enforces {@code maxCapacity} as the approximate entry-count limit consulted by
-     * {@link #tryGetOrCreate}. The {@code entryClass} pins the concrete entry type so the compiler
-     * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site — e.g. {@code
-     * D2.createCapped(MyEntry.class, 64)}. Capacity is fixed; the table does not resize.
+     * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
+     * used only to infer the concrete entry type; entries are created by the functions passed to
+     * the insertion methods. The table does not resize.
      */
     @Nonnull
-    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createCapped(
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D2<>(State.createCapped(entryClass, maxCapacity));
+      return new D2<>(State.createBounded(entryClass, maxCapacity));
     }
 
     public int size() {
@@ -575,8 +461,10 @@ public final class ConcurrentHashtable {
             return curEntry;
           }
         }
-        // Deliberately isFull() -> create -> increment, not a pre-reserved slot: creator runs
-        // between the check and the link and may throw, so reserving up front could leak a slot.
+        // isFull() is checked before creating the entry, not before reserving a slot for it:
+        // creator.apply() can throw, and if we'd already reserved (incremented) the slot, a
+        // throwing creator would leak that reservation forever. So we accept the entry only after
+        // creator succeeds, then increment.
         if (state.sizeManager.isFull()) {
           return null;
         }
@@ -675,23 +563,11 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Removes every entry, passing each removed entry to {@code sink} as it is unlinked — the
-     * read-and-reset primitive for flush/publish workflows (drain the table into a telemetry batch,
-     * an event emitter, etc.). The whole drain runs under the table-level lock, so it is atomic
-     * with respect to other writers; {@code sink} therefore runs under the lock and should be cheap
-     * (accumulate into a collection rather than doing heavy work inline). Equivalent to {@code
-     * forEach}-then-{@code clear} but in a single locked pass that observes exactly what was
-     * removed.
+     * Removes all entries and passes each one to {@code sink} while holding the table write lock.
+     * The sink should be quick and must not throw. If it throws, the partial drain is not rolled
+     * back and the size is not adjusted.
      *
-     * <p>A capturing-lambda {@code sink} is fine here — drain is a rare flush operation — but a
-     * context-passing overload is offered for callers that prefer to avoid the allocation.
-     *
-     * <p><b>Contract:</b> {@code sink} must not throw. Entries are detached as the sweep proceeds
-     * and {@code size} is reset only after it completes, so a {@code sink} that throws part-way
-     * leaves those already-detached entries gone while {@code size()} still reports the pre-drain
-     * count. The drain is not rolled back; a throwing sink is a caller error that also means a
-     * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
-     * a path that only matters when the caller is already in error.
+     * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      */
     public void drain(@Nonnull Consumer<? super TEntry> sink) {
       ConcurrentHashtable.drain(state, sink);
@@ -725,24 +601,12 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Concurrent counterpart to {@link Hashtable.SizeManager}: manages a table's occupancy against a
-   * fixed cap in both directions — reserving a slot for an insert and evicting to make room — so a
-   * caller never has to remember to decrement after unlinking, nor wire up a second object
-   * alongside the count.
+   * Tracks a capped table's occupancy and eviction position.
    *
-   * <p>{@link D1} and {@link D2} each hold one (via {@link State}) for their approximate
-   * entry-count cap; composers driving an {@link AtomicReferenceArray} through the static building
-   * blocks can pair one the same way instead of hand-rolling the increment/decrement/cap-check
-   * bookkeeping — see {@link State#createCapped}.
-   *
-   * <p><b>Locking.</b> {@link #estimateSize()}, {@link #capacity()}, and {@link #isFull()} read
-   * only the atomic counter and need no lock. Every other method walks or mutates the chains (or
-   * the eviction cursor) and must be called under {@code synchronized (getTableWriteLock(buckets))}
-   * — the table-wide monitor, not one key's, since the count and the cursor are shared and eviction
-   * walks every bucket — so a scan never races a concurrent insert or remove. Unlike {@link
-   * Hashtable.SizeManager}'s plain {@code int}, the live count here is an {@link AtomicInteger}:
-   * {@link #estimateSize()} and {@link #isFull()} are read without the lock (e.g. from {@link
-   * D1#size()}), which a plain field could not support safely.
+   * <p>The count includes live entries and outstanding reservations. Its {@link AtomicInteger}
+   * provides volatile visibility and atomic updates, allowing size queries and {@link
+   * #tryReserve()} without the table lock. The plain {@code evictionCursor} is instead protected by
+   * the table write lock; methods annotated with {@link GuardedBy} require that lock.
    */
   @ThreadSafe
   public static final class SizeManager {
@@ -754,7 +618,7 @@ public final class ConcurrentHashtable {
      * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
      */
     @GuardedBy("getTableWriteLock(buckets)")
-    private int cursor;
+    private int evictionCursor;
 
     public SizeManager(int capacity) {
       this.capacity = capacity;
@@ -775,18 +639,13 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Reserves a slot for a fresh insert: returns {@code true} having claimed one, or {@code false}
-     * with the count unchanged if the table was already at capacity. Use this when the entry to
-     * link is already fully built (nothing between the reservation and the link can fail). When
-     * building the entry is itself fallible, check {@link #isFull()} first, do the fallible work,
-     * then call {@link #increment()} only once linking actually succeeds — see {@link
-     * D1#tryGetOrCreateOrNull} for that ordering.
+     * Atomically reserves one slot without taking the table write lock. It claims first with {@link
+     * AtomicInteger#incrementAndGet()} and refunds values above capacity, so concurrent callers
+     * cannot both acquire the last slot. Returns {@code false} with the count unchanged when the
+     * table is full.
      *
-     * <p><b>Needs no lock.</b> Claiming first and refunding on overshoot makes the whole
-     * reservation one atomic step, so concurrent reservers cannot both squeeze past the cap: each
-     * sees its own post-increment value, and everyone who lands above {@link #capacity()} gives the
-     * slot back. That is what a check-then-increment could not do without excluding every other
-     * writer, and it is why capacity accounting does not force a table-wide critical section.
+     * <p>Build the entry before reserving: there is no cancellation operation, so abandoning a
+     * successful reservation permanently consumes capacity.
      */
     public boolean tryReserve() {
       if (size.incrementAndGet() > capacity) {
@@ -797,14 +656,11 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * {@link #tryReserve()}, falling back to evicting one entry matching {@code evictable} when the
-     * table is full. Returns {@code true} with a slot reserved, or {@code false} if the table was
-     * full and nothing was evictable — in which case {@code buckets} is untouched and the caller
-     * should drop the datum.
+     * Reserves one slot, evicting an entry matching {@code evictable} when the table is full.
+     * Returns {@code false} without changing the table when no entry can be evicted.
      *
-     * <p>The reservation is safe to hold across a concurrent sweep: {@link #release(int)} subtracts
-     * what was removed rather than zeroing, so a drain or clear cannot void it. The caller does
-     * still owe the insert — an unfilled reservation leaks a slot until the next sweep.
+     * <p>The reservation survives concurrent drain and clear operations. The caller must fill it;
+     * an abandoned reservation permanently consumes capacity.
      */
     @GuardedBy("getTableWriteLock(buckets)")
     public <TEntry extends Entry> boolean tryReserveOrEvict(
@@ -832,57 +688,47 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Gives back {@code removed} slots after a sweep unlinked that many entries, and restarts the
-     * eviction scan at bucket 0 (a full pass leaves nothing later to resume from).
-     *
-     * <p>Subtracting what was actually removed, rather than zeroing, is what lets a sweep run
-     * concurrently with an outstanding {@link #tryReserve()}: the reservation's claim survives, so
-     * the count stays tied to the entries that exist. Zeroing would discard it, leaving the count
-     * permanently one below reality — drift that no later eviction repairs, because eviction
-     * decrements too.
+     * Releases {@code removed} slots after a sweep and resets the {@code evictionCursor}.
+     * Outstanding reservations remain counted.
      */
     @GuardedBy("getTableWriteLock(buckets)")
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "cursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
+            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
                 + " cannot model that dynamic guard")
     public void release(int removed) {
       if (removed != 0) {
         size.addAndGet(-removed);
       }
-      cursor = 0;
+      evictionCursor = 0;
     }
 
     /**
-     * Scans {@code buckets} for the first entry matching {@code evictable}, starting where the last
-     * eviction left off and wrapping around if needed. Unlinks and returns the evicted entry,
-     * decrementing the count; returns {@code null} (count untouched) if nothing matched anywhere.
+     * Removes and returns the first entry matching {@code evictable}, scanning from the previous
+     * eviction position and wrapping once. Returns {@code null} without changing the count when no
+     * entry matches.
      *
-     * <p>Resuming from the previous position amortizes a sustained eviction stream: no successful
-     * eviction re-scans the hot prefix more than twice. A call that matches nothing has, by
-     * definition, tested every live entry, so a table that is full and entirely hot pays a full
-     * pass per attempt; the cursor still steps on so repeated refusals at least start from a
-     * different bucket next time. Size the cap to the steady-state working set so this stays the
-     * rare path, and keep {@code evictable} cheap — it is called once per live entry on every
-     * refusal.
+     * <p>This operation may inspect every live entry while holding the table write lock, so the
+     * predicate should be quick.
      */
     @GuardedBy("getTableWriteLock(buckets)")
     @Nullable
     public <TEntry extends Entry> TEntry evictOne(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
         @Nonnull Predicate<? super TEntry> evictable) {
-      TEntry evicted = evictOneInRange(buckets, evictable, cursor, buckets.length());
-      if (evicted == null && cursor != 0) {
-        evicted = evictOneInRange(buckets, evictable, 0, cursor);
+      TEntry evicted = evictOneInRange(buckets, evictable, evictionCursor, buckets.length());
+      if (evicted == null && evictionCursor != 0) {
+        evicted = evictOneInRange(buckets, evictable, 0, evictionCursor);
       }
       if (evicted != null) {
         size.decrementAndGet();
         return evicted;
       }
-      // Nothing matched anywhere; step the cursor on regardless so repeated refusals don't all
+      // Nothing matched anywhere; step the evictionCursor on regardless so repeated refusals don't
+      // all
       // restart the (wasted) scan from the same bucket.
-      cursor = bucketIndex(buckets, cursor + 1);
+      evictionCursor = bucketIndex(buckets, evictionCursor + 1);
       return null;
     }
 
@@ -890,7 +736,7 @@ public final class ConcurrentHashtable {
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "cursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
+            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
                 + " cannot model that dynamic guard")
     @Nullable
     private <TEntry extends Entry> TEntry evictOneInRange(
@@ -903,7 +749,7 @@ public final class ConcurrentHashtable {
         for (TEntry e = buckets.get(i); e != null; e = e.next()) {
           if (evictable.test(e)) {
             unlink(buckets, i, prev, e);
-            cursor = i;
+            evictionCursor = i;
             return e;
           }
           prev = e;
@@ -921,7 +767,7 @@ public final class ConcurrentHashtable {
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "cursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
+            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
                 + " cannot model that dynamic guard")
     public <TEntry extends Entry> int evictAll(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
@@ -939,25 +785,14 @@ public final class ConcurrentHashtable {
           }
         }
       }
-      cursor = 0;
+      evictionCursor = 0;
       return count;
     }
   }
 
   /**
-   * The mutable state of a caller-driven table: a bucket array and the {@link SizeManager} sized
-   * and capped to match it. Both halves are stateful and neither is much use without the other,
-   * which is what the name is getting at — the spine holds the entries, the manager holds how many
-   * there are and where the last eviction looked.
-   *
-   * <p><b>Hold this, rather than unpacking it.</b> Keeping one field instead of two is not just
-   * tidier: an array and a manager stored separately can drift apart, which is the mistake this
-   * type exists to prevent. {@link D1} and {@link D2} hold one internally; composers reach through
-   * it — {@code state.buckets}, {@code state.sizeManager} — when calling the static building blocks
-   * directly, or use the {@code State}-taking overloads on this class.
-   *
-   * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the cap on live
-   * entries, and the backing array is sized with load-factor headroom over it.
+   * Bucket array and occupancy manager for a caller-defined capped table. Keep them paired and
+   * prefer the {@code State}-accepting helpers so structural changes update the count consistently.
    */
   public static final class State<TEntry extends Entry> {
     public final AtomicReferenceArray<TEntry> buckets;
@@ -969,13 +804,11 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Creates a {@link State}: a bucket array sized with load-factor headroom over {@code
-     * maxCapacity} (via {@link #createFixedBuckets(Class, int)}), paired with a {@link SizeManager}
-     * capped at {@code maxCapacity}. {@code entryClass} is a type token only — see {@link
-     * #createFixedBuckets(Class, int)} for why it's needed despite not being used to allocate.
+     * Creates a bucket array for {@code maxCapacity} entries and pairs it with a manager enforcing
+     * that cap. {@code entryClass} is used only to infer {@code TEntry}.
      */
     @Nonnull
-    public static <TEntry extends Entry> State<TEntry> createCapped(
+    public static <TEntry extends Entry> State<TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
       return new State<>(createFixedBuckets(entryClass, maxCapacity), maxCapacity);
     }
@@ -994,14 +827,12 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Reserves a slot in {@code state} for a fresh insert, evicting one entry matching {@code
-   * evictable} if the table is full. {@code false} means full with nothing evictable — the caller
-   * should drop the datum. Self-locking.
+   * Reserves one slot in {@code state}, evicting an entry matching {@code evictable} when
+   * necessary. Returns {@code false} if the table is full and nothing can be evicted. This method
+   * acquires the table write lock.
    *
-   * <p><b>Pairing with an insert:</b> the reservation outlives this call and survives a concurrent
-   * {@link #drain} or {@link #clear}, so the follow-up {@link #insertReserved} need not share a
-   * critical section with it — see {@link #insertReserved} for the shape. What the caller still
-   * owes is the insert: a reservation nobody fills leaks a slot until the next sweep.
+   * <p>The reservation survives drain and clear operations. Complete it with {@link
+   * #insertReserved}; abandoning it permanently consumes capacity.
    */
   public static <TEntry extends Entry> boolean tryReserveOrEvict(
       @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
@@ -1046,16 +877,9 @@ public final class ConcurrentHashtable {
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
-   * rounded up to the next power of two.
-   *
-   * <p>Unlike {@code FlatHashtable}, whose open-addressing spine is a genuine {@code E[]} that must
-   * be reflectively allocated from {@code entryClass}, the concurrent spine is an {@link
-   * AtomicReferenceArray} whose element type is erased — so {@code entryClass} is <b>not</b> used
-   * to allocate here. It is accepted purely to (a) keep the factory symmetric with the rest of the
-   * flat-collections family and (b) act as a type-inference anchor so callers write {@code
-   * createFixedBuckets(MyEntry.class, n)} and get back a precisely typed {@code
-   * AtomicReferenceArray<MyEntry>} without an explicit witness.
+   * Creates a bucket array whose length is {@link #sizeFor(int) sizeFor(capacity)}. Because {@link
+   * AtomicReferenceArray}'s element type is erased at runtime, {@code entryClass} is not used for
+   * reflective allocation or runtime type checks; it only lets the compiler infer {@code TEntry}.
    */
   @Nonnull
   public static <TEntry extends Entry> AtomicReferenceArray<TEntry> createFixedBuckets(
@@ -1073,18 +897,11 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Returns the monitor that guards writes to the bucket {@code keyHash} maps to. A custom table
-   * locks on this — {@code synchronized (getWriteLock(buckets, keyHash)) { … }} — around its
-   * scan-then-insert/remove for that one key.
+   * Returns the opaque monitor guarding writes to the bucket selected by {@code keyHash}. Use this
+   * monitor for a keyed scan-and-mutate operation; do not depend on its identity or granularity.
    *
-   * <p>Treat the returned object as <b>opaque</b>. It happens to be the bucket array today, and
-   * every key returns the same monitor, but obtain it here rather than assuming either, so callers
-   * stay correct if the locking granularity ever changes. Ask for the lock covering the key you are
-   * about to mutate, not "the table's lock": a caller that holds the monitor for key A and mutates
-   * key B is correct today only by accident.
-   *
-   * @see #getWriteLockAt(AtomicReferenceArray, int) when the bucket index is already computed
-   * @see #getTableWriteLock(AtomicReferenceArray) for operations that span every bucket
+   * @see #getWriteLockAt(AtomicReferenceArray, int)
+   * @see #getTableWriteLock(AtomicReferenceArray)
    */
   @Nonnull
   public static Object getWriteLock(@Nonnull AtomicReferenceArray<?> buckets, long keyHash) {
@@ -1115,15 +932,8 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Returns the monitor that excludes writers across <b>every</b> bucket. Needed by anything whose
-   * effect is not confined to one bucket: capacity accounting ({@link SizeManager}, whose count and
-   * eviction cursor are table-wide), eviction (which scans every bucket), and the whole-table
-   * mutators {@link #drain} / {@link #clear} / {@link #removeIf} / {@link #evictAll} (which take it
-   * themselves).
-   *
-   * <p>Today this is the same monitor {@link #getWriteLock(AtomicReferenceArray, long)} returns, so
-   * the blocks nest freely. It is nonetheless the accessor to name when the operation really does
-   * span the table — see the class javadoc on striping for why the distinction is worth keeping.
+   * Returns the opaque monitor guarding operations that span all buckets. Whole-table helpers such
+   * as {@link #drain}, {@link #clear}, and {@link #removeIf} acquire this monitor internally.
    */
   @Nonnull
   public static Object getTableWriteLock(@Nonnull AtomicReferenceArray<?> buckets) {
@@ -1137,6 +947,7 @@ public final class ConcurrentHashtable {
   }
 
   public static int bucketIndex(@Nonnull AtomicReferenceArray<?> buckets, long keyHash) {
+    // Bucket lengths are powers of two, so masking replaces a more expensive modulo operation.
     return (int) (keyHash & (buckets.length() - 1));
   }
 
@@ -1183,14 +994,13 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Splices {@code entry} in as the new head of the chain at {@code index}, publishing it with a
-   * volatile {@link AtomicReferenceArray#set} so lock-free readers observe the whole entry (its
-   * {@code next} already points at the old head) atomically. Single-slot primitive: it does not
-   * lock, so call it inside the caller's {@code synchronized (getWriteLockAt(buckets, index))}
-   * block, after re-checking the chain for the key under that lock. Does not touch size accounting.
+   * Publishes {@code entry} as the head of bucket {@code index}. The helper writes the entry's
+   * {@code next} link before the volatile {@link AtomicReferenceArray#set}; a volatile bucket read
+   * that observes the new head also sees the initialized entry and its link. The caller must hold
+   * {@link #getWriteLockAt}; this method does not acquire a lock or update size accounting.
    *
-   * <p>See {@link #bucketFor} for why this is a distinct name rather than an {@code int} overload
-   * of {@link #insertHeadEntryFor}.
+   * <p>The entry must be unlinked and must not be reused after removal. Removal intentionally
+   * retains its {@code next} link for readers already traversing that chain.
    */
   @GuardedBy("getWriteLockAt(buckets, index)")
   public static <TEntry extends Entry> void insertHeadEntryAt(
@@ -1224,36 +1034,12 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Splices {@code entry} in as the new head of its bucket <em>without</em> touching the count,
-   * because the caller already holds a reservation for it -- from {@link #tryReserveOrEvict} or a
-   * bare {@link SizeManager#tryReserve()}. Pairing those is the shape of a miss path that wants to
-   * refuse before it builds anything:
+   * Links an already-built entry after a successful {@link #tryReserveOrEvict} or {@link
+   * SizeManager#tryReserve()} call. This method does not acquire a lock or update the count.
    *
-   * <pre>{@code
-   * if (!tryReserveOrEvict(state, evictable)) {
-   *   return null;                       // refused -- no entry was built
-   * }
-   * synchronized (getWriteLock(state, keyHash)) {
-   *   insertReserved(state, keyHash, buildEntry());
-   * }
-   * }</pre>
-   *
-   * <p>The reservation survives the gap between the two calls, so they do not have to share one
-   * critical section: {@link #drain} and {@link #clear} subtract what they removed instead of
-   * zeroing the count (see {@link SizeManager#release(int)}), so a sweep landing in between leaves
-   * the claim intact. Only the insert itself needs a lock, and only over the one bucket.
-   *
-   * <p>{@code buildEntry()} must still not throw once the reservation is taken: an abandoned
-   * reservation leaks a slot for the life of the table. When the build is fallible, use the {@link
-   * D1#tryGetOrCreateOrNull} shape instead, which checks capacity, builds, links, and only then
-   * increments.
-   *
-   * <p>Distinct from {@link #insertHeadEntryFor(AtomicReferenceArray, long, Entry)}, which reserves
-   * as it inserts; calling that one here would count the entry twice. {@link D1} and {@link D2} do
-   * not use this: their {@code creator} is fallible, so they check/evict, build the entry, link it,
-   * and only then call {@link SizeManager#increment} -- reserving up front could leak a slot if the
-   * build throws (see {@link D1#tryGetOrCreateOrNull}). Use this only when the entry is already
-   * fully built before the reservation is taken.
+   * <p>Complete all fallible work before reserving. There is no cancellation operation, so an
+   * abandoned reservation permanently consumes capacity. Drain and clear do not cancel outstanding
+   * reservations.
    */
   @GuardedBy("getTableWriteLock(state)")
   public static <TEntry extends Entry> void insertReserved(
@@ -1349,16 +1135,12 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Removes every entry, passing each to {@code sink} as its bucket is cleared. Each bucket head is
-   * nulled (a volatile write that publishes the removal) before its chain is fed to {@code sink},
-   * so new readers see an empty bucket while the detached chain — whose {@code next} pointers stay
-   * intact — is handed to the caller. Self-locking: synchronizes on {@code buckets} for the whole
-   * pass. Does not touch size accounting, so a caller tracking size resets it inside its own {@code
-   * synchronized (getWriteLock(buckets, keyHash))} block (which nests with this one).
+   * Removes all entries while holding the table write lock. Each bucket head is cleared with a
+   * volatile write before its detached chain is passed to {@code sink}, so subsequent lock-free
+   * readers observe an empty bucket while readers already on that chain can continue through its
+   * retained {@code next} links. This overload does not update size accounting.
    *
-   * <p>{@code sink} must not throw: buckets are detached as the sweep proceeds, so a sink that
-   * throws part-way leaves earlier buckets drained and later ones intact, and any caller-side size
-   * reset never runs. The drain is not rolled back — a throwing sink is a caller error.
+   * <p>The sink must not throw. If it does, the partial drain is not rolled back.
    */
   public static <TEntry extends Entry> void drain(
       @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {

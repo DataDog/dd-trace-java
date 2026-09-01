@@ -21,42 +21,31 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Compares thread-safe map strategies for shared, concurrent single-key lookups.
+ * Measures steady-state single-key lookups in a shared, pre-populated table.
  *
- * <p>See {@link ThreadSafeMapD2Benchmark} for the composite-key variant, which adds the cost of
- * hashing two keys and a wrapper object allocation for map-based alternatives.
+ * <p>Compares {@link ConcurrentHashtable.D1}, {@link ConcurrentHashMap}, {@link
+ * ConcurrentSkipListMap}, and a synchronized {@link HashMap}. The table is shared across all
+ * threads ({@link Scope#Benchmark}) and pre-populated before the measurement iteration — modelling
+ * the steady-state read-mostly pattern that the tracer uses (a per-class or per-method
+ * instrumentation cache consulted on every invocation). The {@code getOrCreate} methods exercise
+ * their hit paths because setup installs every key.
  *
- * <p>The table is shared across all threads ({@link Scope#Benchmark}) and pre-populated before the
- * measurement iteration — modelling the steady-state read-mostly pattern that the tracer uses (a
- * per-class or per-method instrumentation cache consulted on every invocation).
- *
- * <p>Strategies compared:
- *
- * <ul>
- *   <li>{@link ConcurrentHashtable.D1} — lock-free reads, no extra allocation per lookup.
- *   <li>{@link ConcurrentHashMap} — striped locking; the key is the string itself, no wrapper.
- *   <li>{@link ConcurrentSkipListMap} — fully lock-free (CAS), but pays tree traversal and {@link
- *       Comparable} overhead on every operation.
- *   <li>{@link Collections#synchronizedMap} wrapping {@link HashMap} — global lock on every
- *       operation. Establishes the coarse-locking baseline.
- * </ul>
- *
- * <p><b>Key identity.</b> Lookups reuse the same interned {@code KEYS} instances used to populate
- * the table, so they hit the {@code ==} identity fast path rather than {@code equals()}. This is
- * deliberate and realistic for the tracer, whose map keys are typically interned string literals
- * (tag-name constants); it is <i>not</i> an oversight. ({@code ImmutableMapBenchmark} covers the
- * distinct-instance {@code equals()} path explicitly via its {@code _sameKey} vs default variants.)
+ * <p>Lookups reuse the key instances installed during setup. {@code Objects.equals} therefore
+ * returns on identity before invoking {@code equals}; the benchmark does not include the cost of
+ * comparing distinct-but-equal keys ({@code ImmutableMapBenchmark} covers that path explicitly via
+ * its {@code _sameKey} vs default variants). See {@link ThreadSafeMapD2Benchmark} for composite
+ * keys.
  *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code
  * Benchmark                             Score   Units
- * get_concurrentHashtable               1583   ops/us  (fastest)
+ * get_concurrentHashtable               1583   ops/us
  * get_concurrentHashMap                 1145   ops/us
  * get_concurrentSkipListMap              170   ops/us
  * get_synchronizedHashMap                 33   ops/us
  *
- * getOrCreate_concurrentHashtable       1450   ops/us  (fastest)
+ * getOrCreate_concurrentHashtable       1450   ops/us
  * getOrCreate_concurrentHashMap         1125   ops/us
  * getOrCreate_synchronizedHashMap         31   ops/us
  * }</pre>
@@ -116,7 +105,7 @@ public class ThreadSafeMapD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D1.createCapped(D1Entry.class, CAPACITY);
+      table = ConcurrentHashtable.D1.createBounded(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));

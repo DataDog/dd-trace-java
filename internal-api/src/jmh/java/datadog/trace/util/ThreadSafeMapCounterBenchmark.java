@@ -20,36 +20,24 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmarks the "find and increment" pattern: look up an entry by key, then atomically increment
- * its counter. Models per-class or per-method hit counters in the tracer.
+ * Measures lookup followed by an atomic counter increment in a shared, pre-populated table. Models
+ * per-class or per-method hit counters in the tracer.
  *
- * <p>The key insight is that {@link ConcurrentHashtable.D1} allows the counter to be embedded
- * directly in the entry as a {@code volatile long} updated via {@link AtomicLongFieldUpdater},
- * avoiding the extra object allocation that {@link ConcurrentHashMap} requires when pairing each
- * key with an {@link AtomicLong} or {@link LongAdder}.
+ * <p>The {@link ConcurrentHashtable.D1} case embeds a {@code volatile long} in each entry. {@link
+ * AtomicLongFieldUpdater} updates that field atomically without allocating an {@link AtomicLong}
+ * per key. The map baselines store a separate {@link AtomicLong} or {@link LongAdder}; {@code
+ * LongAdder} spreads contention across internal cells at the cost of more memory and a more
+ * expensive read.
  *
- * <p>Strategies compared:
- *
- * <ul>
- *   <li>{@link ConcurrentHashtable.D1} + {@link AtomicLongFieldUpdater} — lock-free lookup, inline
- *       counter; one object per entry total.
- *   <li>{@link ConcurrentHashMap} + {@link AtomicLong} — striped-lock lookup, one extra object per
- *       entry for the counter.
- *   <li>{@link ConcurrentHashMap} + {@link LongAdder} — striped-lock lookup, one extra object per
- *       entry; {@link LongAdder} reduces CAS contention under high thread counts at the cost of
- *       slightly higher memory and a more expensive {@code sum()}.
- * </ul>
- *
- * <p><b>Key identity.</b> Lookups reuse the same interned {@code KEYS} instances used to populate
- * the table, so they hit the {@code ==} identity fast path rather than {@code equals()}. This is
- * deliberate and realistic for the tracer, whose keys are typically interned string literals
- * (tag-name constants); it is <i>not</i> an oversight.
+ * <p>Lookups reuse the key instances installed during setup. {@code Objects.equals} therefore
+ * returns on its identity check without dispatching to {@code equals}, so this measures the
+ * interned-key pattern used by the tracer rather than distinct-but-equal keys.
  *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code
  * Benchmark                          Score   Units
- * increment_longAdder                   79   ops/us  (fastest)
+ * increment_longAdder                   79   ops/us
  * increment_atomicLong                  71   ops/us
  * increment_concurrentHashtable         69   ops/us
  * }</pre>
@@ -112,7 +100,7 @@ public class ThreadSafeMapCounterBenchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D1.createCapped(CounterEntry.class, CAPACITY);
+      table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
       atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
       longAdderMap = new ConcurrentHashMap<>(CAPACITY);
       for (int i = 0; i < N_KEYS; ++i) {

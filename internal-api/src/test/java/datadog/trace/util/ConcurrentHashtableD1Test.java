@@ -21,7 +21,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void getReturnsMappedEntry() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry e = table.tryGetOrCreateOrNull("hello", k -> new StringEntry(k, 42));
     assertSame(e, table.get("hello"));
     assertNull(table.get("world"));
@@ -30,7 +30,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void getOrCreateOnMissBuildsEntry() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     int[] createCount = {0};
     StringEntry created =
         table.tryGetOrCreateOrNull(
@@ -48,7 +48,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void getOrCreateOnHitSkipsCreator() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry seeded = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 100));
     int[] createCount = {0};
     StringEntry got =
@@ -66,7 +66,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void nullKeyIsSupported() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry e = table.tryGetOrCreateOrNull(null, k -> new StringEntry(k, 0));
     assertNotNull(e);
     assertSame(e, table.get(null));
@@ -75,7 +75,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void forEachVisitsAllEntries() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
     table.tryGetOrCreateOrNull("c", k -> new StringEntry(k, 3));
@@ -90,7 +90,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void forEachWithContextPassesContext() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("x", k -> new StringEntry(k, 10));
     table.tryGetOrCreateOrNull("y", k -> new StringEntry(k, 20));
     Set<String> seen = new HashSet<>();
@@ -103,7 +103,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void concurrentGetOrCreateProducesExactlyOneEntry() throws InterruptedException {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     int threads = 16;
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
@@ -144,7 +144,7 @@ class ConcurrentHashtableD1Test {
   void chainedEntriesInSameBucketAreAllReachable() {
     // All three keys share hash 0, so they land in the same bucket regardless of table size.
     ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
-        ConcurrentHashtable.D1.createCapped(CollidingEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(CollidingEntry.class, 8);
     CollidingKey a = new CollidingKey("a", 0);
     CollidingKey b = new CollidingKey("b", 0); // same bucket as a
     CollidingKey c = new CollidingKey("c", 0); // same bucket
@@ -166,7 +166,7 @@ class ConcurrentHashtableD1Test {
       keys[i] = "key-" + i;
     }
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, threads * 2);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, threads * 2);
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
 
@@ -202,7 +202,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void removeReturnsEntryAndShrinks() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry a = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
     assertSame(a, table.remove("a"));
@@ -214,7 +214,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void removeAbsentKeyReturnsNull() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     assertNull(table.remove("missing"));
     assertEquals(1, table.size());
@@ -224,7 +224,7 @@ class ConcurrentHashtableD1Test {
   void removeHeadMiddleAndTailOfSameBucketChain() {
     // All three keys share hash 0, so a, b, c land in the same bucket and form one chain.
     ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
-        ConcurrentHashtable.D1.createCapped(CollidingEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(CollidingEntry.class, 8);
     CollidingKey a = new CollidingKey("a", 0);
     CollidingKey b = new CollidingKey("b", 0);
     CollidingKey c = new CollidingKey("c", 0);
@@ -249,7 +249,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void removeIfRemovesMatchingEntries() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 16);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 16);
     for (int i = 0; i < 10; i++) {
       final int v = i;
       table.tryGetOrCreateOrNull("k" + i, k -> new StringEntry(k, v));
@@ -268,7 +268,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void removeIfReturnsFalseWhenNothingMatches() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     assertFalse(table.removeIf(e -> false));
     assertEquals(1, table.size());
@@ -277,7 +277,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void clearEmptiesTableAndLeavesItUsable() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
     table.clear();
@@ -292,7 +292,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void drainRemovesEveryEntryAndFeedsSink() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
     table.tryGetOrCreateOrNull("c", k -> new StringEntry(k, 3));
@@ -318,7 +318,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void drainWithContextFeedsSink() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     table.tryGetOrCreateOrNull("b", k -> new StringEntry(k, 2));
 
@@ -332,7 +332,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void drainOnEmptyTableInvokesSinkZeroTimes() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     int[] count = {0};
     table.drain(e -> count[0]++);
     assertEquals(0, count[0]);
@@ -349,7 +349,7 @@ class ConcurrentHashtableD1Test {
     // All keys share hash 0, putting every key in one bucket so removal splices a chain the
     // reader is walking.
     ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
-        ConcurrentHashtable.D1.createCapped(CollidingEntry.class, 16);
+        ConcurrentHashtable.D1.createBounded(CollidingEntry.class, 16);
     int n = 8;
     CollidingKey[] keys = new CollidingKey[n];
     for (int i = 0; i < n; i++) {
@@ -385,7 +385,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void tryGetOrCreateOrEvictInsertsWithoutEvictingWhenUnderCapacity() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 8);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     Maybe<StringEntry> created =
         table.tryGetOrCreateOrEvict("a", k -> new StringEntry(k, 1), e -> true);
     assertTrue(created.isPresent());
@@ -396,7 +396,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void tryGetOrCreateOrEvictReturnsExistingEntryOnHitWithoutEvicting() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 1);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     StringEntry a = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
     Maybe<StringEntry> got =
         table.tryGetOrCreateOrEvict(
@@ -414,7 +414,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void tryGetOrCreateOrEvictEvictsWhenFullAndInsertsNewEntry() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 1);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     table.tryGetOrCreateOrNull("old", k -> new StringEntry(k, 1));
     assertTrue(table.isFull());
 
@@ -430,7 +430,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void tryGetOrCreateOrEvictOrNullRefusesWhenFullAndNothingEvictable() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 1);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     table.tryGetOrCreateOrNull("old", k -> new StringEntry(k, 1));
 
     StringEntry result =
@@ -444,7 +444,7 @@ class ConcurrentHashtableD1Test {
   @Test
   void tryGetOrCreateOrEvictOrNullEvictionRunsBeforeThrowingCreator() {
     ConcurrentHashtable.D1<String, StringEntry> table =
-        ConcurrentHashtable.D1.createCapped(StringEntry.class, 1);
+        ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     table.tryGetOrCreateOrNull("old", k -> new StringEntry(k, 1));
 
     assertThrows(

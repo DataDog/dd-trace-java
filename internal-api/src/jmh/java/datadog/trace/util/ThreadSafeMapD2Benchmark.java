@@ -22,50 +22,34 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Compares thread-safe map strategies for shared, concurrent composite-key lookups.
+ * Measures steady-state composite-key lookups in a shared, pre-populated table.
  *
- * <p>See {@link ThreadSafeMapD1Benchmark} for the single-key variant.
+ * <p>Compares {@link ConcurrentHashtable.D2}, a custom {@link ConcurrentHashtable.Entry} with a
+ * primitive {@code int} key part, {@link ConcurrentHashMap}, {@link ConcurrentSkipListMap}, and a
+ * synchronized {@link HashMap}. The table is shared across all threads ({@link Scope#Benchmark})
+ * and pre-populated before the measurement iteration — modelling the steady-state read-mostly
+ * pattern that the tracer uses (a per-class or per-method instrumentation cache consulted on every
+ * invocation).
  *
- * <p>The table is shared across all threads ({@link Scope#Benchmark}) and pre-populated before the
- * measurement iteration — modelling the steady-state read-mostly pattern that the tracer uses (a
- * per-class or per-method instrumentation cache consulted on every invocation).
+ * <p>The map cases create a {@link Key2} for each lookup. HotSpot may remove that allocation only
+ * when inlining and escape analysis prove that the wrapper is not retained; a miss that inserts the
+ * key makes it escape. The concurrent hashtable passes key parts directly, and the custom entry
+ * also avoids boxing the {@code int}, so neither optimization depends on escape analysis.
  *
- * <p>Strategies compared:
- *
- * <ul>
- *   <li>{@link ConcurrentHashtable.D2} — lock-free reads, no composite key allocation per lookup.
- *       K2 is {@link Integer} (boxed), so EA may still eliminate the box on hits, but the
- *       allocation is observable on misses.
- *   <li>{@link ConcurrentHashtable} building blocks (custom entry) — same lock-free read path, but
- *       K2 is a primitive {@code int} embedded directly in the entry. No boxing at any point;
- *       demonstrates the flexibility available when {@code D2}'s object-key constraint is too
- *       limiting.
- *   <li>{@link ConcurrentHashMap} — striped locking, allocates a {@link Key2} wrapper per lookup
- *       (boxes the {@code int} K2 inside).
- *   <li>{@link ConcurrentSkipListMap} — fully lock-free (CAS), but pays tree traversal and {@link
- *       Comparable} overhead; allocates {@link Key2} per lookup. {@code getOrCreate} uses
- *       get-then-{@code putIfAbsent} (no native {@code computeIfAbsent}).
- *   <li>{@link Collections#synchronizedMap} wrapping {@link HashMap} — global lock on every
- *       operation; allocates {@link Key2} per lookup. Establishes the coarse-locking baseline.
- * </ul>
- *
- * <p><b>Key identity.</b> Lookups reuse the same interned {@code SOURCE_K1} strings and cached
- * {@code SOURCE_K2} Integers used to populate the table, so the key-part comparisons hit the {@code
- * ==} identity fast path rather than {@code equals()}. This is deliberate and realistic for the
- * tracer, whose keys are typically interned literals (tag-name constants) and small boxed ints; it
- * is <i>not</i> an oversight.
+ * <p>Lookups reuse the key-part instances installed during setup, taking the identity fast path for
+ * their object comparisons. See {@link ThreadSafeMapD1Benchmark} for single-key lookups.
  *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code
  * Benchmark                              Score   Units
- * get_concurrentHashtable                1452   ops/us  (tied fastest)
- * get_support                            1450   ops/us  (primitive int K2)
- * get_concurrentHashMap                   777   ops/us  (allocates Key2 wrapper)
+ * get_concurrentHashtable                1452   ops/us
+ * get_support                            1450   ops/us
+ * get_concurrentHashMap                   777   ops/us
  * get_concurrentSkipListMap               146   ops/us
  * get_synchronizedHashMap                  27   ops/us
  *
- * getOrCreate_support                    1379   ops/us  (fastest)
+ * getOrCreate_support                    1379   ops/us
  * getOrCreate_concurrentHashtable        1119   ops/us
  * getOrCreate_concurrentHashMap           769   ops/us
  * getOrCreate_concurrentSkipListMap       151   ops/us
@@ -121,9 +105,8 @@ public class ThreadSafeMapD2Benchmark {
   }
 
   /**
-   * Support-based entry with a primitive {@code int} K2 — no boxing at any point. The hash is
-   * computed with the same formula as {@link Hashtable.D2.Entry#hash} but avoids the {@link
-   * Integer#hashCode(int)} boxing path by calling {@link LongHashingUtils} directly.
+   * Entry used with the static helpers. Its primitive second key keeps storage and lookup unboxed,
+   * independently of {@link Integer} caching or JVM escape analysis.
    */
   static final class SupportEntry extends ConcurrentHashtable.Entry {
     final String k1;
@@ -196,7 +179,7 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D2.createCapped(D2Entry.class, CAPACITY);
+      table = ConcurrentHashtable.D2.createBounded(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
