@@ -36,9 +36,10 @@ import javax.annotation.Nullable;
  * stronger failure mode than the one demonstrated here.
  *
  * <p>{@link NoEscape}: the scalar-replacement discipline above only holds while a {@code Maybe} is
- * constructed, consumed (typically via {@link #update}/{@link #getOrNull}), and discarded within
- * one call frame. Storing an instance in a field or collection forces the JIT to materialize it as
- * a real, permanent allocation, defeating the reason it exists.
+ * constructed, consumed (typically via {@link #update}/{@link #getOrNull}), and discarded rather
+ * than stored -- returning one, or passing it along to be consumed further downstream, is fine.
+ * Assigning an instance to a field or collection forces the JIT to materialize it as a real,
+ * permanent allocation, defeating the reason it exists.
  */
 @NoEscape
 public final class Maybe<T> {
