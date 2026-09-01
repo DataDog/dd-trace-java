@@ -334,7 +334,11 @@ public final class StringIndex {
       return indexOf(hashes, names, name, hash(name));
     }
 
-    /** {@code indexOf(hashes, names, name) >= 0}. Mirrors {@link StringIndex#contains}. */
+    /**
+     * Mirrors {@link StringIndex#contains}.
+     *
+     * @return {@code true} when {@code name} is present in the index
+     */
     public static boolean contains(int[] hashes, String[] names, String name) {
       return indexOf(hashes, names, name) >= 0;
     }
