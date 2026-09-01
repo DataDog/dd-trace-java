@@ -435,12 +435,14 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   /**
    * Empties the queue, giving every place back as it goes.
    *
-   * <p>An empty read is not taken at face value while {@link #size} still reports work. A backing
-   * may report empty with an element in it — the MPMC ring does, for the width of another thread's
-   * publish — and stopping there would leave elements behind holding their places, which for {@link
-   * #clear} and {@link #shutdown} is the difference between emptying the queue and appearing to.
-   * The re-read is bounded, because {@code size} also counts places claimed by producers that have
-   * not stored yet, and a producer still running would otherwise keep this loop here forever.
+   * <p>An empty read is not taken at face value while {@link #size} still reports work, because the
+   * two can disagree honestly: {@code size} counts places claimed by producers that have not stored
+   * into the backing yet, so an element on its way in is owed to this drain and is not visible to
+   * it. Stopping at the first empty read would leave that element behind holding its place, which
+   * for {@link #clear} and {@link #shutdown} is the difference between emptying the queue and
+   * appearing to. The re-read is bounded for the same reason it is needed: the producer whose place
+   * this is may be descheduled, or may never store at all, and would otherwise keep this loop here
+   * forever.
    */
   private void discardAll() {
     int emptyReads = 0;

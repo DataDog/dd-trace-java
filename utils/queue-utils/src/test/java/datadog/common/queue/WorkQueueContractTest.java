@@ -449,11 +449,13 @@ class WorkQueueContractTest {
   @org.junit.jupiter.api.Test
   void severalProducersAndConsumersOnAnArrayRingLoseNothingAndLeakNoPlace()
       throws InterruptedException {
-    // The MPMC ring refuses an offer, and reports empty on a poll, while another thread is midway
-    // through publishing to the slot in question -- on a queue that is neither full nor empty.
-    // Admission claims a place before it stores, so such a refusal can only mean "not yet" and the
-    // backing retries. If that reasoning is wrong, it is wrong here: elements go missing without
-    // any producer being told, or their places never come back.
+    // The MPMC ring refuses an offer while another thread is midway through publishing to the slot
+    // in question -- on a queue that is neither full nor empty. Admission claims a place before it
+    // stores, so such a refusal can only mean "not yet" and the backing retries. If that reasoning
+    // is wrong, it is wrong here: elements go missing without any producer being told, or their
+    // places never come back. The drain side is not riding out the same window -- poll spins for a
+    // pending publish rather than reporting empty -- so a false from process here means another
+    // consumer got there first.
     int capacity = 64;
     int producers = 4;
     int consumers = 4;
