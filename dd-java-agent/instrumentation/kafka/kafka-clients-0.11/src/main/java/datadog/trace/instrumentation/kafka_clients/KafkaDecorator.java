@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CO
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGING_DESTINATION_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGING_SYSTEM;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
@@ -123,6 +124,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
+      span.setTag(MESSAGING_SYSTEM, KAFKA);
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
       span.setTag(MESSAGING_DESTINATION_NAME, topic);
@@ -161,6 +163,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       final ProducerConfig producerConfig,
       final String clusterId) {
     if (record != null) {
+      span.setTag(MESSAGING_SYSTEM, KAFKA);
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
       }

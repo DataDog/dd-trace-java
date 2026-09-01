@@ -39,7 +39,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
 
   @Override
   boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
     return false
   }
 
@@ -57,7 +56,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
@@ -69,52 +67,42 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
-    // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
 
-    // set the topic that needs to be consumed
     def containerProperties1 = containerProperties(SHARED_TOPIC[0]) as ContainerProperties
     def containerProperties2 = containerProperties(SHARED_TOPIC[1]) as ContainerProperties
     def containerProperties3 = containerProperties(SHARED_TOPIC[2]) as ContainerProperties
     def containerProperties4 = containerProperties(SHARED_TOPIC[3]) as ContainerProperties
 
-    // create a Kafka MessageListenerContainer
     def container1 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties1)
     def container2 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties2)
     def container3 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties3)
     def container4 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties4)
 
-    // create a thread safe queue to store the received message
     def records1 = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     def records2 = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     def records3 = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     def records4 = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
-    // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records1.add(record)
         }
       })
-
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records2.add(record)
         }
       })
-
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records3.add(record)
         }
       })
-
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
@@ -122,13 +110,11 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
         }
       })
 
-    // start the container and underlying message listener
     container1.start()
     container2.start()
     container3.start()
     container4.start()
 
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container1, embeddedKafka.getPartitionsPerTopic())
     ContainerTestUtils.waitForAssignment(container2, embeddedKafka.getPartitionsPerTopic())
     ContainerTestUtils.waitForAssignment(container3, embeddedKafka.getPartitionsPerTopic())
@@ -140,7 +126,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     }
 
     then:
-    // check that the message was received
     def received1 = records1.poll(5, TimeUnit.SECONDS)
     def received2 = records2.poll(5, TimeUnit.SECONDS)
     def received3 = records3.poll(5, TimeUnit.SECONDS)
@@ -159,7 +144,7 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container4?.stop()
 
     where:
-    [value, expected1, expected2, expected3, expected4]<< dataTable()
+    [value, expected1, expected2, expected3, expected4] << dataTable()
   }
 
   def "test consumer with topic filters"() {
@@ -170,52 +155,42 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
-    // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
 
-    // set the topic that needs to be consumed
     def containerProperties1 = containerProperties(SHARED_TOPIC[0]) as ContainerProperties
     def containerProperties2 = containerProperties(SHARED_TOPIC[1]) as ContainerProperties
     def containerProperties3 = containerProperties(SHARED_TOPIC[2]) as ContainerProperties
     def containerProperties4 = containerProperties(SHARED_TOPIC[3]) as ContainerProperties
 
-    // create a Kafka MessageListenerContainer
     def container1 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties1)
     def container2 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties2)
     def container3 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties3)
     def container4 = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties4)
 
-    // create a thread safe queue to store the received message
     def records1 = new LinkedBlockingQueue<AgentSpan>()
     def records2 = new LinkedBlockingQueue<AgentSpan>()
     def records3 = new LinkedBlockingQueue<AgentSpan>()
     def records4 = new LinkedBlockingQueue<AgentSpan>()
 
-    // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records1.add(activeSpan())
         }
       })
-
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records2.add(activeSpan())
         }
       })
-
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records3.add(activeSpan())
         }
       })
-
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
@@ -223,13 +198,11 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
         }
       })
 
-    // start the container and underlying message listener
     container1.start()
     container2.start()
     container3.start()
     container4.start()
 
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container1, embeddedKafka.getPartitionsPerTopic())
     ContainerTestUtils.waitForAssignment(container2, embeddedKafka.getPartitionsPerTopic())
     ContainerTestUtils.waitForAssignment(container3, embeddedKafka.getPartitionsPerTopic())
@@ -254,7 +227,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     span.finish()
 
     then:
-    // check that the message was received
     def received1 = records1.poll(5, TimeUnit.SECONDS)
     def received2 = records2.poll(5, TimeUnit.SECONDS)
     def received3 = records3.poll(5, TimeUnit.SECONDS)
@@ -288,9 +260,8 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3?.stop()
     container4?.stop()
 
-
     where:
-    [value, expected1, expected2, expected3, expected4]<< dataTable()
+    [value, expected1, expected2, expected3, expected4] << dataTable()
   }
 
   def containerProperties(String topic) {

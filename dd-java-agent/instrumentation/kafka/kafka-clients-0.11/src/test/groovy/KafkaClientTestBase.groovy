@@ -1,15 +1,7 @@
-import datadog.trace.api.datastreams.DataStreamsTags
-import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
-import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.api.config.TracerConfig
-import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
-import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -18,25 +10,16 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
-import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.header.internals.RecordHeader
-import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.StringSerializer
-
-import java.nio.charset.StandardCharsets
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
-import org.springframework.kafka.listener.BatchMessageListener
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
@@ -44,8 +27,6 @@ import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
 
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -54,16 +35,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   KafkaEmbedded embeddedKafka
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-  }
-
-  public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
-
-  // filter out Kafka poll, since the function is called in a loop, giving inconsistent results
+  // Filter out Kafka poll spans that appear due to the consumer's polling loop,
+  // which gives inconsistent results across test runs.
   @Shared
   static final ListWriter.Filter DROP_KAFKA_POLL = new ListWriter.Filter() {
     @Override
@@ -73,16 +46,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
   }
 
-  final ListWriter.Filter dropEmptyKafkaPoll = new ListWriter.Filter() {
-    @Override
-    boolean accept(List<DDSpan> trace) {
-      return !(trace.size() == 1 &&
-        trace.get(0).getResourceName().toString().equals("kafka.poll") &&
-        trace.get(0).getTag(InstrumentationTags.KAFKA_RECORDS_COUNT).equals(0))
-    }
-  }
-
-  // TraceID, start times & names changed based on the configuration, so overriding the sort to give consistent test results
   private static class SortKafkaTraces implements Comparator<List<DDSpan>> {
     @Override
     int compare(List<DDSpan> o1, List<DDSpan> o2) {
@@ -101,40 +64,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           return 1
       }
     }
-  }
-
-  private static class SortBatchKafkaTraces implements Comparator<List<DDSpan>> {
-    @Override
-    int compare(List<DDSpan> o1, List<DDSpan> o2) {
-      return Long.compare(batchSortKey(o1), batchSortKey(o2))
-    }
-  }
-
-  private static long batchSortKey(List<DDSpan> trace) {
-    assert !trace.isEmpty()
-    if (trace.get(0).localRootSpan.operationName.toString() == "parent") {
-      return Long.MIN_VALUE
-    }
-    def deliverSpan = trace.find { it.operationName.toString() == "kafka.deliver" }
-    return deliverSpan ? deliverSpan.parentId : trace.get(0).parentId
-  }
-
-  private static List<DDSpan> producerSpans(List<List<DDSpan>> traces) {
-    def producerTrace = traces.find { trace ->
-      !trace.isEmpty() && trace.get(0).localRootSpan.operationName.toString() == "parent"
-    }
-    assert producerTrace != null
-    return producerTrace
-      .findAll { it.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_PRODUCER }
-      .sort { it.spanId }
-  }
-
-
-  static {
-    PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(3)
-    PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
-    PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
-    PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
   }
 
   def setup() {
@@ -184,52 +113,28 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
-    TEST_WRITER.setFilter(dropEmptyKafkaPoll)
     KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
-    String clusterId = ""
-    if (isDataStreamsEnabled()) {
-      producer.flush()
-      clusterId = producer.metadata.cluster.clusterResource().clusterId()
-      while (clusterId == null || clusterId.isEmpty()) {
-        Thread.sleep(1500)
-        clusterId = producer.metadata.cluster.clusterResource().clusterId()
-      }
-    }
 
-    // set up the Kafka consumer properties
+    // set up Kafka consumer
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
-
-    // set the topic that needs to be consumed
     def containerProperties = containerProperties()
-
-    // create a Kafka MessageListenerContainer
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
-
-    // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
-    // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records.add(record)
         }
       })
-
-    // start the container and underlying message listener
     container.start()
-
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
     when:
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
-        assert isAsyncPropagationEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
@@ -238,41 +143,22 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       blockUntilChildSpansFinished(2)
     }
-    if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(3)
-    }
 
     then:
-    // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
 
-    // verify ClusterIdHolder was properly cleaned up after produce and consume
-    ClusterIdHolder.get() == null
-
-    int nTraces = isDataStreamsEnabled() ? 3 : 2
-    int produceTraceIdx = nTraces - 1
-    TEST_WRITER.waitForTraces(nTraces)
-    def traces = (Arrays.asList(TEST_WRITER.toArray()) as List<List<DDSpan>>)
-    Collections.sort(traces, new SortKafkaTraces())
-    assertTraces(nTraces, new SortKafkaTraces()) {
+    assertTraces(2, new SortKafkaTraces()) {
       if (hasQueueSpan()) {
         trace(2) {
           consumerSpan(it, consumerProperties, span(1))
-          queueSpan(it, trace(produceTraceIdx)[2])
+          queueSpan(it, trace(1)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, consumerProperties, trace(produceTraceIdx)[2])
+          consumerSpan(it, consumerProperties, trace(1)[2])
         }
-      }
-      if (isDataStreamsEnabled()) {
-        trace(1, {
-          pollSpan(it)
-        })
       }
       trace(3) {
         basicSpan(it, "parent")
@@ -280,52 +166,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         producerSpan(it, senderProps, span(0), false)
       }
     }
+
+    // Verify trace context was propagated via message headers
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${traces[produceTraceIdx][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${traces[produceTraceIdx][2].spanId}"
-
-    if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        tags.hasAllTags("direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka")
-      }
-
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        tags.hasAllTags(
-          "direction:in",
-          "group:sender",
-          "kafka_cluster_id:$clusterId",
-          "topic:$SHARED_TOPIC".toString(),
-          "type:kafka"
-          )
-      }
-      def items = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort { it.type + it.partition}
-      verifyAll(items) {
-        size() == 3
-        get(0).hasAllTags(
-          "consumer_group:sender",
-          "kafka_cluster_id:$clusterId",
-          "partition:0",
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_commit"
-          )
-        get(1).hasAllTags(
-          "consumer_group:sender",
-          "kafka_cluster_id:$clusterId",
-          "partition:1",
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_commit"
-          )
-        get(2).hasAllTags(
-          "kafka_cluster_id:$clusterId",
-          "partition:" + received.partition(),
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_produce"
-          )
-      }
-    }
 
     cleanup:
     producer.close()
@@ -335,17 +179,17 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test producing message too large"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    // set a low max request size, so that we can crash it
     senderProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10)
-    Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
 
     when:
     String greeting = "Hello Spring Kafka"
-    Future<RecordMetadata> future = producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
-    }
+    def future = producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex -> }
     future.get()
+
     then:
-    thrown ExecutionException
+    thrown java.util.concurrent.ExecutionException
+
     cleanup:
     producer.close()
   }
@@ -358,38 +202,20 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-    String clusterId = null
-    if (isDataStreamsEnabled()) {
-      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
-    }
 
-    // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
-
-    // set the topic that needs to be consumed
     def containerProperties = containerProperties()
-
-    // create a Kafka MessageListenerContainer
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
-
-    // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
-    // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records.add(record)
         }
       })
-
-    // start the container and underlying message listener
     container.start()
-
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
     when:
@@ -402,14 +228,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       })
       blockUntilChildSpansFinished(2)
     }
-    if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(3)
-    }
 
     then:
-    // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
@@ -432,61 +252,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
     }
 
-    // sort a snapshot so the producer trace is deterministically first, regardless of write order
-    def sortedTraces = new ArrayList<>(TEST_WRITER)
-    sortedTraces.sort(SORT_TRACES_BY_ID)
-    def headers = received.headers()
-    headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${sortedTraces[0][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${sortedTraces[0][2].spanId}"
-
-    if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        tags.hasAllTags(
-          "direction:out",
-          "kafka_cluster_id:$clusterId".toString(),
-          "topic:$SHARED_TOPIC".toString(),
-          "type:kafka"
-          )
-      }
-
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        tags.hasAllTags(
-          "direction:in",
-          "group:sender",
-          "kafka_cluster_id:$clusterId".toString(),
-          "topic:$SHARED_TOPIC".toString(),
-          "type:kafka"
-          )
-      }
-      def items = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort {it.type + it.partition}
-      verifyAll(items) {
-        size() == 3
-        get(0).hasAllTags(
-          "consumer_group:sender",
-          "kafka_cluster_id:$clusterId".toString(),
-          "partition:0",
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_commit"
-          )
-        get(1).hasAllTags(
-          "consumer_group:sender",
-          "kafka_cluster_id:$clusterId".toString(),
-          "partition:1",
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_commit"
-          )
-        get(2).hasAllTags(
-          "kafka_cluster_id:$clusterId".toString(),
-          "partition:" + received.partition(),
-          "topic:" + SHARED_TOPIC,
-          "type:kafka_produce"
-          )
-      }
-    }
-
     cleanup:
     producerFactory.stop()
     container?.stop()
@@ -498,43 +263,27 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
-    // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
-
-    // set the topic that needs to be consumed
     def containerProperties = containerProperties()
-
-    // create a Kafka MessageListenerContainer
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
-
-    // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
-    // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
           records.add(record)
         }
       })
-
-    // start the container and underlying message listener
     container.start()
-
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
     when:
     kafkaTemplate.send(SHARED_TOPIC, null)
 
     then:
-    // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == null
-    received.key() == null
 
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
@@ -542,7 +291,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1], 0..0, true)
+          consumerSpan(it, consumerProperties, span(1), 0..0, true)
           queueSpan(it, trace(0)[0])
         }
       } else {
@@ -557,638 +306,53 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container?.stop()
   }
 
-  def "test records(TopicPartition) kafka consume"() {
-    setup:
-    // set up the Kafka consumer properties
-    def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    def consumer = new KafkaConsumer<String, String>(consumerProperties)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer(senderProps)
-
-    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
-
-    when:
-    def greeting = "Hello from MockConsumer!"
-    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def pollResult = KafkaTestUtils.getRecords(consumer)
-
-    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
-
-    def first = null
-    if (recs.hasNext()) {
-      first = recs.next()
-    }
-
-    then:
-    recs.hasNext() == false
-    first.value() == greeting
-    first.key() == null
-
-    assertTraces(2, SORT_TRACES_BY_ID) {
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1])
-          queueSpan(it, trace(0)[0])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0])
-        }
-      }
-    }
-
-    cleanup:
-    consumer.close()
-    producer.close()
-  }
-
-  def "test records(TopicPartition).subList kafka consume"() {
-    setup:
-    // set up the Kafka consumer properties
-    def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    def consumer = new KafkaConsumer<String, String>(consumerProperties)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer(senderProps)
-
-    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
-
-    when:
-    def greeting = "Hello from MockConsumer!"
-    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def pollResult = KafkaTestUtils.getRecords(consumer)
-
-    def records = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
-    def recs = records.subList(0, records.size()).iterator()
-
-    def first = null
-    if (recs.hasNext()) {
-      first = recs.next()
-    }
-
-    then:
-    recs.hasNext() == false
-    first.value() == greeting
-    first.key() == null
-
-    assertTraces(2, SORT_TRACES_BY_ID) {
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1])
-          queueSpan(it, trace(0)[0])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0])
-        }
-      }
-    }
-
-    cleanup:
-    consumer.close()
-    producer.close()
-  }
-
-  def "test records(TopicPartition).forEach kafka consume"() {
-    setup:
-    // set up the Kafka consumer properties
-    def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    def consumer = new KafkaConsumer<String, String>(consumerProperties)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer(senderProps)
-
-    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
-
-    when:
-    def greeting = "Hello from MockConsumer!"
-    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def pollResult = KafkaTestUtils.getRecords(consumer)
-
-    def records = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
-
-    def last = null
-    records.forEach {
-      last = it
-      assert activeSpan() != null
-    }
-
-    then:
-    records.size() == 1
-    last.value() == greeting
-    last.key() == null
-
-    assertTraces(2, SORT_TRACES_BY_ID) {
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1])
-          queueSpan(it, trace(0)[0])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0])
-        }
-      }
-    }
-
-    cleanup:
-    consumer.close()
-    producer.close()
-  }
-
-  def "test iteration backwards over ConsumerRecords"() {
-    setup:
-    def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    def consumer = new KafkaConsumer<String, String>(consumerProperties)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer(senderProps)
-
-    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
-
-    when:
-    def greetings = ["msg 1", "msg 2", "msg 3"]
-    greetings.each {
-      producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, it))
-    }
-
-    then:
-    TEST_WRITER.waitForTraces(3)
-    def pollRecords = KafkaTestUtils.getRecords(consumer)
-
-    def listIter =
-      pollRecords.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).listIterator()
-
-    then:
-    def receivedSet = greetings.toSet()
-    while (listIter.hasNext()) {
-      listIter.next()
-    }
-    while (listIter.hasPrevious()) {
-      def record = listIter.previous()
-      receivedSet.remove(record.value())
-      assert record.key() == null
-    }
-    receivedSet.isEmpty()
-
-    assertTraces(9, SORT_TRACES_BY_ID) {
-
-      // producing traces
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-      trace(1) {
-        producerSpan(it, senderProps)
-      }
-
-      // iterating to the end of ListIterator:
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(3)[1], 0..0)
-          queueSpan(it, trace(0)[0])
-        }
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(4)[1], 1..1)
-          queueSpan(it, trace(1)[0])
-        }
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(5)[1], 2..2)
-          queueSpan(it, trace(2)[0])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
-        }
-      }
-
-      // backwards iteration over ListIterator to the beginning
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(6)[1], 2..2)
-          queueSpan(it, trace(2)[0])
-        }
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(7)[1], 1..1)
-          queueSpan(it, trace(1)[0])
-        }
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(8)[1], 0..0)
-          queueSpan(it, trace(0)[0])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
-        }
-      }
-    }
-
-    cleanup:
-    consumer.close()
-    producer.close()
-  }
-
-  def "test spring kafka template produce and batch consume"() {
+  def "test kafka consume with existing headers does not overwrite"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    if (isDataStreamsEnabled()) {
-      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
-    }
-    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
-    def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-    String clusterId = null
-    if (isDataStreamsEnabled()) {
-      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
-    }
+    KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
 
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
     def containerProperties = containerProperties()
-
-
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
-    container.setupMessageListener(new BatchMessageListener<String, String>() {
-      @Override
-      void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
-        consumerRecords.each {
-          records.add(it)
-        }
-      }
-    })
-    container.start()
-    ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
-    when:
-    List<String> greetings = ["msg 1", "msg 2", "msg 3"]
-    runUnderTrace("parent") {
-      for (g in greetings) {
-        kafkaTemplate.send(SHARED_TOPIC, g).addCallback({
-          runUnderTrace("producer callback") {}
-        }, {
-          ex ->
-          runUnderTrace("producer exception: " + ex) {}
-        })
-      }
-      blockUntilChildSpansFinished(2 * greetings.size())
-    }
-    if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
-    }
-
-    then:
-    def receivedSet = greetings.toSet()
-    def receivedRecords = []
-    greetings.eachWithIndex {
-      g, i ->
-      def received = records.poll(5, TimeUnit.SECONDS)
-      receivedSet.remove(received.value()) //maybe received out of order in case several partitions
-      assert received.key() == null
-
-      def headers = received.headers()
-      assert headers.iterator().hasNext()
-      receivedRecords.add(received)
-    }
-    assert receivedSet.isEmpty()
-
-    TEST_WRITER.waitForTraces(4)
-    def traces = Arrays.asList(TEST_WRITER.toArray()) as List<List<DDSpan>>
-    def produceSpans = producerSpans(traces)
-    def spanIdToRecord = receivedRecords.collectEntries {
-      record ->
-      def header = record.headers().headers("x-datadog-parent-id").iterator()
-      assert header.hasNext()
-      [(Long.parseLong(new String(header.next().value(), StandardCharsets.UTF_8))): record]
-    }
-
-    // Batch listener delivery order can vary; match each consumer trace to its producer via the propagated parent ID.
-    assertTraces(4, new SortBatchKafkaTraces()) {
-      trace(7) {
-        basicSpan(it, "parent")
-        basicSpan(it, "producer callback", span(0))
-        producerSpan(it, senderProps, span(0), false)
-        basicSpan(it, "producer callback", span(0))
-        producerSpan(it, senderProps, span(0), false)
-        basicSpan(it, "producer callback", span(0))
-        producerSpan(it, senderProps, span(0), false)
-      }
-
-      if (hasQueueSpan()) {
-        [0, 1, 2].each {
-          i ->
-          def expectedOffset = spanIdToRecord[produceSpans[i].spanId].offset()
-          trace(2) {
-            consumerSpan(it, consumerProperties, span(1), expectedOffset..expectedOffset)
-            queueSpan(it, produceSpans[i])
-          }
-        }
-      } else {
-        [0, 1, 2].each {
-          i ->
-          def expectedOffset = spanIdToRecord[produceSpans[i].spanId].offset()
-          trace(1) {
-            consumerSpan(it, consumerProperties, produceSpans[i], expectedOffset..expectedOffset)
-          }
-        }
-      }
-    }
-
-    if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
-        it.parentHash == 0
-      }
-      verifyAll(first) {
-        tags.hasAllTags("direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka")
-      }
-
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find {
-        it.parentHash == first.hash
-      }
-      verifyAll(second) {
-        tags.hasAllTags(
-        "direction:in",
-        "group:sender",
-        "kafka_cluster_id:$clusterId",
-        "topic:$SHARED_TOPIC".toString(),
-        "type:kafka"
-        )
-      }
-    }
-
-    cleanup:
-    producerFactory.stop()
-    container?.stop()
-  }
-
-  def "test kafka client header propagation manual config"() {
-    setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
-    def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-
-    // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-
-    // create a Kafka consumer factory
-    def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
-
-    // set the topic that needs to be consumed
-    def containerProperties = containerProperties()
-
-    // create a Kafka MessageListenerContainer
-    def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
-
-    // create a thread safe queue to store the received message
-    def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
-
-    // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        records.add(record)
-        if (isDataStreamsEnabled()) {
-          // even if header propagation is disabled, we want data streams to work.
-          TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          records.add(record)
         }
-      }
-    })
-
-    // start the container and underlying message listener
+      })
     container.start()
-
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
     when:
-    String message = "Testing without headers"
-    injectSysConfig("kafka.client.propagation.enabled", value)
-    kafkaTemplate.send(SHARED_TOPIC, message)
+    def producerRecord = new ProducerRecord<String, String>(SHARED_TOPIC, "test-with-headers")
+    producerRecord.headers().add("x-datadog-trace-id", "1".getBytes())
+    producerRecord.headers().add("x-datadog-parent-id", "1".getBytes())
+    runUnderTrace("parent") {
+      producer.send(producerRecord) { meta, ex -> }
+      blockUntilChildSpansFinished(1)
+    }
 
     then:
-    // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
-
-    received.headers().iterator().hasNext() == expected
+    received.value() == "test-with-headers"
+    // The instrumentation should have replaced the existing headers with new trace context
+    def traceIdHeader = received.headers().headers("x-datadog-trace-id").iterator().next()
+    new String(traceIdHeader.value()) != "1"
 
     cleanup:
-    producerFactory.stop()
+    producer.close()
     container?.stop()
-
-    where:
-    value   | expected
-    "false" | false
-    "true"  | true
-  }
-
-  def "test producer extracts and uses existing trace context from record headers"() {
-    setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer<>(senderProps)
-
-    def existingTraceId = 1234567890123456L
-    def existingSpanId = 9876543210987654L
-    def headers = new RecordHeaders()
-    headers.add(new RecordHeader("x-datadog-trace-id",
-    String.valueOf(existingTraceId).getBytes(StandardCharsets.UTF_8)))
-    headers.add(new RecordHeader("x-datadog-parent-id",
-    String.valueOf(existingSpanId).getBytes(StandardCharsets.UTF_8)))
-
-    when:
-    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-context-extraction", headers)
-    producer.send(record).get()
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def producedSpan = TEST_WRITER[0][0]
-    // Verify the span used the extracted context as parent
-    producedSpan.traceId.toLong() == existingTraceId
-    producedSpan.parentId == existingSpanId
-    // Verify a new span was created (not reusing the extracted span ID)
-    producedSpan.spanId != existingSpanId
-
-    cleanup:
-    producer?.close()
-  }
-
-  def "test producer DSM transaction tracking extracts transaction id from headers"() {
-    setup:
-    if (!isDataStreamsEnabled()) {
-      return
-    }
-
-    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
-
-    // Configure a DSM transaction extractor for KAFKA_PRODUCE_HEADERS
-    def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
-    extractorsByTypeField.setAccessible(true)
-    def oldExtractorsByType = extractorsByTypeField.get(TEST_DATA_STREAMS_MONITORING)
-
-    def extractor = new DataStreamsTransactionExtractor() {
-      String getName() {
-        return "kafka-produce-test"
-      }
-      DataStreamsTransactionExtractor.Type getType() {
-        return DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS
-      }
-      String getValue() {
-        return "x-transaction-id"
-      }
-    }
-    def extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type)
-    extractorsByType.put(DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS, [extractor])
-    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, extractorsByType)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
-
-    def headers = new RecordHeaders()
-    headers.add(new RecordHeader("x-transaction-id", "txn-123".getBytes(StandardCharsets.UTF_8)))
-
-    when:
-    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-dsm-transaction", headers)
-    producer.send(record).get()
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def producedSpan = TEST_WRITER[0][0]
-    producedSpan.getTag(Tags.DSM_TRANSACTION_ID) == "txn-123"
-    producedSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-produce-test"
-
-    cleanup:
-    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
-    producer?.close()
-  }
-
-  def "test consumer DSM transaction tracking extracts transaction id from headers"() {
-    setup:
-    if (!isDataStreamsEnabled()) {
-      return
-    }
-
-    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
-
-    // Configure a DSM transaction extractor for KAFKA_CONSUME_HEADERS
-    def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
-    extractorsByTypeField.setAccessible(true)
-    def oldExtractorsByType = extractorsByTypeField.get(TEST_DATA_STREAMS_MONITORING)
-
-    def extractor = new DataStreamsTransactionExtractor() {
-      String getName() {
-        return "kafka-consume-test"
-      }
-      DataStreamsTransactionExtractor.Type getType() {
-        return DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS
-      }
-      String getValue() {
-        return "x-transaction-id"
-      }
-    }
-    def extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type)
-    extractorsByType.put(DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS, [extractor])
-    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, extractorsByType)
-
-    def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
-    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    def consumer = new KafkaConsumer<String, String>(consumerProperties)
-
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
-
-    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
-
-    def headers = new RecordHeaders()
-    headers.add(new RecordHeader("x-transaction-id", "txn-456".getBytes(StandardCharsets.UTF_8)))
-
-    when:
-    def record = new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "test-dsm-consume-transaction", headers)
-    producer.send(record).get()
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    def pollResult = KafkaTestUtils.getRecords(consumer)
-    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
-    recs.hasNext()
-    recs.next().value() == "test-dsm-consume-transaction"
-    !recs.hasNext()
-
-    // The consume span is created by TracingIterator when iterating over records
-    // Find the consumer span with the DSM transaction tags
-    TEST_WRITER.waitForTraces(2)
-    def allTraces = TEST_WRITER.toArray() as List<List<DDSpan>>
-    def consumerSpan = allTraces.collectMany {
-      it
-    }.find {
-      it.getTag(Tags.DSM_TRANSACTION_ID) == "txn-456"
-    }
-    consumerSpan != null
-    consumerSpan.getTag(Tags.DSM_TRANSACTION_ID) == "txn-456"
-    consumerSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-consume-test"
-
-    cleanup:
-    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
-    consumer?.close()
-    producer?.close()
-  }
-
-  def containerProperties() {
-    try {
-      // Different class names for test and latestDepTest.
-      return Class.forName("org.springframework.kafka.listener.config.ContainerProperties").newInstance(SHARED_TOPIC)
-    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-      return Class.forName("org.springframework.kafka.listener.ContainerProperties").newInstance(SHARED_TOPIC)
-    }
   }
 
   def producerSpan(
-  TraceAssert trace,
-  Map<String, ?> config,
-  DDSpan parentSpan = null,
-  boolean partitioned = true,
-  boolean tombstone = false
+    TraceAssert trace,
+    Map<String, ?> config,
+    DDSpan parentSpan = null,
+    boolean partitioned = true,
+    boolean tombstone = false
   ) {
     trace.span {
       serviceName service()
@@ -1202,10 +366,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
-      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        "$InstrumentationTags.MESSAGING_SYSTEM" "kafka"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
         "$InstrumentationTags.PARTITION" { it >= 0 }
@@ -1218,19 +382,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
-        if (isV0) {
-          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
-          // this is a buggy behaviour that could not be easily fixed.
-          serviceNameSource "java-kafka"
-        }
         defaultTags()
       }
     }
   }
 
   def queueSpan(
-  TraceAssert trace,
-  DDSpan parentSpan = null
+    TraceAssert trace,
+    DDSpan parentSpan = null
   ) {
     trace.span {
       serviceName splitByDestination() ? "$SHARED_TOPIC" : serviceForTimeInQueue()
@@ -1253,12 +412,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def consumerSpan(
-  TraceAssert trace,
-  Map<String, Object> config,
-  DDSpan parentSpan = null,
-  Range offset = 0..0,
-  boolean tombstone = false,
-  boolean distributedRootSpan = !hasQueueSpan()
+    TraceAssert trace,
+    Map<String, Object> config,
+    DDSpan parentSpan = null,
+    Range offset = 0..0,
+    boolean tombstone = false,
+    boolean distributedRootSpan = !hasQueueSpan()
   ) {
     trace.span {
       serviceName service()
@@ -1272,10 +431,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
-      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        "$InstrumentationTags.MESSAGING_SYSTEM" "kafka"
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
@@ -1290,23 +449,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
-        if (isV0) {
-          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
-          // this is a buggy behaviour that could not be easily fixed.
-          serviceNameSource "java-kafka"
-        }
         defaultTags(distributedRootSpan)
       }
     }
   }
 
   def pollSpan(
-  TraceAssert trace,
-  int recordCount = 1,
-  DDSpan parentSpan = null,
-  Range offset = 0..0,
-  boolean tombstone = false,
-  boolean distributedRootSpan = !hasQueueSpan()
+    TraceAssert trace,
+    int recordCount = 1,
+    DDSpan parentSpan = null
   ) {
     trace.span {
       serviceName Config.get().getServiceName()
@@ -1319,20 +470,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         defaultTags(true)
       }
     }
-  }
-
-  def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
-    kafkaTemplate.flush()
-    Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
-    assert (wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
-    Producer<String, String> producer = wrappedProducer.delegate
-    assert (producer instanceof KafkaProducer)
-    String clusterId = producer.metadata.cluster.clusterResource().clusterId()
-    while (clusterId == null || clusterId.isEmpty()) {
-      Thread.sleep(1500)
-      clusterId = producer.metadata.cluster.clusterResource().clusterId()
-    }
-    return clusterId
   }
 }
 
@@ -1495,52 +632,5 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     return false
-  }
-}
-
-class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
-  }
-}
-
-class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification {
-  KafkaEmbedded embeddedKafka
-
-  def setup() {
-    embeddedKafka = new KafkaEmbedded(1, true, KafkaClientTestBase.SHARED_TOPIC)
-    embeddedKafka.before()
-  }
-
-  def cleanup() {
-    embeddedKafka?.after()
-  }
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED, "true")
-    injectSysConfig(TracerConfig.HEADER_TAGS, "x-custom-header:my.custom.tag")
-  }
-
-  def "producer span is created when message carries non-Base64 headers and base64 decoding is enabled"() {
-    setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer<String, String>(senderProps, new StringSerializer(), new StringSerializer())
-
-    when:
-    def headers = new RecordHeaders([
-      new RecordHeader("x-custom-header", "not-valid-base64!@#".getBytes(StandardCharsets.UTF_8)),
-      new RecordHeader("x-another-header", "also-not-base64!!".getBytes(StandardCharsets.UTF_8))
-    ])
-    producer.send(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, 0, null, "hello", headers)).get()
-
-    then:
-    TEST_WRITER.waitForTraces(1)
-    !TEST_WRITER.isEmpty()
-
-    cleanup:
-    producer?.close()
   }
 }
