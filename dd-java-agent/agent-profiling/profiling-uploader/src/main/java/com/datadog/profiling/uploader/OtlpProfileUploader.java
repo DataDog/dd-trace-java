@@ -20,10 +20,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_OR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT_DEFAULT;
 
-import com.datadog.communication.otlp.OtlpPayload;
-import com.datadog.communication.otlp.OtlpResponse;
-import com.datadog.communication.otlp.OtlpSender;
 import com.datadog.profiling.otel.JfrToOtlpConverter;
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;

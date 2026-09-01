@@ -1,8 +1,13 @@
 package com.datadog.profiling.otel;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import com.datadog.profiling.otel.proto.dictionary.*;
+import com.datadog.profiling.otel.proto.dictionary.FunctionTable;
+import com.datadog.profiling.otel.proto.dictionary.LinkTable;
+import com.datadog.profiling.otel.proto.dictionary.LocationTable;
+import com.datadog.profiling.otel.proto.dictionary.StackTable;
+import com.datadog.profiling.otel.proto.dictionary.StringTable;
 import java.lang.reflect.Field;
 import org.junit.jupiter.api.Test;
 

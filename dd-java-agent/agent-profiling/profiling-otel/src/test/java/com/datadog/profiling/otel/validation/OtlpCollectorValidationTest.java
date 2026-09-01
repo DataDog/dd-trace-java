@@ -1,7 +1,8 @@
 package com.datadog.profiling.otel.validation;
 
-import static com.datadog.profiling.otel.JfrTools.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.datadog.profiling.otel.JfrTools.writeEvent;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.otel.JfrToOtlpConverter;
 import java.io.IOException;

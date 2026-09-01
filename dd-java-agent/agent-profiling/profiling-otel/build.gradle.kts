@@ -1,10 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
   id("com.gradleup.shadow")
   id("me.champeau.jmh")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 jmh {
   jmhVersion = libs.versions.jmh.get()
@@ -187,5 +186,5 @@ dependencies {
   testImplementation(libs.jmc.flightrecorder.writer)
   testImplementation(libs.testcontainers)
   testImplementation("org.testcontainers:junit-jupiter:1.21.3")
-  testImplementation(libs.okhttp)
+  testImplementation(libs.testing.okhttp3)
 }

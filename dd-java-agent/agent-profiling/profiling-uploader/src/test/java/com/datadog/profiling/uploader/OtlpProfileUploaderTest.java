@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import datadog.logging.IOLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -66,7 +65,6 @@ public class OtlpProfileUploaderTest {
 
   @Mock private Config config;
   @Mock private ConfigProvider configProvider;
-  @Mock private IOLogger ioLogger;
 
   private final MockWebServer server = new MockWebServer();
   private String otlpUrl;
@@ -94,8 +92,7 @@ public class OtlpProfileUploaderTest {
     when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 
     uploader =
-        new OtlpProfileUploader(
-            config, configProvider, ioLogger, (int) TERMINATION_TIMEOUT.getSeconds());
+        new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
   }
 
   @AfterEach
@@ -114,8 +111,7 @@ public class OtlpProfileUploaderTest {
     when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 
     OtlpProfileUploader disabledUploader =
-        new OtlpProfileUploader(
-            config, configProvider, ioLogger, (int) TERMINATION_TIMEOUT.getSeconds());
+        new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
 
     RecordingData data = mockRecordingData();
 

@@ -1,10 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
 
 description = "otlp-exporter"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   api(project(":dd-trace-api"))
@@ -14,5 +13,5 @@ dependencies {
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
-  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
+  testImplementation(libs.okhttp3.mockwebserver)
 }

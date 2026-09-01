@@ -1,6 +1,6 @@
 package com.datadog.profiling.otel.benchmark;
 
-import static com.datadog.profiling.otel.JfrTools.*;
+import static com.datadog.profiling.otel.JfrTools.putStackTrace;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.openjdk.jmh.annotations.Mode.Throughput;
 
