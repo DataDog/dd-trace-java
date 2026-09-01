@@ -95,6 +95,34 @@ class HashtableD1Test {
   }
 
   @Test
+  void removeIfUnlinksMatchingEntriesAndDecrementsSize() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 8);
+    table.insert(new StringIntEntry("a", 1));
+    table.insert(new StringIntEntry("b", 2));
+    table.insert(new StringIntEntry("c", 3));
+
+    assertTrue(table.removeIf(e -> e.value % 2 == 1));
+
+    assertEquals(1, table.size());
+    assertNull(table.get("a"));
+    assertNotNull(table.get("b"));
+    assertNull(table.get("c"));
+  }
+
+  @Test
+  void removeIfReturnsFalseAndLeavesTableUntouchedWhenNothingMatches() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 8);
+    table.insert(new StringIntEntry("a", 1));
+
+    assertFalse(table.removeIf(e -> false));
+
+    assertEquals(1, table.size());
+    assertNotNull(table.get("a"));
+  }
+
+  @Test
   void tryInsertOrReplaceInsertsThenReplacesWithoutGrowing() {
     Hashtable.D1<String, StringIntEntry> table =
         Hashtable.D1.createBounded(StringIntEntry.class, 8);

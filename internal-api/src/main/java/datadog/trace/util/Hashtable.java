@@ -251,6 +251,13 @@ public final class Hashtable {
     }
 
     /**
+     * Removes every entry matching {@code predicate}, returning {@code true} if any were removed.
+     */
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+      return Hashtable.removeIf(this.sizeManager, this.buckets, predicate);
+    }
+
+    /**
      * Unconditionally adds {@code newEntry} ({@code true}), or {@code false} if the table is
      * already at capacity. Caller-responsible: {@code newEntry}'s key must be absent, else it lands
      * shadowed behind the existing entry. {@code newEntry} must also be a fresh entry, not already
@@ -610,6 +617,13 @@ public final class Hashtable {
         }
       }
       return null;
+    }
+
+    /**
+     * Removes every entry matching {@code predicate}, returning {@code true} if any were removed.
+     */
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+      return Hashtable.removeIf(this.sizeManager, this.buckets, predicate);
     }
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
@@ -1112,6 +1126,25 @@ public final class Hashtable {
   public static <TEntry extends Entry> int evictAll(
       @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
     return state.sizeManager.evictAll(state.buckets, evictable);
+  }
+
+  /**
+   * Removes every entry matching {@code predicate} from {@code buckets}, decrementing {@code
+   * sizeManager} once per removal, and returns {@code true} if any were removed. Delegates to
+   * {@link SizeManager#evictAll} for the sweep -- same full-table unlink, just the general-purpose
+   * removal entry point rather than the capacity-eviction one {@link #evictAll} is for.
+   */
+  public static <TEntry extends Entry> boolean removeIf(
+      @Nonnull SizeManager sizeManager,
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Predicate<? super TEntry> predicate) {
+    return sizeManager.evictAll(buckets, predicate) > 0;
+  }
+
+  /** {@link #removeIf(SizeManager, Hashtable.Entry[], Predicate)} over a {@link State}. */
+  public static <TEntry extends Entry> boolean removeIf(
+      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> predicate) {
+    return removeIf(state.sizeManager, state.buckets, predicate);
   }
 
   /** {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}. */
