@@ -43,16 +43,13 @@ pattern before writing new code. Use it as a template.
 
 ## Step 4 – Set up the module
 
-1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
-2. Under it, create the standard Maven source layout:
-   - `src/main/java/` — instrumentation code
-   - `src/test/groovy/` — Groovy/Spock instrumentation tests (see Step 9.1)
-3. Create `build.gradle` with:
+1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`, with the standard Maven source layout under it (`src/main/java/` for instrumentation code; test source dir per Step 9.1)
+2. Create `build.gradle` with:
    - `compileOnly` dependencies for the target framework
    - `testImplementation` dependencies for tests
    - `muzzle { pass { } }` directives (see Step 9.2)
-4. Register the new module in `settings.gradle.kts` in **alphabetical order**
-5. Register all integration names in `metadata/supported-configurations.json` — **read [Supported Configurations](references/supported-configurations.md)** for the exact key shapes and CI checks involved. Declaring several names (`super("a", "b")`) means one entry each.
+3. Register the new module in `settings.gradle.kts` in **alphabetical order**
+4. Register all integration names in `metadata/supported-configurations.json` — **read [Supported Configurations](references/supported-configurations.md)** for the exact key shapes and CI checks involved. Declaring several names (`super("a", "b")`) means one entry each.
 
 **See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`). Java filename and `public class` name MUST match character-for-character including acronym casing (CRITICAL — see § "Java naming consistency").**
 
