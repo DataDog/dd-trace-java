@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -120,6 +121,93 @@ class HashtableD1Test {
 
     assertEquals(1, table.size());
     assertNotNull(table.get("a"));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictInsertsWithoutEvictingWhenUnderCapacity() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 8);
+
+    Maybe<StringIntEntry> created =
+        table.tryGetOrCreateOrEvict("a", k -> new StringIntEntry(k, 1), e -> true);
+
+    assertTrue(created.isPresent());
+    assertEquals(1, table.size());
+    assertSame(created.getOrNull(), table.get("a"));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictReturnsExistingEntryOnHitWithoutEvicting() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 1);
+    StringIntEntry a = table.tryGetOrCreateOrNull("a", k -> new StringIntEntry(k, 1));
+
+    Maybe<StringIntEntry> got =
+        table.tryGetOrCreateOrEvict(
+            "a",
+            k -> {
+              throw new AssertionError("creator must not run on a hit");
+            },
+            e -> {
+              throw new AssertionError("evictable must not run on a hit");
+            });
+
+    assertSame(a, got.getOrNull());
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictEvictsWhenFullAndInsertsNewEntry() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", k -> new StringIntEntry(k, 1));
+    assertTrue(table.isFull());
+
+    Maybe<StringIntEntry> created =
+        table.tryGetOrCreateOrEvict("new", k -> new StringIntEntry(k, 2), e -> true);
+
+    assertTrue(created.isPresent());
+    assertEquals(1, table.size());
+    assertNull(table.get("old"));
+    assertSame(created.getOrNull(), table.get("new"));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictOrNullRefusesWhenFullAndNothingEvictable() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", k -> new StringIntEntry(k, 1));
+
+    StringIntEntry result =
+        table.tryGetOrCreateOrEvictOrNull("new", k -> new StringIntEntry(k, 2), e -> false);
+
+    assertNull(result);
+    assertEquals(1, table.size());
+    assertNotNull(table.get("old"));
+    assertNull(table.get("new"));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictOrNullEvictionRunsBeforeThrowingCreator() {
+    Hashtable.D1<String, StringIntEntry> table =
+        Hashtable.D1.createBounded(StringIntEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", k -> new StringIntEntry(k, 1));
+
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            table.tryGetOrCreateOrEvictOrNull(
+                "new",
+                k -> {
+                  throw new RuntimeException("boom");
+                },
+                e -> true));
+
+    // Eviction already happened before the creator threw: the table is left one entry smaller,
+    // not corrupted or double-booked.
+    assertEquals(0, table.size());
+    assertNull(table.get("old"));
+    assertNull(table.get("new"));
   }
 
   @Test
