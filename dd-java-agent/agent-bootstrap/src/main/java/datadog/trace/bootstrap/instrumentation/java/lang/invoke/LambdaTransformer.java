@@ -10,8 +10,5 @@ public interface LambdaTransformer {
    * @return the transformed bytes, or {@code null}/the original bytes if unchanged
    */
   byte[] transform(
-      String slashClassName,
-      Class<?> targetClass,
-      byte[] classBytes,
-      String interfaceClassName);
+      String slashClassName, Class<?> targetClass, byte[] classBytes, String interfaceClassName);
 }
