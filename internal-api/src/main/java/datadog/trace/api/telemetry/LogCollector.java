@@ -1,16 +1,21 @@
 package datadog.trace.api.telemetry;
 
-import datadog.trace.util.HashingUtils;
+import static datadog.trace.util.ConcurrentHashtable.bucketAt;
+import static datadog.trace.util.ConcurrentHashtable.bucketIndex;
+import static datadog.trace.util.ConcurrentHashtable.estimateSize;
+import static datadog.trace.util.ConcurrentHashtable.getTableWriteLock;
+import static datadog.trace.util.ConcurrentHashtable.insertReserved;
+import static datadog.trace.util.ConcurrentHashtable.isFull;
+import static datadog.trace.util.LongHashingUtils.hash;
+
+import datadog.trace.util.ConcurrentHashtable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -20,8 +25,7 @@ public class LogCollector {
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
   private static final int DEFAULT_MAX_CAPACITY = 10;
   private static final LogCollector INSTANCE = new LogCollector();
-  private final Map<RawLogMessage, AtomicInteger> rawLogMessages;
-  private final int maxCapacity;
+  private final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
 
   public static LogCollector get() {
     return INSTANCE;
@@ -35,8 +39,7 @@ public class LogCollector {
       value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
       justification = "Usage in tests")
   LogCollector(int maxCapacity) {
-    this.maxCapacity = maxCapacity;
-    this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
+    this.rawLogMessages = ConcurrentHashtable.State.createBounded(RawLogMessage.class, maxCapacity);
   }
 
   public void addLogMessage(String logLevel, String message, @Nullable Throwable throwable) {
@@ -54,41 +57,88 @@ public class LogCollector {
    */
   public void addLogMessage(
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
-    if (rawLogMessages.size() >= maxCapacity) {
+    if (isFull(rawLogMessages)) {
       // TODO: We could emit a metric for dropped logs.
       return;
     }
-    RawLogMessage rawLogMessage =
-        new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
-    AtomicInteger count = rawLogMessages.computeIfAbsent(rawLogMessage, k -> new AtomicInteger());
-    count.incrementAndGet();
+
+    long keyHash = RawLogMessage.computeHash(logLevel, message, throwable);
+    int index = bucketIndex(rawLogMessages.buckets, keyHash);
+    RawLogMessage rawLogMessage = find(index, keyHash, logLevel, message, throwable);
+    if (rawLogMessage != null) {
+      rawLogMessage.increment();
+      return;
+    }
+
+    synchronized (getTableWriteLock(rawLogMessages)) {
+      rawLogMessage = find(index, keyHash, logLevel, message, throwable);
+      if (rawLogMessage != null) {
+        rawLogMessage.increment();
+        return;
+      }
+      if (isFull(rawLogMessages)) {
+        return;
+      }
+
+      rawLogMessage =
+          new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
+      if (rawLogMessages.sizeManager.tryReserve()) {
+        insertReserved(rawLogMessages, keyHash, rawLogMessage);
+      }
+    }
   }
 
   public Collection<RawLogMessage> drain() {
-    if (rawLogMessages.isEmpty()) {
+    int size = estimateSize(rawLogMessages);
+    if (size == 0) {
       return Collections.emptyList();
     }
 
-    List<RawLogMessage> list = new ArrayList<>(rawLogMessages.size());
-    Iterator<Map.Entry<RawLogMessage, AtomicInteger>> iterator =
-        rawLogMessages.entrySet().iterator();
-
-    while (iterator.hasNext()) {
-      Map.Entry<RawLogMessage, AtomicInteger> entry = iterator.next();
-      RawLogMessage logMessage = entry.getKey();
-      // XXX: There might be lost writers to the counters under concurrency if another thread
-      // increments it
-      //      while we are reading it here. At the moment, we are not overdoing this to prevent some
-      // counter losses.
-      logMessage.count = entry.getValue().get();
-      iterator.remove();
-      list.add(logMessage);
-    }
-
+    List<RawLogMessage> list = new ArrayList<>(size);
+    ConcurrentHashtable.drain(
+        rawLogMessages,
+        list,
+        (drained, logMessage) -> {
+          // A writer that found this entry before drain detached it can still increment too late.
+          logMessage.snapshotCount();
+          drained.add(logMessage);
+        });
     return list;
   }
 
-  public static final class RawLogMessage {
+  @Nullable
+  private RawLogMessage find(
+      int index, long keyHash, String logLevel, String message, @Nullable Throwable throwable) {
+    StackTraceElement[] stackTrace = null;
+    for (RawLogMessage entry = bucketAt(rawLogMessages, index);
+        entry != null;
+        entry = entry.next()) {
+      if (entry.keyHash != keyHash
+          || !Objects.equals(logLevel, entry.logLevel)
+          || !Objects.equals(message, entry.message)) {
+        continue;
+      }
+      if (throwable == entry.throwable) {
+        return entry;
+      }
+      if (throwable != null
+          && entry.throwable != null
+          && throwable.getClass().equals(entry.throwable.getClass())) {
+        if (stackTrace == null) {
+          stackTrace = throwable.getStackTrace();
+        }
+        if (Objects.deepEquals(stackTrace, entry.stackTrace())) {
+          return entry;
+        }
+      }
+    }
+    return null;
+  }
+
+  public static final class RawLogMessage extends ConcurrentHashtable.Entry {
+    private static final AtomicIntegerFieldUpdater<RawLogMessage> DEDUP_COUNT =
+        AtomicIntegerFieldUpdater.newUpdater(RawLogMessage.class, "dedupCount");
+
     public final String message;
     public final String logLevel;
     public final Throwable throwable;
@@ -96,10 +146,12 @@ public class LogCollector {
     public final long timestamp;
     public int count;
 
+    private volatile int dedupCount = 1;
     private StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
         String logLevel, String message, Throwable throwable, String tags, long timestamp) {
+      super(computeHash(logLevel, message, throwable));
       this.logLevel = logLevel;
       this.message = message;
       this.throwable = throwable;
@@ -120,6 +172,14 @@ public class LogCollector {
 
       cachedStackTrace = stackTrace = throwable.getStackTrace();
       return stackTrace;
+    }
+
+    private void increment() {
+      DEDUP_COUNT.incrementAndGet(this);
+    }
+
+    private void snapshotCount() {
+      count = DEDUP_COUNT.get(this);
     }
 
     @Override
@@ -149,7 +209,12 @@ public class LogCollector {
 
     @Override
     public int hashCode() {
-      return HashingUtils.hash(logLevel, message, throwable == null ? null : throwable.getClass());
+      return (int) keyHash;
+    }
+
+    private static long computeHash(
+        String logLevel, String message, @Nullable Throwable throwable) {
+      return hash(logLevel, message, throwable == null ? null : throwable.getClass());
     }
   }
 }
