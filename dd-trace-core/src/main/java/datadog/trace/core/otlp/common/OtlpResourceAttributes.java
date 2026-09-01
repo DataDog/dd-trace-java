@@ -36,9 +36,11 @@ final class OtlpResourceAttributes {
               "telemetry.sdk.version",
               "telemetry.sdk.language"));
 
-  /** Visits each resource attribute key/value pair with {@code visitor}. */
+  /**
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   */
   static void visitResourceAttributes(
-      Config config, Map<String, String> extraAttributes, BiConsumer<String, String> visitor) {
+      Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
     String serviceName = config.getServiceName();
     String env = config.getEnv();
     String version = config.getVersion();
@@ -64,8 +66,9 @@ final class OtlpResourceAttributes {
         .getGlobalTags()
         .forEach(
             (key, value) -> {
-              // ignore datadog tags and their otel equivalents that we map above
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))) {
+              // ignore global tags replaced by canonical or extra resource attributes
+              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+                  && !extraAttributes.containsKey(key)) {
                 visitor.accept(key, value);
               }
             });
@@ -73,34 +76,31 @@ final class OtlpResourceAttributes {
     extraAttributes.forEach(visitor);
   }
 
+  private static final String PROCESS_TAGS_KEY = DATADOG_PREFIX + "process_tags";
+
   /**
    * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
    * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
    * them from the exported spans.
    */
-  static Map<String, String> traceResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
+  static Map<String, Object> traceResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
     if (config.isOtelTracesSpanMetricsEnabled()) {
       attributes.put(STATS_COMPUTED_KEY, "true");
     }
     return attributes;
   }
 
-  static Map<String, String> datadogResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
+  static Map<String, Object> datadogResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
     String runtimeId = config.getRuntimeId();
     if (runtimeId != null && !runtimeId.isEmpty()) {
       attributes.put(DATADOG_PREFIX + "runtime_id", runtimeId);
     }
-    // Process tags arrive as "key:value" pairs; emit each as datadog.<key> = value.
+    // Mirrors SerializingMetricWriter's v0.6 ProcessTags shape; keep both in sync if that changes.
     List<String> processTags = ProcessTags.getTagsAsStringList();
-    if (processTags != null) {
-      for (String tag : processTags) {
-        int colon = tag.indexOf(':');
-        if (colon > 0) {
-          attributes.put(DATADOG_PREFIX + tag.substring(0, colon), tag.substring(colon + 1));
-        }
-      }
+    if (processTags != null && !processTags.isEmpty()) {
+      attributes.put(PROCESS_TAGS_KEY, processTags);
     }
     return attributes;
   }

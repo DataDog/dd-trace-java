@@ -60,9 +60,13 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
   // internal tags to be prefixed
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input"
+  private static final String INPUT_PROMPT = LLMOBS_TAG_PREFIX + "input_prompt"
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
+  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + "agent_manifest"
+  private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
+  LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method"
 
 
   def "test span simple"() {
@@ -226,6 +230,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+
+    cleanup:
+    test.finish()
   }
 
   def "test llm span string input formatted to messages"() {
@@ -337,6 +344,202 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+  }
+
+  def "test llm span with prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def messages = [LLMObs.LLMMessage.from("user", "What is the weather in Paris?")]
+    def prompt = LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .version("1.0.0")
+      .template("What is the weather in {{city}}?")
+      .variables([city: "Paris"])
+      .tags([team: "weather"])
+      .contextVariables(["forecast"])
+      .queryVariables(["city"])
+      .build()
+    test.annotateIO(messages, null)
+
+    when:
+    test.annotatePrompt(prompt)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT) == messages
+    innerSpan.getTag(INPUT_PROMPT) == [
+      id: "weather-prompt",
+      version: "1.0.0",
+      template: "What is the weather in {{city}}?",
+      variables: [city: "Paris"],
+      tags: [team: "weather"],
+      _dd_context_variable_keys: ["forecast"],
+      _dd_query_variable_keys: ["city"]
+    ]
+    innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == "annotated"
+  }
+
+  def "test llm span with chat prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def chatTemplate = [
+      LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+      LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?")
+    ]
+    def prompt = LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .template(chatTemplate)
+      .build()
+
+    when:
+    test.annotatePrompt(prompt)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT_PROMPT) == [
+      id: "weather-prompt",
+      chat_template: [
+        [role: "system", content: "You are a weather assistant."],
+        [role: "user", content: "What is the weather in {{city}}?"]
+      ],
+      _dd_context_variable_keys: ["context"],
+      _dd_query_variable_keys: ["question"]
+    ]
+  }
+
+  def "input messages added after a prompt preserve the prompt"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def prompt = LLMObs.Prompt.builder().id("weather-prompt").build()
+    def messages = [LLMObs.LLMMessage.from("user", "What is the weather?")]
+    test.annotatePrompt(prompt)
+
+    when:
+    test.annotateIO(messages, null)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT_PROMPT).id == "weather-prompt"
+    innerSpan.getTag(INPUT) == messages
+  }
+
+  def "prompt annotations merge with prior prompt attributes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(
+      LLMObs.Prompt.builder()
+      .id("weather-prompt")
+      .template("Weather in {{city}}")
+      .variables([city: "Paris"])
+      .build())
+
+    when:
+    test.annotatePrompt(
+      LLMObs.Prompt.builder()
+      .version("2.0.0")
+      .tags([team: "weather"])
+      .build())
+
+    then:
+    def prompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    prompt.id == "weather-prompt"
+    prompt.version == "2.0.0"
+    prompt.template == "Weather in {{city}}"
+    prompt.variables == [city: "Paris"]
+    prompt.tags == [team: "weather"]
+  }
+
+  def "later prompt template replaces the prior template representation"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Weather in {{city}}").build())
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template([LLMObs.LLMMessage.from("user", "Weather in {{city}}")]).build())
+
+    then:
+    def chatPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    chatPrompt.template == null
+    chatPrompt.chat_template == [[role: "user", content: "Weather in {{city}}"]]
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Forecast for {{city}}").build())
+
+    then:
+    def textPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    textPrompt.template == "Forecast for {{city}}"
+    textPrompt.chat_template == null
+  }
+
+  def "prompt without an id uses the ml app default"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Hello").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+  }
+
+  def "empty prompt id is treated as missing"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("weather-prompt").build())
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").version("2.0.0").build())
+
+    then:
+    def prompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    prompt.id == "weather-prompt"
+    prompt.version == "2.0.0"
+  }
+
+  def "prompts are ignored on non-LLM spans"() {
+    setup:
+    def test = llmObsSpan(spanKind, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("weather-prompt").build())
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(INPUT) == null
+    innerSpan.getTag(INPUT_PROMPT) == null
+    innerSpan.getTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD) == null
+
+    cleanup:
+    test.finish()
+
+    where:
+    spanKind << [
+      Tags.LLMOBS_AGENT_SPAN_KIND,
+      Tags.LLMOBS_TOOL_SPAN_KIND,
+      Tags.LLMOBS_TASK_SPAN_KIND,
+      Tags.LLMOBS_WORKFLOW_SPAN_KIND,
+      Tags.LLMOBS_EMBEDDING_SPAN_KIND,
+      Tags.LLMOBS_RETRIEVAL_SPAN_KIND
+    ]
+  }
+
+  def "prompts cannot be annotated after the span finishes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(LLMObs.Prompt.builder().id("first").build())
+    test.finish()
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("second").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "first"
   }
 
   def "test llm span with tool definitions"() {
@@ -594,6 +797,229 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def innerSpan = (AgentSpan) test.span
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
+  }
+
+  def "agent manifest full annotation sets correct tag"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def settings = [temperature: 0.7, max_tokens: 1024]
+    def params = [city: [type: "string"]]
+    def tools = [LLMObs.AgentTool.from("get_weather", "Look up weather", params)]
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("travel_desk")
+      .instructions("Book travel.")
+      .model("gpt-4o")
+      .modelSettings(settings)
+      .tools(tools)
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "travel_desk"
+    stored["instructions"] == "Book travel."
+    stored["model"] == "gpt-4o"
+    stored["framework"] == "manual"
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.7
+    ms["max_tokens"] == 1024
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "get_weather"
+    toolList[0]["description"] == "Look up weather"
+    toolList[0]["parameters"] == [city: [type: "string"]]
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest name defaults to span name when not provided"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().instructions("Do something.").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "my-agent"
+    stored["instructions"] == "Do something."
+    stored["framework"] == "manual"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest drops tool with null name"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def validTool = LLMObs.AgentTool.from("valid-tool")
+    def badTool = LLMObs.AgentTool.from(null)
+    def manifest = LLMObs.AgentManifest.builder()
+      .tools([badTool, validTool])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def toolList = (List) stored["tools"]
+    toolList.size() == 1
+    toolList[0]["name"] == "valid-tool"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest with empty tools list omits tools key"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .tools([])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    !stored.containsKey("tools")
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest on non-agent span is silently dropped"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm-span")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call merges with the first"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder()
+      .name("first")
+      .instructions("v1 instructions")
+      .model("gpt-3.5")
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .name("second")
+      .model("gpt-4o")
+      .build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    stored["name"] == "second"          // second call wins on name
+    stored["model"] == "gpt-4o"         // second call wins on model
+    stored["instructions"] == "v1 instructions"  // first call's instructions preserved
+    stored["framework"] == "manual"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "second annotateAgentManifest call merges model_settings"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def first = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, max_tokens: 512])
+      .build()
+    def second = LLMObs.AgentManifest.builder()
+      .modelSettings([temperature: 0.9, top_p: 0.95])
+      .build()
+
+    when:
+    test.annotateAgentManifest(first)
+    test.annotateAgentManifest(second)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.9    // second wins
+    ms["max_tokens"] == 512     // first preserved
+    ms["top_p"] == 0.95         // second adds
+
+    cleanup:
+    test.finish()
+  }
+
+  def "agent manifest model_settings forwarded as-is"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder()
+      .name("agent")
+      .modelSettings([temperature: 0.5, custom_key: "custom_val"])
+      .build()
+
+    when:
+    test.annotateAgentManifest(manifest)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    def stored = (Map) innerSpan.getTag(AGENT_MANIFEST)
+    def ms = (Map) stored["model_settings"]
+    ms["temperature"] == 0.5
+    ms["custom_key"] == "custom_val"
+
+    cleanup:
+    test.finish()
+  }
+
+  def "annotateAgentManifest null manifest is ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+
+    when:
+    test.annotateAgentManifest(null)
+
+    then:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
+
+    cleanup:
+    test.finish()
+  }
+
+  def "annotateAgentManifest after finish is silently ignored"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent")
+    def manifest = LLMObs.AgentManifest.builder().name("agent").model("gpt-4o").build()
+
+    when:
+    test.finish()
+    test.annotateAgentManifest(manifest)
+
+    then:
+    noExceptionThrown()
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(AGENT_MANIFEST) == null
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

@@ -2,7 +2,10 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +14,7 @@ import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -28,6 +32,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
@@ -84,10 +89,8 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     prompt.put("variables", Collections.singletonMap("city", "San Francisco"));
     prompt.put("chat_template", Collections.singletonList(chatTemplateEntry));
 
-    Map<String, Object> inputMap = new LinkedHashMap<>();
-    inputMap.put("messages", inputMessages);
-    inputMap.put("prompt", prompt);
-    llmSpan.setTag("_ml_obs_tag.input", inputMap);
+    llmSpan.setTag("_ml_obs_tag.input", inputMessages);
+    llmSpan.setTag("_ml_obs_tag.input_prompt", prompt);
     llmSpan.setTag("_ml_obs_tag.output", outputMessages);
 
     Map<String, Object> metadataMap = new LinkedHashMap<>();
@@ -197,6 +200,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertTrue(meta.containsKey("output"));
     Map<String, Object> outputResult = (Map<String, Object>) meta.get("output");
     assertTrue(outputResult.containsKey("messages"));
+    assertFalse(outputResult.containsKey("prompt"));
     List<Map<String, Object>> outputMsgs = (List<Map<String, Object>>) outputResult.get("messages");
     assertTrue(outputMsgs.get(0).containsKey("content"));
     assertEquals("I'll help you check the weather.", outputMsgs.get(0).get("content"));
@@ -222,6 +226,66 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     List<String> tags = (List<String>) spanData.get("tags");
     assertTrue(tags.contains("language:jvm"));
     assertTrue(tags.contains("session_id:abc-123-session"));
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("input_prompt:")));
+
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperSerializesPromptWithoutInputMessages() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> prompt = new LinkedHashMap<>();
+    prompt.put("id", "prompt_123");
+    prompt.put("template", "Hello {{name}}");
+    prompt.put("variables", Collections.singletonMap("name", "Sam"));
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.input_prompt", prompt)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> input = (Map<String, Object>) meta.get("input");
+
+    assertEquals(Collections.singletonMap("prompt", prompt), input);
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(tag -> tag.startsWith("input_prompt:")));
+
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperPreservesNestedPromptInputCompatibility() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> prompt = Collections.singletonMap("id", "legacy_prompt");
+    Map<String, Object> input = new LinkedHashMap<>();
+    input.put("messages", Collections.singletonList(LLMObs.LLMMessage.from("user", "Hello")));
+    input.put("prompt", prompt);
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "chat-completion")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.input", input)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> serializedInput = (Map<String, Object>) meta.get("input");
+
+    assertEquals(prompt, serializedInput.get("prompt"));
+    assertTrue(serializedInput.containsKey("messages"));
 
     tracer.close();
   }
@@ -384,6 +448,550 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
+  @Test
+  void testLLMObsSpanProcessorModifiesInputAndOutput() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          assertEquals(Tags.LLMOBS_LLM_SPAN_KIND, span.getKind());
+          assertEquals("true", span.getTag("redact"));
+          assertEquals("secret input", span.getInput().get(0).getContent());
+          span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "[REDACTED]")));
+          span.setOutput(Collections.emptyList());
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      Map<String, Object> originalInput = new LinkedHashMap<>();
+      originalInput.put(
+          "messages", Collections.singletonList(LLMObs.LLMMessage.from("user", "secret input")));
+      originalInput.put("prompt", Collections.singletonMap("id", "prompt-id"));
+      AgentSpan llmSpan =
+          tracer
+              .buildSpan("datadog", "processed")
+              .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+              .withTag("_ml_obs_tag.input", originalInput)
+              .withTag(
+                  "_ml_obs_tag.output",
+                  Collections.singletonList(LLMObs.LLMMessage.from("assistant", "secret output")))
+              .withTag("_ml_obs_tag.redact", true)
+              .start();
+      llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+      llmSpan.finish();
+
+      List<Map<String, Object>> spans =
+          serialize(Collections.singletonList((DDSpan) llmSpan), new LLMObsSpanMapper());
+      Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+      Map<String, Object> input = (Map<String, Object>) meta.get("input");
+      List<Map<String, Object>> messages = (List<Map<String, Object>>) input.get("messages");
+
+      assertEquals("[REDACTED]", messages.get(0).get("content"));
+      assertEquals(Collections.singletonMap("id", "prompt-id"), input.get("prompt"));
+      assertFalse(meta.containsKey("output"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorAddsMissingInputAndOutput() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "added input")));
+          span.setOutput(
+              Collections.singletonList(LLMObs.LLMMessage.from("assistant", "added output")));
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan llmSpan = newLlmObsSpan(tracer, "processed", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Collections.singletonList((DDSpan) llmSpan), new LLMObsSpanMapper());
+      Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+      Map<String, Object> input = (Map<String, Object>) meta.get("input");
+      Map<String, Object> output = (Map<String, Object>) meta.get("output");
+      List<Map<String, Object>> inputMessages = (List<Map<String, Object>>) input.get("messages");
+      List<Map<String, Object>> outputMessages = (List<Map<String, Object>>) output.get("messages");
+
+      assertEquals("added input", inputMessages.get(0).get("content"));
+      assertEquals("added output", outputMessages.get(0).get("content"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorModifiesRetrievalOutputDocuments() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          span.setOutput(
+              Collections.singletonList(LLMObs.LLMMessage.from("", "processed document")));
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan retrievalSpan =
+          tracer
+              .buildSpan("datadog", "retrieval")
+              .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+              .withTag(
+                  "_ml_obs_tag.output",
+                  Collections.singletonList(
+                      LLMObs.Document.from("original document", "result.txt", "doc-456", 0.9)))
+              .start();
+      retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
+      retrievalSpan.finish();
+
+      List<Map<String, Object>> spans =
+          serialize(Collections.singletonList((DDSpan) retrievalSpan), new LLMObsSpanMapper());
+      Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+      Map<String, Object> output = (Map<String, Object>) meta.get("output");
+      List<Map<String, Object>> documents = (List<Map<String, Object>>) output.get("documents");
+
+      assertEquals("processed document", documents.get(0).get("text"));
+      assertEquals("result.txt", documents.get(0).get("name"));
+      assertEquals("doc-456", documents.get(0).get("id"));
+      assertEquals(0.9, documents.get(0).get("score"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanMapperSerializesDocumentIO() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan embeddingSpan =
+        tracer
+            .buildSpan("datadog", "embedding")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND)
+            .withTag(
+                "_ml_obs_tag.input",
+                Arrays.asList(
+                    LLMObs.Document.from("embedding input", "embedding.txt", "embedding-1", 0.75),
+                    LLMObs.Document.from("embedding text only")))
+            .start();
+    embeddingSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    embeddingSpan.finish();
+
+    AgentSpan retrievalSpan =
+        tracer
+            .buildSpan("datadog", "retrieval")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+            .withTag(
+                "_ml_obs_tag.output",
+                Collections.singletonList(
+                    LLMObs.Document.from("retrieval output", "retrieval.txt", "retrieval-1", 0.9)))
+            .start();
+    retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    retrievalSpan.finish();
+
+    List<String> nonDocumentInput = Arrays.asList("first raw input", "second raw input");
+    AgentSpan embeddingWithNonDocumentInput =
+        tracer
+            .buildSpan("datadog", "embedding")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND)
+            .withTag("_ml_obs_tag.input", nonDocumentInput)
+            .start();
+    embeddingWithNonDocumentInput.setSpanType(InternalSpanTypes.LLMOBS);
+    embeddingWithNonDocumentInput.finish();
+
+    List<String> nonDocumentOutput = Arrays.asList("first raw result", "second raw result");
+    AgentSpan retrievalWithNonDocumentOutput =
+        tracer
+            .buildSpan("datadog", "retrieval")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+            .withTag("_ml_obs_tag.output", nonDocumentOutput)
+            .start();
+    retrievalWithNonDocumentOutput.setSpanType(InternalSpanTypes.LLMOBS);
+    retrievalWithNonDocumentOutput.finish();
+
+    List<DDSpan> trace =
+        Arrays.asList(
+            (DDSpan) embeddingSpan,
+            (DDSpan) retrievalSpan,
+            (DDSpan) embeddingWithNonDocumentInput,
+            (DDSpan) retrievalWithNonDocumentOutput);
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
+    packer.format(trace, mapper);
+    packer.flush();
+
+    datadog.trace.common.writer.Payload payload = mapper.newPayload();
+    payload.withBody(trace.size(), sink.captured);
+    Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
+    List<Map<String, Object>> spans = (List<Map<String, Object>>) result.get("spans");
+
+    Map<String, Object> embeddingMeta = (Map<String, Object>) spans.get(0).get("meta");
+    Map<String, Object> embeddingInput = (Map<String, Object>) embeddingMeta.get("input");
+    List<Map<String, Object>> embeddingDocuments =
+        (List<Map<String, Object>>) embeddingInput.get("documents");
+    assertEquals("embedding input", embeddingDocuments.get(0).get("text"));
+    assertEquals("embedding.txt", embeddingDocuments.get(0).get("name"));
+    assertEquals("embedding-1", embeddingDocuments.get(0).get("id"));
+    assertEquals(0.75, embeddingDocuments.get(0).get("score"));
+    assertEquals("embedding text only", embeddingDocuments.get(1).get("text"));
+    assertFalse(embeddingDocuments.get(1).containsKey("name"));
+    assertFalse(embeddingDocuments.get(1).containsKey("id"));
+    assertFalse(embeddingDocuments.get(1).containsKey("score"));
+    assertFalse(embeddingInput.containsKey("value"));
+
+    Map<String, Object> retrievalMeta = (Map<String, Object>) spans.get(1).get("meta");
+    Map<String, Object> retrievalOutput = (Map<String, Object>) retrievalMeta.get("output");
+    List<Map<String, Object>> retrievalDocuments =
+        (List<Map<String, Object>>) retrievalOutput.get("documents");
+    assertEquals("retrieval output", retrievalDocuments.get(0).get("text"));
+    assertEquals("retrieval.txt", retrievalDocuments.get(0).get("name"));
+    assertEquals("retrieval-1", retrievalDocuments.get(0).get("id"));
+    assertEquals(0.9, retrievalDocuments.get(0).get("score"));
+    assertFalse(retrievalOutput.containsKey("value"));
+
+    Map<String, Object> fallbackEmbeddingMeta = (Map<String, Object>) spans.get(2).get("meta");
+    Map<String, Object> fallbackInput = (Map<String, Object>) fallbackEmbeddingMeta.get("input");
+    assertEquals(nonDocumentInput, fallbackInput.get("value"));
+    assertFalse(fallbackInput.containsKey("documents"));
+
+    Map<String, Object> fallbackRetrievalMeta = (Map<String, Object>) spans.get(3).get("meta");
+    Map<String, Object> fallbackOutput = (Map<String, Object>) fallbackRetrievalMeta.get("output");
+    assertEquals(nonDocumentOutput, fallbackOutput.get("value"));
+    assertFalse(fallbackOutput.containsKey("documents"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperPreservesStringRetrievalOutput() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    AgentSpan retrievalSpan =
+        tracer
+            .buildSpan("datadog", "retrieval")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+            .withTag("_ml_obs_tag.output", "retrieval output")
+            .start();
+    retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    retrievalSpan.finish();
+
+    List<Map<String, Object>> spans =
+        serialize(Collections.singletonList((DDSpan) retrievalSpan), new LLMObsSpanMapper());
+    Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+    Map<String, Object> output = (Map<String, Object>) meta.get("output");
+
+    assertEquals("retrieval output", output.get("value"));
+    tracer.close();
+  }
+
+  @Test
+  void testAgentAttributionEmittedWithBothFields() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my.agent")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_AGENT_SPAN_KIND)
+            .withTag("_ml_obs_tag.pagent_span_id", "abc123")
+            .withTag("_ml_obs_tag.pagent_name", "my-orchestrator")
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_attribution"));
+    Map<String, Object> attribution = (Map<String, Object>) meta.get("agent_attribution");
+    assertEquals("abc123", attribution.get("pagent_span_id"));
+    assertEquals("my-orchestrator", attribution.get("pagent_name"));
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanProcessorCanDropSpan() throws Exception {
+    LLMObs.registerProcessor(span -> "true".equals(span.getTag("drop")) ? null : span);
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Arrays.asList((DDSpan) dropped, (DDSpan) retained), new LLMObsSpanMapper());
+
+      assertEquals(1, spans.size());
+      assertEquals("retained", spans.get(0).get("name"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorExceptionDropsSpan() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          if ("true".equals(span.getTag("drop"))) {
+            throw new IllegalStateException("processor failure");
+          }
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Arrays.asList((DDSpan) dropped, (DDSpan) retained), new LLMObsSpanMapper());
+
+      assertEquals(1, spans.size());
+      assertEquals("retained", spans.get(0).get("name"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorErrorDropsSpan() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          if ("true".equals(span.getTag("drop"))) {
+            throw new AssertionError("processor failure");
+          }
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Arrays.asList((DDSpan) dropped, (DDSpan) retained), new LLMObsSpanMapper());
+
+      assertEquals(1, spans.size());
+      assertEquals("retained", spans.get(0).get("name"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorRunsOnceWhenSerializationRetries() {
+    AtomicInteger calls = new AtomicInteger();
+    LLMObsMetricCollector.get().drain();
+    LLMObs.registerProcessor(
+        span -> {
+          calls.incrementAndGet();
+          return "true".equals(span.getTag("drop")) ? null : span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan first = newLlmObsSpan(tracer, "first", false);
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+      String largeInput = String.join("", Collections.nCopies(600, "x"));
+      first.setTag(
+          "_ml_obs_tag.input",
+          Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
+      dropped.setTag(
+          "_ml_obs_tag.input",
+          Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
+      retained.setTag(
+          "_ml_obs_tag.input",
+          Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
+
+      LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+      CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+      MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink));
+
+      assertTrue(packer.format(Collections.singletonList((DDSpan) first), mapper));
+      assertTrue(packer.format(Arrays.asList((DDSpan) dropped, (DDSpan) retained), mapper));
+      assertEquals(1, sink.accepts);
+      assertEquals(3, calls.get());
+      assertEquals(
+          3,
+          LLMObsMetricCollector.get().drain().stream()
+              .filter(
+                  metric ->
+                      LLMObsMetricCollector.USER_PROCESSOR_CALLED_METRIC.equals(metric.metricName))
+              .count());
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+      LLMObsMetricCollector.get().drain();
+    }
+  }
+
+  @Test
+  void testLLMObsSpanProcessorInputAndOutputRejectNull() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    LLMObsSpanDataAdapter adapter =
+        new LLMObsSpanDataAdapter((DDSpan) newLlmObsSpan(tracer, "processed", false));
+
+    assertThrows(NullPointerException.class, () -> adapter.setInput(null));
+    assertThrows(NullPointerException.class, () -> adapter.setOutput(null));
+    tracer.close();
+  }
+
+  @Test
+  void testLLMObsSpanMapperSerializesAgentManifest() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "travel_desk");
+    manifest.put("instructions", "Book travel.");
+    manifest.put("model", "gpt-4o");
+    manifest.put("framework", "manual");
+
+    Map<String, Object> modelSettings = new LinkedHashMap<>();
+    modelSettings.put("temperature", 0.7);
+    manifest.put("model_settings", modelSettings);
+
+    List<Map<String, Object>> tools = new ArrayList<>();
+    Map<String, Object> tool = new LinkedHashMap<>();
+    tool.put("name", "get_weather");
+    tool.put("description", "Look up the weather.");
+    tools.add(tool);
+    manifest.put("tools", tools);
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_manifest"));
+    Map<String, Object> gotManifest = (Map<String, Object>) meta.get("agent_manifest");
+    assertEquals("travel_desk", gotManifest.get("name"));
+    assertEquals("Book travel.", gotManifest.get("instructions"));
+    assertEquals("gpt-4o", gotManifest.get("model"));
+    assertEquals("manual", gotManifest.get("framework"));
+    assertEquals(modelSettings, gotManifest.get("model_settings"));
+    assertInstanceOf(
+        Double.class, ((Map<?, ?>) gotManifest.get("model_settings")).get("temperature"));
+    assertEquals(tools, gotManifest.get("tools"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testAgentManifestDoesNotAppearInTags() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "my-agent");
+    manifest.put("framework", "manual");
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    List<String> tags = (List<String>) spanData.get("tags");
+    assertFalse(tags.stream().anyMatch(t -> t.contains("agent_manifest")));
+
+    tracer.close();
+  }
+
+  private static AgentSpan newLlmObsSpan(CoreTracer tracer, String name, boolean drop) {
+    AgentSpan span =
+        tracer
+            .buildSpan("datadog", name)
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .withTag("_ml_obs_tag.drop", drop)
+            .start();
+    span.setSpanType(InternalSpanTypes.LLMOBS);
+    span.finish();
+    return span;
+  }
+
+  private static List<Map<String, Object>> serialize(List<DDSpan> trace, LLMObsSpanMapper mapper)
+      throws Exception {
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
+
+    packer.format(trace, mapper);
+    packer.flush();
+
+    assertNotNull(sink.captured);
+    datadog.trace.common.writer.Payload payload = mapper.newPayload();
+    payload.withBody(trace.size(), sink.captured);
+    Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
+    return (List<Map<String, Object>>) result.get("spans");
+  }
+
+  @Test
+  void testAgentAttributionEmitsExplicitNullNameWhenAbsent() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    // Only pagent_span_id is set — pagent_name tag is absent
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my.agent")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_AGENT_SPAN_KIND)
+            .withTag("_ml_obs_tag.pagent_span_id", "abc123")
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertTrue(meta.containsKey("agent_attribution"));
+    Map<String, Object> attribution = (Map<String, Object>) meta.get("agent_attribution");
+    assertEquals("abc123", attribution.get("pagent_span_id"));
+    // pagent_name key must be present with an explicit null (not absent)
+    assertTrue(attribution.containsKey("pagent_name"));
+    assertNull(attribution.get("pagent_name"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testNoAgentAttributionBlockWhenParentAgentSpanIdAbsent() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan llmSpan =
+        tracer
+            .buildSpan("datadog", "openai.chat")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+            .start();
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    llmSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, llmSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+
+    assertFalse(meta.containsKey("agent_attribution"));
+
+    tracer.close();
+  }
+
   private static byte[] writeTo(datadog.trace.common.writer.Payload payload) throws IOException {
     ByteArrayOutputStream channel = new ByteArrayOutputStream();
     payload.writeTo(
@@ -407,13 +1015,30 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     return channel.toByteArray();
   }
 
+  private static Map<String, Object> serializeSingleSpan(LLMObsSpanMapper mapper, AgentSpan span)
+      throws IOException {
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
+    packer.format(Collections.singletonList((DDSpan) span), mapper);
+    packer.flush();
+
+    assertNotNull(sink.captured);
+    datadog.trace.common.writer.Payload payload = mapper.newPayload();
+    payload.withBody(1, sink.captured);
+    Map<String, Object> result = objectMapper.readValue(writeTo(payload), Map.class);
+    List<Map<String, Object>> spans = (List<Map<String, Object>>) result.get("spans");
+    return spans.get(0);
+  }
+
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
 
     ByteBuffer captured;
+    int accepts;
 
     @Override
     public void accept(int messageCount, ByteBuffer buffer) {
       captured = buffer;
+      accepts++;
     }
   }
 }

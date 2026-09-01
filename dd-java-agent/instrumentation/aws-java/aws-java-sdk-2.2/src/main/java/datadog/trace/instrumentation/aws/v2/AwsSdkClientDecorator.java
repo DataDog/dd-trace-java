@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -93,7 +94,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
+          .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
 
   // not static because this object would be ClassLoader specific if multiple SDK instances were
   // loaded by different loaders
@@ -153,6 +154,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             url -> {
               span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
               setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+              String queueName = urlFileName(url);
+              if (!queueName.isEmpty()) {
+                setQueueName(span, queueName);
+              }
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +25,9 @@ public abstract class TestDataFactory {
   private static volatile Map<String, Predicate<TestDescriptor>>
       TEST_DESCRIPTOR_FILTER_BY_ENGINE_ID = Collections.emptyMap();
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
   public static synchronized void register(
       String engineId,
       Function<TestDescriptor, TestIdentifier> testIdentifierFactory,

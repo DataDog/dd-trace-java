@@ -148,7 +148,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureSampleEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
-              + "datadog.trace.bootstrap.WeakMapContextStore:build_time,"
+              + "datadog.trace.bootstrap.WeakMapPerStore:build_time,"
               + "datadog.trace.config.inversion.ConfigHelper:rerun,"
               + "datadog.trace.config.inversion.ConfigHelper$StrictnessPolicy:rerun,"
               + "datadog.trace.config.inversion.GeneratedSupportedConfigurations:build_time,"
