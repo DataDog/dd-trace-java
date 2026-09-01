@@ -99,4 +99,61 @@ class LLMObsContextTest {
       }
     }
   }
+
+  @Test
+  void currentAgentVersionReturnsNullWhenNoContextAttached() {
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void attachWithoutAgentVersionLeavesAgentVersionNull() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, null)) {
+      assertNull(LLMObsContext.currentAgentVersion());
+    }
+  }
+
+  @Test
+  void attachWithAgentVersionStoresIt() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, "v3")) {
+      assertEquals(ctx, LLMObsContext.current());
+      assertEquals("v3", LLMObsContext.currentAgentVersion());
+    }
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void attachWithEmptyAgentVersionIgnoresAgentVersion() {
+    AgentSpanContext ctx = mock(AgentSpanContext.class);
+    try (ContextScope scope = LLMObsContext.attach(ctx, null, "")) {
+      assertNull(LLMObsContext.currentAgentVersion());
+    }
+  }
+
+  @Test
+  void nestedScopesRestoreParentAgentVersionOnClose() {
+    AgentSpanContext outer = mock(AgentSpanContext.class);
+    AgentSpanContext inner = mock(AgentSpanContext.class);
+    try (ContextScope outerScope = LLMObsContext.attach(outer, null, "v1")) {
+      assertEquals("v1", LLMObsContext.currentAgentVersion());
+      try (ContextScope innerScope = LLMObsContext.attach(inner, null, "v2")) {
+        assertEquals("v2", LLMObsContext.currentAgentVersion());
+      }
+      assertEquals("v1", LLMObsContext.currentAgentVersion());
+    }
+    assertNull(LLMObsContext.currentAgentVersion());
+  }
+
+  @Test
+  void childScopeInheritsParentAgentVersion() {
+    AgentSpanContext parent = mock(AgentSpanContext.class);
+    AgentSpanContext child = mock(AgentSpanContext.class);
+    try (ContextScope parentScope = LLMObsContext.attach(parent, null, "v3")) {
+      try (ContextScope childScope = LLMObsContext.attach(child)) {
+        assertEquals(child, LLMObsContext.current());
+        assertEquals("v3", LLMObsContext.currentAgentVersion());
+      }
+    }
+  }
 }

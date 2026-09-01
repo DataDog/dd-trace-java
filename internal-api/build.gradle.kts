@@ -77,6 +77,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
