@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jaxrs1;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
@@ -14,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import datadog.trace.bootstrap.instrumentation.decorator.ConfiguredResponseStatusExceptions;
+import datadog.trace.bootstrap.instrumentation.decorator.MappedExceptionStatus;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -54,11 +54,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     if (status == null) {
       status = ConfiguredResponseStatusExceptions.extractStatus(throwable);
     }
-    if (status != null) {
-      span.addThrowable(throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
-      span.setError(
-          Config.get().getHttpServerErrorStatuses().get(status),
-          ErrorPriorities.HTTP_SERVER_DECORATOR);
+    if (MappedExceptionStatus.flagIfPresent(
+        span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR, status)) {
       return;
     }
     super.doOnError(span, throwable, errorPriority);
@@ -68,7 +65,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   // framework will actually send.
   private static Integer extractResponseStatus(final Throwable throwable) {
     Throwable current = throwable;
-    for (int depth = 0; current != null && depth < 5; depth++, current = current.getCause()) {
+    for (int depth = 0;
+        current != null && depth < MappedExceptionStatus.MAX_CAUSE_CHAIN_DEPTH;
+        depth++, current = current.getCause()) {
       if (current instanceof WebApplicationException) {
         return ((WebApplicationException) current).getResponse().getStatus();
       }
