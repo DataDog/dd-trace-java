@@ -15,7 +15,7 @@ class HashtableD2Test {
 
   @Test
   void pairKeysParticipateInIdentity() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry ab = new PairEntry("a", 1, 100);
     PairEntry ac = new PairEntry("a", 2, 200);
     PairEntry bb = new PairEntry("b", 1, 300);
@@ -31,7 +31,7 @@ class HashtableD2Test {
 
   @Test
   void removePairUnlinks() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry ab = new PairEntry("a", 1, 100);
     PairEntry ac = new PairEntry("a", 2, 200);
     table.insert(ab);
@@ -44,7 +44,7 @@ class HashtableD2Test {
 
   @Test
   void tryInsertOrReplaceMatchesOnBothKeys() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry first = new PairEntry("k", 7, 1);
     assertTrue(table.tryInsertOrReplace(first));
     PairEntry second = new PairEntry("k", 7, 2);
@@ -58,7 +58,7 @@ class HashtableD2Test {
 
   @Test
   void forEachVisitsBothPairs() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
     Set<String> seen = new HashSet<>();
@@ -70,7 +70,7 @@ class HashtableD2Test {
 
   @Test
   void forEachWithContextPassesContextToConsumer() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
     Set<String> seen = new HashSet<>();
@@ -82,7 +82,7 @@ class HashtableD2Test {
 
   @Test
   void getOrCreateOnMissBuildsEntryViaCreator() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     int[] createCount = {0};
     PairEntry created =
         table.tryGetOrCreateOrNull(
@@ -103,7 +103,7 @@ class HashtableD2Test {
 
   @Test
   void getOrCreateOnHitSkipsCreator() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry seeded = new PairEntry("a", 1, 100);
     table.insert(seeded);
     int[] createCount = {0};
@@ -161,7 +161,7 @@ class HashtableD2Test {
 
   @Test
   void removeReturnsNullForMissingKey() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
 
     assertNull(table.remove("a", 2));
@@ -171,7 +171,7 @@ class HashtableD2Test {
 
   @Test
   void clearEmptiesTable() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
     assertEquals(2, table.size());
@@ -185,7 +185,7 @@ class HashtableD2Test {
 
   @Test
   void insertReturnsFalseOnceAtCapacity() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     assertTrue(table.insert(new PairEntry("a", 1, 100)));
     assertTrue(table.insert(new PairEntry("b", 2, 200)));
     assertFalse(table.insert(new PairEntry("c", 3, 300)));
@@ -195,7 +195,7 @@ class HashtableD2Test {
 
   @Test
   void getOrCreateReturnsNullOnceAtCapacityButStillReturnsHits() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
@@ -208,7 +208,7 @@ class HashtableD2Test {
 
   @Test
   void getOrCreateAsMaybeReturnsAbsentOnceAtCapacityButStillReturnsHits() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
@@ -221,7 +221,7 @@ class HashtableD2Test {
 
   @Test
   void tryInsertOrReplaceStillReplacesAtCapacityButRefusesFreshInsert() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
@@ -240,7 +240,7 @@ class HashtableD2Test {
 
   @Test
   void isFullReflectsCapacity() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     assertFalse(table.isFull());
     table.insert(new PairEntry("a", 1, 100));
     assertFalse(table.isFull());
@@ -252,7 +252,7 @@ class HashtableD2Test {
 
   @Test
   void drainVisitsEveryEntryThenEmptiesTable() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
     Set<String> drained = new HashSet<>();
@@ -269,7 +269,7 @@ class HashtableD2Test {
 
   @Test
   void drainWithContextPassesContextToSink() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
     Set<String> drained = new HashSet<>();
@@ -282,7 +282,7 @@ class HashtableD2Test {
 
   @Test
   void drainOnEmptyTableDoesNothing() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     Set<String> drained = new HashSet<>();
     table.drain(e -> drained.add(e.key1 + ":" + e.key2));
     assertEquals(0, drained.size());
@@ -291,7 +291,7 @@ class HashtableD2Test {
 
   @Test
   void tryGetOrUpdateCreatesThenAppliesUpdater() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     assertTrue(
         table.tryGetOrUpdate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), e -> e.value += 5));
     assertEquals(1, table.size());
@@ -300,7 +300,7 @@ class HashtableD2Test {
 
   @Test
   void tryGetOrUpdateUpdatesExistingEntryInPlace() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     table.insert(new PairEntry("a", 1, 10));
     PairEntry existing = table.get("a", 1);
     assertTrue(
@@ -312,7 +312,7 @@ class HashtableD2Test {
 
   @Test
   void tryGetOrUpdateReturnsFalseAtCapacityWithoutUpdating() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 2);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
     table.insert(new PairEntry("a", 1, 1));
     table.insert(new PairEntry("b", 2, 2));
     boolean[] updaterRan = {false};
@@ -331,7 +331,7 @@ class HashtableD2Test {
 
   @Test
   void tryGetOrUpdateWithContextPassesContextToUpdater() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 8);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     assertTrue(
         table.tryGetOrUpdate(
             "a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), 4, (n, e) -> e.value += n));
@@ -344,7 +344,7 @@ class HashtableD2Test {
 
   @Test
   void tryGetOrUpdateWithContextReturnsFalseAtCapacity() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createCapped(PairEntry.class, 1);
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
     table.insert(new PairEntry("a", 1, 1));
     assertFalse(
         table.tryGetOrUpdate(
