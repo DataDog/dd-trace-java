@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 def openTelemetryVersion = '1.47.0'
 
 muzzle {
@@ -9,8 +13,6 @@ muzzle {
     skipVersions = ['0.13.0'] // bad release
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

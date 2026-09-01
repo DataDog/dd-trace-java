@@ -42,6 +42,9 @@ public final class SmokeTraceAssertions {
   /*
    * Trace assertion options.
    */
+  /** Default trace assert options. */
+  public static final UnaryOperator<Options> DEFAULT_OPTIONS = identity();
+
   /** Ignores additional traces. If there are more traces than expected, do not fail. */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
       Options::ignoreAdditionalTraces;

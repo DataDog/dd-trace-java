@@ -4,9 +4,9 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.jmh-conventions'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.product-subsystem'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
 dependencies {
@@ -15,7 +15,7 @@ dependencies {
   implementation project(':communication')
   implementation project(':products:metrics:metrics-api')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.4.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.5.0'
   implementation libs.moshi
 
   compileOnly project(':dd-java-agent:agent-bootstrap')

@@ -1,9 +1,8 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'idea'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Vert.x 4.2 Smoke Tests.'
 

@@ -196,6 +196,29 @@ public class WellKnownClasses {
           "org.agrona.collections." // Agrona
           );
 
+  private static final Set<String> UNSAFE_COLLECTION_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Collection with synchronized methods can lead to deadlock
+              "java.util.Stack",
+              "java.util.Vector",
+              "java.util.Collections$SynchronizedSet",
+              "java.util.Collections$SynchronizedCollection",
+              "java.util.Collections$SynchronizedSortedSet",
+              "java.util.Collections$SynchronizedNavigableSet",
+              "java.util.Collections$SynchronizedList",
+              "java.util.Collections$SynchronizedRandomAccessList"));
+
+  private static final Set<String> UNSAFE_MAP_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Maps with synchronized methods can lead to deadlock
+              "java.util.Hashtable",
+              "java.util.Properties",
+              "java.util.Collections$SynchronizedMap",
+              "java.util.Collections$SynchronizedSortedMap",
+              "java.util.Collections$SynchronizedNavigableMap"));
+
   private static final List<String> SAFE_MAP_PACKAGES =
       Arrays.asList(
           "java.", // JDK base module
@@ -204,8 +227,6 @@ public class WellKnownClasses {
           "it.unimi.dsi.fastutil.", // fastutil
           "org.agrona.collections." // Agrona
           );
-
-  private static final String SYNCHRONIZED_WRAPPER_PREFIX = "java.util.Collections$Synchronized";
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
@@ -228,19 +249,20 @@ public class WellKnownClasses {
    * @return true if collection implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Collection<?> collection) {
-    return isSafe(collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES);
+    return isSafe(
+        collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES, UNSAFE_COLLECTION_CLASSES);
   }
 
   /**
    * @return true if map implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Map<?, ?> map) {
-    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES);
+    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
   }
 
-  private static boolean isSafe(String className, List<String> safePackages) {
-    // synchronized wrappers lock on their mutex: calling them can deadlock the instrumented thread
-    if (className.startsWith(SYNCHRONIZED_WRAPPER_PREFIX)) {
+  private static boolean isSafe(
+      String className, List<String> safePackages, Set<String> unsafeClasses) {
+    if (unsafeClasses.contains(className)) {
       return false;
     }
     for (String safePackage : safePackages) {

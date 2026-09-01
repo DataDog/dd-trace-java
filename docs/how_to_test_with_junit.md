@@ -349,6 +349,10 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.*;
 import static datadog.trace.agent.test.assertions.Matchers.*;
 ```
 
+> [!NOTE]
+> Smoke tests use a separate API with the same class names, `datadog.smoketest.trace.*`, which matches decoded wire payloads instead of in-process spans.
+> See [How to Write a Smoke Test](./how_to_smoke_test.md#asserting-traces).
+
 ### Asserting traces
 
 `assertTraces` waits for traces to arrive (20s timeout), then verifies the structure:

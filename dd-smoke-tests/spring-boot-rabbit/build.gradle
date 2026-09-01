@@ -2,9 +2,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot RabbitMQ Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -26,6 +26,7 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: libs.versions.testcontainers.get()
 }
 
 tasks.withType(Test).configureEach {

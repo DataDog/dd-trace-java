@@ -182,6 +182,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -701,6 +702,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STAT
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -1350,6 +1352,8 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean lambdaSnapStartClockResyncEnabled;
+
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
 
@@ -1557,6 +1561,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    lambdaSnapStartClockResyncEnabled =
+        configProvider.getBoolean(
+            TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
+            DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
     cassandraKeyspaceStatementExtractionEnabled =
         configProvider.getBoolean(
             CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
@@ -1995,9 +2003,13 @@ public class Config {
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_ITEMS,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS));
       traceBaggageMaxBytes =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_BYTES,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES));
 
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
@@ -2205,7 +2217,7 @@ public class Config {
 
     String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
     if (otlpTracesEndpointFromEnvironment == null) {
-      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+      if (otlpTracesProtocol == OtlpConfig.Protocol.GRPC) {
         otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         otlpTracesEndpointFromEnvironment =
@@ -3430,6 +3442,14 @@ public class Config {
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
+  }
+
+  private static int nonNegativeBaggageLimit(String setting, int value) {
+    if (value < 0) {
+      log.warn("Invalid {}: {}. The value must not be negative. Disabling baggage", setting, value);
+      return 0;
+    }
+    return value;
   }
 
   private static boolean isValidUrl(String url) {
@@ -5166,6 +5186,10 @@ public class Config {
 
   public boolean isAwsServerless() {
     return awsServerless;
+  }
+
+  public boolean isLambdaSnapStartClockResyncEnabled() {
+    return lambdaSnapStartClockResyncEnabled;
   }
 
   public boolean isDataStreamsEnabled() {

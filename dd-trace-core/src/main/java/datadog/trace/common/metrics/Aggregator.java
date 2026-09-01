@@ -2,6 +2,8 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -86,6 +88,11 @@ final class Aggregator implements Runnable {
     aggregates.resetCoreHandlers(healthMetrics, reporter);
   }
 
+  @VisibleForTesting
+  AggregateTable aggregates() {
+    return aggregates;
+  }
+
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
@@ -156,6 +163,7 @@ final class Aggregator implements Runnable {
         } else {
           // table at cap with no stale entry available to evict
           healthMetrics.onStatsAggregateDropped();
+          StatsMetrics.getInstance().onWholeKeyCollapse();
         }
       }
     }

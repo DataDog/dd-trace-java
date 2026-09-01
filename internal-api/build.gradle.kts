@@ -3,10 +3,9 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-api")
   id("dd-trace-java.jmh-conventions")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 java {
   toolchain {
@@ -78,6 +77,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -153,6 +153,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
+  // Internal cross-module bridge
+  "datadog.trace.api.llmobs.LLMObsInternal",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
@@ -282,6 +284,7 @@ dependencies {
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.jol.core)
 }
 
 jmh {

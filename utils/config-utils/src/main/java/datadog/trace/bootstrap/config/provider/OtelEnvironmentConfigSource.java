@@ -128,7 +128,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       Map<String, String> attributeMap = parseOtelMap(resourceAttributes);
       capture(SERVICE_NAME, attributeMap.remove("service.name"));
       capture(VERSION, attributeMap.remove("service.version"));
-      capture(ENV, attributeMap.remove("deployment.environment"));
+      String environment = attributeMap.remove("deployment.environment");
+      String namedEnvironment = attributeMap.remove("deployment.environment.name");
+      capture(ENV, namedEnvironment != null ? namedEnvironment : environment);
       capture(TAGS, renderDatadogMap(attributeMap, 10));
     }
     capture(LOG_LEVEL, logLevel);
