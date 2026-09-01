@@ -110,8 +110,8 @@ public final class Maybe<T> {
    * needs one caller-supplied number (e.g. a duration or count) and boxing it into a captured
    * {@code Long}/generic-context object would be the actual per-call allocation. This exists so a
    * table wrapping a fallible lookup in {@code Maybe} pays for this shape once, here, instead of
-   * once per mutator-flavor per table type -- see {@code Hashtable#tryGetOrUpdate}'s {@code
-   * ObjLongConsumer} overload for the caller-side problem this replaces.
+   * once per mutator-flavor per table type -- a fused, per-table {@code ObjLongConsumer} overload
+   * would otherwise be needed for the same accumulate-a-count shape.
    *
    * <p>Deliberately the <em>only</em> primitive-context overload of {@code update}. A second one
    * (e.g. {@code int}) was tried and reverted: with two primitive overloads, {@code update(1,

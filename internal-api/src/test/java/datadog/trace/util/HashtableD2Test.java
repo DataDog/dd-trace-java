@@ -405,69 +405,6 @@ class HashtableD2Test {
     assertEquals(0, table.size());
   }
 
-  @Test
-  void tryGetOrUpdateCreatesThenAppliesUpdater() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
-    assertTrue(
-        table.tryGetOrUpdate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), e -> e.value += 5));
-    assertEquals(1, table.size());
-    assertEquals(5, table.get("a", 1).value);
-  }
-
-  @Test
-  void tryGetOrUpdateUpdatesExistingEntryInPlace() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
-    table.insert(new PairEntry("a", 1, 10));
-    PairEntry existing = table.get("a", 1);
-    assertTrue(
-        table.tryGetOrUpdate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), e -> e.value += 5));
-    assertEquals(1, table.size());
-    assertEquals(15, existing.value);
-    assertSame(existing, table.get("a", 1));
-  }
-
-  @Test
-  void tryGetOrUpdateReturnsFalseAtCapacityWithoutUpdating() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 2);
-    table.insert(new PairEntry("a", 1, 1));
-    table.insert(new PairEntry("b", 2, 2));
-    boolean[] updaterRan = {false};
-    assertFalse(
-        table.tryGetOrUpdate(
-            "c",
-            3,
-            (k1, k2) -> new PairEntry(k1, k2, 0),
-            e -> {
-              updaterRan[0] = true;
-            }));
-    assertFalse(updaterRan[0], "updater must not run when the create is refused");
-    assertEquals(2, table.size());
-    assertNull(table.get("c", 3));
-  }
-
-  @Test
-  void tryGetOrUpdateWithContextPassesContextToUpdater() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
-    assertTrue(
-        table.tryGetOrUpdate(
-            "a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), 4, (n, e) -> e.value += n));
-    assertTrue(
-        table.tryGetOrUpdate(
-            "a", 1, (k1, k2) -> new PairEntry(k1, k2, 0), 6, (n, e) -> e.value += n));
-    assertEquals(1, table.size());
-    assertEquals(10, table.get("a", 1).value);
-  }
-
-  @Test
-  void tryGetOrUpdateWithContextReturnsFalseAtCapacity() {
-    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
-    table.insert(new PairEntry("a", 1, 1));
-    assertFalse(
-        table.tryGetOrUpdate(
-            "b", 2, (k1, k2) -> new PairEntry(k1, k2, 0), 4, (n, e) -> e.value += n));
-    assertEquals(1, table.size());
-  }
-
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
     int value;
 

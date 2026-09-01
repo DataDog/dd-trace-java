@@ -9,7 +9,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.ObjLongConsumer;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -408,83 +407,6 @@ public final class Hashtable {
       return newEntry;
     }
 
-    /**
-     * {@link #tryGetOrCreateOrNull} followed by {@code updater}, returning whether the update
-     * happened.
-     *
-     * <p>Prefer this over the two-call form for the common read-modify-write shape -- a counter
-     * bump, a max, a timestamp refresh:
-     *
-     * <pre>{@code
-     * table.tryGetOrUpdate(key, Counter::new, Counter::inc);
-     * }</pre>
-     *
-     * <p>The two-call form leaves a {@code null} on the caller's happy path, and the {@code null}
-     * only ever appears once the table is <b>at capacity</b> -- so {@code
-     * tryGetOrCreateOrNull(...).inc()} reads fine, tests fine, and throws in production under
-     * cardinality pressure. Fusing the update keeps that reference inside the table: at capacity
-     * the update is skipped and {@code false} is returned, which a counter caller can safely ignore
-     * or check deliberately.
-     *
-     * <p>No extra work versus doing it by hand -- the hash is still computed once, by the delegated
-     * {@link #tryGetOrCreateOrNull}.
-     */
-    public boolean tryGetOrUpdate(
-        @Nullable K key,
-        @Nonnull Function<? super K, ? extends TEntry> creator,
-        @Nonnull Consumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreateOrNull(key, creator);
-      if (entry == null) {
-        return false;
-      }
-      updater.accept(entry);
-      return true;
-    }
-
-    /**
-     * Context-passing {@link #tryGetOrUpdate}, for updates that need a value the entry doesn't
-     * carry. {@code c -> c.add(n)} captures {@code n} and allocates a lambda per call; passing
-     * {@code n} as {@code context} against a non-capturing {@link BiConsumer} (typically a {@code
-     * static final}) does not.
-     */
-    public <C> boolean tryGetOrUpdate(
-        @Nullable K key,
-        @Nonnull Function<? super K, ? extends TEntry> creator,
-        C context,
-        @Nonnull BiConsumer<? super C, ? super TEntry> updater) {
-      TEntry entry = tryGetOrCreateOrNull(key, creator);
-      if (entry == null) {
-        return false;
-      }
-      updater.accept(context, entry);
-      return true;
-    }
-
-    /**
-     * Primitive-{@code long} {@link #tryGetOrUpdate}, for the accumulate-a-count shape:
-     *
-     * <pre>{@code
-     * private static final ObjLongConsumer<Counter> ADD = (c, n) -> c.count += n;
-     * table.tryGetOrUpdate(key, Counter::new, n, ADD);
-     * }</pre>
-     *
-     * <p>The generic context overload would box {@code n} on every call; this one does not. Note
-     * the argument order is {@code (entry, value)} -- {@link ObjLongConsumer}'s, not the {@code
-     * (context, entry)} of the {@link BiConsumer} overload.
-     */
-    public boolean tryGetOrUpdate(
-        @Nullable K key,
-        @Nonnull Function<? super K, ? extends TEntry> creator,
-        long context,
-        @Nonnull ObjLongConsumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreateOrNull(key, creator);
-      if (entry == null) {
-        return false;
-      }
-      updater.accept(entry, context);
-      return true;
-    }
-
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       Hashtable.forEach(this.buckets, consumer);
     }
@@ -791,46 +713,6 @@ public final class Hashtable {
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
-    }
-
-    /**
-     * Two-key analogue of {@link D1#tryGetOrUpdate(Object, Function, Consumer)}: applies {@code
-     * updater} to the entry for {@code (key1, key2)}, creating one if absent, and returns whether
-     * the update happened. Returns {@code false} without updating when the pair is absent and the
-     * table is at capacity. See the single-key form for why fusing the update is preferred over
-     * {@code tryGetOrCreateOrNull(...)} followed by a dereference.
-     */
-    public boolean tryGetOrUpdate(
-        @Nullable K1 key1,
-        @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        @Nonnull Consumer<? super TEntry> updater) {
-      TEntry entry = tryGetOrCreateOrNull(key1, key2, creator);
-      if (entry == null) {
-        return false;
-      }
-      updater.accept(entry);
-      return true;
-    }
-
-    /**
-     * Context-passing {@link #tryGetOrUpdate(Object, Object, BiFunction, Consumer)}, for updates
-     * that need a value the entry doesn't carry. Pass a non-capturing {@link BiConsumer} (typically
-     * a {@code static final}) plus its side-band state as {@code context} to avoid allocating a
-     * capturing lambda per call.
-     */
-    public <C> boolean tryGetOrUpdate(
-        @Nullable K1 key1,
-        @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        C context,
-        @Nonnull BiConsumer<? super C, ? super TEntry> updater) {
-      TEntry entry = tryGetOrCreateOrNull(key1, key2, creator);
-      if (entry == null) {
-        return false;
-      }
-      updater.accept(context, entry);
-      return true;
     }
 
     public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
