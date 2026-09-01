@@ -107,7 +107,7 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     verify(healthMetrics, never()).onFailedSend(anyInt(), anyInt(), any());
     verify(healthMetrics, atLeast(0)).onSend(anyInt(), anyInt(), any());
     verify(healthMetrics, atLeast(0)).onSerialize(anyInt());
-    verify(healthMetrics, atLeast(0)).onFailedPublish(anyInt(), anyInt());
+    verify(healthMetrics, never()).onFailedPublish(anyInt(), anyInt());
     verifyNoMoreInteractions(healthMetrics);
   }
 }

@@ -15,7 +15,6 @@ import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -49,13 +48,11 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
+    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
+        sharedCommunicationObjects.featuresDiscovery(Config.get());
     try (DefaultDataStreamsMonitoring dataStreams =
         new DefaultDataStreamsMonitoring(
-            sink,
-            sharedCommunicationObjects.featuresDiscovery(Config.get()),
-            timeSource,
-            () -> traceConfig,
-            Config.get())) {
+            sink, ddAgentFeaturesDiscovery, timeSource, () -> traceConfig, Config.get())) {
 
       dataStreams.start();
       DataStreamsTags tags =
@@ -63,10 +60,10 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
       dataStreams.add(
           new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
       timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds());
-      invokeReport(dataStreams);
+      dataStreams.report();
+      dataStreams.report();
 
-      assertTrue(sharedCommunicationObjects.featuresDiscovery(Config.get()).supportsDataStreams());
-      // conditions.eventually { assert listener.events.size() == 1 }
+      assertTrue(ddAgentFeaturesDiscovery.supportsDataStreams());
       waitForEvents(listener, 1);
       assertEquals(OK, listener.events.get(0));
     }
@@ -83,13 +80,6 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
       }
     }
     assertEquals(expectedCount, listener.events.size());
-  }
-
-  private static void invokeReport(DefaultDataStreamsMonitoring dataStreams)
-      throws ReflectiveOperationException {
-    Method report = DefaultDataStreamsMonitoring.class.getDeclaredMethod("report");
-    report.setAccessible(true);
-    report.invoke(dataStreams);
   }
 
   static class BlockingListener implements EventListener {

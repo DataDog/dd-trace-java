@@ -1,5 +1,7 @@
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.ProtocolVersion.V1_0;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -174,8 +176,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     beforeTest(protocol);
 
     RemoteApi.Response response =
-        api.sendSerializedTraces(
-            prepareRequest(Collections.singletonList(Collections.singletonList(span)), mapper));
+        api.sendSerializedTraces(prepareRequest(singletonList(singletonList(span)), mapper));
     assertFalse(response.response().isEmpty());
     assertFalse(response.exception().isPresent());
     assertTrue(response.status().isPresent());
@@ -197,8 +198,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     beforeTest(protocol);
 
     RemoteApi.Response response =
-        unixDomainSocketApi.sendSerializedTraces(
-            prepareRequest(Collections.<List<DDSpan>>emptyList(), mapper));
+        unixDomainSocketApi.sendSerializedTraces(prepareRequest(emptyList(), mapper));
     assertFalse(response.response().isEmpty());
     assertFalse(response.exception().isPresent());
     assertTrue(response.status().isPresent());
@@ -221,7 +221,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
 
     RemoteApi.Response response =
         unixDomainSocketApi.sendSerializedTraces(
-            prepareRequest(Collections.singletonList(Collections.singletonList(span)), mapper));
+            prepareRequest(singletonList(singletonList(span)), mapper));
     assertFalse(response.response().isEmpty());
     assertFalse(response.exception().isPresent());
     assertTrue(response.status().isPresent());
