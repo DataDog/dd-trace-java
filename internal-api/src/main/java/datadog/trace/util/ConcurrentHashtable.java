@@ -35,6 +35,25 @@ import javax.annotation.concurrent.ThreadSafe;
  * #bucketAt}, and {@link #forEach} are lock-free. {@link #removeIf}, {@link #drain}, and {@link
  * #clear} acquire the table write lock internally. Follow each mutation helper's locking contract
  * and treat the monitor returned by the lock helpers as opaque.
+ *
+ * <h2>Choosing between the three tables</h2>
+ *
+ * <ol>
+ *   <li><b>Concurrent access?</b> Use this class -- the only thread-safe one of the three. {@code
+ *       FlatHashtable} is racy by design, and {@code Hashtable} is not thread-safe at all.
+ *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
+ *       -- once per cycle, per request, or built and then discarded -- wants {@code FlatHashtable},
+ *       whose open addressing has no tombstones and so offers no removal beyond clearing. A table
+ *       whose entries come and go independently wants the chained {@code Hashtable}, which removes
+ *       and evicts in place.
+ * </ol>
+ *
+ * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
+ * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
+ * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
+ * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
+ * cycle (evolving -- {@code Hashtable}) against one that clears every entry each time it reports
+ * (resets -- {@code FlatHashtable}).
  */
 public final class ConcurrentHashtable {
   private ConcurrentHashtable() {}
