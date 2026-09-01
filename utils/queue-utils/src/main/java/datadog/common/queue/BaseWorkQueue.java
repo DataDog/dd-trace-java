@@ -455,8 +455,10 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   @Override
   public final int size() {
-    // Claimants at the boundary can transiently drive the count below zero before backing out.
-    return (int) Math.max(0, capacity - permits(state.get()));
+    // Claimants at the boundary can transiently drive the permit count out of range in either
+    // direction -- below zero before they back out, and above the count anyone was granted -- so
+    // the report is clamped rather than allowed to say more than capacity or less than nothing.
+    return (int) Math.min(capacity, Math.max(0, capacity - permits(state.get())));
   }
 
   @Override

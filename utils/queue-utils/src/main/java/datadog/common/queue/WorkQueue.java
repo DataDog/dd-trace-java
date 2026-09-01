@@ -326,6 +326,17 @@ public interface WorkQueue<T> {
    */
   <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer);
 
+  /**
+   * An O(1) count of the places currently spent: elements held, plus places claimed by producers
+   * that have not stored into the queue yet.
+   *
+   * <p>A snapshot, and never outside {@code 0..capacity}: claimants racing at the boundary can
+   * transiently spend past the bound before backing out, and the report is clamped rather than
+   * allowed to show that. So a caller may see {@code capacity} on a queue that is about to have
+   * room, but never a number it cannot act on.
+   *
+   * @return how much of the bound is in use, from zero to the capacity the queue was built with
+   */
   int size();
 
   /**

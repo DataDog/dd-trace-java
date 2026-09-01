@@ -549,12 +549,15 @@ class WorkQueueContractTest {
    * that encoding could leak are worth pinning: applying it twice, reading a size through it, and
    * giving places back underneath it.
    *
-   * <p>These pin the behaviour; none of them currently catches its own implementation slip, and it
-   * is worth being straight about why. The offset is a multiple of 2^32, so {@code size()}'s cast
-   * back to {@code int} erases the bias whether or not the unbiasing is there; the offset is far
-   * enough from either threshold that neither repeated closes nor a full queue's worth of returned
-   * places can reach it. They are guards against a future change to the offset or to the width of
-   * either, which is when all three become reachable at once.
+   * <p>Two of the three pin behaviour they cannot currently catch a slip in, and it is worth being
+   * straight about why: the offset is far enough from either threshold that neither repeated closes
+   * nor a full queue's worth of returned places can reach it. They are guards against a future
+   * change to the offset or to the width of either.
+   *
+   * <p>The size case is different now that {@code size()} clamps to the capacity. The offset is a
+   * multiple of 2^32, so the cast back to {@code int} used to erase the bias whether or not the
+   * unbiasing was there, and this test passed either way; a clamped report turns a missing unbias
+   * into a full-looking queue instead, which is a number this test rejects.
    */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
