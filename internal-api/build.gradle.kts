@@ -281,6 +281,7 @@ dependencies {
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.assertj.core)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
