@@ -299,8 +299,12 @@ public class AgentInstaller {
     // Avoid invoking the instrumented metafactory while installing its transformer.
     return new LambdaTransformer() {
       @Override
-      public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
-        TypePoolFacade.beginLambdaTransform();
+      public byte[] transform(
+          String slashClassName,
+          Class<?> targetClass,
+          byte[] classBytes,
+          String interfaceClassName) {
+        TypePoolFacade.beginLambdaTransform(interfaceClassName);
         try {
           return classFileTransformer.transform(
               targetClass.getClassLoader(),

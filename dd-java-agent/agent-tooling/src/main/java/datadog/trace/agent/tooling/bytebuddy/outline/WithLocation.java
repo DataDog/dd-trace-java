@@ -9,4 +9,9 @@ public interface WithLocation {
   URL getClassFile();
 
   byte[] getBytecode();
+
+  /** Whether details for this type may be shared by symbolic name. */
+  default boolean isCacheable() {
+    return true;
+  }
 }

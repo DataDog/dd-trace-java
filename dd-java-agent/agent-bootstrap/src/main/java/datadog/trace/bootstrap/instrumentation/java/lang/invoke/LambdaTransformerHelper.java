@@ -47,7 +47,9 @@ public final class LambdaTransformerHelper {
       }
       TRANSFORMING.set(Boolean.TRUE);
       try {
-        byte[] result = transformer.transform(lambdaClassName, targetClass, classBytes);
+        byte[] result =
+            transformer.transform(
+                lambdaClassName, targetClass, classBytes, interfaceClass.getName());
         if (result == null) {
           log.debug("Lambda {} not transformed", lambdaClassName);
           return classBytes;

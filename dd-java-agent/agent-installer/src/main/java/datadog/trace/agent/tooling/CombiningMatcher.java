@@ -2,9 +2,11 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.time.TimeUtils;
 import datadog.trace.util.AgentTaskScheduler;
@@ -12,8 +14,10 @@ import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -45,13 +49,22 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
 
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
+  private final Map<String, LambdaMatchRecorder[]> lambdaMatchers;
 
   private volatile boolean deferring;
 
   CombiningMatcher(
-      Instrumentation instrumentation, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+      Instrumentation instrumentation,
+      BitSet knownTypesMask,
+      List<MatchRecorder> matchers,
+      Map<String, List<LambdaMatchRecorder>> lambdaMatchers) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
+    Map<String, LambdaMatchRecorder[]> lambdaMatchersByInterface = new HashMap<>();
+    lambdaMatchers.forEach(
+        (name, recorders) ->
+            lambdaMatchersByInterface.put(name, recorders.toArray(new LambdaMatchRecorder[0])));
+    this.lambdaMatchers = unmodifiableMap(lambdaMatchersByInterface);
 
     if (DEFER_MATCHING) {
       scheduleResumeMatching(instrumentation, InstrumenterConfig.get().deferIntegrationsUntil());
@@ -75,6 +88,18 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     ids.clear();
 
     long fromTick = InstrumenterMetrics.tick();
+    String lambdaInterface = TypePoolFacade.lambdaInterface();
+    if (null != lambdaInterface) {
+      LambdaMatchRecorder[] recorders = lambdaMatchers.get(lambdaInterface);
+      if (null != recorders) {
+        for (LambdaMatchRecorder recorder : recorders) {
+          recorder.record(target, classLoader, ids);
+        }
+      }
+      InstrumenterMetrics.matchType(fromTick);
+      return !ids.isEmpty();
+    }
+
     knownTypesIndex.apply(target.getName(), knownTypesMask, ids);
     if (ids.isEmpty()) {
       InstrumenterMetrics.knownTypeMiss(fromTick);

@@ -29,6 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class RunnableInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
+        Instrumenter.ForLambda,
         Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice {
 
@@ -39,6 +40,16 @@ public final class RunnableInstrumentation extends InstrumenterModule.ContextTra
   @Override
   public String hierarchyMarkerType() {
     return null; // bootstrap type
+  }
+
+  @Override
+  public String lambdaInterface() {
+    return Runnable.class.getName();
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> lambdaMatcher() {
+    return notExcludedByName(RUNNABLE);
   }
 
   @Override
