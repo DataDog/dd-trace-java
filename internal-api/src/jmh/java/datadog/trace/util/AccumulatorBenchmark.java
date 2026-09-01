@@ -87,6 +87,33 @@ import org.openjdk.jmh.infra.Blackhole;
  * write traffic concentrates on a few hot counters (favors thread-sharding) or spreads across many
  * (favors counter-sharding) -- not measured here, and worth checking against the real migration
  * targets before treating either number as the general answer.
+ *
+ * <p><b>{@code typed*}: what does the {@link Accumulator}/{@link Accumulator.Stripe}/{@link
+ * Accumulator.Counts} wrapping actually cost over calling {@link Accumulator.EmbeddingSupport}
+ * directly?</b> {@code typedIncrement}/{@code typedUpdate} pair against {@code
+ * accumulatorIncrement} (the same underlying call), and {@code typedAccumulateAndReset} pairs
+ * against {@code accumulatorAccumulateAnd}. <code>
+ * AccumulatorBenchmark.accumulatorIncrement_lowContention        avgt    6   0.010 ±  0.001  us/op
+ * AccumulatorBenchmark.typedIncrement_lowContention               avgt    6   0.010 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_highContention        avgt    6   0.033 ±  0.008  us/op
+ * AccumulatorBenchmark.typedIncrement_highContention               avgt    6   0.025 ±  0.015  us/op
+ * AccumulatorBenchmark.typedUpdate_lowContention                  avgt    6   0.010 ±  0.001  us/op
+ * AccumulatorBenchmark.typedUpdate_highContention                 avgt    6   0.037 ±  0.017  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAnd_lowContention     avgt    6   0.161 ±  0.003  us/op
+ * AccumulatorBenchmark.typedAccumulateAndReset_lowContention      avgt    6   0.164 ±  0.005  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAnd_highContention    avgt    6  17.399 ±  3.091  us/op
+ * AccumulatorBenchmark.typedAccumulateAndReset_highContention     avgt    6  12.666 ±  1.272  us/op
+ * </code> {@code typedIncrement}/{@code typedUpdate} track the raw calls within noise at both
+ * contention levels -- the field-load indirection through the {@link Accumulator} instance and the
+ * fresh {@link Accumulator.Stripe} constructed under {@code update}'s held lock both disappear,
+ * consistent with a small, non-capturing mutator letting escape analysis scalar-replace the {@code
+ * Stripe}. {@code typedAccumulateAndReset} also tracks the raw drain within noise at low contention
+ * (0.164 vs 0.161 us/op) -- the one-{@link Accumulator.Counts}-object-per-drain allocation it's
+ * documented to pay doesn't show up at this granularity. The high-contention gap in the other
+ * direction (12.666 vs 17.399) is not a real typed-vs-raw effect -- wrapping an already-drained
+ * array can only add cost, never remove it -- it's the same run-to-run lock-contention noise this
+ * exact measurement already shows above (13.431, 15.515, 17.399 us/op across three otherwise
+ * identical runs). Net: the wrapper's cost was not measurable in this run.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
