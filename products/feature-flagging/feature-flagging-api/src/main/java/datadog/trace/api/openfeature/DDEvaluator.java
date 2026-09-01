@@ -121,9 +121,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
+    final long initializationStarted = System.nanoTime();
     FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit) || hasConfiguration();
+    final long elapsedNanos = System.nanoTime() - initializationStarted;
+    return initializationLatch.await(
+            remainingTimeoutNanos(timeout, unit, elapsedNanos), TimeUnit.NANOSECONDS)
+        || hasConfiguration();
+  }
+
+  static long remainingTimeoutNanos(
+      final long timeout, final TimeUnit unit, final long elapsedNanos) {
+    final long timeoutNanos = Math.max(0, unit.toNanos(timeout));
+    return Math.max(0, timeoutNanos - elapsedNanos);
   }
 
   @Override
