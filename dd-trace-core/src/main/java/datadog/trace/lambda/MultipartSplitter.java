@@ -1,10 +1,7 @@
 package datadog.trace.lambda;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 /**
  * Splits a {@code multipart/*} body into its parts and reads {@code Content-Type} / {@code
@@ -20,21 +17,22 @@ final class MultipartSplitter {
    * One part of a multipart body. Content is an index range into the body passed to {@link #split}.
    */
   static final class Part {
-    private final Map<String, String> headers;
+    /** {@code null} when the part declares no such header. Duplicates keep the last seen value. */
+    final String contentDisposition;
+
+    final String contentType;
     final int contentStart;
     final int contentEnd;
 
-    private Part(final Map<String, String> headers, final int contentStart, final int contentEnd) {
-      this.headers = headers;
+    private Part(
+        final String contentDisposition,
+        final String contentType,
+        final int contentStart,
+        final int contentEnd) {
+      this.contentDisposition = contentDisposition;
+      this.contentType = contentType;
       this.contentStart = contentStart;
       this.contentEnd = contentEnd;
-    }
-
-    /**
-     * @param lowercaseName the header name, lowercased by the caller
-     */
-    String header(final String lowercaseName) {
-      return headers.get(lowercaseName);
     }
   }
 
@@ -64,7 +62,10 @@ final class MultipartSplitter {
         position = nextDelimiter(body, delimiter, afterDelimiter);
         continue;
       }
-      final Map<String, String> headers = new HashMap<>(4);
+      // Only these two headers are ever read, so the others are matched and dropped rather than
+      // collected: a part declaring thousands of them costs nothing but the scan.
+      String contentDisposition = null;
+      String contentType = null;
       int cursor = headerStart;
       boolean headersComplete = false;
       int malformedPartEnd = -1;
@@ -85,7 +86,15 @@ final class MultipartSplitter {
           cursor = newline < 0 ? length : newline + 1;
           break;
         }
-        addHeader(headers, body, cursor, trimmed);
+        final String disposition = headerValue(body, cursor, trimmed, "Content-Disposition");
+        if (disposition != null) {
+          contentDisposition = disposition;
+        } else {
+          final String type = headerValue(body, cursor, trimmed, "Content-Type");
+          if (type != null) {
+            contentType = type;
+          }
+        }
         if (newline < 0) {
           cursor = length;
           break;
@@ -103,7 +112,7 @@ final class MultipartSplitter {
         break;
       }
       final int next = nextDelimiter(body, delimiter, cursor);
-      parts.add(new Part(headers, cursor, contentEnd(body, cursor, next)));
+      parts.add(new Part(contentDisposition, contentType, cursor, contentEnd(body, cursor, next)));
       position = next;
     }
     return parts;
@@ -206,7 +215,7 @@ final class MultipartSplitter {
   private static int skipOptionalWhitespace(final String headerValue, final int from) {
     int i = from;
     final int length = headerValue.length();
-    while (i < length && (headerValue.charAt(i) == ' ' || headerValue.charAt(i) == '\t')) {
+    while (i < length && isOptionalWhitespace(headerValue.charAt(i))) {
       i++;
     }
     return i;
@@ -243,7 +252,7 @@ final class MultipartSplitter {
   private static int lineStart(final String body, final int from) {
     int i = from;
     final int length = body.length();
-    while (i < length && (body.charAt(i) == ' ' || body.charAt(i) == '\t')) {
+    while (i < length && isOptionalWhitespace(body.charAt(i))) {
       i++;
     }
     if (i < length && body.charAt(i) == '\r') {
@@ -267,17 +276,46 @@ final class MultipartSplitter {
     return end;
   }
 
-  private static void addHeader(
-      final Map<String, String> headers, final String body, final int from, final int to) {
+  /**
+   * Reads one header line, without allocating unless the name is the one asked for.
+   *
+   * @param from the first index of the line, {@code to} the index past its last character, the
+   *     trailing {@code \r} already excluded
+   * @param name the header name to match, case-insensitively
+   * @return the trimmed header value, or {@code null} when the line declares another header or is
+   *     not a header line at all — there is no colon, and obs-fold is unsupported
+   */
+  private static String headerValue(
+      final String body, final int from, final int to, final String name) {
+    int colon = -1;
     for (int i = from; i < to; i++) {
       if (body.charAt(i) == ':') {
-        final String name = body.substring(from, i).trim().toLowerCase(Locale.ROOT);
-        if (!name.isEmpty()) {
-          headers.put(name, body.substring(i + 1, to).trim());
-        }
-        return;
+        colon = i;
+        break;
       }
     }
-    // No colon: not a header line, and no obs-fold support, so drop it
+    if (colon < 0) {
+      return null;
+    }
+    int start = from;
+    int end = colon;
+    while (start < end && isOptionalWhitespace(body.charAt(start))) {
+      start++;
+    }
+    while (end > start && isOptionalWhitespace(body.charAt(end - 1))) {
+      end--;
+    }
+    // The canonical spelling is tried first: its comparison is intrinsified where the
+    // case-insensitive one walks char by char, and it is what every real client sends.
+    if (end - start != name.length()
+        || !(body.regionMatches(start, name, 0, name.length())
+            || body.regionMatches(true, start, name, 0, name.length()))) {
+      return null;
+    }
+    return body.substring(colon + 1, to).trim();
+  }
+
+  private static boolean isOptionalWhitespace(final char c) {
+    return c == ' ' || c == '\t';
   }
 }

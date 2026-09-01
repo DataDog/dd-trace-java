@@ -162,15 +162,10 @@ final class LambdaEventParser {
         }
 
         if (bodyString != null) {
-          String contentType = headers.get("content-type");
-
-          // If JSON content-type or unknown, attempt JSON parsing.
-          if (contentType == null || ContentTypeBodyParser.isJsonLike(contentType)) {
-            Object parsed = parseBodyAsJson(bodyString);
-            body = parsed != null ? parsed : bodyString;
-          } else {
-            body = bodyString;
-          }
+          // A response body is only ever structured as JSON, never as urlencoded or multipart, but
+          // the rule deciding whether to try is shared with the request path so the two cannot
+          // drift
+          body = ContentTypeBodyParser.jsonOrRaw(bodyString, headers.get("content-type"));
         }
       }
 
@@ -782,33 +777,11 @@ final class LambdaEventParser {
             LambdaTriggerType.UNKNOWN,
             Collections.emptyMap(),
             Collections.emptyMap(),
-            null);
-
-    LambdaRequestData(
-        Map<String, String> headers,
-        String method,
-        String path,
-        String sourceIp,
-        Integer sourcePort,
-        LambdaTriggerType triggerType,
-        Map<String, String> pathParameters,
-        Map<String, List<String>> queryParameters,
-        Object body) {
-      this(
-          headers,
-          method,
-          path,
-          sourceIp,
-          sourcePort,
-          triggerType,
-          pathParameters,
-          queryParameters,
-          body,
-          null,
-          null,
-          null,
-          Collections.emptyList());
-    }
+            null,
+            null,
+            null,
+            null,
+            Collections.emptyList());
 
     LambdaRequestData(
         Map<String, String> headers,

@@ -1,11 +1,8 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.lambda.ContentTypeBodyParser.MAX_DEPTH;
-import static datadog.trace.lambda.ContentTypeBodyParser.MAX_ELEMENTS;
 import static datadog.trace.lambda.ContentTypeBodyParser.MAX_PARTS;
 import static datadog.trace.lambda.ContentTypeBodyParser.dispatch;
-import static datadog.trace.lambda.ContentTypeBodyParser.parseBody;
-import static datadog.trace.lambda.ContentTypeBodyParser.parseMultipart;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -20,10 +17,11 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 class ContentTypeBodyParserTest {
+
+  private static final String MULTIPART = "multipart/form-data; boundary=outer";
+  private static final String URL_ENCODED = "application/x-www-form-urlencoded";
 
   @ParameterizedTest(name = "[{index}] {1} -> {2}")
   @CsvSource(
@@ -32,7 +30,10 @@ class ContentTypeBodyParserTest {
         // content type absent or blank: best-effort JSON, as before content-type dispatch existed
         "{\"a\":1}          |                                   | MAP",
         "{\"a\":1}          | '   '                             | MAP",
+        "{\"a\":1}          | ''                                | MAP",
         "not json           |                                   | STRING",
+        // a header holding nothing but parameters declares no type either
+        "{\"a\":1}          | '; charset=utf-8'                 | MAP",
         // JSON, including suffixed subtypes and parameters
         "{\"a\":1}          | application/json                  | MAP",
         "{\"a\":1}          | application/json; charset=utf-8   | MAP",
@@ -48,6 +49,8 @@ class ContentTypeBodyParserTest {
         // a multipart body whose boundary happens to contain "json" must still reach the multipart
         // parser rather than being handed to the JSON parser
         "not multipart      | multipart/x; boundary=--json      | STRING",
+        // a json-ish subtype wins over the multipart branch, whatever the type says
+        "{\"a\":1}          | multipart/json                    | MAP",
         // text/*: never structured, even when it holds JSON. A JSON parse of "12345" would yield a
         // Double, which no string rule can match
         "{\"a\":1}          | text/plain                        | STRING",
@@ -69,16 +72,6 @@ class ContentTypeBodyParserTest {
     } else {
       assertEquals(body, parsed);
     }
-  }
-
-  @ParameterizedTest
-  @NullAndEmptySource
-  @ValueSource(strings = {" "})
-  void parsesJsonWhenContentTypeIsAbsent(String contentType) {
-    Object parsed = parseBody("{\"user\":\"admin\"}", contentType);
-
-    assertInstanceOf(Map.class, parsed);
-    assertEquals("admin", ((Map<?, ?>) parsed).get("user"));
   }
 
   @Test
@@ -103,7 +96,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void parsesUrlEncodedIntoAMultimap() {
-    Map<String, List<String>> parsed = urlEncoded("user=admin&role=root");
+    Map<String, Object> parsed = urlEncoded("user=admin&role=root");
 
     assertEquals(singletonList("admin"), parsed.get("user"));
     assertEquals(singletonList("root"), parsed.get("role"));
@@ -117,7 +110,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void decodesUrlEncodedPercentEscapesAndPluses() {
-    Map<String, List<String>> parsed = urlEncoded("na+me=hello+world&q=%7B%22a%22%3A1%7D");
+    Map<String, Object> parsed = urlEncoded("na+me=hello+world&q=%7B%22a%22%3A1%7D");
 
     assertEquals(singletonList("hello world"), parsed.get("na me"));
     assertEquals(singletonList("{\"a\":1}"), parsed.get("q"));
@@ -125,7 +118,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void keepsUndecodableUrlEncodedTokensAsIs() {
-    Map<String, List<String>> parsed = urlEncoded("a=%&%=b");
+    Map<String, Object> parsed = urlEncoded("a=%&%=b");
 
     assertEquals(singletonList("%"), parsed.get("a"));
     assertEquals(singletonList("b"), parsed.get("%"));
@@ -133,7 +126,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void treatsValuelessUrlEncodedPairsAsEmptyValues() {
-    Map<String, List<String>> parsed = urlEncoded("flag&other=&last");
+    Map<String, Object> parsed = urlEncoded("flag&other=&last");
 
     assertEquals(singletonList(""), parsed.get("flag"));
     assertEquals(singletonList(""), parsed.get("other"));
@@ -142,7 +135,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void skipsEmptyUrlEncodedPairsAndNames() {
-    Map<String, List<String>> parsed = urlEncoded("&&=orphan&&a=1&&");
+    Map<String, Object> parsed = urlEncoded("&&=orphan&&a=1&&");
 
     assertEquals(singletonList("1"), parsed.get("a"));
     assertEquals(1, parsed.size());
@@ -159,19 +152,19 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
-  void parsesUrlEncodedPairsUpToMaxElements() {
+  void parsesUrlEncodedPairsUpToThePartAllowance() {
     StringBuilder body = new StringBuilder();
-    for (int i = 0; i < MAX_ELEMENTS; i++) {
+    for (int i = 0; i < MAX_PARTS; i++) {
       body.append(i == 0 ? "" : "&").append('k').append(i).append("=v");
     }
 
-    assertEquals(MAX_ELEMENTS, urlEncoded(body.toString()).size());
+    assertEquals(MAX_PARTS, urlEncoded(body.toString()).size());
   }
 
   @Test
-  void keepsUrlEncodedBodyOverMaxElementsAsRawString() {
+  void keepsUrlEncodedBodyOverThePartAllowanceAsRawString() {
     StringBuilder body = new StringBuilder();
-    for (int i = 0; i < MAX_ELEMENTS; i++) {
+    for (int i = 0; i < MAX_PARTS; i++) {
       body.append('k').append(i).append("=v&");
     }
     body.append("attack=payload");
@@ -185,7 +178,7 @@ class ContentTypeBodyParserTest {
   @Test
   void countsNamelessUrlEncodedPairsTowardsTheCap() {
     StringBuilder body = new StringBuilder();
-    for (int i = 0; i < MAX_ELEMENTS; i++) {
+    for (int i = 0; i < MAX_PARTS; i++) {
       body.append("=v&");
     }
     body.append("a=1");
@@ -212,35 +205,10 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
-  void skipsMultipartFileParts() {
-    Map<String, Object> fields = multipart(field("user", "admin"), file("upload", "f.txt", "data"));
-
-    assertEquals("admin", fields.get("user"));
-    assertEquals(1, fields.size());
-  }
-
-  @Test
-  void skipsMultipartPartsWithAnEmptyFilename() {
-    // An untouched file input: browsers send filename="", which is a file part all the same
-    Map<String, Object> fields = multipart(field("user", "admin"), file("upload", "", ""));
-
-    assertEquals(1, fields.size());
-  }
-
-  @Test
-  void keepsAFileOnlyMultipartBodyAsARawString() {
-    // A raw string still matches string rules; an empty map would tell the WAF the body was empty
-    String body = outer(file("upload", "f.txt", "data"));
+  void skipsMultipartPartsWithoutAName() {
+    String body = outer(part("form-data", "novalue"), part("form-data; name=", "empty"));
 
     assertEquals(body, parseBody(body, MULTIPART));
-  }
-
-  @Test
-  void skipsMultipartPartsWithoutAName() {
-    assertEquals(
-        outer(part("form-data", "novalue"), part("form-data; name=", "empty")),
-        parseBody(
-            outer(part("form-data", "novalue"), part("form-data; name=", "empty")), MULTIPART));
   }
 
   @Test
@@ -278,7 +246,9 @@ class ContentTypeBodyParserTest {
 
   @Test
   void keepsMultipartPartsWithAnEmptyContentTypeAsRawStrings() {
-    Map<String, Object> fields = multipart(outer(part("form-data; name=\"amount\"", "", "12345")));
+    // Only the empty case is worth covering: MultipartSplitter trims header values, so a
+    // whitespace-only Content-Type reaches the parser as "" and not as its original spelling
+    Map<String, Object> fields = multipart(part("form-data; name=\"amount\"", "", "12345"));
 
     assertEquals("12345", fields.get("amount"));
   }
@@ -302,53 +272,48 @@ class ContentTypeBodyParserTest {
 
   @Test
   void doesNotTakeAFieldNameThatForgesAFilenameForAFilePart() {
-    Map<String, Object> fields =
-        multipart(outer(part("form-data; name=\"; filename=x\"", "payload")));
+    Map<String, Object> fields = multipart(part("form-data; name=\"; filename=x\"", "payload"));
 
     assertEquals("payload", fields.get("; filename=x"));
   }
 
   @Test
-  @SuppressWarnings("unchecked")
   void parsesNestedMultipartBodiesAndSkipsTheirFileParts() {
     String inner = body("inner", field("nested", "value"), file("upload", "f.txt", "data"));
     String nesting = outer(part("form-data; name=group", "multipart/mixed; boundary=inner", inner));
 
-    Map<String, Object> fields = (Map<String, Object>) parseBody(nesting, MULTIPART);
+    Map<String, Object> fields = asMap(parseBody(nesting, MULTIPART));
 
     assertEquals(singletonMap("nested", "value"), fields.get("group"));
   }
 
   @Test
-  void sharesTheElementAllowanceAcrossNestingLevels() {
+  void sharesThePartAllowanceBetweenUrlEncodedParametersAndMultipartParts() {
     // Two thirds of the allowance each: the first part fits, the second cannot, which only holds if
     // both draw from one allowance rather than from a per-part counter
-    String urlEncoded = urlEncodedPairs(MAX_ELEMENTS * 2 / 3);
+    String urlEncoded = urlEncodedPairs(MAX_PARTS * 2 / 3);
     Map<String, Object> fields =
         multipart(
-            outer(
-                part("form-data; name=first", URL_ENCODED, urlEncoded),
-                part("form-data; name=second", URL_ENCODED, urlEncoded)));
+            part("form-data; name=first", URL_ENCODED, urlEncoded),
+            part("form-data; name=second", URL_ENCODED, urlEncoded));
 
     assertInstanceOf(Map.class, fields.get("first"));
     assertEquals(urlEncoded, fields.get("second"));
   }
 
   @Test
-  void spendsTheElementAllowanceOnlyOnPairsItReads() {
-    // Just under the allowance twice over would exceed it if the whole body were charged upfront
-    String urlEncoded = urlEncodedPairs(MAX_ELEMENTS / 2);
+  void spendsThePartAllowanceOnlyOnPairsItReads() {
+    // Half the allowance each, less the two multipart parts carrying them: together they fit
+    // exactly, which they could not if either body were charged upfront
+    String urlEncoded = urlEncodedPairs((MAX_PARTS - 2) / 2);
     Map<String, Object> fields =
         multipart(
-            outer(
-                part("form-data; name=first", URL_ENCODED, urlEncoded),
-                part("form-data; name=second", URL_ENCODED, urlEncoded)));
+            part("form-data; name=first", URL_ENCODED, urlEncoded),
+            part("form-data; name=second", URL_ENCODED, urlEncoded));
 
     assertInstanceOf(Map.class, fields.get("first"));
     assertInstanceOf(Map.class, fields.get("second"));
   }
-
-  private static final String URL_ENCODED = "application/x-www-form-urlencoded";
 
   private static String urlEncodedPairs(int count) {
     StringBuilder body = new StringBuilder();
@@ -360,7 +325,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void parsesMultipartPartsUpToThePartAllowance() {
-    assertEquals(MAX_PARTS, multipart(outer(fieldParts(MAX_PARTS))).size());
+    assertEquals(MAX_PARTS, multipart(fieldParts(MAX_PARTS)).size());
   }
 
   @Test
@@ -378,7 +343,7 @@ class ContentTypeBodyParserTest {
     // spent one, so it can no longer be read and degrades to a raw string on its own
     String inner = body("inner", fieldParts(MAX_PARTS));
     Map<String, Object> fields =
-        multipart(outer(part("form-data; name=group", "multipart/mixed; boundary=inner", inner)));
+        multipart(part("form-data; name=group", "multipart/mixed; boundary=inner", inner));
 
     assertEquals(inner, fields.get("group"));
   }
@@ -389,13 +354,6 @@ class ContentTypeBodyParserTest {
       parts[i] = field("k" + i, "v");
     }
     return parts;
-  }
-
-  @Test
-  void keepsRawStringOnceMaxDepthIsReachedInAMultipartPart() {
-    String body = outer(field("user", "admin"));
-
-    assertEquals(body, dispatch(body, MULTIPART, MAX_DEPTH, new ParseContext()));
   }
 
   @Test
@@ -412,19 +370,38 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
-  void keepsMultipartBodyAboveTheSizeLimitAsRawString() {
+  void keepsABodyTheByteAllowanceCannotCoverAsRawString() {
     String body = outer(field("user", "admin"));
 
-    assertInstanceOf(
-        Map.class, parseMultipart(body, MULTIPART, 0, new ParseContext(), body.length()));
-    assertNull(parseMultipart(body, MULTIPART, 0, new ParseContext(), body.length() - 1));
+    assertInstanceOf(Map.class, parseBody(body, MULTIPART, new ParseContext(body.length())));
+    assertEquals(body, parseBody(body, MULTIPART, new ParseContext(body.length() - 1)));
   }
 
   @Test
-  void disablesMultipartParsingWhenTheSizeLimitIsZero() {
-    String body = outer(field("user", "admin"));
+  void chargesTheByteAllowanceWhateverTheContentType() {
+    // The allowance bounds reading, not multipart specifically, so a JSON body is charged too
+    String body = "{\"a\":1}";
 
-    assertNull(parseMultipart(body, MULTIPART, 0, new ParseContext(), 0));
+    assertInstanceOf(
+        Map.class, parseBody(body, "application/json", new ParseContext(body.length())));
+    assertEquals(body, parseBody(body, "application/json", new ParseContext(body.length() - 1)));
+  }
+
+  @Test
+  void sharesTheByteAllowanceAcrossNestingLevels() {
+    // Without a shared allowance a nested body is re-measured against a fresh allowance at every
+    // level, so one crafted body costs MAX_DEPTH times its own size to scan and copy
+    String inner = body("inner", field("deep", "v"));
+    String nested = outer(part("form-data; name=\"n\"", "multipart/mixed; boundary=inner", inner));
+
+    // enough for the outer body alone, one character short of also covering the nested one
+    ParseContext exhausted = new ParseContext(nested.length() + inner.length() - 1);
+    Map<String, Object> fields = asMap(parseBody(nested, MULTIPART, exhausted));
+    assertEquals(inner, fields.get("n"));
+
+    ParseContext sufficient = new ParseContext(nested.length() + inner.length());
+    Map<String, Object> parsed = asMap(parseBody(nested, MULTIPART, sufficient));
+    assertEquals("v", ((Map<?, ?>) parsed.get("n")).get("deep"));
   }
 
   @Test
@@ -437,7 +414,7 @@ class ContentTypeBodyParserTest {
 
     assertEquals(asList("cat.png", "report.pdf"), filenamesOf(body));
     // The file parts are not fields, so only the field survives into the body map
-    assertEquals(singletonMap("user", "admin"), multipart(body));
+    assertEquals(singletonMap("user", "admin"), multipartBody(body));
   }
 
   @Test
@@ -447,7 +424,7 @@ class ContentTypeBodyParserTest {
     String body = outer(file("avatar", "", "bytes"), field("user", "admin"));
 
     assertEquals(emptyList(), filenamesOf(body));
-    assertEquals(singletonMap("user", "admin"), multipart(body));
+    assertEquals(singletonMap("user", "admin"), multipartBody(body));
   }
 
   @Test
@@ -460,8 +437,9 @@ class ContentTypeBodyParserTest {
 
   @Test
   void reportsFilenamesEvenWhenTheBodyDegradesToARawString() {
-    // Nothing but file parts, so there is no field to report and the body stays a raw string.
-    // The filenames are then the only structured thing left to hand the WAF.
+    // Nothing but file parts, so there is no field to report. An empty map would tell the WAF the
+    // body was empty, so the raw string is kept, and the filenames are then the only structured
+    // thing left to hand it.
     String body = outer(file("avatar", "cat.png", "bytes"));
 
     assertEquals(body, parseBody(body, MULTIPART));
@@ -472,8 +450,8 @@ class ContentTypeBodyParserTest {
   void reportsNoFilenameWhenTheMultipartBodyIsNotParsed() {
     String body = outer(file("avatar", "cat.png", "bytes"));
 
-    ParseContext sizeCapped = new ParseContext();
-    assertNull(parseMultipart(body, MULTIPART, 0, sizeCapped, 0));
+    ParseContext sizeCapped = new ParseContext(body.length() - 1);
+    assertEquals(body, parseBody(body, MULTIPART, sizeCapped));
     assertEquals(emptyList(), sizeCapped.filenames());
 
     ParseContext noBoundary = new ParseContext();
@@ -487,16 +465,30 @@ class ContentTypeBodyParserTest {
     return context.filenames();
   }
 
-  private static final String MULTIPART = "multipart/form-data; boundary=outer";
+  private static Object parseBody(String body, String contentType) {
+    return parseBody(body, contentType, new ParseContext());
+  }
 
-  @SuppressWarnings("unchecked")
+  private static Object parseBody(String body, String contentType, ParseContext context) {
+    return ContentTypeBodyParser.parseBody(body, contentType, context);
+  }
+
+  /** Wraps the parts in a body with the default boundary and parses it. */
   private static Map<String, Object> multipart(String... parts) {
-    return multipart(outer(parts));
+    return multipartBody(outer(parts));
+  }
+
+  /** Distinct from {@link #multipart}, whose varargs would otherwise swallow a whole body. */
+  private static Map<String, Object> multipartBody(String body) {
+    return asMap(parseBody(body, MULTIPART));
+  }
+
+  private static Map<String, Object> urlEncoded(String body) {
+    return asMap(parseBody(body, URL_ENCODED));
   }
 
   @SuppressWarnings("unchecked")
-  private static Map<String, Object> multipart(String body) {
-    Object parsed = parseBody(body, MULTIPART);
+  private static Map<String, Object> asMap(Object parsed) {
     assertInstanceOf(Map.class, parsed);
     return (Map<String, Object>) parsed;
   }
@@ -535,12 +527,5 @@ class ContentTypeBodyParserTest {
       part.append("Content-Type: ").append(contentType).append("\r\n");
     }
     return part.append("\r\n").append(value).toString();
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Map<String, List<String>> urlEncoded(String body) {
-    Object parsed = parseBody(body, "application/x-www-form-urlencoded");
-    assertInstanceOf(Map.class, parsed);
-    return (Map<String, List<String>>) parsed;
   }
 }

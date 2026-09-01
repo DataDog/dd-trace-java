@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -29,22 +28,38 @@ final class ContentTypeBodyParser {
   private static final Logger log = LoggerFactory.getLogger(ContentTypeBodyParser.class);
 
   // These bound the work done in this parser only. Exceeding any of them degrades the body to a raw
-  // string rather than dropping content, and the WAF truncates its inputs independently anyway.
-  static final int MAX_DEPTH = 20;
-  static final int MAX_ELEMENTS = 256;
+  // string rather than dropping content.
+  //
+  // The depth and part limits mirror the WAF's own (WAFModule.MAX_DEPTH / MAX_ELEMENTS): structure
+  // beyond them is discarded by ObjectIntrospection before the WAF ever sees it, so producing it
+  // would be wasted work. The byte allowance answers a different question — how much reading and
+  // copying one event may cost us — and AWS already caps a synchronous payload at 6 MiB.
+  static final int MAX_BYTES = 1024 * 1024;
   static final int MAX_PARTS = 256;
-  static final int MAX_MULTIPART_SIZE = 1_000_000;
+  static final int MAX_DEPTH = 20;
 
   private ContentTypeBodyParser() {}
 
   /**
-   * State shared across a whole parse: the element and part allowances, and the filenames collected
+   * State shared across a whole parse: the byte and part allowances, and the filenames collected
    * along the way. A multipart part may itself hold an urlencoded or multipart body, so a per-call
-   * cap would multiply across nesting levels and a per-call list would lose nested file parts.
+   * allowance would be re-satisfied at every nesting level and a per-call list would lose nested
+   * file parts.
    */
   static final class ParseContext {
+    private int bytes;
     private int parts = MAX_PARTS;
-    private int elements = MAX_ELEMENTS;
+
+    ParseContext() {
+      this(MAX_BYTES);
+    }
+
+    /**
+     * @param byteAllowance the total number of characters this parse may read, nesting included
+     */
+    ParseContext(final int byteAllowance) {
+      this.bytes = byteAllowance;
+    }
 
     /** Allocated only once a file part is seen, which most bodies never do. */
     private List<String> filenames;
@@ -58,13 +73,26 @@ final class ContentTypeBodyParser {
     }
 
     /**
-     * @return {@code false} once the element allowance is spent
+     * @return {@code false} when the parse can no longer afford to read {@code count} characters
      */
-    boolean takeElement() {
-      if (elements == 0) {
+    boolean takeBytes(final int count) {
+      if (bytes < count) {
         return false;
       }
-      elements--;
+      bytes -= count;
+      return true;
+    }
+
+    /**
+     * @return {@code false} once the part allowance is spent. A multipart part and an urlencoded
+     *     parameter both draw from it: they are the same question, how many values one body may
+     *     yield.
+     */
+    boolean takePart() {
+      if (parts == 0) {
+        return false;
+      }
+      parts--;
       return true;
     }
 
@@ -82,11 +110,6 @@ final class ContentTypeBodyParser {
     List<String> filenames() {
       return filenames == null ? Collections.emptyList() : filenames;
     }
-  }
-
-  /** Parses a decoded request body according to its {@code Content-Type}. */
-  static Object parseBody(final String body, final String contentType) {
-    return parseBody(body, contentType, new ParseContext());
   }
 
   /**
@@ -108,18 +131,24 @@ final class ContentTypeBodyParser {
       log.debug("Body nesting depth {} reached, keeping raw string", depth);
       return body;
     }
-    if (contentType == null || contentType.trim().isEmpty() || isJsonLike(contentType)) {
-      final Object parsed = LambdaEventParser.parseBodyAsJson(body);
-      return parsed != null ? parsed : body;
+    if (!context.takeBytes(body.length())) {
+      log.debug(
+          "Byte allowance cannot cover a body of {} chars, keeping raw string", body.length());
+      return body;
     }
     final MediaType mediaType = MediaType.parse(contentType);
+    // A null type is one MediaType could not read: the header was absent, blank, or nothing but
+    // parameters. Such a body gets the same best-effort JSON parse as a JSON-ish one.
+    if (mediaType.getType() == null || isJsonLike(mediaType)) {
+      return jsonOrRaw(body);
+    }
     if ("application".equals(mediaType.getType())
         && "x-www-form-urlencoded".equals(mediaType.getSubtype())) {
       final Object parsed = parseUrlEncoded(body, context);
       return parsed != null ? parsed : body;
     }
     if ("multipart".equals(mediaType.getType())) {
-      final Object parsed = parseMultipart(body, contentType, depth, context, MAX_MULTIPART_SIZE);
+      final Object parsed = parseMultipart(body, contentType, depth, context);
       return parsed != null ? parsed : body;
     }
     // text/* and everything else stay raw strings. In particular a text/plain body of "12345" must
@@ -127,18 +156,34 @@ final class ContentTypeBodyParser {
     return body;
   }
 
-  static boolean isJsonLike(final String contentType) {
-    if (contentType == null) {
-      return false;
-    }
-    // Match on the type and subtype only. Parameters such as a multipart boundary are chosen by
-    // the client, so "multipart/form-data; boundary=--json" must not reach the JSON parser and
-    // thereby skip multipart parsing entirely.
-    final int semicolon = contentType.indexOf(';');
-    final String essence =
-        (semicolon == -1 ? contentType : contentType.substring(0, semicolon))
-            .toLowerCase(Locale.ROOT);
-    return essence.contains("json") || essence.contains("javascript");
+  /**
+   * Applies the "no declared type, or a JSON-ish one" rule to a body the caller does not structure
+   * any further. This is the whole of how a response body is handled; the request path shares the
+   * rule through {@link #dispatch} and additionally structures urlencoded and multipart bodies.
+   */
+  static Object jsonOrRaw(final String body, final String contentType) {
+    final MediaType mediaType = MediaType.parse(contentType);
+    return mediaType.getType() == null || isJsonLike(mediaType) ? jsonOrRaw(body) : body;
+  }
+
+  /** A best-effort JSON parse, degrading to the raw string rather than dropping the body. */
+  private static Object jsonOrRaw(final String body) {
+    final Object parsed = LambdaEventParser.parseBodyAsJson(body);
+    return parsed != null ? parsed : body;
+  }
+
+  /**
+   * Matches on the type and subtype only. Parameters such as a multipart boundary are chosen by the
+   * client, so {@code multipart/form-data; boundary=--json} must not reach the JSON parser and
+   * thereby skip multipart parsing entirely; {@link MediaType#parse} strips them, and lowercases
+   * what is left.
+   */
+  private static boolean isJsonLike(final MediaType mediaType) {
+    return jsonLike(mediaType.getType()) || jsonLike(mediaType.getSubtype());
+  }
+
+  private static boolean jsonLike(final String essence) {
+    return essence != null && (essence.contains("json") || essence.contains("javascript"));
   }
 
   /**
@@ -146,7 +191,7 @@ final class ContentTypeBodyParser {
    * produced for query parameters.
    *
    * @return the parsed parameters, or {@code null} if nothing usable was found or the body exhausts
-   *     the element allowance
+   *     the part allowance
    */
   private static Map<String, List<String>> parseUrlEncoded(
       final String body, final ParseContext context) {
@@ -156,10 +201,10 @@ final class ContentTypeBodyParser {
     final Map<String, List<String>> parameters = new LinkedHashMap<>();
     final StringTokenizer tokenizer = new StringTokenizer(body, "&");
     while (tokenizer.hasMoreTokens()) {
-      if (!context.takeElement()) {
+      if (!context.takePart()) {
         // Bail out rather than hand the WAF a truncated map: a parameter dropped here would be
         // invisible to every rule, whereas the raw body can still be string-matched.
-        log.debug("Element allowance exhausted, keeping urlencoded body as a raw string");
+        log.debug("Part allowance exhausted, keeping urlencoded body as a raw string");
         return null;
       }
       final String pair = tokenizer.nextToken();
@@ -181,20 +226,11 @@ final class ContentTypeBodyParser {
   /**
    * Parses a {@code multipart/*} body into its form fields.
    *
-   * @param sizeLimit the largest body to attempt, or {@code 0} to disable multipart parsing
-   * @return the fields found, or {@code null} if the body is too large, has no usable boundary,
-   *     holds more parts than the allowance, or yields no field
+   * @return the fields found, or {@code null} if the body has no usable boundary, it holds more
+   *     parts than the allowance, or it yields no field
    */
-  static Object parseMultipart(
-      final String body,
-      final String contentType,
-      final int depth,
-      final ParseContext context,
-      final int sizeLimit) {
-    if (sizeLimit <= 0 || body.length() > sizeLimit) {
-      log.debug("Multipart body of {} chars not parsed, keeping raw string", body.length());
-      return null;
-    }
+  private static Object parseMultipart(
+      final String body, final String contentType, final int depth, final ParseContext context) {
     final String boundary = MultipartSplitter.extractBoundary(contentType);
     if (boundary == null) {
       log.debug("Multipart body without a usable boundary, keeping raw string");
@@ -215,7 +251,7 @@ final class ContentTypeBodyParser {
     final Map<String, Object> fields = new LinkedHashMap<>();
     final Set<String> promoted = new HashSet<>();
     for (final Part part : parts) {
-      final String disposition = part.header("content-disposition");
+      final String disposition = part.contentDisposition;
       if (disposition == null) {
         continue;
       }
@@ -230,11 +266,14 @@ final class ContentTypeBodyParser {
       if (name == null || name.isEmpty()) {
         continue;
       }
-      final String partContentType = part.header("content-type");
+      // Already trimmed by MultipartSplitter, so a whitespace-only header arrives as ""
+      final String partContentType = part.contentType;
       final String content = body.substring(part.contentStart, part.contentEnd);
-      // A part that declares no type is kept as a raw string
+      // A part that declares no type is kept as a raw string, the opposite of what a whole body
+      // with no type gets: RFC 7578, section 4.4 defaults a part to text/plain rather than leaving
+      // its type unknown.
       final Object value =
-          partContentType == null || partContentType.trim().isEmpty()
+          partContentType == null || partContentType.isEmpty()
               ? content
               : dispatch(content, partContentType, depth + 1, context);
       addField(fields, promoted, name, value);

@@ -59,7 +59,7 @@ public class LambdaAppSecHandler {
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
   /**
-   * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the even is
+   * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is
    * unreadable (not a {@code ByteArrayInputStream}, empty, oversized, or unparseable).
    */
   private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";

@@ -144,8 +144,7 @@ class MultipartSplitterTest {
   @Test
   void delimitsContentExactly() {
     // Dashes, line breaks, a replacement character and a multi-byte character all inside the
-    // content:
-    // the reported range must not be thrown off by a near-miss on the line-feed anchor
+    // content: the reported range must not be thrown off by a near-miss on the line-feed anchor
     String content = "--not-a-boundary\r\n-x\nlast�é";
     String body =
         "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n" + content + "\r\n--x--\r\n";
@@ -154,7 +153,7 @@ class MultipartSplitterTest {
 
     assertEquals(1, parts.size());
     assertEquals(content, content(body, parts.get(0)));
-    assertEquals("form-data; name=a", parts.get(0).header("content-disposition"));
+    assertEquals("form-data; name=a", parts.get(0).contentDisposition);
   }
 
   @Test
@@ -168,29 +167,59 @@ class MultipartSplitterTest {
 
     List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
 
+    // The surviving part is the second one: had the two merged, its content would have swallowed
+    // the delimiter between them.
     assertEquals(1, parts.size());
-    assertNull(parts.get(0).header("x-first"));
-    assertEquals("form-data; name=\"b\"", parts.get(0).header("content-disposition"));
+    assertEquals("form-data; name=\"b\"", parts.get(0).contentDisposition);
     assertEquals("second", content(body, parts.get(0)));
   }
 
   @Test
-  void lowercasesHeaderNamesAndTrimsValues() {
-    String body = "--x\r\nCONTENT-Disposition:  form-data; name=a \r\nX:\r\n\r\nv\r\n--x--";
+  void matchesHeaderNamesCaseInsensitivelyAndTrimsValues() {
+    String body =
+        "--x\r\nCONTENT-Disposition:  form-data; name=a \r\n"
+            + "content-type \t:\ttext/plain \r\n\r\nv\r\n--x--";
 
     Part part = split(body, "x", NO_PART_BUDGET_LIMIT).get(0);
 
-    assertEquals("form-data; name=a", part.header("content-disposition"));
-    assertEquals("", part.header("x"));
-    assertNull(part.header("absent"));
+    assertEquals("form-data; name=a", part.contentDisposition);
+    assertEquals("text/plain", part.contentType);
+  }
+
+  @Test
+  void reportsNoValueForAHeaderThatIsPresentButEmpty() {
+    String body = "--x\r\nContent-Type:\r\n\r\nv\r\n--x--";
+
+    Part part = split(body, "x", NO_PART_BUDGET_LIMIT).get(0);
+
+    assertEquals("", part.contentType);
+    assertNull(part.contentDisposition);
+  }
+
+  @Test
+  @Timeout(value = 10, unit = SECONDS)
+  void dropsHeadersItDoesNotReadWhateverTheirNumber() {
+    // Only Content-Disposition and Content-Type are kept, so a part may declare arbitrarily many
+    // others without any of them being retained.
+    StringBuilder headers = new StringBuilder();
+    for (int i = 0; i < 100_000; i++) {
+      headers.append("X-Filler-").append(i).append(": ").append(i).append("\r\n");
+    }
+    String body = "--x\r\n" + headers + "Content-Disposition: form-data; name=a\r\n\r\nv\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("form-data; name=a", parts.get(0).contentDisposition);
+    assertNull(parts.get(0).contentType);
+    assertEquals("v", content(body, parts.get(0)));
   }
 
   @Test
   @Timeout(value = 10, unit = SECONDS)
   void returnsPromptlyOnAnAdversarialBoundary() {
     // Dashes are legal boundary characters, so a scan seeded on '-' would be quadratic here.
-    // Anchored
-    // on the mandatory line feed, of which this body has none, the scan is linear.
+    // Anchored on the mandatory line feed, of which this body has none, the scan is linear.
     String boundary = repeat('-', 69) + "X";
     String body = repeat('-', 1_000_000);
 

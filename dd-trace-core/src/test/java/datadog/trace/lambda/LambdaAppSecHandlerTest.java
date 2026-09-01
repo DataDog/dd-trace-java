@@ -3,6 +3,7 @@ package datadog.trace.lambda;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -47,6 +48,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -69,6 +71,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
@@ -2185,6 +2189,30 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void extractResponseDataReturnsNullForEmptyString() {
     assertNull(parseResponse(""));
+  }
+
+  @ParameterizedTest(name = "[{index}] content-type {0}")
+  @ValueSource(strings = {"", "   ", "application/json"})
+  void parsesAResponseBodyAsJsonWhenTheContentTypeIsBlankOrJson(String contentType) {
+    // A blank content type says nothing about the body, so it gets the same best-effort JSON parse
+    // as an absent one, matching the request path.
+    LambdaResponseData response =
+        parseResponse(
+            "{\"statusCode\": 200, \"headers\": {\"content-type\": \""
+                + contentType
+                + "\"}, \"body\": \"{\\\"a\\\":1}\"}");
+    assertNotNull(response);
+    assertEquals(singletonMap("a", 1.0), response.body);
+  }
+
+  @Test
+  void keepsAResponseBodyRawWhenTheContentTypeIsNotJson() {
+    LambdaResponseData response =
+        parseResponse(
+            "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"},"
+                + " \"body\": \"{\\\"a\\\":1}\"}");
+    assertNotNull(response);
+    assertEquals("{\"a\":1}", response.body);
   }
 
   // ============================================================================
