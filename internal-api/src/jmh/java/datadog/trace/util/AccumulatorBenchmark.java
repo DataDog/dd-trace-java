@@ -102,6 +102,7 @@ public class AccumulatorBenchmark {
 
   private final LongAdder adder = new LongAdder();
   private final long[][] accumulator = Accumulator.EmbeddingSupport.create(Counter.values());
+  private final Accumulator<Counter> typedAccumulator = Accumulator.of(Counter.values());
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
   private final LongAdder[] longAdderGroup = {new LongAdder()};
 
@@ -155,6 +156,24 @@ public class AccumulatorBenchmark {
   @Threads(Threads.MAX)
   public void accumulatorIncrement_highContention() {
     Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+  }
+
+  /**
+   * The typed {@link Accumulator} wrapper's {@link Accumulator#inc}, paired against {@code
+   * accumulatorIncrement*} above: same underlying {@link Accumulator.EmbeddingSupport#inc} call,
+   * one extra field-load indirection through the instance. Should track the raw numbers closely --
+   * a divergence here would mean the indirection isn't being inlined away.
+   */
+  @Benchmark
+  @Threads(1)
+  public void typedIncrement_lowContention() {
+    typedAccumulator.inc(Counter.HITS);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void typedIncrement_highContention() {
+    typedAccumulator.inc(Counter.HITS);
   }
 
   @Benchmark
@@ -226,6 +245,47 @@ public class AccumulatorBenchmark {
   @GroupThreads(1)
   public void accumulatorMixed_drain(Blackhole blackhole) {
     blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
+  }
+
+  /**
+   * {@link Accumulator#update}, paired against the raw {@link Accumulator.EmbeddingSupport#update}
+   * lock/dispatch it wraps: the mutator here constructs a {@link Accumulator.Stripe} under the held
+   * lock and immediately lets it go, which is exactly the "small, non-capturing, non-escaping"
+   * shape documented as a scalar-replacement candidate. If escape analysis is doing its job, this
+   * tracks the raw call closely; if it regresses (e.g. after a JIT/JDK change, or a mutator shape
+   * that stops inlining), this is the number that would move.
+   */
+  @Benchmark
+  @Threads(1)
+  public void typedUpdate_lowContention() {
+    typedAccumulator.update(stripe -> stripe.inc(Counter.HITS));
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void typedUpdate_highContention() {
+    typedAccumulator.update(stripe -> stripe.inc(Counter.HITS));
+  }
+
+  /**
+   * {@link Accumulator#accumulateAndReset}, paired against the raw {@link
+   * Accumulator.EmbeddingSupport#accumulateAndReset} it wraps. Unlike {@link Accumulator.Stripe},
+   * {@link Accumulator.Counts} is documented to escape (the caller holds and reads it after
+   * return), so this is expected to run measurably slower than the raw call by roughly one small
+   * object allocation per drain -- not a scalar-replacement candidate, and not meant to look free.
+   */
+  @Benchmark
+  @Threads(1)
+  public void typedAccumulateAndReset_lowContention(Blackhole blackhole) {
+    typedAccumulator.inc(Counter.HITS);
+    blackhole.consume(typedAccumulator.accumulateAndReset());
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void typedAccumulateAndReset_highContention(Blackhole blackhole) {
+    typedAccumulator.inc(Counter.HITS);
+    blackhole.consume(typedAccumulator.accumulateAndReset());
   }
 
   @Benchmark
