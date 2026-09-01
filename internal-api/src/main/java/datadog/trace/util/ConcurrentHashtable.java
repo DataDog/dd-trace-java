@@ -887,13 +887,27 @@ public final class ConcurrentHashtable {
     return new AtomicReferenceArray<>(sizeFor(capacity));
   }
 
+  /** Upper bound on the bucket-array length returned by {@link #sizeFor(int)}. */
+  static final int MAX_BUCKETS = 1 << 30;
+
   /**
    * Returns the bucket-array length to allocate for a table sized to hold {@code requestedSize}
-   * entries: {@code requestedSize} rounded up to the next power of two. Shares {@link Hashtable}'s
-   * sizing so the two families round identically.
+   * entries: {@code requestedSize} rounded up to the next power of two, capped at {@link
+   * #MAX_BUCKETS}. Throws {@link IllegalArgumentException} for negative inputs or inputs above the
+   * cap.
    */
   public static int sizeFor(int requestedSize) {
-    return Hashtable.Support.sizeFor(requestedSize);
+    if (requestedSize < 0) {
+      throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
+    }
+    if (requestedSize > MAX_BUCKETS) {
+      throw new IllegalArgumentException(
+          "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
+    }
+    if (requestedSize <= 1) {
+      return 1;
+    }
+    return Integer.highestOneBit(requestedSize - 1) << 1;
   }
 
   /**
