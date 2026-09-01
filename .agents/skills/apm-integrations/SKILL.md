@@ -46,7 +46,7 @@ pattern before writing new code. Use it as a template.
 1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
 2. Under it, create the standard Maven source layout:
    - `src/main/java/` — instrumentation code
-   - `src/test/groovy/` — Groovy/Spock instrumentation tests (see Step 9.1)
+   - `src/test/groovy/` (default) or `src/test/java/` if the module's master version and version-siblings are already on the Java/JUnit DSL — check them before creating this directory (see Step 9.1)
 3. Create `build.gradle` with:
    - `compileOnly` dependencies for the target framework
    - `testImplementation` dependencies for tests
