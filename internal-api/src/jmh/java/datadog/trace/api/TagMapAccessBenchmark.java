@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.BenchmarkUtils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +57,31 @@ import org.openjdk.jmh.infra.Blackhole;
  * TagMapAccessBenchmark.insert_hashMap_builderStyle  thrpt    5  28057827.189 ± 1359655.664  ops/s
  * TagMapAccessBenchmark.insert_via_ledger            thrpt    5  41169656.095 ±  773264.754  ops/s
  * </code>
+ *
+ * <p>Rerun on JDK 8 with a new top-level {@code @Setup(Level.Trial)} calling {@link
+ * BenchmarkUtils#polluteHashDispatch()} (this file had none before). M ops/s, 8 threads:
+ *
+ * <pre>{@code
+ * getEntry                        83   getObject                    87
+ * insert                          37   insert_hashMap                48
+ * insert_hashMap_builderStyle     20   insert_via_ledger             37*
+ * }</pre>
+ *
+ * <p>* = error bar about a quarter of the mean at {@code @Fork(2)} — directional only.
+ *
+ * <p>Every number here is 9-29% below the Java 17 table above, with no clear split between the
+ * TagMap paths and the HashMap paths this pollution should affect. The table above is Java 17; this
+ * rerun is JDK 8, whose C2 backend for Apple Silicon (AArch64) is far less mature than JDK 17+'s —
+ * a broad-based slowdown across every entry is expected from that JDK gap alone, independent of
+ * pollution — the same JDK-crossing explanation applies to {@link
+ * datadog.trace.util.CaseInsensitiveMapBenchmark}'s rerun. ({@link
+ * datadog.trace.util.HashtableD1Benchmark} and {@link datadog.trace.util.HashtableD2Benchmark} saw
+ * a similar broad drop despite holding the JDK constant — that one is same-session run-to-run
+ * noise, not a JDK effect.) The relative story survives: {@code insert_hashMap} (48M) still beats
+ * {@code insert} (37M) for plain insertion, and {@code insert_via_ledger} (37M) still clearly beats
+ * the HashMap builder-style path (20M); {@code insert_via_ledger} landing roughly level with {@code
+ * insert} here (vs. clearly behind it in the table above) is within that path's own wide error bar,
+ * not a new finding.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -99,6 +125,11 @@ public class TagMapAccessBenchmark {
    * Pre-populated read map, PER-THREAD ({@code Scope.Thread}): each thread owns its own map so
    * reads don't contend on shared mutable state under {@code @Threads(8)}.
    */
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
+
   @State(Scope.Thread)
   public static class ReadMap {
     TagMap map;

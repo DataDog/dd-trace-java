@@ -6,8 +6,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -52,6 +54,31 @@ import org.openjdk.jmh.infra.Blackhole;
  * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
  * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
  * </code>
+ *
+ * <p>Rerun on JDK 8 with {@link BenchmarkUtils#polluteHashDispatch()} added to a new
+ * {@code @Setup(Level.Trial)} (this file had none before), at this file's actual {@code @Fork(2)}
+ * (the numbers above are from an ad hoc higher-fork run; not directly comparable). M ops/s, 8
+ * threads:
+ *
+ * <pre>{@code
+ * create_baseline        26    create_flatHashtable   13
+ * create_hashMap          9    create_treeMap          7
+ *
+ * lookup_baseline      2618    lookup_flatHashtable  415
+ * lookup_flatHashtable_lowLoad 415  lookup_hashMap    367*
+ * lookup_treeMap        209
+ * }</pre>
+ *
+ * <p>* = error bar over a third of the mean at {@code @Fork(2)} — directional only.
+ *
+ * <p>All four {@code lookup_*} numbers sit 17-23% below the table above (415 vs 537 flatHashtable,
+ * 367 vs 442 hashMap, 209 vs 251 treeMap) despite {@code flatHashtable} and {@code treeMap} using
+ * neither {@code java.util.HashMap} nor {@code hashCode()}/{@code equals()} dispatch — so this drop
+ * isn't attributable to pollution. The likelier explanation: the table above is Zulu 21, this rerun
+ * is JDK 8, and JDK 8's C2 backend for Apple Silicon (AArch64) is far less mature than JDK 17+'s —
+ * a broad-based slowdown across every entry, pollution-affected or not, is expected from that JDK
+ * gap alone on this machine. The <b>relative</b> ranking — {@code flatHashtable} > {@code hashMap}
+ * > {@code treeMap} — is unchanged.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -100,6 +127,11 @@ public class CaseInsensitiveMapBenchmark {
   // counter's cache-line ping-pong would floor the fastest lookups (the flat probe) at @Threads(8),
   // masking exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
 
   String nextLookupKey() {
     int localIndex = ++lookupIndex;

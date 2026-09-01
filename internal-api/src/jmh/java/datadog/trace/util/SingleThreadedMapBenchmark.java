@@ -50,6 +50,48 @@ import org.openjdk.jmh.infra.Blackhole;
  * unsynchronized {@code hashMap} {@code get}/{@code iterate} methods are the in-harness baseline;
  * the tax is the delta to the {@code synchronizedHashMap} equivalents. Comparing across JVM
  * versions at stock flags shows the biased-locking effect. (Results pending a fresh multi-JVM run.)
+ *
+ * <p>JDK 8 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}, with {@link
+ * BenchmarkUtils#polluteHashDispatch()} in effect; M ops/s):
+ *
+ * <pre>{@code
+ * create_hashMap                 79   create_hashMap_sized     38*
+ * create_synchronizedHashMap    8.6   create_treeMap            5*
+ * create_linkedHashMap            8*  create_tagMap            10
+ * create_tagMap_via_ledger        9   create_flatHashtable    190
+ *
+ * clone_hashMap                  68*  clone_synchronizedHashMap 58
+ * clone_treeMap                 100   clone_linkedHashMap       94
+ * clone_tagMap                  249
+ *
+ * get_hashMap                   164   get_synchronizedHashMap   67
+ * get_flatHashtable              196
+ *
+ * iterate_hashMap                119  iterate_synchronizedHashMap 81
+ * iterate_flatHashtable           14*
+ * }</pre>
+ *
+ * <p>* = error bar as wide as (or wider than) the mean at {@code @Fork(2)} — treat these as
+ * directional, not decisive; a {@code @Fork(5)} rerun would tighten them (see {@code
+ * ThreadSafeMapBenchmark}'s Javadoc for the same caveat pattern). The construction benchmarks are
+ * consistently the noisy ones; the read/clone/iterate benchmarks are comparatively tight.
+ *
+ * <p>Key findings:
+ *
+ * <ul>
+ *   <li>{@code flatHashtable} dominates both {@code create} (190M) and {@code get} (196M) — the
+ *       unboxed, self-contained entry and comparison-free insert pay off, consistent with every
+ *       other FlatHashtable comparison in this module.
+ *   <li>{@code tagMap} clone (249M) is ~3.7x {@code hashMap} clone (68M) — the same story {@link
+ *       datadog.trace.api.TagMapAccessBenchmark} reports from an earlier (unpolluted, Java 17) run
+ *       at ~4.6x; the ratio survives pollution and a different JDK, even though the absolute
+ *       numbers aren't directly comparable across those two runs.
+ *   <li>The uncontended synchronization tax is large here even though this run is on JDK 8, where
+ *       biased locking is enabled by default: {@code get_hashMap} (164M) → {@code
+ *       get_synchronizedHashMap} (67M) is a ~59% hit, and {@code iterate} (119M → 81M) is ~32%.
+ *       That's a bigger tax than the "biased locking should make uncontended locking nearly free"
+ *       story predicts — not root-caused here, left as an open question rather than papered over.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -191,6 +233,8 @@ public class SingleThreadedMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     hashMap = new HashMap<>();
     fill(hashMap);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));

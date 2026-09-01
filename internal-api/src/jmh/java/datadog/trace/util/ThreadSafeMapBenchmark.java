@@ -8,8 +8,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -62,6 +64,29 @@ import org.openjdk.jmh.annotations.Warmup;
  * ThreadSafeMapBenchmark.get_hashMap_synchronized     thrpt    6   20123419.604 ±   4858466.787  ops/s
  * ThreadSafeMapBenchmark.get_hashMap_volatile         thrpt    6  286024211.995 ± 114449056.603  ops/s
  * </code>
+ *
+ * <p>Rerun on JDK 8 with a new {@code @Setup(Level.Trial)} calling {@link
+ * BenchmarkUtils#polluteHashDispatch()} (not present before this change — this file had no
+ * {@code @Setup} at all). Not directly comparable to the Java 21 numbers above (different JDK, and
+ * this is the first run with pollution), so treat this as its own baseline rather than a delta:
+ *
+ * <pre>{@code
+ * create_concHashMap            47   create_concSkipListMap  17
+ * create_hashMap                130  create_hashMap_synchronized 92*
+ * create_flatHashtable          178
+ *
+ * get_concHashMap                977  get_concSkipListMap    309
+ * get_flatHashtable             1654  get_hashMap_synchronized 26
+ * get_hashMap_volatile          1257
+ * }</pre>
+ *
+ * <p>* = error bar over half the mean at {@code @Fork(2)} — directional only.
+ *
+ * <p>{@code get_concSkipListMap} (309M) is ~11x the Java 21 measurement above (27M) — far more than
+ * a JDK swap plausibly explains for an O(log n), {@code compareTo}-dispatched structure that this
+ * pollution change doesn't touch. Flagging this as an open anomaly rather than a finding: don't
+ * treat it as "ConcurrentSkipListMap got faster" without a controlled re-run isolating the JDK
+ * variable.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -92,6 +117,11 @@ public class ThreadSafeMapBenchmark {
   // per-thread. A shared counter's cache-line ping-pong would otherwise floor the fastest reads
   // (e.g. FlatHashtable's lock-free probe), hiding exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  @Setup(Level.Trial)
+  public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
 
   String nextLookupKey() {
     return nextLookupKey(EQUAL_KEYS);
