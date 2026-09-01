@@ -22,25 +22,12 @@ import org.jctools.queues.MessagePassingQueue;
  * MPMC queue exists only in its {@code Unsafe} form, and {@link Queues} deliberately moves off
  * {@code Unsafe} on Java 25 and later.
  *
- * <h2>Why an array queue is usable here and not in general</h2>
- *
- * <p>The MPMC ring is not linearizable. Its {@code offer} refuses, and its {@code poll} reports
- * empty, when another thread has claimed the slot they are looking at but has not yet published to
- * it — on a queue that is neither full nor empty. Four producers and four consumers on a queue of
- * eight produced a refusal-with-room on roughly 0.24% of offers. For an ordinary caller that is
- * disqualifying, because a refusal is ambiguous: full, or not yet, with no way to tell them apart.
- *
- * <p>Here it is not ambiguous, because the bound does not live in the ring. A place is claimed
- * before {@link #store} is ever called, and places outstanding never exceed capacity, and {@link
- * BaseWorkQueue} gives a place back only after the element has been retrieved and the slot is
- * already free. So a thread that reaches {@code store} holds a claim, a slot is free or is in the
- * act of becoming free, and a refusal can only mean not yet. Retrying is therefore guaranteed to
- * succeed, and the property that makes admission cheap — an authoritative counter in front of the
- * structure — is the same property that makes a lying structure safe to sit behind it.
- *
- * <p>The retry is bounded anyway. If the accounting were ever wrong, an unbounded spin would turn a
- * bug into a hang, and a hang is the failure mode this package has already been bitten by. Past the
- * bound the element is dropped and counted, which is what an over-capacity admission does today.
+ * <p>The bounded backing is a JCTools MPMC ring; consult the JCTools documentation for its
+ * semantics. What matters here is that its {@code offer} can refuse a queue that is not full, and
+ * that the bound does not live in the ring: a place is claimed before {@link #store} is ever
+ * called, so a refusal can only mean not yet, and retrying will succeed. The retry is bounded
+ * anyway — if the accounting were ever wrong, an unbounded spin would turn a bug into a hang. See
+ * {@link Queues#mpmcArrayQueue} for why an ordinary caller cannot use the ring this way.
  */
 final class MpmcWorkQueue<T> extends BaseWorkQueue<T> {
 
