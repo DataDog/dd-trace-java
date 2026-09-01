@@ -74,7 +74,7 @@ docs/                     Developer documentation (see below)
 ## Review Guidelines
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
-- **Multi-perspective push gate (pilot)**: before pushing, run [dd-apm-sdk-review](.agents/skills/dd-apm-sdk-review/SKILL.md) on your unpushed changes unless the user says not to. If any `P0` finding is reported, fix it or get explicit authorization and record the unresolved finding verbatim in the PR description. `P1`/`P2` findings should be fixed before pushing but can be dismissed by the human. Security findings are never pasted into the PR description — route them privately. (Performance review, previously the standalone `/perf-review` skill, is now one of this skill's perspectives — see `dd-apm-sdk-review-overrides/reviewers/performance.md`.)
+- **Multi-perspective push gate (pilot)**: before pushing, run [dd-apm-sdk-review](.agents/skills/dd-apm-sdk-review/SKILL.md) on your unpushed changes unless the user says not to. If any `P0` finding is reported, fix it or get explicit authorization and record the unresolved finding verbatim in the PR description. `P1`/`P2` findings should be fixed before pushing but can be dismissed by the human. Security findings are never pasted into the PR description — route them privately. (Performance review, previously the standalone `/perf-review` skill, is now one of this skill's perspectives — see `.agents/dd-apm-sdk-review-overrides/reviewers/performance.md`.)
 
 ## Critical constraints
 

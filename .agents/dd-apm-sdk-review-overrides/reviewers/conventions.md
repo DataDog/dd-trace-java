@@ -12,7 +12,7 @@ Also not in that table, and in scope for this lens:
 - `.github/pull_request_template.md` — PR body contract.
 - `.github/CODEOWNERS` — new paths need an owner when this repo's existing pattern would assign one.
 - `metadata/supported-configurations.json` — the config/integration registry CI validates (`validate_supported_configurations_v2_local_file` in `.gitlab-ci.yml`).
-- `.agents/skills/apm-integrations/SKILL.md` (+ `references/`) — instrumentation authoring, including integration-name registration and the Groovy-test exception. Cite it; do not invoke it (see `dd-apm-sdk-review-overrides/repo-context.md`).
+- `.agents/skills/apm-integrations/SKILL.md` (+ `references/`) — instrumentation authoring, including integration-name registration and the Groovy-test exception. Cite it; do not invoke it (see `.agents/dd-apm-sdk-review-overrides/repo-context.md`).
 
 Bootstrap / advice constraints in **AGENTS.md § "Critical constraints"** belong to the design lens, not this one.
 

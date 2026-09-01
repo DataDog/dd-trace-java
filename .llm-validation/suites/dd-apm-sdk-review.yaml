@@ -6,10 +6,10 @@ cases:
     files:
       - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
       - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
-      - dd-apm-sdk-review-overrides/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
     input: |
       Apply this repo's performance-review criteria (reviewers/performance.md, its
-      dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
       following method. No git checkout available — this snippet is the entire change to
       review.
 
@@ -46,10 +46,10 @@ cases:
       - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
       - .agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md
       - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
-      - dd-apm-sdk-review-overrides/reviewers/design.md
-      - dd-apm-sdk-review-overrides/reviewers/performance.md
-      - dd-apm-sdk-review-overrides/reviewers/conventions.md
-      - dd-apm-sdk-review-overrides/reviewers/maintainability.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/design.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md
     input: |
       Run dd-apm-sdk-review on the following change. There is no git repository to
       inspect — this diff is the entire change set; do not attempt any git commands, go
@@ -78,7 +78,7 @@ cases:
       - States an explicit verdict line (BLOCK / APPROVE_WITH_COMMENTS / APPROVE) and a
         final READY TO PUSH / DO NOT PUSH statement.
       - The maintainability lens does not invent its own release-note or public-API
-        policy — per its override (dd-apm-sdk-review-overrides/reviewers/maintainability.md),
+        policy — per its override (.agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md),
         it defers to conventions.md's actual policy (no changelog file; the PR title is
         the release note) rather than asking for a CHANGELOG.md entry.
     bad_signals:

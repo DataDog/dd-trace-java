@@ -6,7 +6,7 @@
 # Shared tooling, tests, and documentation
 /.agents/                             @DataDog/apm-java
 /.claude/                             @DataDog/apm-java
-/dd-apm-sdk-review-overrides/         @DataDog/apm-java
+/.agents/dd-apm-sdk-review-overrides/ @DataDog/apm-java
 /.llm-validation/                     @DataDog/apm-java
 /.promptfoo/                          @DataDog/apm-java
 /AGENTS.md                            @DataDog/apm-java

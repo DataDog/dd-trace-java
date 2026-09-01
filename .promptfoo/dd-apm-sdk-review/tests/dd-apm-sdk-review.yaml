@@ -2,7 +2,7 @@
   vars:
     input: |
       Apply this repo's performance-review criteria (reviewers/performance.md, its
-      dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
       following method. No git checkout available — this snippet is the entire change to
       review.
 

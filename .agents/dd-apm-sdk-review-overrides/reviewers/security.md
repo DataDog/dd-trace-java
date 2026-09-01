@@ -34,7 +34,7 @@ if (isTrusted(path)) {
 - Code that reuses a pre-existing directory or file through the shared `TempLocationManager`.
 - A native library load (`System.load`/`loadLibrary`) whose path comes from config.
 - A remote-config value applied to a live component before it's schema/bounds-checked.
-- An instrumentation hook that activates before its own safety gate — if that gate is Muzzle, check `dd-apm-sdk-review-overrides/reviewers/design.md` first so you don't report the same thing twice under two lenses.
+- An instrumentation hook that activates before its own safety gate — if that gate is Muzzle, check `.agents/dd-apm-sdk-review-overrides/reviewers/design.md` first so you don't report the same thing twice under two lenses.
 
 ## Do not
 
