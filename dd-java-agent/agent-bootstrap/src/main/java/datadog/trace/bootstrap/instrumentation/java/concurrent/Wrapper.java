@@ -13,21 +13,39 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <T extends Runnable> Runnable wrap(T task) {
-    if (task instanceof Wrapper
-        || task instanceof RunnableFuture
-        || task == null
-        || exclude(RUNNABLE, task)) {
+    if (!isWrappable(task)) {
       return task;
     }
     ContextContinuation continuation = captureActiveSpan();
     if (continuation.context() != Context.root()) {
-      if (task instanceof Comparable) {
-        return new ComparableRunnable(task, continuation);
-      }
-      return new Wrapper<>(task, continuation);
+      return newWrapper(task, continuation);
     }
     // don't wrap unless there is scope to propagate
     return task;
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static <T extends Runnable> Runnable wrap(T task, Context context) {
+    if (context == Context.root() || !isWrappable(task)) {
+      return task;
+    }
+    return newWrapper(task, context.capture());
+  }
+
+  private static boolean isWrappable(Runnable task) {
+    return task != null
+        && !(task instanceof Wrapper)
+        && !(task instanceof RunnableFuture)
+        && !exclude(RUNNABLE, task);
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static <T extends Runnable> Runnable newWrapper(
+      T task, ContextContinuation continuation) {
+    if (task instanceof Comparable) {
+      return new ComparableRunnable(task, continuation);
+    }
+    return new Wrapper<>(task, continuation);
   }
 
   public static Runnable unwrap(Runnable task) {
@@ -59,7 +77,7 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
     return delegate;
   }
 
-  private ContextScope activate() {
+  public ContextScope activate() {
     return null == continuation ? null : continuation.resume();
   }
 

@@ -41,6 +41,19 @@ public class AdviceUtils {
     return null;
   }
 
+  @Nullable
+  public static ContextScope startTpeTaskScope(State state) {
+    if (state != null) {
+      final State.TpeContinuation continuation = state.getAndResetTpeContinuation();
+      if (continuation != null) {
+        final ContextScope scope = continuation.resume();
+        continuation.stopTiming();
+        return scope;
+      }
+    }
+    return null;
+  }
+
   public static void endTaskScope(final ContextScope scope) {
     if (null != scope) {
       scope.close();

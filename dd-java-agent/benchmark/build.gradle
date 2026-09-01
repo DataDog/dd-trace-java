@@ -5,6 +5,12 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
+  jmh(project(':internal-api')) {
+    transitive = false
+  }
+  jmh(project(':components:context')) {
+    transitive = false
+  }
   jmh project(':dd-trace-api')
   jmh libs.bytebuddyagent
 }
@@ -38,8 +44,15 @@ jmh {
   jmhVersion = libs.versions.jmh.get()
 }
 
+// Copy the agent to a fixed path because @Fork arguments must be compile-time constants.
+def agentJarForBenchmarks = tasks.register('agentJarForBenchmarks', Copy) {
+  from project(':dd-java-agent').tasks.named('shadowJar')
+  into layout.buildDirectory.dir('agent')
+  rename { 'dd-java-agent.jar' }
+}
+
 tasks.named('jmh') {
-  dependsOn ':dd-java-agent:shadowJar'
+  dependsOn agentJarForBenchmarks
 }
 
 /*
@@ -48,4 +61,3 @@ tasks.named('jmh') {
  (using https://github.com/brendangregg/FlameGraph)
  ./flamegraph.pl --color=java dd-java-agent/benchmark/build/reports/jmh/profiler-cleaned.txt > dd-java-agent/benchmark/build/reports/jmh/jmh-master.svg
  */
-
