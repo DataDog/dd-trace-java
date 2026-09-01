@@ -33,13 +33,13 @@ Seeded from this repo's former `.agents/skills/perf-review/references/{guide.md,
 
 **J7–J11 route an *existing* universal `per-call-allocation`/`repeat-work-across-calls`/`unbounded-memory` finding to a landed reusable fix — they are not new triggers.** Don't raise a finding you wouldn't have raised anyway.
 
-**Toolkit availability — cite only what exists.** Available today: `Strings`, `SubSequence`, `HashingUtils`, `Hashtable` (all `datadog.trace.util`), `RE2J` (`com.google.re2j`). Coming (name as "coming", don't imply present): `ConcurrentHashtable`, `StringIndex`, `UTF8BytesString.Cache`, wider `IntegerCache`, `DDCache` inlining.
+**Toolkit availability — cite only what exists.** Available today: `Strings`, `SubSequence`, `HashingUtils`, `Hashtable`, `StringIndex` (all `datadog.trace.util`), `RE2J` (`com.google.re2j`). Coming (name as "coming", don't imply present): `ConcurrentHashtable`, `UTF8BytesString.Cache`, wider `IntegerCache`, `DDCache` inlining.
 
 ## Instrumentation (ByteBuddy Advice) idioms — dd-trace-java-specific fixes
 
 The core rule is a **predicate-with-default, not a banned-API list**: don't flag "you called `String.format`"; flag *"an eager, unconditional expensive call on an instrumentation-reachable path."* Discriminator: result usually **discarded** → gate/defer; result always **needed but costly** → cheapen/cache.
 
-- **`Config.get()` / `InstrumenterConfig.get()` on a hot path — flag-with-confidence.** Walks a config-resolution chain; not a free read. Fix: hoist to a `static final` field, or compute once in the constructor. The single most recurring finding in calibration — five independent occurrences.
+- **`Config.get()` / `InstrumenterConfig.get()` on a hot path — do NOT flag.** Both just return a static `INSTANCE` field (`Config.java`, `InstrumenterConfig.java`) — resolution happens once at initialization, not per call. This is a free read; flagging it is a guaranteed false positive. Reserve this idiom for an actual `ConfigProvider` lookup performed repeatedly on a hot path, not for the singleton getters themselves.
 - **`@Advice.AllArguments()` — deterministic lint.** Materializes a new `Object[]` boxing all arguments on every advised call; always escapes. Fix: `@Advice.Argument(value=N)`.
 - **`@Advice.SkipOn(OnDefaultValue.class)` + cached boolean — the preferred feature-flag pattern.** Compute a `static final boolean` once, return it from `@Advice.OnMethodEnter`, suppress exit advice when disabled.
 - **`@Advice.Local` — prefer over `ThreadLocal`.** Carries per-invocation state from `OnMethodEnter` to `OnMethodExit` with no map lookup.

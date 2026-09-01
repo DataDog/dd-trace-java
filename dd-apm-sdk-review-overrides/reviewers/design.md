@@ -12,7 +12,7 @@ Start at **ARCHITECTURE.md § "Codemap"** — it owns the module boundaries and 
 
 ## Public API surface
 
-This repo's public API lives in `dd-trace-api/` (`Tracer`, `GlobalTracer`, `DDTags`, `DDSpanTypes`, the `@Trace` annotation, the `*Config` constant classes) and in `dd-trace-ot/`'s `io.opentracing.Tracer` implementation — see ARCHITECTURE.md § "dd-trace-api/" and § "dd-trace-ot/". A change adding a class or method to either is public surface and needs explicit justification; it is forever. `internal-api/` is internal despite the name — it's fair game to reshape, but check callers across `products/` and `dd-java-agent/` before calling a change there "just internal."
+This repo's public API lives in `dd-trace-api/` (`Tracer`, `GlobalTracer`, `DDTags`, `DDSpanTypes`, the `@Trace` annotation, the `*Config` constant classes) and in `dd-trace-ot/`'s `io.opentracing.Tracer` implementation — see ARCHITECTURE.md § "dd-trace-api/" and § "dd-trace-ot/". A change adding a `public`/`protected` class or method to an exported, externally-accessible type in either is public surface and needs explicit justification; it is forever. A package-private or private addition to a non-exported type (e.g. `OTSpan`, `OTSpanContext`, `TypeConverter` in `dd-trace-ot`) is not externally reachable and does not need this justification. `internal-api/` is internal despite the name — it's fair game to reshape, but check callers across `products/` and `dd-java-agent/` before calling a change there "just internal."
 
 ## Configuration surface
 
