@@ -2,8 +2,11 @@ package datadog.opentracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.ListWriter;
@@ -12,6 +15,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 class DDTracerTest extends DDJavaSpecification {
@@ -50,6 +54,19 @@ class DDTracerTest extends DDJavaSpecification {
     DDTracer tracer = DDTracer.builder().writer(DDAgentWriter.builder().build()).build();
     assertNotNull(tracer);
     tracer.close();
+  }
+
+  @Test
+  void delegatesOtelMetricsLifecycle() {
+    AgentTracer.TracerAPI delegate = mock(AgentTracer.TracerAPI.class);
+    CompletableFuture<Boolean> forceFlush = CompletableFuture.completedFuture(true);
+    CompletableFuture<Boolean> shutdown = CompletableFuture.completedFuture(false);
+    when(delegate.forceFlushOtelMetrics()).thenReturn(forceFlush);
+    when(delegate.shutdownOtelMetrics()).thenReturn(shutdown);
+    DDTracer tracer = new DDTracer(delegate);
+
+    assertSame(forceFlush, tracer.forceFlushOtelMetrics());
+    assertSame(shutdown, tracer.shutdownOtelMetrics());
   }
 
   @Test

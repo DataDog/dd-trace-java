@@ -5,7 +5,7 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 // This is necessary for some projects that set a special groovy target which can't coexist with excludeJava
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
-def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
+def buildDirectory = project.layout.buildDirectory
 
 // Temporary exclusions as conventions are properly setup for these projects.
 def javaGradleApplyExceptions = [
@@ -50,7 +50,7 @@ spotless {
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
-      targetExclude('src/test/resources/**', buildDirectoryFiles)
+      targetExclude('src/test/resources/**', buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
@@ -93,7 +93,7 @@ spotless {
         // the Groovy Eclipse formatter extends the Java Eclipse formatter,
         // so it formats Java files by default (unless `excludeJava` is used).
       }
-      targetExclude(buildDirectoryFiles)
+      targetExclude(buildDirectory)
       greclipse(libs.versions.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }
@@ -101,7 +101,7 @@ spotless {
   project.pluginManager.withPlugin('scala') {
     scala {
       toggleOffOn()
-      targetExclude(buildDirectoryFiles)
+      targetExclude(buildDirectory)
       scalafmt(libs.versions.scalafmt.get()).configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
@@ -124,7 +124,7 @@ spotless {
   project.pluginManager.withPlugin('kotlin') {
     kotlin {
       toggleOffOn()
-      targetExclude(buildDirectoryFiles)
+      targetExclude(buildDirectory)
       ktlint(libs.versions.ktlint.get()).editorConfigOverride([
         // Disable trailing comma rules to minimize diff.
         'ktlint_standard_trailing-comma-on-call-site': 'disabled',

@@ -1,5 +1,7 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
@@ -101,7 +103,7 @@ public final class OtlpMetricsService {
       }
       CompletableFuture<Boolean> result = new CompletableFuture<>();
       try {
-        executor.execute(() -> result.complete(export()));
+        execute(() -> result.complete(export()));
       } catch (RejectedExecutionException e) {
         LOGGER.debug("OTLP metrics executor rejected force flush", e);
         result.complete(false);
@@ -131,7 +133,7 @@ public final class OtlpMetricsService {
       }
 
       try {
-        executor.execute(this::finishShutdown);
+        execute(this::finishShutdown);
       } catch (RejectedExecutionException e) {
         LOGGER.debug("OTLP metrics executor rejected shutdown", e);
         closeSender();
@@ -144,6 +146,20 @@ public final class OtlpMetricsService {
 
   private CompletableFuture<Boolean> shutdownResult() {
     return shutdownFuture.thenApply(result -> result);
+  }
+
+  private void execute(Runnable task) {
+    boolean restorePropagation = isAsyncPropagationEnabled();
+    if (restorePropagation) {
+      setAsyncPropagationEnabled(false);
+    }
+    try {
+      executor.execute(task);
+    } finally {
+      if (restorePropagation) {
+        setAsyncPropagationEnabled(true);
+      }
+    }
   }
 
   private void finishShutdown() {

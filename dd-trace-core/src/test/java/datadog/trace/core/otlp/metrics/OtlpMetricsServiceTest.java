@@ -10,7 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -19,6 +21,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -35,15 +38,18 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
       new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE);
   private final List<ScheduledExecutorService> executors = new ArrayList<>();
+  private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
 
   @AfterEach
   void stopExecutors() {
     executors.forEach(ScheduledExecutorService::shutdownNow);
+    AgentTracer.forceRegister(originalTracer);
   }
 
   @Test
@@ -199,6 +205,28 @@ class OtlpMetricsServiceTest {
 
     verify(test.collector, never()).collectMetrics();
     verify(test.sender).shutdown();
+  }
+
+  @Test
+  void lifecycleSubmissionsDisableAsyncPropagation() {
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.isAsyncPropagationEnabled()).thenReturn(true);
+    AgentTracer.forceRegister(tracer);
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    OtlpMetricsService service =
+        new OtlpMetricsService(
+            executor, mock(OtlpMetricsCollector.class), mock(OtlpSender.class), 10_000);
+
+    service.forceFlush();
+    service.shutdown();
+
+    InOrder calls = inOrder(tracer, executor);
+    for (int i = 0; i < 2; i++) {
+      calls.verify(tracer).isAsyncPropagationEnabled();
+      calls.verify(tracer).setAsyncPropagationEnabled(false);
+      calls.verify(executor).execute(any(Runnable.class));
+      calls.verify(tracer).setAsyncPropagationEnabled(true);
+    }
   }
 
   @Test

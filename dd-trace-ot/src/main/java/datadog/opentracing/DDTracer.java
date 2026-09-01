@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -520,6 +521,16 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public void flushMetrics() {
     tracer.flushMetrics();
+  }
+
+  @Override
+  public CompletableFuture<Boolean> forceFlushOtelMetrics() {
+    return tracer.forceFlushOtelMetrics();
+  }
+
+  @Override
+  public CompletableFuture<Boolean> shutdownOtelMetrics() {
+    return tracer.shutdownOtelMetrics();
   }
 
   @Override

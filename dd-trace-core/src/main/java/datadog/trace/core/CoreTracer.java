@@ -144,6 +144,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
+  private static final long METRICS_FLUSH_TIMEOUT_MILLIS = 2_500;
 
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
@@ -1035,13 +1036,41 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
-      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
-        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
-      }
+      correctCounterDrift(computedNanoTime);
       lastSyncTicks = nanoTicks;
     }
     return computedNanoTime + counterDrift;
+  }
+
+  /**
+   * Computes {@link #counterDrift} corrected against {@code computedNanoTime}, gated by a 1ms
+   * threshold to avoid regressing the clock on {@link SystemTimeSource}'s millisecond precision.
+   */
+  private void correctCounterDrift(long computedNanoTime) {
+    long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
+    if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
+      counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+    }
+  }
+
+  /**
+   * AWS Lambda SnapStart restores a checkpointed JVM, potentially hours or days later, without
+   * {@link System#nanoTime()} accounting for the frozen duration. That can leave the computed time
+   * stale for longer than {@link #getTimeWithNanoTicks}'s periodic self-correction can catch, as
+   * that's gated on ticks elapsed rather than wall-clock time. Called once per Lambda invocation,
+   * before any span for it is created, so it's a cheap no-op outside SnapStart.
+   *
+   * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
+   */
+  @VisibleForTesting
+  void maybeResyncClockForLambdaInvocation() {
+    if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
+      return;
+    }
+    long nanoTicks = timeSource.getNanoTicks();
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    correctCounterDrift(computedNanoTime);
+    lastSyncTicks = nanoTicks;
   }
 
   @Override
@@ -1251,6 +1280,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    maybeResyncClockForLambdaInvocation();
+
     // Get context from AppSec
     AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1499,7 +1530,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.shutdown();
+      try {
+        OtlpMetricsService.INSTANCE.shutdown().get(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        log.debug("Failed to wait for OTLP metrics shutdown.", e);
+      }
     }
     if (initialConfig.isLogsOtlpExporterEnabled()) {
       OtlpLogsService.INSTANCE.shutdown();
@@ -1535,7 +1570,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
+      metricsAggregator.forceReport().get(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }
