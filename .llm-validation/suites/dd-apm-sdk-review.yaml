@@ -39,6 +39,7 @@ cases:
       - .agents/skills/dd-apm-sdk-review/SKILL.md
       - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
       - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
       - .agents/skills/dd-apm-sdk-review/reviewers/security.md
       - .agents/skills/dd-apm-sdk-review/reviewers/design.md
       - .agents/skills/dd-apm-sdk-review/reviewers/performance.md

@@ -4,6 +4,7 @@ runs: 3
 instruction_files:
   - .agents/skills/dd-apm-sdk-review/SKILL.md
   - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
   - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
   - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
   - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
