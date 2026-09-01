@@ -134,7 +134,15 @@ public interface WorkQueue<T> {
   /**
    * Admits an element, constructing it only once a slot is reserved.
    *
-   * @return whether the element was admitted
+   * <p>A producer returning {@code null} declines: its place goes back, nothing is admitted, and
+   * nothing was lost. The {@code false} that comes back is the same {@code false} a full queue
+   * gives, so a caller whose producer declines conditionally -- a drain that skips a counter
+   * sitting at zero, say -- cannot tell "nothing to send" from "no room" from this return alone.
+   * {@link #tryPutBatch(Collection, Object, BiContextualProducer)} separates the two, by reporting
+   * how many of the source elements it admitted.
+   *
+   * @return whether the element was admitted, which is {@code false} both for a refusal and for a
+   *     producer that declined
    */
   @StrategyConsumer
   boolean tryPut(@Strategy Producer<? extends T> producer);
@@ -142,7 +150,8 @@ public interface WorkQueue<T> {
   /**
    * Admits an element derived from {@code context}, constructing it only once a slot is reserved.
    *
-   * @return whether the element was admitted
+   * @return whether the element was admitted; a producer returning {@code null} declines, and reads
+   *     as a refusal here -- see {@link #tryPut(Producer)}
    */
   @StrategyConsumer
   <C> boolean tryPut(C context, @Strategy ContextualProducer<? super C, ? extends T> producer);
@@ -150,7 +159,8 @@ public interface WorkQueue<T> {
   /**
    * Admits an element derived from two contexts, constructing it only once a slot is reserved.
    *
-   * @return whether the element was admitted
+   * @return whether the element was admitted; a producer returning {@code null} declines, and reads
+   *     as a refusal here -- see {@link #tryPut(Producer)}
    * @see BiContextualProducer
    */
   @StrategyConsumer
