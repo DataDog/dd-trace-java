@@ -208,14 +208,15 @@ Before presenting, applying, or posting a replacement:
    delimiters, and repository formatting.
 5. For prose-only local edits, run the narrowest formatting check. When links, tags,
    or examples changed, also run the narrowest available Javadoc or doclint task and
-   any compilation needed to resolve referenced symbols. Run Gradle through
-   `build-brief ./gradlew ...`. After a GitHub mutation, re-fetch and verify the exact
+   any compilation needed to resolve referenced symbols. Run Gradle with
+   `./gradlew ...`. After a GitHub mutation, re-fetch and verify the exact
    body, path, range, commit, owning review, and expected review state.
 6. If verification cannot run, state exactly what was not run and why. Do not turn
    an environment or unrelated pre-existing failure into a finding about the rewrite.
 
-If the workflow needs non-trivial scripting, use Java or Kotlin with JBang; keep
-shell usage to simple commands such as `gh`, `rg`, and `sed`.
+If the workflow needs non-trivial scripting, use a Java 25 source-file launch script
+and run it directly with `java --source 25 <script>.java`; keep shell usage to simple
+commands such as `gh`, `rg`, and `sed`.
 
 ## GitHub suggestion mode
 
