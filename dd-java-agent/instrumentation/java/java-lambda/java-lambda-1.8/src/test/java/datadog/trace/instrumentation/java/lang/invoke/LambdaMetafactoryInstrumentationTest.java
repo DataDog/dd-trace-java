@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransforme
 import datadog.trace.instrumentation.java.lang.invoke.LambdaMetafactoryInstrumentation.MetafactoryVisitorWrapper;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -233,7 +234,7 @@ class LambdaMetafactoryInstrumentationTest {
     byte[] originalBytes = new byte[0];
     AtomicBoolean transformed = new AtomicBoolean();
     LambdaTransformerHolder.set(
-        (className, targetClass, classBytes) -> {
+        (className, targetClass, classBytes, interfaceClassName) -> {
           transformed.set(true);
           return classBytes;
         });
@@ -253,9 +254,11 @@ class LambdaMetafactoryInstrumentationTest {
   void exactRunnableInterfaceUsesTransformer() {
     byte[] originalBytes = new byte[0];
     AtomicBoolean transformed = new AtomicBoolean();
+    AtomicReference<String> transformedInterface = new AtomicReference<>();
     LambdaTransformerHolder.set(
-        (className, targetClass, classBytes) -> {
+        (className, targetClass, classBytes, interfaceClassName) -> {
           transformed.set(true);
+          transformedInterface.set(interfaceClassName);
           return classBytes;
         });
     try {
@@ -265,6 +268,7 @@ class LambdaMetafactoryInstrumentationTest {
 
       assertSame(originalBytes, result);
       assertTrue(transformed.get());
+      assertEquals(Runnable.class.getName(), transformedInterface.get());
     } finally {
       LambdaTransformerHolder.set(null);
     }
@@ -275,7 +279,7 @@ class LambdaMetafactoryInstrumentationTest {
     byte[] originalBytes = new byte[0];
     AtomicBoolean transformed = new AtomicBoolean();
     LambdaTransformerHolder.set(
-        (className, targetClass, classBytes) -> {
+        (className, targetClass, classBytes, interfaceClassName) -> {
           transformed.set(true);
           return classBytes;
         });
@@ -297,7 +301,7 @@ class LambdaMetafactoryInstrumentationTest {
     byte[] transformedBytes = new byte[1];
     AtomicInteger calls = new AtomicInteger();
     LambdaTransformerHolder.set(
-        (className, targetClass, classBytes) -> {
+        (className, targetClass, classBytes, interfaceClassName) -> {
           if (calls.getAndIncrement() == 0) {
             throw new IllegalStateException("expected test failure");
           }
@@ -324,7 +328,7 @@ class LambdaMetafactoryInstrumentationTest {
     byte[] transformedBytes = new byte[1];
     AtomicInteger calls = new AtomicInteger();
     LambdaTransformerHolder.set(
-        (className, targetClass, classBytes) ->
+        (className, targetClass, classBytes, interfaceClassName) ->
             calls.getAndIncrement() == 0 ? null : transformedBytes);
     try {
       assertSame(
