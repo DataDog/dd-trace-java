@@ -13,32 +13,14 @@ public final class BenchmarkUtils {
   };
 
   /**
-   * Exercises {@link HashSet}/{@link java.util.HashMap} and the tracer's {@link
-   * CollectionUtils#tryMakeImmutableSet} immutable sets with several distinct key classes, so their
-   * internal {@code hashCode()}/{@code equals()} dispatch -- a call site shared JVM-wide by every
-   * instance of that structure in the process, regardless of which specific instance or call site
-   * invokes {@code add}/{@code contains} -- is already megamorphic before a benchmark measures
-   * lookups against a single key type.
+   * Makes the internal {@code hashCode()} and {@code equals()} call sites of common hash-based
+   * collections megamorphic before measurement.
    *
-   * <p>This matches production: those shared internal call sites are hit by every hash-based
-   * structure in the JVM across whatever key types the whole application uses, so they're
-   * realistically almost always megamorphic. An isolated benchmark that only ever looks up one key
-   * type (e.g. {@code String}) would otherwise leave them artificially monomorphic for the entire
-   * run, understating real dispatch cost.
-   *
-   * <p>Deliberately does not touch the benchmark's own {@code contains}/{@code add} call sites --
-   * those are realistically free to specialize per caller, the way a genuinely hot, narrowly-typed
-   * call site would in production.
-   *
-   * <p>Not to be confused with the CHA-defeat decoys in {@code SingleThreadedMapBenchmark}/{@code
-   * ThreadSafeMapBenchmark} ({@code KeyStrategy} implementors referenced only so they're loaded,
-   * never invoked): that technique denies class-hierarchy analysis a single-implementor bet for a
-   * narrow, dd-trace-java-owned interface, and works by class-loading alone. It doesn't apply here
-   * -- {@code Object.hashCode()}/{@code equals()} already have countless implementors loaded in any
-   * real JVM, so a single-implementor CHA bet was never available for them. What gates their
-   * dispatch is the interpreter's per-call-site type profile, which only invocation can pollute --
-   * hence this helper actually calls {@code add}/{@code contains}, rather than just loading
-   * classes.
+   * <p>HotSpot records receiver classes at each virtual call site. A benchmark using only {@code
+   * String} keys leaves the sites inside these shared implementations monomorphic, allowing C2 to
+   * devirtualize and inline them. Production uses many key types, so the same sites are often
+   * megamorphic and retain virtual dispatch. Exercising several key classes avoids reporting
+   * unrealistically fast collection lookups.
    */
   public static void polluteHashDispatch() {
     polluteHashDispatch(DEFAULT_DECOY_KEYS);
@@ -50,10 +32,12 @@ public final class BenchmarkUtils {
   }
 
   /**
-   * The entry point most benchmarks should reach for: pass the same kind of collection instance
-   * under test (or an equivalent scratch instance). Works for both mutable and immutable
-   * collections since it only drives {@code contains()} -- the operation every {@link
-   * java.util.Set} supports, and the one these lookup benchmarks actually measure.
+   * Exercises {@code contains()} with the default decoy keys.
+   *
+   * <p>Use the collection implementation under test; the instance itself may be a scratch object.
+   * HotSpot stores receiver-type profiles at bytecode call sites, so every instance executing that
+   * implementation contributes to the same internal {@code hashCode()} and {@code equals()}
+   * profiles. The collection may be mutable or immutable.
    */
   public static void populateTypeProfile(Collection<Object> populated) {
     populateTypeProfile(populated, DEFAULT_DECOY_KEYS);
@@ -65,11 +49,7 @@ public final class BenchmarkUtils {
     }
   }
 
-  /**
-   * Lower-level control: also drives {@code add()} dispatch, so {@code scratch} must genuinely
-   * support mutation, and lets the caller pick the decoy keys. Reach for this only when {@code
-   * add()} dispatch matters too, or the default decoys aren't the right shape.
-   */
+  /** Exercises {@code add()} and {@code contains()} on a mutable collection. */
   public static void populateTypeProfileMutable(Collection<Object> scratch, Object... decoyKeys) {
     for (Object key : decoyKeys) {
       scratch.add(key);

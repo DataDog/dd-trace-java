@@ -44,17 +44,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
  *
- * <p>{@link BenchmarkUtils#polluteHashDispatch()} runs in {@link #setUp}, for the same reason as
- * {@link ImmutableSetBenchmark}: {@code Object.hashCode()}/{@code equals()} are JVM-wide shared
- * call sites, hit by every hash-based structure in the process (this benchmark's {@code HashMap},
- * {@code LinkedHashMap}, and {@code Map.copyOf}/{@code MapN} all dispatch through them for their
- * {@code String} keys) — realistically almost always megamorphic, so leaving them monomorphic for
- * the whole run would understate real dispatch cost.
+ * <p>{@link BenchmarkUtils#polluteHashDispatch()} prepares shared {@code hashCode()} and {@code
+ * equals()} call sites before measurement. This avoids giving hash-based structures an
+ * unrealistically monomorphic type profile.
  *
- * <p>JDK 8 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}, with {@link
- * BenchmarkUtils#polluteHashDispatch()} in effect; M ops/s). {@code get} uses distinct keys
- * (exercises {@code equals()}); {@code sameKey} reuses the interned key (the {@code ==} fast path —
- * the common tracer case):
+ * <p>A virtual call site is <i>monomorphic</i> when it has observed one receiver class,
+ * <i>polymorphic</i> when it has observed a small set, and <i>megamorphic</i> when no small, stable
+ * set dominates. HotSpot can usually devirtualize and inline the monomorphic case, sometimes a
+ * small polymorphic one; megamorphic sites generally retain virtual dispatch.
+ *
+ * <p>Results on an Apple M1 with Java 8u382, {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
  *
  * <pre>{@code
  * Structure                get sameKey iterate iterate_forEach
@@ -64,34 +63,19 @@ import org.openjdk.jmh.infra.Blackhole;
  * tagMap                  1005    1235     109       121
  * tracerImmutableMap      1052    1249     123        -   (MapN)
  * stringIndex             1366    1724       -        -
- * stringIndex_embedded    1479    1846       -        -   (fastest get)
+ * stringIndex_embedded    1479    1846       -        -
  * }</pre>
  *
- * <p>Key findings:
+ * <p>In this run:
  *
  * <ul>
- *   <li>StringIndex-as-map is a reliable {@code get} win, and it holds up under type-profile
- *       pollution: {@code stringIndex_embedded} (the {@code static final}-array form) and {@code
- *       stringIndex} (the instance wrapper) both beat every {@code Map} here by a wide margin, on
- *       both the {@code equals()} and identity-fast-path lookups. Unlike {@link
- *       ImmutableSetBenchmark}'s {@code hitFresh} case, there's no bimodality here — this win is
- *       unconditional, not access-pattern-dependent.
- *   <li>This table still compares boxed {@code Integer} values ({@code hashMap}/{@code
- *       linkedHashMap}/{@code treeMap}/{@code tracerImmutableMap} all return {@code Integer};
- *       {@code tagMap}/{@code stringIndex} happen to expose primitive {@code int} accessors, but
- *       that's not exercised as a differentiator here). StringIndex's edge should widen further
- *       against a {@code Map<String, Integer>} once the comparison is against genuinely autoboxed
- *       reads on both sides — not yet measured.
- *   <li>{@code treeMap}'s {@code get} has a wide error bar (±129, one fork's measurement iterations
- *       dropped to ~230-300, the rest sit around 490-610) — a known {@code TreeMap} comparison
- *       characteristic (uses {@code compareTo} not {@code hashCode}/{@code equals}, so it's
- *       unaffected by dispatch pollution), not the same warmup-race bimodality investigated in
- *       {@link ImmutableSetBenchmark}.
- *   <li>{@code TagMap.forEach} (121) beats its own {@code iterator} (109) by ~10%: TagMap's
- *       structure makes a faithful external {@code Iterator} expensive (externalized cursor +
- *       skip-empty + per-call re-entry + the iterator allocation) — all of which internal {@code
- *       forEach} avoids. Traverse TagMap via {@code forEach}, never its iterator; that gap only
- *       widens as TagMap's entry model grows.
+ *   <li>The embedded StringIndex has the fastest {@code get}; the instance wrapper is second.
+ *   <li>Both StringIndex variants outperform the map-based alternatives for distinct and identical
+ *       key instances.
+ *   <li>{@code TreeMap.get} varies widely across forks (roughly 230-610 M ops/s), so its mean is
+ *       less stable than the other results.
+ *   <li>{@code TagMap.forEach} is about 10% faster than its iterator (121 vs. 109 M ops/s). Its
+ *       advantage widens as TagMap's entry model grows.
  * </ul>
  */
 // @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer

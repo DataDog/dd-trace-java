@@ -44,75 +44,41 @@ import org.openjdk.jmh.annotations.Warmup;
  *       indirection cost of the wrapper.
  * </ul>
  *
- * <p>Hit lookups come in two flavors, because reusing the exact same key instances for both
- * building a structure and measuring lookups against it is its own validity bug, independent of
- * hash-dispatch pollution: {@link String#equals} takes an {@code ==} fast path, and {@link
- * String#hashCode()} caches its result in a field on first call, so a key instance that was already
- * inserted (or previously looked up) pays neither real cost again.
+ * <p>Lookup variants:
  *
  * <ul>
- *   <li>{@code hit} -- looks up the same interned {@link #STRINGS} literals used to build every
- *       structure. This is realistic and worth keeping (fixed header/config-key lookups commonly
- *       are interned literals), but identity with the stored element is inherent to interning, not
- *       a choice this benchmark makes -- two equal literals are always the same instance.
- *   <li>{@code hitFresh} -- looks up {@link #FRESH_STRINGS}, separate {@code new String(..)}
- *       instances never touched by {@link #setUp}, so each carries an uncached hash and forces a
- *       real {@code equals()} beyond the {@code ==} check. Models keys arriving from
- *       parsing/concatenation/deserialization rather than literals. Only meaningful for the
- *       hash-based structures ({@code hashSet}, {@code tracerImmutableSet}, {@code stringIndex},
- *       {@code stringIndex_embedded}); not measured for {@code array}/{@code sortedArray}/{@code
- *       treeSet}.
+ *   <li>{@code hit} uses the same interned strings that were inserted, exercising the identity fast
+ *       path.
+ *   <li>{@code hitFresh} uses equal, non-interned strings, avoiding the identity fast path. It is
+ *       measured only for the hash-based structures.
+ *   <li>{@code miss} uses non-interned strings that are not in the set.
  * </ul>
  *
- * <p>Misses are already representative of both effects for free: {@link #MISSES} is built via
- * concatenation (never interned) and never touched by {@link #setUp}.
- *
- * <p>Full re-run, all six structures across {@code hit}/{@code hitFresh}/{@code miss} together,
- * with {@link BenchmarkUtils#polluteHashDispatch()} in effect (Apple M1, Java 8u382 -- the
- * repo-default {@code jmh} test launcher, no {@code -PtestJvm} override --, {@code @Fork(5)},
- * {@code @Threads(8)}; M ops/s = millions):
+ * <p>Results on an Apple M1 with Java 8u382, {@link BenchmarkUtils#polluteHashDispatch()} enabled,
+ * {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
  *
  * <pre>{@code
  * Structure                    hit   hitFresh    miss
- * stringIndex_embedded (static) 2098      1563    2030    (fastest hit and miss)
+ * stringIndex_embedded (static) 2098      1563    2030
  * hashSet                       1723      1276    1823
- * stringIndex (inst)            1883      1184 *  1700 *  (* bimodal -- see caveat)
- * tracerImmutableSet            1632      1232    1625    (Set.copyOf / SetN)
+ * stringIndex (inst)            1883      1184 *  1700 *
+ * tracerImmutableSet            1632      1232    1625    (SetN)
  * array                          854         -     495
  * sortedArray                    713         -     613
  * treeSet                        646         -     544
  * }</pre>
  *
- * <p>Key findings:
+ * <p>In this run:
  *
  * <ul>
- *   <li>The static {@code EmbeddingSupport} path is the fastest on both hit and miss -- it beats
- *       {@code HashSet} on both and crushes the scan/search/tree forms.
- *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
- *       field-load indirection. It reliably beats {@code HashSet} on {@code hit} (its actual design
- *       case: repeated lookups of a known, fixed name set). On {@code miss} and {@code hitFresh} it
- *       is <i>not</i> a reliable win -- both are bimodal across forks (see caveat below) and the
- *       mean in each case already sits at or below {@code HashSet}'s steady figure. For miss- or
- *       fresh-key-heavy membership use, prefer {@link StringIndex.EmbeddingSupport} directly rather
- *       than assuming the wrapper is strictly better than a plain {@code Set}. This doesn't apply
- *       to {@code StringIndex}'s parallel-value (map) use case ({@code mapValues}/{@code lookup})
- *       -- that win comes from avoiding boxing and node overhead entirely and is unaffected by any
- *       of this.
- *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) trails
- *       {@code EmbeddingSupport} on every scenario but remains the most <i>compact</i> (~27%
- *       smaller -- no cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed
- *       + the {@code indexOf}-&gt;parallel-array capability, not footprint.
- *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail every hashed structure, most on
- *       miss.
- *   <li>{@code hitFresh} is the <i>slowest</i> of the three scenarios for every hash-based
- *       structure -- clearly below both {@code hit} and {@code miss}, not merely below {@code hit}
- *       as previously guessed. This makes sense once the two failure shapes are compared: a miss
- *       usually short-circuits on the first hash mismatch during probing and rarely reaches {@code
- *       equals()}, while a {@code hitFresh} lookup must probe until it finds the match and pay a
- *       real, uncached {@code equals()} there -- so it is not simply "the honest version of hit",
- *       it exercises a genuinely more expensive path than either {@code hit} (cached hash + {@code
- *       ==}) or {@code miss} (hash-only rejection). Superseded an earlier partial-data guess that
- *       {@code hitFresh} would land at the same cost as {@code miss}.
+ *   <li>The embedded {@code StringIndex} is fastest for all three lookup variants.
+ *   <li>The {@code StringIndex} wrapper beats {@code HashSet} for interned hits. Its fresh-hit and
+ *       miss results are bimodal and have lower means than {@code HashSet}; prefer the embedded
+ *       form when these paths matter.
+ *   <li>{@code SetN} is slower than the embedded form but about 27% smaller. StringIndex trades
+ *       that space for speed and support for slot-aligned payload arrays.
+ *   <li>Fresh hits are slower than misses for each hash-based structure: a matching distinct string
+ *       reaches {@code equals()}, while a miss can stop on a hash mismatch.
  * </ul>
  *
  * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
@@ -138,11 +104,7 @@ public class ImmutableSetBenchmark {
   /** Distinct String instances that are never present, for the miss path. */
   static final String[] MISSES = newMisses();
 
-  /**
-   * Equal-content, non-interned, never-before-hashed copies of {@link #STRINGS}, built once here
-   * and never touched by {@link #setUp} -- so a lookup against them can't ride the {@code ==} fast
-   * path or a hash cached during set construction. See {@code hitFresh} in the class javadoc.
-   */
+  /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
   static final String[] FRESH_STRINGS = newFreshStrings();
 
   static String[] newFreshStrings() {
