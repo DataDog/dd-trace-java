@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -174,6 +175,41 @@ class OtlpMetricsServiceTest {
     verify(test.sender).shutdown();
     assertTrue(test.executor.isShutdown());
     assertTrue(test.executor.awaitTermination(5, SECONDS));
+  }
+
+  @Test
+  void shutdownReportsSenderCloseFailure() throws Exception {
+    TestService test = service(PAYLOAD);
+    when(test.sender.send(PAYLOAD)).thenReturn(success(200));
+    doThrow(new IllegalStateException("boom")).when(test.sender).shutdown();
+
+    assertFalse(test.service.shutdown().join());
+
+    verify(test.sender).shutdown();
+    assertTrue(test.executor.awaitTermination(5, SECONDS));
+  }
+
+  @Test
+  void rejectedLifecycleOperationsFailAndCloseSender() {
+    TestService test = service(PAYLOAD);
+    test.executor.shutdown();
+
+    assertFalse(test.service.forceFlush().join());
+    assertFalse(test.service.shutdown().join());
+
+    verify(test.collector, never()).collectMetrics();
+    verify(test.sender).shutdown();
+  }
+
+  @Test
+  void unavailablePipelineFailsLifecycleAndStopsExecutor() throws Exception {
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    executors.add(executor);
+    OtlpMetricsService service = new OtlpMetricsService(executor, null, null, 10_000);
+
+    assertFalse(service.forceFlush().join());
+    assertFalse(service.shutdown().join());
+    assertTrue(executor.awaitTermination(5, SECONDS));
   }
 
   @Test
