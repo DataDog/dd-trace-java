@@ -363,6 +363,52 @@ public final class Hashtable {
     }
 
     /**
+     * {@link #tryGetOrCreateOrNull}, but evicting one entry matching {@code evictable} instead of
+     * refusing when the table is full -- see {@link #tryGetOrCreateOrEvictOrNull} for the
+     * null-returning form and the eviction/creation ordering.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateOrEvict(
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      return Maybe.of(tryGetOrCreateOrEvictOrNull(key, creator, evictable));
+    }
+
+    /**
+     * Escape hatch for {@link #tryGetOrCreateOrEvict} for callers that want the nullable entry
+     * directly. Eviction runs before {@code creator}, not after: {@code creator} may throw, so
+     * freeing a slot and only then attempting the fallible create keeps a thrown exception from
+     * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
+     * leaves the table one entry smaller -- no corruption, just a wasted eviction.
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrEvictOrNull(
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      long keyHash = D1.Entry.hash(key);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
+        }
+      }
+      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: `creator`
+      // runs between eviction and the link and may throw, so reserving the freed slot up front
+      // could leak it. See tryGetOrCreateOrNull above for the non-evicting form of this same
+      // reasoning.
+      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
+        return null;
+      }
+      TEntry newEntry = creator.apply(key);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
+      return newEntry;
+    }
+
+    /**
      * {@link #tryGetOrCreateOrNull} followed by {@code updater}, returning whether the update
      * happened.
      *
@@ -690,6 +736,55 @@ public final class Hashtable {
       // between the check and the link and may throw, so a slot reserved up front could leak. See
       // SizeManager#tryReserve.
       if (this.sizeManager.isFull()) {
+        return null;
+      }
+      TEntry newEntry = creator.apply(key1, key2);
+      insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
+      this.sizeManager.increment();
+      return newEntry;
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrEvict}: {@link #tryGetOrCreateOrNull}, but
+     * evicting one entry matching {@code evictable} instead of refusing when the table is full --
+     * see {@link #tryGetOrCreateOrEvictOrNull} for the null-returning form and the
+     * eviction/creation ordering.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreateOrEvict(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      return Maybe.of(tryGetOrCreateOrEvictOrNull(key1, key2, creator, evictable));
+    }
+
+    /**
+     * Escape hatch for {@link #tryGetOrCreateOrEvict} for callers that want the nullable entry
+     * directly. Eviction runs before {@code creator}, not after: {@code creator} may throw, so
+     * freeing a slot and only then attempting the fallible create keeps a thrown exception from
+     * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
+     * leaves the table one entry smaller -- no corruption, just a wasted eviction.
+     */
+    @Nullable
+    public TEntry tryGetOrCreateOrEvictOrNull(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Nonnull Predicate<? super TEntry> evictable) {
+      long keyHash = D2.Entry.hash(key1, key2);
+      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
+        }
+      }
+      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: `creator`
+      // runs between eviction and the link and may throw, so reserving the freed slot up front
+      // could leak it. See tryGetOrCreateOrNull above for the non-evicting form of this same
+      // reasoning.
+      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);

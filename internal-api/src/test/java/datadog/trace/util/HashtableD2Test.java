@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -70,6 +71,91 @@ class HashtableD2Test {
 
     assertEquals(1, table.size());
     assertSame(ab, table.get("a", 1));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictInsertsWithoutEvictingWhenUnderCapacity() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
+
+    Maybe<PairEntry> created =
+        table.tryGetOrCreateOrEvict("a", 1, (k1, k2) -> new PairEntry(k1, k2, 100), e -> true);
+
+    assertTrue(created.isPresent());
+    assertEquals(1, table.size());
+    assertSame(created.getOrNull(), table.get("a", 1));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictReturnsExistingEntryOnHitWithoutEvicting() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
+    PairEntry a = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
+
+    Maybe<PairEntry> got =
+        table.tryGetOrCreateOrEvict(
+            "a",
+            1,
+            (k1, k2) -> {
+              throw new AssertionError("creator must not run on a hit");
+            },
+            e -> {
+              throw new AssertionError("evictable must not run on a hit");
+            });
+
+    assertSame(a, got.getOrNull());
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictEvictsWhenFullAndInsertsNewEntry() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
+    assertTrue(table.isFull());
+
+    Maybe<PairEntry> created =
+        table.tryGetOrCreateOrEvict("new", 2, (k1, k2) -> new PairEntry(k1, k2, 200), e -> true);
+
+    assertTrue(created.isPresent());
+    assertEquals(1, table.size());
+    assertNull(table.get("old", 1));
+    assertSame(created.getOrNull(), table.get("new", 2));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictOrNullRefusesWhenFullAndNothingEvictable() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
+
+    PairEntry result =
+        table.tryGetOrCreateOrEvictOrNull(
+            "new", 2, (k1, k2) -> new PairEntry(k1, k2, 200), e -> false);
+
+    assertNull(result);
+    assertEquals(1, table.size());
+    assertNotNull(table.get("old", 1));
+    assertNull(table.get("new", 2));
+  }
+
+  @Test
+  void tryGetOrCreateOrEvictOrNullEvictionRunsBeforeThrowingCreator() {
+    Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
+    table.tryGetOrCreateOrNull("old", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
+
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            table.tryGetOrCreateOrEvictOrNull(
+                "new",
+                2,
+                (k1, k2) -> {
+                  throw new RuntimeException("boom");
+                },
+                e -> true));
+
+    // Eviction already happened before the creator threw: the table is left one entry smaller,
+    // not corrupted or double-booked.
+    assertEquals(0, table.size());
+    assertNull(table.get("old", 1));
+    assertNull(table.get("new", 2));
   }
 
   @Test
