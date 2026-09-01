@@ -103,7 +103,7 @@ public final class Hashtable {
    * {@code null} rather than adding more entries -- a lookup hit is still always returned even at
    * capacity, the cap only blocks new entries. Want your own eviction policy instead of a hard cap?
    * Drop down to the static building blocks and drive the bucket array yourself -- {@link
-   * Hashtable#createCapped(int)} hands you a spine and a {@link SizeManager} already matched to
+   * Hashtable#createBounded(int)} hands you a spine and a {@link SizeManager} already matched to
    * each other, and the manager evicts as well as counts. Actual bucket-array length is rounded up
    * to the next power of two.
    *
@@ -181,7 +181,7 @@ public final class Hashtable {
      * it, a bounded footprint -- the posture an agent living in someone else's heap wants by
      * default. Callers that need overflow to be absorbed rather than refused should pair a {@link
      * SizeManager}'s eviction half over the static building blocks (see {@link
-     * Hashtable#createCapped(int)}) rather than reaching for an uncapped table.
+     * Hashtable#createBounded(int)}) rather than reaching for an uncapped table.
      *
      * <p><b>Pick {@code maxCapacity} in the right ballpark of what you actually expect to hold</b>
      * -- the bucket array is sized from it, so it is read as both the limit and a rough estimate.
@@ -192,14 +192,14 @@ public final class Hashtable {
      *
      * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
      * infers both {@code K} and {@code TEntry} at the call site (e.g. {@code
-     * D1.createCapped(MyEntry.class, 64)}), keeping the factory symmetric with the rest of the
+     * D1.createBounded(MyEntry.class, 64)}), keeping the factory symmetric with the rest of the
      * collections family. Unlike {@link Hashtable#create(Class, int)} it is not reflectively
      * allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally, matching the
      * static building blocks ({@link Hashtable#bucketFor}, {@link Hashtable#insertHeadEntryFor},
      * etc.) that {@link #get}, {@link #insert}, and friends delegate to.
      */
     @Nonnull
-    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createCapped(
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
       return new D1<>(maxCapacity);
     }
@@ -302,7 +302,7 @@ public final class Hashtable {
      * inspecting the result.
      *
      * <p>Refusal is a designed steady state for a capped table, not an exceptional condition -- see
-     * {@link #createCapped}. Decide deliberately what a refused create should do (drop the sample,
+     * {@link #createBounded}. Decide deliberately what a refused create should do (drop the sample,
      * fall back, make room); silently ignoring an absent {@link Maybe} turns the cap into data loss
      * you cannot see.
      *
@@ -551,20 +551,20 @@ public final class Hashtable {
     }
 
     /**
-     * Composite-key analogue of {@link D1#createCapped}: a <em>capped</em> table holding at most
+     * Composite-key analogue of {@link D1#createBounded}: a <em>capped</em> table holding at most
      * {@code maxCapacity} live entries, after which {@link #insert} returns {@code false} and
      * {@link #tryGetOrCreateOrNull} returns {@code null}, with lookup hits still always returned.
-     * See {@link D1#createCapped} for what "capped" promises and why it is the default posture.
+     * See {@link D1#createBounded} for what "capped" promises and why it is the default posture.
      *
      * <p>{@code entryClass} is a type token only -- it pins the concrete entry type so the compiler
      * infers {@code K1}, {@code K2}, and {@code TEntry} at the call site (e.g. {@code
-     * D2.createCapped(MyEntry.class, 64)}). Unlike {@link Hashtable#create(Class, int)} it is not
+     * D2.createBounded(MyEntry.class, 64)}). Unlike {@link Hashtable#create(Class, int)} it is not
      * reflectively allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally,
      * matching the static building blocks that {@link #get}, {@link #insert}, and friends delegate
      * to.
      */
     @Nonnull
-    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createCapped(
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
       return new D2<>(maxCapacity);
     }
@@ -787,7 +787,7 @@ public final class Hashtable {
    *
    * <p>{@code capacity} sizes the bucket array 1:1 (no headroom) -- chains stay a plain hash table
    * at exactly this many entries. For load-factor headroom over a target cap on live entries (so
-   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link #createCapped}
+   * chains stay short even as the table fills, the way {@link D1}/{@link D2}/{@link #createBounded}
    * size themselves), pass {@link #capacityFor(int)} instead: {@code create(MyEntry.class,
    * capacityFor(cardinalityLimit))}.
    */
@@ -803,7 +803,7 @@ public final class Hashtable {
    * rounded up to the next power of two, with the base {@code Hashtable.Entry[]} component type.
    *
    * <p>Use this when the spine is driven purely through the static building blocks, which all take
-   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link #createCapped}
+   * {@code Hashtable.Entry[]} -- that is what {@link D1}, {@link D2}, and {@link #createBounded}
    * allocate internally. Prefer {@link #create(Class, int)} when you own the array and want a real
    * {@code TEntry} component type (typed reads, array-store checks, a monomorphic element type for
    * the JIT); prefer this one when a typed spine would only buy you covariant array-store checks on
@@ -830,7 +830,7 @@ public final class Hashtable {
    * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
    * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
    * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
-   * {@link #createCapped} all size themselves this way). Pair with a {@link SizeManager} of {@code
+   * {@link #createBounded} all size themselves this way). Pair with a {@link SizeManager} of {@code
    * cardinalityLimit} for the matching strict cap; this method only sizes the array.
    */
   public static int capacityFor(int cardinalityLimit) {
@@ -1495,7 +1495,7 @@ public final class Hashtable {
    * maxCapacity}, paired with a {@link SizeManager} capped at the strict {@code maxCapacity}.
    */
   @Nonnull
-  public static <TEntry extends Entry> State<TEntry> createCapped(int maxCapacity) {
+  public static <TEntry extends Entry> State<TEntry> createBounded(int maxCapacity) {
     Hashtable.Entry[] buckets = create(capacityFor(maxCapacity));
     return new State<>(buckets, maxCapacity);
   }

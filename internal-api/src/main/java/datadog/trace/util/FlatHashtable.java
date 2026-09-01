@@ -129,8 +129,8 @@ public final class FlatHashtable {
    * factor, and {@code tryGetOrCreateOrNull} never returns {@code null}. The distinct factory names
    * make the choice explicit at the call site (there's no ambiguous {@code (Class, int)}
    * constructor); {@code Capacity} always counts <i>entries</i>, matching the chained {@code
-   * Hashtable.D1.createCapped}. Across the family a table factory's number is always entries — only
-   * the low-level array allocators take a bucket count.
+   * Hashtable.D1.createBounded}. Across the family a table factory's number is always entries —
+   * only the low-level array allocators take a bucket count.
    *
    * <p><b>Entry-centric, not strategy-based.</b> Supply a {@link D1.Entry} subclass carrying the
    * key and value fields; key equality is {@link Object#equals} by default (override {@link

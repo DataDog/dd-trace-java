@@ -160,7 +160,7 @@ class HashtableTest {
 
     @Test
     void clearNullsAllBuckets() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -172,7 +172,7 @@ class HashtableTest {
 
     @Test
     void drainVisitsEveryEntryThenClears() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("x", 1);
       buckets[1] = new StringIntEntry("y", 2);
@@ -188,7 +188,7 @@ class HashtableTest {
 
     @Test
     void insertHeadEntrySplicesAsNewHead() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
@@ -205,7 +205,7 @@ class HashtableTest {
     @Test
     void insertHeadEntryOfAlreadyLinkedEntryTripsAssertion() {
       assumeTrue(assertionsEnabled(), "assert-guard test requires -ea");
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
@@ -366,7 +366,7 @@ class HashtableTest {
       // Use Hashtable.D1 to seed; then call Hashtable.bucketIterator directly with the matching
       // hash and verify it only returns the matching entry.
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 4);
       CollidingKey k1 = new CollidingKey("first", 17);
       CollidingKey k2 = new CollidingKey("second", 17);
       CollidingKey k3 = new CollidingKey("third", 17);
@@ -386,7 +386,7 @@ class HashtableTest {
     @Test
     void exhaustedIteratorThrowsNoSuchElement() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 4);
+          Hashtable.D1.createBounded(StringIntEntry.class, 4);
       table.insert(new StringIntEntry("only", 1));
       long h = Hashtable.D1.Entry.hash("only");
       BucketIterator<StringIntEntry> it = Hashtable.bucketIterator(table.buckets, h);
@@ -405,7 +405,7 @@ class HashtableTest {
     void removeFromHeadOfChainUnlinks() {
       // Make three entries with the same hash so they chain in one bucket
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 4);
       CollidingKey k1 = new CollidingKey("first", 17);
       CollidingKey k2 = new CollidingKey("second", 17);
       CollidingKey k3 = new CollidingKey("third", 17);
@@ -439,7 +439,7 @@ class HashtableTest {
     @Test
     void replaceSwapsEntryAndPreservesChain() {
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 4);
       CollidingKey k1 = new CollidingKey("first", 17);
       CollidingKey k2 = new CollidingKey("second", 17);
       CollidingKeyEntry e1 = new CollidingKeyEntry(k1, 1);
@@ -462,7 +462,7 @@ class HashtableTest {
     @Test
     void removeWithoutNextThrows() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 4);
+          Hashtable.D1.createBounded(StringIntEntry.class, 4);
       table.insert(new StringIntEntry("a", 1));
       MutatingBucketIterator<StringIntEntry> it =
           Hashtable.mutatingBucketIterator(table.buckets, Hashtable.D1.Entry.hash("a"));
@@ -478,7 +478,7 @@ class HashtableTest {
     @Test
     void walksEveryEntryAcrossBuckets() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 16);
+          Hashtable.D1.createBounded(StringIntEntry.class, 16);
       table.insert(new StringIntEntry("a", 1));
       table.insert(new StringIntEntry("b", 2));
       table.insert(new StringIntEntry("c", 3));
@@ -498,7 +498,7 @@ class HashtableTest {
     @Test
     void emptyTableIteratorIsExhausted() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 8);
+          Hashtable.D1.createBounded(StringIntEntry.class, 8);
       MutatingTableIterator<StringIntEntry> it = Hashtable.mutatingTableIterator(table.buckets);
       assertFalse(it.hasNext());
       assertThrows(NoSuchElementException.class, it::next);
@@ -507,7 +507,7 @@ class HashtableTest {
     @Test
     void removeUnlinksBucketHead() {
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 4);
       CollidingKey k1 = new CollidingKey("first", 17);
       CollidingKey k2 = new CollidingKey("second", 17);
       table.insert(new CollidingKeyEntry(k1, 1));
@@ -527,7 +527,7 @@ class HashtableTest {
     @Test
     void removeUnlinksMidChainEntry() {
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 4);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 4);
       CollidingKey k1 = new CollidingKey("first", 17);
       CollidingKey k2 = new CollidingKey("second", 17);
       CollidingKey k3 = new CollidingKey("third", 17);
@@ -563,7 +563,7 @@ class HashtableTest {
       // makes empty buckets between them very likely). Verify the iterator skips empties cleanly
       // after a remove.
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 64);
+          Hashtable.D1.createBounded(StringIntEntry.class, 64);
       table.insert(new StringIntEntry("alpha", 1));
       table.insert(new StringIntEntry("beta", 2));
       table.insert(new StringIntEntry("gamma", 3));
@@ -582,7 +582,7 @@ class HashtableTest {
     @Test
     void removeWithoutNextThrows() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 4);
+          Hashtable.D1.createBounded(StringIntEntry.class, 4);
       table.insert(new StringIntEntry("a", 1));
       MutatingTableIterator<StringIntEntry> it = Hashtable.mutatingTableIterator(table.buckets);
       assertThrows(IllegalStateException.class, it::remove);
@@ -591,7 +591,7 @@ class HashtableTest {
     @Test
     void removeTwiceWithoutInterveningNextThrows() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 4);
+          Hashtable.D1.createBounded(StringIntEntry.class, 4);
       table.insert(new StringIntEntry("a", 1));
       table.insert(new StringIntEntry("b", 2));
       MutatingTableIterator<StringIntEntry> it = Hashtable.mutatingTableIterator(table.buckets);
@@ -606,7 +606,7 @@ class HashtableTest {
       // table -> bucketIndex = hash & 15. Place entries in buckets 0, 5, and 10; iterate
       // [5, 10) -- should see only bucket 5.
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 16);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 16);
       table.insert(new CollidingKeyEntry(new CollidingKey("b0", 0), 1));
       table.insert(new CollidingKeyEntry(new CollidingKey("b5", 5), 2));
       table.insert(new CollidingKeyEntry(new CollidingKey("b10", 10), 3));
@@ -626,7 +626,7 @@ class HashtableTest {
       // start == end -> immediately-exhausted iterator. Important: this is the wrap-around
       // pass [0, cursor) when cursor == 0 in resumable sweeps.
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 8);
+          Hashtable.D1.createBounded(StringIntEntry.class, 8);
       table.insert(new StringIntEntry("a", 1));
       MutatingTableIterator<StringIntEntry> it =
           Hashtable.mutatingTableIterator(table.buckets, 0, 0);
@@ -636,7 +636,7 @@ class HashtableTest {
     @Test
     void rangeBoundsOutOfOrderThrows() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.createCapped(StringIntEntry.class, 8);
+          Hashtable.D1.createBounded(StringIntEntry.class, 8);
       assertThrows(
           IndexOutOfBoundsException.class,
           () -> Hashtable.mutatingTableIterator(table.buckets, -1, 4));
@@ -655,7 +655,7 @@ class HashtableTest {
       // Pin one entry to a known bucket and check currentBucket() after next() reports that
       // bucket. Before any next() (or after remove()), currentBucket() returns -1.
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createCapped(CollidingKeyEntry.class, 16);
+          Hashtable.D1.createBounded(CollidingKeyEntry.class, 16);
       table.insert(new CollidingKeyEntry(new CollidingKey("b3", 3), 1));
 
       MutatingTableIterator<CollidingKeyEntry> it = Hashtable.mutatingTableIterator(table.buckets);
@@ -672,7 +672,7 @@ class HashtableTest {
 
     @Test
     void evictOneRemovesFirstMatchAndAdvancesCursor() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
@@ -685,7 +685,7 @@ class HashtableTest {
 
     @Test
     void tryReserveOrEvictReservesWhileRoomRemains() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(2);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(2);
 
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
@@ -694,7 +694,7 @@ class HashtableTest {
 
     @Test
     void tryReserveOrEvictMakesRoomWhenFull() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(2);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(2);
       StringIntEntry stale = new StringIntEntry("stale", 0);
       StringIntEntry hot = new StringIntEntry("hot", 1);
       assertTrue(Hashtable.insertHeadEntryFor(table, stale.keyHash, stale));
@@ -712,7 +712,7 @@ class HashtableTest {
 
     @Test
     void tryReserveOrEvictRefusesWhenFullAndNothingEvictable() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(1);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(1);
       StringIntEntry hot = new StringIntEntry("hot", 1);
       assertTrue(Hashtable.insertHeadEntryFor(table, hot.keyHash, hot));
 
@@ -725,7 +725,7 @@ class HashtableTest {
 
     @Test
     void removeMatchingOverStateNeedsNoTypeWitness() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertHeadEntryFor(table, a.keyHash, a);
 
@@ -737,7 +737,7 @@ class HashtableTest {
 
     @Test
     void stateAccessorsAndInsertReservedRoundTrip() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       assertTrue(Hashtable.isLikelyEmpty(table));
       assertEquals(0, Hashtable.estimateSize(table));
 
@@ -763,7 +763,7 @@ class HashtableTest {
 
     @Test
     void clearOverStateEmptiesSpineAndResetsCount() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertHeadEntryFor(table, a.keyHash, a);
       assertEquals(1, table.sizeManager.estimateSize());
@@ -776,7 +776,7 @@ class HashtableTest {
 
     @Test
     void evictOneReturnsNullWhenNothingMatches() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       assertNull(Hashtable.evictOne(table, e -> e.value == 999));
@@ -785,7 +785,7 @@ class HashtableTest {
 
     @Test
     void evictAllKeepsCountConsistentWhenThePredicateThrows() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(8);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(8);
       for (int i = 0; i < 4; i++) {
         StringIntEntry e = new StringIntEntry("k" + i, i);
         assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
@@ -815,7 +815,7 @@ class HashtableTest {
     @Test
     void drainDetachesEntriesSoASinkCannotPinTheChain() {
       // Two entries forced into one bucket, so the drained pair is chained.
-      Hashtable.State<CollidingKeyEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<CollidingKeyEntry> table = Hashtable.createBounded(4);
       CollidingKeyEntry first = new CollidingKeyEntry(new CollidingKey("first", 17), 1);
       CollidingKeyEntry second = new CollidingKeyEntry(new CollidingKey("second", 17), 2);
       assertTrue(Hashtable.insertHeadEntryFor(table, first.keyHash, first));
@@ -833,7 +833,7 @@ class HashtableTest {
 
     @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);
       assertTrue(Hashtable.insertHeadEntryFor(table, a.keyHash, a));
 
@@ -850,7 +850,7 @@ class HashtableTest {
 
     @Test
     void evictOneWrapsAroundToStartOfTable() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[3] = new StringIntEntry("d", 4);
@@ -865,7 +865,7 @@ class HashtableTest {
 
     @Test
     void drainRemovesAllMatchesAndResetsCursor() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[0] = new StringIntEntry("a", 1);
       buckets[1] = new StringIntEntry("b", 2);
@@ -886,7 +886,7 @@ class HashtableTest {
 
     @Test
     void resetZeroesCursor() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       Hashtable.Entry[] buckets = table.buckets;
       buckets[3] = new StringIntEntry("d", 4);
       Hashtable.evictOne(table, e -> e.value == 4);
@@ -906,7 +906,7 @@ class HashtableTest {
 
     @Test
     void createTableSizesBucketsWithHeadroomAndCapsSize() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
 
       int len = table.buckets.length;
       assertTrue(len >= 4, "backing array must have load-factor headroom over capacity");
@@ -919,7 +919,7 @@ class HashtableTest {
 
     @Test
     void tableSizeTrackerRespectsCapacity() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(1);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(1);
 
       assertTrue(table.sizeManager.tryReserve());
       assertTrue(table.sizeManager.isFull());
@@ -928,7 +928,7 @@ class HashtableTest {
 
     @Test
     void tableSizeManagerOperatesOnItsOwnBuckets() {
-      Hashtable.State<StringIntEntry> table = Hashtable.createCapped(4);
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       table.buckets[0] = new StringIntEntry("a", 1);
 
       StringIntEntry evicted =
