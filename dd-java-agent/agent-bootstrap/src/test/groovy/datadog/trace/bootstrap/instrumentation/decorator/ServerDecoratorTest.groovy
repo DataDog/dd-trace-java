@@ -1,39 +1,27 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
-
-import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
-import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 
 class ServerDecoratorTest extends BaseDecoratorTest {
 
   def span = Mock(AgentSpan)
 
   def "test afterStart"() {
+    setup:
     def decorator = newDecorator()
-    def spanContext = Mock(AgentSpanContext)
+    def recordingSpan = new RecordingSpan()
 
     when:
-    decorator.afterStart(span)
+    decorator.afterStart(recordingSpan)
 
     then:
-    1 * span.setTag(TagMap.Entry.create(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE))
-    1 * span.setTag(TagMap.Entry.create(COMPONENT, "test-component"))
-    1 * span.spanContext() >> spanContext
-    1 * spanContext.setIntegrationName("test-component")
-    1 * span.setTag(TagMap.Entry.create(SPAN_KIND, "server"))
-    1 * span.setSpanType(decorator.spanType())
-    if (decorator.traceAnalyticsEnabled) {
-      1 * span.setMetric(TagMap.Entry.create(ANALYTICS_SAMPLE_RATE, 1.0))
-    } else {
-      1 * span.setMetric(null)
-    }
-    0 * _
+    ExpectedSpanState.expected()
+      .spanType(decorator.spanType())
+      .component("test-component")
+      .spanKind("server")
+      .language()
+      .analyticsSampleRate(decorator.traceAnalyticsEnabled ? 1.0d : null)
+      .assertAppliedTo(recordingSpan)
   }
 
   def "test beforeFinish"() {
