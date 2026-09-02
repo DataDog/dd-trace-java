@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -24,12 +25,15 @@ final class LightweightOtlpEncoder {
    * @param jfrFile path to the JFR recording
    * @param start recording start time
    * @param end recording end time
+   * @param resourceAttributes resource attributes identifying the profiled application
    * @return OTLP protobuf bytes
    * @throws IOException if reading the JFR file fails
    */
-  static byte[] encode(Path jfrFile, Instant start, Instant end) throws IOException {
+  static byte[] encode(
+      Path jfrFile, Instant start, Instant end, Map<String, String> resourceAttributes)
+      throws IOException {
     byte[] jfrBytes = Files.readAllBytes(jfrFile);
-    return encode(jfrBytes, start, end);
+    return encode(jfrBytes, start, end, resourceAttributes);
   }
 
   /**
@@ -38,9 +42,11 @@ final class LightweightOtlpEncoder {
    * @param jfrBytes raw JFR recording bytes
    * @param start recording start time
    * @param end recording end time
+   * @param resourceAttributes resource attributes identifying the profiled application
    * @return OTLP protobuf bytes
    */
-  static byte[] encode(byte[] jfrBytes, Instant start, Instant end) {
+  static byte[] encode(
+      byte[] jfrBytes, Instant start, Instant end, Map<String, String> resourceAttributes) {
     ProtobufEncoder encoder = new ProtobufEncoder(64 * 1024 + jfrBytes.length);
     encoder.reset();
 
@@ -53,6 +59,10 @@ final class LightweightOtlpEncoder {
         OtlpProtoFields.ProfilesData.RESOURCE_PROFILES,
         resourceEncoder -> {
           // ResourceProfiles
+          // Field 1: resource (Resource with standard KeyValue attributes)
+          resourceEncoder.writeNestedMessage(
+              OtlpProtoFields.ResourceProfiles.RESOURCE,
+              resourceEncoder2 -> encodeResource(resourceEncoder2, resourceAttributes));
           // Field 2: scope_profiles (repeated)
           resourceEncoder.writeNestedMessage(
               OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES,
@@ -70,6 +80,29 @@ final class LightweightOtlpEncoder {
     encoder.writeNestedMessage(OtlpProtoFields.ProfilesData.DICTIONARY, dictionaryEncoder -> {});
 
     return encoder.toByteArray();
+  }
+
+  // opentelemetry.proto.resource.v1.Resource: field 1 is the repeated KeyValue attributes
+  private static void encodeResource(
+      ProtobufEncoder encoder, Map<String, String> resourceAttributes) {
+    for (Map.Entry<String, String> entry : resourceAttributes.entrySet()) {
+      String key = entry.getKey();
+      String value = entry.getValue();
+      if (value == null || value.isEmpty()) {
+        continue;
+      }
+      encoder.writeNestedMessage(
+          OtlpProtoFields.Resource.ATTRIBUTES,
+          attributeEncoder -> {
+            // KeyValue: field 1 = key, field 2 = value (AnyValue)
+            attributeEncoder.writeStringField(OtlpProtoFields.KeyValue.KEY, key);
+            attributeEncoder.writeNestedMessage(
+                OtlpProtoFields.KeyValue.VALUE,
+                valueEncoder ->
+                    // AnyValue: field 1 = string_value
+                    valueEncoder.writeStringField(OtlpProtoFields.AnyValue.STRING_VALUE, value));
+          });
+    }
   }
 
   private static void encodeProfile(

@@ -15,11 +15,11 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_COMPRESSION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,11 +37,15 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
+import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -87,6 +91,12 @@ public class OtlpProfileUploaderTest {
     when(config.getProfilingProxyUsername()).thenReturn(null);
     when(config.getProfilingProxyPassword()).thenReturn(null);
 
+    // Resource attributes used by light mode
+    when(config.getServiceName()).thenReturn("test-service");
+    when(config.getEnv()).thenReturn("");
+    when(config.getVersion()).thenReturn("");
+    when(config.isReportHostName()).thenReturn(false);
+
     // OTLP profiles sender configuration
     when(config.getOtlpProfilesProtocol()).thenReturn(OtlpConfig.Protocol.HTTP_PROTOBUF);
     when(config.getOtlpProfilesEndpoint()).thenReturn(otlpUrl);
@@ -100,7 +110,6 @@ public class OtlpProfileUploaderTest {
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, ProfilingConfig.OtlpMode.LIGHT))
         .thenReturn(ProfilingConfig.OtlpMode.LIGHT);
     when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
-    when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 
     uploader =
         new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
@@ -117,7 +126,6 @@ public class OtlpProfileUploaderTest {
     // Create uploader with OTLP disabled
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
     when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
-    when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 
     OtlpProfileUploader disabledUploader =
         new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
@@ -142,6 +150,26 @@ public class OtlpProfileUploaderTest {
     // Verify that configuration is correctly read from ConfigProvider
     assertTrue(uploader != null);
     // Uploader was created with enabled=true, so it should be initialized
+  }
+
+  @Test
+  public void testLightweightUploadCarriesResourceAttributes() throws Exception {
+    server.enqueue(new MockResponse());
+
+    RecordingData data = mockRecordingData();
+
+    uploader.onNewData(RECORDING_TYPE, data, true);
+
+    assertEquals(1, server.getRequestCount());
+    RecordedRequest request = server.takeRequest(REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    assertNotNull(request);
+    byte[] body = request.getBody().readByteArray();
+    // String fields are encoded inline on the wire, so the attribute key/value pairs are
+    // searchable in the raw payload
+    assertTrue(new String(body, StandardCharsets.ISO_8859_1).contains("service.name"));
+    assertTrue(new String(body, StandardCharsets.ISO_8859_1).contains("test-service"));
+    assertTrue(new String(body, StandardCharsets.ISO_8859_1).contains("telemetry.sdk.name"));
+    verify(data).release();
   }
 
   private RecordingData mockRecordingData() throws IOException {

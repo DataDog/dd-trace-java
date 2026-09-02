@@ -15,6 +15,9 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE_DEFAULT;
 
@@ -35,6 +38,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -56,8 +63,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
   private final OtlpSender sender;
   private final ExecutorService executor;
+  private final boolean enabled;
   private final int terminationTimeout;
   private final ProfilingConfig.OtlpMode mode;
+  private final Map<String, String> resourceAttributes;
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, TERMINATION_TIMEOUT_SEC);
@@ -65,11 +74,14 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
   OtlpProfileUploader(
       final Config config, final ConfigProvider configProvider, int terminationTimeout) {
+    this.enabled =
+        configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT);
     this.terminationTimeout = terminationTimeout;
     this.sender = OtlpProfilesSenderFactory.create(config);
     this.mode =
         configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, PROFILING_OTLP_MODE_DEFAULT);
+    this.resourceAttributes = buildResourceAttributes(config);
     this.executor =
         new ThreadPoolExecutor(
             0,
@@ -99,6 +111,13 @@ public final class OtlpProfileUploader implements RecordingDataListener {
    * @param onCompletion Optional callback on completion
    */
   public void upload(RecordingType type, RecordingData data, boolean sync, Runnable onCompletion) {
+    if (!enabled) {
+      data.release();
+      if (onCompletion != null) {
+        onCompletion.run();
+      }
+      return;
+    }
     try {
       byte[] otlpBytes = convertToOtlp(data);
       OtlpPayload payload =
@@ -150,6 +169,33 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     }
   }
 
+  /**
+   * Resource attributes identifying the profiled application, following the same convention as the
+   * tracer's OTLP traces export (see datadog.trace.core.otlp.common.OtlpResourceAttributes).
+   */
+  private static Map<String, String> buildResourceAttributes(Config config) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    attributes.put("service.name", config.getServiceName());
+    String env = config.getEnv();
+    if (!env.isEmpty()) {
+      attributes.put("deployment.environment.name", env);
+    }
+    String version = config.getVersion();
+    if (!version.isEmpty()) {
+      attributes.put("service.version", version);
+    }
+    if (config.isReportHostName()) {
+      String hostName = config.getHostName();
+      if (hostName != null && !hostName.isEmpty()) {
+        attributes.put("host.name", hostName);
+      }
+    }
+    attributes.put("telemetry.sdk.name", "datadog");
+    attributes.put("telemetry.sdk.version", TRACER_VERSION);
+    attributes.put("telemetry.sdk.language", "java");
+    return Collections.unmodifiableMap(attributes);
+  }
+
   private byte[] convertToOtlp(RecordingData data) throws IOException {
     // LIGHT mode: skip JFR parsing, just embed raw JFR as original_payload blob
     if (mode == ProfilingConfig.OtlpMode.LIGHT) {
@@ -170,7 +216,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
     try {
-      Files.copy(data.getStream(), temp);
+      Files.copy(data.getStream(), temp, StandardCopyOption.REPLACE_EXISTING);
       converter.addFile(temp, data.getStart(), data.getEnd());
       return converter.convert(JfrToOtlpConverter.Kind.PROTO);
     } finally {
@@ -181,15 +227,17 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private byte[] convertLightweight(RecordingData data) throws IOException {
     Path jfrFile = data.getPath();
     if (jfrFile != null) {
-      return LightweightOtlpEncoder.encode(jfrFile, data.getStart(), data.getEnd());
+      return LightweightOtlpEncoder.encode(
+          jfrFile, data.getStart(), data.getEnd(), resourceAttributes);
     }
 
     // Fallback: save stream to temp file, then encode
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
     try {
-      Files.copy(data.getStream(), temp);
-      return LightweightOtlpEncoder.encode(temp, data.getStart(), data.getEnd());
+      Files.copy(data.getStream(), temp, StandardCopyOption.REPLACE_EXISTING);
+      return LightweightOtlpEncoder.encode(
+          temp, data.getStart(), data.getEnd(), resourceAttributes);
     } finally {
       Files.deleteIfExists(temp);
     }
