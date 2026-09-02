@@ -163,7 +163,8 @@ public class AgentTracer {
   }
 
   public static TraceConfig traceConfig(final AgentSpan span) {
-    return null != span ? span.traceConfig() : traceConfig();
+    final TraceConfig config = span == null ? null : span.traceConfig();
+    return config == null ? traceConfig() : config;
   }
 
   public static TraceConfig traceConfig() {
