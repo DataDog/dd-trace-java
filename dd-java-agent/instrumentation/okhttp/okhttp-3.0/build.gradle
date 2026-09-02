@@ -22,7 +22,7 @@ dependencies {
       prefer '3.0.0'
     }
   }
-  testImplementation(group: 'com.squareup.okio', name: 'okio') {
+  testImplementation('com.squareup.okio:okio') {
     version {
       strictly '[1.6.0,2]'
       prefer '1.6.0'

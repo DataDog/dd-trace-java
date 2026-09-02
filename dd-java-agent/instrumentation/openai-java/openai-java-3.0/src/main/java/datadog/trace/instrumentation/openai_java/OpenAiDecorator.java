@@ -108,21 +108,44 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.SOURCE, "integration");
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
+      // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
+      // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
+      // session_id, or agent_version to this span. Matches DDLLMObsSpan's manual-span gate.
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
-      if (parent != null) {
+      if (parent != null && parent.getTraceId() == span.getTraceId()) {
         parentSpanId = String.valueOf(parent.getSpanId());
+
+        // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
+        // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
+        // session_id from the workflow root via context propagation. Without this, the
+        // auto-instrumented openai.request span would not appear under its session in
+        // the LLM Trace Explorer's Sessions view.
+        String sessionId = LLMObsContext.currentSessionId();
+        if (sessionId != null && !sessionId.isEmpty()) {
+          span.setTag(CommonTags.SESSION_ID, sessionId);
+        }
+
+        // Inherit agent_version from the active LLMObs parent.
+        String agentVersion = LLMObsContext.currentAgentVersion();
+        if (agentVersion != null && !agentVersion.isEmpty()) {
+          span.setTag(CommonTags.AGENT_VERSION, agentVersion);
+        }
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
 
-      // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
-      // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
-      // session_id from the workflow root via context propagation. Without this, the
-      // auto-instrumented openai.request span would not appear under its session in
-      // the LLM Trace Explorer's Sessions view.
-      String sessionId = LLMObsContext.currentSessionId();
-      if (sessionId != null && !sessionId.isEmpty()) {
-        span.setTag(CommonTags.SESSION_ID, sessionId);
+      // Inherit agent attribution only when the LLMObs context belongs to the same trace.
+      // Mirrors the gate in DDLLMObsSpan: a stale LLMObsContext from a different async trace
+      // must not stamp its agent ID onto this span.
+      if (parent != null && parent.getTraceId() == span.getTraceId()) {
+        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        if (parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+          String parentAgentName = LLMObsContext.currentParentAgentName();
+          if (parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
+          }
+        }
       }
     }
     super.doAfterStart(span);

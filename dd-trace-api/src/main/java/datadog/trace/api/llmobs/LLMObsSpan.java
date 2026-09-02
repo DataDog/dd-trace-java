@@ -60,6 +60,17 @@ public interface LLMObsSpan {
   default void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
 
   /**
+   * Annotate an agent span with its manifest configuration.
+   *
+   * <p>This annotation is ignored for non-agent spans.
+   *
+   * <p>A fully-empty manifest (no fields set) still writes the {@code framework} key.
+   *
+   * @param agentManifest The agent manifest configuration
+   */
+  default void annotateAgentManifest(LLMObs.AgentManifest agentManifest) {}
+
+  /**
    * Annotate the span with metadata
    *
    * @param metadata A map of JSON serializable key-value pairs that contains metadata information

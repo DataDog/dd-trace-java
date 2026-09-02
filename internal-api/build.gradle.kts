@@ -77,6 +77,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -283,6 +284,7 @@ dependencies {
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.jol.core)
 }
 
 jmh {

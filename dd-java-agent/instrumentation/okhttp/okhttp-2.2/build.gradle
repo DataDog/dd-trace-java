@@ -50,4 +50,3 @@ dependencies {
   latestDepTestImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'
 }
 
-
