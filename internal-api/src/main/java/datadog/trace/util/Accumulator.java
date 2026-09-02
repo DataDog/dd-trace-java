@@ -141,6 +141,17 @@ public final class Accumulator<E extends Enum<E>> {
       this.counts = counts;
     }
 
+    /**
+     * An all-zero {@link Counts}, sized for {@code values} -- for seeding a running total before
+     * any real drain has happened, without needing a scratch {@link Accumulator} just to call
+     * {@link Accumulator#sum()} on it.
+     *
+     * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
+     */
+    public static <E extends Enum<E>> Counts<E> zero(E[] values) {
+      return new Counts<>(new long[values.length]);
+    }
+
     /** The counter named by {@code key}. */
     public long get(E key) {
       return counts[key.ordinal()];

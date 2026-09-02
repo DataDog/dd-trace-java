@@ -220,6 +220,19 @@ class AccumulatorTest {
   }
 
   @Test
+  void zeroSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
+    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.values());
+    assertEquals(0L, zero.get(Counters.FOO));
+    assertEquals(0L, zero.get(Counters.BAR));
+
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
+
+    Accumulator.Counts<Counters> live = zero.plus(counters.sum());
+    assertEquals(1L, live.get(Counters.FOO));
+  }
+
+  @Test
   void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
     counters.inc(Counters.FOO);
