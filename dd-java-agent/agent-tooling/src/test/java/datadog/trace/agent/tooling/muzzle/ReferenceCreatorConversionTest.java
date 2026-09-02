@@ -30,6 +30,7 @@ class ReferenceCreatorConversionTest {
 
     assertTrue(references.containsKey("relocated.library.TestInfo"));
     assertFalse(references.containsKey(TestInfo.class.getName()));
+    assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
     assertNotNull(scan.getClassInfo(TestInfo.class.getName()));
   }
 
@@ -60,7 +61,8 @@ class ReferenceCreatorConversionTest {
 
   static final class ShadingAdvice {
     static String apply(TestInfo testInfo) {
-      return testInfo.getDisplayName();
+      TestInfo[] testInfos = {testInfo};
+      return testInfos.clone()[0].getDisplayName();
     }
   }
 }

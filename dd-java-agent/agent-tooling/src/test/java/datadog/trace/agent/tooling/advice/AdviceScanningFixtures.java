@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.advice;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -31,7 +32,12 @@ final class AdviceScanningFixtures {
       List<String> library = new ArrayList<>();
       Class<?> externalLibrary = ClassReader.class;
       return dependency.method(
-          array.length + type.getName() + constructor.get() + library + externalLibrary);
+          array.length
+              + type.getName()
+              + constructor.get()
+              + library
+              + externalLibrary
+              + ExternalHelper.typeName());
     }
   }
 

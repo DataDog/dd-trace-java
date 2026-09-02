@@ -12,10 +12,12 @@ import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdditionalAdvic
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceRoot;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.Dependency;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
+import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.Type;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -68,6 +70,10 @@ class AdviceScannerTest {
     assertTrue(root.isScanned());
     assertTrue(hasUsage(root, UsageKind.METHOD, "method"));
     assertFalse(result.getClassInfo(Dependency.class.getName()).isScanned());
+    ClassInfo helper = result.getClassInfo(ExternalHelper.class.getName());
+    assertTrue(helper.isScanned());
+    assertTrue(hasUsage(helper, UsageKind.METHOD, "getClassName"));
+    assertFalse(result.getClassInfo(Type.class.getName()).isScanned());
   }
 
   private static AdviceScanResult scan(ScanModule module) throws Exception {

@@ -22,8 +22,6 @@ import net.bytebuddy.jar.asm.Type;
 
 /** Converts neutral advice uses into the existing member-level muzzle reference model. */
 public final class ReferenceCreator {
-  private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
-
   private static final Set<String> OBJECT_METHODS = new HashSet<>();
 
   static {
@@ -92,7 +90,11 @@ public final class ReferenceCreator {
   }
 
   private void addFieldReference(Usage usage) {
-    String shadedOwner = shade(usage.getOwner());
+    String owner = underlyingClassName(usage.getOwner());
+    if (owner == null) {
+      return;
+    }
+    String shadedOwner = shade(owner);
     if (ignoreReference(shadedOwner)) {
       return;
     }
@@ -105,7 +107,7 @@ public final class ReferenceCreator {
             ? Reference.EXPECTS_STATIC
             : Reference.EXPECTS_NON_STATIC;
     merge(
-        usage.getOwner(),
+        owner,
         new Reference.Builder(ownerInternal)
             .withSource(source, usage.getSource().getLine())
             .withFlag(computeMinimumClassAccess(sourceInternal, ownerInternal))
@@ -119,7 +121,11 @@ public final class ReferenceCreator {
   }
 
   private void addMethodReference(Usage usage) {
-    String shadedOwner = shade(usage.getOwner());
+    String owner = underlyingClassName(usage.getOwner());
+    if (owner == null) {
+      return;
+    }
+    String shadedOwner = shade(owner);
     String descriptor = shadeMethodDescriptor(usage.getDescriptor());
     if (ignoreReference(shadedOwner) || ignoreObjectMethod(usage.getName(), descriptor)) {
       return;
@@ -141,7 +147,7 @@ public final class ReferenceCreator {
             : Reference.EXPECTS_NON_STATIC;
     Type methodType = Type.getMethodType(descriptor);
     merge(
-        usage.getOwner(),
+        owner,
         new Reference.Builder(ownerInternal)
             .withSource(source, usage.getSource().getLine())
             .withFlag(
@@ -210,7 +216,8 @@ public final class ReferenceCreator {
   private void merge(String unshadedClassName, Reference reference) {
     Reference previous = references.get(reference.className);
     references.put(reference.className, previous == null ? reference : previous.merge(reference));
-    if (isReferenceSource(reference.className)) {
+    ClassInfo info = scanResult.getClassInfo(unshadedClassName);
+    if (info != null && info.isScanned() && info.isInstrumentationClass()) {
       sources.add(unshadedClassName);
     }
   }
@@ -281,15 +288,22 @@ public final class ReferenceCreator {
     return OBJECT_METHODS.contains(methodSig(methodName, methodDescriptor));
   }
 
-  private static boolean isReferenceSource(String className) {
-    return className.startsWith(REFERENCE_CREATION_PACKAGE);
-  }
-
   private static String methodSig(String methodName, String methodDescriptor) {
     return methodName + methodDescriptor;
   }
 
   private static String internalName(String className) {
     return className.replace('.', '/');
+  }
+
+  private static String underlyingClassName(String className) {
+    if (!className.startsWith("[")) {
+      return className;
+    }
+    Type type = Type.getType(internalName(className));
+    while (type.getSort() == Type.ARRAY) {
+      type = type.getElementType();
+    }
+    return type.getSort() == Type.OBJECT ? type.getClassName() : null;
   }
 }

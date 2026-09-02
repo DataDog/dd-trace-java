@@ -9,6 +9,8 @@ import java.util.Map;
 
 /** Immutable, neutral result of scanning a module's method advice. */
 public final class AdviceScanResult {
+  private static final String INSTRUMENTATION_PACKAGE = "datadog.trace.instrumentation.";
+
   public enum UsageKind {
     TYPE,
     FIELD,
@@ -164,6 +166,10 @@ public final class AdviceScanResult {
       return scanned;
     }
 
+    public boolean isInstrumentationClass() {
+      return AdviceScanResult.isInstrumentationClass(className);
+    }
+
     public List<Usage> getUsages() {
       return usages;
     }
@@ -187,6 +193,10 @@ public final class AdviceScanResult {
 
   public ClassInfo getClassInfo(String className) {
     return classes.get(className);
+  }
+
+  static boolean isInstrumentationClass(String className) {
+    return className.startsWith(INSTRUMENTATION_PACKAGE);
   }
 
   private static <T> List<T> immutableCopy(Collection<T> values) {

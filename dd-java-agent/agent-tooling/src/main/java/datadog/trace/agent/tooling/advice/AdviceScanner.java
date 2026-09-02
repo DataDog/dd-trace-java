@@ -122,7 +122,10 @@ public final class AdviceScanner {
   }
 
   private void enqueue(MutableClassInfo info, boolean adviceRoot) {
-    if (info != null && !info.scanned && (adviceRoot || info.owned) && queued.add(info.className)) {
+    if (info != null
+        && !info.scanned
+        && (adviceRoot || info.owned || AdviceScanResult.isInstrumentationClass(info.className))
+        && queued.add(info.className)) {
       scanQueue.addLast(info.className);
     }
   }
