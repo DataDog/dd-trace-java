@@ -53,13 +53,13 @@ class InstanceStoreTest extends DDSpecification {
     InstanceStore.of(Some).put(key, some1)
 
     when:
-    def current = InstanceStore.of(Some).putIfAbsent(key, Some::new)
+    def current = InstanceStore.of(Some).getOrCreate(key, Some::new)
 
     then:
     current == some1
 
     when:
-    current = InstanceStore.of(Some).putIfAbsent(key, Some::new)
+    current = InstanceStore.of(Some).getOrCreate(key, Some::new)
 
     then:
     current == some1
@@ -71,13 +71,13 @@ class InstanceStoreTest extends DDSpecification {
     def key = nextKey()
 
     when:
-    def current = someStore.putIfAbsent(key, () -> some1)
+    def current = someStore.getOrCreate(key, () -> some1)
 
     then:
     current == some1
 
     when:
-    current = someStore.putIfAbsent(key, Some::new)
+    current = someStore.getOrCreate(key, Some::new)
 
     then:
     current == some1
@@ -91,7 +91,7 @@ class InstanceStoreTest extends DDSpecification {
     someStore.put(key, some1)
 
     when:
-    def current = someStore.putIfAbsent(key, new Creator(invocations))
+    def current = someStore.getOrCreate(key, new Creator(invocations))
 
     then:
     current == some1
@@ -105,14 +105,14 @@ class InstanceStoreTest extends DDSpecification {
     def key = nextKey()
 
     when:
-    def current = someStore.putIfAbsent(key, new Creator(invocations, some1))
+    def current = someStore.getOrCreate(key, new Creator(invocations, some1))
 
     then:
     current == some1
     invocations.get() == 1
 
     when:
-    current = someStore.putIfAbsent(key, new Creator(invocations))
+    current = someStore.getOrCreate(key, new Creator(invocations))
 
     then:
     current == some1

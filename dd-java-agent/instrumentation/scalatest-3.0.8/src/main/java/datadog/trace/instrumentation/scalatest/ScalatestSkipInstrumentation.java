@@ -76,7 +76,7 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
       int runStamp = tracker.nextOrdinal().runStamp();
       RunContext context = RunContext.getOrCreate(runStamp);
       RunContext existingContext =
-          InstrumentationContext.get(Filter.class, RunContext.class).putIfAbsent(filter, context);
+          InstrumentationContext.get(Filter.class, RunContext.class).getOrPut(filter, context);
       if (existingContext != context) {
         // This shouldn't happen.
         // If it does, instrumentation isn't working as expected, or Scalatest internals changed.

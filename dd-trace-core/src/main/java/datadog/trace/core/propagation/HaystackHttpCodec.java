@@ -40,7 +40,7 @@ class HaystackHttpCodec {
 
   static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
   static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
-  private static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
+  static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
 
   // public static final long DATADOG = new BigInteger("Datadog!".getBytes()).longValue();
   public static final String DATADOG = "44617461-646f-6721";
@@ -131,6 +131,9 @@ class HaystackHttpCodec {
 
     private static final String BAGGAGE_PREFIX_LC = "baggage-";
 
+    // Largest reserved value we accept. Only relevant for traceID/spanID
+    private static final int MAX_RESERVED_ID_LENGTH = 64;
+
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int PARENT_ID = 2;
@@ -203,15 +206,15 @@ class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(value));
-                addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
+                traceId = DD64bTraceId.fromHex(convertUUIDToHexString(firstValue));
+                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, firstValue);
                 break;
               case SPAN_ID:
-                spanId = DDSpanId.fromHex(convertUUIDToHexString(value));
-                addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
+                spanId = DDSpanId.fromHex(convertUUIDToHexString(firstValue));
+                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, firstValue);
                 break;
               case PARENT_ID:
-                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
+                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
                 break;
               case BAGGAGE:
                 {
@@ -238,7 +241,18 @@ class HaystackHttpCodec {
       return true;
     }
 
-    private void addBaggageItem(String key, String value) {
+    /**
+     * Records the value of a reserved key, e.g. traceID/spanID. Ignores baggage item and byte
+     * limits to ensure propagation of key headers. However, if the header exceeds
+     * MAX_RESERVED_ID_LENGTH, value is rejected.
+     *
+     * @param key the reserved baggage key.
+     * @param value the id as it arrived, ignored when longer than {@link #MAX_RESERVED_ID_LENGTH}.
+     */
+    private void addReservedBaggageItem(String key, String value) {
+      if (value == null || value.length() > MAX_RESERVED_ID_LENGTH) {
+        return;
+      }
       if (baggage.isEmpty()) {
         baggage = new TreeMap<>();
       }
