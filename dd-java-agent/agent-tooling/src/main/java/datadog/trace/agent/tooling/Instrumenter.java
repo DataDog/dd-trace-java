@@ -36,7 +36,13 @@ public interface Instrumenter {
   /** Instrumentation that transforms types on the bootstrap class-path. */
   interface ForBootstrap {}
 
-  /** Instrumentation selected directly for an exact lambda interface allowed by the lambda trie. */
+  /**
+   * Instrumentation selected directly for an exact lambda interface.
+   *
+   * <p>Lambda transformation also requires the opt-in {@code trace.lambda.enabled} setting. An
+   * enabled {@code ForLambda} instrumentation registers its interface but does not enable the
+   * lambda metafactory instrumentation by itself.
+   */
   interface ForLambda {
     /** Exact functional interface name reported by the lambda metafactory. */
     String lambdaInterface();

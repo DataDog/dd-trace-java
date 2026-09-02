@@ -12,11 +12,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-  testImplementation 'org.clojure:clojure:1.11.1'
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
-  // Runs Runnable propagation advice on injected lambdas.
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   testImplementation libs.bundles.mockito
   testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
 }

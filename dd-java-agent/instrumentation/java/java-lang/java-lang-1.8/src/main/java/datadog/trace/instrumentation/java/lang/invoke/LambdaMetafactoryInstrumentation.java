@@ -3,11 +3,8 @@ package datadog.trace.instrumentation.java.lang.invoke;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.JavaModuleOpenProvider;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
-import java.util.Collection;
-import java.util.Collections;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -28,18 +25,20 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Routes generated lambda bytes through the agent transformer before definition, allowing
- * allowlisted interfaces such as {@link Runnable} to receive field injection and advice.
+ * instrumentations registered for an exact functional interface to transform them.
  *
  * <p>An ASM visitor is required because the transform call must be inserted immediately after the
  * lambda bytes are generated, in the middle of the metafactory method.
+ *
+ * <p>The injected call executes inside {@code java.lang.invoke}, so it only requires a module read
+ * edge to the bootstrap helper; the package does not need to be opened reflectively.
  */
 @AutoService(InstrumenterModule.class)
 public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
-        Instrumenter.WithTypeStructure,
-        JavaModuleOpenProvider {
+        Instrumenter.WithTypeStructure {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaMetafactoryInstrumentation.class);
 
@@ -55,6 +54,11 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public boolean isEnabled() {
     return super.isEnabled() && !Platform.isNativeImageBuilder();
   }
@@ -62,11 +66,6 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
   @Override
   public String instrumentedType() {
     return METAFACTORY;
-  }
-
-  @Override
-  public Collection<String> triggerClasses() {
-    return Collections.singleton(METAFACTORY);
   }
 
   /** Require every field read by the injected bytecode. */
@@ -171,7 +170,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
       super.visitEnd();
       if (!injected) {
         log.debug(
-            "No injection site found in {}; lambda field-injection is inactive.", slashClassName);
+            "No injection site found in {}; lambda transformation is inactive.", slashClassName);
       }
     }
   }
@@ -216,7 +215,7 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
         super.visitFieldInsn(
             Opcodes.GETFIELD, slashClassName, TARGET_CLASS_FIELD, "Ljava/lang/Class;");
         super.visitVarInsn(Opcodes.ALOAD, 0);
-        // Allows the helper to reject non-allowlisted interfaces before full matching.
+        // Allows the helper to reject interfaces without a registered ForLambda instrumentation.
         super.visitFieldInsn(
             Opcodes.GETFIELD, slashClassName, interfaceClassField, "Ljava/lang/Class;");
         super.visitMethodInsn(
