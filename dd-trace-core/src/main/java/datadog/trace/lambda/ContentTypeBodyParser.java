@@ -6,11 +6,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +27,7 @@ final class ContentTypeBodyParser {
   private static final Logger log = LoggerFactory.getLogger(ContentTypeBodyParser.class);
 
   // These bound the work done in this parser only: exceeding any of them degrades the body to a raw
-  // string rather than dropping content. The depth and part limits mirror the WAF's own
-  // (WAFModule.MAX_DEPTH / MAX_ELEMENTS), beyond which ObjectIntrospection discards the structure
-  // anyway. The byte allowance instead bounds what reading one event may cost us.
+  // string rather than dropping content.
   static final int MAX_BYTES = 1024 * 1024;
   static final int MAX_PARTS = 256;
   static final int MAX_DEPTH = 20;
@@ -132,10 +129,9 @@ final class ContentTypeBodyParser {
       return body;
     }
     final MediaType mediaType = MediaType.parse(contentType);
-    // A null type is one MediaType could not read: the header was absent, blank, or nothing but
-    // parameters. Such a body gets the same best-effort JSON parse as a JSON-ish one.
-    if (mediaType.getType() == null || isJsonLike(mediaType)) {
-      return jsonOrRaw(body);
+    if (isJsonOrUntyped(mediaType)) {
+      final Object parsed = LambdaEventParser.parseBodyAsJson(body);
+      return parsed != null ? parsed : body;
     }
     if ("application".equals(mediaType.getType())
         && "x-www-form-urlencoded".equals(mediaType.getSubtype())) {
@@ -151,33 +147,10 @@ final class ContentTypeBodyParser {
     return body;
   }
 
-  /**
-   * Applies the "no declared type, or a JSON-ish one" rule to a body the caller does not structure
-   * any further. This is the whole of how a response body is handled; the request path shares the
-   * rule through {@link #dispatch} and additionally structures urlencoded and multipart bodies.
-   */
-  static Object jsonOrRaw(final String body, final String contentType) {
-    final MediaType mediaType = MediaType.parse(contentType);
-    return mediaType.getType() == null || isJsonLike(mediaType) ? jsonOrRaw(body) : body;
-  }
-
-  /** A best-effort JSON parse, degrading to the raw string rather than dropping the body. */
-  private static Object jsonOrRaw(final String body) {
-    final Object parsed = LambdaEventParser.parseBodyAsJson(body);
-    return parsed != null ? parsed : body;
-  }
-
-  /**
-   * Matches on the type and subtype only, which {@link MediaType#parse} has already stripped of
-   * parameters: a client-chosen {@code multipart/form-data; boundary=--json} must not reach the
-   * JSON parser and thereby skip multipart parsing entirely.
-   */
-  private static boolean isJsonLike(final MediaType mediaType) {
-    return jsonLike(mediaType.getType()) || jsonLike(mediaType.getSubtype());
-  }
-
-  private static boolean jsonLike(final String essence) {
-    return essence != null && (essence.contains("json") || essence.contains("javascript"));
+  static boolean isJsonOrUntyped(final MediaType mediaType) {
+    final String subtype = mediaType.getSubtype();
+    return mediaType.getType() == null
+        || (subtype != null && (subtype.contains("json") || subtype.contains("javascript")));
   }
 
   /**
@@ -196,8 +169,6 @@ final class ContentTypeBodyParser {
     final StringTokenizer tokenizer = new StringTokenizer(body, "&");
     while (tokenizer.hasMoreTokens()) {
       if (!context.takePart()) {
-        // Bail out rather than hand the WAF a truncated map: a parameter dropped here would be
-        // invisible to every rule, whereas the raw body can still be string-matched.
         log.debug("Part allowance exhausted, keeping urlencoded body as a raw string");
         return null;
       }
@@ -235,14 +206,13 @@ final class ContentTypeBodyParser {
     final int allowance = context.remainingParts();
     final List<Part> parts = MultipartSplitter.split(body, boundary, allowance + 1);
     if (parts.size() > allowance) {
-      // Bail out rather than truncate, as the urlencoded path does
       log.debug("Part allowance exhausted, keeping multipart body as a raw string");
       return null;
     }
     context.consumeParts(parts.size());
 
     final Map<String, Object> fields = new LinkedHashMap<>();
-    final Set<String> promoted = new HashSet<>();
+    final Map<String, List<Object>> promoted = new HashMap<>();
     for (final Part part : parts) {
       final String disposition = part.contentDisposition;
       if (disposition == null) {
@@ -259,12 +229,9 @@ final class ContentTypeBodyParser {
       if (name == null || name.isEmpty()) {
         continue;
       }
-      // Already trimmed by MultipartSplitter, so a whitespace-only header arrives as ""
       final String partContentType = part.contentType;
       final String content = body.substring(part.contentStart, part.contentEnd);
-      // A part that declares no type is kept as a raw string, the opposite of what a whole body
-      // with no type gets: RFC 7578, section 4.4 defaults a part to text/plain rather than leaving
-      // its type unknown.
+      // A part that declares no type is kept as a raw string
       final Object value =
           partContentType == null || partContentType.isEmpty()
               ? content
@@ -278,28 +245,30 @@ final class ContentTypeBodyParser {
    * Accumulates a field as a scalar on first sight and promotes it to a list on repeat.
    * Deliberately a different shape from urlencoded's always-a-list, matching the peer tracers.
    *
-   * @param promoted the names already promoted to a list, mutated as fields are promoted
+   * @param promoted the list each promoted field was given, by name, mutated as fields are
+   *     promoted. Tracked rather than inferred from the stored value's type: a part whose body
+   *     parsed as a JSON array is itself a List, and appending to it would flatten the two apart.
    */
-  @SuppressWarnings("unchecked")
   private static void addField(
       final Map<String, Object> fields,
-      final Set<String> promoted,
+      final Map<String, List<Object>> promoted,
       final String name,
       final Object value) {
+    final List<Object> values = promoted.get(name);
+    if (values != null) {
+      values.add(value);
+      return;
+    }
     // A part value is never null, so an absent key is exactly a null lookup
     final Object existing = fields.get(name);
     if (existing == null) {
       fields.put(name, value);
-    } else if (promoted.contains(name)) {
-      ((List<Object>) existing).add(value);
     } else {
-      // Promotion is tracked rather than inferred from the stored value's type: a part whose body
-      // parsed as a JSON array is itself a List, and appending to it would flatten the two apart.
-      final List<Object> values = new ArrayList<>(2);
-      values.add(existing);
-      values.add(value);
-      fields.put(name, values);
-      promoted.add(name);
+      final List<Object> promotion = new ArrayList<>(2);
+      promotion.add(existing);
+      promotion.add(value);
+      fields.put(name, promotion);
+      promoted.put(name, promotion);
     }
   }
 

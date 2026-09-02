@@ -3,6 +3,7 @@ package datadog.trace.lambda;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.MediaType;
 import datadog.trace.lambda.ContentTypeBodyParser.ParseContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -96,8 +97,7 @@ final class LambdaEventParser {
           return extractAlbData(event, triggerType);
         default:
           // Unsupported trigger: returning EMPTY makes the caller skip the invocation, so there is
-          // nothing to extract. The caller already recorded UNKNOWN as the trigger type, which is
-          // what reports the unsupported event at request end.
+          // nothing to extract sinc ethe event is not supported.
           return LambdaRequestData.EMPTY;
       }
     } catch (Exception e) {
@@ -162,10 +162,11 @@ final class LambdaEventParser {
         }
 
         if (bodyString != null) {
-          // A response body is only ever structured as JSON, never as urlencoded or multipart, but
-          // the rule deciding whether to try is shared with the request path so the two cannot
-          // drift
-          body = ContentTypeBodyParser.jsonOrRaw(bodyString, headers.get("content-type"));
+          // A response body is only ever structured as JSON, never as urlencoded or multipart
+          MediaType mediaType = MediaType.parse(headers.get("content-type"));
+          Object parsed =
+              ContentTypeBodyParser.isJsonOrUntyped(mediaType) ? parseBodyAsJson(bodyString) : null;
+          body = parsed != null ? parsed : bodyString;
         }
       }
 
