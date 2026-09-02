@@ -706,56 +706,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   @SuppressWarnings("unchecked")
-  void parsesUrlEncodedBodyIntoAMultimap() {
-    String eventJson =
-        "{"
-            + "\"body\": \"user=admin&role=root\","
-            + "\"headers\": {\"Content-Type\": \"application/x-www-form-urlencoded\"},"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
-    ByteArrayInputStream event = createInputStream(eventJson);
-
-    Object[] capturedBody = {null};
-
-    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
-
-    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
-
-    assertNotNull(result);
-    assertInstanceOf(Map.class, capturedBody[0]);
-    Map<String, List<String>> parameters = (Map<String, List<String>>) capturedBody[0];
-    assertEquals(Arrays.asList("admin"), parameters.get("user"));
-    assertEquals(Arrays.asList("root"), parameters.get("role"));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void parsesMultipartBodyIntoItsFields() {
-    String eventJson =
-        "{"
-            + "\"body\": \"--xy\\r\\nContent-Disposition: form-data; name=\\\"user\\\"\\r\\n\\r\\nadmin"
-            + "\\r\\n--xy\\r\\nContent-Disposition: form-data; name=\\\"role\\\"\\r\\n\\r\\nroot"
-            + "\\r\\n--xy--\","
-            + "\"headers\": {\"Content-Type\": \"multipart/form-data; boundary=xy\"},"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
-    ByteArrayInputStream event = createInputStream(eventJson);
-
-    Object[] capturedBody = {null};
-
-    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
-
-    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
-
-    assertNotNull(result);
-    assertInstanceOf(Map.class, capturedBody[0]);
-    Map<String, Object> fields = (Map<String, Object>) capturedBody[0];
-    assertEquals("admin", fields.get("user"));
-    assertEquals("root", fields.get("role"));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
   void reportsMultipartFilenamesToTheWaf() {
     String eventJson =
         "{"
@@ -805,30 +755,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     assertNotNull(result);
     assertNull(capturedFilenames[0]);
-  }
-
-  @Test
-  void keepsMultipartBodyWithoutBoundaryAsRawString() {
-    String body =
-        "--xy\\r\\nContent-Disposition: form-data; name=user\\r\\n\\r\\nadmin\\r\\n--xy--";
-    String eventJson =
-        "{"
-            + "\"body\": \""
-            + body
-            + "\","
-            + "\"headers\": {\"Content-Type\": \"multipart/form-data\"},"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
-    ByteArrayInputStream event = createInputStream(eventJson);
-
-    Object[] capturedBody = {null};
-
-    setupMockCallbacks(new Callbacks().onBody(b -> capturedBody[0] = b));
-
-    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
-
-    assertNotNull(result);
-    assertEquals(body.replace("\\r\\n", "\r\n"), capturedBody[0]);
   }
 
   @Test

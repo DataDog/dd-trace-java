@@ -27,13 +27,10 @@ final class ContentTypeBodyParser {
 
   private static final Logger log = LoggerFactory.getLogger(ContentTypeBodyParser.class);
 
-  // These bound the work done in this parser only. Exceeding any of them degrades the body to a raw
-  // string rather than dropping content.
-  //
-  // The depth and part limits mirror the WAF's own (WAFModule.MAX_DEPTH / MAX_ELEMENTS): structure
-  // beyond them is discarded by ObjectIntrospection before the WAF ever sees it, so producing it
-  // would be wasted work. The byte allowance answers a different question — how much reading and
-  // copying one event may cost us — and AWS already caps a synchronous payload at 6 MiB.
+  // These bound the work done in this parser only: exceeding any of them degrades the body to a raw
+  // string rather than dropping content. The depth and part limits mirror the WAF's own
+  // (WAFModule.MAX_DEPTH / MAX_ELEMENTS), beyond which ObjectIntrospection discards the structure
+  // anyway. The byte allowance instead bounds what reading one event may cost us.
   static final int MAX_BYTES = 1024 * 1024;
   static final int MAX_PARTS = 256;
   static final int MAX_DEPTH = 20;
@@ -42,9 +39,8 @@ final class ContentTypeBodyParser {
 
   /**
    * State shared across a whole parse: the byte and part allowances, and the filenames collected
-   * along the way. A multipart part may itself hold an urlencoded or multipart body, so a per-call
-   * allowance would be re-satisfied at every nesting level and a per-call list would lose nested
-   * file parts.
+   * along the way. A multipart part may itself hold a multipart body, so a per-call allowance would
+   * be re-satisfied at every nesting level.
    */
   static final class ParseContext {
     private int bytes;
@@ -85,8 +81,7 @@ final class ContentTypeBodyParser {
 
     /**
      * @return {@code false} once the part allowance is spent. A multipart part and an urlencoded
-     *     parameter both draw from it: they are the same question, how many values one body may
-     *     yield.
+     *     parameter both draw from it.
      */
     boolean takePart() {
       if (parts == 0) {
@@ -173,10 +168,9 @@ final class ContentTypeBodyParser {
   }
 
   /**
-   * Matches on the type and subtype only. Parameters such as a multipart boundary are chosen by the
-   * client, so {@code multipart/form-data; boundary=--json} must not reach the JSON parser and
-   * thereby skip multipart parsing entirely; {@link MediaType#parse} strips them, and lowercases
-   * what is left.
+   * Matches on the type and subtype only, which {@link MediaType#parse} has already stripped of
+   * parameters: a client-chosen {@code multipart/form-data; boundary=--json} must not reach the
+   * JSON parser and thereby skip multipart parsing entirely.
    */
   private static boolean isJsonLike(final MediaType mediaType) {
     return jsonLike(mediaType.getType()) || jsonLike(mediaType.getSubtype());
@@ -241,8 +235,7 @@ final class ContentTypeBodyParser {
     final int allowance = context.remainingParts();
     final List<Part> parts = MultipartSplitter.split(body, boundary, allowance + 1);
     if (parts.size() > allowance) {
-      // Bail out rather than hand the WAF a truncated map, as the urlencoded path does:
-      // the raw body can still be string-matched.
+      // Bail out rather than truncate, as the urlencoded path does
       log.debug("Part allowance exhausted, keeping multipart body as a raw string");
       return null;
     }

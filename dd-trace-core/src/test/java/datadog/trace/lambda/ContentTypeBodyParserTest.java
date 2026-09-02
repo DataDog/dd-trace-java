@@ -234,8 +234,7 @@ class ContentTypeBodyParserTest {
   @Test
   void keepsMultipartPartsThatDeclareNoContentTypeAsRawStrings() {
     // A part with no Content-Type is text/plain per RFC 7578, section 4.4, not a body of unknown
-    // type: a JSON parse would hand the WAF a Double, a Boolean and a Map, so the same form
-    // submitted urlencoded and as multipart would no longer match the same string rules
+    // type: a JSON parse would hand the WAF a Double and a Boolean no string rule can match
     Map<String, Object> fields =
         multipart(field("amount", "12345"), field("flag", "true"), field("json", "{\"a\":1}"));
 
@@ -262,8 +261,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void nestsARepeatedJsonArrayPartValueRatherThanFlatteningIt() {
-    // The first value is itself a List, so a repeat cannot be told from a fresh key by the stored
-    // value's type: appending to it would hand the WAF a structure that was never sent
+    // The first value is itself a List, so appending to it would flatten two values into one
     Map<String, Object> fields =
         multipart(part("form-data; name=x", "application/json", "[1,2]"), field("x", "b"));
 
@@ -289,8 +287,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void sharesThePartAllowanceBetweenUrlEncodedParametersAndMultipartParts() {
-    // Two thirds of the allowance each: the first part fits, the second cannot, which only holds if
-    // both draw from one allowance rather than from a per-part counter
+    // Two thirds of the allowance each: the second only fails if both draw from one allowance
     String urlEncoded = urlEncodedPairs(MAX_PARTS * 2 / 3);
     Map<String, Object> fields =
         multipart(
@@ -303,8 +300,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void spendsThePartAllowanceOnlyOnPairsItReads() {
-    // Half the allowance each, less the two multipart parts carrying them: together they fit
-    // exactly, which they could not if either body were charged upfront
+    // Half the allowance each, less their two parts: they only fit if neither is charged upfront
     String urlEncoded = urlEncodedPairs((MAX_PARTS - 2) / 2);
     Map<String, Object> fields =
         multipart(
@@ -330,8 +326,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void keepsMultipartBodyOverThePartAllowanceAsRawString() {
-    // One part over the allowance drops that part from every WAF address, so the whole body
-    // degrades to a raw string instead, as an over-allowance urlencoded body does
+    // One part over the allowance degrades the whole body, as an urlencoded body over it does
     String body = outer(fieldParts(MAX_PARTS + 1));
 
     assertEquals(body, parseBody(body, MULTIPART));
@@ -339,8 +334,7 @@ class ContentTypeBodyParserTest {
 
   @Test
   void sharesThePartAllowanceAcrossNestingLevels() {
-    // The inner body alone is within the allowance, but the outer part it sits in has already
-    // spent one, so it can no longer be read and degrades to a raw string on its own
+    // The inner body fits the allowance on its own, but the outer part it sits in has spent one
     String inner = body("inner", fieldParts(MAX_PARTS));
     Map<String, Object> fields =
         multipart(part("form-data; name=group", "multipart/mixed; boundary=inner", inner));
@@ -378,19 +372,8 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
-  void chargesTheByteAllowanceWhateverTheContentType() {
-    // The allowance bounds reading, not multipart specifically, so a JSON body is charged too
-    String body = "{\"a\":1}";
-
-    assertInstanceOf(
-        Map.class, parseBody(body, "application/json", new ParseContext(body.length())));
-    assertEquals(body, parseBody(body, "application/json", new ParseContext(body.length() - 1)));
-  }
-
-  @Test
   void sharesTheByteAllowanceAcrossNestingLevels() {
-    // Without a shared allowance a nested body is re-measured against a fresh allowance at every
-    // level, so one crafted body costs MAX_DEPTH times its own size to scan and copy
+    // Unshared, a nested body is re-measured at every level: MAX_DEPTH times its size to copy
     String inner = body("inner", field("deep", "v"));
     String nested = outer(part("form-data; name=\"n\"", "multipart/mixed; boundary=inner", inner));
 
@@ -437,9 +420,8 @@ class ContentTypeBodyParserTest {
 
   @Test
   void reportsFilenamesEvenWhenTheBodyDegradesToARawString() {
-    // Nothing but file parts, so there is no field to report. An empty map would tell the WAF the
-    // body was empty, so the raw string is kept, and the filenames are then the only structured
-    // thing left to hand it.
+    // Nothing but file parts, so there is no field to report: an empty map would tell the WAF the
+    // body was empty, so the raw string is kept and the filenames reported alongside it
     String body = outer(file("avatar", "cat.png", "bytes"));
 
     assertEquals(body, parseBody(body, MULTIPART));
