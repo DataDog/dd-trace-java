@@ -55,7 +55,8 @@ public class AppSecInterceptor implements Interceptor {
     try {
       final long requestId = span.getSpanId();
       sampled = sampleRequest(ctx, requestId);
-      final String url = span.getTag(Tags.HTTP_URL).toString();
+      final Object urlTag = span.getTag(Tags.HTTP_URL);
+      final String url = urlTag == null ? null : urlTag.toString();
       request = onRequest(span, sampled, url, request);
     } catch (final BlockingException e) {
       throw e;
