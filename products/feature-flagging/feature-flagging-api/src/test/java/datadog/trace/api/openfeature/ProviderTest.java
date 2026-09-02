@@ -6,12 +6,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -20,8 +18,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.SpanEnrichmentEvent;
-import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -329,7 +325,6 @@ public class ProviderTest {
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
 
     assertHasHook(provider, FlagEvalMetricsHook.class);
-    assertHasHook(provider, ExposureHook.class);
     assertHasHook(provider, FlagEvalLoggingHook.class);
   }
 
@@ -344,7 +339,6 @@ public class ProviderTest {
         };
 
     assertHasHook(provider, FlagEvalMetricsHook.class);
-    assertHasHook(provider, ExposureHook.class);
     assertFalse(
         provider.getProviderHooks().stream().anyMatch(FlagEvalLoggingHook.class::isInstance));
   }
@@ -365,65 +359,6 @@ public class ProviderTest {
     assertThat(options.getTimeout(), equalTo(30L));
     assertThat(options.getUnit(), equalTo(SECONDS));
     assertFalse(options.isTelemetryEnabled());
-  }
-
-  @Test
-  public void testNamedDomainsCanSeparateLiveAndPeekEvaluations() throws Exception {
-    final AtomicReference<FlagEvalEvent> flagEvaluation = new AtomicReference<>();
-    final AtomicReference<ExposureEvent> exposure = new AtomicReference<>();
-    final AtomicReference<SpanEnrichmentEvent> spanEnrichment = new AtomicReference<>();
-    final FeatureFlaggingGateway.ExposureListener exposureListener = exposure::set;
-    final FeatureFlaggingGateway.SpanEnrichmentListener spanEnrichmentListener =
-        spanEnrichment::set;
-    FeatureFlaggingGateway.setFlagEvalWriter(capturingWriter(flagEvaluation));
-    FeatureFlaggingGateway.addExposureListener(exposureListener);
-    FeatureFlaggingGateway.addSpanEnrichmentListener(spanEnrichmentListener);
-    try {
-      final Evaluator evaluator = mock(Evaluator.class);
-      when(evaluator.initialize(anyLong(), any(), any())).thenReturn(true);
-      when(evaluator.hasConfiguration()).thenReturn(true);
-      when(evaluator.evaluate(eq(String.class), eq("my-flag"), eq("default"), any()))
-          .thenReturn(
-              ProviderEvaluation.<String>builder()
-                  .value("value")
-                  .reason("STATIC")
-                  .variant("on")
-                  .flagMetadata(
-                      ImmutableMetadata.builder()
-                          .addString("allocationKey", "allocation-1")
-                          .addLong(DDEvaluator.METADATA_EVAL_TIMESTAMP_MS, 1_700_000_000_000L)
-                          .addBoolean(DDEvaluator.METADATA_DO_LOG, true)
-                          .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
-                          .addInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID, 42)
-                          .build())
-                  .build());
-
-      final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-      api.setProviderAndWait("live", new Provider(new Options(), evaluator, Boolean.TRUE));
-      api.setProviderAndWait(
-          "peek", new Provider(new Options().telemetryEnabled(false), evaluator, Boolean.TRUE));
-
-      final MutableContext context = new MutableContext("user-1");
-      context.add("region", "us-east-1");
-      final FlagEvaluationDetails<String> peekDetails =
-          api.getClient("peek").getStringDetails("my-flag", "default", context);
-
-      assertThat(peekDetails.getValue(), equalTo("value"));
-      assertNull(exposure.get());
-      assertNull(flagEvaluation.get());
-      assertNull(spanEnrichment.get());
-
-      final FlagEvaluationDetails<String> liveDetails =
-          api.getClient("live").getStringDetails("my-flag", "default", context);
-
-      assertThat(liveDetails.getValue(), equalTo("value"));
-      assertNotNull(exposure.get());
-      assertNotNull(flagEvaluation.get());
-      assertNotNull(spanEnrichment.get());
-    } finally {
-      FeatureFlaggingGateway.removeExposureListener(exposureListener);
-      FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
-    }
   }
 
   @Test
@@ -490,7 +425,6 @@ public class ProviderTest {
 
     verify(evaluator).shutdown();
     assertHasHook(provider, FlagEvalMetricsHook.class);
-    assertHasHook(provider, ExposureHook.class);
     assertHasHook(provider, FlagEvalLoggingHook.class);
   }
 

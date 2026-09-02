@@ -13,6 +13,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -59,6 +61,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -299,15 +302,19 @@ public class DDEvaluatorTest {
   }
 
   @Test
-  public void doLogIsStampedOnResolvedVariantForExposureHook() {
-    assertThat(
-        evaluateMatchingFlag(false, true).getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG),
-        equalTo(true));
-    assertThat(
-        evaluateMatchingFlag(false, false)
-            .getFlagMetadata()
-            .getBoolean(DDEvaluator.METADATA_DO_LOG),
-        equalTo(false));
+  public void telemetryDisabledSuppressesExposures() {
+    final AtomicReference<ExposureEvent> exposure = new AtomicReference<>();
+    final FeatureFlaggingGateway.ExposureListener listener = exposure::set;
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      evaluateMatchingFlag(false, true, false);
+      assertNull(exposure.get());
+
+      evaluateMatchingFlag(false, true, true);
+      assertNotNull(exposure.get());
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
   }
 
   // -- DISABLED path: flag.enabled=false --
@@ -416,6 +423,13 @@ public class DDEvaluatorTest {
 
   private static ProviderEvaluation<?> evaluateMatchingFlag(
       final boolean observeFullEvaluationData, final boolean doLog) {
+    return evaluateMatchingFlag(observeFullEvaluationData, doLog, true);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final boolean telemetryEnabled) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), null);
@@ -423,7 +437,8 @@ public class DDEvaluatorTest {
         new Allocation("alloc-1", null, null, null, singletonList(split), doLog);
     return evaluateFlag(
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
-        observeFullEvaluationData);
+        observeFullEvaluationData,
+        telemetryEnabled);
   }
 
   private static ProviderEvaluation<?> evaluateDisabledFlag(
@@ -445,9 +460,14 @@ public class DDEvaluatorTest {
 
   private static ProviderEvaluation<?> evaluateFlag(
       final Flag flag, final boolean observeFullEvaluationData) {
+    return evaluateFlag(flag, observeFullEvaluationData, true);
+  }
+
+  private static ProviderEvaluation<?> evaluateFlag(
+      final Flag flag, final boolean observeFullEvaluationData, final boolean telemetryEnabled) {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("target", flag);
-    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), telemetryEnabled);
     evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");

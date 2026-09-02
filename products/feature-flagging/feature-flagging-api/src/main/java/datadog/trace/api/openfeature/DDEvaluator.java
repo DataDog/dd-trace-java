@@ -3,6 +3,8 @@ package datadog.trace.api.openfeature;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -94,12 +96,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
 
-  // Evaluation-metadata keys consumed by the exposure and span-enrichment hooks. The split serial
-  // id is emitted only when the span-enrichment gate is on; doLog and the evaluation timestamp are
-  // always emitted for a resolved variant.
+  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
+  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   static final String METADATA_DO_LOG = "__dd_do_log";
-  static final String METADATA_EVAL_TIMESTAMP_MS = "__dd_eval_timestamp_ms";
 
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
   // key = non-DD provider; the hook falls back to false (fail-closed).
@@ -111,11 +111,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
+  private final boolean telemetryEnabled;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public DDEvaluator(final Runnable configCallback) {
+    this(configCallback, true);
+  }
+
+  public DDEvaluator(final Runnable configCallback, final boolean telemetryEnabled) {
     this.configCallback = configCallback;
+    this.telemetryEnabled = telemetryEnabled;
   }
 
   @Override
@@ -218,11 +224,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             if (isEmpty(split.shards)) {
               return resolveVariant(
                   target,
+                  key,
                   defaultValue,
                   flag,
                   split.variationKey,
                   allocation,
                   split,
+                  context,
                   evalTimestampMs,
                   observeFullEvaluationData);
             } else {
@@ -241,11 +249,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               if (allShardsMatch) {
                 return resolveVariant(
                     target,
+                    key,
                     defaultValue,
                     flag,
                     split.variationKey,
                     allocation,
                     split,
+                    context,
                     evalTimestampMs,
                     observeFullEvaluationData);
               }
@@ -491,13 +501,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static <T> ProviderEvaluation<T> resolveVariant(
+  private <T> ProviderEvaluation<T> resolveVariant(
       final Class<T> target,
+      final String key,
       final T defaultValue,
       final Flag flag,
       final String variationKey,
       final Allocation allocation,
       final Split split,
+      final EvaluationContext context,
       final long evalTimestampMs,
       final boolean observeFullEvaluationData) {
     final Variant variant = flag.variations.get(variationKey);
@@ -538,33 +550,41 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
-    final boolean doLog = allocation.doLog != null && allocation.doLog;
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key)
-            .addLong(METADATA_EVAL_TIMESTAMP_MS, evalTimestampMs)
-            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-            .addBoolean(METADATA_DO_LOG, doLog);
-    // The exposure hook always needs doLog. The split serial id remains conditional on span
-    // enrichment so a provider without enrichment does not attach unused serial-id metadata.
+            .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
+            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
+    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
+    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
+    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
+    // subject.
     if (SPAN_ENRICHMENT_ENABLED) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }
+      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
     }
-    return ProviderEvaluation.<T>builder()
-        .value(mappedValue)
-        .reason(
-            !isEmpty(allocation.rules)
-                ? Reason.TARGETING_MATCH.name()
-                : allocation.startAt != null || allocation.endAt != null
-                    ? Reason.DEFAULT.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-        .variant(variant.key)
-        .flagMetadata(metadataBuilder.build())
-        .build();
+    final ProviderEvaluation<T> result =
+        ProviderEvaluation.<T>builder()
+            .value(mappedValue)
+            .reason(
+                !isEmpty(allocation.rules)
+                    ? Reason.TARGETING_MATCH.name()
+                    : allocation.startAt != null || allocation.endAt != null
+                        ? Reason.DEFAULT.name()
+                        : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+            .variant(variant.key)
+            .flagMetadata(metadataBuilder.build())
+            .build();
+    final boolean doLog = allocation.doLog != null && allocation.doLog;
+    if (telemetryEnabled && doLog) {
+      dispatchExposure(key, result, context);
+    }
+    return result;
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
@@ -632,6 +652,29 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return ((Number) value).doubleValue();
     }
     return Double.parseDouble(String.valueOf(value));
+  }
+
+  private static <T> void dispatchExposure(
+      final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
+    final String allocationKey = allocationKey(evaluation);
+    final String variantKey = evaluation.getVariant();
+    if (allocationKey == null || variantKey == null) {
+      return;
+    }
+    final ExposureEvent event =
+        new ExposureEvent(
+            System.currentTimeMillis(),
+            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
+            new datadog.trace.api.featureflag.exposure.Flag(flag),
+            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
+            new Subject(context.getTargetingKey(), flattenContext(context)));
+
+    FeatureFlaggingGateway.dispatch(event);
+  }
+
+  private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
+    final ImmutableMetadata meta = resolution.getFlagMetadata();
+    return meta == null ? null : meta.getString("allocationKey");
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {

@@ -32,6 +32,7 @@ public class Provider extends EventProvider implements Metadata {
   private static final long DEFAULT_INIT_TIMEOUT = 30;
   private volatile Evaluator evaluator;
   private final Options options;
+  private final boolean telemetryEnabled;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -63,10 +64,11 @@ public class Provider extends EventProvider implements Metadata {
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
+    this.telemetryEnabled = options.isTelemetryEnabled();
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
-    if (options.isTelemetryEnabled()) {
+    if (telemetryEnabled) {
       try {
         metrics = new FlagEvalMetrics();
         hook = new FlagEvalMetricsHook(metrics);
@@ -81,7 +83,7 @@ public class Provider extends EventProvider implements Metadata {
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
     final boolean spanEnrichmentEnabled =
-        options.isTelemetryEnabled()
+        telemetryEnabled
             && (spanEnrichmentEnabledOverride != null
                 ? spanEnrichmentEnabledOverride
                 : SpanEnrichmentGate.isEnabled());
@@ -89,22 +91,13 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(4);
+    final List<Hook> hooks = new ArrayList<>(3);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
-    if (options.isTelemetryEnabled()) {
-      // Exposure and EVP flag-evaluation hooks are always registered when provider telemetry is
-      // enabled. Each is a no-op when its agent-side listener or writer is absent.
-      try {
-        final Hook exposureHook = buildExposureHook();
-        if (exposureHook != null) {
-          hooks.add(exposureHook);
-        }
-      } catch (LinkageError | Exception e) {
-        // Keep older bootstrap/API combinations working: exposure recording is best-effort.
-      }
-      // Writer is resolved lazily from FeatureFlaggingGateway.getFlagEvalWriter() on each call.
+    if (telemetryEnabled) {
+      // EVP flagevaluation hook: registered when provider telemetry is enabled; no-op when the
+      // writer is absent (killswitch off). The writer is resolved lazily on each call.
       try {
         final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
         if (flagEvalLoggingHook != null) {
@@ -230,8 +223,8 @@ public class Provider extends EventProvider implements Metadata {
       return evaluator;
     }
     final Class<?> evaluatorClass = loadEvaluatorClass();
-    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
-    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class, boolean.class);
+    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange, telemetryEnabled);
   }
 
   @Override
@@ -241,10 +234,6 @@ public class Provider extends EventProvider implements Metadata {
 
   Hook buildFlagEvalLoggingHook() {
     return FlagEvalLoggingHook.INSTANCE;
-  }
-
-  Hook buildExposureHook() {
-    return ExposureHook.INSTANCE;
   }
 
   @Override
