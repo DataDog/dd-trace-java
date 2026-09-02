@@ -1,7 +1,11 @@
-# Generates 'LambdaInterfaceNameTrie.java'
+# Reserved lambda interface manifest (inactive)
 
-# Exact functional interfaces whose generated lambda classes should be sent through the agent's
-# matching and transformation pipeline. Keep this list narrow: the lookup runs for every lambda
-# linkage in the application.
+# Production lambda transformation is intentionally not enabled for any functional interface.
+# This file is not read at build time or runtime. Runtime selection is driven exclusively by
+# enabled Instrumenter.ForLambda implementations and also requires trace.lambda.enabled.
 
-1 java.lang.Runnable
+# If a validated manifest is introduced later, entries will use the ClassNameTrie format:
+#
+# 1 java.lang.Runnable
+
+# Tests register Runnable from TestRunnableLambdaInstrumentation; this file has no effect on them.

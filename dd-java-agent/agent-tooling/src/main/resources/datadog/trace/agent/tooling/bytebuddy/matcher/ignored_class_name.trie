@@ -57,7 +57,7 @@
 0 java.lang.Runtime
 # allow context tracking for VirtualThread
 0 java.lang.VirtualThread
-# allow instrumenting the lambda metafactory to field-inject generated lambda classes
+# allow opt-in instrumentation of the lambda metafactory
 0 java.lang.invoke.InnerClassLambdaMetafactory
 0 java.net.http.*
 0 java.net.HttpURLConnection

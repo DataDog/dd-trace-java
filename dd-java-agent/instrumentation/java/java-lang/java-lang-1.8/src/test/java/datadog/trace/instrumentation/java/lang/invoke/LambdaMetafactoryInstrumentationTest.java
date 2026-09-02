@@ -21,7 +21,6 @@ import datadog.trace.instrumentation.java.lang.invoke.LambdaMetafactoryInstrumen
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
@@ -230,28 +229,7 @@ class LambdaMetafactoryInstrumentationTest {
   }
 
   @Test
-  void nonRunnableLambdaBypassesTransformer() {
-    byte[] originalBytes = new byte[0];
-    AtomicBoolean transformed = new AtomicBoolean();
-    LambdaTransformerHolder.set(
-        (className, targetClass, classBytes, interfaceClassName) -> {
-          transformed.set(true);
-          return classBytes;
-        });
-    try {
-      byte[] result =
-          LambdaTransformerHelper.transform(
-              originalBytes, "test/Lambda", Object.class, Supplier.class);
-
-      assertSame(originalBytes, result);
-      assertFalse(transformed.get());
-    } finally {
-      LambdaTransformerHolder.set(null);
-    }
-  }
-
-  @Test
-  void exactRunnableInterfaceUsesTransformer() {
+  void registeredTransformerReceivesFunctionalInterface() {
     byte[] originalBytes = new byte[0];
     AtomicBoolean transformed = new AtomicBoolean();
     AtomicReference<String> transformedInterface = new AtomicReference<>();
@@ -269,27 +247,6 @@ class LambdaMetafactoryInstrumentationTest {
       assertSame(originalBytes, result);
       assertTrue(transformed.get());
       assertEquals(Runnable.class.getName(), transformedInterface.get());
-    } finally {
-      LambdaTransformerHolder.set(null);
-    }
-  }
-
-  @Test
-  void runnableSubinterfaceBypassesTransformer() {
-    byte[] originalBytes = new byte[0];
-    AtomicBoolean transformed = new AtomicBoolean();
-    LambdaTransformerHolder.set(
-        (className, targetClass, classBytes, interfaceClassName) -> {
-          transformed.set(true);
-          return classBytes;
-        });
-    try {
-      byte[] result =
-          LambdaTransformerHelper.transform(
-              originalBytes, "test/Lambda", Object.class, RunnableSubtype.class);
-
-      assertSame(originalBytes, result);
-      assertFalse(transformed.get());
     } finally {
       LambdaTransformerHolder.set(null);
     }
@@ -344,8 +301,6 @@ class LambdaMetafactoryInstrumentationTest {
       LambdaTransformerHolder.set(null);
     }
   }
-
-  private interface RunnableSubtype extends Runnable {}
 
   @FunctionalInterface
   private interface ClassBody {

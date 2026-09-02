@@ -7976,7 +7976,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_LAMBDA_ENABLED", "DD_INTEGRATION_LAMBDA_ENABLED"]
       }
     ],

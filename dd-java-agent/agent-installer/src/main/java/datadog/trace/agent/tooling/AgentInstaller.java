@@ -152,7 +152,7 @@ public class AgentInstaller {
     agentBuilder =
         agentBuilder
             .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class, LambdaTransformerHelper.class)
+            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
@@ -167,6 +167,15 @@ public class AgentInstaller {
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
             .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
+
+    boolean lambdaTransformationEnabled =
+        !Platform.isNativeImageBuilder()
+            && InstrumenterConfig.get()
+                .isIntegrationEnabled(Collections.singleton("lambda"), false);
+    if (lambdaTransformationEnabled) {
+      // The injected metafactory call needs java.base to read the bootstrap helper's module.
+      agentBuilder = agentBuilder.assureReadEdgeTo(inst, LambdaTransformerHelper.class);
+    }
 
     if (DEBUG) {
       agentBuilder =
@@ -259,7 +268,9 @@ public class AgentInstaller {
     InstrumenterState.resetDefaultState();
     try {
       ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
-      registerLambdaTransformer(classFileTransformer, transformerBuilder.lambdaInterfaces());
+      if (lambdaTransformationEnabled) {
+        registerLambdaTransformer(classFileTransformer, transformerBuilder.lambdaInterfaces());
+      }
       return classFileTransformer;
     } finally {
       SharedTypePools.endInstall();
@@ -307,7 +318,7 @@ public class AgentInstaller {
                     .get(null);
         return factory.apply(classFileTransformer);
       } catch (Throwable e) {
-        log.debug("Problem loading Java 9 lambda transformer, disabling lambda field-injection", e);
+        log.debug("Problem loading Java 9 lambda transformer, disabling lambda transformation", e);
         return null;
       }
     }
