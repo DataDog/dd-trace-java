@@ -47,69 +47,62 @@ import org.openjdk.jmh.infra.Blackhole;
  * this migration -- a same-run, same-JVM before/after comparison of the real class, not just the
  * underlying primitive.
  *
- * <p><b>Results:</b> every hot single-counter call (uncontended) lands at 0.009-0.018 us/op --
- * indistinguishable from {@code AccumulatorBenchmark}'s raw {@code
- * accumulatorIncrement_lowContention} (0.010 us/op), confirming the switch/branch dispatch around
- * each call site costs nothing extra once inlined. At {@code Threads.MAX} the real call sites track
- * the same 3-4x contention penalty documented in {@code AccumulatorBenchmark} (thread-striped
- * {@code synchronized}, not a CAS retry), without an amplification from real production shapes --
- * {@code onSend}'s three top-level calls plus one grouped {@code update(response, ...)} costs about
- * 4x a single {@code inc()} at both contention levels, exactly what four independent lock
- * acquisitions (three single-counter, one two-counter) should cost, not more. {@code
- * summaryWhileWriting} confirms the peek-not-drain design for {@code summary()}: concurrent readers
- * don't measurably slow writers (0.010 us/op, same as uncontended {@code onCreateSpan}), at the
- * cost of the read itself walking all 54 stripes non-destructively (2.857 us/op) -- acceptable for
- * a diagnostic/tracer-flare call, never on the span-emission path. <code>
- * Apple M1 Max, 10 CPUs - JDK 25 (Zulu) - macOS/aarch64
- * Benchmark                                                Mode  Cnt    Score    Error  Units
- * TracerHealthMetricsBenchmark.onCreateSpan_lowContention   avgt    6    0.009 ±  0.001   us/op
- * TracerHealthMetricsBenchmark.onCreateSpan_highContention  avgt    6    0.032 ±  0.016   us/op
- * TracerHealthMetricsBenchmark.onFailedPublish_lowContention   avgt 6    0.018 ±  0.001   us/op
- * TracerHealthMetricsBenchmark.onFailedPublish_highContention  avgt 6    0.063 ±  0.022   us/op
- * TracerHealthMetricsBenchmark.onPartialPublish_lowContention  avgt 6    0.009 ±  0.001   us/op
- * TracerHealthMetricsBenchmark.onPartialPublish_highContention avgt 6    0.031 ±  0.008   us/op
- * TracerHealthMetricsBenchmark.onSend_lowContention         avgt    6    0.039 ±  0.001   us/op
- * TracerHealthMetricsBenchmark.onSend_highContention        avgt    6    0.097 ±  0.136   us/op
- * TracerHealthMetricsBenchmark.summaryWhileWriting                avgt 6    0.579 ±  0.020  us/op
- * TracerHealthMetricsBenchmark.summaryWhileWriting:...write        avgt 6    0.010 ±  0.001  us/op
- * TracerHealthMetricsBenchmark.summaryWhileWriting:...read         avgt 6    2.857 ±  0.099  us/op
- * </code> ({@code onSend_highContention}'s wide error bar is run-to-run lock-contention noise, the
- * same phenomenon {@code AccumulatorBenchmark} already documents for {@code
- * accumulatorAccumulateAndReset_highContention} -- the direction, not the exact magnitude, is the
- * reliable part of that row.)
+ * <p><b>Results.</b> After {@link datadog.trace.util.Accumulator}'s lock-free {@code
+ * AtomicLongArray}-striping rewrite, every hot single-counter call (uncontended) lands at
+ * 0.007-0.009 us/op -- indistinguishable from {@code AccumulatorBenchmark}'s raw {@code
+ * accumulatorIncrement_lowContention} (0.007 us/op). At {@code Threads.MAX} the real call sites
+ * stay just as flat (0.009-0.013 us/op): the CAS-based {@code getAndAdd} no longer pays the
+ * 3-4x {@code synchronized}-stripe contention penalty the earlier design did. {@code
+ * summaryWhileWriting} confirms the peek-not-drain design for {@code summary()}: concurrent
+ * readers don't measurably slow writers (0.008 us/op, same as uncontended {@code onCreateSpan}),
+ * at the cost of the read itself walking all 54 stripes non-destructively (~1.83 us/op) --
+ * acceptable for a diagnostic/tracer-flare call, never on the span-emission path. Results are
+ * stable across JDK 17 and JDK 25 (point estimates agree to the millisecond-precision printed
+ * below), confirming this is the striping rewrite's effect, not a JIT/JVM-version artifact.
+ * <code>
+ * Apple M1 Max, 10 CPUs - macOS/aarch64 - JDK 17 (Zulu) / JDK 25 (Zulu)
+ * Benchmark                                                JDK17  JDK25  Units
+ * TracerHealthMetricsBenchmark.onCreateSpan_lowContention   0.007  0.007  us/op
+ * TracerHealthMetricsBenchmark.onCreateSpan_highContention  0.009  0.009  us/op
+ * TracerHealthMetricsBenchmark.onFailedPublish_lowContention   0.007  0.007  us/op
+ * TracerHealthMetricsBenchmark.onFailedPublish_highContention  0.010  0.010  us/op
+ * TracerHealthMetricsBenchmark.onPartialPublish_lowContention  0.007  0.007  us/op
+ * TracerHealthMetricsBenchmark.onPartialPublish_highContention 0.009  0.010  us/op
+ * TracerHealthMetricsBenchmark.onSend_lowContention         0.009  0.009  us/op
+ * TracerHealthMetricsBenchmark.onSend_highContention        0.013  0.013  us/op
+ * TracerHealthMetricsBenchmark.summaryWhileWriting                0.373  0.373  us/op
+ * TracerHealthMetricsBenchmark.summaryWhileWriting:...write        0.008  0.008  us/op
+ * TracerHealthMetricsBenchmark.summaryWhileWriting:...read         1.835  1.833  us/op
+ * </code>
  *
- * <p><b>Before/after results:</b> the {@code Accumulator}-backed implementation is measurably
- * slower per counter update than the {@code LongAdder} baseline it replaced -- {@code
- * LongAdder.increment()} is a single uncontended CAS-retry field write, while every {@code
- * Accumulator} update takes its stripe's {@code synchronized} lock even uncontended, so this is the
- * expected shape, not a regression to chase. Uncontended single-counter calls ({@code
- * onCreateSpan}, {@code onPartialPublish}) are within noise of each other (1.1-1.3x); calls
- * touching two counters under one grouped lock ({@code onFailedPublish}, {@code onSend}) cost 2-3x
- * uncontended and 3-4.6x under {@code Threads.MAX} contention, tracking the same 3-4x contention
- * penalty {@code AccumulatorBenchmark} documents for the raw primitive. {@code summary()} is the
- * largest delta: walking 54 stripes non-destructively costs ~4x what summing 52 plain {@code
- * LongAdder} fields did (2.844 vs 0.722 us/op) -- still far below the periodic (30s-default) {@code
- * Flush} cadence and the ad hoc/diagnostic calls that trigger it, so not disqualifying, but the
- * honest number. Neither implementation's writers are measurably slowed by a concurrent {@code
- * summary()}/reader (0.010 vs 0.008 us/op, both within noise). <code>
- * Apple M1 Max, 10 CPUs - JDK 25 (Zulu) - macOS/aarch64
- * Benchmark                       New (Accumulator)  Legacy (LongAdder)  Ratio
- * onCreateSpan_lowContention           0.009               0.007          1.3x
- * onCreateSpan_highContention          0.024               0.009          2.7x
- * onFailedPublish_lowContention        0.018               0.009          2.0x
- * onFailedPublish_highContention       0.074               0.016          4.6x
- * onPartialPublish_lowContention       0.009               0.008          1.1x
- * onPartialPublish_highContention      0.038               0.013          2.9x
- * onSend_lowContention                 0.039               0.013          3.0x
- * onSend_highContention                0.087               0.022          4.0x
- * summaryWhileWriting_write            0.010               0.008          1.3x
- * summaryWhileWriting_read             2.844               0.722          3.9x
- * (all figures us/op, avgt)
- * </code> This is the expected cost of trading 49 independent {@code LongAdder} fields (no shared
- * state, no locking) for one striped-but-shared {@code Accumulator} -- the migration's case rests
- * on eliminating the {@code previousCounts}/{@code countIndex} hand-tracking ceremony and giving
- * each counter an atomic multi-field grouped update, not on raw per-call speed, which is
- * unambiguously a step down here.
+ * <p><b>Before/after results.</b> The {@code Accumulator}-backed implementation is now at parity
+ * with, or measurably <em>faster</em> than, the {@code LongAdder} baseline it replaced on every
+ * single-call-site benchmark, including under {@code Threads.MAX} contention -- a reversal of the
+ * earlier {@code synchronized}-stripe design's 1.1-4.6x cost documented before the lock-free
+ * rewrite (commit {@code 3ea84793d1}). {@code onSend}, the most expensive real call site (three
+ * top-level calls plus one two-counter grouped update), now costs 0.6-0.75x of legacy at both
+ * contention levels. {@code summary()} remains the one real cost: walking 54 stripes
+ * non-destructively still costs ~2.5-2.6x what summing 52 plain {@code LongAdder} fields does
+ * (~1.83 vs ~0.71 us/op) -- still far below the periodic (30s-default) {@code Flush} cadence and
+ * the ad hoc/diagnostic calls that trigger it, so not disqualifying. Neither implementation's
+ * writers are measurably slowed by a concurrent {@code summary()}/reader. <code>
+ * Apple M1 Max, 10 CPUs - macOS/aarch64 - JDK 17 (Zulu) / JDK 25 (Zulu)
+ * Benchmark                       New (JDK17/25)  Legacy (JDK17/25)  Ratio
+ * onCreateSpan_lowContention        0.007 / 0.007    0.007 / 0.007    1.0x / 1.0x
+ * onCreateSpan_highContention       0.009 / 0.009    0.010 / 0.010    0.9x / 0.9x
+ * onFailedPublish_lowContention     0.007 / 0.007    0.008 / 0.008    0.9x / 0.9x
+ * onFailedPublish_highContention    0.010 / 0.010    0.011 / 0.012    0.9x / 0.8x
+ * onPartialPublish_lowContention    0.007 / 0.007    0.008 / 0.008    0.9x / 0.9x
+ * onPartialPublish_highContention   0.009 / 0.010    0.012 / 0.012    0.75x / 0.8x
+ * onSend_lowContention              0.009 / 0.009    0.012 / 0.013    0.75x / 0.7x
+ * onSend_highContention             0.013 / 0.013    0.020 / 0.022    0.65x / 0.6x
+ * summaryWhileWriting_write         0.008 / 0.008    0.009 / 0.008    0.9x / 1.0x
+ * summaryWhileWriting_read          1.835 / 1.833    0.705 / 0.720    2.6x / 2.55x
+ * (all figures us/op, avgt; JDK17 / JDK25)
+ * </code> This means the migration's case no longer rests solely on eliminating the {@code
+ * previousCounts}/{@code countIndex} hand-tracking ceremony and giving each counter an atomic
+ * multi-field grouped update -- the lock-free rewrite makes it a speedup too, on every path except
+ * the diagnostic {@code summary()} read.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
