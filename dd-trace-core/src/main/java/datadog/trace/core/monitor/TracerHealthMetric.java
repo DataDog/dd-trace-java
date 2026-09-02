@@ -9,112 +9,110 @@ import datadog.metrics.api.statsd.StatsDCounterKey;
  * distinct {@code LongAdder} fields this enum replaces.
  */
 enum TracerHealthMetric implements StatsDCounterKey {
-  API_REQUESTS("api.requests.total", NoTags.NO_TAGS, "apiRequests"),
-  API_ERRORS("api.errors.total", NoTags.NO_TAGS, "apiErrors"),
+  API_REQUESTS("apiRequests", "api.requests.total"),
+  API_ERRORS("apiErrors", "api.errors.total"),
   // non-OK responses are reported immediately in onSendAttempt with different status tags
-  API_RESPONSES_OK("api.responses.total", NoTags.STATUS_OK_TAGS, "apiResponsesOK"),
+  API_RESPONSES_OK("apiResponsesOK", "api.responses.total", Tags.STATUS_OK_TAGS),
 
-  USER_DROP_ENQUEUED_TRACES(
-      "queue.enqueued.traces", NoTags.USER_DROP_TAG, "userDropEnqueuedTraces"),
-  USER_KEEP_ENQUEUED_TRACES(
-      "queue.enqueued.traces", NoTags.USER_KEEP_TAG, "userKeepEnqueuedTraces"),
+  USER_DROP_ENQUEUED_TRACES("userDropEnqueuedTraces", "queue.enqueued.traces", Tags.USER_DROP_TAG),
+  USER_KEEP_ENQUEUED_TRACES("userKeepEnqueuedTraces", "queue.enqueued.traces", Tags.USER_KEEP_TAG),
   SAMPLER_DROP_ENQUEUED_TRACES(
-      "queue.enqueued.traces", NoTags.SAMPLER_DROP_TAG, "samplerDropEnqueuedTraces"),
+      "samplerDropEnqueuedTraces", "queue.enqueued.traces", Tags.SAMPLER_DROP_TAG),
   SAMPLER_KEEP_ENQUEUED_TRACES(
-      "queue.enqueued.traces", NoTags.SAMPLER_KEEP_TAG, "samplerKeepEnqueuedTraces"),
+      "samplerKeepEnqueuedTraces", "queue.enqueued.traces", Tags.SAMPLER_KEEP_TAG),
   UNSET_PRIORITY_ENQUEUED_TRACES(
-      "queue.enqueued.traces", NoTags.UNSET_TAG, "unsetPriorityEnqueuedTraces"),
+      "unsetPriorityEnqueuedTraces", "queue.enqueued.traces", Tags.UNSET_TAG),
 
-  USER_DROP_DROPPED_TRACES("queue.dropped.traces", NoTags.USER_DROP_TAG, "userDropDroppedTraces"),
-  USER_KEEP_DROPPED_TRACES("queue.dropped.traces", NoTags.USER_KEEP_TAG, "userKeepDroppedTraces"),
+  USER_DROP_DROPPED_TRACES("userDropDroppedTraces", "queue.dropped.traces", Tags.USER_DROP_TAG),
+  USER_KEEP_DROPPED_TRACES("userKeepDroppedTraces", "queue.dropped.traces", Tags.USER_KEEP_TAG),
   SAMPLER_DROP_DROPPED_TRACES(
-      "queue.dropped.traces", NoTags.SAMPLER_DROP_TAG, "samplerDropDroppedTraces"),
+      "samplerDropDroppedTraces", "queue.dropped.traces", Tags.SAMPLER_DROP_TAG),
   SAMPLER_KEEP_DROPPED_TRACES(
-      "queue.dropped.traces", NoTags.SAMPLER_KEEP_TAG, "samplerKeepDroppedTraces"),
+      "samplerKeepDroppedTraces", "queue.dropped.traces", Tags.SAMPLER_KEEP_TAG),
   SERIAL_FAILED_DROPPED_TRACES(
-      "queue.dropped.traces", NoTags.SERIAL_FAILED_TAG, "serialFailedDroppedTraces"),
+      "serialFailedDroppedTraces", "queue.dropped.traces", Tags.SERIAL_FAILED_TAG),
   UNSET_PRIORITY_DROPPED_TRACES(
-      "queue.dropped.traces", NoTags.UNSET_TAG, "unsetPriorityDroppedTraces"),
+      "unsetPriorityDroppedTraces", "queue.dropped.traces", Tags.UNSET_TAG),
 
-  USER_DROP_DROPPED_SPANS("queue.dropped.spans", NoTags.USER_DROP_TAG, "userDropDroppedSpans"),
-  USER_KEEP_DROPPED_SPANS("queue.dropped.spans", NoTags.USER_KEEP_TAG, "userKeepDroppedSpans"),
+  USER_DROP_DROPPED_SPANS("userDropDroppedSpans", "queue.dropped.spans", Tags.USER_DROP_TAG),
+  USER_KEEP_DROPPED_SPANS("userKeepDroppedSpans", "queue.dropped.spans", Tags.USER_KEEP_TAG),
   SAMPLER_DROP_DROPPED_SPANS(
-      "queue.dropped.spans", NoTags.SAMPLER_DROP_TAG, "samplerDropDroppedSpans"),
+      "samplerDropDroppedSpans", "queue.dropped.spans", Tags.SAMPLER_DROP_TAG),
   SAMPLER_KEEP_DROPPED_SPANS(
-      "queue.dropped.spans", NoTags.SAMPLER_KEEP_TAG, "samplerKeepDroppedSpans"),
+      "samplerKeepDroppedSpans", "queue.dropped.spans", Tags.SAMPLER_KEEP_TAG),
   SERIAL_FAILED_DROPPED_SPANS(
-      "queue.dropped.spans", NoTags.SERIAL_FAILED_TAG, "serialFailedDroppedSpans"),
-  UNSET_PRIORITY_DROPPED_SPANS(
-      "queue.dropped.spans", NoTags.UNSET_TAG, "unsetPriorityDroppedSpans"),
+      "serialFailedDroppedSpans", "queue.dropped.spans", Tags.SERIAL_FAILED_TAG),
+  UNSET_PRIORITY_DROPPED_SPANS("unsetPriorityDroppedSpans", "queue.dropped.spans", Tags.UNSET_TAG),
 
-  ENQUEUED_SPANS("queue.enqueued.spans", NoTags.NO_TAGS, "enqueuedSpans"),
-  ENQUEUED_BYTES("queue.enqueued.bytes", NoTags.NO_TAGS, "enqueuedBytes"),
-  CREATED_TRACES("trace.pending.created", NoTags.NO_TAGS, "createdTraces"),
-  CREATED_SPANS("span.pending.created", NoTags.NO_TAGS, "createdSpans"),
-  FINISHED_SPANS("span.pending.finished", NoTags.NO_TAGS, "finishedSpans"),
-  FLUSHED_TRACES("flush.traces.total", NoTags.NO_TAGS, "flushedTraces"),
-  FLUSHED_BYTES("flush.bytes.total", NoTags.NO_TAGS, "flushedBytes"),
-  PARTIAL_TRACES("queue.partial.traces", NoTags.NO_TAGS, "partialTraces"),
-  PARTIAL_BYTES("span.flushed.partial", NoTags.NO_TAGS, "partialBytes"),
-  CLIENT_SPANS_WITHOUT_CONTEXT(
-      "span.client.no-context", NoTags.NO_TAGS, "clientSpansWithoutContext"),
+  ENQUEUED_SPANS("enqueuedSpans", "queue.enqueued.spans"),
+  ENQUEUED_BYTES("enqueuedBytes", "queue.enqueued.bytes"),
+  CREATED_TRACES("createdTraces", "trace.pending.created"),
+  CREATED_SPANS("createdSpans", "span.pending.created"),
+  FINISHED_SPANS("finishedSpans", "span.pending.finished"),
+  FLUSHED_TRACES("flushedTraces", "flush.traces.total"),
+  FLUSHED_BYTES("flushedBytes", "flush.bytes.total"),
+  PARTIAL_TRACES("partialTraces", "queue.partial.traces"),
+  PARTIAL_BYTES("partialBytes", "span.flushed.partial"),
+  CLIENT_SPANS_WITHOUT_CONTEXT("clientSpansWithoutContext", "span.client.no-context"),
 
-  SINGLE_SPAN_SAMPLED("span.sampling.sampled", NoTags.SINGLE_SPAN_SAMPLER_TAG, "singleSpanSampled"),
+  SINGLE_SPAN_SAMPLED("singleSpanSampled", "span.sampling.sampled", Tags.SINGLE_SPAN_SAMPLER_TAG),
   SINGLE_SPAN_UNSAMPLED(
-      "span.sampling.unsampled", NoTags.SINGLE_SPAN_SAMPLER_TAG, "singleSpanUnsampled"),
+      "singleSpanUnsampled", "span.sampling.unsampled", Tags.SINGLE_SPAN_SAMPLER_TAG),
 
-  CAPTURED_CONTINUATIONS("span.continuations.captured", NoTags.NO_TAGS, "capturedContinuations"),
-  CANCELLED_CONTINUATIONS("span.continuations.canceled", NoTags.NO_TAGS, "cancelledContinuations"),
-  FINISHED_CONTINUATIONS("span.continuations.finished", NoTags.NO_TAGS, "finishedContinuations"),
+  CAPTURED_CONTINUATIONS("capturedContinuations", "span.continuations.captured"),
+  CANCELLED_CONTINUATIONS("cancelledContinuations", "span.continuations.canceled"),
+  FINISHED_CONTINUATIONS("finishedContinuations", "span.continuations.finished"),
 
-  ACTIVATED_SCOPES("scope.activate.count", NoTags.NO_TAGS, "activatedScopes"),
-  CLOSED_SCOPES("scope.close.count", NoTags.NO_TAGS, "closedScopes"),
-  SCOPE_STACK_OVERFLOW("scope.error.stack-overflow", NoTags.NO_TAGS, "scopeStackOverflow"),
-  SCOPE_CLOSE_ERRORS("scope.close.error", NoTags.NO_TAGS, "scopeCloseErrors"),
-  USER_SCOPE_CLOSE_ERRORS("scope.user.close.error", NoTags.NO_TAGS, "userScopeCloseErrors"),
+  ACTIVATED_SCOPES("activatedScopes", "scope.activate.count"),
+  CLOSED_SCOPES("closedScopes", "scope.close.count"),
+  SCOPE_STACK_OVERFLOW("scopeStackOverflow", "scope.error.stack-overflow"),
+  SCOPE_CLOSE_ERRORS("scopeCloseErrors", "scope.close.error"),
+  USER_SCOPE_CLOSE_ERRORS("userScopeCloseErrors", "scope.user.close.error"),
 
-  LONG_RUNNING_TRACES_WRITE("long-running.write", NoTags.NO_TAGS, "longRunningTracesWrite"),
-  LONG_RUNNING_TRACES_DROPPED("long-running.dropped", NoTags.NO_TAGS, "longRunningTracesDropped"),
-  LONG_RUNNING_TRACES_EXPIRED("long-running.expired", NoTags.NO_TAGS, "longRunningTracesExpired"),
+  LONG_RUNNING_TRACES_WRITE("longRunningTracesWrite", "long-running.write"),
+  LONG_RUNNING_TRACES_DROPPED("longRunningTracesDropped", "long-running.dropped"),
+  LONG_RUNNING_TRACES_EXPIRED("longRunningTracesExpired", "long-running.expired"),
 
   // not rendered by summary() -- matches the pre-migration behavior, which never printed these
   ORG_GUARD_ENFORCE_MISMATCH(
-      "org_guard.enforce", NoTags.ORG_GUARD_MISMATCH_TAGS, "orgGuardEnforceMismatch", false),
+      "orgGuardEnforceMismatch", "org_guard.enforce", Tags.ORG_GUARD_MISMATCH_TAGS, false),
   ORG_GUARD_ENFORCE_STRICT_MISSING(
-      "org_guard.enforce",
-      NoTags.ORG_GUARD_STRICT_MISSING_TAGS,
       "orgGuardEnforceStrictMissing",
+      "org_guard.enforce",
+      Tags.ORG_GUARD_STRICT_MISSING_TAGS,
       false),
 
-  CLIENT_STATS_PROCESSED_TRACES("stats.traces_in", NoTags.NO_TAGS, "clientStatsProcessedTraces"),
-  CLIENT_STATS_PROCESSED_SPANS("stats.spans_in", NoTags.NO_TAGS, "clientStatsProcessedSpans"),
-  CLIENT_STATS_P0_DROPPED_TRACES(
-      "stats.dropped_p0_traces", NoTags.NO_TAGS, "clientStatsP0DroppedTraces"),
-  CLIENT_STATS_P0_DROPPED_SPANS(
-      "stats.dropped_p0_spans", NoTags.NO_TAGS, "clientStatsP0DroppedSpans"),
-  CLIENT_STATS_REQUESTS("stats.flush_payloads", NoTags.NO_TAGS, "clientStatsRequests"),
-  CLIENT_STATS_ERRORS("stats.flush_errors", NoTags.NO_TAGS, "clientStatsErrors"),
-  CLIENT_STATS_DOWNGRADES("stats.agent_downgrades", NoTags.NO_TAGS, "clientStatsDowngrades"),
+  CLIENT_STATS_PROCESSED_TRACES("clientStatsProcessedTraces", "stats.traces_in"),
+  CLIENT_STATS_PROCESSED_SPANS("clientStatsProcessedSpans", "stats.spans_in"),
+  CLIENT_STATS_P0_DROPPED_TRACES("clientStatsP0DroppedTraces", "stats.dropped_p0_traces"),
+  CLIENT_STATS_P0_DROPPED_SPANS("clientStatsP0DroppedSpans", "stats.dropped_p0_spans"),
+  CLIENT_STATS_REQUESTS("clientStatsRequests", "stats.flush_payloads"),
+  CLIENT_STATS_ERRORS("clientStatsErrors", "stats.flush_errors"),
+  CLIENT_STATS_DOWNGRADES("clientStatsDowngrades", "stats.agent_downgrades"),
 
   STATS_AGGREGATE_DROPPED(
-      "stats.dropped_aggregates", NoTags.REASON_LRU_EVICTION_TAG, "statsAggregateDropped"),
-  STATS_INBOX_FULL("stats.dropped_aggregates", NoTags.REASON_INBOX_FULL_TAG, "statsInboxFull"),
+      "statsAggregateDropped", "stats.dropped_aggregates", Tags.REASON_LRU_EVICTION_TAG),
+  STATS_INBOX_FULL("statsInboxFull", "stats.dropped_aggregates", Tags.REASON_INBOX_FULL_TAG),
   ;
 
+  private final String summaryLabel;
   private final String metricName;
   private final String[] tags;
-  private final String summaryLabel;
   private final boolean reportedInSummary;
 
-  TracerHealthMetric(String metricName, String[] tags, String summaryLabel) {
-    this(metricName, tags, summaryLabel, true);
+  TracerHealthMetric(String summaryLabel, String metricName) {
+    this(summaryLabel, metricName, new String[0]);
+  }
+
+  TracerHealthMetric(String summaryLabel, String metricName, String[] tags) {
+    this(summaryLabel, metricName, tags, true);
   }
 
   TracerHealthMetric(
-      String metricName, String[] tags, String summaryLabel, boolean reportedInSummary) {
+      String summaryLabel, String metricName, String[] tags, boolean reportedInSummary) {
+    this.summaryLabel = summaryLabel;
     this.metricName = metricName;
     this.tags = tags;
-    this.summaryLabel = summaryLabel;
     this.reportedInSummary = reportedInSummary;
   }
 
@@ -136,9 +134,8 @@ enum TracerHealthMetric implements StatsDCounterKey {
     return reportedInSummary;
   }
 
-  /** Tag arrays, namespaced to keep the enum's constant list above readable. */
-  private static final class NoTags {
-    private static final String[] NO_TAGS = new String[0];
+  /** Tag arrays shared by more than one constant above, namespaced to keep that list readable. */
+  private static final class Tags {
     private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
     private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
     private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
