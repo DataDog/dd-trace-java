@@ -133,7 +133,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onPartialPublish(final int numberOfDroppedSpans) {
     metricAccumulator.update(
         numberOfDroppedSpans,
-        (droppedSpans, stripe) -> {
+        (stripe, droppedSpans) -> {
           stripe.inc(TracerHealthMetric.PARTIAL_TRACES);
           stripe.add(TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS, droppedSpans);
         });
@@ -174,7 +174,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     if (trace != null) {
       metricAccumulator.update(
           trace.size(),
-          (spanCount, stripe) -> {
+          (stripe, spanCount) -> {
             stripe.inc(TracerHealthMetric.SERIAL_FAILED_DROPPED_TRACES);
             stripe.add(TracerHealthMetric.SERIAL_FAILED_DROPPED_SPANS, spanCount);
           });
@@ -275,25 +275,29 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
-    final int status = response.status().orElse(0);
-    metricAccumulator.update(
-        stripe -> {
-          stripe.inc(TracerHealthMetric.API_REQUESTS);
-          stripe.add(TracerHealthMetric.FLUSHED_TRACES, traceCount);
-          // TODO: missing queue.spans (# of spans being sent)
-          stripe.add(TracerHealthMetric.FLUSHED_BYTES, sizeInBytes);
+    metricAccumulator.inc(TracerHealthMetric.API_REQUESTS);
+    metricAccumulator.add(TracerHealthMetric.FLUSHED_TRACES, traceCount);
+    // TODO: missing queue.spans (# of spans being sent)
+    metricAccumulator.add(TracerHealthMetric.FLUSHED_BYTES, sizeInBytes);
 
-          if (response.exception().isPresent()) {
+    // response is a reference, so passing it as context (rather than letting the lambda
+    // capture it, traceCount, and sizeInBytes all at once) costs no boxing -- and grouping
+    // just these two response-derived counters keeps them under one lock acquisition.
+    metricAccumulator.update(
+        response,
+        (r, stripe) -> {
+          if (r.exception().isPresent()) {
             // covers communication errors -- both not receiving a response or
             // receiving malformed response (even when otherwise successful)
             stripe.inc(TracerHealthMetric.API_ERRORS);
           }
 
-          if (200 == status) {
+          if (200 == r.status().orElse(0)) {
             stripe.inc(TracerHealthMetric.API_RESPONSES_OK);
           }
         });
 
+    final int status = response.status().orElse(0);
     if (status != 0 && 200 != status) {
       statsd.incrementCounter("api.responses.total", statusTagsCache.get(status));
     }
