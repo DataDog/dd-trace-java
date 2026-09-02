@@ -102,7 +102,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
 
       // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
       // ImmutableMetadata.getLong available since sdk 1.4+.
-      final Long evalTimeObj = metadata != null ? metadata.getLong("__dd_eval_timestamp_ms") : null;
+      final Long evalTimeObj =
+          metadata != null ? metadata.getLong(DDEvaluator.METADATA_EVAL_TIMESTAMP_MS) : null;
       final long evalTimeMs = evalTimeObj != null ? evalTimeObj : System.currentTimeMillis();
 
       // variant: the OpenFeature variant key (same source as the OTel FlagEvalMetricsHook), NOT the

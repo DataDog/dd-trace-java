@@ -55,6 +55,39 @@ boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
 
+### Inspecting evaluations without telemetry
+
+Use OpenFeature domains when one client should perform normal live evaluations and another should
+only inspect the result. Register a separate `Provider` for each domain and disable telemetry on the
+provider assigned to the inspection domain:
+
+```java
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+
+api.setProviderAndWait("live", new Provider());
+api.setProviderAndWait(
+    "peek",
+    new Provider(new Provider.Options().telemetryEnabled(false)));
+
+Client checkoutClient = api.getClient("live");
+Client analyticsClient = api.getClient("peek");
+
+EvaluationContext checkoutContext = new MutableContext("session-abc");
+EvaluationContext analyticsContext = new MutableContext("user-123");
+
+// Evaluates normally and emits the configured Datadog telemetry.
+boolean checkoutEnabled = checkoutClient.getBooleanValue(
+    "my-feature", false, checkoutContext);
+
+// Returns the same evaluation result without emitting Datadog telemetry.
+boolean analyticsEnabled = analyticsClient.getBooleanValue(
+    "my-feature", false, analyticsContext);
+```
+
+`telemetryEnabled(false)` suppresses exposures, EVP flag-evaluation events, OpenTelemetry
+evaluation metrics, and APM span enrichment for that provider. It does not disable evaluation or
+change the configuration used to resolve flags.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider

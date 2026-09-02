@@ -298,6 +298,18 @@ public class DDEvaluatorTest {
         equalTo(false));
   }
 
+  @Test
+  public void doLogIsStampedOnResolvedVariantForExposureHook() {
+    assertThat(
+        evaluateMatchingFlag(false, true).getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG),
+        equalTo(true));
+    assertThat(
+        evaluateMatchingFlag(false, false)
+            .getFlagMetadata()
+            .getBoolean(DDEvaluator.METADATA_DO_LOG),
+        equalTo(false));
+  }
+
   // -- DISABLED path: flag.enabled=false --
 
   @Test
@@ -399,11 +411,16 @@ public class DDEvaluatorTest {
   // and a single "on" variant whose value maps to the requested Integer type.
   private static ProviderEvaluation<?> evaluateMatchingFlag(
       final boolean observeFullEvaluationData) {
+    return evaluateMatchingFlag(observeFullEvaluationData, false);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData, final boolean doLog) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), null);
     final Allocation allocation =
-        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+        new Allocation("alloc-1", null, null, null, singletonList(split), doLog);
     return evaluateFlag(
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
         observeFullEvaluationData);
