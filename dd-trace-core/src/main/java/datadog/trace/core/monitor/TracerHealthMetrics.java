@@ -36,9 +36,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private volatile AgentTaskScheduler.Scheduled<TracerHealthMetrics> cancellation;
 
   private final Accumulator<TracerHealthMetric> metricAccumulator =
-      Accumulator.of(TracerHealthMetric.values());
+      Accumulator.of(TracerHealthMetric.class);
   private volatile Accumulator.Counts<TracerHealthMetric> storedTotal =
-      Accumulator.Counts.zero(TracerHealthMetric.values());
+      Accumulator.Counts.zero(TracerHealthMetric.class);
 
   private final StatsDClient statsd;
   private final long interval;
@@ -355,7 +355,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     @Override
     public void run(TracerHealthMetrics target) {
       Accumulator.Counts<TracerHealthMetric> delta = target.metricAccumulator.accumulateAndReset();
-      StatsDCountReporter.report(target.statsd, TracerHealthMetric.values(), delta::get);
+      StatsDCountReporter.report(target.statsd, delta);
       target.storedTotal = target.storedTotal.plus(delta);
     }
   }
@@ -364,7 +364,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public String summary() {
     Accumulator.Counts<TracerHealthMetric> live = storedTotal.plus(metricAccumulator.sum());
     StringBuilder summary = new StringBuilder();
-    for (TracerHealthMetric metric : TracerHealthMetric.values()) {
+    for (TracerHealthMetric metric : live.values()) {
       if (!metric.isReportedInSummary()) {
         continue;
       }
