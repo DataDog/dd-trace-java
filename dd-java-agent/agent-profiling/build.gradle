@@ -43,8 +43,30 @@ configurations {
   }
 }
 
+// jafar-tools is a fat jar bundling (an incomplete copy of) the jafar-parser classes; the agent
+// bundles jafar-parser (via profiling-otel) instead and only needs the io.jafar.tools classes
+// (used by profiling-scrubber) from the fat jar
+configurations {
+  jafarTools
+}
+dependencies {
+  jafarTools("io.btrace:jafar-tools:${libs.versions.jafar.get()}") {
+    transitive = false
+  }
+}
+def jafarToolsJar = configurations.jafarTools
+
 tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
+
+  // drop the jafar-tools fat jar (parser classes come from jafar-parser via profiling-otel) and
+  // re-add only its unique io/jafar/tools classes to keep a single copy of every class
+  dependencies {
+    exclude(dependency('io.btrace:jafar-tools:.*'))
+  }
+  from({ zipTree(jafarToolsJar.singleFile) }) {
+    include 'io/jafar/tools/**'
+  }
 
   // Exclude multi-release versioned classes from jafar-parser.
   // These are duplicates of base classes for newer Java APIs and confuse
