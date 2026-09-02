@@ -119,7 +119,13 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       return;
     }
     try {
+      long conversionStartNanos = System.nanoTime();
       byte[] otlpBytes = convertToOtlp(data);
+      log.debug(
+          "JFR to OTLP conversion took {} ms (mode={}, bytes={})",
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - conversionStartNanos),
+          mode,
+          otlpBytes.length);
       OtlpPayload payload =
           new OtlpPayload(ByteBuffer.wrap(otlpBytes), OtlpPayload.PROTOBUF_CONTENT_TYPE);
 
