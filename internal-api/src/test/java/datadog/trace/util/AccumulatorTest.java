@@ -220,6 +220,27 @@ class AccumulatorTest {
   }
 
   @Test
+  void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
+    counters.add(Counters.BAR, 5L);
+
+    // drain once, e.g. as if a reporting cycle already ran and stored this total
+    Accumulator.Counts<Counters> storedTotal = counters.accumulateAndReset();
+
+    // more activity happens after that drain, before the next one
+    counters.inc(Counters.FOO);
+
+    Accumulator.Counts<Counters> live = storedTotal.plus(counters.sum());
+    assertEquals(2L, live.get(Counters.FOO));
+    assertEquals(5L, live.get(Counters.BAR));
+
+    // neither input was mutated by combining them
+    assertEquals(1L, storedTotal.get(Counters.FOO));
+    assertEquals(1L, counters.sum().get(Counters.FOO));
+  }
+
+  @Test
   void typedWrapperDelegatesToEmbeddingSupport() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
     counters.inc(Counters.FOO);

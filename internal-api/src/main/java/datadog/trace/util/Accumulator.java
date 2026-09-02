@@ -145,6 +145,19 @@ public final class Accumulator<E extends Enum<E>> {
     public long get(E key) {
       return counts[key.ordinal()];
     }
+
+    /**
+     * Adds {@code other} to this, key by key, returning a new {@link Counts} rather than mutating
+     * either input -- combines a stored running total with a fresh, non-destructive {@link #sum} to
+     * answer "what's the live total right now" without ever resetting anything.
+     */
+    public Counts<E> plus(Counts<E> other) {
+      long[] combined = counts.clone();
+      for (int i = 0; i < combined.length; i++) {
+        combined[i] += other.counts[i];
+      }
+      return new Counts<>(combined);
+    }
   }
 
   /**
