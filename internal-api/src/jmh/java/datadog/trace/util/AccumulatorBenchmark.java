@@ -56,8 +56,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * AccumulatorBenchmark.chmAtomicLongIncrement_highContention    avgt    6    0.417 ±  0.543   us/op
  * AccumulatorBenchmark.longAdderSumThenReset_lowContention      avgt    6    0.012 ±  0.001   us/op
  * AccumulatorBenchmark.longAdderSumThenReset_highContention     avgt    6    2.433 ±  0.203   us/op
- * AccumulatorBenchmark.accumulatorAccumulateAnd_lowContention   avgt    6    0.162 ±  0.009   us/op
- * AccumulatorBenchmark.accumulatorAccumulateAnd_highContention  avgt    6   15.515 ±  4.094   us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention   avgt    6    0.162 ±  0.009   us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention  avgt    6   15.515 ±  4.094   us/op
  * </code>
  *
  * <p>(This run had some background noise from another session on the measurement machine; the
@@ -72,7 +72,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * lock a caller takes). This closes the same reset hazard as {@link Accumulator}, but stripes by
  * <em>counter</em> instead of by <em>thread</em>. <code>
  * AccumulatorBenchmark.accumulatorIncrement_highContention         avgt    6   0.029 ±  0.051  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAnd_highContention     avgt    6  13.431 ±  5.876  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention     avgt    6  13.431 ±  5.876  us/op
  * AccumulatorBenchmark.longAdderGroupIncrement_highContention      avgt    6   0.294 ±  0.088  us/op
  * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention  avgt    6   0.549 ±  0.291  us/op
  * </code> Not "similar cost" -- a clean trade-off inversion. With this benchmark's single counter,
@@ -92,16 +92,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * Accumulator.Counts} wrapping actually cost over calling {@link Accumulator.EmbeddingSupport}
  * directly?</b> {@code typedIncrement}/{@code typedUpdate} pair against {@code
  * accumulatorIncrement} (the same underlying call), and {@code typedAccumulateAndReset} pairs
- * against {@code accumulatorAccumulateAnd}. <code>
+ * against {@code accumulatorAccumulateAndReset}. <code>
  * AccumulatorBenchmark.accumulatorIncrement_lowContention        avgt    6   0.010 ±  0.001  us/op
  * AccumulatorBenchmark.typedIncrement_lowContention               avgt    6   0.010 ±  0.001  us/op
  * AccumulatorBenchmark.accumulatorIncrement_highContention        avgt    6   0.033 ±  0.008  us/op
  * AccumulatorBenchmark.typedIncrement_highContention               avgt    6   0.025 ±  0.015  us/op
  * AccumulatorBenchmark.typedUpdate_lowContention                  avgt    6   0.010 ±  0.001  us/op
  * AccumulatorBenchmark.typedUpdate_highContention                 avgt    6   0.037 ±  0.017  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAnd_lowContention     avgt    6   0.161 ±  0.003  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention     avgt    6   0.161 ±  0.003  us/op
  * AccumulatorBenchmark.typedAccumulateAndReset_lowContention      avgt    6   0.164 ±  0.005  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAnd_highContention    avgt    6  17.399 ±  3.091  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention    avgt    6  17.399 ±  3.091  us/op
  * AccumulatorBenchmark.typedAccumulateAndReset_highContention     avgt    6  12.666 ±  1.272  us/op
  * </code> {@code typedIncrement}/{@code typedUpdate} track the raw calls within noise at both
  * contention levels -- the field-load indirection through the {@link Accumulator} instance and the
@@ -231,7 +231,7 @@ public class AccumulatorBenchmark {
 
   @Benchmark
   @Threads(1)
-  public void accumulatorAccumulateAnd_lowContention(Blackhole blackhole) {
+  public void accumulatorAccumulateAndReset_lowContention(Blackhole blackhole) {
     Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
     blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
   }
@@ -246,13 +246,13 @@ public class AccumulatorBenchmark {
    */
   @Benchmark
   @Threads(Threads.MAX)
-  public void accumulatorAccumulateAnd_highContention(Blackhole blackhole) {
+  public void accumulatorAccumulateAndReset_highContention(Blackhole blackhole) {
     Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
     blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
   }
 
   /**
-   * The realistic counterpart to {@code accumulatorAccumulateAnd_highContention}: many writer
+   * The realistic counterpart to {@code accumulatorAccumulateAndReset_highContention}: many writer
    * threads incrementing, and a single dedicated thread polling {@link
    * Accumulator.EmbeddingSupport#accumulateAndReset} -- not every thread doing both on every op.
    * {@code accumulatorMixed-write} measures increment cost while a drain is actively contending for

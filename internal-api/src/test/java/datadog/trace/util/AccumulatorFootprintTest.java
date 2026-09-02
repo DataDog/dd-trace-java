@@ -103,7 +103,7 @@ class AccumulatorFootprintTest {
     LongAdder[] adders = freshAdders();
     long freshAdderBytes = bytes((Object) adders);
 
-    int threads = Math.max(4, Runtime.getRuntime().availableProcessors());
+    int threads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
     ExecutorService pool = Executors.newFixedThreadPool(threads);
     CountDownLatch start = new CountDownLatch(1);
     CountDownLatch done = new CountDownLatch(threads);
