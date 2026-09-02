@@ -72,7 +72,7 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
             InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
         if (contextStore
-                .putIfAbsent(channel, ChannelTraceContext.Factory.INSTANCE)
+                .getOrCreate(channel, ChannelTraceContext.Factory.INSTANCE)
                 .getConnectionContinuation()
             != null) {
           continuation.release();
