@@ -25,6 +25,9 @@ public final class LLMObsContext {
   private static final ContextKey<String> SAMPLE_RATE_KEY = ContextKey.named("llmobs_sample_rate");
   private static final ContextKey<String> SAMPLING_DECISION_KEY =
       ContextKey.named("llmobs_sampling_decision");
+  private static final ContextKey<String> PAGENT_SPAN_ID_KEY =
+      ContextKey.named("llmobs_pagent_span_id");
+  private static final ContextKey<String> PAGENT_NAME_KEY = ContextKey.named("llmobs_pagent_name");
 
   /**
    * Attach an LLMObs span context, leaving any inherited session_id/agent_version from an enclosing
@@ -64,16 +67,31 @@ public final class LLMObsContext {
   }
 
   /**
-   * Attach an LLMObs span context, propagating a session_id, an agent_version, and a sampling
-   * decision to descendant LLMObs spans. See {@link #attach(AgentSpanContext, String, String)} —
-   * the same clears-if-null-or-empty semantics apply to every value, so callers are expected to
-   * pass already-resolved effective values.
+   * Attach an LLMObs span context, propagating a session_id, an agent_version, a sampling decision,
+   * and agent attribution to descendant LLMObs spans. See {@link #attach(AgentSpanContext, String,
+   * String)} — the same clears-if-null-or-empty semantics apply to every value, so callers are
+   * expected to pass already-resolved effective values.
+   *
+   * <p>This overload carries every propagated value at once because a span's scope is attached
+   * exactly once: three independent mechanisms (session, sampling, attribution) share one context,
+   * so they cannot be attached by separate calls without nesting redundant scopes.
    *
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
    * values are carried pre-formatted so that every span in the trace reports byte-identical values.
    * The rate travels only alongside a decision — a rate on its own says nothing about whether the
    * trace was kept — so a null decision clears both.
+   *
+   * <p>parentAgentSpanId identifies the nearest agent-kind ancestor; parentAgentName is its name
+   * (may be null). Both pagent keys are always written. Per the Context API contract (Context.java:
+   * "Mapping to a null value will remove the key-value from the context copy"), with(key, null)
+   * clears any stale value inherited from an outer scope. This prevents two leakage scenarios:
+   *
+   * <ol>
+   *   <li>An unsafe-named inner agent must not let descendants see the outer agent's name.
+   *   <li>A non-agent span whose trace-ID gate blocked attribution must not let its same-trace
+   *       children pick up a pagent ID that belongs to a different trace.
+   * </ol>
    *
    * <p><strong>In-process only.</strong> This context is not serialized into distributed trace
    * headers, so each service in a distributed trace decides independently. Because the decision is
@@ -87,7 +105,9 @@ public final class LLMObsContext {
       String sessionId,
       String agentVersion,
       String sampleRate,
-      String samplingDecision) {
+      String samplingDecision,
+      String parentAgentSpanId,
+      String parentAgentName) {
     String decision = emptyToNull(samplingDecision);
     return Context.current()
         .with(CONTEXT_KEY, ctx)
@@ -95,6 +115,8 @@ public final class LLMObsContext {
         .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
         .with(SAMPLING_DECISION_KEY, decision)
         .with(SAMPLE_RATE_KEY, decision == null ? null : emptyToNull(sampleRate))
+        .with(PAGENT_SPAN_ID_KEY, parentAgentSpanId)
+        .with(PAGENT_NAME_KEY, parentAgentName)
         .attach();
   }
 
@@ -132,6 +154,18 @@ public final class LLMObsContext {
    */
   public static String currentSamplingDecision() {
     return Context.current().get(SAMPLING_DECISION_KEY);
+  }
+
+  /**
+   * Return the parent agent span ID propagated from an enclosing agent-kind LLMObs span, or null.
+   */
+  public static String currentParentAgentSpanId() {
+    return Context.current().get(PAGENT_SPAN_ID_KEY);
+  }
+
+  /** Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null. */
+  public static String currentParentAgentName() {
+    return Context.current().get(PAGENT_NAME_KEY);
   }
 
   private static String emptyToNull(String value) {

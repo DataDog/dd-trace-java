@@ -178,7 +178,9 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
               null,
               null,
               "0.25",
-              LLMObsContext.SAMPLING_DECISION_DROPPED)) {
+              LLMObsContext.SAMPLING_DECISION_DROPPED,
+              null,
+              null)) {
         try {
           openAiClient.chat().completions().create(buildMinimalChatParams());
         } catch (Exception ignored) {
@@ -203,7 +205,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
       try (ContextScope ignored2 =
           LLMObsContext.attach(
-              parentSpan.spanContext(), null, null, "1", LLMObsContext.SAMPLING_DECISION_SAMPLED)) {
+              parentSpan.spanContext(),
+              null,
+              null,
+              "1",
+              LLMObsContext.SAMPLING_DECISION_SAMPLED,
+              null,
+              null)) {
         try {
           openAiClient.chat().completions().create(buildMinimalChatParams());
         } catch (Exception ignored) {
@@ -253,7 +261,9 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
             "stale-session",
             "stale-version",
             "0.25",
-            LLMObsContext.SAMPLING_DECISION_DROPPED)) {
+            LLMObsContext.SAMPLING_DECISION_DROPPED,
+            "stale-agent-span-id",
+            "stale-agent")) {
       try {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       } catch (Exception ignored2) {
@@ -273,11 +283,14 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
 
-    // The same gate covers parent_id, session_id and agent_version: inheriting any of them would
-    // point this span at a parent in an unrelated trace and file it under an unrelated session.
+    // The same gate covers parent_id, session_id, agent_version and agent attribution: inheriting
+    // any of them would point this span at a parent in an unrelated trace and file it under an
+    // unrelated session or agent.
     assertEquals(LLMObsContext.ROOT_SPAN_ID, openAiSpan.getTag("_ml_obs_tag.parent_id"));
     assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
     assertNull(openAiSpan.getTag("_ml_obs_tag.agent_version"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.pagent_span_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.pagent_name"));
   }
 }
 

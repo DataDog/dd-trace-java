@@ -112,8 +112,9 @@ public class OpenAiDecorator extends ClientDecorator {
 
       // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
       // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
-      // session_id, agent_version, or a sampling verdict to this span. Matches DDLLMObsSpan's
-      // manual-span gate.
+      // session_id, agent_version, agent attribution, or a sampling verdict to this span.
+      // Matches DDLLMObsSpan's manual-span gate. One flag drives every inherited value, so a
+      // new propagated tag cannot accidentally ship with a weaker gate of its own.
       AgentSpanContext parent = LLMObsContext.current();
       boolean inheritable = parent != null && parent.getTraceId().equals(span.getTraceId());
 
@@ -137,6 +138,17 @@ public class OpenAiDecorator extends ClientDecorator {
         String agentVersion = LLMObsContext.currentAgentVersion();
         if (agentVersion != null && !agentVersion.isEmpty()) {
           span.setTag(CommonTags.AGENT_VERSION, agentVersion);
+        }
+
+        // Inherit agent attribution: the nearest agent-kind ancestor of this span. The name is
+        // only meaningful alongside an ID, so it is read inside the ID's branch.
+        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        if (parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+          String parentAgentName = LLMObsContext.currentParentAgentName();
+          if (parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
+          }
         }
 
         samplingDecision = LLMObsContext.currentSamplingDecision();
