@@ -73,14 +73,10 @@ enum TracerHealthMetric implements StatsDCounterKey {
   LONG_RUNNING_TRACES_DROPPED("longRunningTracesDropped", "long-running.dropped"),
   LONG_RUNNING_TRACES_EXPIRED("longRunningTracesExpired", "long-running.expired"),
 
-  // not rendered by summary() -- matches the pre-migration behavior, which never printed these
   ORG_GUARD_ENFORCE_MISMATCH(
-      "orgGuardEnforceMismatch", "org_guard.enforce", Tags.ORG_GUARD_MISMATCH_TAGS, false),
+      "orgGuardEnforceMismatch", "org_guard.enforce", Tags.ORG_GUARD_MISMATCH_TAGS),
   ORG_GUARD_ENFORCE_STRICT_MISSING(
-      "orgGuardEnforceStrictMissing",
-      "org_guard.enforce",
-      Tags.ORG_GUARD_STRICT_MISSING_TAGS,
-      false),
+      "orgGuardEnforceStrictMissing", "org_guard.enforce", Tags.ORG_GUARD_STRICT_MISSING_TAGS),
 
   CLIENT_STATS_PROCESSED_TRACES("clientStatsProcessedTraces", "stats.traces_in"),
   CLIENT_STATS_PROCESSED_SPANS("clientStatsProcessedSpans", "stats.spans_in"),
@@ -98,22 +94,15 @@ enum TracerHealthMetric implements StatsDCounterKey {
   private final String summaryLabel;
   private final String metricName;
   private final String[] tags;
-  private final boolean reportedInSummary;
 
   TracerHealthMetric(String summaryLabel, String metricName) {
     this(summaryLabel, metricName, new String[0]);
   }
 
   TracerHealthMetric(String summaryLabel, String metricName, String[] tags) {
-    this(summaryLabel, metricName, tags, true);
-  }
-
-  TracerHealthMetric(
-      String summaryLabel, String metricName, String[] tags, boolean reportedInSummary) {
     this.summaryLabel = summaryLabel;
     this.metricName = metricName;
     this.tags = tags;
-    this.reportedInSummary = reportedInSummary;
   }
 
   @Override
@@ -128,10 +117,6 @@ enum TracerHealthMetric implements StatsDCounterKey {
 
   String getSummaryLabel() {
     return summaryLabel;
-  }
-
-  boolean isReportedInSummary() {
-    return reportedInSummary;
   }
 
   /** Tag arrays shared by more than one constant above, namespaced to keep that list readable. */
