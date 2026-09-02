@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.trace.api.InstrumenterConfig;
 import java.util.function.Function;
 
 /**
@@ -7,6 +9,9 @@ import java.util.function.Function;
  * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
  */
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
+  private static final boolean MAP_PER_STORE =
+      InstrumenterConfig.get().isRuntimeContextMapPerStore();
+
   final int storeId;
 
   FieldBackedContextStore(final int storeId) {
@@ -17,8 +22,10 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   public Object get(final Object key) {
     if (key instanceof FieldBackedContextAccessor) {
       return ((FieldBackedContextAccessor) key).$get$__datadogContext$(storeId);
-    } else {
+    } else if (MAP_PER_STORE) {
       return weakStore().get(key);
+    } else {
+      return GlobalObjectStore.get(key, storeId);
     }
   }
 
@@ -26,8 +33,10 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   public void put(final Object key, final Object context) {
     if (key instanceof FieldBackedContextAccessor) {
       ((FieldBackedContextAccessor) key).$put$__datadogContext$(storeId, context);
-    } else {
+    } else if (MAP_PER_STORE) {
       weakStore().put(key, context);
+    } else {
+      GlobalObjectStore.put(key, storeId, context);
     }
   }
 
@@ -46,8 +55,10 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else {
+    } else if (MAP_PER_STORE) {
       return weakStore().getOrPut(key, context);
+    } else {
+      return GlobalObjectStore.getOrPut(key, storeId, context);
     }
   }
 
@@ -66,8 +77,10 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else {
+    } else if (MAP_PER_STORE) {
       return weakStore().getOrCompute(key, contextFactory);
+    } else {
+      return GlobalObjectStore.getOrCompute(key, storeId, contextFactory);
     }
   }
 
@@ -85,8 +98,10 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         }
       }
       return existingContext;
-    } else {
+    } else if (MAP_PER_STORE) {
       return weakStore().remove(key);
+    } else {
+      return GlobalObjectStore.remove(key, storeId);
     }
   }
 

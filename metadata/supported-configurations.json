@@ -9780,6 +9780,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_RXJAVA_ENABLED": [
       {
         "version": "A",
