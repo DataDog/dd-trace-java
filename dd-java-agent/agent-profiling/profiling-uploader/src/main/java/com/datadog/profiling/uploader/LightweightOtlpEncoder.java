@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Encodes a minimal OTLP ProfilesData message with no sample conversion — just metadata and the raw
@@ -105,8 +105,8 @@ final class LightweightOtlpEncoder {
   }
 
   private static byte[] generateProfileId() {
-    long msb = UUID.randomUUID().getMostSignificantBits();
-    long lsb = UUID.randomUUID().getLeastSignificantBits();
+    long msb = ThreadLocalRandom.current().nextLong();
+    long lsb = ThreadLocalRandom.current().nextLong();
     byte[] bytes = new byte[16];
     for (int i = 0; i < 8; i++) {
       bytes[i] = (byte) ((msb >> (56 - i * 8)) & 0xFF);
