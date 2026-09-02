@@ -132,9 +132,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onPartialPublish(final int numberOfDroppedSpans) {
     metricAccumulator.update(
-        stripe -> {
+        numberOfDroppedSpans,
+        (droppedSpans, stripe) -> {
           stripe.inc(TracerHealthMetric.PARTIAL_TRACES);
-          stripe.add(TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS, numberOfDroppedSpans);
+          stripe.add(TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS, droppedSpans);
         });
   }
 
@@ -172,9 +173,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     if (trace != null) {
       metricAccumulator.update(
-          stripe -> {
+          trace.size(),
+          (spanCount, stripe) -> {
             stripe.inc(TracerHealthMetric.SERIAL_FAILED_DROPPED_TRACES);
-            stripe.add(TracerHealthMetric.SERIAL_FAILED_DROPPED_SPANS, trace.size());
+            stripe.add(TracerHealthMetric.SERIAL_FAILED_DROPPED_SPANS, spanCount);
           });
     }
   }
