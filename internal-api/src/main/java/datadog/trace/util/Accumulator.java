@@ -6,6 +6,7 @@ import datadog.trace.api.function.StrategyConsumer;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.ObjLongConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -88,7 +89,8 @@ public final class Accumulator<E extends Enum<E>> {
    * to close over a local (e.g. a count) just to get it into the critical section. Note {@code
    * context} is boxed if it's a primitive at the call site; that's a real allocation trade against
    * the capturing lambda it replaces, not a free win -- prefer this only when {@code context} would
-   * otherwise be the only thing forcing a capture.
+   * otherwise be the only thing forcing a capture. For an {@code int} or {@code long} context, use
+   * {@link #update(long, ObjLongConsumer)} instead to avoid that boxing entirely.
    *
    * @param context a value the mutator needs, passed in rather than captured
    * @param mutator a strategy over {@code context} and the selected stripe; keep it small and
@@ -100,6 +102,33 @@ public final class Accumulator<E extends Enum<E>> {
     long[] stripe = EmbeddingSupport.stripeOf(data);
     synchronized (stripe) {
       mutator.accept(context, new Stripe<>(stripe));
+    }
+  }
+
+  /**
+   * Like {@link #update(Object, BiConsumer)}, but for a {@code long} context -- reuses the JDK's
+   * {@link ObjLongConsumer} instead of the generic {@link BiConsumer}, so {@code context} is passed
+   * as a primitive {@code long} rather than boxed into a {@link Long}. Covers an {@code int}
+   * context too: it widens to {@code long} for free at the call site, no boxing either way. (A
+   * dedicated {@code int} overload isn't offered alongside this one -- an {@code int} argument
+   * would be ambiguous between the two, since it's an exact match for one and a free widening
+   * conversion to the other, and unrelated functional-interface types block the usual most-specific
+   * tiebreak.)
+   *
+   * <p>Note the parameter order this forces: {@link ObjLongConsumer#accept} takes {@code (T,
+   * long)}, so the mutator sees the stripe first and the context second -- the opposite order from
+   * {@link #update(Object, BiConsumer)}.
+   *
+   * @param context a primitive value the mutator needs, passed in rather than captured or boxed
+   * @param mutator a strategy over the selected stripe and {@code context}; keep it small and
+   *     non-capturing so it inlines into the lock's critical section, and don't let the {@link
+   *     Stripe} escape it (store it, return it, hand it to another thread) -- see {@link Stripe}
+   */
+  @StrategyConsumer
+  public void update(long context, @Strategy ObjLongConsumer<Stripe<E>> mutator) {
+    long[] stripe = EmbeddingSupport.stripeOf(data);
+    synchronized (stripe) {
+      mutator.accept(new Stripe<>(stripe), context);
     }
   }
 

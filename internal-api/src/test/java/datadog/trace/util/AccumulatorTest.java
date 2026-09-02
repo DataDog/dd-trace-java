@@ -296,10 +296,44 @@ class AccumulatorTest {
   @Test
   void contextualUpdatePassesContextInsteadOfCapturingIt() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    String context = "abcde";
+
+    counters.update(
+        context,
+        (ctx, stripe) -> {
+          stripe.inc(Counters.FOO);
+          stripe.add(Counters.BAR, ctx.length());
+        });
+
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(1L, drained.get(Counters.FOO));
+    assertEquals(5L, drained.get(Counters.BAR));
+  }
+
+  @Test
+  void intContextWidensIntoTheLongOverloadWithoutBoxing() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    int delta = 5;
+
+    counters.update(
+        delta,
+        (stripe, d) -> {
+          stripe.inc(Counters.FOO);
+          stripe.add(Counters.BAR, d);
+        });
+
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(1L, drained.get(Counters.FOO));
+    assertEquals(5L, drained.get(Counters.BAR));
+  }
+
+  @Test
+  void longContextualUpdateAvoidsBoxing() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
 
     counters.update(
         5L,
-        (delta, stripe) -> {
+        (stripe, delta) -> {
           stripe.inc(Counters.FOO);
           stripe.add(Counters.BAR, delta);
         });
