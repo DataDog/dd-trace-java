@@ -66,6 +66,10 @@ public class ByteCodeLinesResolver implements LinesResolver {
       try {
         ClassMethodLines classMethodLines = new ClassMethodLines();
         try (InputStream classStream = Utils.getClassStream(clazz)) {
+          if (classStream == null) {
+            log.debug("Could not get input stream for class {}", clazz.getName());
+            return classMethodLines;
+          }
           ClassReader classReader = new ClassReader(classStream);
           MethodLocator methodLocator = new MethodLocator(classMethodLines);
           classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
