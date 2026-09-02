@@ -10,6 +10,7 @@ import com.datadog.profiling.otel.jfr.JfrStackTrace;
 import com.datadog.profiling.otel.jfr.MethodSample;
 import com.datadog.profiling.otel.jfr.ObjectSample;
 import com.datadog.profiling.otel.proto.OtlpProtoFields;
+import com.datadog.profiling.otel.proto.OtlpResourceAttributes;
 import com.datadog.profiling.otel.proto.ProtobufEncoder;
 import com.datadog.profiling.otel.proto.dictionary.AttributeTable;
 import com.datadog.profiling.otel.proto.dictionary.FunctionTable;
@@ -30,8 +31,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -217,6 +220,9 @@ public final class JfrToOtlpConverter {
   // Original payload support
   private boolean includeOriginalPayload = false;
 
+  // Resource attributes written into the Resource message of ResourceProfiles
+  private Map<String, String> resourceAttributes = Collections.emptyMap();
+
   /** Holds data for a single sample before encoding. */
   private static final class SampleData {
     final int stackIndex;
@@ -249,6 +255,21 @@ public final class JfrToOtlpConverter {
    */
   public JfrToOtlpConverter setIncludeOriginalPayload(boolean include) {
     this.includeOriginalPayload = include;
+    return this;
+  }
+
+  /**
+   * Sets the resource attributes identifying the profiled application (e.g. {@code service.name},
+   * {@code service.version}), written into the {@code resource} message of {@code
+   * ResourceProfiles}.
+   *
+   * <p>Default: empty — no resource message is emitted.
+   *
+   * @param attributes resource attribute key/value pairs; {@code null} clears them
+   * @return this converter for method chaining
+   */
+  public JfrToOtlpConverter setResourceAttributes(Map<String, String> attributes) {
+    this.resourceAttributes = attributes != null ? attributes : Collections.emptyMap();
     return this;
   }
 
@@ -725,6 +746,10 @@ public final class JfrToOtlpConverter {
 
   private void encodeResourceProfiles(ProtobufEncoder encoder) throws IOException {
     // ResourceProfiles message
+    // Field 1: resource (skipped when no attributes are set, e.g. for offline CLI conversion)
+    if (!resourceAttributes.isEmpty()) {
+      OtlpResourceAttributes.writeResource(encoder, resourceAttributes);
+    }
     // Field 2: scope_profiles (repeated)
     encoder.writeNestedMessage(
         OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES,
@@ -1109,6 +1134,26 @@ public final class JfrToOtlpConverter {
 
   private void encodeResourceProfilesJson(JsonWriter json) {
     json.beginObject();
+
+    // resource with standard KeyValue attributes
+    if (!resourceAttributes.isEmpty()) {
+      json.name("resource").beginObject();
+      json.name("attributes").beginArray();
+      for (Map.Entry<String, String> entry : resourceAttributes.entrySet()) {
+        String value = entry.getValue();
+        if (value == null || value.isEmpty()) {
+          continue;
+        }
+        json.beginObject();
+        json.name("key").value(entry.getKey());
+        json.name("value").beginObject();
+        json.name("stringValue").value(value);
+        json.endObject();
+        json.endObject();
+      }
+      json.endArray();
+      json.endObject();
+    }
 
     // scope_profiles array
     json.name("scope_profiles").beginArray();

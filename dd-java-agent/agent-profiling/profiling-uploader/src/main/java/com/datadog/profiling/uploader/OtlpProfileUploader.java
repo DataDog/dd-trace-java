@@ -206,6 +206,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     // FULL also attaches the raw JFR as original_payload blob
     JfrToOtlpConverter converter = new JfrToOtlpConverter();
     converter.setIncludeOriginalPayload(mode == ProfilingConfig.OtlpMode.FULL);
+    converter.setResourceAttributes(resourceAttributes);
 
     Path jfrFile = data.getPath();
     if (jfrFile != null) {

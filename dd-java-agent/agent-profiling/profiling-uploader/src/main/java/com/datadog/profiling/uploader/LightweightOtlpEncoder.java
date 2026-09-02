@@ -1,6 +1,7 @@
 package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.otel.proto.OtlpProtoFields;
+import com.datadog.profiling.otel.proto.OtlpResourceAttributes;
 import com.datadog.profiling.otel.proto.ProtobufEncoder;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -60,9 +61,7 @@ final class LightweightOtlpEncoder {
         resourceEncoder -> {
           // ResourceProfiles
           // Field 1: resource (Resource with standard KeyValue attributes)
-          resourceEncoder.writeNestedMessage(
-              OtlpProtoFields.ResourceProfiles.RESOURCE,
-              resourceEncoder2 -> encodeResource(resourceEncoder2, resourceAttributes));
+          OtlpResourceAttributes.writeResource(resourceEncoder, resourceAttributes);
           // Field 2: scope_profiles (repeated)
           resourceEncoder.writeNestedMessage(
               OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES,
@@ -80,29 +79,6 @@ final class LightweightOtlpEncoder {
     encoder.writeNestedMessage(OtlpProtoFields.ProfilesData.DICTIONARY, dictionaryEncoder -> {});
 
     return encoder.toByteArray();
-  }
-
-  // opentelemetry.proto.resource.v1.Resource: field 1 is the repeated KeyValue attributes
-  private static void encodeResource(
-      ProtobufEncoder encoder, Map<String, String> resourceAttributes) {
-    for (Map.Entry<String, String> entry : resourceAttributes.entrySet()) {
-      String key = entry.getKey();
-      String value = entry.getValue();
-      if (value == null || value.isEmpty()) {
-        continue;
-      }
-      encoder.writeNestedMessage(
-          OtlpProtoFields.Resource.ATTRIBUTES,
-          attributeEncoder -> {
-            // KeyValue: field 1 = key, field 2 = value (AnyValue)
-            attributeEncoder.writeStringField(OtlpProtoFields.KeyValue.KEY, key);
-            attributeEncoder.writeNestedMessage(
-                OtlpProtoFields.KeyValue.VALUE,
-                valueEncoder ->
-                    // AnyValue: field 1 = string_value
-                    valueEncoder.writeStringField(OtlpProtoFields.AnyValue.STRING_VALUE, value));
-          });
-    }
   }
 
   private static void encodeProfile(
