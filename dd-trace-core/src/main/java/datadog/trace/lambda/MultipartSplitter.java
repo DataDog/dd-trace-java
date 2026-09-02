@@ -70,7 +70,7 @@ final class MultipartSplitter {
       boolean headersComplete = false;
       int malformedPartEnd = -1;
       while (cursor < length) {
-        if (body.startsWith(delimiter, cursor)) {
+        if (body.startsWith(delimiter, cursor) && endsLine(body, cursor + delimiter.length())) {
           // This part's headers are not followed by a blank line. Stop here: reading on would
           // consume the next part's delimiter and merge its headers into this part, collapsing
           // every following part into this one.
@@ -132,11 +132,10 @@ final class MultipartSplitter {
   }
 
   /**
-   * Reads a header parameter, case preserved. The parameter name is matched case-insensitively and
-   * only at a parameter boundary, so {@code filename} does not satisfy a lookup for {@code name}.
-   * Quoted values may contain separators and {@code \"} escapes, and are skipped whole: a field
-   * named {@code "; filename=x"} does not read as a {@code filename} parameter. RFC 7230 optional
-   * whitespace is tolerated on both sides of the {@code =}.
+   * Reads a header parameter, case preserved. The name is matched case-insensitively and only at a
+   * parameter boundary, so {@code filename} does not satisfy a lookup for {@code name}. Quoted
+   * values may hold separators and {@code \"} escapes, and are skipped whole: a field named {@code
+   * "; filename=x"} does not read as a {@code filename} parameter.
    *
    * @return the parameter value, {@code ""} when it is present but empty, or {@code null} when the
    *     parameter is absent
@@ -231,17 +230,29 @@ final class MultipartSplitter {
    * @return the index the delimiter starts at, or {@code -1} if there is none
    */
   private static int nextDelimiter(final String body, final String delimiter, final int from) {
-    if (body.startsWith(delimiter, from)) {
+    if (body.startsWith(delimiter, from) && endsLine(body, from + delimiter.length())) {
       return from;
     }
     for (int newline = body.indexOf('\n', from);
         newline >= 0;
         newline = body.indexOf('\n', newline + 1)) {
-      if (body.startsWith(delimiter, newline + 1)) {
+      if (body.startsWith(delimiter, newline + 1)
+          && endsLine(body, newline + 1 + delimiter.length())) {
         return newline + 1;
       }
     }
     return -1;
+  }
+
+  /**
+   * A delimiter only delimits if its line ends there, RFC 2046 transport padding aside. A content
+   * line that merely starts with it — {@code --x-not-a-boundary} for a boundary of {@code x} — is
+   * data, and must not end the part early and hide the rest from the WAF.
+   *
+   * @param after the index just past the matched delimiter
+   */
+  private static boolean endsLine(final String body, final int after) {
+    return after == body.length() || body.startsWith("--", after) || lineStart(body, after) >= 0;
   }
 
   /**
@@ -305,8 +316,7 @@ final class MultipartSplitter {
     while (end > start && isOptionalWhitespace(body.charAt(end - 1))) {
       end--;
     }
-    // The canonical spelling is tried first: its comparison is intrinsified where the
-    // case-insensitive one walks char by char, and it is what every real client sends.
+    // The canonical spelling first: that comparison is intrinsified, and every real client sends it
     if (end - start != name.length()
         || !(body.regionMatches(start, name, 0, name.length())
             || body.regionMatches(true, start, name, 0, name.length()))) {

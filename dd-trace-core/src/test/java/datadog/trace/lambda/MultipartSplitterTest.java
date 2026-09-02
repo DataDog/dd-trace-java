@@ -117,6 +117,8 @@ class MultipartSplitterTest {
         "empty part content        | --x@A: b@@                 | 1",
         "part without headers      | --x@@v@--x--               | 1",
         "unrelated delimiter       | --y@@v@--y--               | 0",
+        // RFC 2046 transport padding between the delimiter and its line break
+        "padded delimiter          | --x  @@v@--x--             | 1",
       })
   void splitsBodies(String name, String template, int expectedParts) {
     assertEquals(
@@ -144,8 +146,9 @@ class MultipartSplitterTest {
   @Test
   void delimitsContentExactly() {
     // Dashes, line breaks, a replacement character and a multi-byte character all inside the
-    // content: the reported range must not be thrown off by a near-miss on the line-feed anchor
-    String content = "--not-a-boundary\r\n-x\nlast�é";
+    // content, plus a line that starts with the delimiter without being one: the reported range
+    // must not be thrown off by a near miss on the line-feed anchor or on the delimiter itself
+    String content = "--not-a-boundary\r\n--x-not-a-boundary\r\n-x\nlast�é";
     String body =
         "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n" + content + "\r\n--x--\r\n";
 
