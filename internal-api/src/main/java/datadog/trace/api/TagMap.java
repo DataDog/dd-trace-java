@@ -53,6 +53,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
 
+  // Sentinel for a not-yet-resolved lazy tag id. Cannot be 0L: 0L is a valid keyOf result (the tag
+  // is not a known tag, or the codec is inactive). Used by EntryReadingHelper, which is a single
+  // reused flyweight -- memoizing there costs no per-entry footprint, unlike in Entry.
+  static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
+
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
@@ -170,6 +175,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public static final byte DOUBLE = 9;
 
     String tag();
+
+    /**
+     * The known-tag id for this entry's tag, or {@code 0L} when the tag is not a known tag (or the
+     * {@link KnownTagCodec} is inactive). Resolved via {@link KnownTagCodec#keyOf(String)}.
+     */
+    long tagId();
+
+    /**
+     * This entry's tag name in the OpenTelemetry namespace: the rename the registry declares for
+     * it, else its Datadog name (pass-through, the default), else — for a custom tag, which the
+     * registry does not name at all — {@link #tag()} itself.
+     *
+     * <p>Never null, which is the point of asking the reader rather than the codec. {@link
+     * KnownTagCodec#openTelemetryTagOf} owns the naming policy but returns null for an unknown id,
+     * because only the holder of the entry knows the key to fall back to. This completes that one
+     * step and nothing more, so the policy still lives in exactly one place.
+     */
+    default String openTelemetryTag() {
+      String otelTag = KnownTagCodec.openTelemetryTagOf(tagId());
+      return otelTag != null ? otelTag : tag();
+    }
 
     byte type();
 
@@ -357,6 +383,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       hash = _hash(this.tag);
       this.lazyTagHash = hash;
       return hash;
+    }
+
+    @Override
+    public long tagId() {
+      /*
+       * Deliberately NOT memoized in a field, unlike hash(). An Entry is allocated on the app
+       * thread for every tag of every span, and TagMap$Entry is the tracer's largest allocation
+       * source -- a long field costs 8 bytes on all of them (there are only 3 bytes of padding to
+       * absorb it) plus a putfield per construction. The only caller is serialization, on the
+       * background thread, once per entry, and keyOf is a single open-addressed probe over a
+       * static final table keyed on an already-cached String hash. Paying it there beats widening
+       * every Entry to cache it.
+       */
+      return KnownTagCodec.keyOf(this.tag);
     }
 
     @Override
@@ -2853,22 +2893,35 @@ final class EntryReadingHelper implements TagMap.EntryReader {
   private Map.Entry<String, Object> mapEntry;
   private String tag;
   private Object value;
+  private long tagId;
 
   void set(String tag, Object value) {
     this.mapEntry = null;
     this.tag = tag;
     this.value = value;
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
     this.value = mapEntry.getValue();
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   @Override
   public String tag() {
     return this.tag;
+  }
+
+  @Override
+  public long tagId() {
+    long id = this.tagId;
+    if (id != TagMap.TAG_ID_NOT_COMPUTED) return id;
+
+    id = KnownTagCodec.keyOf(this.tag);
+    this.tagId = id;
+    return id;
   }
 
   @Override
