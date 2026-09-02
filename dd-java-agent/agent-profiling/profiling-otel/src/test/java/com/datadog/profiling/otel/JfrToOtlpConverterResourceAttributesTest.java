@@ -34,9 +34,7 @@ class JfrToOtlpConverterResourceAttributesTest {
   @Test
   void protobufOutputCarriesResourceAttributes() throws IOException {
     Path jfrFile = tempDir.resolve("empty.jfr");
-    try (Recording recording = Recordings.newRecording(jfrFile)) {
-      // empty recording — resource attributes are independent of sample content
-    }
+    try (Recording recording = Recordings.newRecording(jfrFile)) {}
 
     byte[] result =
         converter
@@ -45,7 +43,6 @@ class JfrToOtlpConverterResourceAttributesTest {
             .convert(JfrToOtlpConverter.Kind.PROTO);
 
     String payload = new String(result, StandardCharsets.ISO_8859_1);
-    // String fields are encoded inline on the wire, so key/value pairs are searchable
     assertTrue(payload.contains("service.name"));
     assertTrue(payload.contains("test-service"));
     assertTrue(payload.contains("telemetry.sdk.name"));
@@ -54,9 +51,7 @@ class JfrToOtlpConverterResourceAttributesTest {
   @Test
   void jsonOutputCarriesResourceAttributes() throws IOException {
     Path jfrFile = tempDir.resolve("empty-json.jfr");
-    try (Recording recording = Recordings.newRecording(jfrFile)) {
-      // empty recording
-    }
+    try (Recording recording = Recordings.newRecording(jfrFile)) {}
 
     byte[] result =
         converter
@@ -73,9 +68,7 @@ class JfrToOtlpConverterResourceAttributesTest {
   @Test
   void emptyAttributesOmitResourceMessage() throws IOException {
     Path jfrFile = tempDir.resolve("empty-none.jfr");
-    try (Recording recording = Recordings.newRecording(jfrFile)) {
-      // empty recording
-    }
+    try (Recording recording = Recordings.newRecording(jfrFile)) {}
 
     byte[] result =
         converter

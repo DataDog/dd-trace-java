@@ -39,41 +39,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Converts JFR recordings to OTLP profiles format.
- *
- * <p>This converter uses a builder-like pattern: add one or more JFR files, then call {@link
- * #convert()} to produce the OTLP protobuf output. Multiple files are merged into a single OTLP
- * ProfilesData message with shared dictionary tables for better compression.
- *
- * <p>Usage:
- *
- * <pre>{@code
- * JfrToOtlpConverter converter = new JfrToOtlpConverter();
- * byte[] result = converter
- *     .addRecording(recording1)
- *     .addRecording(recording2)
- *     .convert();
- * }</pre>
- *
- * <p>The converter can be reused after calling {@link #convert()} - it automatically resets state.
- */
 public final class JfrToOtlpConverter {
 
-  /** Output format for profile conversion. */
   public enum Kind {
-    /** Protobuf binary format (default). */
     PROTO,
-    /** JSON text format (compact). */
     JSON,
-    /** JSON text format with pretty-printing. */
     JSON_PRETTY
   }
 
-  /**
-   * Open-addressing long→int hash map. Eliminates boxing overhead of {@code HashMap<Long,Integer>}
-   * for the stack-trace and frame caches.
-   */
+  // open-addressing long→int map; avoids boxing in the stack-trace and frame caches
   private static final class LongIntMap {
     private static final long EMPTY = Long.MIN_VALUE;
     private static final int INITIAL_CAPACITY = 1024; // power of 2
@@ -161,13 +135,11 @@ public final class JfrToOtlpConverter {
     }
   }
 
-  // Profile type names
   private static final String PROFILE_TYPE_CPU = "cpu";
   private static final String PROFILE_TYPE_WALL = "wall";
   private static final String PROFILE_TYPE_ALLOC = "alloc-samples";
   private static final String PROFILE_TYPE_LOCK = "lock-contention";
 
-  // Units
   private static final String UNIT_SAMPLES = "samples";
   private static final String UNIT_BYTES = "bytes";
   private static final String UNIT_NANOSECONDS = "nanoseconds";
@@ -223,7 +195,6 @@ public final class JfrToOtlpConverter {
   // Resource attributes written into the Resource message of ResourceProfiles
   private Map<String, String> resourceAttributes = Collections.emptyMap();
 
-  /** Holds data for a single sample before encoding. */
   private static final class SampleData {
     final int stackIndex;
     final int linkIndex;
@@ -241,48 +212,19 @@ public final class JfrToOtlpConverter {
     }
   }
 
-  /**
-   * Enables or disables inclusion of original JFR payload in the OTLP output.
-   *
-   * <p>When enabled, the original JFR recording bytes are included in the {@code original_payload}
-   * field of each Profile message, with {@code original_payload_format} set to "jfr". Multiple JFR
-   * files are concatenated into a single "uber-JFR" which is valid per the JFR specification.
-   *
-   * <p>Default: disabled (as recommended by OTLP spec due to size considerations)
-   *
-   * @param include true to include original payload, false to exclude
-   * @return this converter for method chaining
-   */
+  // attaches the raw JFR files as the original_payload blob; multiple files are
+  // concatenated into a single "uber-JFR" which is valid per the JFR specification
   public JfrToOtlpConverter setIncludeOriginalPayload(boolean include) {
     this.includeOriginalPayload = include;
     return this;
   }
 
-  /**
-   * Sets the resource attributes identifying the profiled application (e.g. {@code service.name},
-   * {@code service.version}), written into the {@code resource} message of {@code
-   * ResourceProfiles}.
-   *
-   * <p>Default: empty — no resource message is emitted.
-   *
-   * @param attributes resource attribute key/value pairs; {@code null} clears them
-   * @return this converter for method chaining
-   */
+  // empty by default - no resource message is emitted
   public JfrToOtlpConverter setResourceAttributes(Map<String, String> attributes) {
     this.resourceAttributes = attributes != null ? attributes : Collections.emptyMap();
     return this;
   }
 
-  /**
-   * Adds a JFR recording to the conversion.
-   *
-   * <p>Uses the file path directly if available (via {@link RecordingData#getPath()}), avoiding an
-   * unnecessary stream copy. Falls back to stream-based processing otherwise.
-   *
-   * @param recordingData the recording data to add
-   * @return this converter for method chaining
-   * @throws IOException if reading JFR data fails
-   */
   public JfrToOtlpConverter addRecording(RecordingData recordingData) throws IOException {
     Path file = recordingData.getPath();
     if (file != null) {
@@ -293,30 +235,11 @@ public final class JfrToOtlpConverter {
     }
   }
 
-  /**
-   * Adds a JFR file to the conversion.
-   *
-   * @param jfrFile path to the JFR file
-   * @param start recording start time
-   * @param end recording end time
-   * @return this converter for method chaining
-   */
   public JfrToOtlpConverter addFile(Path jfrFile, Instant start, Instant end) {
     return addPathEntry(new PathEntry(jfrFile, false), start, end);
   }
 
-  /**
-   * Adds a JFR stream to the conversion.
-   *
-   * <p>Note: This method copies the stream to a temporary file since the parser requires file
-   * access. When possible, use {@link #addFile(Path, Instant, Instant)} directly.
-   *
-   * @param jfrStream input stream containing JFR data
-   * @param start recording start time
-   * @param end recording end time
-   * @return this converter for method chaining
-   * @throws IOException if reading JFR data fails
-   */
+  // the parser requires file access, so the stream is copied to a temporary file
   public JfrToOtlpConverter addStream(InputStream jfrStream, Instant start, Instant end)
       throws IOException {
     Path tempFile = Files.createTempFile("jfr-convert-", ".jfr");
@@ -330,20 +253,10 @@ public final class JfrToOtlpConverter {
     return this;
   }
 
-  /**
-   * Converts all added JFR recordings to OTLP format.
-   *
-   * <p>All recordings added via {@link #addRecording}, {@link #addFile}, or {@link #addStream} are
-   * merged into a single OTLP ProfilesData message with shared dictionary tables.
-   *
-   * <p>After this call, the converter is automatically reset and ready for reuse.
-   *
-   * @param kind output format (PROTO or JSON)
-   * @return encoded OTLP ProfilesData bytes in the requested format
-   */
+  // merges all added recordings into a single ProfilesData with shared dictionary tables;
+  // resets the converter afterwards so it is ready for reuse
   public byte[] convert(Kind kind) throws IOException {
     try {
-      // Parse events from all files
       for (PathEntry pathEntry : pathEntries) {
         parseJfrEvents(pathEntry.path);
       }
@@ -362,21 +275,10 @@ public final class JfrToOtlpConverter {
     }
   }
 
-  /**
-   * Converts all added JFR recordings to OTLP protobuf format.
-   *
-   * <p>All recordings added via {@link #addRecording}, {@link #addFile}, or {@link #addStream} are
-   * merged into a single OTLP ProfilesData message with shared dictionary tables.
-   *
-   * <p>After this call, the converter is automatically reset and ready for reuse.
-   *
-   * @return encoded OTLP ProfilesData protobuf bytes
-   */
   public byte[] convert() throws IOException {
     return convert(Kind.PROTO);
   }
 
-  /** Resets converter state, discarding any added recordings. */
   public void reset() {
     // remove any ephemeral files even in case of exception
     pathEntries.stream()
@@ -413,26 +315,17 @@ public final class JfrToOtlpConverter {
     endTimeNanos = 0;
   }
 
-  /**
-   * Creates an InputStream that concatenates all added JFR files.
-   *
-   * <p>JFR format supports concatenating multiple recordings - they will be processed sequentially
-   * by JFR parsers. This creates an "uber-JFR" containing all added recordings without copying to
-   * memory.
-   *
-   * @return InputStream over all JFR files, or null if no files added
-   */
+  // chains the added JFR files into a single stream; JFR parsers process concatenated
+  // recordings sequentially
   private InputStream createJfrPayloadStream() throws IOException {
     if (pathEntries.isEmpty()) {
       return null;
     }
 
     if (pathEntries.size() == 1) {
-      // Single file - just return its stream
       return Files.newInputStream(pathEntries.iterator().next().path);
     }
 
-    // Multiple files - chain them using SequenceInputStream
     java.util.Enumeration<InputStream> streams =
         new java.util.Enumeration<InputStream>() {
           private final java.util.Iterator<PathEntry> iterator = pathEntries.iterator();
@@ -469,7 +362,6 @@ public final class JfrToOtlpConverter {
 
   private void parseJfrEvents(Path jfrFile) throws IOException {
     try (TypedJafarParser parser = TypedJafarParser.open(jfrFile, parsingContext)) {
-      // Register handlers for each event type
       parser.handle(ExecutionSample.class, this::handleExecutionSample);
       parser.handle(MethodSample.class, this::handleMethodSample);
       parser.handle(ObjectSample.class, this::handleObjectSample);
@@ -1056,11 +948,6 @@ public final class JfrToOtlpConverter {
     return prettyPrint ? prettyPrintJson(compactJson) : compactJson;
   }
 
-  /**
-   * Pretty-prints compact JSON with indentation.
-   *
-   * <p>Simple pretty-printer that adds newlines and indentation without external dependencies.
-   */
   private byte[] prettyPrintJson(byte[] compactJson) {
     String compact = new String(compactJson, java.nio.charset.StandardCharsets.UTF_8);
     StringBuilder pretty = new StringBuilder(compact.length() + compact.length() / 4);

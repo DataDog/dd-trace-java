@@ -21,13 +21,6 @@ public final class StringTable {
     stringToIndex.put("", 0);
   }
 
-  /**
-   * Interns a string and returns its index. If the string is already interned, returns the existing
-   * index. Null strings are treated as empty strings and return index 0.
-   *
-   * @param s the string to intern
-   * @return the index of the interned string
-   */
   public int intern(String s) {
     if (s == null || s.isEmpty()) {
       return 0;
@@ -42,31 +35,14 @@ public final class StringTable {
     return index;
   }
 
-  /**
-   * Returns the string at the given index.
-   *
-   * @param index the index
-   * @return the string at the index
-   * @throws IndexOutOfBoundsException if index is out of bounds
-   */
   public String get(int index) {
     return strings.get(index);
   }
 
-  /**
-   * Returns the number of interned strings (including the empty string at index 0).
-   *
-   * @return the size of the string table
-   */
   public int size() {
     return strings.size();
   }
 
-  /**
-   * Returns an unmodifiable view of all interned strings.
-   *
-   * @return the list of interned strings
-   */
   public List<String> getStrings() {
     return strings;
   }

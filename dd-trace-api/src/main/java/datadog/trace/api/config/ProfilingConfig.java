@@ -291,16 +291,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
   public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
 
-  /**
-   * OTLP profile upload mode:
-   *
-   * <ul>
-   *   <li>{@code LIGHT} — raw JFR attached as the {@code original_payload} blob, no conversion
-   *   <li>{@code FULL} — full JFR→OTLP conversion plus the raw JFR attached as the {@code
-   *       original_payload} blob
-   *   <li>{@code CONVERTED} — full JFR→OTLP conversion, no raw JFR blob
-   * </ul>
-   */
+  // LIGHT = raw JFR as the original_payload blob, no conversion;
+  // FULL = converted samples + raw JFR blob; CONVERTED = converted samples only
   public static final String PROFILING_OTLP_MODE = "profiling.otlp.mode";
 
   public enum OtlpMode {

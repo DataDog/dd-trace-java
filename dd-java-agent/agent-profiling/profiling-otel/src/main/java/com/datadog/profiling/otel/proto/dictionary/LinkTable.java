@@ -108,14 +108,6 @@ public final class LinkTable {
     links.add(new LinkEntry(EMPTY_TRACE_ID, EMPTY_SPAN_ID));
   }
 
-  /**
-   * Interns a link and returns its index. If the link is already interned, returns the existing
-   * index. All-zero trace/span IDs return index 0.
-   *
-   * @param traceId 16-byte trace identifier
-   * @param spanId 8-byte span identifier
-   * @return the index of the interned link
-   */
   public int intern(byte[] traceId, byte[] spanId) {
     if (traceId == null || spanId == null) {
       return 0;
@@ -138,15 +130,6 @@ public final class LinkTable {
     return index;
   }
 
-  /**
-   * Interns a link from 64-bit span and trace IDs. The trace ID is placed in the lower 64 bits
-   * (bytes 8-15) of the 16-byte OTLP trace ID, following the OTLP convention for 64-bit trace IDs
-   * (right-aligned, upper 64 bits zero).
-   *
-   * @param traceIdLow lower 64 bits of trace ID
-   * @param spanId 64-bit span ID
-   * @return the index of the interned link
-   */
   public int intern(long traceIdLow, long spanId) {
     if (traceIdLow == 0 && spanId == 0) {
       return 0;
@@ -185,31 +168,14 @@ public final class LinkTable {
     return v;
   }
 
-  /**
-   * Returns the link entry at the given index.
-   *
-   * @param index the index
-   * @return the link entry
-   * @throws IndexOutOfBoundsException if index is out of bounds
-   */
   public LinkEntry get(int index) {
     return links.get(index);
   }
 
-  /**
-   * Returns the number of links (including the null link at index 0).
-   *
-   * @return the size of the link table
-   */
   public int size() {
     return links.size();
   }
 
-  /**
-   * Returns the list of all link entries.
-   *
-   * @return the list of link entries
-   */
   public List<LinkEntry> getLinks() {
     return links;
   }

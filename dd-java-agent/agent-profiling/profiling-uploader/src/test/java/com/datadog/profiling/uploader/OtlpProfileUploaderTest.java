@@ -55,7 +55,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 
-/** Unit tests for the OTLP profile uploader. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class OtlpProfileUploaderTest {
@@ -82,7 +81,6 @@ public class OtlpProfileUploaderTest {
     server.start();
     otlpUrl = server.url("/v1/profiles").toString();
 
-    // Mock Config
     when(config.getFinalProfilingUrl()).thenReturn("http://localhost:8126");
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(config.getProfilingProxyHost()).thenReturn(null);
@@ -90,20 +88,17 @@ public class OtlpProfileUploaderTest {
     when(config.getProfilingProxyUsername()).thenReturn(null);
     when(config.getProfilingProxyPassword()).thenReturn(null);
 
-    // Resource attributes used by light mode
     when(config.getServiceName()).thenReturn("test-service");
     when(config.getEnv()).thenReturn("");
     when(config.getVersion()).thenReturn("");
     when(config.isReportHostName()).thenReturn(false);
 
-    // OTLP profiles sender configuration
     when(config.getOtlpProfilesProtocol()).thenReturn(OtlpConfig.Protocol.HTTP_PROTOBUF);
     when(config.getOtlpProfilesEndpoint()).thenReturn(otlpUrl);
     when(config.getOtlpProfilesHeaders()).thenReturn(Collections.emptyMap());
     when(config.getOtlpProfilesTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(config.getOtlpProfilesCompression()).thenReturn(OtlpConfig.Compression.NONE);
 
-    // Mock ConfigProvider - OTLP enabled by default for tests
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(true);
     when(configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, ProfilingConfig.OtlpMode.LIGHT))
@@ -121,7 +116,6 @@ public class OtlpProfileUploaderTest {
 
   @Test
   public void testDisabledUploader() throws Exception {
-    // Create uploader with OTLP disabled
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
 
     OtlpProfileUploader disabledUploader =
@@ -129,24 +123,17 @@ public class OtlpProfileUploaderTest {
 
     RecordingData data = mockRecordingData();
 
-    // Should not upload anything
     disabledUploader.onNewData(RECORDING_TYPE, data, true);
 
-    // No requests should be made
     assertEquals(0, server.getRequestCount());
     verify(data).release();
 
     disabledUploader.shutdown();
   }
 
-  // Note: Full upload tests are skipped because they require proper JFR test files
-  // and OTLP converter integration. The uploader class is tested for basic functionality.
-
   @Test
   public void testConfigurationReading() throws Exception {
-    // Verify that configuration is correctly read from ConfigProvider
     assertTrue(uploader != null);
-    // Uploader was created with enabled=true, so it should be initialized
   }
 
   @Test

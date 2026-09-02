@@ -56,13 +56,6 @@ public final class StackTable {
     stacks.add(new StackEntry(new int[0]));
   }
 
-  /**
-   * Interns a stack and returns its index. If the stack is already interned, returns the existing
-   * index. An empty or null array returns index 0.
-   *
-   * @param locationIndices array of location indices (first entry is leaf frame)
-   * @return the index of the interned stack
-   */
   public int intern(int[] locationIndices) {
     if (locationIndices == null || locationIndices.length == 0) {
       return 0;
@@ -82,31 +75,14 @@ public final class StackTable {
     return index;
   }
 
-  /**
-   * Returns the stack entry at the given index.
-   *
-   * @param index the index
-   * @return the stack entry
-   * @throws IndexOutOfBoundsException if index is out of bounds
-   */
   public StackEntry get(int index) {
     return stacks.get(index);
   }
 
-  /**
-   * Returns the number of stacks (including the null stack at index 0).
-   *
-   * @return the size of the stack table
-   */
   public int size() {
     return stacks.size();
   }
 
-  /**
-   * Returns the list of all stack entries.
-   *
-   * @return the list of stack entries
-   */
   public List<StackEntry> getStacks() {
     return stacks;
   }

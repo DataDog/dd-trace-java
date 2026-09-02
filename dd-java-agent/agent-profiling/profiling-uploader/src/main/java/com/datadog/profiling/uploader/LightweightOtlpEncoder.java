@@ -20,16 +20,6 @@ final class LightweightOtlpEncoder {
 
   private LightweightOtlpEncoder() {}
 
-  /**
-   * Encodes a JFR recording as a lightweight OTLP ProfilesData protobuf message.
-   *
-   * @param jfrFile path to the JFR recording
-   * @param start recording start time
-   * @param end recording end time
-   * @param resourceAttributes resource attributes identifying the profiled application
-   * @return OTLP protobuf bytes
-   * @throws IOException if reading the JFR file fails
-   */
   static byte[] encode(
       Path jfrFile, Instant start, Instant end, Map<String, String> resourceAttributes)
       throws IOException {
@@ -37,15 +27,6 @@ final class LightweightOtlpEncoder {
     return encode(jfrBytes, start, end, resourceAttributes);
   }
 
-  /**
-   * Encodes raw JFR bytes as a lightweight OTLP ProfilesData protobuf message.
-   *
-   * @param jfrBytes raw JFR recording bytes
-   * @param start recording start time
-   * @param end recording end time
-   * @param resourceAttributes resource attributes identifying the profiled application
-   * @return OTLP protobuf bytes
-   */
   static byte[] encode(
       byte[] jfrBytes, Instant start, Instant end, Map<String, String> resourceAttributes) {
     ProtobufEncoder encoder = new ProtobufEncoder(64 * 1024 + jfrBytes.length);
@@ -54,20 +35,13 @@ final class LightweightOtlpEncoder {
     long startTimeNanos = start.getEpochSecond() * 1_000_000_000L + start.getNano();
     long endTimeNanos = end.getEpochSecond() * 1_000_000_000L + end.getNano();
 
-    // ProfilesData message
-    // Field 1: resource_profiles (repeated)
     encoder.writeNestedMessage(
         OtlpProtoFields.ProfilesData.RESOURCE_PROFILES,
         resourceEncoder -> {
-          // ResourceProfiles
-          // Field 1: resource (Resource with standard KeyValue attributes)
           OtlpResourceAttributes.writeResource(resourceEncoder, resourceAttributes);
-          // Field 2: scope_profiles (repeated)
           resourceEncoder.writeNestedMessage(
               OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES,
               scopeEncoder -> {
-                // ScopeProfiles
-                // Field 2: profiles (repeated)
                 scopeEncoder.writeNestedMessage(
                     OtlpProtoFields.ScopeProfiles.PROFILES,
                     profileEncoder ->
@@ -75,7 +49,7 @@ final class LightweightOtlpEncoder {
               });
         });
 
-    // Field 2: dictionary — minimal, just the null sentinels (index 0 entries)
+    // dictionary with just the null sentinels (index 0 entries)
     encoder.writeNestedMessage(OtlpProtoFields.ProfilesData.DICTIONARY, dictionaryEncoder -> {});
 
     return encoder.toByteArray();
@@ -83,21 +57,10 @@ final class LightweightOtlpEncoder {
 
   private static void encodeProfile(
       ProtobufEncoder encoder, long startTimeNanos, long endTimeNanos, byte[] jfrBytes) {
-    // Profile message
-
-    // Field 3: time_unix_nano
     encoder.writeFixed64Field(OtlpProtoFields.Profile.TIME_UNIX_NANO, startTimeNanos);
-
-    // Field 4: duration_nano
     encoder.writeVarintField(OtlpProtoFields.Profile.DURATION_NANO, endTimeNanos - startTimeNanos);
-
-    // Field 6: period (1 for count-based)
     encoder.writeVarintField(OtlpProtoFields.Profile.PERIOD, 1);
-
-    // Field 7: profile_id (16 bytes UUID)
     encoder.writeBytesField(OtlpProtoFields.Profile.PROFILE_ID, generateProfileId());
-
-    // Field 9: original_payload_format = "jfr"
     encoder.writeStringField(OtlpProtoFields.Profile.ORIGINAL_PAYLOAD_FORMAT, "jfr");
 
     // Field 10: original_payload = raw JFR bytes

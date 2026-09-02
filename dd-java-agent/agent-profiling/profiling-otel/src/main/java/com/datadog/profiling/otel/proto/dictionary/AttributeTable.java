@@ -92,14 +92,6 @@ public final class AttributeTable {
     attributes.add(new AttributeEntry(0, ValueType.STRING, "", 0));
   }
 
-  /**
-   * Interns a string attribute and returns its index.
-   *
-   * @param keyIndex index into string table for attribute key
-   * @param value string value
-   * @param unitIndex index into string table for unit (0 = no unit)
-   * @return the index of the interned attribute
-   */
   public int internString(int keyIndex, String value, int unitIndex) {
     if (keyIndex == 0) {
       return 0;
@@ -107,14 +99,6 @@ public final class AttributeTable {
     return intern(keyIndex, ValueType.STRING, value, unitIndex);
   }
 
-  /**
-   * Interns a boolean attribute and returns its index.
-   *
-   * @param keyIndex index into string table for attribute key
-   * @param value boolean value
-   * @param unitIndex index into string table for unit (0 = no unit)
-   * @return the index of the interned attribute
-   */
   public int internBool(int keyIndex, boolean value, int unitIndex) {
     if (keyIndex == 0) {
       return 0;
@@ -122,14 +106,6 @@ public final class AttributeTable {
     return intern(keyIndex, ValueType.BOOL, value, unitIndex);
   }
 
-  /**
-   * Interns an integer attribute and returns its index.
-   *
-   * @param keyIndex index into string table for attribute key
-   * @param value integer value
-   * @param unitIndex index into string table for unit (0 = no unit)
-   * @return the index of the interned attribute
-   */
   public int internInt(int keyIndex, long value, int unitIndex) {
     if (keyIndex == 0) {
       return 0;
@@ -137,14 +113,6 @@ public final class AttributeTable {
     return intern(keyIndex, ValueType.INT, value, unitIndex);
   }
 
-  /**
-   * Interns a double attribute and returns its index.
-   *
-   * @param keyIndex index into string table for attribute key
-   * @param value double value
-   * @param unitIndex index into string table for unit (0 = no unit)
-   * @return the index of the interned attribute
-   */
   public int internDouble(int keyIndex, double value, int unitIndex) {
     if (keyIndex == 0) {
       return 0;
@@ -165,31 +133,14 @@ public final class AttributeTable {
     return index;
   }
 
-  /**
-   * Returns the attribute entry at the given index.
-   *
-   * @param index the index
-   * @return the attribute entry
-   * @throws IndexOutOfBoundsException if index is out of bounds
-   */
   public AttributeEntry get(int index) {
     return attributes.get(index);
   }
 
-  /**
-   * Returns the number of attributes (including the null attribute at index 0).
-   *
-   * @return the size of the attribute table
-   */
   public int size() {
     return attributes.size();
   }
 
-  /**
-   * Returns the list of all attribute entries.
-   *
-   * @return the list of attribute entries
-   */
   public List<AttributeEntry> getAttributes() {
     return attributes;
   }

@@ -73,16 +73,6 @@ public final class FunctionTable {
     functions.add(new FunctionEntry(0, 0, 0, 0));
   }
 
-  /**
-   * Interns a function and returns its index. If the function is already interned, returns the
-   * existing index.
-   *
-   * @param nameIndex index into string table for human-readable name
-   * @param systemNameIndex index into string table for system name (e.g., mangled name)
-   * @param filenameIndex index into string table for source filename
-   * @param startLine starting line number in source (0 = unset)
-   * @return the index of the interned function
-   */
   public int intern(int nameIndex, int systemNameIndex, int filenameIndex, long startLine) {
     // All zeros means null function
     if (nameIndex == 0 && systemNameIndex == 0 && filenameIndex == 0 && startLine == 0) {
@@ -101,31 +91,14 @@ public final class FunctionTable {
     return index;
   }
 
-  /**
-   * Returns the function entry at the given index.
-   *
-   * @param index the index
-   * @return the function entry
-   * @throws IndexOutOfBoundsException if index is out of bounds
-   */
   public FunctionEntry get(int index) {
     return functions.get(index);
   }
 
-  /**
-   * Returns the number of functions (including the null function at index 0).
-   *
-   * @return the size of the function table
-   */
   public int size() {
     return functions.size();
   }
 
-  /**
-   * Returns the list of all function entries.
-   *
-   * @return the list of function entries
-   */
   public List<FunctionEntry> getFunctions() {
     return functions;
   }

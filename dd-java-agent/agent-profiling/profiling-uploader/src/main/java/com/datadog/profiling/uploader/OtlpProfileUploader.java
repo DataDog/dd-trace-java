@@ -50,11 +50,6 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Uploads profiles in OTLP format to the backend. Delegates transport to {@link OtlpSender},
- * reusing the tracer's shared OTLP export infrastructure (retry, compression, connection pool
- * management).
- */
 public final class OtlpProfileUploader implements RecordingDataListener {
 
   private static final Logger log = LoggerFactory.getLogger(OtlpProfileUploader.class);
@@ -102,14 +97,6 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     upload(type, data, handleSynchronously, null);
   }
 
-  /**
-   * Upload profile data in OTLP format.
-   *
-   * @param type Recording type
-   * @param data Recording data to upload
-   * @param sync Whether to upload synchronously
-   * @param onCompletion Optional callback on completion
-   */
   public void upload(RecordingType type, RecordingData data, boolean sync, Runnable onCompletion) {
     if (!enabled) {
       data.release();
@@ -145,9 +132,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         }
       }
     } catch (Exception e) {
-      // Conversion or request creation failed. Release this uploader's reference (the caller
-      // still holds the base reference and will release it via the downstream listener).
-      // The exception is intentionally not rethrown so that JFR upload continues independently.
+      // not rethrown so that the classic JFR upload continues independently
       log.error("Failed to upload OTLP profile", e);
       data.release();
       if (onCompletion != null) {
@@ -177,10 +162,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     }
   }
 
-  /**
-   * Resource attributes identifying the profiled application, following the same convention as the
-   * tracer's OTLP traces export (see datadog.trace.core.otlp.common.OtlpResourceAttributes).
-   */
+  // mirrors the tracer's OTLP traces export resource attributes (OtlpResourceAttributes)
   private static Map<String, String> buildResourceAttributes(Config config) {
     Map<String, String> attributes = new LinkedHashMap<>();
     attributes.put("service.name", config.getServiceName());
@@ -205,13 +187,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   }
 
   private byte[] convertToOtlp(RecordingData data) throws IOException {
-    // LIGHT mode: skip JFR parsing, just embed raw JFR as original_payload blob
     if (mode == ProfilingConfig.OtlpMode.LIGHT) {
       return convertLightweight(data);
     }
 
-    // FULL/CONVERTED mode: parse JFR, build dictionary tables, encode OTLP samples;
-    // FULL also attaches the raw JFR as original_payload blob
     JfrToOtlpConverter converter = new JfrToOtlpConverter();
     converter.setIncludeOriginalPayload(mode == ProfilingConfig.OtlpMode.FULL);
     converter.setResourceAttributes(resourceAttributes);

@@ -10,10 +10,7 @@ import datadog.trace.api.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Selects the {@link OtlpSender} for the configured OTLP profiles protocol. Mirrors {@code
- * OtlpMetricsSenderFactory} and {@code OtlpLogsService}.
- */
+// mirrors OtlpMetricsSenderFactory and OtlpLogsService
 final class OtlpProfilesSenderFactory {
   private static final Logger log = LoggerFactory.getLogger(OtlpProfilesSenderFactory.class);
 
@@ -36,7 +33,6 @@ final class OtlpProfilesSenderFactory {
             config.getOtlpProfilesTimeout(),
             config.getOtlpProfilesCompression());
       case HTTP_JSON:
-        // Profiles are always protobuf; HTTP_JSON uses the same transport as HTTP_PROTOBUF.
         log.warn("OTLP profiles do not support JSON encoding; using HTTP_PROTOBUF transport");
         return new OtlpHttpSender(
             config.getOtlpProfilesEndpoint(),
