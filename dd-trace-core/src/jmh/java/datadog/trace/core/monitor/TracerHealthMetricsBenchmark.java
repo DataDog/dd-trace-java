@@ -40,6 +40,13 @@ import org.openjdk.jmh.infra.Blackhole;
  * meaningfully slow down concurrent writers; this checks that design assumption under load rather
  * than just asserting it.
  *
+ * <p><b>Before/after.</b> The {@code legacy*} benchmarks run the identical inputs against {@link
+ * LegacyTracerHealthMetrics}, a faithful reconstruction of pre-migration {@code
+ * TracerHealthMetrics} (one {@code LongAdder} field per counter, hand-rolled switches, a
+ * hand-concatenated {@code summary()}) as it stood at {@code 77964b3996}, the last commit before
+ * this migration -- a same-run, same-JVM before/after comparison of the real class, not just the
+ * underlying primitive.
+ *
  * <p><b>Results:</b> every hot single-counter call (uncontended) lands at 0.009-0.018 us/op --
  * indistinguishable from {@code AccumulatorBenchmark}'s raw {@code
  * accumulatorIncrement_lowContention} (0.010 us/op), confirming the switch/branch dispatch around
@@ -70,6 +77,39 @@ import org.openjdk.jmh.infra.Blackhole;
  * same phenomenon {@code AccumulatorBenchmark} already documents for {@code
  * accumulatorAccumulateAndReset_highContention} -- the direction, not the exact magnitude, is the
  * reliable part of that row.)
+ *
+ * <p><b>Before/after results:</b> the {@code Accumulator}-backed implementation is measurably
+ * slower per counter update than the {@code LongAdder} baseline it replaced -- {@code
+ * LongAdder.increment()} is a single uncontended CAS-retry field write, while every {@code
+ * Accumulator} update takes its stripe's {@code synchronized} lock even uncontended, so this is the
+ * expected shape, not a regression to chase. Uncontended single-counter calls ({@code
+ * onCreateSpan}, {@code onPartialPublish}) are within noise of each other (1.1-1.3x); calls
+ * touching two counters under one grouped lock ({@code onFailedPublish}, {@code onSend}) cost 2-3x
+ * uncontended and 3-4.6x under {@code Threads.MAX} contention, tracking the same 3-4x contention
+ * penalty {@code AccumulatorBenchmark} documents for the raw primitive. {@code summary()} is the
+ * largest delta: walking 54 stripes non-destructively costs ~4x what summing 52 plain {@code
+ * LongAdder} fields did (2.844 vs 0.722 us/op) -- still far below the periodic (30s-default) {@code
+ * Flush} cadence and the ad hoc/diagnostic calls that trigger it, so not disqualifying, but the
+ * honest number. Neither implementation's writers are measurably slowed by a concurrent {@code
+ * summary()}/reader (0.010 vs 0.008 us/op, both within noise). <code>
+ * Apple M1 Max, 10 CPUs - JDK 25 (Zulu) - macOS/aarch64
+ * Benchmark                       New (Accumulator)  Legacy (LongAdder)  Ratio
+ * onCreateSpan_lowContention           0.009               0.007          1.3x
+ * onCreateSpan_highContention          0.024               0.009          2.7x
+ * onFailedPublish_lowContention        0.018               0.009          2.0x
+ * onFailedPublish_highContention       0.074               0.016          4.6x
+ * onPartialPublish_lowContention       0.009               0.008          1.1x
+ * onPartialPublish_highContention      0.038               0.013          2.9x
+ * onSend_lowContention                 0.039               0.013          3.0x
+ * onSend_highContention                0.087               0.022          4.0x
+ * summaryWhileWriting_write            0.010               0.008          1.3x
+ * summaryWhileWriting_read             2.844               0.722          3.9x
+ * (all figures us/op, avgt)
+ * </code> This is the expected cost of trading 49 independent {@code LongAdder} fields (no shared
+ * state, no locking) for one striped-but-shared {@code Accumulator} -- the migration's case rests
+ * on eliminating the {@code previousCounts}/{@code countIndex} hand-tracking ceremony and giving
+ * each counter an atomic multi-field grouped update, not on raw per-call speed, which is
+ * unambiguously a step down here.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
@@ -80,6 +120,8 @@ import org.openjdk.jmh.infra.Blackhole;
 public class TracerHealthMetricsBenchmark {
 
   private final TracerHealthMetrics metrics = new TracerHealthMetrics(StatsDClient.NO_OP);
+  private final LegacyTracerHealthMetrics legacyMetrics =
+      new LegacyTracerHealthMetrics(StatsDClient.NO_OP);
   private final RemoteApi.Response okResponse = RemoteApi.Response.success(200);
 
   @Benchmark
@@ -142,5 +184,67 @@ public class TracerHealthMetricsBenchmark {
   @GroupThreads(1)
   public void summaryWhileWriting_read(Blackhole blackhole) {
     blackhole.consume(metrics.summary());
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void legacyOnCreateSpan_lowContention() {
+    legacyMetrics.onCreateSpan();
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void legacyOnCreateSpan_highContention() {
+    legacyMetrics.onCreateSpan();
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void legacyOnFailedPublish_lowContention() {
+    legacyMetrics.onFailedPublish(SAMPLER_DROP, 5);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void legacyOnFailedPublish_highContention() {
+    legacyMetrics.onFailedPublish(SAMPLER_DROP, 5);
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void legacyOnPartialPublish_lowContention() {
+    legacyMetrics.onPartialPublish(3);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void legacyOnPartialPublish_highContention() {
+    legacyMetrics.onPartialPublish(3);
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void legacyOnSend_lowContention() {
+    legacyMetrics.onSend(1, 512, okResponse);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void legacyOnSend_highContention() {
+    legacyMetrics.onSend(1, 512, okResponse);
+  }
+
+  @Benchmark
+  @Group("legacySummaryWhileWriting")
+  @GroupThreads(4)
+  public void legacySummaryWhileWriting_write() {
+    legacyMetrics.onCreateSpan();
+  }
+
+  @Benchmark
+  @Group("legacySummaryWhileWriting")
+  @GroupThreads(1)
+  public void legacySummaryWhileWriting_read(Blackhole blackhole) {
+    blackhole.consume(legacyMetrics.summary());
   }
 }
