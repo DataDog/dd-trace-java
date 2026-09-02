@@ -6352,7 +6352,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
       }
     ],
