@@ -96,7 +96,7 @@ public class MethodHandleWrappers {
         if (Config.get().isWebsocketMessagesInheritSampling()) {
           current.forceSamplingDecision();
         }
-        sessionStore.putIfAbsent(
+        sessionStore.getOrPut(
             session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     } catch (Throwable t) {

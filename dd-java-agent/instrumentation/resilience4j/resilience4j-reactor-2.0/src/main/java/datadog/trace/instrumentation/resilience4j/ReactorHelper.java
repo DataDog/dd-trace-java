@@ -32,7 +32,7 @@ public class ReactorHelper {
 
   public static BiConsumer<Publisher<?>, AgentSpan> putIfAbsentInto(
       final ContextStore<Publisher, HandoffContext> store) {
-    return (publisher, span) -> store.putIfAbsent(publisher, HandoffContext.anyThread(span));
+    return (publisher, span) -> store.getOrPut(publisher, HandoffContext.anyThread(span));
   }
 
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(

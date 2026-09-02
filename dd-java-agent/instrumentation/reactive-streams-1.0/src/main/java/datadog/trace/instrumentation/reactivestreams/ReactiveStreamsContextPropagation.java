@@ -31,7 +31,7 @@ public final class ReactiveStreamsContextPropagation {
       return null;
     }
 
-    final Context subscriberContext = subscriberContexts.putIfAbsent(subscriber, context);
+    final Context subscriberContext = subscriberContexts.getOrPut(subscriber, context);
     // A context captured on the publisher (cross-thread propagation) must win even when the
     // current thread already carries a non-root active context.
     return attachIfRequired(subscriberContext, activeContext);
