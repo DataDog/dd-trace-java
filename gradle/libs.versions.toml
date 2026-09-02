@@ -49,7 +49,7 @@ instrument-java = "0.0.4"
 jmh = "1.37"
 
 # Profiling
-jmc = "9.1.1"
+jmc = "8.1.0"
 jafar = "0.26.2"
 jol = "0.17"
 
