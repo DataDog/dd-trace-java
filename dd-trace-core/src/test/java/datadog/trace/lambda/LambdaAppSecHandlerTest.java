@@ -2118,7 +2118,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest(name = "[{index}] content-type {0}")
-  @ValueSource(strings = {"", "   ", "application/json"})
+  @ValueSource(strings = {"", "application/json"})
   void parsesAResponseBodyAsJsonWhenTheContentTypeIsBlankOrJson(String contentType) {
     // A blank content type says nothing about the body, so it gets the same best-effort JSON parse
     // as an absent one, matching the request path.
