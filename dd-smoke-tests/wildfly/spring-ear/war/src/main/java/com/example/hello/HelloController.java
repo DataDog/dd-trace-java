@@ -20,7 +20,8 @@ public class HelloController {
     ENABLED.set(true);
     return CompletableFuture.supplyAsync(
         () -> {
-          while (!ENABLED.get()) {
+          // Wait until the scheduled task picks up the request.
+          while (ENABLED.get()) {
             try {
               Thread.sleep(200);
             } catch (InterruptedException e) {
