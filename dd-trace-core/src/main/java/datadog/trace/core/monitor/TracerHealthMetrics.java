@@ -35,9 +35,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final AtomicBoolean started = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<TracerHealthMetrics> cancellation;
 
-  private final Accumulator<TracerHealthMetric> counters =
+  private final Accumulator<TracerHealthMetric> metricAccumulator =
       Accumulator.of(TracerHealthMetric.values());
-  private volatile Accumulator.Counts<TracerHealthMetric> storedTotal = counters.sum();
+  private volatile Accumulator.Counts<TracerHealthMetric> storedTotal =
+      Accumulator.Counts.zero(TracerHealthMetric.values());
 
   private final StatsDClient statsd;
   private final long interval;
@@ -72,28 +73,23 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onPublish(final List<DDSpan> trace, final int samplingPriority) {
-    final TracerHealthMetric enqueuedTracesMetric;
     switch (samplingPriority) {
       case USER_DROP:
-        enqueuedTracesMetric = TracerHealthMetric.USER_DROP_ENQUEUED_TRACES;
+        metricAccumulator.inc(TracerHealthMetric.USER_DROP_ENQUEUED_TRACES);
         break;
       case USER_KEEP:
-        enqueuedTracesMetric = TracerHealthMetric.USER_KEEP_ENQUEUED_TRACES;
+        metricAccumulator.inc(TracerHealthMetric.USER_KEEP_ENQUEUED_TRACES);
         break;
       case SAMPLER_DROP:
-        enqueuedTracesMetric = TracerHealthMetric.SAMPLER_DROP_ENQUEUED_TRACES;
+        metricAccumulator.inc(TracerHealthMetric.SAMPLER_DROP_ENQUEUED_TRACES);
         break;
       case SAMPLER_KEEP:
-        enqueuedTracesMetric = TracerHealthMetric.SAMPLER_KEEP_ENQUEUED_TRACES;
+        metricAccumulator.inc(TracerHealthMetric.SAMPLER_KEEP_ENQUEUED_TRACES);
         break;
       default:
-        enqueuedTracesMetric = TracerHealthMetric.UNSET_PRIORITY_ENQUEUED_TRACES;
+        metricAccumulator.inc(TracerHealthMetric.UNSET_PRIORITY_ENQUEUED_TRACES);
     }
-    counters.update(
-        stripe -> {
-          stripe.inc(enqueuedTracesMetric);
-          stripe.add(TracerHealthMetric.ENQUEUED_SPANS, trace.size());
-        });
+    metricAccumulator.add(TracerHealthMetric.ENQUEUED_SPANS, trace.size());
     checkForClientSpansWithoutContext(trace);
   }
 
@@ -102,7 +98,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       if (span != null && span.getParentId() == ZERO) {
         String spanKind = span.getTag(SPAN_KIND, "undefined");
         if (SPAN_KIND_CLIENT.equals(spanKind)) {
-          counters.inc(TracerHealthMetric.CLIENT_SPANS_WITHOUT_CONTEXT);
+          metricAccumulator.inc(TracerHealthMetric.CLIENT_SPANS_WITHOUT_CONTEXT);
         }
       }
     }
@@ -110,39 +106,32 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onFailedPublish(final int samplingPriority, final int spanCount) {
-    final TracerHealthMetric droppedSpansMetric;
-    final TracerHealthMetric droppedTracesMetric;
     switch (samplingPriority) {
       case USER_DROP:
-        droppedSpansMetric = TracerHealthMetric.USER_DROP_DROPPED_SPANS;
-        droppedTracesMetric = TracerHealthMetric.USER_DROP_DROPPED_TRACES;
+        metricAccumulator.add(TracerHealthMetric.USER_DROP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(TracerHealthMetric.USER_DROP_DROPPED_TRACES);
         break;
       case USER_KEEP:
-        droppedSpansMetric = TracerHealthMetric.USER_KEEP_DROPPED_SPANS;
-        droppedTracesMetric = TracerHealthMetric.USER_KEEP_DROPPED_TRACES;
+        metricAccumulator.add(TracerHealthMetric.USER_KEEP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(TracerHealthMetric.USER_KEEP_DROPPED_TRACES);
         break;
       case SAMPLER_DROP:
-        droppedSpansMetric = TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS;
-        droppedTracesMetric = TracerHealthMetric.SAMPLER_DROP_DROPPED_TRACES;
+        metricAccumulator.add(TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(TracerHealthMetric.SAMPLER_DROP_DROPPED_TRACES);
         break;
       case SAMPLER_KEEP:
-        droppedSpansMetric = TracerHealthMetric.SAMPLER_KEEP_DROPPED_SPANS;
-        droppedTracesMetric = TracerHealthMetric.SAMPLER_KEEP_DROPPED_TRACES;
+        metricAccumulator.add(TracerHealthMetric.SAMPLER_KEEP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(TracerHealthMetric.SAMPLER_KEEP_DROPPED_TRACES);
         break;
       default:
-        droppedSpansMetric = TracerHealthMetric.UNSET_PRIORITY_DROPPED_SPANS;
-        droppedTracesMetric = TracerHealthMetric.UNSET_PRIORITY_DROPPED_TRACES;
+        metricAccumulator.add(TracerHealthMetric.UNSET_PRIORITY_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(TracerHealthMetric.UNSET_PRIORITY_DROPPED_TRACES);
     }
-    counters.update(
-        stripe -> {
-          stripe.add(droppedSpansMetric, spanCount);
-          stripe.inc(droppedTracesMetric);
-        });
   }
 
   @Override
   public void onPartialPublish(final int numberOfDroppedSpans) {
-    counters.update(
+    metricAccumulator.update(
         stripe -> {
           stripe.inc(TracerHealthMetric.PARTIAL_TRACES);
           stripe.add(TracerHealthMetric.SAMPLER_DROP_DROPPED_SPANS, numberOfDroppedSpans);
@@ -159,30 +148,30 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onPartialFlush(final int sizeInBytes) {
-    counters.add(TracerHealthMetric.PARTIAL_BYTES, sizeInBytes);
+    metricAccumulator.add(TracerHealthMetric.PARTIAL_BYTES, sizeInBytes);
   }
 
   @Override
   public void onSingleSpanSample() {
-    counters.inc(TracerHealthMetric.SINGLE_SPAN_SAMPLED);
+    metricAccumulator.inc(TracerHealthMetric.SINGLE_SPAN_SAMPLED);
   }
 
   @Override
   public void onSingleSpanUnsampled() {
-    counters.inc(TracerHealthMetric.SINGLE_SPAN_UNSAMPLED);
+    metricAccumulator.inc(TracerHealthMetric.SINGLE_SPAN_UNSAMPLED);
   }
 
   @Override
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    counters.add(TracerHealthMetric.ENQUEUED_BYTES, serializedSizeInBytes);
+    metricAccumulator.add(TracerHealthMetric.ENQUEUED_BYTES, serializedSizeInBytes);
   }
 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     if (trace != null) {
-      counters.update(
+      metricAccumulator.update(
           stripe -> {
             stripe.inc(TracerHealthMetric.SERIAL_FAILED_DROPPED_TRACES);
             stripe.add(TracerHealthMetric.SERIAL_FAILED_DROPPED_SPANS, trace.size());
@@ -192,70 +181,70 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onCreateSpan() {
-    counters.inc(TracerHealthMetric.CREATED_SPANS);
+    metricAccumulator.inc(TracerHealthMetric.CREATED_SPANS);
   }
 
   @Override
   public void onFinishSpan() {
-    counters.inc(TracerHealthMetric.FINISHED_SPANS);
+    metricAccumulator.inc(TracerHealthMetric.FINISHED_SPANS);
   }
 
   @Override
   public void onCreateTrace() {
-    counters.inc(TracerHealthMetric.CREATED_TRACES);
+    metricAccumulator.inc(TracerHealthMetric.CREATED_TRACES);
   }
 
   @Override
   public void onScopeCloseError(boolean manual) {
     if (manual) {
-      counters.update(
+      metricAccumulator.update(
           stripe -> {
             stripe.inc(TracerHealthMetric.SCOPE_CLOSE_ERRORS);
             stripe.inc(TracerHealthMetric.USER_SCOPE_CLOSE_ERRORS);
           });
     } else {
-      counters.inc(TracerHealthMetric.SCOPE_CLOSE_ERRORS);
+      metricAccumulator.inc(TracerHealthMetric.SCOPE_CLOSE_ERRORS);
     }
   }
 
   @Override
   public void onCaptureContinuation() {
-    counters.inc(TracerHealthMetric.CAPTURED_CONTINUATIONS);
+    metricAccumulator.inc(TracerHealthMetric.CAPTURED_CONTINUATIONS);
   }
 
   @Override
   public void onCancelContinuation() {
-    counters.inc(TracerHealthMetric.CANCELLED_CONTINUATIONS);
+    metricAccumulator.inc(TracerHealthMetric.CANCELLED_CONTINUATIONS);
   }
 
   @Override
   public void onFinishContinuation() {
-    counters.inc(TracerHealthMetric.FINISHED_CONTINUATIONS);
+    metricAccumulator.inc(TracerHealthMetric.FINISHED_CONTINUATIONS);
   }
 
   @Override
   public void onActivateScope() {
-    counters.inc(TracerHealthMetric.ACTIVATED_SCOPES);
+    metricAccumulator.inc(TracerHealthMetric.ACTIVATED_SCOPES);
   }
 
   @Override
   public void onCloseScope() {
-    counters.inc(TracerHealthMetric.CLOSED_SCOPES);
+    metricAccumulator.inc(TracerHealthMetric.CLOSED_SCOPES);
   }
 
   @Override
   public void onScopeStackOverflow() {
-    counters.inc(TracerHealthMetric.SCOPE_STACK_OVERFLOW);
+    metricAccumulator.inc(TracerHealthMetric.SCOPE_STACK_OVERFLOW);
   }
 
   @Override
   public void onOrgGuardEnforce(OrgGuard.Reason reason) {
     switch (reason) {
       case MISMATCH:
-        counters.inc(TracerHealthMetric.ORG_GUARD_ENFORCE_MISMATCH);
+        metricAccumulator.inc(TracerHealthMetric.ORG_GUARD_ENFORCE_MISMATCH);
         break;
       case STRICT_MISSING:
-        counters.inc(TracerHealthMetric.ORG_GUARD_ENFORCE_STRICT_MISSING);
+        metricAccumulator.inc(TracerHealthMetric.ORG_GUARD_ENFORCE_STRICT_MISSING);
         break;
     }
   }
@@ -274,7 +263,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
-    counters.update(
+    metricAccumulator.update(
         stripe -> {
           stripe.add(TracerHealthMetric.LONG_RUNNING_TRACES_WRITE, write);
           stripe.add(TracerHealthMetric.LONG_RUNNING_TRACES_DROPPED, dropped);
@@ -285,7 +274,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     final int status = response.status().orElse(0);
-    counters.update(
+    metricAccumulator.update(
         stripe -> {
           stripe.inc(TracerHealthMetric.API_REQUESTS);
           stripe.add(TracerHealthMetric.FLUSHED_TRACES, traceCount);
@@ -310,7 +299,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onClientStatTraceComputed(int countedSpans, int totalSpans, boolean dropped) {
-    counters.update(
+    metricAccumulator.update(
         stripe -> {
           stripe.inc(TracerHealthMetric.CLIENT_STATS_PROCESSED_TRACES);
           stripe.add(TracerHealthMetric.CLIENT_STATS_PROCESSED_SPANS, countedSpans);
@@ -323,28 +312,28 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onClientStatPayloadSent() {
-    counters.inc(TracerHealthMetric.CLIENT_STATS_REQUESTS);
+    metricAccumulator.inc(TracerHealthMetric.CLIENT_STATS_REQUESTS);
   }
 
   @Override
   public void onClientStatDowngraded() {
-    counters.inc(TracerHealthMetric.CLIENT_STATS_DOWNGRADES);
+    metricAccumulator.inc(TracerHealthMetric.CLIENT_STATS_DOWNGRADES);
   }
 
   @Override
   public void onClientStatErrorReceived() {
-    counters.inc(TracerHealthMetric.CLIENT_STATS_ERRORS);
+    metricAccumulator.inc(TracerHealthMetric.CLIENT_STATS_ERRORS);
   }
 
   @Override
   public void onStatsAggregateDropped() {
-    counters.inc(TracerHealthMetric.STATS_AGGREGATE_DROPPED);
+    metricAccumulator.inc(TracerHealthMetric.STATS_AGGREGATE_DROPPED);
     statsd.count("datadog.tracer.stats.collapsed_spans", 1, COLLAPSED_WHOLE_KEY_TAGS);
   }
 
   @Override
   public void onStatsInboxFull() {
-    counters.inc(TracerHealthMetric.STATS_INBOX_FULL);
+    metricAccumulator.inc(TracerHealthMetric.STATS_INBOX_FULL);
   }
 
   @Override
@@ -363,7 +352,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
     @Override
     public void run(TracerHealthMetrics target) {
-      Accumulator.Counts<TracerHealthMetric> delta = target.counters.accumulateAndReset();
+      Accumulator.Counts<TracerHealthMetric> delta = target.metricAccumulator.accumulateAndReset();
       StatsDCountReporter.report(target.statsd, TracerHealthMetric.values(), delta::get);
       target.storedTotal = target.storedTotal.plus(delta);
     }
@@ -371,7 +360,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public String summary() {
-    Accumulator.Counts<TracerHealthMetric> live = storedTotal.plus(counters.sum());
+    Accumulator.Counts<TracerHealthMetric> live = storedTotal.plus(metricAccumulator.sum());
     StringBuilder summary = new StringBuilder();
     for (TracerHealthMetric metric : TracerHealthMetric.values()) {
       if (!metric.isReportedInSummary()) {
