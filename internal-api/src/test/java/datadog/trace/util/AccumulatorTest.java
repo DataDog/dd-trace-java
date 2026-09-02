@@ -266,4 +266,20 @@ class AccumulatorTest {
     assertEquals(5L, drained.get(Counters.BAR));
     assertEquals(1L, drained.get(Counters.BAZ));
   }
+
+  @Test
+  void contextualUpdatePassesContextInsteadOfCapturingIt() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+
+    counters.update(
+        5L,
+        (delta, stripe) -> {
+          stripe.inc(Counters.FOO);
+          stripe.add(Counters.BAR, delta);
+        });
+
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(1L, drained.get(Counters.FOO));
+    assertEquals(5L, drained.get(Counters.BAR));
+  }
 }

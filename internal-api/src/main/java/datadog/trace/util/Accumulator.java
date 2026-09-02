@@ -4,6 +4,7 @@ import datadog.environment.ThreadSupport;
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import java.util.Arrays;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.annotation.concurrent.GuardedBy;
@@ -69,6 +70,27 @@ public final class Accumulator<E extends Enum<E>> {
     long[] stripe = EmbeddingSupport.stripeOf(data);
     synchronized (stripe) {
       mutator.accept(new Stripe<>(stripe));
+    }
+  }
+
+  /**
+   * Like {@link #update(Consumer)}, but passes {@code context} to {@code mutator} as an explicit
+   * parameter instead of letting the mutator capture it -- for a caller that would otherwise need
+   * to close over a local (e.g. a count) just to get it into the critical section. Note {@code
+   * context} is boxed if it's a primitive at the call site; that's a real allocation trade against
+   * the capturing lambda it replaces, not a free win -- prefer this only when {@code context} would
+   * otherwise be the only thing forcing a capture.
+   *
+   * @param context a value the mutator needs, passed in rather than captured
+   * @param mutator a strategy over {@code context} and the selected stripe; keep it small and
+   *     non-capturing so it inlines into the lock's critical section, and don't let the {@link
+   *     Stripe} escape it (store it, return it, hand it to another thread) -- see {@link Stripe}
+   */
+  @StrategyConsumer
+  public <C> void update(C context, @Strategy BiConsumer<C, Stripe<E>> mutator) {
+    long[] stripe = EmbeddingSupport.stripeOf(data);
+    synchronized (stripe) {
+      mutator.accept(context, new Stripe<>(stripe));
     }
   }
 
