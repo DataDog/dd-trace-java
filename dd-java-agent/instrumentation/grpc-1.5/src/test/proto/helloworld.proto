@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package example;
+
+option java_package = "example";
+option java_outer_classname = "HelloworldProto";
+
+service Greeter {
+  rpc SayHello (Request) returns (Response) {}
+  rpc ServerStreamHello (Request) returns (stream Response) {}
+  rpc ClientStreamHello (stream Request) returns (Response) {}
+  rpc BidiStreamHello (stream Request) returns (stream Response) {}
+}
+
+message Request {
+  string name = 1;
+}
+
+message Response {
+  string message = 1;
+}
