@@ -176,6 +176,50 @@ class AccumulatorTest {
   }
 
   @Test
+  void sumDoesNotResetStripes() {
+    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+
+    long[] first = Accumulator.EmbeddingSupport.sum(data);
+    assertEquals(1L, first[Counters.FOO.ordinal()]);
+
+    // sum() didn't reset anything, so a second sum() sees the same total
+    long[] second = Accumulator.EmbeddingSupport.sum(data);
+    assertEquals(1L, second[Counters.FOO.ordinal()]);
+
+    // and a real drain afterwards still sees the value sum() didn't consume
+    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    assertEquals(1L, drained[Counters.FOO.ordinal()]);
+  }
+
+  @Test
+  void sumReflectsIncrementsMadeAfterAnEarlierSum() {
+    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+    Accumulator.EmbeddingSupport.sum(data);
+
+    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+    long[] second = Accumulator.EmbeddingSupport.sum(data);
+    assertEquals(2L, second[Counters.FOO.ordinal()]);
+  }
+
+  @Test
+  void typedWrapperSumDoesNotReset() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
+    counters.add(Counters.BAR, 5L);
+
+    Accumulator.Counts<Counters> sum = counters.sum();
+    assertEquals(1L, sum.get(Counters.FOO));
+    assertEquals(5L, sum.get(Counters.BAR));
+
+    // still there for the real drain
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(1L, drained.get(Counters.FOO));
+    assertEquals(5L, drained.get(Counters.BAR));
+  }
+
+  @Test
   void typedWrapperDelegatesToEmbeddingSupport() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
     counters.inc(Counters.FOO);

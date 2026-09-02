@@ -113,9 +113,21 @@ public final class Accumulator<E extends Enum<E>> {
   }
 
   /**
-   * A typed view over a drained {@code long[]}, returned by {@link #accumulateAndReset}: the same
-   * enum-ordinal type checking {@link Accumulator} provides on writes, applied to the read side
-   * too.
+   * Combines every stripe without resetting it, returning the sum as a typed view -- a live,
+   * non-destructive snapshot for a diagnostic read (e.g. {@code summary()}) that must not perturb
+   * the delta a concurrent {@link #accumulateAndReset} on a reporting cadence is about to report.
+   *
+   * @return the sum, keyed by the enum's {@code ordinal()}
+   * @see EmbeddingSupport#sum(long[][])
+   */
+  public Counts<E> sum() {
+    return new Counts<>(EmbeddingSupport.sum(data));
+  }
+
+  /**
+   * A typed view over a drained {@code long[]}, returned by {@link #accumulateAndReset} or {@link
+   * #sum}: the same enum-ordinal type checking {@link Accumulator} provides on writes, applied to
+   * the read side too.
    *
    * <p>Unlike {@link Stripe}, this is expected to escape -- the caller holds and reads it after the
    * call returns -- so it's a real, per-drain allocation, not a scalar-replacement candidate.
@@ -277,6 +289,25 @@ public final class Accumulator<E extends Enum<E>> {
         synchronized (stripe) {
           combine(acc, stripe);
           reset(stripe);
+        }
+      }
+      return acc;
+    }
+
+    /**
+     * Combines every stripe without resetting it, returning the sum -- a live, non-destructive
+     * snapshot for a diagnostic read that must not perturb the delta a concurrent {@link
+     * #accumulateAndReset} on a reporting cadence is about to report.
+     *
+     * @return a new array the same length as one stripe's row, indexed by the enum's {@code
+     *     ordinal()} for the positions actually in use (trailing padding positions are always zero)
+     * @see #accumulateAndReset(long[][])
+     */
+    public static long[] sum(long[][] data) {
+      long[] acc = new long[data[0].length];
+      for (long[] stripe : data) {
+        synchronized (stripe) {
+          combine(acc, stripe);
         }
       }
       return acc;
