@@ -20,100 +20,42 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * {@link Accumulator} vs {@link LongAdder} vs the {@code ConcurrentHashMap.computeIfAbsent(key, k
- * -> new AtomicLong())} anti-pattern, at one thread (no contention) and at {@link Threads#MAX}
- * (heavy contention). The CHM variant allocates its counter under the bucket's bin lock the first
- * time its one constant key is seen -- exactly the pathology {@link Accumulator} exists to avoid --
- * but since the map is a {@code @State(Scope.Benchmark)} field shared across the whole run, that
- * allocation happens exactly once; every sampled op after it hits the warmed, already-present fast
- * path. So this measures steady-state {@code computeIfAbsent} lookup overhead on an
- * already-populated map, not the one-time allocation-under-lock cost -- still a useful number (a
- * fixed, small key set that's allocated once and hit for the life of the process, as {@code
+ * {@link Accumulator} vs the alternatives it actually displaces: a single {@code LongAdder} (the
+ * collision-free baseline it can never beat, only approach), an independent {@code LongAdder} per
+ * counter guarded by a per-counter lock (the "just fix it with LongAdder" natural migration target
+ * -- {@code longAdderGroup*}), and the {@code ConcurrentHashMap.computeIfAbsent(key, k -> new
+ * AtomicLong())} anti-pattern ({@code chmAtomicLongIncrement*}) that {@link Accumulator} exists to
+ * avoid. The CHM variant allocates its counter under the bucket's bin lock the first time its one
+ * constant key is seen, but since the map is a {@code @State(Scope.Benchmark)} field shared across
+ * the whole run, that allocation happens exactly once; every sampled op after it hits the warmed,
+ * already-present fast path. So this measures steady-state {@code computeIfAbsent} lookup overhead
+ * on an already-populated map, not the one-time allocation-under-lock cost -- still a useful number
+ * (a fixed, small key set that's allocated once and hit for the life of the process, as {@code
  * WafMetricCollector}-style CHM counters are, spends nearly all its time in this same warmed path),
  * just not the pathology the name of this benchmark might suggest.
- *
- * <p><b>Contention result to note:</b> at low contention, {@code accumulatorIncrement} is
- * essentially free and on par with {@code longAdderIncrement}. At {@code Threads.MAX} (10 threads
- * on the measurement machine), oversizing {@link Accumulator}'s stripe count from 8 (one per core)
- * to 16 (roughly 2x cores, see {@code stripeCount()}) cut {@code
- * accumulatorIncrement_highContention} from ~0.097 us/op to ~0.040 us/op -- fewer threads collide
- * on a stripe, so fewer of them pay {@code synchronized}'s blocking wait instead of a cheap
- * fast-path lock. It is still roughly 4-5x slower than {@code longAdderIncrement} (a collision-free
- * CAS retry beats even an uncontended monitor enter/exit), and {@code accumulateAndReset} under
- * concurrent writers got correspondingly more expensive (~7.5us to ~15.5us) since draining now
- * walks twice as many stripes while writers are actively landing on them. Read {@code
- * accumulatorIncrement_highContention} not as "Accumulator beats LongAdder under contention" (it
- * doesn't, on this shape) but as the honest cost of the drain-under-lock design that buys atomic
- * combine+reset; a caller trading that safety for raw increment throughput should measure their own
- * contention level before choosing between them. <code>
- * Apple M1 Max, 10 CPUs - JDK 1.8.0_382 (Zulu) - macOS/arm64 - stripeCount() = 16
- * Benchmark                                                     Mode  Cnt    Score    Error  Units
- * AccumulatorBenchmark.longAdderIncrement_lowContention         avgt    6    0.007 ±  0.001   us/op
- * AccumulatorBenchmark.longAdderIncrement_highContention        avgt    6    0.009 ±  0.001   us/op
- * AccumulatorBenchmark.accumulatorIncrement_lowContention       avgt    6    0.010 ±  0.001   us/op
- * AccumulatorBenchmark.accumulatorIncrement_highContention      avgt    6    0.040 ±  0.002   us/op
- * AccumulatorBenchmark.chmAtomicLongIncrement_lowContention     avgt    6    0.010 ±  0.001   us/op
- * AccumulatorBenchmark.chmAtomicLongIncrement_highContention    avgt    6    0.417 ±  0.543   us/op
- * AccumulatorBenchmark.longAdderSumThenReset_lowContention      avgt    6    0.012 ±  0.001   us/op
- * AccumulatorBenchmark.longAdderSumThenReset_highContention     avgt    6    2.433 ±  0.203   us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention   avgt    6    0.162 ±  0.009   us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention  avgt    6   15.515 ±  4.094   us/op
- * </code>
- *
- * <p>(This run had some background noise from another session on the measurement machine; the
- * {@code lowContention} rows and the {@code highContention} directional deltas are reliable, but
- * treat the exact {@code highContention} magnitudes as approximate.)
  *
  * <p><b>{@code longAdderGroup*}: is a "just fix it with LongAdder" helper actually cheaper?</b>
  * {@code groupInc}/{@code groupAccumulateAnd} are the natural correct fix using {@code LongAdder}
  * as the payload: one {@code LongAdder} per counter, with a per-counter lock guarding <em>both</em>
  * the increment and the drain (locking only the drain does nothing -- {@code sumThenReset()}'s
  * internal race is against the {@code LongAdder}'s own CAS-based {@code add()}, not against any
- * lock a caller takes). This closes the same reset hazard as {@link Accumulator}, but stripes by
- * <em>counter</em> instead of by <em>thread</em>. <code>
- * AccumulatorBenchmark.accumulatorIncrement_highContention         avgt    6   0.029 ±  0.051  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention     avgt    6  13.431 ±  5.876  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_highContention      avgt    6   0.294 ±  0.088  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention  avgt    6   0.549 ±  0.291  us/op
- * </code> Not "similar cost" -- a clean trade-off inversion. With this benchmark's single counter,
- * {@code longAdderGroup}'s per-counter lock collapses to one lock for every thread (no thread-based
- * distribution at all), so it loses badly on the write path: ~10x worse than {@code Accumulator}'s
- * thread-sharded stripes. But its drain only has that one lock to acquire, so it wins big there:
- * ~24x better than {@code Accumulator}, which always walks all 16 stripes on every drain regardless
- * of counter count. That asymmetry is the whole story: {@code longAdderGroup}'s drain cost scales
- * with <em>number of counters</em> (more counters -&gt; more locks to drain), while {@code
- * Accumulator}'s drain cost is fixed at stripe count, independent of counter count. Which design
- * actually wins for a given caller depends on that caller's counter cardinality and whether its
- * write traffic concentrates on a few hot counters (favors thread-sharding) or spreads across many
- * (favors counter-sharding) -- not measured here, and worth checking against the real migration
- * targets before treating either number as the general answer.
- *
- * <p><b>{@code typed*}: what does the {@link Accumulator}/{@link Accumulator.Stripe}/{@link
- * Accumulator.Counts} wrapping actually cost over calling {@link Accumulator.EmbeddingSupport}
- * directly?</b> {@code typedIncrement}/{@code typedUpdate} pair against {@code
- * accumulatorIncrement} (the same underlying call), and {@code typedAccumulateAndReset} pairs
- * against {@code accumulatorAccumulateAndReset}. <code>
- * AccumulatorBenchmark.accumulatorIncrement_lowContention        avgt    6   0.010 ±  0.001  us/op
- * AccumulatorBenchmark.typedIncrement_lowContention               avgt    6   0.010 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorIncrement_highContention        avgt    6   0.033 ±  0.008  us/op
- * AccumulatorBenchmark.typedIncrement_highContention               avgt    6   0.025 ±  0.015  us/op
- * AccumulatorBenchmark.typedUpdate_lowContention                  avgt    6   0.010 ±  0.001  us/op
- * AccumulatorBenchmark.typedUpdate_highContention                 avgt    6   0.037 ±  0.017  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention     avgt    6   0.161 ±  0.003  us/op
- * AccumulatorBenchmark.typedAccumulateAndReset_lowContention      avgt    6   0.164 ±  0.005  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention    avgt    6  17.399 ±  3.091  us/op
- * AccumulatorBenchmark.typedAccumulateAndReset_highContention     avgt    6  12.666 ±  1.272  us/op
- * </code> {@code typedIncrement}/{@code typedUpdate} track the raw calls within noise at both
- * contention levels -- the field-load indirection through the {@link Accumulator} instance and the
- * fresh {@link Accumulator.Stripe} constructed under {@code update}'s held lock both disappear,
- * consistent with a small, non-capturing mutator letting escape analysis scalar-replace the {@code
- * Stripe}. {@code typedAccumulateAndReset} also tracks the raw drain within noise at low contention
- * (0.164 vs 0.161 us/op) -- the one-{@link Accumulator.Counts}-object-per-drain allocation it's
- * documented to pay doesn't show up at this granularity. The high-contention gap in the other
- * direction (12.666 vs 17.399) is not a real typed-vs-raw effect -- wrapping an already-drained
- * array can only add cost, never remove it -- it's the same run-to-run lock-contention noise this
- * exact measurement already shows above (13.431, 15.515, 17.399 us/op across three otherwise
- * identical runs). Net: the wrapper's cost was not measurable in this run.
+ * lock a caller takes). With this benchmark's single counter, that per-counter lock collapses to
+ * one lock shared by every thread -- no thread-based distribution at all -- so it loses badly on
+ * the write path against {@link Accumulator}'s thread-sharded stripes, especially under contention.
+ * This is the realistic production baseline this class was built to replace (see {@code
+ * TracerHealthMetrics}'s pre-migration design, one {@code LongAdder} field per counter): <code>
+ * AccumulatorBenchmark.accumulatorIncrement_lowContention           avgt    6   0.007 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_highContention          avgt    6   0.009 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_lowContention        avgt    6   0.012 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_highContention       avgt    6   1.178 ±  0.134  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention  avgt    6   0.054 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention avgt    6   2.740 ±  0.210  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention    avgt    6   0.024 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention   avgt    6   2.439 ±  0.337  us/op
+ * </code> At high contention, {@link Accumulator} beats the realistic {@code longAdderGroup}
+ * baseline by roughly two orders of magnitude on increment (the call that runs on every event)
+ * while being slightly worse on drain (the call that runs once per reporting cycle) -- a clean win
+ * once weighted by call-site frequency, not just a wash.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
@@ -128,8 +70,7 @@ public class AccumulatorBenchmark {
   }
 
   private final LongAdder adder = new LongAdder();
-  private final long[][] accumulator = Accumulator.EmbeddingSupport.create(Counter.values());
-  private final Accumulator<Counter> typedAccumulator = Accumulator.of(Counter.values());
+  private final Accumulator<Counter> accumulator = Accumulator.of(Counter.values());
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
   private final LongAdder[] longAdderGroup = {new LongAdder()};
 
@@ -138,10 +79,10 @@ public class AccumulatorBenchmark {
    * with a per-counter lock guarding both the increment and the drain -- external locking around
    * only the drain does nothing, since {@code sumThenReset()}'s internal race is against the {@code
    * LongAdder}'s own CAS-based {@code add()}, not against any lock a caller takes. This is the fair
-   * comparison point: it closes the same hazard {@link Accumulator} does, but stripes by
-   * <em>counter</em> (one lock per enum constant) instead of by <em>thread</em> (one lock per
-   * stripe, shared by all counters) -- so N threads hammering the *same* counter contend on one
-   * lock regardless of core count, with no thread-bucket distribution at all.
+   * comparison point: it closes the same reset hazard {@link Accumulator} does, but stripes by
+   * <em>counter</em> (one lock per enum constant) instead of by <em>thread</em> (one shared table
+   * across all counters) -- so N threads hammering the *same* counter contend on one lock
+   * regardless of core count, with no thread-bucket distribution at all.
    */
   private static void groupInc(LongAdder[] group, int ordinal) {
     LongAdder counter = group[ordinal];
@@ -176,31 +117,13 @@ public class AccumulatorBenchmark {
   @Benchmark
   @Threads(1)
   public void accumulatorIncrement_lowContention() {
-    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+    accumulator.inc(Counter.HITS);
   }
 
   @Benchmark
   @Threads(Threads.MAX)
   public void accumulatorIncrement_highContention() {
-    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
-  }
-
-  /**
-   * The typed {@link Accumulator} wrapper's {@link Accumulator#inc}, paired against {@code
-   * accumulatorIncrement*} above: same underlying {@link Accumulator.EmbeddingSupport#inc} call,
-   * one extra field-load indirection through the instance. Should track the raw numbers closely --
-   * a divergence here would mean the indirection isn't being inlined away.
-   */
-  @Benchmark
-  @Threads(1)
-  public void typedIncrement_lowContention() {
-    typedAccumulator.inc(Counter.HITS);
-  }
-
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void typedIncrement_highContention() {
-    typedAccumulator.inc(Counter.HITS);
+    accumulator.inc(Counter.HITS);
   }
 
   @Benchmark
@@ -232,9 +155,8 @@ public class AccumulatorBenchmark {
   @Benchmark
   @Threads(1)
   public void accumulatorAccumulateAndReset_lowContention(Blackhole blackhole) {
-    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
-    blackhole.consume(
-        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
+    accumulator.inc(Counter.HITS);
+    blackhole.consume(accumulator.accumulateAndReset());
   }
 
   /**
@@ -242,80 +164,36 @@ public class AccumulatorBenchmark {
    * Threads.MAX} threads are all draining concurrently. Real callers don't do this -- see {@code
    * accumulatorMixed-write}/{@code accumulatorMixed-drain} below for the "many writers, one rare
    * drainer" shape this class actually targets. Kept as the worst-case upper bound: no production
-   * topology should be more contended on {@link Accumulator.EmbeddingSupport#accumulateAndReset}
-   * than this.
+   * topology should be more contended on {@link Accumulator#accumulateAndReset} than this.
    */
   @Benchmark
   @Threads(Threads.MAX)
   public void accumulatorAccumulateAndReset_highContention(Blackhole blackhole) {
-    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
-    blackhole.consume(
-        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
+    accumulator.inc(Counter.HITS);
+    blackhole.consume(accumulator.accumulateAndReset());
   }
 
   /**
    * The realistic counterpart to {@code accumulatorAccumulateAndReset_highContention}: many writer
    * threads incrementing, and a single dedicated thread polling {@link
-   * Accumulator.EmbeddingSupport#accumulateAndReset} -- not every thread doing both on every op.
-   * {@code accumulatorMixed-write} measures increment cost while a drain is actively contending for
-   * stripe locks; {@code accumulatorMixed-drain} measures the drain's own cost under that same live
-   * write pressure. The 4:1 writer:drainer ratio is illustrative of "many writers, rare drain," not
-   * tuned to a specific core count.
+   * Accumulator#accumulateAndReset} -- not every thread doing both on every op. {@code
+   * accumulatorMixed-write} measures increment cost while a drain is actively running; {@code
+   * accumulatorMixed-drain} measures the drain's own cost under that same live write pressure. The
+   * 4:1 writer:drainer ratio is illustrative of "many writers, rare drain," not tuned to a specific
+   * core count.
    */
   @Benchmark
   @Group("accumulatorMixed")
   @GroupThreads(4)
   public void accumulatorMixed_write() {
-    Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
+    accumulator.inc(Counter.HITS);
   }
 
   @Benchmark
   @Group("accumulatorMixed")
   @GroupThreads(1)
   public void accumulatorMixed_drain(Blackhole blackhole) {
-    blackhole.consume(
-        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
-  }
-
-  /**
-   * {@link Accumulator#update}, paired against the raw {@link Accumulator.EmbeddingSupport#update}
-   * lock/dispatch it wraps: the mutator here constructs a {@link Accumulator.Stripe} under the held
-   * lock and immediately lets it go, which is exactly the "small, non-capturing, non-escaping"
-   * shape documented as a scalar-replacement candidate. If escape analysis is doing its job, this
-   * tracks the raw call closely; if it regresses (e.g. after a JIT/JDK change, or a mutator shape
-   * that stops inlining), this is the number that would move.
-   */
-  @Benchmark
-  @Threads(1)
-  public void typedUpdate_lowContention() {
-    typedAccumulator.update(stripe -> stripe.inc(Counter.HITS));
-  }
-
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void typedUpdate_highContention() {
-    typedAccumulator.update(stripe -> stripe.inc(Counter.HITS));
-  }
-
-  /**
-   * {@link Accumulator#accumulateAndReset}, paired against the raw {@link
-   * Accumulator.EmbeddingSupport#accumulateAndReset} it wraps. Unlike {@link Accumulator.Stripe},
-   * {@link Accumulator.Counts} is documented to escape (the caller holds and reads it after
-   * return), so this is expected to run measurably slower than the raw call by roughly one small
-   * object allocation per drain -- not a scalar-replacement candidate, and not meant to look free.
-   */
-  @Benchmark
-  @Threads(1)
-  public void typedAccumulateAndReset_lowContention(Blackhole blackhole) {
-    typedAccumulator.inc(Counter.HITS);
-    blackhole.consume(typedAccumulator.accumulateAndReset());
-  }
-
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void typedAccumulateAndReset_highContention(Blackhole blackhole) {
-    typedAccumulator.inc(Counter.HITS);
-    blackhole.consume(typedAccumulator.accumulateAndReset());
+    blackhole.consume(accumulator.accumulateAndReset());
   }
 
   @Benchmark

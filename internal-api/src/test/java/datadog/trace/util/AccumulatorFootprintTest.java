@@ -27,24 +27,14 @@ import org.openjdk.jol.info.GraphLayout;
  * what each actually costs once the counters they represent are hit by real concurrent writers, as
  * they are on the telemetry paths this class targets.
  *
- * <p>Measured on a 10-CPU machine (JDK 1.8.0_382 Zulu), 4 counters, {@code
- * Accumulator.EmbeddingSupport.stripeCount()} = 16:
- *
- * <pre>{@code
- * fresh:      4 LongAdders =    160 bytes, Accumulator = 2384 bytes
- * contended:  4 LongAdders =  17560 bytes, Accumulator = 2384 bytes
- * }</pre>
- *
- * Finding: fresh, {@code LongAdder} looks ~15x lighter -- but that's an artifact of never having
- * been written to concurrently. Once real contention forces each {@code LongAdder}'s {@code Cell[]}
- * table to grow (each {@code Cell} is {@code @Contended}-padded against false sharing, the same
- * problem {@link Accumulator}'s own padding solves), the four {@code LongAdder}s alone end up over
- * 7x heavier than {@code Accumulator}'s entire fixed footprint -- and {@code Accumulator} does not
- * grow further as more contention arrives within its existing stripe count, while every additional
- * concurrently-written {@code LongAdder} keeps paying this cost independently. {@code
- * Accumulator}'s up-front cost is the more predictable one: fixed at creation, independent of
- * runtime contention, and shared (one striped array) across however many counters the caller's enum
- * declares, rather than paid per counter.
+ * <p>{@link Accumulator}'s stripe count is fixed at creation (roughly 2x {@link
+ * Runtime#availableProcessors()}, minimum 4) and does not grow further as more contention arrives
+ * within it, while every additional concurrently-written {@code LongAdder} keeps paying its own
+ * {@code Cell[]} growth cost independently. {@code Accumulator}'s up-front cost is the more
+ * predictable one: fixed at creation, independent of runtime contention, and shared (one striped
+ * table) across however many counters the caller's enum declares, rather than paid per counter. The
+ * printed numbers below vary by run/JVM -- see the assertions for the invariants that actually
+ * matter.
  */
 class AccumulatorFootprintTest {
 
@@ -78,7 +68,7 @@ class AccumulatorFootprintTest {
   @Test
   void freshFootprint() {
     LongAdder[] adders = freshAdders();
-    long[][] accumulator = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator<Counters> accumulator = Accumulator.of(Counters.values());
 
     long adderBytes = bytes((Object) adders);
     long accumulatorBytes = bytes(accumulator);
@@ -133,7 +123,7 @@ class AccumulatorFootprintTest {
     }
 
     long contendedAdderBytes = bytes((Object) adders);
-    long[][] accumulator = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator<Counters> accumulator = Accumulator.of(Counters.values());
     long accumulatorBytes = bytes(accumulator);
 
     System.out.printf(

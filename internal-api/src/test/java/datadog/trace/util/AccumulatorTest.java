@@ -23,82 +23,53 @@ class AccumulatorTest {
 
   @Test
   void freshAccumulatorSumsToZero() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
     for (Counters c : Counters.values()) {
-      assertEquals(0L, drained[c.ordinal()]);
+      assertEquals(0L, drained.get(c));
     }
   }
 
   @Test
   void incIncrementsByOne() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    Accumulator.EmbeddingSupport.inc(data, Counters.BAR);
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
+    counters.inc(Counters.FOO);
+    counters.inc(Counters.BAR);
 
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(2L, drained[Counters.FOO.ordinal()]);
-    assertEquals(1L, drained[Counters.BAR.ordinal()]);
-    assertEquals(0L, drained[Counters.BAZ.ordinal()]);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(2L, drained.get(Counters.FOO));
+    assertEquals(1L, drained.get(Counters.BAR));
+    assertEquals(0L, drained.get(Counters.BAZ));
   }
 
   @Test
   void addAppliesArbitraryDelta() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.add(data, Counters.BAZ, 41L);
-    Accumulator.EmbeddingSupport.add(data, Counters.BAZ, 1L);
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.add(Counters.BAZ, 41L);
+    counters.add(Counters.BAZ, 1L);
 
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(42L, drained[Counters.BAZ.ordinal()]);
-  }
-
-  @Test
-  void updateAppliesSeveralOpsUnderOneLock() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.update(
-        data,
-        stripe -> {
-          Accumulator.EmbeddingSupport.inc(stripe, Counters.FOO);
-          Accumulator.EmbeddingSupport.inc(stripe, Counters.FOO);
-          Accumulator.EmbeddingSupport.add(stripe, Counters.BAR, 5L);
-        });
-
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(2L, drained[Counters.FOO.ordinal()]);
-    assertEquals(5L, drained[Counters.BAR.ordinal()]);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(42L, drained.get(Counters.BAZ));
   }
 
   @Test
   void accumulateAndResetsSoASecondDrainIsZero() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
 
-    long[] first = Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(1L, first[Counters.FOO.ordinal()]);
+    Accumulator.Counts<Counters> first = counters.accumulateAndReset();
+    assertEquals(1L, first.get(Counters.FOO));
 
-    long[] second = Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
+    Accumulator.Counts<Counters> second = counters.accumulateAndReset();
     for (Counters c : Counters.values()) {
-      assertEquals(0L, second[c.ordinal()]);
+      assertEquals(0L, second.get(c));
     }
   }
 
   @Test
-  void drainedArrayIsExactlyWidthLong() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(Counters.values().length, drained.length);
-    assertTrue(drained.length < data[0].length, "drained array should exclude stripe padding");
-  }
-
-  @Test
   void concurrentIncrementsAreNotLost() throws InterruptedException {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
     int threadCount = 16;
     int incrementsPerThread = 10_000;
 
@@ -112,7 +83,7 @@ class AccumulatorTest {
               try {
                 start.await();
                 for (int i = 0; i < incrementsPerThread; i++) {
-                  Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+                  counters.inc(Counters.FOO);
                 }
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -127,15 +98,14 @@ class AccumulatorTest {
       pool.shutdown();
     }
 
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals((long) threadCount * incrementsPerThread, drained[Counters.FOO.ordinal()]);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals((long) threadCount * incrementsPerThread, drained.get(Counters.FOO));
   }
 
   @Test
   void concurrentAccumulateAndDuringWritesNeverExceedsWritten()
       throws InterruptedException, ExecutionException, TimeoutException {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
     int threadCount = 8;
     int incrementsPerThread = 5_000;
 
@@ -149,11 +119,9 @@ class AccumulatorTest {
           pool.submit(
               () -> {
                 while (!stop.get()) {
-                  long[] drained =
-                      Accumulator.EmbeddingSupport.accumulateAndReset(
-                          data, Counters.values().length);
+                  Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
                   synchronized (runningTotal) {
-                    runningTotal[0] += drained[Counters.FOO.ordinal()];
+                    runningTotal[0] += drained.get(Counters.FOO);
                   }
                 }
               });
@@ -162,7 +130,7 @@ class AccumulatorTest {
         pool.execute(
             () -> {
               for (int i = 0; i < incrementsPerThread; i++) {
-                Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+                counters.inc(Counters.FOO);
               }
               done.countDown();
             });
@@ -172,10 +140,9 @@ class AccumulatorTest {
       stop.set(true);
       drainer.get(30, TimeUnit.SECONDS);
 
-      long[] finalDrain =
-          Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
+      Accumulator.Counts<Counters> finalDrain = counters.accumulateAndReset();
       synchronized (runningTotal) {
-        runningTotal[0] += finalDrain[Counters.FOO.ordinal()];
+        runningTotal[0] += finalDrain.get(Counters.FOO);
       }
 
       assertEquals((long) threadCount * incrementsPerThread, runningTotal[0]);
@@ -186,47 +153,30 @@ class AccumulatorTest {
 
   @Test
   void sumDoesNotResetStripes() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
 
-    long[] first = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
-    assertEquals(1L, first[Counters.FOO.ordinal()]);
+    Accumulator.Counts<Counters> first = counters.sum();
+    assertEquals(1L, first.get(Counters.FOO));
 
     // sum() didn't reset anything, so a second sum() sees the same total
-    long[] second = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
-    assertEquals(1L, second[Counters.FOO.ordinal()]);
+    Accumulator.Counts<Counters> second = counters.sum();
+    assertEquals(1L, second.get(Counters.FOO));
 
     // and a real drain afterwards still sees the value sum() didn't consume
-    long[] drained =
-        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
-    assertEquals(1L, drained[Counters.FOO.ordinal()]);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(1L, drained.get(Counters.FOO));
   }
 
   @Test
   void sumReflectsIncrementsMadeAfterAnEarlierSum() {
-    long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
-
-    Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    long[] second = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
-    assertEquals(2L, second[Counters.FOO.ordinal()]);
-  }
-
-  @Test
-  void typedWrapperSumDoesNotReset() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
     counters.inc(Counters.FOO);
-    counters.add(Counters.BAR, 5L);
+    counters.sum();
 
-    Accumulator.Counts<Counters> sum = counters.sum();
-    assertEquals(1L, sum.get(Counters.FOO));
-    assertEquals(5L, sum.get(Counters.BAR));
-
-    // still there for the real drain
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(1L, drained.get(Counters.FOO));
-    assertEquals(5L, drained.get(Counters.BAR));
+    counters.inc(Counters.FOO);
+    Accumulator.Counts<Counters> second = counters.sum();
+    assertEquals(2L, second.get(Counters.FOO));
   }
 
   @Test
@@ -287,69 +237,5 @@ class AccumulatorTest {
     // neither input was mutated by combining them
     assertEquals(1L, storedTotal.get(Counters.FOO));
     assertEquals(1L, counters.sum().get(Counters.FOO));
-  }
-
-  @Test
-  void typedWrapperDelegatesToEmbeddingSupport() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
-    counters.inc(Counters.FOO);
-    counters.inc(Counters.FOO);
-    counters.add(Counters.BAR, 5L);
-    counters.update(stripe -> stripe.inc(Counters.BAZ));
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(2L, drained.get(Counters.FOO));
-    assertEquals(5L, drained.get(Counters.BAR));
-    assertEquals(1L, drained.get(Counters.BAZ));
-  }
-
-  @Test
-  void contextualUpdatePassesContextInsteadOfCapturingIt() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
-    String context = "abcde";
-
-    counters.update(
-        context,
-        (ctx, stripe) -> {
-          stripe.inc(Counters.FOO);
-          stripe.add(Counters.BAR, ctx.length());
-        });
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(1L, drained.get(Counters.FOO));
-    assertEquals(5L, drained.get(Counters.BAR));
-  }
-
-  @Test
-  void intContextWidensIntoTheLongOverloadWithoutBoxing() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
-    int delta = 5;
-
-    counters.update(
-        delta,
-        (stripe, d) -> {
-          stripe.inc(Counters.FOO);
-          stripe.add(Counters.BAR, d);
-        });
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(1L, drained.get(Counters.FOO));
-    assertEquals(5L, drained.get(Counters.BAR));
-  }
-
-  @Test
-  void longContextualUpdateAvoidsBoxing() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
-
-    counters.update(
-        5L,
-        (stripe, delta) -> {
-          stripe.inc(Counters.FOO);
-          stripe.add(Counters.BAR, delta);
-        });
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(1L, drained.get(Counters.FOO));
-    assertEquals(5L, drained.get(Counters.BAR));
   }
 }
