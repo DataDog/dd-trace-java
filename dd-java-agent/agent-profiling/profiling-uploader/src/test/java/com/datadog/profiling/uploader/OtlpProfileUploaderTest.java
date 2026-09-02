@@ -17,7 +17,6 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -109,7 +108,6 @@ public class OtlpProfileUploaderTest {
     when(configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, ProfilingConfig.OtlpMode.LIGHT))
         .thenReturn(ProfilingConfig.OtlpMode.LIGHT);
-    when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
 
     uploader =
         new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());
@@ -125,7 +123,6 @@ public class OtlpProfileUploaderTest {
   public void testDisabledUploader() throws Exception {
     // Create uploader with OTLP disabled
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
-    when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
 
     OtlpProfileUploader disabledUploader =
         new OtlpProfileUploader(config, configProvider, (int) TERMINATION_TIMEOUT.getSeconds());

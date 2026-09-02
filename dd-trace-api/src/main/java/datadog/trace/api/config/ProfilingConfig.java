@@ -311,8 +311,5 @@ public final class ProfilingConfig {
 
   public static final ProfilingConfig.OtlpMode PROFILING_OTLP_MODE_DEFAULT = OtlpMode.LIGHT;
 
-  public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
-  public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL
-
   private ProfilingConfig() {}
 }

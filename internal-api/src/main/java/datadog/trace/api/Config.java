@@ -536,7 +536,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_RECOR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -2260,21 +2259,16 @@ public class Config {
 
     String otlpProfilesEndpointFromEnvironment = configProvider.getString(OTLP_PROFILES_ENDPOINT);
     if (otlpProfilesEndpointFromEnvironment == null) {
-      // Fall back to deprecated profiling.otlp.url if set
-      otlpProfilesEndpointFromEnvironment = configProvider.getString(PROFILING_OTLP_URL);
-      if (otlpProfilesEndpointFromEnvironment == null) {
-        if (otlpProfilesProtocol == OtlpConfig.Protocol.GRPC) {
-          otlpProfilesEndpointFromEnvironment =
-              "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
-        } else {
-          otlpProfilesEndpointFromEnvironment =
-              "http://"
-                  + agentHost
-                  + ':'
-                  + DEFAULT_OTLP_HTTP_PORT
-                  + '/'
-                  + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
-        }
+      if (otlpProfilesProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpProfilesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+      } else {
+        otlpProfilesEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
       }
     }
     otlpProfilesEndpoint = otlpProfilesEndpointFromEnvironment;
