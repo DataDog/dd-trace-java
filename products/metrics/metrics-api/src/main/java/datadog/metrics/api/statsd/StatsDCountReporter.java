@@ -23,6 +23,6 @@ public final class StatsDCountReporter {
    */
   public static <E extends Enum<E> & StatsDCounterKey> void report(
       StatsDClient statsDClient, Accumulator.Counts<E> counts) {
-    report(statsDClient, counts.values(), counts::get);
+    report(statsDClient, counts.keys(), counts::get);
   }
 }

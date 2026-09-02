@@ -364,7 +364,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public String summary() {
     Accumulator.Counts<TracerHealthMetric> live = storedTotal.plus(metricAccumulator.sum());
     StringBuilder summary = new StringBuilder();
-    for (TracerHealthMetric metric : live.values()) {
+    for (TracerHealthMetric metric : live.keys()) {
       if (!metric.isReportedInSummary()) {
         continue;
       }
