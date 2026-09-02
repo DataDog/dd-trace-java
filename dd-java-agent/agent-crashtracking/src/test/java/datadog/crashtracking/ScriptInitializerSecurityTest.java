@@ -70,6 +70,43 @@ public class ScriptInitializerSecurityTest {
   }
 
   @Test
+  void crashUploaderRepairsPreviouslyGeneratedScriptFile() throws Exception {
+    // Simulate a script file left behind by a pre-upgrade version of the initializer that did not
+    // clear group/world bits: owned by us and executable, but group/world readable (0555).
+    Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
+    Files.createFile(scriptFile);
+    Files.setPosixFilePermissions(scriptFile, PosixFilePermissions.fromString("r-xr-xr-x"));
+
+    assertTrue(
+        CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log"),
+        "Initializer should repair the stale script file instead of refusing it");
+
+    // Repair strips the group/world bits while preserving the owner's own bits
+    assertPermissions(
+        scriptFile, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+
+    // The repaired file must pass validation on the next JVM start as well
+    assertTrue(CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log"));
+  }
+
+  @Test
+  void oomeNotifierRepairsPreviouslyGeneratedScriptFile() throws Exception {
+    Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
+    Files.createFile(scriptFile);
+    Files.setPosixFilePermissions(scriptFile, PosixFilePermissions.fromString("r-xr-xr-x"));
+
+    assertTrue(
+        OOMENotifierScriptInitializer.initialize(scriptFile + " %p"),
+        "Initializer should repair the stale script file instead of refusing it");
+
+    assertPermissions(
+        scriptFile, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+
+    // The repaired file must pass validation on the next JVM start as well
+    assertTrue(OOMENotifierScriptInitializer.initialize(scriptFile + " %p"));
+  }
+
+  @Test
   void crashUploaderHijackedScriptIsRefused() throws Exception {
     Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
     // Plant an attacker-writable script
@@ -190,9 +227,9 @@ public class ScriptInitializerSecurityTest {
     CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log");
 
     // The script is created with FileOutputStream, so its initial mode is subject to the
-    // process umask (e.g. 0644 under a typical 0022 umask). The clear-then-set-owner-only
-    // sequence must strip any inherited group/other bits, not just overlay owner bits on top
-    // of them, otherwise a later JVM start rejects the script via isOwnedAndPrivate().
+    // process umask (e.g. 0644 under a typical 0022 umask). The owner-only restriction must strip
+    // any inherited group/other bits, not just overlay owner bits on top of them, otherwise a
+    // later JVM start refuses the script as untrusted.
     assertPermissions(
         scriptFile, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
   }
