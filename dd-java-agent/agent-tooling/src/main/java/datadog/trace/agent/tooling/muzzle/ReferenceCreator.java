@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.Constants;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,10 +40,9 @@ public final class ReferenceCreator {
     this.shader = shader;
   }
 
-  static List<Reference> createReferences(
-      AdviceScanResult scanResult, Collection<String> sourceClasses, AdviceShader shader) {
+  static List<Reference> createReferences(AdviceScanResult scanResult, AdviceShader shader) {
     ReferenceCreator creator = new ReferenceCreator(scanResult, shader);
-    creator.sources.addAll(sourceClasses);
+    creator.sources.addAll(scanResult.getAdviceRoots());
     creator.createReferences();
     return new ArrayList<>(creator.references.values());
   }

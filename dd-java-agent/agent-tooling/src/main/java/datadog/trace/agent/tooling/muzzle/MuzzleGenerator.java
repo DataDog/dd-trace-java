@@ -14,7 +14,7 @@ import net.bytebuddy.jar.asm.Type;
 final class MuzzleGenerator {
   private MuzzleGenerator() {}
 
-  static File generate(
+  static void generate(
       File targetDirectory, InstrumenterModule module, List<Reference> references) {
     File muzzleClass =
         new File(targetDirectory, Type.getInternalName(module.getClass()) + "$Muzzle.class");
@@ -25,7 +25,6 @@ final class MuzzleGenerator {
       throw new IllegalStateException(
           "Cannot write muzzle class for " + module.getClass().getName(), error);
     }
-    return muzzleClass;
   }
 
   private static byte[] generateMuzzleClass(InstrumenterModule module, List<Reference> references) {

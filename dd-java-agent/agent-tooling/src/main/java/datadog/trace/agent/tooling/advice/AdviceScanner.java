@@ -238,6 +238,29 @@ public final class AdviceScanner {
     return type;
   }
 
+  private static Usage usage(
+      MutableClassInfo info,
+      UsageKind kind,
+      int line,
+      int opcode,
+      String owner,
+      String name,
+      String descriptor,
+      boolean interfaceOwner,
+      boolean implementedInterface,
+      List<HandleUse> handles) {
+    return new Usage(
+        kind,
+        new SourceLocation(info.className, line),
+        opcode,
+        owner,
+        name,
+        descriptor,
+        interfaceOwner,
+        implementedInterface,
+        handles);
+  }
+
   private final class ScanningVisitor extends ClassVisitor {
     private final MutableClassInfo info;
 
@@ -260,6 +283,7 @@ public final class AdviceScanner {
           addDependency(info, binaryInterface);
           info.usages.add(
               usage(
+                  info,
                   UsageKind.TYPE,
                   UNDEFINED_LINE,
                   -1,
@@ -277,28 +301,6 @@ public final class AdviceScanner {
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       return new ScanningMethodVisitor(info);
-    }
-
-    private Usage usage(
-        UsageKind kind,
-        int line,
-        int opcode,
-        String owner,
-        String name,
-        String descriptor,
-        boolean interfaceOwner,
-        boolean implementedInterface,
-        List<HandleUse> handles) {
-      return new Usage(
-          kind,
-          new SourceLocation(info.className, line),
-          opcode,
-          owner,
-          name,
-          descriptor,
-          interfaceOwner,
-          implementedInterface,
-          handles);
     }
   }
 
@@ -422,16 +424,8 @@ public final class AdviceScanner {
         String descriptor,
         boolean interfaceOwner,
         List<HandleUse> handles) {
-      return new Usage(
-          kind,
-          new SourceLocation(info.className, line),
-          opcode,
-          owner,
-          name,
-          descriptor,
-          interfaceOwner,
-          false,
-          handles);
+      return AdviceScanner.usage(
+          info, kind, line, opcode, owner, name, descriptor, interfaceOwner, false, handles);
     }
   }
 

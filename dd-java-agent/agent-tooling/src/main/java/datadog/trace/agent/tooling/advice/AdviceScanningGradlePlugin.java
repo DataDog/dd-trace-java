@@ -55,11 +55,11 @@ public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
     }
 
     AdviceScanResult scanResult = AdviceScanner.scan(module);
-    AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory, builder);
+    AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory);
     for (AdviceProcessor<?> processor : processors) {
       runProcessor(processor, scanResult, context);
     }
-    return context.getBuilder();
+    return builder;
   }
 
   private static <T> void runProcessor(

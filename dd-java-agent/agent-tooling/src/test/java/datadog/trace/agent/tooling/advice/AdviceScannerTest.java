@@ -13,7 +13,6 @@ import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceRoot;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.Dependency;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
 import datadog.trace.instrumentation.testing.ExternalHelper;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -23,8 +22,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class AdviceScannerTest {
   @Test
-  void scansNeutralUsesAndAdditionalClasses() throws Exception {
-    AdviceScanResult result = scan(new ScanModule());
+  void scansNeutralUsesAndAdditionalClasses() {
+    AdviceScanResult result = AdviceScanner.scan(new ScanModule());
 
     assertEquals(
         Arrays.asList(AdviceRoot.class.getName(), AdditionalAdvice.class.getName()),
@@ -53,9 +52,9 @@ class AdviceScannerTest {
   }
 
   @Test
-  void producesDeterministicResults() throws Exception {
-    AdviceScanResult first = scan(new ScanModule());
-    AdviceScanResult second = scan(new ScanModule());
+  void producesDeterministicResults() {
+    AdviceScanResult first = AdviceScanner.scan(new ScanModule());
+    AdviceScanResult second = AdviceScanner.scan(new ScanModule());
 
     assertEquals(first.getClasses().keySet(), second.getClasses().keySet());
     assertEquals(first.getAdviceRoots(), second.getAdviceRoots());
@@ -74,15 +73,6 @@ class AdviceScannerTest {
     assertTrue(helper.isScanned());
     assertTrue(hasUsage(helper, UsageKind.METHOD, "getClassName"));
     assertFalse(result.getClassInfo(Type.class.getName()).isScanned());
-  }
-
-  private static AdviceScanResult scan(ScanModule module) throws Exception {
-    return AdviceScanner.scan(module, classesRoot(), AdviceScannerTest.class.getClassLoader());
-  }
-
-  private static File classesRoot() throws Exception {
-    return new File(
-        AdviceScannerTest.class.getProtectionDomain().getCodeSource().getLocation().toURI());
   }
 
   private static boolean hasUsage(ClassInfo info, UsageKind kind, String name) {

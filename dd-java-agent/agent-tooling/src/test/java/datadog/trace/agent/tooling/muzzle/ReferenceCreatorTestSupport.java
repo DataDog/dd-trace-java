@@ -4,8 +4,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanResult;
 import datadog.trace.agent.tooling.advice.AdviceScanner;
+import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 public final class ReferenceCreatorTestSupport {
@@ -13,8 +13,10 @@ public final class ReferenceCreatorTestSupport {
 
   public static Map<String, Reference> referencesFrom(Class<?> adviceClass) {
     AdviceScanResult scanResult = AdviceScanner.scan(new AdviceModule(adviceClass.getName()));
-    List<Reference> references =
-        ReferenceCreator.createReferences(scanResult, scanResult.getAdviceRoots(), null);
+    return byName(ReferenceCreator.createReferences(scanResult, null));
+  }
+
+  static Map<String, Reference> byName(Collection<Reference> references) {
     Map<String, Reference> referencesByName = new LinkedHashMap<>();
     for (Reference reference : references) {
       referencesByName.put(reference.className, reference);
