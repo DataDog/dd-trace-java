@@ -24,7 +24,8 @@ class AccumulatorTest {
   @Test
   void freshAccumulatorSumsToZero() {
     long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     for (Counters c : Counters.values()) {
       assertEquals(0L, drained[c.ordinal()]);
     }
@@ -37,7 +38,8 @@ class AccumulatorTest {
     Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
     Accumulator.EmbeddingSupport.inc(data, Counters.BAR);
 
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals(2L, drained[Counters.FOO.ordinal()]);
     assertEquals(1L, drained[Counters.BAR.ordinal()]);
     assertEquals(0L, drained[Counters.BAZ.ordinal()]);
@@ -49,7 +51,8 @@ class AccumulatorTest {
     Accumulator.EmbeddingSupport.add(data, Counters.BAZ, 41L);
     Accumulator.EmbeddingSupport.add(data, Counters.BAZ, 1L);
 
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals(42L, drained[Counters.BAZ.ordinal()]);
   }
 
@@ -64,7 +67,8 @@ class AccumulatorTest {
           Accumulator.EmbeddingSupport.add(stripe, Counters.BAR, 5L);
         });
 
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals(2L, drained[Counters.FOO.ordinal()]);
     assertEquals(5L, drained[Counters.BAR.ordinal()]);
   }
@@ -74,21 +78,22 @@ class AccumulatorTest {
     long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
     Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
 
-    long[] first = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] first = Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals(1L, first[Counters.FOO.ordinal()]);
 
-    long[] second = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] second = Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     for (Counters c : Counters.values()) {
       assertEquals(0L, second[c.ordinal()]);
     }
   }
 
   @Test
-  void drainedRowsAreAllTheSameLength() {
+  void drainedArrayIsExactlyWidthLong() {
     long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
-    assertEquals(data[0].length, drained.length);
-    assertTrue(drained.length >= Counters.values().length);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
+    assertEquals(Counters.values().length, drained.length);
+    assertTrue(drained.length < data[0].length, "drained array should exclude stripe padding");
   }
 
   @Test
@@ -122,7 +127,8 @@ class AccumulatorTest {
       pool.shutdown();
     }
 
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals((long) threadCount * incrementsPerThread, drained[Counters.FOO.ordinal()]);
   }
 
@@ -143,7 +149,9 @@ class AccumulatorTest {
           pool.submit(
               () -> {
                 while (!stop.get()) {
-                  long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+                  long[] drained =
+                      Accumulator.EmbeddingSupport.accumulateAndReset(
+                          data, Counters.values().length);
                   synchronized (runningTotal) {
                     runningTotal[0] += drained[Counters.FOO.ordinal()];
                   }
@@ -164,7 +172,8 @@ class AccumulatorTest {
       stop.set(true);
       drainer.get(30, TimeUnit.SECONDS);
 
-      long[] finalDrain = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+      long[] finalDrain =
+          Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
       synchronized (runningTotal) {
         runningTotal[0] += finalDrain[Counters.FOO.ordinal()];
       }
@@ -180,15 +189,16 @@ class AccumulatorTest {
     long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
     Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
 
-    long[] first = Accumulator.EmbeddingSupport.sum(data);
+    long[] first = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
     assertEquals(1L, first[Counters.FOO.ordinal()]);
 
     // sum() didn't reset anything, so a second sum() sees the same total
-    long[] second = Accumulator.EmbeddingSupport.sum(data);
+    long[] second = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
     assertEquals(1L, second[Counters.FOO.ordinal()]);
 
     // and a real drain afterwards still sees the value sum() didn't consume
-    long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data);
+    long[] drained =
+        Accumulator.EmbeddingSupport.accumulateAndReset(data, Counters.values().length);
     assertEquals(1L, drained[Counters.FOO.ordinal()]);
   }
 
@@ -196,10 +206,10 @@ class AccumulatorTest {
   void sumReflectsIncrementsMadeAfterAnEarlierSum() {
     long[][] data = Accumulator.EmbeddingSupport.create(Counters.values());
     Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    Accumulator.EmbeddingSupport.sum(data);
+    Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
 
     Accumulator.EmbeddingSupport.inc(data, Counters.FOO);
-    long[] second = Accumulator.EmbeddingSupport.sum(data);
+    long[] second = Accumulator.EmbeddingSupport.sum(data, Counters.values().length);
     assertEquals(2L, second[Counters.FOO.ordinal()]);
   }
 

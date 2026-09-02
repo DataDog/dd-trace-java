@@ -233,7 +233,8 @@ public class AccumulatorBenchmark {
   @Threads(1)
   public void accumulatorAccumulateAndReset_lowContention(Blackhole blackhole) {
     Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
+    blackhole.consume(
+        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
   }
 
   /**
@@ -248,7 +249,8 @@ public class AccumulatorBenchmark {
   @Threads(Threads.MAX)
   public void accumulatorAccumulateAndReset_highContention(Blackhole blackhole) {
     Accumulator.EmbeddingSupport.inc(accumulator, Counter.HITS);
-    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
+    blackhole.consume(
+        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
   }
 
   /**
@@ -271,7 +273,8 @@ public class AccumulatorBenchmark {
   @Group("accumulatorMixed")
   @GroupThreads(1)
   public void accumulatorMixed_drain(Blackhole blackhole) {
-    blackhole.consume(Accumulator.EmbeddingSupport.accumulateAndReset(accumulator));
+    blackhole.consume(
+        Accumulator.EmbeddingSupport.accumulateAndReset(accumulator, Counter.values().length));
   }
 
   /**

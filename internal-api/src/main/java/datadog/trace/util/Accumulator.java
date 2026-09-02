@@ -169,7 +169,7 @@ public final class Accumulator<E extends Enum<E>> {
    * @see EmbeddingSupport#accumulateAndReset
    */
   public Counts<E> accumulateAndReset() {
-    return new Counts<>(EmbeddingSupport.accumulateAndReset(data), values);
+    return new Counts<>(EmbeddingSupport.accumulateAndReset(data, values.length), values);
   }
 
   /**
@@ -178,10 +178,10 @@ public final class Accumulator<E extends Enum<E>> {
    * the delta a concurrent {@link #accumulateAndReset} on a reporting cadence is about to report.
    *
    * @return the sum, keyed by the enum's {@code ordinal()}
-   * @see EmbeddingSupport#sum(long[][])
+   * @see EmbeddingSupport#sum(long[][], int)
    */
   public Counts<E> sum() {
-    return new Counts<>(EmbeddingSupport.sum(data), values);
+    return new Counts<>(EmbeddingSupport.sum(data, values.length), values);
   }
 
   /**
@@ -285,7 +285,8 @@ public final class Accumulator<E extends Enum<E>> {
    *   Accumulator.EmbeddingSupport.inc(stripe, MyCounters.BAR);
    * });
    *
-   * long[] drained = Accumulator.EmbeddingSupport.accumulateAndReset(data); // per stripe
+   * long[] drained =
+   *     Accumulator.EmbeddingSupport.accumulateAndReset(data, MyCounters.values().length);
    * long foo = drained[MyCounters.FOO.ordinal()];
    * }</pre>
    */
@@ -383,15 +384,20 @@ public final class Accumulator<E extends Enum<E>> {
      * {@link #inc}/{@link #add}/{@link #update} -- so no writer can land an increment in the gap
      * between summing and zeroing the way {@code LongAdder#sumThenReset()} allows.
      *
-     * @return a new array the same length as one stripe's row, indexed by the enum's {@code
-     *     ordinal()} for the positions actually in use (trailing padding positions are always zero)
+     * <p>Only the first {@code width} positions of each stripe are read or written -- the trailing
+     * cache line {@link #paddedWidth} reserves past that point is never touched again after {@link
+     * #create} zero-initializes it, so it stays a genuinely dead buffer between adjacent stripe
+     * rows instead of being read-and-rewritten (dirtying that cache line) on every drain.
+     *
+     * @param width the number of counters actually in use, e.g. {@code values.length}
+     * @return a new array of length {@code width}, indexed by the enum's {@code ordinal()}
      */
-    public static long[] accumulateAndReset(long[][] data) {
-      long[] acc = new long[data[0].length];
+    public static long[] accumulateAndReset(long[][] data, int width) {
+      long[] acc = new long[width];
       for (long[] stripe : data) {
         synchronized (stripe) {
-          combine(acc, stripe);
-          reset(stripe);
+          combine(acc, stripe, width);
+          reset(stripe, width);
         }
       }
       return acc;
@@ -402,34 +408,38 @@ public final class Accumulator<E extends Enum<E>> {
      * snapshot for a diagnostic read that must not perturb the delta a concurrent {@link
      * #accumulateAndReset} on a reporting cadence is about to report.
      *
-     * @return a new array the same length as one stripe's row, indexed by the enum's {@code
-     *     ordinal()} for the positions actually in use (trailing padding positions are always zero)
-     * @see #accumulateAndReset(long[][])
+     * @param width the number of counters actually in use, e.g. {@code values.length}
+     * @return a new array of length {@code width}, indexed by the enum's {@code ordinal()}
+     * @see #accumulateAndReset(long[][], int)
      */
-    public static long[] sum(long[][] data) {
-      long[] acc = new long[data[0].length];
+    public static long[] sum(long[][] data, int width) {
+      long[] acc = new long[width];
       for (long[] stripe : data) {
         synchronized (stripe) {
-          combine(acc, stripe);
+          combine(acc, stripe, width);
         }
       }
       return acc;
     }
 
     /**
-     * {@code acc[i] += stripe[i]} for every index -- a fixed-trip-count loop C2 can auto-vectorize.
+     * {@code acc[i] += stripe[i]} for {@code i} in {@code [0, width)} -- a fixed-trip-count loop C2
+     * can auto-vectorize.
      */
     @GuardedBy("stripe")
-    private static void combine(long[] acc, long[] stripe) {
-      for (int i = 0; i < acc.length; i++) {
+    private static void combine(long[] acc, long[] stripe, int width) {
+      for (int i = 0; i < width; i++) {
         acc[i] += stripe[i];
       }
     }
 
-    /** Zeroes every position of {@code stripe}, via the JVM-intrinsic {@link Arrays#fill}. */
+    /**
+     * Zeroes {@code stripe}'s first {@code width} positions, via the JVM-intrinsic {@link
+     * Arrays#fill}. Deliberately stops at {@code width}, leaving the trailing padding untouched.
+     */
     @GuardedBy("stripe")
-    private static void reset(long[] stripe) {
-      Arrays.fill(stripe, 0L);
+    private static void reset(long[] stripe, int width) {
+      Arrays.fill(stripe, 0, width, 0L);
     }
 
     /**
