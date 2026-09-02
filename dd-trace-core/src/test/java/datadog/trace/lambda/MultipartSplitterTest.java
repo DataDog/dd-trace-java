@@ -109,6 +109,9 @@ class MultipartSplitterTest {
         // a truncated body still yields its last part
         "truncated last delimiter  | --x@A: b@@v                | 1",
         "truncated in the headers  | --x@A: b                   | 0",
+        // A part truncated inside its headers voids the parts before it too: its own headers are
+        // content the WAF would otherwise never see
+        "truncated after a part    | --x@@v@--x@A: b            | 0",
         "no line break at all      | --x                        | 0",
         "close delimiter only      | --x--                      | 0",
         "empty part content        | --x@A: b@@                 | 1",
@@ -143,9 +146,10 @@ class MultipartSplitterTest {
   @Test
   void delimitsContentExactly() {
     // Dashes, line breaks, a replacement character and a multi-byte character all inside the
-    // content, plus a line that starts with the delimiter without being one: the reported range
-    // must not be thrown off by a near miss on the line-feed anchor or on the delimiter itself
-    String content = "--not-a-boundary\r\n--x-not-a-boundary\r\n-x\nlast�é";
+    // content, plus lines that start with the part and close delimiters without being either: the
+    // reported range must not be thrown off by a near miss on the line-feed anchor, on the
+    // delimiter itself, or on its trailing dashes
+    String content = "--not-a-boundary\r\n--x-not-a-boundary\r\n--x--not-a-close\r\n-x\nlast�é";
     String body =
         "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n" + content + "\r\n--x--\r\n";
 

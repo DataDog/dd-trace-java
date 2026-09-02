@@ -102,8 +102,10 @@ final class MultipartSplitter {
         cursor = newline + 1;
       }
       if (!headersComplete) {
-        // Body truncated inside the headers: there is no content to report
-        break;
+        // The body ended inside this part's headers. They are content in their own right — a
+        // filename lives there — and no parser accepts a body cut short like this, so report
+        // nothing and let the caller keep the raw string.
+        return Collections.emptyList();
       }
       final int next = nextDelimiter(body, delimiter, cursor);
       parts.add(new Part(contentDisposition, contentType, cursor, contentEnd(body, cursor, next)));
@@ -239,14 +241,16 @@ final class MultipartSplitter {
   }
 
   /**
-   * A delimiter only delimits if its line ends there, RFC 2046 transport padding aside. A content
-   * line that merely starts with it — {@code --x-not-a-boundary} for a boundary of {@code x} — is
-   * data, and must not end the part early and hide the rest from the WAF.
+   * A delimiter only delimits if its line ends there, RFC 2046 transport padding aside — for the
+   * close delimiter, past its trailing {@code --}. A content line that merely starts with one, be
+   * it {@code --x-not-a-boundary} or {@code --x--not-a-close}, is data, and must not end the part
+   * early and hide the rest from the WAF.
    *
    * @param after the index just past the matched delimiter
    */
   private static boolean endsLine(final String body, final int after) {
-    return after == body.length() || body.startsWith("--", after) || lineStart(body, after) >= 0;
+    final int end = body.startsWith("--", after) ? after + 2 : after;
+    return end == body.length() || lineStart(body, end) >= 0;
   }
 
   /**
