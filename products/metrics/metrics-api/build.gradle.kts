@@ -7,4 +7,6 @@ description = "Metrics API"
 
 dependencies {
   implementation(libs.slf4j)
+
+  testImplementation(libs.bundles.junit5)
 }
