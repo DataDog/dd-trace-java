@@ -1,0 +1,63 @@
+# Tag id assignment.  tags=47
+
+# TAGS     serial lvl id                 required     name
+       1   T  0x0001000000000004 recommended  _dd.appsec.enabled
+       2   T  0x0002000000000004 required     _dd.base_service
+       3   T  0x0003000000000004 recommended  _dd.civisibility.enabled
+       4   T  0x0004000000000004 recommended  _dd.djm.enabled
+       5   T  0x0005000000000004 recommended  _dd.dsm.enabled
+       6   T  0x0006000000000004 recommended  _dd.git.commit.sha
+       7   T  0x0007000000000004 recommended  _dd.git.repository_url
+       8   -  0x0008000000000000 recommended  _dd.integration
+       9   -  0x0009000000000000 required     _dd.parent_id
+      10   -  0x000A000000000000 recommended  _dd.peer.service.remapped_from
+      11   -  0x000B000000000000 recommended  _dd.peer.service.source
+      12   T  0x000C000000000004 recommended  _dd.profiling.enabled
+      13   -  0x000D000000000000 optional     _dd.svc_src
+      14   T  0x000E000000000004 recommended  _dd.tracer_host
+      15   -  0x000F000000000000 required     component
+      16   -  0x0010000000000000 recommended  db.instance
+      17   -  0x0011000000000000 recommended  db.operation
+      18   -  0x0012000000000000 optional     db.pool.name
+      19   -  0x0013000000000000 recommended  db.statement
+      20   -  0x0014000000000000 required     db.type
+      21   -  0x0015000000000000 recommended  db.user
+      22   T  0x0016000000000004 recommended  env
+      23   -  0x0017000000000000 recommended  error.message
+      24   -  0x0018000000000000 recommended  error.stack
+      25   -  0x0019000000000000 recommended  error.type
+      26   -  0x001A000000000000 required     http.hostname
+      27   -  0x001B000000000000 required     http.method
+      28   -  0x001C000000000000 recommended  http.query.string
+      29   -  0x001D000000000000 recommended  http.resend_count
+      30   -  0x001E000000000000 conditional  http.route
+      31   -  0x001F000000000000 conditional  http.status_code
+      32   -  0x0020000000000000 required     http.url
+      33   -  0x0021000000000000 recommended  http.useragent
+      34   T  0x0022000000000004 required     language
+      35   -  0x0023000000000000 recommended  network.protocol.version
+      36   -  0x0024000000000000 recommended  peer.hostname
+      37   -  0x0025000000000000 optional     peer.ipv4
+      38   -  0x0026000000000000 optional     peer.ipv6
+      39   -  0x0027000000000000 optional     peer.port
+      40   -  0x0028000000000000 recommended  peer.service
+      41   T  0x0029000000000004 required     runtime-id
+      42   -  0x002A000000000000 required     service
+      43   -  0x002B000000000000 optional     servlet.context
+      44   -  0x002C000000000000 optional     servlet.path
+      45   -  0x002D000000000000 required     span.kind
+      46   T  0x002E000000000004 recommended  version
+      47   -  0x002F000000000000 recommended  view.name
+
+# OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still
+# returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)
+  db.operation.name              -> db.operation
+  db.query.text                  -> db.statement
+  db.system                      -> db.type
+  http.request.method            -> http.method
+  http.response.status_code      -> http.status_code
+  server.address                 -> http.hostname
+  service.name                   -> service
+  url.full                       -> http.url
+  url.query                      -> http.query.string
+  user_agent.original            -> http.useragent

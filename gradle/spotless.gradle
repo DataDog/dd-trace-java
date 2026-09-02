@@ -50,7 +50,8 @@ spotless {
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
-      targetExclude('src/test/resources/**', buildDirectory)
+      // src/generated/** is emitted by code generators (e.g. the tag registry) — verified by their own freshness gate
+      targetExclude('src/test/resources/**', 'src/generated/**', buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
