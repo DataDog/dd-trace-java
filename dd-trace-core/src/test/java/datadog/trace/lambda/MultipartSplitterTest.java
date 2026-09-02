@@ -160,21 +160,14 @@ class MultipartSplitterTest {
   }
 
   @Test
-  void confinesAPartWhoseHeadersRunIntoTheNextDelimiter() {
-    // The first part's headers are not followed by a blank line. Reading past the delimiter would
-    // merge the following part's headers into this one, so a well-formed field part would be
-    // reported as the malformed part's own — and skipped entirely if it carried a filename.
+  void reportsNothingForAPartWhoseHeadersRunIntoTheNextDelimiter() {
+    // The first part's headers are not followed by a blank line, which no conforming parser
+    // accepts. Reporting the second part alone would show the WAF less than the app receives.
     String body =
         "--x\r\nX-First: 1\r\n"
             + "--x\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\nsecond\r\n--x--";
 
-    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
-
-    // The surviving part is the second one: had the two merged, its content would have swallowed
-    // the delimiter between them.
-    assertEquals(1, parts.size());
-    assertEquals("form-data; name=\"b\"", parts.get(0).contentDisposition);
-    assertEquals("second", content(body, parts.get(0)));
+    assertTrue(split(body, "x", NO_PART_BUDGET_LIMIT).isEmpty());
   }
 
   @Test

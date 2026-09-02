@@ -1,6 +1,7 @@
 package datadog.trace.lambda;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -39,7 +40,8 @@ final class MultipartSplitter {
   /**
    * Splits a multipart body into at most {@code partBudget} parts.
    *
-   * @return the parts found, in order; empty if the body holds none
+   * @return the parts found, in order; empty if the body holds none or is not parseable as
+   *     multipart
    */
   static List<Part> split(final String body, final String boundary, final int partBudget) {
     final List<Part> parts = new ArrayList<>();
@@ -68,14 +70,12 @@ final class MultipartSplitter {
       String contentType = null;
       int cursor = headerStart;
       boolean headersComplete = false;
-      int malformedPartEnd = -1;
       while (cursor < length) {
         if (body.startsWith(delimiter, cursor) && endsLine(body, cursor + delimiter.length())) {
-          // This part's headers are not followed by a blank line. Stop here: reading on would
-          // consume the next part's delimiter and merge its headers into this part, collapsing
-          // every following part into this one.
-          malformedPartEnd = cursor;
-          break;
+          // This part's headers are not followed by a blank line, so no conforming parser reads
+          // this body as multipart. Report nothing rather than the parts that happen to survive:
+          // the caller then keeps the raw string, and the WAF sees every byte of it.
+          return Collections.emptyList();
         }
         final int newline = body.indexOf('\n', cursor);
         final int lineEnd = newline < 0 ? length : newline;
@@ -100,12 +100,6 @@ final class MultipartSplitter {
           break;
         }
         cursor = newline + 1;
-      }
-      if (malformedPartEnd >= 0) {
-        // Resume at the delimiter the headers ran into. It is past the current position, so the
-        // outer scan still makes progress.
-        position = malformedPartEnd;
-        continue;
       }
       if (!headersComplete) {
         // Body truncated inside the headers: there is no content to report
