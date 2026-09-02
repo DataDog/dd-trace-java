@@ -169,6 +169,29 @@ class KnownTagsTest {
     assertNull(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(9999))); // serial with no assigned tag
   }
 
+  /**
+   * A mixin declares tags for the span types its {@code applies:} names. {@code ci_visibility}
+   * applies to {@code test}, which the conventions do not model yet -- so these tags belong to no
+   * concrete type's resolved set. They must still be registered: an id is identity, and identity
+   * does not depend on layout. Building the registry by resolving concrete types instead dropped
+   * all four silently, leaving keyOf to report live CI Visibility tags as unknown.
+   */
+  @ParameterizedTest
+  @MethodSource("declarationOnlyMixinTags")
+  void mixinTagsAreRegisteredEvenWhenTheirSpanTypeIsNotModeled(String name, long id) {
+    assertEquals(id, KnownTagCodec.keyOf(name), "keyOf(" + name + ")");
+    assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(" + name + ")");
+  }
+
+  /** Tags reachable only through a mixin whose {@code applies:} target is not modeled. */
+  static Stream<Arguments> declarationOnlyMixinTags() {
+    return Stream.of(
+        Arguments.of(KnownTags.TEST_NAME, KnownTags.TEST_NAME_ID),
+        Arguments.of(KnownTags.TEST_SUITE_NAME, KnownTags.TEST_SUITE_ID),
+        Arguments.of(KnownTags.TEST_STATUS_NAME, KnownTags.TEST_STATUS_ID),
+        Arguments.of(KnownTags.TEST_FRAMEWORK_NAME, KnownTags.TEST_FRAMEWORK_ID));
+  }
+
   @Test
   void globalSerialsAreUnique() {
     List<Long> serials = new ArrayList<>();

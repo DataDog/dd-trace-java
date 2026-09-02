@@ -47,7 +47,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
-        conv.allStoredTags().sortedBy { it.name }.mapIndexed { i, t ->
+        conv.allDeclaredTags().sortedBy { it.name }.mapIndexed { i, t ->
           val serial = FIRST_SERIAL + i
           val traceLevel = t.name in traceNames
           Tag(

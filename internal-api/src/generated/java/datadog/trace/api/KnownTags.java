@@ -187,13 +187,29 @@ public final class KnownTags {
   public static final long SPAN_KIND_ID = 0x002D000000000000L;
   // makeTagId(serial=45)  <required>
 
+  public static final String TEST_FRAMEWORK_NAME = "test.framework";
+  public static final long TEST_FRAMEWORK_ID = 0x002E000000000000L;
+  // makeTagId(serial=46)  <recommended>
+
+  public static final String TEST_NAME = "test.name";
+  public static final long TEST_NAME_ID = 0x002F000000000000L;
+  // makeTagId(serial=47)  <recommended>
+
+  public static final String TEST_STATUS_NAME = "test.status";
+  public static final long TEST_STATUS_ID = 0x0030000000000000L;
+  // makeTagId(serial=48)  <recommended>
+
+  public static final String TEST_SUITE_NAME = "test.suite";
+  public static final long TEST_SUITE_ID = 0x0031000000000000L;
+  // makeTagId(serial=49)  <recommended>
+
   public static final String VERSION_NAME = "version";
-  public static final long VERSION_ID = 0x002E000000000004L;
-  // makeTagId(serial=46) + trace-level  <recommended>
+  public static final long VERSION_ID = 0x0032000000000004L;
+  // makeTagId(serial=50) + trace-level  <recommended>
 
   public static final String VIEW_NAME = "view.name";
-  public static final long VIEW_NAME_ID = 0x002F000000000000L;
-  // makeTagId(serial=47)  <recommended>
+  public static final long VIEW_NAME_ID = 0x0033000000000000L;
+  // makeTagId(serial=51)  <recommended>
 
   // ---- serial numbers ----
   static final int DD_APPSEC_ENABLED_SERIAL_NUM = 1;
@@ -241,8 +257,12 @@ public final class KnownTags {
   static final int SERVLET_CONTEXT_SERIAL_NUM = 43;
   static final int SERVLET_PATH_SERIAL_NUM = 44;
   static final int SPAN_KIND_SERIAL_NUM = 45;
-  static final int VERSION_SERIAL_NUM = 46;
-  static final int VIEW_NAME_SERIAL_NUM = 47;
+  static final int TEST_FRAMEWORK_SERIAL_NUM = 46;
+  static final int TEST_NAME_SERIAL_NUM = 47;
+  static final int TEST_STATUS_SERIAL_NUM = 48;
+  static final int TEST_SUITE_SERIAL_NUM = 49;
+  static final int VERSION_SERIAL_NUM = 50;
+  static final int VIEW_NAME_SERIAL_NUM = 51;
 
   private static final String[] KEYOF_NAMES = {
     DD_APPSEC_ENABLED_NAME,
@@ -290,6 +310,10 @@ public final class KnownTags {
     SERVLET_CONTEXT_NAME,
     SERVLET_PATH_NAME,
     SPAN_KIND_NAME,
+    TEST_FRAMEWORK_NAME,
+    TEST_NAME,
+    TEST_STATUS_NAME,
+    TEST_SUITE_NAME,
     VERSION_NAME,
     VIEW_NAME,
     "db.operation.name",
@@ -349,6 +373,10 @@ public final class KnownTags {
     SERVLET_CONTEXT_ID,
     SERVLET_PATH_ID,
     SPAN_KIND_ID,
+    TEST_FRAMEWORK_ID,
+    TEST_NAME_ID,
+    TEST_STATUS_ID,
+    TEST_SUITE_ID,
     VERSION_ID,
     VIEW_NAME_ID,
     DB_OPERATION_ID,
@@ -478,6 +506,14 @@ public final class KnownTags {
               return SERVLET_PATH_NAME;
             case SPAN_KIND_SERIAL_NUM:
               return SPAN_KIND_NAME;
+            case TEST_FRAMEWORK_SERIAL_NUM:
+              return TEST_FRAMEWORK_NAME;
+            case TEST_NAME_SERIAL_NUM:
+              return TEST_NAME;
+            case TEST_STATUS_SERIAL_NUM:
+              return TEST_STATUS_NAME;
+            case TEST_SUITE_SERIAL_NUM:
+              return TEST_SUITE_NAME;
             case VERSION_SERIAL_NUM:
               return VERSION_NAME;
             case VIEW_NAME_SERIAL_NUM:

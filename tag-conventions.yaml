@@ -128,7 +128,9 @@ mixins:
 
   # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
   # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
-  # per-span tags). Applies to the `test` span type (not modeled here yet).
+  # per-span tags). Applies to the `test` span type, which is not modeled here yet — so these tags
+  # get ids (identity does not depend on layout) but contribute to no type's resolved set until it
+  # is. The generator reports that gap in resolved-tags.txt.
   ci_visibility:
     enabled_by: dd.civisibility.enabled
     applies: [ test ]

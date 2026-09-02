@@ -1,4 +1,9 @@
 # Resolved per-type tag sets (concrete span types).
+#
+# LAYOUT GAP: these mixins apply to span types not modeled here, so they
+# contribute to no resolved set below. Their tags ARE registered (an id is
+# identity, not layout) -- they simply occupy no per-type slot yet.
+#   ci_visibility -> test
 
 db.client  (22 tags):
   - _dd.parent_id

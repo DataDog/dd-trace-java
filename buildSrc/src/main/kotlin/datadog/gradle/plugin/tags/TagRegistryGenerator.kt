@@ -43,6 +43,16 @@ object TagRegistryGenerator {
   private fun resolvedReport(conv: TagConventions): String {
     val resolved = StringBuilder()
     resolved.appendLine("# Resolved per-type tag sets (concrete span types).")
+    val unmodeled = conv.unmodeledAppliesTargets()
+    if (unmodeled.isNotEmpty()) {
+      resolved.appendLine("#")
+      resolved.appendLine("# LAYOUT GAP: these mixins apply to span types not modeled here, so they")
+      resolved.appendLine("# contribute to no resolved set below. Their tags ARE registered (an id is")
+      resolved.appendLine("# identity, not layout) -- they simply occupy no per-type slot yet.")
+      for ((mixin, missing) in unmodeled) {
+        resolved.appendLine("#   $mixin -> ${missing.joinToString(", ")}")
+      }
+    }
     for (type in conv.concreteTypes()) {
       val tags = conv.resolve(type)
       resolved.appendLine()

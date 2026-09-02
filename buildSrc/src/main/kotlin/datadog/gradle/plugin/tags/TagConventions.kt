@@ -100,13 +100,34 @@ private constructor(
     return groups
   }
 
-  /** Full stored-tag universe (concrete span types' resolves + trace-level), de-duped by name. */
-  fun allStoredTags(): List<Tag> {
+  /**
+   * Every tag DECLARED in the conventions -- trace-level, span types (abstract included) and every
+   * mixin -- de-duped by name. Sourced from [declarationGroups] rather than from resolving concrete
+   * span types, because an id is identity and identity does not depend on layout: a tag declared by
+   * a mixin whose `applies:` target is not modeled yet still gets an id. Resolving instead would
+   * drop such a declaration silently, which is how the ci_visibility tags went missing.
+   */
+  fun allDeclaredTags(): List<Tag> {
     val union = LinkedHashMap<String, Tag>()
-    for (type in concreteTypes()) for (t in resolve(type)) union.putIfAbsent(t.name, t)
-    for (t in traceLevel) union.putIfAbsent(t.name, t)
+    for (g in declarationGroups()) for (t in g.tags) union.putIfAbsent(t.name, t)
     return union.values.toList()
   }
+
+  /**
+   * Mixin `applies:` targets that name no span type modeled here, as (mixin, missing types). A tag
+   * id is identity and does not depend on layout, so such a mixin's tags are still registered --
+   * this is a LAYOUT gap, not lost data: the mixin contributes to no type's resolved set, so its
+   * tags occupy no per-type slot until the type is modeled. Reported rather than fatal, because
+   * declaring tags ahead of the span type that will carry them is a legitimate intermediate state;
+   * what is not acceptable is it being invisible.
+   */
+  fun unmodeledAppliesTargets(): List<Pair<String, List<String>>> =
+    mixins.values
+      .sortedBy { it.name }
+      .mapNotNull { mx ->
+        val missing = mx.appliesTo.filter { it !in spanTypes }.sorted()
+        if (missing.isEmpty()) null else mx.name to missing
+      }
 
   /**
    * Full composition for a type as (origin, tag) pairs, in composition order and NOT de-duped, so a
@@ -174,7 +195,7 @@ private constructor(
     }
 
     /**
-     * A tag is de-duped by name across span types / mixins (see [resolve] / [allStoredTags]), so its
+     * A tag is de-duped by name across span types / mixins (see [resolve] / [allDeclaredTags]), so its
      * whole identity — including the OpenTelemetry name — must be declared consistently everywhere it
      * appears. `http.url` on `http.server` and `http.client`, for instance, is ONE tag: it can carry
      * exactly one otel-name. Without this check, two conflicting declarations would silently collapse

@@ -1,4 +1,4 @@
-# Tag id assignment.  tags=47
+# Tag id assignment.  tags=51
 
 # TAGS     serial lvl id                 required     name
        1   T  0x0001000000000004 recommended  _dd.appsec.enabled
@@ -46,8 +46,12 @@
       43   -  0x002B000000000000 optional     servlet.context
       44   -  0x002C000000000000 optional     servlet.path
       45   -  0x002D000000000000 required     span.kind
-      46   T  0x002E000000000004 recommended  version
-      47   -  0x002F000000000000 recommended  view.name
+      46   -  0x002E000000000000 recommended  test.framework
+      47   -  0x002F000000000000 recommended  test.name
+      48   -  0x0030000000000000 recommended  test.status
+      49   -  0x0031000000000000 recommended  test.suite
+      50   T  0x0032000000000004 recommended  version
+      51   -  0x0033000000000000 recommended  view.name
 
 # OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still
 # returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)
