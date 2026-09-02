@@ -14195,6 +14195,22 @@
         "default": "true",
         "aliases": []
       }
+    ],
+    "DD_PROFILING_OTLP_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_OTLP_COMPRESSION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
     ]
   },
   "deprecations": {
