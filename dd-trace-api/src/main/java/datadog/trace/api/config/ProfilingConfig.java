@@ -291,13 +291,25 @@ public final class ProfilingConfig {
   public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
   public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
 
-  public static final String PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD =
-      "profiling.otlp.include.original.payload";
-  public static final boolean PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT = false;
+  /**
+   * OTLP profile upload mode:
+   *
+   * <ul>
+   *   <li>{@code LIGHT} — raw JFR attached as the {@code original_payload} blob, no conversion
+   *   <li>{@code FULL} — full JFR→OTLP conversion plus the raw JFR attached as the {@code
+   *       original_payload} blob
+   *   <li>{@code CONVERTED} — full JFR→OTLP conversion, no raw JFR blob
+   * </ul>
+   */
+  public static final String PROFILING_OTLP_MODE = "profiling.otlp.mode";
 
-  // Lightweight mode: skip JFR→OTLP conversion, send minimal metadata + raw JFR as blob
-  public static final String PROFILING_OTLP_LIGHTWEIGHT = "profiling.otlp.lightweight";
-  public static final boolean PROFILING_OTLP_LIGHTWEIGHT_DEFAULT = true;
+  public enum OtlpMode {
+    LIGHT,
+    FULL,
+    CONVERTED
+  }
+
+  public static final ProfilingConfig.OtlpMode PROFILING_OTLP_MODE_DEFAULT = OtlpMode.LIGHT;
 
   public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
   public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL

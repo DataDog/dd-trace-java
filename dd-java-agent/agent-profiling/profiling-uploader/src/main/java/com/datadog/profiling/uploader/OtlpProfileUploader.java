@@ -15,16 +15,15 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_LIGHTWEIGHT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE_DEFAULT;
 
 import com.datadog.profiling.otel.JfrToOtlpConverter;
 import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.otlp.OtlpResponse;
 import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingType;
@@ -58,8 +57,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final OtlpSender sender;
   private final ExecutorService executor;
   private final int terminationTimeout;
-  private final boolean includeOriginalPayload;
-  private final boolean lightweight;
+  private final ProfilingConfig.OtlpMode mode;
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, TERMINATION_TIMEOUT_SEC);
@@ -69,12 +67,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       final Config config, final ConfigProvider configProvider, int terminationTimeout) {
     this.terminationTimeout = terminationTimeout;
     this.sender = OtlpProfilesSenderFactory.create(config);
-    this.includeOriginalPayload =
-        configProvider.getBoolean(
-            PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD,
-            PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT);
-    this.lightweight =
-        configProvider.getBoolean(PROFILING_OTLP_LIGHTWEIGHT, PROFILING_OTLP_LIGHTWEIGHT_DEFAULT);
+    this.mode =
+        configProvider.getEnum(
+            PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, PROFILING_OTLP_MODE_DEFAULT);
     this.executor =
         new ThreadPoolExecutor(
             0,
@@ -156,14 +151,15 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   }
 
   private byte[] convertToOtlp(RecordingData data) throws IOException {
-    // Lightweight mode: skip JFR parsing, just embed raw JFR as original_payload blob
-    if (lightweight) {
+    // LIGHT mode: skip JFR parsing, just embed raw JFR as original_payload blob
+    if (mode == ProfilingConfig.OtlpMode.LIGHT) {
       return convertLightweight(data);
     }
 
-    // Full conversion mode: parse JFR, build dictionary tables, encode OTLP samples
+    // FULL/CONVERTED mode: parse JFR, build dictionary tables, encode OTLP samples;
+    // FULL also attaches the raw JFR as original_payload blob
     JfrToOtlpConverter converter = new JfrToOtlpConverter();
-    converter.setIncludeOriginalPayload(includeOriginalPayload);
+    converter.setIncludeOriginalPayload(mode == ProfilingConfig.OtlpMode.FULL);
 
     Path jfrFile = data.getPath();
     if (jfrFile != null) {

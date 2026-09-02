@@ -17,7 +17,7 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_COMPRESSION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -37,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.zip.GZIPInputStream;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -84,10 +87,18 @@ public class OtlpProfileUploaderTest {
     when(config.getProfilingProxyUsername()).thenReturn(null);
     when(config.getProfilingProxyPassword()).thenReturn(null);
 
+    // OTLP profiles sender configuration
+    when(config.getOtlpProfilesProtocol()).thenReturn(OtlpConfig.Protocol.HTTP_PROTOBUF);
+    when(config.getOtlpProfilesEndpoint()).thenReturn(otlpUrl);
+    when(config.getOtlpProfilesHeaders()).thenReturn(Collections.emptyMap());
+    when(config.getOtlpProfilesTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getOtlpProfilesCompression()).thenReturn(OtlpConfig.Compression.NONE);
+
     // Mock ConfigProvider - OTLP enabled by default for tests
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(true);
-    when(configProvider.getBoolean(PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD, false))
-        .thenReturn(false);
+    when(configProvider.getEnum(
+            PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, ProfilingConfig.OtlpMode.LIGHT))
+        .thenReturn(ProfilingConfig.OtlpMode.LIGHT);
     when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
     when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 
@@ -105,8 +116,6 @@ public class OtlpProfileUploaderTest {
   public void testDisabledUploader() throws Exception {
     // Create uploader with OTLP disabled
     when(configProvider.getBoolean(PROFILING_OTLP_ENABLED, false)).thenReturn(false);
-    when(configProvider.getBoolean(PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD, false))
-        .thenReturn(false);
     when(configProvider.getString(PROFILING_OTLP_URL, "")).thenReturn(otlpUrl);
     when(configProvider.getBoolean(PROFILING_OTLP_COMPRESSION_ENABLED, true)).thenReturn(true);
 

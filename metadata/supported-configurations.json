@@ -14172,6 +14172,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_OTLP_COMPRESSION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_OTLP_ENABLED": [
       {
         "version": "A",
@@ -14180,19 +14188,11 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD": [
+    "DD_PROFILING_OTLP_MODE": [
       {
         "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_PROFILING_OTLP_LIGHTWEIGHT": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
+        "type": "string",
+        "default": "light",
         "aliases": []
       }
     ],
@@ -14201,14 +14201,6 @@
         "version": "A",
         "type": "string",
         "default": "",
-        "aliases": []
-      }
-    ],
-    "DD_PROFILING_OTLP_COMPRESSION_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
         "aliases": []
       }
     ]
