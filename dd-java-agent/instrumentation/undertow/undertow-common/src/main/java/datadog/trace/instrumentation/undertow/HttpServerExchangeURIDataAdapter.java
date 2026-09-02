@@ -22,7 +22,13 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
 
   @Override
   public int port() {
-    return httpServerExchange.getHostPort();
+    try {
+      return httpServerExchange.getHostPort();
+    } catch (final NullPointerException e) {
+      // Undertow's getHostPort() can NPE internally (e.g. no Host header and a connection whose
+      // local address isn't an InetSocketAddress, such as AJP or a Unix domain socket transport).
+      return 0;
+    }
   }
 
   @Override
