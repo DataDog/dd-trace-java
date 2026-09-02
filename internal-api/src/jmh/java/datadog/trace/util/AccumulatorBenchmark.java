@@ -44,18 +44,24 @@ import org.openjdk.jmh.infra.Blackhole;
  * the write path against {@link Accumulator}'s thread-sharded stripes, especially under contention.
  * This is the realistic production baseline this class was built to replace (see {@code
  * TracerHealthMetrics}'s pre-migration design, one {@code LongAdder} field per counter): <code>
- * AccumulatorBenchmark.accumulatorIncrement_lowContention           avgt    6   0.007 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorIncrement_highContention          avgt    6   0.009 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_lowContention        avgt    6   0.012 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_highContention       avgt    6   1.178 ±  0.134  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention  avgt    6   0.054 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention avgt    6   2.740 ±  0.210  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention    avgt    6   0.024 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention   avgt    6   2.439 ±  0.337  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_lowContention           avgt    6    0.010 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_highContention          avgt    6    0.025 ±  0.039  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_lowContention        avgt    6    0.012 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_highContention       avgt    6    1.178 ±  0.134  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention  avgt    6    0.104 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention avgt    6   13.357 ±  1.203  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention    avgt    6    0.024 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention   avgt    6    2.439 ±  0.337  us/op
  * </code> At high contention, {@link Accumulator} beats the realistic {@code longAdderGroup}
- * baseline by roughly two orders of magnitude on increment (the call that runs on every event)
- * while being slightly worse on drain (the call that runs once per reporting cycle) -- a clean win
- * once weighted by call-site frequency, not just a wash.
+ * baseline by nearly 50x on increment (the call that runs on every event), but is itself
+ * roughly 5.5x <em>worse</em> than {@code longAdderGroup} on drain under that same high-contention
+ * topology (the call that runs once per reporting cycle) -- {@code accumulateAndReset} walks every
+ * stripe with a full {@code getAndSet} per counter, so more stripes (sized for core count) means
+ * more per-drain work than {@code longAdderGroup}'s one-lock-per-counter {@code sumThenReset}. This
+ * is still a clean win once weighted by call-site frequency -- the increment win is ~50x on a call
+ * that fires on every event, the drain loss is ~5.5x on a call that fires once per reporting cycle
+ * (e.g. a 30s flush tick) -- but the drain-side regression is real, not "slightly worse," and worth
+ * knowing before assuming this trade is free in every topology.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
