@@ -1,5 +1,6 @@
 package com.datadog.profiling.otel;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,6 +29,7 @@ import java.time.Instant;
  * java -cp ... com.datadog.profiling.otel.JfrToOtlpConverterCLI file1.jfr file2.jfr output.pb
  * </pre>
  */
+@SuppressForbidden // command-line tool: prints to stdout/stderr
 public class JfrToOtlpConverterCLI {
 
   public static void main(String[] args) {
