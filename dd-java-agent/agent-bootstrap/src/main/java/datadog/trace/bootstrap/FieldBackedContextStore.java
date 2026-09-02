@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import java.util.function.Function;
+
 /**
  * {@link ContextStore} that attempts to store context in its keys by using bytecode-injected
  * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
@@ -50,7 +52,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   @Override
-  public Object getOrCompute(Object key, KeyAwareFactory<? super Object, Object> contextFactory) {
+  public Object getOrCompute(Object key, Function<? super Object, Object> contextFactory) {
     if (key instanceof FieldBackedContextAccessor) {
       final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
       Object existingContext = accessor.$get$__datadogContext$(storeId);
@@ -58,7 +60,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
         synchronized (accessor) {
           existingContext = accessor.$get$__datadogContext$(storeId);
           if (null == existingContext) {
-            existingContext = contextFactory.create(key);
+            existingContext = contextFactory.apply(key);
             accessor.$put$__datadogContext$(storeId, existingContext);
           }
         }
