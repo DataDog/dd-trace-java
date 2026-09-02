@@ -34,16 +34,25 @@ import javax.annotation.concurrent.GuardedBy;
  */
 public final class Accumulator<E extends Enum<E>> {
   private final long[][] data;
+  private final E[] values;
 
-  private Accumulator(long[][] data) {
+  private Accumulator(long[][] data, E[] values) {
     this.data = data;
+    this.values = values;
   }
 
   /**
    * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
    */
   public static <E extends Enum<E>> Accumulator<E> of(E[] values) {
-    return new Accumulator<>(EmbeddingSupport.create(values));
+    return new Accumulator<>(EmbeddingSupport.create(values), values);
+  }
+
+  /**
+   * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
+   */
+  public static <E extends Enum<E>> Accumulator<E> of(Class<E> enumType) {
+    return of(enumType.getEnumConstants());
   }
 
   /** Increments the counter named by {@code key} in the calling thread's stripe by one. */
@@ -131,7 +140,7 @@ public final class Accumulator<E extends Enum<E>> {
    * @see EmbeddingSupport#accumulateAndReset
    */
   public Counts<E> accumulateAndReset() {
-    return new Counts<>(EmbeddingSupport.accumulateAndReset(data));
+    return new Counts<>(EmbeddingSupport.accumulateAndReset(data), values);
   }
 
   /**
@@ -143,7 +152,7 @@ public final class Accumulator<E extends Enum<E>> {
    * @see EmbeddingSupport#sum(long[][])
    */
   public Counts<E> sum() {
-    return new Counts<>(EmbeddingSupport.sum(data));
+    return new Counts<>(EmbeddingSupport.sum(data), values);
   }
 
   /**
@@ -158,9 +167,11 @@ public final class Accumulator<E extends Enum<E>> {
    */
   public static final class Counts<E extends Enum<E>> {
     private final long[] counts;
+    private final E[] values;
 
-    private Counts(long[] counts) {
+    private Counts(long[] counts, E[] values) {
       this.counts = counts;
+      this.values = values;
     }
 
     /**
@@ -171,12 +182,29 @@ public final class Accumulator<E extends Enum<E>> {
      * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
      */
     public static <E extends Enum<E>> Counts<E> zero(E[] values) {
-      return new Counts<>(new long[values.length]);
+      return new Counts<>(new long[values.length], values);
+    }
+
+    /**
+     * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
+     * @see #zero(Enum[])
+     */
+    public static <E extends Enum<E>> Counts<E> zero(Class<E> enumType) {
+      return zero(enumType.getEnumConstants());
     }
 
     /** The counter named by {@code key}. */
     public long get(E key) {
       return counts[key.ordinal()];
+    }
+
+    /**
+     * The enum constants this {@link Counts} is keyed by, in declaration order -- for a caller that
+     * wants to iterate every counter (e.g. reporting each one) without separately having to pass
+     * {@code E.values()} alongside this object.
+     */
+    public E[] values() {
+      return values;
     }
 
     /**
@@ -189,7 +217,7 @@ public final class Accumulator<E extends Enum<E>> {
       for (int i = 0; i < combined.length; i++) {
         combined[i] += other.counts[i];
       }
-      return new Counts<>(combined);
+      return new Counts<>(combined, values);
     }
   }
 

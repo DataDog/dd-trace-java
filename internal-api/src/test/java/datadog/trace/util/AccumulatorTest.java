@@ -233,6 +233,32 @@ class AccumulatorTest {
   }
 
   @Test
+  void ofAndZeroAcceptAnEnumClassInsteadOfAValuesArray() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    counters.inc(Counters.FOO);
+
+    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.class);
+    Accumulator.Counts<Counters> live = zero.plus(counters.sum());
+    assertEquals(1L, live.get(Counters.FOO));
+  }
+
+  @Test
+  void countsExposesItsOwnKeysWithoutASeparateValuesArray() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    counters.inc(Counters.FOO);
+    counters.add(Counters.BAR, 5L);
+
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertEquals(Counters.values().length, drained.values().length);
+
+    long total = 0L;
+    for (Counters c : drained.values()) {
+      total += drained.get(c);
+    }
+    assertEquals(6L, total);
+  }
+
+  @Test
   void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
     Accumulator<Counters> counters = Accumulator.of(Counters.values());
     counters.inc(Counters.FOO);
