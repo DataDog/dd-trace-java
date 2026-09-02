@@ -22,14 +22,10 @@ public final class LambdaTransformerHelper {
   public static byte[] transform(
       byte[] classBytes, String lambdaClassName, Class<?> targetClass, Class<?> interfaceClass) {
     try {
-      // Only exact allowlisted interfaces enter the transformer.
       if (interfaceClass == null) {
         return classBytes;
       }
       String interfaceName = interfaceClass.getName();
-      if (LambdaInterfaceNameTrie.apply(interfaceName) != 1) {
-        return classBytes;
-      }
       LambdaTransformer transformer = LambdaTransformerHolder.get();
       if (transformer == null) {
         log.debug("Lambda {} skipped: no transformer registered", lambdaClassName);
@@ -59,7 +55,7 @@ public final class LambdaTransformerHelper {
         }
         return result;
       } finally {
-        TRANSFORMING.set(Boolean.FALSE);
+        TRANSFORMING.remove();
       }
     } catch (Throwable e) {
       log.debug("Lambda {} skipped: {}", lambdaClassName, e.toString());
