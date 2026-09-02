@@ -203,7 +203,7 @@ public final class Accumulator<E extends Enum<E>> {
      * wants to iterate every counter (e.g. reporting each one) without separately having to pass
      * {@code E.values()} alongside this object.
      */
-    public E[] values() {
+    public E[] keys() {
       return values;
     }
 

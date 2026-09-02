@@ -249,10 +249,10 @@ class AccumulatorTest {
     counters.add(Counters.BAR, 5L);
 
     Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(Counters.values().length, drained.values().length);
+    assertEquals(Counters.values().length, drained.keys().length);
 
     long total = 0L;
-    for (Counters c : drained.values()) {
+    for (Counters c : drained.keys()) {
       total += drained.get(c);
     }
     assertEquals(6L, total);
