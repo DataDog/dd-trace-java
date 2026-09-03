@@ -110,13 +110,17 @@ final class OtelTraceState {
       double sampleRate,
       boolean sampled,
       int samplingPriority) {
-    if (sampleRate <= 0 || sampled && samplingPriority <= 0) {
+    // `sampled` is the raw probability result; `samplingPriority` may be changed by rate limiting.
+    if (sampleRate <= 0) {
       return current == null ? null : current.removeLocalProbability();
     }
 
-    long threshold = Math.round((1 - sampleRate) * THRESHOLD_RANGE);
-    threshold = Math.max(0, Math.min(threshold, MAX_THRESHOLD));
-    long randomValue = (~(traceIdLowOrderBits * KNUTH_FACTOR)) >>> 8;
+    if (sampled && samplingPriority <= 0) {
+      return current == null ? null : current.removeForNonProbabilityDecision();
+    }
+
+    long threshold = computeThreshold(sampleRate);
+    long randomValue = computeRandomValue(traceIdLowOrderBits);
     if (sampled && randomValue < threshold) {
       randomValue = threshold;
     } else if (!sampled && randomValue >= threshold) {
@@ -213,6 +217,15 @@ final class OtelTraceState {
       }
     }
     return true;
+  }
+
+  private static long computeRandomValue(long traceIdLowOrderBits) {
+    return (~(traceIdLowOrderBits * KNUTH_FACTOR)) >>> 8;
+  }
+
+  private static long computeThreshold(double sampleRate) {
+    long threshold = Math.round((1 - sampleRate) * THRESHOLD_RANGE);
+    return Math.max(0, Math.min(threshold, MAX_THRESHOLD));
   }
 
   private static String formatRandomValue(long randomValue) {
