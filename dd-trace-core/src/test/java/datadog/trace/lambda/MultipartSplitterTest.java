@@ -105,7 +105,13 @@ class MultipartSplitterTest {
         "happy path                | --x@A: b@@v@--x--          | 1",
         "two parts                 | --x@@a@--x@@b@--x--        | 2",
         "preamble is discarded     | junk@--x@@v@--x--          | 1",
+        // The preamble is discarded even when a line in it looks like a delimiter: RFC 2046
+        // requires it to be ignored, so the fields after it are the ones the app receives
+        "preamble looks like one   | --x--not-a-close@--x@@v@--x-- | 1",
         "epilogue is discarded     | --x@@v@--x--@junk          | 1",
+        // A delimiter at the very start of a part's content has no line break of its own, so it
+        // reads as content, not as a delimiter — and the part that follows is absorbed with it
+        "delimiter at content start| --x@@--x@@v@--x--         | 1",
         // a truncated body still yields its last part
         "truncated last delimiter  | --x@A: b@@v                | 1",
         "truncated in the headers  | --x@A: b                   | 0",
@@ -133,6 +139,33 @@ class MultipartSplitterTest {
 
     assertEquals(1, parts.size());
     assertEquals("value", content(body, parts.get(0)));
+  }
+
+  @Test
+  void readsADelimiterAtAContentStartAsContent() {
+    // The close delimiter here shares the line break that terminated the headers, so it has none of
+    // its own. Commons FileUpload reads it as the field's content and so must we: reporting an
+    // empty field would hide the payload behind it from the WAF.
+    String body =
+        "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n--x--\r\n' OR 1=1 --\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("--x--\r\n' OR 1=1 --", content(body, parts.get(0)));
+  }
+
+  @Test
+  void readsADelimiterWithItsOwnLineBreakAsADelimiter() {
+    // One line break more than the body above, which is enough to make the delimiter unambiguous:
+    // every parser reads the field as empty and the rest as the epilogue.
+    String body =
+        "--x\r\nContent-Disposition: form-data; name=a\r\n\r\n\r\n--x--\r\n' OR 1=1 --\r\n--x--";
+
+    List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
+
+    assertEquals(1, parts.size());
+    assertEquals("", content(body, parts.get(0)));
   }
 
   @Test

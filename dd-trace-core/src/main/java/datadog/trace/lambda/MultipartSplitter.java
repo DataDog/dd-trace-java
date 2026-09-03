@@ -50,7 +50,7 @@ final class MultipartSplitter {
     }
     final String delimiter = "--" + boundary;
     final int length = body.length();
-    int position = body.startsWith(delimiter) ? 0 : nextDelimiter(body, delimiter, 0);
+    int position = nextDelimiter(body, delimiter, 0);
 
     while (position >= 0 && parts.size() < partBudget) {
       final int afterDelimiter = position + delimiter.length();
@@ -107,7 +107,11 @@ final class MultipartSplitter {
         // nothing and let the caller keep the raw string.
         return Collections.emptyList();
       }
-      final int next = nextDelimiter(body, delimiter, cursor);
+      // The search starts past the first line break of the content, never at the content itself: a
+      // delimiter there would have no line break of its own, having spent the one that terminated
+      // the headers.
+      final int contentBreak = body.indexOf('\n', cursor);
+      final int next = contentBreak < 0 ? -1 : nextDelimiter(body, delimiter, contentBreak + 1);
       parts.add(new Part(contentDisposition, contentType, cursor, contentEnd(body, cursor, next)));
       position = next;
     }
