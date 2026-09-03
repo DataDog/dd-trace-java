@@ -321,6 +321,7 @@ include(
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:beanshell-2.0",
   ":dd-java-agent:instrumentation:caffeine-1.0",
+  ":dd-java-agent:instrumentation:cassandra:cassandra-4.0",
   ":dd-java-agent:instrumentation:cdi-1.2",
   ":dd-java-agent:instrumentation:cics-9.1",
   ":dd-java-agent:instrumentation:commons-codec-1.1",
