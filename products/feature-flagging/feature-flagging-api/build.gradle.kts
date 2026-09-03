@@ -1,5 +1,6 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import groovy.lang.Closure
+import org.gradle.api.plugins.jvm.JvmTestSuite
 
 plugins {
   `java-library`
@@ -58,6 +59,22 @@ dependencies {
   jmhImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   jmhImplementation(project(":products:feature-flagging:feature-flagging-config"))
   jmhImplementation(project(":utils:config-utils"))
+}
+
+testing {
+  suites {
+    register<JvmTestSuite>("legacyOpenFeatureSdkTest") {
+      dependencies {
+        implementation(project())
+      }
+    }
+  }
+}
+
+// Compile the compatibility test against the supported API, then replace only its runtime SDK
+// with the last unsupported release so it exercises the real return-type linkage failure.
+configurations.named("legacyOpenFeatureSdkTestRuntimeClasspath") {
+  resolutionStrategy.force("dev.openfeature:sdk:1.15.1")
 }
 
 jmh {
