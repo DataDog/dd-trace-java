@@ -16,8 +16,14 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class OtelTraceStatePropagationTest {
+  private static final long TRACE_ID = 1;
+  private static final double SAMPLE_RATE_0_5 = 0.5;
   private static final String RV = "ef284ace7a91e1";
   private static final String TH = "e6666666666668";
+  private static final String GENERATED_RV = "f0948a54d43b8e";
+  private static final String THRESHOLD_0_5 = "8";
+  private static final int W3C_MEMBER_VALUE_MAX_LENGTH = 256;
+  private static final int W3C_TRACESTATE_MEMBER_LIMIT = 32;
 
   @ParameterizedTest
   @MethodSource("inboundTraceState")
@@ -28,6 +34,7 @@ class OtelTraceStatePropagationTest {
   }
 
   static Stream<Arguments> inboundTraceState() {
+    // Covers valid, invalid, duplicate, and ordered ot list-members.
     return Stream.of(
         arguments("ot=rv:" + RV + ";th:" + TH, "ot=rv:" + RV + ";th:" + TH),
         arguments("ot=rv:" + RV, "ot=rv:" + RV),
@@ -75,10 +82,14 @@ class OtelTraceStatePropagationTest {
                 W3C, "foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value,other=state");
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(1, 0.5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
 
     assertEquals(
-        "dd=s:2;t.dm:-3,ot=rv:f0948a54d43b8e;th:8;future:value,foo=bar,other=state",
+        "dd=s:2;t.dm:-3,ot=rv:"
+            + GENERATED_RV
+            + ";th:"
+            + THRESHOLD_0_5
+            + ";future:value,foo=bar,other=state",
         propagationTags.headerValue(W3C));
   }
 
@@ -100,7 +111,7 @@ class OtelTraceStatePropagationTest {
   void manualKeepRemovesLocallyGeneratedRandomness() {
     PropagationTags propagationTags = PropagationTags.factory().empty();
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(1, 0.5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
 
     propagationTags.forceKeep(MANUAL);
 
@@ -130,35 +141,37 @@ class OtelTraceStatePropagationTest {
 
   @Test
   void emitsOnlyCompleteOtelFieldsAtMemberSizeLimit() {
-    String unknownField = "x:" + repeat("v", 254);
+    // W3C limits an individual tracestate member value to 256 characters.
+    String unknownField = "x:" + repeat("v", W3C_MEMBER_VALUE_MAX_LENGTH - 2);
     PropagationTags propagationTags =
         PropagationTags.factory().fromHeaderValue(W3C, "ot=" + unknownField);
 
     assertEquals("ot=" + unknownField, propagationTags.headerValue(W3C));
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(1, 0.5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
 
     String header = propagationTags.headerValue(W3C);
-    assertTrue(header.contains("ot=rv:f0948a54d43b8e;th:8"));
+    assertTrue(header.contains("ot=rv:" + GENERATED_RV + ";th:" + THRESHOLD_0_5));
     assertFalse(header.contains("x:"));
   }
 
   @Test
   void generatedOtelMemberHonorsMemberCountLimit() {
     StringBuilder original = new StringBuilder("ot=rv:").append(RV);
-    for (int i = 0; i < 31; i++) {
+    for (int i = 0; i < W3C_TRACESTATE_MEMBER_LIMIT - 1; i++) {
       original.append(",v").append(i).append("=state");
     }
     PropagationTags propagationTags =
         PropagationTags.factory().fromHeaderValue(W3C, original.toString());
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(1, 0.5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
 
     String header = propagationTags.headerValue(W3C);
-    assertEquals(32, header.split(",").length);
-    assertTrue(header.startsWith("dd=s:2;t.dm:-3,ot=rv:f0948a54d43b8e;th:8,"));
+    assertEquals(W3C_TRACESTATE_MEMBER_LIMIT, header.split(",").length);
+    assertTrue(
+        header.startsWith("dd=s:2;t.dm:-3,ot=rv:" + GENERATED_RV + ";th:" + THRESHOLD_0_5 + ","));
     assertFalse(header.contains("v30=state"));
   }
 

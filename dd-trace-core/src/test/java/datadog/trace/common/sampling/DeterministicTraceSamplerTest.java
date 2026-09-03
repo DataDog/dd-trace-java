@@ -19,6 +19,10 @@ import org.tabletest.junit.TableTest;
 
 class DeterministicTraceSamplerTest {
 
+  private static final String SAMPLE_RATE_COLUMN = "rate       ";
+  private static final String SAMPLE_RATE_0_123456789 = "0.123456789";
+  private static final String SAMPLE_RATE_0_999999999 = "0.999999999";
+
   @TableTest({
     "scenario               | expected | traceId             ",
     "10428415896243638596 f | false    | 10428415896243638596",
@@ -357,11 +361,8 @@ class DeterministicTraceSamplerTest {
     assertTrue(sampler.sample(span));
   }
 
-  @TableTest({
-    "rate       ",
-    "0.123456789",
-    "0.999999999"
-  })
+  // These values fail if the configured rate is narrowed to a float.
+  @TableTest({SAMPLE_RATE_COLUMN, SAMPLE_RATE_0_123456789, SAMPLE_RATE_0_999999999})
   void preservesConfiguredSampleRate(double rate) {
     assertEquals(rate, new DeterministicSampler.TraceSampler(rate).getSampleRate());
   }
