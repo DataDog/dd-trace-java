@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -39,46 +40,106 @@ import org.openjdk.jmh.infra.Blackhole;
  * as the payload: one {@code LongAdder} per counter, with a per-counter lock guarding <em>both</em>
  * the increment and the drain (locking only the drain does nothing -- {@code sumThenReset()}'s
  * internal race is against the {@code LongAdder}'s own CAS-based {@code add()}, not against any
- * lock a caller takes). With this benchmark's single counter, that per-counter lock collapses to
- * one lock shared by every thread -- no thread-based distribution at all -- so it loses badly on
- * the write path against {@link Accumulator}'s thread-sharded stripes, especially under contention.
- * This is the realistic production baseline this class was built to replace (see {@code
- * TracerHealthMetrics}'s pre-migration design, one {@code LongAdder} field per counter): <code>
- * AccumulatorBenchmark.accumulatorIncrement_lowContention           avgt    6    0.010 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorIncrement_highContention          avgt    6    0.025 ±  0.039  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_lowContention        avgt    6    0.012 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_highContention       avgt    6    1.178 ±  0.134  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention  avgt    6    0.104 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention avgt    6   13.357 ±  1.203  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention    avgt    6    0.024 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention   avgt    6    2.439 ±  0.337  us/op
- * </code> At high contention, {@link Accumulator} beats the realistic {@code longAdderGroup}
- * baseline by nearly 50x on increment (the call that runs on every event), but is itself
- * roughly 5.5x <em>worse</em> than {@code longAdderGroup} on drain under that same high-contention
- * topology (the call that runs once per reporting cycle) -- {@code accumulateAndReset} walks every
- * stripe with a full {@code getAndSet} per counter, so more stripes (sized for core count) means
- * more per-drain work than {@code longAdderGroup}'s one-lock-per-counter {@code sumThenReset}. This
- * is still a clean win once weighted by call-site frequency -- the increment win is ~50x on a call
- * that fires on every event, the drain loss is ~5.5x on a call that fires once per reporting cycle
- * (e.g. a 30s flush tick) -- but the drain-side regression is real, not "slightly worse," and worth
- * knowing before assuming this trade is free in every topology.
+ * lock a caller takes). The single-counter {@code *_*} benchmarks below collapse that per-counter
+ * lock to one lock shared by every thread -- the degenerate worst case for {@code longAdderGroup},
+ * with no thread-based distribution at all. The {@code *8_*} benchmarks fix that: each JMH worker
+ * thread is pinned to one of 8 counters for its lifetime (see {@link #threadCounterIndex}), so
+ * {@code longAdderGroup8}'s threads split into up to 8 groups each contending their own lock --
+ * the topology where distributed locking should actually pay off, forcing {@link Accumulator}'s
+ * thread-striped design to earn its write-side win rather than facing a single-counter worst case.
+ * Fork(5), 15 samples per benchmark: <code>
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention   avgt   15  2.746 ±  0.050  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention    avgt   15  0.056 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset8_highContention  avgt   15  6.875 ±  0.422  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset8_lowContention   avgt   15  0.363 ±  0.003  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_highContention            avgt   15  0.009 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorIncrement_lowContention             avgt   15  0.007 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorIncrement8_highContention           avgt   15  0.017 ±  0.009  us/op
+ * AccumulatorBenchmark.accumulatorIncrement8_lowContention            avgt   15  0.007 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention     avgt   15  4.770 ±  1.795  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention      avgt   15  0.061 ±  0.007  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_highContention    avgt   15  6.025 ±  0.712  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_lowContention     avgt   15  0.085 ±  0.004  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_highContention         avgt   15  2.294 ±  0.101  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_lowContention          avgt   15  0.019 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement8_highContention        avgt   15  0.786 ±  0.078  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement8_lowContention         avgt   15  0.020 ±  0.001  us/op
+ * </code> On the write side, {@link Accumulator} beats {@code longAdderGroup} at high contention by
+ * ~255x in the degenerate single-shared-lock case and still by ~46x once counters are fairly spread
+ * across 8 locks -- a large, reproducible win either way, on the call that runs on every event.
+ * On the drain side, the two designs are close and the comparison is noisy under contention for
+ * both: at width 1 {@link Accumulator}'s drain (2.746 us/op) is actually <em>faster</em> than {@code
+ * longAdderGroup}'s (4.770 ± 1.795 us/op, itself high-variance), and at width 8 it's only ~1.14x
+ * slower (6.875 vs 6.025 us/op) -- not the regression an earlier reading of this benchmark
+ * suggested. That earlier reading (13.357 us/op at Fork(2)) turned out to be a correlated anomaly
+ * across two independent low-sample runs, not a reproducible result; escalating to Fork(5) (15
+ * samples) settled it. Net: a large, robust win on the call that fires on every event, and no
+ * confirmed cost on the call that fires once per reporting cycle.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
 @Measurement(iterations = 3, time = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(2)
+@Fork(5)
 public class AccumulatorBenchmark {
 
   enum Counter {
     HITS
   }
 
+  /**
+   * An 8-constant counterpart to {@link Counter}, used only by the {@code *8_*} benchmarks below.
+   * Unlike {@link Counter}, where every thread hits the single {@code HITS} constant (the worst
+   * case for {@code longAdderGroup}'s per-counter locking -- one lock shared by every thread,
+   * regardless of core count), these benchmarks spread writes across all 8 constants: each JMH
+   * worker thread is pinned to one fixed counter for its lifetime (see {@link #threadCounterIndex}),
+   * so under high contention, threads split into up to 8 groups each contending on their own lock
+   * instead of all threads sharing one. This is the topology where {@code longAdderGroup}'s
+   * distributed locking should actually pay off, and where {@link Accumulator}'s thread-striped
+   * design has to earn its win on the write side rather than facing a single-counter worst case.
+   * {@code accumulateAndReset}/{@code groupAccumulateAnd} also now walk 8 slots per drain instead of
+   * 1, sizing the drain cost closer to {@code TracerHealthMetric}'s 54-constant production shape.
+   */
+  enum Counter8 {
+    COUNTER_0,
+    COUNTER_1,
+    COUNTER_2,
+    COUNTER_3,
+    COUNTER_4,
+    COUNTER_5,
+    COUNTER_6,
+    COUNTER_7
+  }
+
+  private static final Counter8[] COUNTER8_VALUES = Counter8.values();
+
   private final LongAdder adder = new LongAdder();
   private final Accumulator<Counter> accumulator = Accumulator.of(Counter.values());
+  private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.values());
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
   private final LongAdder[] longAdderGroup = {new LongAdder()};
+  private final LongAdder[] longAdderGroup8 = {
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder(),
+    new LongAdder()
+  };
+
+  /**
+   * Assigns each JMH worker thread a fixed {@code Counter8} index (round-robin over 8) the first
+   * time it calls into any {@code *8_*} benchmark, and keeps returning that same index for the
+   * thread's lifetime -- so under {@code Threads.MAX}, writes spread across all 8 counters instead
+   * of every thread hammering one.
+   */
+  private final AtomicInteger threadIndexAssigner = new AtomicInteger();
+
+  private final ThreadLocal<Integer> threadCounterIndex =
+      ThreadLocal.withInitial(() -> threadIndexAssigner.getAndIncrement() % COUNTER8_VALUES.length);
 
   /**
    * The natural "just use LongAdder" fix for the reset hazard: one {@code LongAdder} per counter,
@@ -226,5 +287,57 @@ public class AccumulatorBenchmark {
   public void longAdderGroupAccumulateAnd_highContention(Blackhole blackhole) {
     groupInc(longAdderGroup, Counter.HITS.ordinal());
     blackhole.consume(groupAccumulateAnd(longAdderGroup));
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void accumulatorIncrement8_lowContention() {
+    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void accumulatorIncrement8_highContention() {
+    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void accumulatorAccumulateAndReset8_lowContention(Blackhole blackhole) {
+    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+    blackhole.consume(accumulator8.accumulateAndReset());
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void accumulatorAccumulateAndReset8_highContention(Blackhole blackhole) {
+    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+    blackhole.consume(accumulator8.accumulateAndReset());
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void longAdderGroupIncrement8_lowContention() {
+    groupInc(longAdderGroup8, threadCounterIndex.get());
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void longAdderGroupIncrement8_highContention() {
+    groupInc(longAdderGroup8, threadCounterIndex.get());
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void longAdderGroupAccumulateAnd8_lowContention(Blackhole blackhole) {
+    groupInc(longAdderGroup8, threadCounterIndex.get());
+    blackhole.consume(groupAccumulateAnd(longAdderGroup8));
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void longAdderGroupAccumulateAnd8_highContention(Blackhole blackhole) {
+    groupInc(longAdderGroup8, threadCounterIndex.get());
+    blackhole.consume(groupAccumulateAnd(longAdderGroup8));
   }
 }
