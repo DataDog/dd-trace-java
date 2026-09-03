@@ -10,100 +10,34 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.metrics.api.statsd.StatsDClient;
+import datadog.metrics.api.statsd.StatsDCountReporter;
+import datadog.metrics.api.statsd.StatsDCounterKey;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.opg.OrgGuard;
+import datadog.trace.util.Accumulator;
 import datadog.trace.util.AgentTaskScheduler;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.IntFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable {
-  private static final Logger log = LoggerFactory.getLogger(TracerHealthMetrics.class);
 
   private static final IntFunction<String[]> STATUS_TAGS =
       httpStatus -> new String[] {"status:" + httpStatus};
 
   private static final String[] NO_TAGS = new String[0];
   private static final String[] COLLAPSED_WHOLE_KEY_TAGS = new String[] {"collapsed:whole_key"};
-  private static final String[] STATUS_OK_TAGS = STATUS_TAGS.apply(200);
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
 
   private final AtomicBoolean started = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<TracerHealthMetrics> cancellation;
 
-  private final LongAdder apiRequests = new LongAdder();
-  private final LongAdder apiErrors = new LongAdder();
-  private final LongAdder apiResponsesOK = new LongAdder();
-
-  private final LongAdder userDropEnqueuedTraces = new LongAdder();
-  private final LongAdder userKeepEnqueuedTraces = new LongAdder();
-  private final LongAdder samplerDropEnqueuedTraces = new LongAdder();
-  private final LongAdder samplerKeepEnqueuedTraces = new LongAdder();
-  private final LongAdder unsetPriorityEnqueuedTraces = new LongAdder();
-
-  private final LongAdder userDropDroppedTraces = new LongAdder();
-  private final LongAdder userKeepDroppedTraces = new LongAdder();
-  private final LongAdder samplerDropDroppedTraces = new LongAdder();
-  private final LongAdder samplerKeepDroppedTraces = new LongAdder();
-  private final LongAdder serialFailedDroppedTraces = new LongAdder();
-  private final LongAdder unsetPriorityDroppedTraces = new LongAdder();
-
-  private final LongAdder userDropDroppedSpans = new LongAdder();
-  private final LongAdder userKeepDroppedSpans = new LongAdder();
-  private final LongAdder samplerDropDroppedSpans = new LongAdder();
-  private final LongAdder samplerKeepDroppedSpans = new LongAdder();
-  private final LongAdder serialFailedDroppedSpans = new LongAdder();
-  private final LongAdder unsetPriorityDroppedSpans = new LongAdder();
-
-  private final LongAdder enqueuedSpans = new LongAdder();
-  private final LongAdder enqueuedBytes = new LongAdder();
-  private final LongAdder createdTraces = new LongAdder();
-  private final LongAdder createdSpans = new LongAdder();
-  private final LongAdder finishedSpans = new LongAdder();
-  private final LongAdder flushedTraces = new LongAdder();
-  private final LongAdder flushedBytes = new LongAdder();
-  private final LongAdder partialTraces = new LongAdder();
-  private final LongAdder partialBytes = new LongAdder();
-  private final LongAdder clientSpansWithoutContext = new LongAdder();
-
-  private final LongAdder singleSpanSampled = new LongAdder();
-  private final LongAdder singleSpanUnsampled = new LongAdder();
-
-  private final LongAdder capturedContinuations = new LongAdder();
-  private final LongAdder cancelledContinuations = new LongAdder();
-  private final LongAdder finishedContinuations = new LongAdder();
-
-  private final LongAdder activatedScopes = new LongAdder();
-  private final LongAdder closedScopes = new LongAdder();
-  private final LongAdder scopeStackOverflow = new LongAdder();
-  private final LongAdder scopeCloseErrors = new LongAdder();
-  private final LongAdder userScopeCloseErrors = new LongAdder();
-
-  private final LongAdder longRunningTracesWrite = new LongAdder();
-  private final LongAdder longRunningTracesDropped = new LongAdder();
-  private final LongAdder longRunningTracesExpired = new LongAdder();
-
-  private final LongAdder orgGuardEnforceMismatch = new LongAdder();
-  private final LongAdder orgGuardEnforceStrictMissing = new LongAdder();
-
-  private final LongAdder clientStatsProcessedSpans = new LongAdder();
-  private final LongAdder clientStatsProcessedTraces = new LongAdder();
-  private final LongAdder clientStatsP0DroppedSpans = new LongAdder();
-  private final LongAdder clientStatsP0DroppedTraces = new LongAdder();
-  private final LongAdder clientStatsRequests = new LongAdder();
-  private final LongAdder clientStatsErrors = new LongAdder();
-  private final LongAdder clientStatsDowngrades = new LongAdder();
-
-  private final LongAdder statsAggregateDropped = new LongAdder();
-  private final LongAdder statsInboxFull = new LongAdder();
+  private final Accumulator<Metric> metricAccumulator = Accumulator.of(Metric.class);
+  private volatile Accumulator.Counts<Metric> storedTotal = Accumulator.Counts.zero(Metric.class);
 
   private final StatsDClient statsd;
   private final long interval;
@@ -140,21 +74,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onPublish(final List<DDSpan> trace, final int samplingPriority) {
     switch (samplingPriority) {
       case USER_DROP:
-        userDropEnqueuedTraces.increment();
+        metricAccumulator.inc(Metric.USER_DROP_ENQUEUED_TRACES);
         break;
       case USER_KEEP:
-        userKeepEnqueuedTraces.increment();
+        metricAccumulator.inc(Metric.USER_KEEP_ENQUEUED_TRACES);
         break;
       case SAMPLER_DROP:
-        samplerDropEnqueuedTraces.increment();
+        metricAccumulator.inc(Metric.SAMPLER_DROP_ENQUEUED_TRACES);
         break;
       case SAMPLER_KEEP:
-        samplerKeepEnqueuedTraces.increment();
+        metricAccumulator.inc(Metric.SAMPLER_KEEP_ENQUEUED_TRACES);
         break;
       default:
-        unsetPriorityEnqueuedTraces.increment();
+        metricAccumulator.inc(Metric.UNSET_PRIORITY_ENQUEUED_TRACES);
     }
-    enqueuedSpans.add(trace.size());
+    metricAccumulator.add(Metric.ENQUEUED_SPANS, trace.size());
     checkForClientSpansWithoutContext(trace);
   }
 
@@ -163,7 +97,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       if (span != null && span.getParentId() == ZERO) {
         String spanKind = span.getTag(SPAN_KIND, "undefined");
         if (SPAN_KIND_CLIENT.equals(spanKind)) {
-          this.clientSpansWithoutContext.increment();
+          metricAccumulator.inc(Metric.CLIENT_SPANS_WITHOUT_CONTEXT);
         }
       }
     }
@@ -173,31 +107,31 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onFailedPublish(final int samplingPriority, final int spanCount) {
     switch (samplingPriority) {
       case USER_DROP:
-        userDropDroppedSpans.add(spanCount);
-        userDropDroppedTraces.increment();
+        metricAccumulator.add(Metric.USER_DROP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(Metric.USER_DROP_DROPPED_TRACES);
         break;
       case USER_KEEP:
-        userKeepDroppedSpans.add(spanCount);
-        userKeepDroppedTraces.increment();
+        metricAccumulator.add(Metric.USER_KEEP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(Metric.USER_KEEP_DROPPED_TRACES);
         break;
       case SAMPLER_DROP:
-        samplerDropDroppedSpans.add(spanCount);
-        samplerDropDroppedTraces.increment();
+        metricAccumulator.add(Metric.SAMPLER_DROP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(Metric.SAMPLER_DROP_DROPPED_TRACES);
         break;
       case SAMPLER_KEEP:
-        samplerKeepDroppedSpans.add(spanCount);
-        samplerKeepDroppedTraces.increment();
+        metricAccumulator.add(Metric.SAMPLER_KEEP_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(Metric.SAMPLER_KEEP_DROPPED_TRACES);
         break;
       default:
-        unsetPriorityDroppedSpans.add(spanCount);
-        unsetPriorityDroppedTraces.increment();
+        metricAccumulator.add(Metric.UNSET_PRIORITY_DROPPED_SPANS, spanCount);
+        metricAccumulator.inc(Metric.UNSET_PRIORITY_DROPPED_TRACES);
     }
   }
 
   @Override
   public void onPartialPublish(final int numberOfDroppedSpans) {
-    partialTraces.increment();
-    samplerDropDroppedSpans.add(numberOfDroppedSpans);
+    metricAccumulator.inc(Metric.PARTIAL_TRACES);
+    metricAccumulator.add(Metric.SAMPLER_DROP_DROPPED_SPANS, numberOfDroppedSpans);
   }
 
   @Override
@@ -210,95 +144,97 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onPartialFlush(final int sizeInBytes) {
-    partialBytes.add(sizeInBytes);
+    metricAccumulator.add(Metric.PARTIAL_BYTES, sizeInBytes);
   }
 
   @Override
   public void onSingleSpanSample() {
-    singleSpanSampled.increment();
+    metricAccumulator.inc(Metric.SINGLE_SPAN_SAMPLED);
   }
 
   @Override
   public void onSingleSpanUnsampled() {
-    singleSpanUnsampled.increment();
+    metricAccumulator.inc(Metric.SINGLE_SPAN_UNSAMPLED);
   }
 
   @Override
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    enqueuedBytes.add(serializedSizeInBytes);
+    metricAccumulator.add(Metric.ENQUEUED_BYTES, serializedSizeInBytes);
   }
 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     if (trace != null) {
-      serialFailedDroppedTraces.increment();
-      serialFailedDroppedSpans.add(trace.size());
+      metricAccumulator.inc(Metric.SERIAL_FAILED_DROPPED_TRACES);
+      metricAccumulator.add(Metric.SERIAL_FAILED_DROPPED_SPANS, trace.size());
     }
   }
 
   @Override
   public void onCreateSpan() {
-    createdSpans.increment();
+    metricAccumulator.inc(Metric.CREATED_SPANS);
   }
 
   @Override
   public void onFinishSpan() {
-    finishedSpans.increment();
+    metricAccumulator.inc(Metric.FINISHED_SPANS);
   }
 
   @Override
   public void onCreateTrace() {
-    createdTraces.increment();
+    metricAccumulator.inc(Metric.CREATED_TRACES);
   }
 
   @Override
   public void onScopeCloseError(boolean manual) {
-    scopeCloseErrors.increment();
     if (manual) {
-      userScopeCloseErrors.increment();
+      metricAccumulator.inc(Metric.SCOPE_CLOSE_ERRORS);
+      metricAccumulator.inc(Metric.USER_SCOPE_CLOSE_ERRORS);
+    } else {
+      metricAccumulator.inc(Metric.SCOPE_CLOSE_ERRORS);
     }
   }
 
   @Override
   public void onCaptureContinuation() {
-    capturedContinuations.increment();
+    metricAccumulator.inc(Metric.CAPTURED_CONTINUATIONS);
   }
 
   @Override
   public void onCancelContinuation() {
-    cancelledContinuations.increment();
+    metricAccumulator.inc(Metric.CANCELLED_CONTINUATIONS);
   }
 
   @Override
   public void onFinishContinuation() {
-    finishedContinuations.increment();
+    metricAccumulator.inc(Metric.FINISHED_CONTINUATIONS);
   }
 
   @Override
   public void onActivateScope() {
-    activatedScopes.increment();
+    metricAccumulator.inc(Metric.ACTIVATED_SCOPES);
   }
 
   @Override
   public void onCloseScope() {
-    closedScopes.increment();
+    metricAccumulator.inc(Metric.CLOSED_SCOPES);
   }
 
   @Override
   public void onScopeStackOverflow() {
-    scopeStackOverflow.increment();
+    metricAccumulator.inc(Metric.SCOPE_STACK_OVERFLOW);
   }
 
   @Override
   public void onOrgGuardEnforce(OrgGuard.Reason reason) {
     switch (reason) {
       case MISMATCH:
-        orgGuardEnforceMismatch.increment();
+        metricAccumulator.inc(Metric.ORG_GUARD_ENFORCE_MISMATCH);
         break;
       case STRICT_MISSING:
-        orgGuardEnforceStrictMissing.increment();
+        metricAccumulator.inc(Metric.ORG_GUARD_ENFORCE_STRICT_MISSING);
         break;
     }
   }
@@ -317,68 +253,68 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
-    longRunningTracesWrite.add(write);
-    longRunningTracesDropped.add(dropped);
-    longRunningTracesExpired.add(expired);
+    metricAccumulator.add(Metric.LONG_RUNNING_TRACES_WRITE, write);
+    metricAccumulator.add(Metric.LONG_RUNNING_TRACES_DROPPED, dropped);
+    metricAccumulator.add(Metric.LONG_RUNNING_TRACES_EXPIRED, expired);
   }
 
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
-    apiRequests.increment();
-    flushedTraces.add(traceCount);
+    metricAccumulator.inc(Metric.API_REQUESTS);
+    metricAccumulator.add(Metric.FLUSHED_TRACES, traceCount);
     // TODO: missing queue.spans (# of spans being sent)
-    flushedBytes.add(sizeInBytes);
+    metricAccumulator.add(Metric.FLUSHED_BYTES, sizeInBytes);
 
     if (response.exception().isPresent()) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
-      apiErrors.increment();
+      metricAccumulator.inc(Metric.API_ERRORS);
     }
 
-    int status = response.status().orElse(0);
-    if (status != 0) {
-      if (200 == status) {
-        apiResponsesOK.increment();
-      } else {
-        statsd.incrementCounter("api.responses.total", statusTagsCache.get(status));
-      }
+    if (200 == response.status().orElse(0)) {
+      metricAccumulator.inc(Metric.API_RESPONSES_OK);
+    }
+
+    final int status = response.status().orElse(0);
+    if (status != 0 && 200 != status) {
+      statsd.incrementCounter("api.responses.total", statusTagsCache.get(status));
     }
   }
 
   @Override
   public void onClientStatTraceComputed(int countedSpans, int totalSpans, boolean dropped) {
-    clientStatsProcessedTraces.increment();
-    clientStatsProcessedSpans.add(countedSpans);
+    metricAccumulator.inc(Metric.CLIENT_STATS_PROCESSED_TRACES);
+    metricAccumulator.add(Metric.CLIENT_STATS_PROCESSED_SPANS, countedSpans);
     if (dropped) {
-      clientStatsP0DroppedTraces.increment();
-      clientStatsP0DroppedSpans.add(totalSpans);
+      metricAccumulator.inc(Metric.CLIENT_STATS_P0_DROPPED_TRACES);
+      metricAccumulator.add(Metric.CLIENT_STATS_P0_DROPPED_SPANS, totalSpans);
     }
   }
 
   @Override
   public void onClientStatPayloadSent() {
-    clientStatsRequests.increment();
+    metricAccumulator.inc(Metric.CLIENT_STATS_REQUESTS);
   }
 
   @Override
   public void onClientStatDowngraded() {
-    clientStatsDowngrades.increment();
+    metricAccumulator.inc(Metric.CLIENT_STATS_DOWNGRADES);
   }
 
   @Override
   public void onClientStatErrorReceived() {
-    clientStatsErrors.increment();
+    metricAccumulator.inc(Metric.CLIENT_STATS_ERRORS);
   }
 
   @Override
   public void onStatsAggregateDropped() {
-    statsAggregateDropped.increment();
+    metricAccumulator.inc(Metric.STATS_AGGREGATE_DROPPED);
     statsd.count("datadog.tracer.stats.collapsed_spans", 1, COLLAPSED_WHOLE_KEY_TAGS);
   }
 
   @Override
   public void onStatsInboxFull() {
-    statsInboxFull.increment();
+    metricAccumulator.inc(Metric.STATS_INBOX_FULL);
   }
 
   @Override
@@ -395,299 +331,139 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private static class Flush implements AgentTaskScheduler.Task<TracerHealthMetrics> {
 
-    private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
-    private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
-    private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
-    private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
-    private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
-    private static final String[] UNSET_TAG = new String[] {"priority:unset"};
-    private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
-    private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
-    private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
-    private static final String[] ORG_GUARD_MISMATCH_TAGS = new String[] {"reason:mismatch"};
-    private static final String[] ORG_GUARD_STRICT_MISSING_TAGS =
-        new String[] {"reason:strict_missing"};
-
-    private final long[] previousCounts = new long[54];
-
-    @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
-    private int countIndex;
-
     @Override
     public void run(TracerHealthMetrics target) {
-      countIndex = -1; // reposition so _next_ value is 0
-      try {
-
-        reportIfChanged(target.statsd, "api.requests.total", target.apiRequests, NO_TAGS);
-        reportIfChanged(target.statsd, "api.errors.total", target.apiErrors, NO_TAGS);
-        // non-OK responses are reported immediately in onSendAttempt with different status tags
-        reportIfChanged(
-            target.statsd, "api.responses.total", target.apiResponsesOK, STATUS_OK_TAGS);
-
-        reportIfChanged(
-            target.statsd, "queue.enqueued.traces", target.userDropEnqueuedTraces, USER_DROP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.enqueued.traces", target.userKeepEnqueuedTraces, USER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.enqueued.traces",
-            target.samplerDropEnqueuedTraces,
-            SAMPLER_DROP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.enqueued.traces",
-            target.samplerKeepEnqueuedTraces,
-            SAMPLER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.enqueued.traces", target.unsetPriorityEnqueuedTraces, UNSET_TAG);
-
-        reportIfChanged(
-            target.statsd, "queue.dropped.traces", target.userDropDroppedTraces, USER_DROP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.traces", target.userKeepDroppedTraces, USER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.dropped.traces",
-            target.samplerDropDroppedTraces,
-            SAMPLER_DROP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.dropped.traces",
-            target.samplerKeepDroppedTraces,
-            SAMPLER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.dropped.traces",
-            target.serialFailedDroppedTraces,
-            SERIAL_FAILED_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
-
-        reportIfChanged(
-            target.statsd, "queue.dropped.spans", target.userDropDroppedSpans, USER_DROP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.spans", target.userKeepDroppedSpans, USER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.spans", target.samplerDropDroppedSpans, SAMPLER_DROP_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.spans", target.samplerKeepDroppedSpans, SAMPLER_KEEP_TAG);
-        reportIfChanged(
-            target.statsd,
-            "queue.dropped.spans",
-            target.serialFailedDroppedSpans,
-            SERIAL_FAILED_TAG);
-        reportIfChanged(
-            target.statsd, "queue.dropped.spans", target.unsetPriorityDroppedSpans, UNSET_TAG);
-
-        reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
-        reportIfChanged(target.statsd, "queue.enqueued.bytes", target.enqueuedBytes, NO_TAGS);
-        reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
-        reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
-        reportIfChanged(target.statsd, "span.pending.finished", target.finishedSpans, NO_TAGS);
-        reportIfChanged(target.statsd, "flush.traces.total", target.flushedTraces, NO_TAGS);
-        reportIfChanged(target.statsd, "flush.bytes.total", target.flushedBytes, NO_TAGS);
-        reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
-        reportIfChanged(target.statsd, "span.flushed.partial", target.partialBytes, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
-
-        reportIfChanged(
-            target.statsd, "span.sampling.sampled", target.singleSpanSampled, SINGLE_SPAN_SAMPLER);
-        reportIfChanged(
-            target.statsd,
-            "span.sampling.unsampled",
-            target.singleSpanUnsampled,
-            SINGLE_SPAN_SAMPLER);
-
-        reportIfChanged(
-            target.statsd, "span.continuations.captured", target.capturedContinuations, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
-
-        reportIfChanged(target.statsd, "scope.activate.count", target.activatedScopes, NO_TAGS);
-        reportIfChanged(target.statsd, "scope.close.count", target.closedScopes, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
-        reportIfChanged(target.statsd, "scope.close.error", target.scopeCloseErrors, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
-
-        reportIfChanged(
-            target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
-
-        reportIfChanged(
-            target.statsd,
-            "org_guard.enforce",
-            target.orgGuardEnforceMismatch,
-            ORG_GUARD_MISMATCH_TAGS);
-        reportIfChanged(
-            target.statsd,
-            "org_guard.enforce",
-            target.orgGuardEnforceStrictMissing,
-            ORG_GUARD_STRICT_MISSING_TAGS);
-
-        reportIfChanged(
-            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
-        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "stats.dropped_p0_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
-        reportIfChanged(target.statsd, "stats.flush_payloads", target.clientStatsRequests, NO_TAGS);
-        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
-        reportIfChanged(
-            target.statsd,
-            "stats.dropped_aggregates",
-            target.statsAggregateDropped,
-            REASON_LRU_EVICTION_TAG);
-        reportIfChanged(
-            target.statsd,
-            "stats.dropped_aggregates",
-            target.statsInboxFull,
-            REASON_INBOX_FULL_TAG);
-
-      } catch (ArrayIndexOutOfBoundsException e) {
-        log.warn(
-            "previousCounts array needs resizing to at least {}, was {}",
-            countIndex + 1,
-            previousCounts.length);
-      }
-    }
-
-    private void reportIfChanged(
-        StatsDClient statsDClient, String aspect, LongAdder counter, String[] tags) {
-      long count = counter.sum();
-      long delta = count - previousCounts[++countIndex];
-      if (delta > 0) {
-        statsDClient.count(aspect, delta, tags);
-        previousCounts[countIndex] = count;
-      }
+      Accumulator.Counts<Metric> delta = target.metricAccumulator.accumulateAndReset();
+      StatsDCountReporter.report(target.statsd, delta);
+      target.storedTotal = target.storedTotal.plus(delta);
     }
   }
 
   @Override
   public String summary() {
-    return "apiRequests="
-        + apiRequests.sum()
-        + "\napiErrors="
-        + apiErrors.sum()
-        + "\napiResponsesOK="
-        + apiResponsesOK.sum()
-        + "\n"
-        + "\nuserDropEnqueuedTraces="
-        + userDropEnqueuedTraces.sum()
-        + "\nuserKeepEnqueuedTraces="
-        + userKeepEnqueuedTraces.sum()
-        + "\nsamplerDropEnqueuedTraces="
-        + samplerDropEnqueuedTraces.sum()
-        + "\nsamplerKeepEnqueuedTraces="
-        + samplerKeepEnqueuedTraces.sum()
-        + "\nunsetPriorityEnqueuedTraces="
-        + unsetPriorityEnqueuedTraces.sum()
-        + "\n"
-        + "\nuserDropDroppedTraces="
-        + userDropDroppedTraces.sum()
-        + "\nuserKeepDroppedTraces="
-        + userKeepDroppedTraces.sum()
-        + "\nsamplerDropDroppedTraces="
-        + samplerDropDroppedTraces.sum()
-        + "\nsamplerKeepDroppedTraces="
-        + samplerKeepDroppedTraces.sum()
-        + "\nserialFailedDroppedTraces="
-        + serialFailedDroppedTraces.sum()
-        + "\nunsetPriorityDroppedTraces="
-        + unsetPriorityDroppedTraces.sum()
-        + "\n"
-        + "\nuserDropDroppedSpans="
-        + userDropDroppedSpans.sum()
-        + "\nuserKeepDroppedSpans="
-        + userKeepDroppedSpans.sum()
-        + "\nsamplerDropDroppedSpans="
-        + samplerDropDroppedSpans.sum()
-        + "\nsamplerKeepDroppedSpans="
-        + samplerKeepDroppedSpans.sum()
-        + "\nserialFailedDroppedSpans="
-        + serialFailedDroppedSpans.sum()
-        + "\nunsetPriorityDroppedSpans="
-        + unsetPriorityDroppedSpans.sum()
-        + "\n"
-        + "\nenqueuedSpans="
-        + enqueuedSpans.sum()
-        + "\nenqueuedBytes="
-        + enqueuedBytes.sum()
-        + "\ncreatedTraces="
-        + createdTraces.sum()
-        + "\ncreatedSpans="
-        + createdSpans.sum()
-        + "\nfinishedSpans="
-        + finishedSpans.sum()
-        + "\nflushedTraces="
-        + flushedTraces.sum()
-        + "\nflushedBytes="
-        + flushedBytes.sum()
-        + "\npartialTraces="
-        + partialTraces.sum()
-        + "\npartialBytes="
-        + partialBytes.sum()
-        + "\n"
-        + "\nclientSpansWithoutContext="
-        + clientSpansWithoutContext.sum()
-        + "\n"
-        + "\nsingleSpanSampled="
-        + singleSpanSampled.sum()
-        + "\nsingleSpanUnsampled="
-        + singleSpanUnsampled.sum()
-        + "\n"
-        + "\ncapturedContinuations="
-        + capturedContinuations.sum()
-        + "\ncancelledContinuations="
-        + cancelledContinuations.sum()
-        + "\nfinishedContinuations="
-        + finishedContinuations.sum()
-        + "\n"
-        + "\nactivatedScopes="
-        + activatedScopes.sum()
-        + "\nclosedScopes="
-        + closedScopes.sum()
-        + "\nscopeStackOverflow="
-        + scopeStackOverflow.sum()
-        + "\nscopeCloseErrors="
-        + scopeCloseErrors.sum()
-        + "\nuserScopeCloseErrors="
-        + userScopeCloseErrors.sum()
-        + "\n"
-        + "\nlongRunningTracesWrite="
-        + longRunningTracesWrite.sum()
-        + "\nlongRunningTracesDropped="
-        + longRunningTracesDropped.sum()
-        + "\nlongRunningTracesExpired="
-        + longRunningTracesExpired.sum()
-        + "\n"
-        + "\nclientStatsRequests="
-        + clientStatsRequests.sum()
-        + "\nclientStatsErrors="
-        + clientStatsErrors.sum()
-        + "\nclientStatsDowngrades="
-        + clientStatsDowngrades.sum()
-        + "\nclientStatsP0DroppedSpans="
-        + clientStatsP0DroppedSpans.sum()
-        + "\nclientStatsP0DroppedTraces="
-        + clientStatsP0DroppedTraces.sum()
-        + "\nclientStatsProcessedSpans="
-        + clientStatsProcessedSpans.sum()
-        + "\nclientStatsProcessedTraces="
-        + clientStatsProcessedTraces.sum()
-        + "\nstatsAggregateDropped="
-        + statsAggregateDropped.sum()
-        + "\nstatsInboxFull="
-        + statsInboxFull.sum();
+    Accumulator.Counts<Metric> live = storedTotal.plus(metricAccumulator.sum());
+    StringBuilder summary = new StringBuilder();
+    for (Metric metric : live.keys()) {
+      if (summary.length() > 0) {
+        summary.append('\n');
+      }
+      summary.append(metric.getSummaryLabel()).append('=').append(live.get(metric));
+    }
+    return summary.toString();
+  }
+
+  /**
+   * One counter tracked by {@link TracerHealthMetrics}: a dogstatsd metric name + tags, plus the
+   * label {@link TracerHealthMetrics#summary()} renders it under. One constant per (counter, tag)
+   * combination -- several constants can share a metric name but differ by tag, mirroring the
+   * distinct {@code LongAdder} fields this enum replaces.
+   */
+  enum Metric implements StatsDCounterKey {
+    API_REQUESTS("apiRequests", "api.requests.total"),
+    API_ERRORS("apiErrors", "api.errors.total"),
+    // non-OK responses are reported immediately in onSendAttempt with different status tags
+    API_RESPONSES_OK("apiResponsesOK", "api.responses.total", "status:200"),
+
+    USER_DROP_ENQUEUED_TRACES(
+        "userDropEnqueuedTraces", "queue.enqueued.traces", "priority:user_drop"),
+    USER_KEEP_ENQUEUED_TRACES(
+        "userKeepEnqueuedTraces", "queue.enqueued.traces", "priority:user_keep"),
+    SAMPLER_DROP_ENQUEUED_TRACES(
+        "samplerDropEnqueuedTraces", "queue.enqueued.traces", "priority:sampler_drop"),
+    SAMPLER_KEEP_ENQUEUED_TRACES(
+        "samplerKeepEnqueuedTraces", "queue.enqueued.traces", "priority:sampler_keep"),
+    UNSET_PRIORITY_ENQUEUED_TRACES(
+        "unsetPriorityEnqueuedTraces", "queue.enqueued.traces", "priority:unset"),
+
+    USER_DROP_DROPPED_TRACES("userDropDroppedTraces", "queue.dropped.traces", "priority:user_drop"),
+    USER_KEEP_DROPPED_TRACES("userKeepDroppedTraces", "queue.dropped.traces", "priority:user_keep"),
+    SAMPLER_DROP_DROPPED_TRACES(
+        "samplerDropDroppedTraces", "queue.dropped.traces", "priority:sampler_drop"),
+    SAMPLER_KEEP_DROPPED_TRACES(
+        "samplerKeepDroppedTraces", "queue.dropped.traces", "priority:sampler_keep"),
+    SERIAL_FAILED_DROPPED_TRACES(
+        "serialFailedDroppedTraces", "queue.dropped.traces", "failure:serial"),
+    UNSET_PRIORITY_DROPPED_TRACES(
+        "unsetPriorityDroppedTraces", "queue.dropped.traces", "priority:unset"),
+
+    USER_DROP_DROPPED_SPANS("userDropDroppedSpans", "queue.dropped.spans", "priority:user_drop"),
+    USER_KEEP_DROPPED_SPANS("userKeepDroppedSpans", "queue.dropped.spans", "priority:user_keep"),
+    SAMPLER_DROP_DROPPED_SPANS(
+        "samplerDropDroppedSpans", "queue.dropped.spans", "priority:sampler_drop"),
+    SAMPLER_KEEP_DROPPED_SPANS(
+        "samplerKeepDroppedSpans", "queue.dropped.spans", "priority:sampler_keep"),
+    SERIAL_FAILED_DROPPED_SPANS(
+        "serialFailedDroppedSpans", "queue.dropped.spans", "failure:serial"),
+    UNSET_PRIORITY_DROPPED_SPANS(
+        "unsetPriorityDroppedSpans", "queue.dropped.spans", "priority:unset"),
+
+    ENQUEUED_SPANS("enqueuedSpans", "queue.enqueued.spans"),
+    ENQUEUED_BYTES("enqueuedBytes", "queue.enqueued.bytes"),
+    CREATED_TRACES("createdTraces", "trace.pending.created"),
+    CREATED_SPANS("createdSpans", "span.pending.created"),
+    FINISHED_SPANS("finishedSpans", "span.pending.finished"),
+    FLUSHED_TRACES("flushedTraces", "flush.traces.total"),
+    FLUSHED_BYTES("flushedBytes", "flush.bytes.total"),
+    PARTIAL_TRACES("partialTraces", "queue.partial.traces"),
+    PARTIAL_BYTES("partialBytes", "span.flushed.partial"),
+    CLIENT_SPANS_WITHOUT_CONTEXT("clientSpansWithoutContext", "span.client.no-context"),
+
+    SINGLE_SPAN_SAMPLED("singleSpanSampled", "span.sampling.sampled", "sampler:single-span"),
+    SINGLE_SPAN_UNSAMPLED("singleSpanUnsampled", "span.sampling.unsampled", "sampler:single-span"),
+
+    CAPTURED_CONTINUATIONS("capturedContinuations", "span.continuations.captured"),
+    CANCELLED_CONTINUATIONS("cancelledContinuations", "span.continuations.canceled"),
+    FINISHED_CONTINUATIONS("finishedContinuations", "span.continuations.finished"),
+
+    ACTIVATED_SCOPES("activatedScopes", "scope.activate.count"),
+    CLOSED_SCOPES("closedScopes", "scope.close.count"),
+    SCOPE_STACK_OVERFLOW("scopeStackOverflow", "scope.error.stack-overflow"),
+    SCOPE_CLOSE_ERRORS("scopeCloseErrors", "scope.close.error"),
+    USER_SCOPE_CLOSE_ERRORS("userScopeCloseErrors", "scope.user.close.error"),
+
+    LONG_RUNNING_TRACES_WRITE("longRunningTracesWrite", "long-running.write"),
+    LONG_RUNNING_TRACES_DROPPED("longRunningTracesDropped", "long-running.dropped"),
+    LONG_RUNNING_TRACES_EXPIRED("longRunningTracesExpired", "long-running.expired"),
+
+    ORG_GUARD_ENFORCE_MISMATCH("orgGuardEnforceMismatch", "org_guard.enforce", "reason:mismatch"),
+    ORG_GUARD_ENFORCE_STRICT_MISSING(
+        "orgGuardEnforceStrictMissing", "org_guard.enforce", "reason:strict_missing"),
+
+    CLIENT_STATS_PROCESSED_TRACES("clientStatsProcessedTraces", "stats.traces_in"),
+    CLIENT_STATS_PROCESSED_SPANS("clientStatsProcessedSpans", "stats.spans_in"),
+    CLIENT_STATS_P0_DROPPED_TRACES("clientStatsP0DroppedTraces", "stats.dropped_p0_traces"),
+    CLIENT_STATS_P0_DROPPED_SPANS("clientStatsP0DroppedSpans", "stats.dropped_p0_spans"),
+    CLIENT_STATS_REQUESTS("clientStatsRequests", "stats.flush_payloads"),
+    CLIENT_STATS_ERRORS("clientStatsErrors", "stats.flush_errors"),
+    CLIENT_STATS_DOWNGRADES("clientStatsDowngrades", "stats.agent_downgrades"),
+
+    STATS_AGGREGATE_DROPPED(
+        "statsAggregateDropped", "stats.dropped_aggregates", "reason:lru_eviction"),
+    STATS_INBOX_FULL("statsInboxFull", "stats.dropped_aggregates", "reason:inbox_full"),
+    ;
+
+    private final String summaryLabel;
+    private final String metricName;
+    private final String[] tags;
+
+    Metric(String summaryLabel, String metricName, String... tags) {
+      this.summaryLabel = summaryLabel;
+      this.metricName = metricName;
+      this.tags = tags;
+    }
+
+    @Override
+    public String getMetricName() {
+      return metricName;
+    }
+
+    @Override
+    public String[] getTags() {
+      return tags;
+    }
+
+    String getSummaryLabel() {
+      return summaryLabel;
+    }
   }
 }
