@@ -25,16 +25,17 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that auto-instrumented openai.request spans inherit session_id from an active LLMObs
- * parent context. Forked + @WithConfig used together so the LLMObs system property is in place
- * before the agent installs and there's no leakage from prior test state.
+ * Verifies that auto-instrumented openai.request spans inherit session_id and agent_version from an
+ * active LLMObs parent context, and that a stale context left over from an unrelated trace does not
+ * leak either tag onto the span. Forked + @WithConfig used together so the LLMObs system property
+ * is in place before the agent installs and there's no leakage from prior test state.
  *
  * <p>The mock OpenAI backend returns a minimal 200 response — the test asserts on the span tag set
  * by OpenAiDecorator.afterStart(), which runs before the HTTP response is parsed, so the response
  * body shape doesn't matter for what's being tested.
  */
 @WithConfig(key = "llmobs.enabled", value = "true")
-class SessionIdPropagationForkedTest extends AbstractInstrumentationTest {
+class LlmObsContextPropagationForkedTest extends AbstractInstrumentationTest {
 
   private static HttpServer mockServer;
   private static OpenAIClient openAiClient;
@@ -109,6 +110,57 @@ class SessionIdPropagationForkedTest extends AbstractInstrumentationTest {
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
+  }
+
+  @Test
+  void openAiRequestSpanInheritsAgentVersionFromActiveContext() throws Exception {
+    String expectedAgentVersion = "agent-version-propagation-test-1.2.3";
+
+    AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(parentSpan.spanContext(), null, expectedAgentVersion)) {
+        try {
+          openAiClient.chat().completions().create(buildMinimalChatParams());
+        } catch (Exception ignored) {
+          // Mock server returns no body — the SDK may throw on parse. The span we care about
+          // is already created by the instrumentation advice before this point.
+        }
+      }
+    } finally {
+      parentSpan.finish();
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(expectedAgentVersion, openAiSpan.getTag("_ml_obs_tag.agent_version"));
+  }
+
+  @Test
+  void openAiRequestSpanDoesNotInheritSessionIdOrAgentVersionFromStaleCrossTraceContext()
+      throws Exception {
+    // Simulates a stale LLMObsContext leaked across an async boundary: the context is attached,
+    // but its span is never made the active tracer span, so the openai.request call below starts
+    // a brand-new trace and the trace-consistency gate in OpenAiDecorator must skip inheritance.
+    AgentSpan staleParent = AgentTracer.startSpan("test", "stale-parent");
+    try (ContextScope ignored =
+        LLMObsContext.attach(staleParent.spanContext(), "stale-session", "stale-version")) {
+      try {
+        openAiClient.chat().completions().create(buildMinimalChatParams());
+      } catch (Exception ignored2) {
+        // Mock server returns no body — the SDK may throw on parse. The span we care about
+        // is already created by the instrumentation advice before this point.
+      }
+    } finally {
+      staleParent.finish();
+    }
+
+    writer.waitForTraces(2);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.agent_version"));
   }
 
   private static ChatCompletionCreateParams buildMinimalChatParams() {
