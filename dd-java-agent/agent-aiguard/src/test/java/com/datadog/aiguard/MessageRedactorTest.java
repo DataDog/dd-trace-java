@@ -34,13 +34,6 @@ class MessageRedactorTest {
     return entry;
   }
 
-  private static Map<String, String> applied(final String path, final String replacement) {
-    final Map<String, String> entry = new LinkedHashMap<>(2);
-    entry.put("path", path);
-    entry.put("replacement", replacement);
-    return entry;
-  }
-
   private static List<Message> messages(final Message... messages) {
     return new ArrayList<>(asList(messages));
   }
@@ -377,9 +370,8 @@ class MessageRedactorTest {
                   replacement("messages[0].content", "My SSN is <REDACTED>"),
                   replacement("messages[9].content", "never applied")));
 
-      assertEquals(
-          singletonList(applied("messages[0].content", "My SSN is <REDACTED>")),
-          result.replacements);
+      assertEquals(1, result.applied);
+      assertEquals(1, result.skipped);
     }
 
     @Test
@@ -389,15 +381,16 @@ class MessageRedactorTest {
       final MessageRedactor.Result result =
           REDACTOR.redact(messages, singletonList(replacement("messages[0].content", "")));
 
-      assertEquals(singletonList(applied("messages[0].content", "")), result.replacements);
+      assertEquals(1, result.applied);
+      assertEquals("", result.messages.get(0).getContent());
     }
 
     @Test
     void reportsNothingWhenNothingWasApplied() {
       final List<Message> messages = messages(Message.message("user", "hello"));
 
-      assertTrue(REDACTOR.redact(messages, null).replacements.isEmpty());
-      assertTrue(new MessageRedactor.NoOp().redact(messages, null).replacements.isEmpty());
+      assertEquals(0, REDACTOR.redact(messages, null).applied);
+      assertEquals(0, new MessageRedactor.NoOp().redact(messages, null).applied);
     }
   }
 

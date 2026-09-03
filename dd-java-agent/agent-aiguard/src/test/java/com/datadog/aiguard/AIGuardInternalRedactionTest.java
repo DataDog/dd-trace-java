@@ -22,6 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
+import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
 import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.Options;
@@ -235,6 +236,53 @@ class AIGuardInternalRedactionTest {
       }
     }
     return count;
+  }
+
+  @Test
+  void reportsTheServiceReplacementsVerbatimIncludingUnappliedEntries() {
+    final String replacements =
+        "[{\"path\":\"messages[1].content\",\"replacement\":\""
+            + REDACTED
+            + "\"},{\"path\":\"messages[9].content\",\"replacement\":\"never applied\"}]";
+
+    final Evaluation evaluation = evaluate(responseWith("ALLOW", false, replacements));
+
+    assertEquals(REDACTED, evaluation.getMessages().get(1).getContent());
+    // messages[9] cannot resolve and is skipped fail-safe, but the service asked for it, so it is
+    // still reported back to the caller
+    assertEquals(2, evaluation.getRedactionReplacements().size());
+  }
+
+  @Test
+  void reportsTheServiceReplacementsEvenWhenTheKillSwitchIsOff() {
+    WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
+
+    final Evaluation evaluation = evaluate(responseWith("ALLOW", false, replacements(REDACTED)));
+
+    // nothing was applied, but the service's request is still visible to the caller
+    assertSame(MESSAGES, evaluation.getMessages());
+    assertEquals(1, evaluation.getRedactionReplacements().size());
+  }
+
+  @Test
+  void reportsNotRedactedWhenTheEvaluationFails() {
+    // no action field, so the response is rejected before any redaction work happens
+    assertThrows(
+        AIGuardClientError.class, () -> evaluate("{\"data\":{\"attributes\":{\"tags\":[]}}}"));
+
+    // a failed evaluation redacted nothing, and must not look like the kill switch is off
+    verify(span).setTag(REDACTED_TAG, false);
+    verify(span, never()).setTag(REDACTED_TAG, true);
+  }
+
+  @Test
+  void emitsNoTagWhenTheEvaluationFailsAndTheKillSwitchIsOff() {
+    WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
+
+    assertThrows(
+        AIGuardClientError.class, () -> evaluate("{\"data\":{\"attributes\":{\"tags\":[]}}}"));
+
+    verify(span, never()).setTag(eq(REDACTED_TAG), anyBoolean());
   }
 
   @Test

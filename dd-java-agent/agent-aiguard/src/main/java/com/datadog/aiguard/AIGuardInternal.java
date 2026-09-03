@@ -211,8 +211,12 @@ public class AIGuardInternal implements Evaluator {
    * conversation through the meta struct, and that report must be redacted too. The {@link
    * AIGuardAbortError} raised on that path deliberately carries no messages.
    *
+   * <p>The {@code ai_guard.redacted} tag is set to {@code false} before the request is issued and
+   * only raised here, so an evaluation that fails before this point still reports that nothing was
+   * redacted rather than looking like the kill switch is off.
+   *
    * @return the telemetry state, {@link AIGuardRedaction#DISABLED} when the kill switch is off, in
-   *     which case no {@code ai_guard.redacted} tag is attached either
+   *     which case no {@code ai_guard.redacted} tag is attached at all
    */
   private AIGuardRedaction reportRedaction(
       final AgentSpan span, final MessageRedactor.Result redaction) {
@@ -221,13 +225,17 @@ public class AIGuardInternal implements Evaluator {
       // one ("redaction is on and nothing was redacted").
       return AIGuardRedaction.DISABLED;
     }
-    span.setTag(REDACTED_TAG, redaction.redacted());
     if (redaction.skipped > 0) {
       log.debug(
           "AI Guard skipped {} redaction replacement(s) that could not be applied",
           redaction.skipped);
     }
-    return redaction.redacted() ? AIGuardRedaction.APPLIED : AIGuardRedaction.NOT_APPLIED;
+    if (!redaction.redacted()) {
+      // The tag was already set to false before the request; nothing to correct.
+      return AIGuardRedaction.NOT_APPLIED;
+    }
+    span.setTag(REDACTED_TAG, true);
+    return AIGuardRedaction.APPLIED;
   }
 
   private static boolean isToolCall(final Message message) {
@@ -334,6 +342,11 @@ public class AIGuardInternal implements Evaluator {
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
+      if (redactor.enabled()) {
+        // Reported before the request goes out so an evaluation that fails, and therefore redacts
+        // nothing, still says so. An absent tag stays reserved for the kill switch being off.
+        span.setTag(REDACTED_TAG, false);
+      }
       final Map<String, Object> metaStruct = new HashMap<>(2);
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
@@ -369,9 +382,10 @@ public class AIGuardInternal implements Evaluator {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
         final Object rawReplacements = result.get(RESPONSE_REDACTION_REPLACEMENTS);
-        final MessageRedactor.Result redaction =
-            redactor.redact(
-                messages, rawReplacements instanceof List ? (List<?>) rawReplacements : null);
+        // Reported back to the caller verbatim, including entries redaction could not apply.
+        final List<?> redactionReplacements =
+            rawReplacements instanceof List ? (List<?>) rawReplacements : null;
+        final MessageRedactor.Result redaction = redactor.redact(messages, redactionReplacements);
         final AIGuardRedaction redactionState = reportRedaction(span, redaction);
         finalMessages = redaction.messages;
         final boolean shouldBlock =
@@ -382,13 +396,7 @@ public class AIGuardInternal implements Evaluator {
           throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
         return new Evaluation(
-            action,
-            reason,
-            tags,
-            tagProbs,
-            sdsFindings,
-            redaction.messages,
-            redaction.replacements);
+            action, reason, tags, tagProbs, sdsFindings, redaction.messages, redactionReplacements);
       } finally {
         metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(finalMessages));
       }

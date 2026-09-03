@@ -172,7 +172,7 @@ public abstract class AIGuard {
     final Map<String, Number> tagProbs;
     final List<?> sds;
     final List<Message> messages;
-    final List<Map<String, String>> redactionReplacements;
+    final List<?> redactionReplacements;
 
     /**
      * Creates a new evaluation result carrying no messages.
@@ -227,8 +227,8 @@ public abstract class AIGuard {
      * @param tagProbs map of tags associated to their probability
      * @param sds list of Sensitive Data Scanner findings
      * @param messages the evaluated messages, redacted when redaction was applied
-     * @param redactionReplacements the redactions that produced {@code messages}, one {@code {path,
-     *     replacement}} entry per rewritten path
+     * @param redactionReplacements the {@code redaction_replacements} array as returned by the
+     *     AIGuard service
      */
     public Evaluation(
         final Action action,
@@ -237,7 +237,7 @@ public abstract class AIGuard {
         final Map<String, Number> tagProbs,
         final List<?> sds,
         final List<Message> messages,
-        final List<Map<String, String>> redactionReplacements) {
+        final List<?> redactionReplacements) {
       this.action = action;
       this.reason = reason;
       this.tags = tags;
@@ -307,18 +307,21 @@ public abstract class AIGuard {
     }
 
     /**
-     * Returns the redactions that were applied to produce {@link #getMessages()}.
+     * Returns the redaction replacements the AIGuard service asked for, exactly as it returned
+     * them.
      *
-     * <p>Each entry is a {@code {path, replacement}} pair addressing one rewritten string in the
-     * evaluated conversation, e.g. {@code messages[1].content} or {@code
-     * messages[2].tool_calls[0].function.arguments}. Only the replacements that were actually
-     * applied are reported: entries the AI Guard service returned but that could not be resolved
-     * are skipped fail-safe and never surface here, and the list is empty when redaction is
-     * disabled locally.
+     * <p>Each entry is a {@code {path, replacement}} pair addressing one string in the evaluated
+     * conversation, e.g. {@code messages[1].content} or {@code
+     * messages[2].tool_calls[0].function.arguments}.
      *
-     * @return the applied redaction replacements, empty when nothing was redacted
+     * <p>This is detection metadata, not a record of what the tracer did: entries the tracer could
+     * not resolve are skipped fail-safe but still reported here, and the whole array is reported
+     * even when redaction is disabled locally, in which case none of it was applied. Use {@link
+     * #getMessages()} for the conversation as it actually stands.
+     *
+     * @return the service's redaction replacements, empty when it asked for none
      */
-    public List<Map<String, String>> getRedactionReplacements() {
+    public List<?> getRedactionReplacements() {
       return redactionReplacements;
     }
   }

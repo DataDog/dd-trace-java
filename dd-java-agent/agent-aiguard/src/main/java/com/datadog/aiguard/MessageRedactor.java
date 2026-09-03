@@ -5,7 +5,6 @@ import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.ToolCall;
 import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,27 +22,15 @@ public interface MessageRedactor {
     /** The redacted messages, or the very same list that was passed in when nothing was applied. */
     final List<Message> messages;
 
-    /**
-     * The {@code {path, replacement}} entries that were actually overwritten, in the order the
-     * service returned them. Entries skipped fail-safe never appear here, so this list describes
-     * exactly the transformation {@link #messages} underwent, and it is what the SDK hands back
-     * through {@code Evaluation.getRedactionReplacements()}.
-     */
-    final List<Map<String, String>> replacements;
-
     /** Number of paths successfully overwritten. */
     final int applied;
 
     /** Number of entries skipped fail-safe (unresolvable, non-string, missing or conflicting). */
     final int skipped;
 
-    private Result(
-        final List<Message> messages,
-        final List<Map<String, String>> replacements,
-        final int skipped) {
+    private Result(final List<Message> messages, final int applied, final int skipped) {
       this.messages = messages;
-      this.replacements = replacements;
-      this.applied = replacements.size();
+      this.applied = applied;
       this.skipped = skipped;
     }
 
@@ -53,7 +40,7 @@ public interface MessageRedactor {
     }
 
     private static Result nothingApplied(final List<Message> messages, final int skipped) {
-      return new Result(messages, Collections.emptyList(), skipped);
+      return new Result(messages, 0, skipped);
     }
   }
 
@@ -123,13 +110,6 @@ public interface MessageRedactor {
     /** Longest index we bother parsing; anything longer cannot address a real list. */
     private static final int MAX_INDEX_DIGITS = 9;
 
-    private static Map<String, String> entry(final String path, final String replacement) {
-      final Map<String, String> entry = new LinkedHashMap<>(4);
-      entry.put("path", path);
-      entry.put("replacement", replacement);
-      return Collections.unmodifiableMap(entry);
-    }
-
     /**
      * Overwrites every path in {@code replacements} with its replacement string.
      *
@@ -189,7 +169,7 @@ public interface MessageRedactor {
       final String[] names = new String[MAX_SEGMENTS];
       final int[] indices = new int[MAX_SEGMENTS];
       List<Message> working = null;
-      final List<Map<String, String>> applied = new ArrayList<>(byPath.size());
+      int applied = 0;
 
       for (final Map.Entry<String, String> entry : byPath.entrySet()) {
         final int count = parseSegments(entry.getKey(), names, indices);
@@ -212,13 +192,13 @@ public interface MessageRedactor {
           working = new ArrayList<>(messages);
         }
         working.set(index, updated);
-        applied.add(entry(entry.getKey(), entry.getValue()));
+        applied++;
       }
 
       if (working == null) {
         return Result.nothingApplied(messages, skipped);
       }
-      return new Result(working, Collections.unmodifiableList(applied), skipped);
+      return new Result(working, applied, skipped);
     }
 
     /**
