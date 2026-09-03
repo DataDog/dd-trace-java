@@ -16,6 +16,9 @@ Published as `com.datadoghq:dd-openfeature` on Maven Central.
 
 The OpenFeature SDK (`dev.openfeature:sdk`) is included as a transitive dependency.
 
+`dd-openfeature` 1.66.0 and later requires `dd-java-agent` 1.66.0 or later. Keep the
+Java agent at the same or a newer version than the provider artifact.
+
 ### Evaluation metrics (optional)
 
 To enable evaluation metrics (`feature_flag.evaluations` counter), enable the Datadog Java agent's

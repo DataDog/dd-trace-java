@@ -425,6 +425,14 @@ public class DDEvaluatorTest {
     }
   }
 
+  @Test
+  public void telemetryDisabledOmitsSpanEnrichmentMetadata() {
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(false, true, false, 17);
+
+    assertNull(details.getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
+    assertNull(details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG));
+  }
+
   // -- DISABLED path: flag.enabled=false --
 
   @Test
@@ -538,9 +546,17 @@ public class DDEvaluatorTest {
       final boolean observeFullEvaluationData,
       final boolean doLog,
       final boolean telemetryEnabled) {
+    return evaluateMatchingFlag(observeFullEvaluationData, doLog, telemetryEnabled, null);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final boolean telemetryEnabled,
+      final Integer serialId) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
-    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
     final Allocation allocation =
         new Allocation("alloc-1", null, null, null, singletonList(split), doLog);
     return evaluateFlag(

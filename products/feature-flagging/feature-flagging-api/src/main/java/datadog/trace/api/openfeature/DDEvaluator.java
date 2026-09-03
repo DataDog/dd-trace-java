@@ -115,7 +115,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
   private long lastConfigVersion;
 
-  public DDEvaluator(final Runnable configCallback) {
+  DDEvaluator(final Runnable configCallback) {
     this(configCallback, true);
   }
 
@@ -566,11 +566,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
             .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
-    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
+    // only when telemetry and span enrichment are on, so a provider without enrichment pays
+    // nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
     // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
     // subject.
-    if (SPAN_ENRICHMENT_ENABLED) {
+    if (telemetryEnabled && SPAN_ENRICHMENT_ENABLED) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }

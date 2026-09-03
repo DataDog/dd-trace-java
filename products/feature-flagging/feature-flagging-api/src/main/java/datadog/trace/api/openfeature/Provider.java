@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -31,7 +32,8 @@ public class Provider extends EventProvider implements Metadata {
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
   private static final long DEFAULT_INIT_TIMEOUT = 30;
   private volatile Evaluator evaluator;
-  private final Options options;
+  private final long initTimeout;
+  private final TimeUnit initTimeoutUnit;
   private final boolean telemetryEnabled;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
@@ -56,14 +58,17 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   /**
-   * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
-   *     seam); when null, the gate is read via {@link SpanEnrichmentGate}.
+   * @param spanEnrichmentEnabledOverride when non-null, replaces the {@link SpanEnrichmentGate}
+   *     reading (test seam); when null, the gate is read via {@link SpanEnrichmentGate}. Either way
+   *     span enrichment stays off when {@code options.isTelemetryEnabled()} is false.
    */
   Provider(
       final Options options,
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
-    this.options = options;
+    requireNonNull(options, "options");
+    this.initTimeout = options.getTimeout();
+    this.initTimeoutUnit = options.getUnit();
     this.telemetryEnabled = options.isTelemetryEnabled();
     this.evaluator = evaluator;
 
@@ -127,7 +132,7 @@ public class Provider extends EventProvider implements Metadata {
     initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
-      if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
+      if (!evaluator.initialize(initTimeout, initTimeoutUnit, context)) {
         if (markInitialConfigReceivedReady()) {
           return;
         }
@@ -143,6 +148,13 @@ public class Provider extends EventProvider implements Metadata {
     } catch (final OpenFeatureError e) {
       markInitializationError();
       throw e;
+    } catch (final LinkageError e) {
+      markInitializationError();
+      throw new FatalError(
+          "Failed to initialize provider: a required Datadog agent class or method is missing."
+              + " The Datadog Java agent is likely absent, or older than this dd-openfeature"
+              + " release.",
+          e);
     } catch (final Throwable e) {
       markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
