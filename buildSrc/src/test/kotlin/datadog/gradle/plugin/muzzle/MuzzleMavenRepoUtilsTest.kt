@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
 import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.system.measureTimeMillis
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 
@@ -107,6 +108,53 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("empty:")
       .hasMessageContaining("Attempts:\n  4")
       .hasMessageContaining("Backoff:\n  disabled")
+  }
+
+  @Test
+  fun `defaultMuzzleRepos falls back to Maven Central when no proxy is configured`() {
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos(null).map { it.id to it.url })
+      .containsExactly("central" to "https://repo1.maven.org/maven2/")
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos("   ").map { it.id to it.url })
+      .containsExactly("central" to "https://repo1.maven.org/maven2/")
+  }
+
+  @Test
+  fun `defaultMuzzleRepos replaces Maven Central with the proxy so range queries do not hit it`() {
+    // Aether merges metadata from *every* repository of a range request (see
+    // `resolveVersionRange includes directive extra repositories`), so leaving Central in the
+    // list would query repo1.maven.org on every directive even when the proxy serves it.
+    val repos = MuzzleMavenRepoUtils.defaultMuzzleRepos("https://proxy.example/maven2/")
+
+    assertThat(repos.map { it.id to it.url })
+      .containsExactly("central-proxy" to "https://proxy.example/maven2/")
+    assertThat(repos.map { it.url }).noneMatch { it.contains("repo1.maven.org") }
+  }
+
+  @Test
+  fun `resolveVersionRange skips backoff when every repository is local`() {
+    val emptyRepo = RemoteRepository.Builder(
+      "empty",
+      "default",
+      File(tempDir, "empty").apply { mkdirs() }.toURI().toString()
+    ).build()
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "nonexistent"
+      versions = "[1.0,)"
+    }
+
+    // enableBackoffRetries is left at its production default; a file: repository cannot be
+    // transiently unavailable, so the 5s/10s/30s sleeps must not run.
+    val elapsedMillis = measureTimeMillis {
+      assertThatThrownBy {
+        MuzzleMavenRepoUtils.resolveVersionRange(directive, system, newSession(), listOf(emptyRepo))
+      }.isInstanceOf(IllegalStateException::class.java)
+        .hasMessageContaining("Backoff:\n  disabled")
+    }
+
+    assertThat(elapsedMillis)
+      .withFailMessage("Expected no backoff sleeps for a file: repository, took %dms", elapsedMillis)
+      .isLessThan(5_000)
   }
 
   @Test

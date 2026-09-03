@@ -21,6 +21,9 @@ open class GradleFixture {
 
   private val testKitDir: File get() = sharedTestKitDir
 
+  private val repositoryProxyInitScript: File
+    get() = File(testKitDir, "repository-proxy.init.gradle")
+
   companion object {
     // JVM-wide testkit dir shared across all GradleFixture instances. One daemon
     // pool serves every test method, so kotlinc work on .gradle.kts scripts is
@@ -35,10 +38,17 @@ open class GradleFixture {
     // fields.
     private val sharedTestKitDir: File by lazy {
       Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
+        // Register the cleanup hook before anything that can throw, so a failure below
+        // does not leak the temp dir.
         Runtime.getRuntime().addShutdownHook(Thread {
           stopDaemonsIn(dir)
           dir.deleteRecursively()
         })
+        val initScript = File(dir, "repository-proxy.init.gradle")
+        GradleFixture::class.java
+          .getResourceAsStream("/repository-proxy.init.gradle")
+          ?.use { input -> initScript.outputStream().use(input::copyTo) }
+          ?: error("Missing repository-proxy.init.gradle test resource")
       }
     }
 
@@ -110,6 +120,9 @@ open class GradleFixture {
    * @param args Gradle task names and arguments
    * @param expectFailure Whether the build is expected to fail
    * @param env Environment variables to set (merged with system environment)
+   * @param unsetEnv Environment variables to remove from the system environment. Needed to
+   *     exercise "no repository proxy configured" behaviour, since CI exports
+   *     MAVEN_REPOSITORY_PROXY/GRADLE_PLUGIN_PROXY globally and [env] can only add.
    * @param forwardOutput Forward the build's stdout/stderr to the test's output
    * @param gradleProjectDir Override the project directory used by Gradle (useful for git worktree tests);
    *     defaults to the fixture's project directory.
@@ -119,6 +132,7 @@ open class GradleFixture {
     vararg args: String,
     expectFailure: Boolean = false,
     env: Map<String, String> = emptyMap(),
+    unsetEnv: Set<String> = emptySet(),
     forwardOutput: Boolean = false,
     gradleProjectDir: File = projectDir,
   ): BuildResult {
@@ -127,8 +141,8 @@ open class GradleFixture {
       .withPluginClasspath()
       .withProjectDir(gradleProjectDir)
       // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
-      .withEnvironment(System.getenv() + env)
-      .withArguments(*args)
+      .withEnvironment(System.getenv() - unsetEnv + env)
+      .withArguments("--init-script", repositoryProxyInitScript.absolutePath, *args)
     if (forwardOutput) {
       runner.forwardOutput()
     }
@@ -224,6 +238,14 @@ open class GradleFixture {
     val builder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
     return builder.parse(xmlFile)
   }
+
+  /**
+   * Creates a fake Maven repository under the project directory.
+   *
+   * Pass its [MavenRepoFixture.repoUrl] as `MAVEN_REPOSITORY_PROXY` to [run] to make it
+   * shadow Maven Central for the TestKit build.
+   */
+  fun createMavenRepoFixture(): MavenRepoFixture = MavenRepoFixture(projectDir)
 
   /**
    * Returns a File handle under the project directory.
