@@ -11,6 +11,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
@@ -968,10 +969,11 @@ public class DDSpanContext
       return;
     }
 
-    // pre-check to avoid boxing
+    // pre-check to avoid boxing; the entry already knows its own id
+    long tagId = entry.tagId();
     boolean intercepted =
-        precheckIntercept(entry.tag())
-            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
+        precheckIntercept(tagId, entry.tag())
+            && tagInterceptor.interceptTag(this, tagId, entry.tag(), entry.objectValue());
     if (!intercepted) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
@@ -983,9 +985,16 @@ public class DDSpanContext
    * Uses to determine if there's an opportunity to avoid primitve boxing.
    * If the underlying map doesn't support efficient primitives, then boxing is used.
    * If the tag may be intercepted, then boxing is also used.
+   *
+   * Resolves the tag id ONCE and hands it to both the screen and, on a hit, interceptTag --
+   * the name is never looked up twice.
    */
-  private boolean precheckIntercept(String tag) {
-    return tagInterceptor.needsIntercept(tag);
+  private static long tagIdOf(String tag) {
+    return KnownTagCodec.keyOf(tag);
+  }
+
+  private boolean precheckIntercept(long tagId, String tag) {
+    return tagInterceptor.needsIntercept(tagId, tag);
   }
 
   /*
@@ -1000,8 +1009,8 @@ public class DDSpanContext
    * The TagMap isn't optimized and will need to box the primitive regardless of
    * tag interception
    */
-  private void setBox(String tag, Object box) {
-    if (!tagInterceptor.interceptTag(this, tag, box)) {
+  private void setBox(long tagId, String tag, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, tag, box)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, box);
       }
@@ -1012,8 +1021,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    long tagId = tagIdOf(tag);
+    if (precheckIntercept(tagId, tag)) {
+      this.setBox(tagId, tag, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1025,8 +1035,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    long tagId = tagIdOf(tag);
+    if (precheckIntercept(tagId, tag)) {
+      this.setBox(tagId, tag, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1039,8 +1050,10 @@ public class DDSpanContext
       return;
     }
     // check needsIntercept first to avoid unnecessary boxing
+    long tagId = tagIdOf(tag);
     boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+        tagInterceptor.needsIntercept(tagId, tag)
+            && tagInterceptor.interceptTag(this, tagId, tag, value);
     if (!intercepted) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1052,8 +1065,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    long tagId = tagIdOf(tag);
+    if (precheckIntercept(tagId, tag)) {
+      this.setBox(tagId, tag, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1065,8 +1079,9 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
+    long tagId = tagIdOf(tag);
+    if (precheckIntercept(tagId, tag)) {
+      this.setBox(tagId, tag, value);
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1094,7 +1109,7 @@ public class DDSpanContext
               String tag = tagEntry.tag();
               Object value = tagEntry.objectValue();
 
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry.tagId(), tag, value)) {
                 ctx.unsafeTags.set(tagEntry);
               }
             });
