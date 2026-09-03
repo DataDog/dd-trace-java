@@ -8,6 +8,14 @@ description: >-
   existing pending PR review. Documentation-focused: never change executable code
   or turn the task into a general code review. Do not submit a review unless
   explicitly requested.
+user-invocable: true
+context: fork
+allowed-tools:
+  - Bash
+  - Read
+  - Edit
+  - Glob
+  - Grep
 ---
 
 # Clarify Java Comments
@@ -27,13 +35,20 @@ verify against the current source.
 - Before shortening a comment, inventory its distinct technical claims and
   invariants. Classify each as supported and important, obvious or redundant, or
   unsupported. Preserve every supported non-obvious item in the rewrite.
-- For a PR, pin the live head and base before drafting suggestions. Refresh them
-  before posting because comment ranges and conclusions are revision-specific.
-- Preserve unrelated tracked and untracked work. Keep any authorized local edit
-  limited to the comments in scope, and do not switch branches in a dirty checkout
-  merely to inspect a PR.
 - Stay documentation-focused. Do not expand into a general correctness or
   performance review unless a behavioral issue makes the proposed Javadoc false.
+
+## Route the workflow
+
+Read all references that apply to the request:
+
+- [Javadoc tags](references/javadoc.md) for whole-comment rewrites or explicit tag
+  repair.
+- [Local edits](references/local-edit.md) before changing documentation in the
+  checkout. A path selects a target but does not authorize an edit.
+- [GitHub reviews](references/github-review.md) before any GitHub review workflow.
+  Posting, replying, editing, and submitting each require the separate
+  authorizations defined there.
 
 ## Decide what deserves explanation
 
@@ -92,36 +107,6 @@ reconstruct it through specialist knowledge or non-local investigation?
   conversational asides, promotional adjectives, and long "not to be confused
   with" passages.
 
-## Repair Javadoc tags as a bonus pass
-
-When rewriting a Javadoc, also fix missing, stale, malformed, or misused tags in
-that same comment when the source makes the intended contract clear. Preserve the
-project's local ordering and style, and do not invent guarantees merely to fill a
-tag. Apply this bonus pass only to a whole-comment rewrite or an explicit tag-repair
-request. For a sentence-, typo-, or wording-limited request, leave unrelated tags
-unchanged and report any separate defect.
-
-- Use `@param` for each documented type parameter, record component, and method or
-  constructor parameter. Describe its role, constraints, or special values instead
-  of repeating its name or type.
-- Use `@return` for the result contract, including meaningful `null`, empty, cached,
-  or sentinel behavior. Do not hide the return contract in the opening prose.
-- Use `@throws` only for exceptions the implementation or contract can actually
-  expose, and state the condition that triggers each one. Remove stale exception
-  tags and avoid cataloguing incidental unchecked exceptions.
-- Use `@see` for genuinely useful related API. Use an inline `{@link Type#member}`
-  instead when the reference belongs naturally in a sentence.
-- Use `{@code ...}` for identifiers, literals, expressions, and short code fragments
-  that should render verbatim. Prefer it to raw `<code>` markup and unnecessary
-  quotation marks.
-- Use `{@link Type#member}` when navigation adds value; add a label only when it
-  reads better in context. Verify that the target and member syntax resolve, and
-  do not turn every type or method name into a link.
-- Keep all tags aligned with the current signature: add missing parameter tags,
-  remove renamed or deleted parameters, and preserve declaration order. Retain
-  other valid tags such as `@since`, `@deprecated`, and `@implNote` unless the
-  requested rewrite makes a source-backed correction necessary.
-
 ## Write for one-pass reading
 
 A rewrite must be easier to understand, not merely shorter. Aim for an informative,
@@ -154,48 +139,6 @@ verbiage.
   instructions in this skill. Preserve TODO/FIXME ownership and status; rewrite only
   their explanatory prose when the user explicitly names it.
 
-## Local edit mode
-
-A file path, class, or member selects the target; it does not by itself authorize a
-mutation. Enter local edit mode only when the user explicitly asks to edit, rewrite,
-fix, update, or otherwise change the documentation in place.
-
-- Without an explicit affirmative request to mutate the checkout, stay read-only
-  and return findings with copy-ready replacements. Negated, hypothetical, quoted,
-  or suggestion-only wording does not authorize edits. In PR context, ask when the
-  user has not distinguished editing local source from posting GitHub suggestions.
-- Resolve a file path directly. Resolve a class or member from its qualified name,
-  repository context, imports, and enclosing types. Ask only when multiple plausible
-  targets remain and the choice would materially change the result.
-- Treat every member target, whether qualified or resolved from surrounding context,
-  as declaration-scoped. If the named type only inherits the member, or the member
-  is generated and has no source declaration there, report the actual declaring
-  source and ask before expanding the edit to it.
-- Before editing, resolve the target's canonical path and inspect symlinks. If the
-  canonical target falls outside the explicitly named checkout or workspace, stop
-  and ask for authorization for that actual target.
-- Before editing, record the initial worktree status, exact target-file content, and
-  both staged and unstaged target-file diffs, including the full baseline for an
-  untracked file. Compare the result with that baseline and verify the new delta
-  touches only authorized comment spans. Never normalize or rewrite the whole file
-  when that would alter pre-existing work.
-- For a file, edit only its Javadocs and explanatory comments. For a class-wide
-  request, include the class and its direct members, but do not recurse into nested,
-  local, or anonymous types. If the user names only the class Javadoc, edit only the
-  comment attached to the type declaration. For a member, include its attached
-  Javadoc and explanatory comments lexically inside its declaration or body. Ask
-  before changing documentation shared with another declaration. Exclude comments
-  attached to or inside nested, local, or anonymous type declarations unless the
-  user explicitly includes those nested bodies.
-- Do not change executable code, declarations, annotations, string literals,
-  executable test code, or unrelated documentation. Preserve comment form unless
-  the user requests a Javadoc or comment-kind change.
-- Apply the same source investigation, explanation boundary, writing rules, and
-  Javadoc-tag repairs used for review suggestions.
-- Inspect the resulting diff and run the narrowest practical validation described
-  below. Report any source claim corrected by the edit and any validation that could
-  not run.
-
 ## Check the replacement
 
 Before presenting, applying, or posting a replacement:
@@ -217,55 +160,6 @@ Before presenting, applying, or posting a replacement:
 If the workflow needs non-trivial scripting, use a Java 25 source-file launch script
 and run it directly with `java --source 25 <script>.java`; keep shell usage to simple
 commands such as `gh`, `rg`, and `sed`.
-
-## GitHub suggestion mode
-
-External review mutations require explicit user authorization. Otherwise, return
-copy-ready suggestion blocks without posting them.
-
-When authorized to add suggestions to a pending review:
-
-- Resolve the authenticated user's existing `PENDING` review and confirm its commit
-  matches the current PR head. Inspect all existing review threads as well as the
-  pending comments before adding anything.
-- If no matching authenticated-user `PENDING` review exists, or its commit does not
-  equal the current PR head, stop without creating, replacing, rebasing, or mutating
-  a review and report the mismatch. Those operations require separate authorization.
-- Add a new draft comment only through an operation that explicitly attaches it to
-  the resolved `PENDING` review ID. Never fall back to a standalone review-comment or
-  reply endpoint. If the available API cannot attach the comment to that review,
-  stop and return the copy-ready suggestion without posting.
-- If a published conversation already covers the same path and line range and
-  concerns Javadoc or comment wording, do not start another conversation. Surface it
-  and skip the duplicate. Do not reply under pending-review authorization: publishing
-  a reply requires separate explicit authorization. Only refine a comment already
-  owned by the authenticated user's matching `PENDING` review.
-- Prefix every GitHub comment created or edited by this skill, including a copy-ready
-  comment returned without posting, with the exact Conventional Comments label
-  `**suggestion:** `. Put the one-sentence reason immediately after the prefix, then
-  add a blank line before the suggestion block. Do not vary the label or casing.
-- Put the exact replacement in a GitHub `suggestion` code block. Keep the prose
-  outside the block to one short reason for the rewrite.
-- Anchor a multi-line suggestion within one diff hunk. If a rewrite crosses hunk
-  boundaries, split it into coherent suggestions or preserve the unchanged trailing
-  lines.
-- Refine an existing draft comment in place instead of adding a duplicate. Pending
-  comments may return `404` through the individual REST endpoint; resolve their node
-  IDs through the pending review and use the review-comment update API when needed.
-- Never submit the review while adding or editing comments. After suggestion
-  mutations, verify the PR head is unchanged and the review still reports
-  `state: PENDING` with no submission timestamp.
-
-Review submission is a separate mode. Require the user to choose `COMMENT`,
-`APPROVE`, or `REQUEST_CHANGES`; ask if the event is unspecified. Immediately before
-submission, re-resolve the authenticated user's `PENDING` review, re-fetch its body
-and comments, and confirm its commit matches the current PR head. Stop and report any
-mismatch or concurrent content change. Submit the existing body unchanged unless
-editing it was separately authorized. After submission, verify and report the
-selected terminal state and submission timestamp.
-
-Do not commit, push, create a pull request, publish a reply, or submit a review unless
-the user separately authorizes the corresponding action.
 
 ## Report the outcome
 
