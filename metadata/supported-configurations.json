@@ -97,6 +97,14 @@
         "aliases": []
       }
     ],
+    "DD_AI_GUARD_REDACTION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_AI_GUARD_TIMEOUT": [
       {
         "version": "A",

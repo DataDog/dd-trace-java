@@ -28,6 +28,7 @@ import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -51,6 +52,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.BufferedSink;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Concrete implementation of the SDK used to interact with the AIGuard REST API.
@@ -59,6 +62,8 @@ import okio.BufferedSink;
  * through {@link AIGuardSystem#start()}.
  */
 public class AIGuardInternal implements Evaluator {
+
+  private static final Logger log = LoggerFactory.getLogger(AIGuardInternal.class);
 
   public static class BadConfigurationException extends RuntimeException {
     public BadConfigurationException(final String message) {
@@ -72,6 +77,9 @@ public class AIGuardInternal implements Evaluator {
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
+  static final String REDACTED_TAG = "ai_guard.redacted";
+
+  static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
 
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
@@ -128,6 +136,7 @@ public class AIGuardInternal implements Evaluator {
   private final OkHttpClient client;
   private final Map<String, String> meta;
   private final Map<String, String> headers;
+  private final MessageRedactor redactor;
 
   AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final OkHttpClient client) {
     this.url = url;
@@ -136,13 +145,17 @@ public class AIGuardInternal implements Evaluator {
     this.moshi = new Moshi.Builder().add(new AIGuardFactory()).build();
     final Config config = Config.get();
     this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
+    this.redactor =
+        config.isAiGuardRedactionEnabled()
+            ? new MessageRedactor.DefaultRedactor()
+            : new MessageRedactor.NoOp();
   }
 
   /**
    * Creates a deep copy of the messages before storing them in the metastruct to avoid concurrent
    * modifications prior to trace serialization.
    */
-  private static List<Message> messagesForMetaStruct(List<Message> messages) {
+  private static List<Message> messagesForMetaStruct(final List<Message> messages) {
     final Config config = Config.get();
     final int size = Math.min(messages.size(), config.getAiGuardMaxMessagesLength());
     if (size < messages.size()) {
@@ -189,6 +202,32 @@ public class AIGuardInternal implements Evaluator {
       WafMetricCollector.get().aiGuardTruncated(CONTENT);
     }
     return result;
+  }
+
+  /**
+   * Applies the redaction requested by the AI Guard service and reports the outcome on the span.
+   *
+   * <p>This runs before the blocking decision on purpose: a blocked evaluation still reports its
+   * conversation through the meta struct, and that report must be redacted too. The {@link
+   * AIGuardAbortError} raised on that path deliberately carries no messages.
+   *
+   * @return the telemetry state, {@link AIGuardRedaction#DISABLED} when the kill switch is off, in
+   *     which case no {@code ai_guard.redacted} tag is attached either
+   */
+  private AIGuardRedaction reportRedaction(
+      final AgentSpan span, final MessageRedactor.Result redaction) {
+    if (!redactor.enabled()) {
+      // No tag at all, so an absent tag ("redaction is off") stays distinguishable from a false
+      // one ("redaction is on and nothing was redacted").
+      return AIGuardRedaction.DISABLED;
+    }
+    span.setTag(REDACTED_TAG, redaction.redacted());
+    if (redaction.skipped > 0) {
+      log.debug(
+          "AI Guard skipped {} redaction replacement(s) that could not be applied",
+          redaction.skipped);
+    }
+    return redaction.redacted() ? AIGuardRedaction.APPLIED : AIGuardRedaction.NOT_APPLIED;
   }
 
   private static boolean isToolCall(final Message message) {
@@ -283,6 +322,7 @@ public class AIGuardInternal implements Evaluator {
       // sure client IP tags were populated.
       copyAnomalyDetectionTags(span, localRootSpan);
     }
+    List<Message> finalMessages = messages;
     try (final ContextScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
@@ -295,7 +335,6 @@ public class AIGuardInternal implements Evaluator {
         span.setTag(TARGET_TAG, "prompt");
       }
       final Map<String, Object> metaStruct = new HashMap<>(2);
-      metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
@@ -329,14 +368,29 @@ public class AIGuardInternal implements Evaluator {
         if (sdsFindings != null && !sdsFindings.isEmpty()) {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
+        final Object rawReplacements = result.get(RESPONSE_REDACTION_REPLACEMENTS);
+        final MessageRedactor.Result redaction =
+            redactor.redact(
+                messages, rawReplacements instanceof List ? (List<?>) rawReplacements : null);
+        final AIGuardRedaction redactionState = reportRedaction(span, redaction);
+        finalMessages = redaction.messages;
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
-        WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
+        WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
           throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
-        return new Evaluation(action, reason, tags, tagProbs, sdsFindings);
+        return new Evaluation(
+            action,
+            reason,
+            tags,
+            tagProbs,
+            sdsFindings,
+            redaction.messages,
+            redaction.replacements);
+      } finally {
+        metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(finalMessages));
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);

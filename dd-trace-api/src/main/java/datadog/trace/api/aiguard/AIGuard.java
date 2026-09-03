@@ -49,7 +49,9 @@ public abstract class AIGuard {
    *
    * @param messages the collection of messages to evaluate (prompts, responses, tool calls, etc.)
    * @param options configuration options for the evaluation process
-   * @return an {@link Evaluation} containing the security decision and reasoning
+   * @return an {@link Evaluation} containing the security decision, the reasoning, and the
+   *     evaluated messages (redacted when redaction was applied, see {@link
+   *     Evaluation#getMessages()})
    * @throws AIGuardAbortError if the evaluation action is not ALLOW (DENY or ABORT) and blocking is
    *     enabled
    * @throws AIGuardClientError if there are client-side errors communicating with the AIGuard REST
@@ -169,6 +171,52 @@ public abstract class AIGuard {
     final List<String> tags;
     final Map<String, Number> tagProbs;
     final List<?> sds;
+    final List<Message> messages;
+    final List<Map<String, String>> redactionReplacements;
+
+    /**
+     * Creates a new evaluation result carrying no messages.
+     *
+     * @param action the recommended action for the evaluated content
+     * @param reason human-readable explanation for the decision
+     * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     * @param tagProbs map of tags associated to their probability
+     * @param sds list of Sensitive Data Scanner findings
+     * @deprecated use {@link #Evaluation(Action, String, List, Map, List, List)} instead, so the
+     *     evaluated messages are available to the caller.
+     */
+    @Deprecated
+    public Evaluation(
+        final Action action,
+        final String reason,
+        final List<String> tags,
+        final Map<String, Number> tagProbs,
+        final List<?> sds) {
+      this(action, reason, tags, tagProbs, sds, Collections.emptyList());
+    }
+
+    /**
+     * Creates a new evaluation result carrying no redaction replacements.
+     *
+     * @param action the recommended action for the evaluated content
+     * @param reason human-readable explanation for the decision
+     * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     * @param tagProbs map of tags associated to their probability
+     * @param sds list of Sensitive Data Scanner findings
+     * @param messages the evaluated messages, redacted when redaction was applied
+     * @deprecated use {@link #Evaluation(Action, String, List, Map, List, List, List)} instead, so
+     *     the applied redaction replacements are available to the caller.
+     */
+    @Deprecated
+    public Evaluation(
+        final Action action,
+        final String reason,
+        final List<String> tags,
+        final Map<String, Number> tagProbs,
+        final List<?> sds,
+        final List<Message> messages) {
+      this(action, reason, tags, tagProbs, sds, messages, Collections.emptyList());
+    }
 
     /**
      * Creates a new evaluation result.
@@ -178,18 +226,26 @@ public abstract class AIGuard {
      * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
      * @param tagProbs map of tags associated to their probability
      * @param sds list of Sensitive Data Scanner findings
+     * @param messages the evaluated messages, redacted when redaction was applied
+     * @param redactionReplacements the redactions that produced {@code messages}, one {@code {path,
+     *     replacement}} entry per rewritten path
      */
     public Evaluation(
         final Action action,
         final String reason,
         final List<String> tags,
         final Map<String, Number> tagProbs,
-        final List<?> sds) {
+        final List<?> sds,
+        final List<Message> messages,
+        final List<Map<String, String>> redactionReplacements) {
       this.action = action;
       this.reason = reason;
       this.tags = tags;
       this.tagProbs = tagProbs;
       this.sds = sds != null ? sds : Collections.emptyList();
+      this.messages = messages != null ? messages : Collections.<Message>emptyList();
+      this.redactionReplacements =
+          redactionReplacements != null ? redactionReplacements : Collections.emptyList();
     }
 
     /**
@@ -235,6 +291,35 @@ public abstract class AIGuard {
      */
     public List<?> getSds() {
       return sds;
+    }
+
+    /**
+     * Returns the evaluated messages, with sensitive data redacted whenever the AIGuard service
+     * requested redaction and redaction is enabled locally.
+     *
+     * <p>When nothing was redacted, this is the very same list that was passed to {@link
+     * AIGuard#evaluate(List, Options)}. The caller's list is never mutated.
+     *
+     * @return the evaluated messages, redacted when redaction was applied
+     */
+    public List<Message> getMessages() {
+      return messages;
+    }
+
+    /**
+     * Returns the redactions that were applied to produce {@link #getMessages()}.
+     *
+     * <p>Each entry is a {@code {path, replacement}} pair addressing one rewritten string in the
+     * evaluated conversation, e.g. {@code messages[1].content} or {@code
+     * messages[2].tool_calls[0].function.arguments}. Only the replacements that were actually
+     * applied are reported: entries the AI Guard service returned but that could not be resolved
+     * are skipped fail-safe and never surface here, and the list is empty when redaction is
+     * disabled locally.
+     *
+     * @return the applied redaction replacements, empty when nothing was redacted
+     */
+    public List<Map<String, String>> getRedactionReplacements() {
+      return redactionReplacements;
     }
   }
 
