@@ -147,31 +147,20 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       fallbackSampler.setSamplingPriority(span);
     } else {
       boolean sampled = matchedRule.sample(span);
+      int samplingPriority;
       if (sampled) {
-        if (rateLimiter.tryAcquire()) {
-          span.setSamplingPriority(
-              PrioritySampling.USER_KEEP,
-              SAMPLING_RULE_RATE,
-              matchedRule.getSampler().getSampleRate(),
-              matchedRule.getMechanism(),
-              Boolean.TRUE);
-        } else {
-          span.setSamplingPriority(
-              PrioritySampling.USER_DROP,
-              SAMPLING_RULE_RATE,
-              matchedRule.getSampler().getSampleRate(),
-              matchedRule.getMechanism(),
-              Boolean.TRUE);
-        }
+        samplingPriority =
+            rateLimiter.tryAcquire() ? PrioritySampling.USER_KEEP : PrioritySampling.USER_DROP;
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
-        span.setSamplingPriority(
-            PrioritySampling.USER_DROP,
-            SAMPLING_RULE_RATE,
-            matchedRule.getSampler().getSampleRate(),
-            matchedRule.getMechanism(),
-            Boolean.FALSE);
+        samplingPriority = PrioritySampling.USER_DROP;
       }
+      span.setSamplingPriority(
+          samplingPriority,
+          SAMPLING_RULE_RATE,
+          matchedRule.getSampler().getSampleRate(),
+          matchedRule.getMechanism(),
+          Boolean.valueOf(sampled));
     }
   }
 }

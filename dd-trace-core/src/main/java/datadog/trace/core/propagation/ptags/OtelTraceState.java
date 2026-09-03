@@ -10,6 +10,7 @@ final class OtelTraceState {
   private static final long KNUTH_FACTOR = 1111111111111111111L;
   private static final long MAX_THRESHOLD = (1L << 56) - 1;
   private static final double THRESHOLD_RANGE = 1L << 56;
+  private static final String[] EMPTY_UNKNOWN_FIELDS = new String[0];
 
   private final String value;
   private final String randomValue;
@@ -42,7 +43,7 @@ final class OtelTraceState {
     }
 
     List<String> fields = new ArrayList<>();
-    List<String> unknownFields = new ArrayList<>();
+    List<String> unknownFields = null;
     String randomValue = null;
     String threshold = null;
     int randomValueCount = 0;
@@ -80,6 +81,9 @@ final class OtelTraceState {
         }
       } else if (!field.isEmpty()) {
         fields.add(field);
+        if (unknownFields == null) {
+          unknownFields = new ArrayList<>();
+        }
         unknownFields.add(field);
       } else {
         changed = true;
@@ -98,7 +102,7 @@ final class OtelTraceState {
         value,
         randomValue,
         threshold,
-        unknownFields.toArray(new String[0]),
+        unknownFields == null ? EMPTY_UNKNOWN_FIELDS : unknownFields.toArray(new String[0]),
         randomValueCount,
         changed ? 0 : inheritedPosition,
         false);
@@ -110,13 +114,15 @@ final class OtelTraceState {
       double sampleRate,
       boolean sampled,
       int samplingPriority) {
-    // `sampled` is the raw probability result; `samplingPriority` may be changed by rate limiting.
-    if (sampleRate <= 0) {
-      return current == null ? null : current.removeLocalProbability();
-    }
+    String[] unknownFields = current == null ? EMPTY_UNKNOWN_FIELDS : current.unknownFields;
 
+    // `sampled` is the raw probability result; `samplingPriority` may be changed by rate limiting.
     if (sampled && samplingPriority <= 0) {
-      return current == null ? null : current.removeForNonProbabilityDecision();
+      if (current != null) {
+        return current.removeThresholdForLimiterDemotion();
+      }
+      return create(
+          formatRandomValue(computeRandomValue(traceIdLowOrderBits)), null, unknownFields, true);
     }
 
     long threshold = computeThreshold(sampleRate);
@@ -127,9 +133,7 @@ final class OtelTraceState {
       randomValue = threshold == 0 ? 0 : threshold - 1;
     }
 
-    String[] unknownFields = current == null ? new String[0] : current.unknownFields;
-    return create(
-        formatRandomValue(randomValue), formatThreshold(threshold), unknownFields, 0, true);
+    return create(formatRandomValue(randomValue), formatThreshold(threshold), unknownFields, true);
   }
 
   OtelTraceState removeForNonProbabilityDecision() {
@@ -137,7 +141,14 @@ final class OtelTraceState {
       return this;
     }
     String retainedRandomValue = locallyGeneratedRandomValue ? null : randomValue;
-    return create(retainedRandomValue, null, unknownFields, 0, false);
+    return create(retainedRandomValue, null, unknownFields, false);
+  }
+
+  OtelTraceState removeThresholdForLimiterDemotion() {
+    if (threshold == null) {
+      return this;
+    }
+    return create(randomValue, null, unknownFields, locallyGeneratedRandomValue);
   }
 
   String getValue() {
@@ -152,15 +163,10 @@ final class OtelTraceState {
     return inheritedPosition;
   }
 
-  private OtelTraceState removeLocalProbability() {
-    return locallyGeneratedRandomValue ? create(null, null, unknownFields, 0, false) : this;
-  }
-
   private static OtelTraceState create(
       String randomValue,
       String threshold,
       String[] unknownFields,
-      int inheritedPosition,
       boolean locallyGeneratedRandomValue) {
     StringBuilder value = new StringBuilder();
     append(value, randomValue == null ? null : "rv:" + randomValue);
@@ -177,7 +183,7 @@ final class OtelTraceState {
         threshold,
         unknownFields,
         randomValue == null ? 0 : 1,
-        inheritedPosition,
+        0,
         locallyGeneratedRandomValue);
   }
 
