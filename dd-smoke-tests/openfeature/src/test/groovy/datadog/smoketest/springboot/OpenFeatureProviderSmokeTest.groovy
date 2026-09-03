@@ -2,8 +2,6 @@ package datadog.smoketest.springboot
 
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
-import datadog.smoketest.AbstractServerSmokeTest
-import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
@@ -18,49 +16,10 @@ import spock.util.concurrent.PollingConditions
 
 /** Due to the exposure cache it's important to run the tests in the specified order */
 @Stepwise
-class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
-
-  @Shared
-  private final rcConfig = new JsonSlurper().parse(fetchResource("ffe-system-test-data/ufc-config.json")) as Map<String, Object>
-
-  @Shared
-  private final rcPayload = JsonOutput.toJson(rcConfig)
+class OpenFeatureProviderSmokeTest extends AbstractOpenFeatureProviderSmokeTest {
 
   @Shared
   private final loggedAllocations = buildLoggedAllocations(rcConfig)
-
-  @Override
-  ProcessBuilder createProcessBuilder() {
-    setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
-
-    final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
-    final command = [javaPath()]
-    command.addAll(defaultJavaProperties)
-    command.add('-Ddd.trace.debug=true')
-    command.add('-Ddd.remote_config.enabled=true')
-    command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
-    command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
-    final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
-    builder.environment().put('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED', 'true')
-    builder.environment().put('DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED', 'true')
-    builder.environment().put('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'remote_config')
-    return builder
-  }
-
-  @Override
-  Closure decodedTracesCallback() {
-    return {}
-  }
-
-  @Override
-  Closure decodedEvpProxyMessageCallback() {
-    return { String path, RequestApi request ->
-      if (!path.contains('api/v2/exposures')) {
-        return null
-      }
-      return new JsonSlurper().parse(request.body)
-    }
-  }
 
   void 'test first remote config poll asks agent for feature flags'() {
     when:
@@ -179,10 +138,6 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     testCase << parseTestCases()
   }
 
-  private static URL fetchResource(final String name) {
-    return Thread.currentThread().getContextClassLoader().getResource(name)
-  }
-
   private static List<Map<String, Object>> parseTestCases() {
     final folder = fetchResource('ffe-system-test-data/evaluation-cases')
     final uri = folder.toURI()
@@ -249,22 +204,5 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       }
     }
     return logged
-  }
-
-  private static Set<Product> decodeProducts(final Map<String, Object> request) {
-    return request.client.products.collect { Product.valueOf(it) }
-  }
-
-  private static long decodeCapabilities(final Map<String, Object> request) {
-    final clientCapabilities = request.client.capabilities as byte[]
-    long capabilities = 0l
-    for (int i = 0; i < clientCapabilities.length; i++) {
-      capabilities |= (clientCapabilities[i] & 0xFFL) << ((clientCapabilities.length - i - 1) * 8)
-    }
-    return capabilities
-  }
-
-  private static boolean hasCapability(final long capabilities, final long test) {
-    return (capabilities & test) > 0
   }
 }

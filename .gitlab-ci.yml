@@ -1070,6 +1070,16 @@ test_smoke:
   parallel:
     matrix: *test_matrix_8
 
+test_openfeature_compatibility:
+  extends: .test_job_amd64_with_test_agent
+  needs: *needs_build_tests_smoke
+  variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: "stageMainDist :dd-smoke-tests:openfeature:openFeatureCompatibilityTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    CACHE_TYPE: "smoke"
+    testJvm: "11"
+
 test_smoke_arm64:
   extends: .test_job_arm64_with_test_agent
   variables:
