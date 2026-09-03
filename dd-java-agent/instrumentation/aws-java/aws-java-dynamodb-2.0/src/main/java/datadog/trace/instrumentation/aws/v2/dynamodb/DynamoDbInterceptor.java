@@ -23,7 +23,7 @@ public class DynamoDbInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
 
