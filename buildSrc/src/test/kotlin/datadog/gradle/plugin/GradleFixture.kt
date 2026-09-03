@@ -22,9 +22,12 @@ open class GradleFixture {
   private val testKitDir: File get() = sharedTestKitDir
 
   private val repositoryProxyInitScript: File
-    get() = File(testKitDir, "repository-proxy.init.gradle")
+    get() = File(testKitDir, REPOSITORY_PROXY_INIT_SCRIPT)
 
   companion object {
+    /** Init script copied into the testkit dir and applied to every TestKit build. */
+    private const val REPOSITORY_PROXY_INIT_SCRIPT = "repository-proxy.init.gradle.kts"
+
     // JVM-wide testkit dir shared across all GradleFixture instances. One daemon
     // pool serves every test method, so kotlinc work on .gradle.kts scripts is
     // amortized instead of re-paid per test (recovers the +77 % wall-time
@@ -44,11 +47,11 @@ open class GradleFixture {
           stopDaemonsIn(dir)
           dir.deleteRecursively()
         })
-        val initScript = File(dir, "repository-proxy.init.gradle")
+        val initScript = File(dir, REPOSITORY_PROXY_INIT_SCRIPT)
         GradleFixture::class.java
-          .getResourceAsStream("/repository-proxy.init.gradle")
+          .getResourceAsStream("/$REPOSITORY_PROXY_INIT_SCRIPT")
           ?.use { input -> initScript.outputStream().use(input::copyTo) }
-          ?: error("Missing repository-proxy.init.gradle test resource")
+          ?: error("Missing $REPOSITORY_PROXY_INIT_SCRIPT test resource")
       }
     }
 

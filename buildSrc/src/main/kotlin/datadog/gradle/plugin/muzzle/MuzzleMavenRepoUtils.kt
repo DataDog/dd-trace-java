@@ -23,32 +23,22 @@ import java.nio.file.Files
 internal object MuzzleMavenRepoUtils {
   private val log = Logging.getLogger(MuzzleMavenRepoUtils::class.java)
   private val backoffDelaysSeconds = listOf(5L, 10L, 30L)
-  private const val MAVEN_CENTRAL_URL = "https://repo1.maven.org/maven2/"
 
   /**
    * Remote repositories used to query version ranges and fetch dependencies.
-   *
-   * When MAVEN_REPOSITORY_PROXY is set, the proxy *replaces* Maven Central instead of being
-   * prepended to it. Aether merges `maven-metadata.xml` from **every** repository of a
-   * [VersionRangeRequest] rather than stopping at the first hit, so keeping Central in the list
-   * would issue a request to repo1.maven.org for each muzzle directive even when the proxy
-   * already serves it -- exactly the Maven Central rate limiting the proxy exists to avoid.
-   * The trade-off is that a proxy miss now fails instead of silently falling back to Central.
    *
    * This intentionally reads the environment on each access: Gradle daemons can
    * be reused across builds with different MAVEN_REPOSITORY_PROXY values.
    */
   @JvmStatic
-  fun defaultMuzzleRepos(): List<RemoteRepository> =
-    defaultMuzzleRepos(System.getenv("MAVEN_REPOSITORY_PROXY"))
-
-  @JvmStatic
-  fun defaultMuzzleRepos(mavenProxyUrl: String?): List<RemoteRepository> {
-    val proxyUrl = mavenProxyUrl?.takeIf { it.isNotBlank() }
-    return if (proxyUrl == null) {
-      listOf(RemoteRepository.Builder("central", "default", MAVEN_CENTRAL_URL).build())
+  fun defaultMuzzleRepos(): List<RemoteRepository> {
+    val central = RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
+    val mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+    return if (mavenProxyUrl == null) {
+      listOf(central)
     } else {
-      listOf(RemoteRepository.Builder("central-proxy", "default", proxyUrl).build())
+      val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
+      listOf(proxy, central)
     }
   }
 
@@ -183,13 +173,8 @@ internal object MuzzleMavenRepoUtils {
       }
     }
 
-    // Backoff only buys anything when a repository can be *transiently* unavailable. Local
-    // file: repositories (test fixtures, `mvn install` output) cannot, so sleeping 45s on them
-    // is pure waste.
-    val backoffApplies = enableBackoffRetries && rangeRequest.repositories.any { !it.url.startsWith("file:") }
-
     var waitedSeconds = 0L
-    if (backoffApplies) {
+    if (enableBackoffRetries) {
       for (delaySeconds in backoffDelaysSeconds) {
         sleepBeforeBackoffRetry(delaySeconds, directiveArtifact)
         waitedSeconds += delaySeconds
@@ -211,7 +196,7 @@ internal object MuzzleMavenRepoUtils {
         failure,
         attemptCount,
         waitedSeconds,
-        backoffApplies
+        enableBackoffRetries
       ),
       failure
     )

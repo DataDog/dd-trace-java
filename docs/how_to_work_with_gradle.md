@@ -174,25 +174,19 @@ In a well-organized Gradle project, build logic lives in specific places:
 
 ### Running Build Logic Tests
 
-`buildSrc` tests are disabled unless you opt in, because they are slow (most of them spin up a
-real Gradle build through TestKit):
+Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
+detects the injected `idea.active` system property.
+
+However, via the command line, `buildSrc/` tests are disabled unless opted in with
+`-PrunBuildSrcTests`:
 
 ```shell
 ./gradlew -p buildSrc :test -PrunBuildSrcTests            # whole suite
 ./gradlew -p buildSrc :test -PrunBuildSrcTests --tests '*MuzzlePluginFunctionalTest'
 ```
 
-Without `-PrunBuildSrcTests` the task reports `SKIPPED` rather than failing, so it is easy to
-believe a green build ran them when it did not. IntelliJ sets `idea.active`, which enables them
-too.
-
-These tests need nothing but a plain internet connection: a handful of TestKit builds download
-real dependencies (Byte Buddy, JUnit) from Maven Central, and the rest use a fake local Maven
-repository. If `MAVEN_REPOSITORY_PROXY` / `GRADLE_PLUGIN_PROXY` are set — CI points them at the
-internal Depot mirror — `buildSrc/src/test/resources/repository-proxy.init.gradle` rewrites
-Maven Central and the Gradle plugin portal to those mirrors for every TestKit build. Because it
-*replaces* rather than prepends, a mirror you cannot reach makes the tests fail; unset both
-variables to go straight to Maven Central.
+Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
+propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
 
 ### How Gradle Compiles Build Scripts
 

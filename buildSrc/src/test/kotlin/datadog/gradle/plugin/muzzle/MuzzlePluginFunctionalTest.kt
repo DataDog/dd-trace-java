@@ -344,7 +344,6 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
   @Test
   fun `non-existent artifact fails with clear error message`() {
-    val emptyRepository = createMavenRepoFixture()
     writeProject(
       """
       plugins {
@@ -366,7 +365,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
-      env = mapOf("MAVEN_REPOSITORY_PROXY" to emptyRepository.repoUrl)
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo1.maven.org/maven2/")
     )
 
     assertThat(result.output).withFailMessage("Build should fail for non-existent artifact").contains("BUILD FAILED")
