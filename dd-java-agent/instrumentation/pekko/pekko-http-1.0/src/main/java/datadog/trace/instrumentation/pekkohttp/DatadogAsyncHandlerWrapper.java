@@ -1,18 +1,25 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
+import datadog.context.Context;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.InstrumenterConfig;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import scala.Function1;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
+import scala.concurrent.Promise;
+import scala.concurrent.Promise$;
 import scala.runtime.AbstractFunction1;
+import scala.util.Failure;
+import scala.util.Success;
+import scala.util.Try;
 
 public class DatadogAsyncHandlerWrapper
     extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
+  private static final boolean COMPLETION_PRIORITY =
+      InstrumenterConfig.get().isScalaPromiseCompletionPriorityEnabled();
+
   private final Function1<HttpRequest, Future<HttpResponse>> userHandler;
   private final ExecutionContext executionContext;
 
@@ -26,33 +33,56 @@ public class DatadogAsyncHandlerWrapper
   @Override
   public Future<HttpResponse> apply(final HttpRequest request) {
     final ContextScope scope = DatadogWrapperHelper.createSpan(request);
-    AgentSpan span = fromContext(scope.context());
+    final Context context = scope.context();
     Future<HttpResponse> futureResponse;
     try {
       futureResponse = userHandler.apply(request);
     } catch (final Throwable t) {
       scope.close();
-      DatadogWrapperHelper.finishSpan(scope.context(), t);
+      DatadogWrapperHelper.finishSpan(context, t);
       throw t;
     }
-    final Future<HttpResponse> wrapped =
-        futureResponse.transform(
-            new AbstractFunction1<HttpResponse, HttpResponse>() {
-              @Override
-              public HttpResponse apply(final HttpResponse response) {
-                DatadogWrapperHelper.finishSpan(scope.context(), response);
-                return response;
-              }
-            },
-            new AbstractFunction1<Throwable, Throwable>() {
-              @Override
-              public Throwable apply(final Throwable t) {
-                DatadogWrapperHelper.finishSpan(scope.context(), t);
-                return t;
-              }
-            },
-            executionContext);
     scope.close();
-    return wrapped;
+    final Promise<HttpResponse> wrapped = Promise$.MODULE$.apply();
+    futureResponse.onComplete(
+        new AbstractFunction1<Try<HttpResponse>, Void>() {
+          @Override
+          public Void apply(final Try<HttpResponse> result) {
+            Try<HttpResponse> wrappedResult = result;
+            try {
+              if (result.isSuccess()) {
+                DatadogWrapperHelper.finishSpan(context, result.get());
+              } else {
+                DatadogWrapperHelper.finishSpan(
+                    context, ((Failure<HttpResponse>) result).exception());
+              }
+            } catch (final Throwable t) {
+              // Preserve transform's behavior when span decoration fails. Pekko does not support
+              // response blocking, and this wrapper has no Materializer for discarding the
+              // successful response entity that is replaced by this failure.
+              wrappedResult = new Failure<>(t);
+            }
+            final Try<HttpResponse> resultForPekko;
+            if (COMPLETION_PRIORITY) {
+              // Completion-priority mode can associate context directly with a Try. Copy the
+              // result so neither that association nor the active thread context reaches Pekko.
+              resultForPekko =
+                  wrappedResult.isSuccess()
+                      ? new Success<>(wrappedResult.get())
+                      : new Failure<>(((Failure<HttpResponse>) wrappedResult).exception());
+            } else {
+              resultForPekko = wrappedResult;
+            }
+            // The application Future can complete while the request context is active. Complete
+            // the Future exposed to Pekko under the root context so its framework callbacks do not
+            // capture and retain the request trace.
+            try (ContextScope ignored = Context.root().attach()) {
+              wrapped.complete(resultForPekko);
+            }
+            return null;
+          }
+        },
+        executionContext);
+    return wrapped.future();
   }
 }
