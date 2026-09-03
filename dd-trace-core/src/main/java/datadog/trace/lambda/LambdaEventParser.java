@@ -97,7 +97,7 @@ final class LambdaEventParser {
           return extractAlbData(event, triggerType);
         default:
           // Unsupported trigger: returning EMPTY makes the caller skip the invocation, so there is
-          // nothing to extract sinc ethe event is not supported.
+          // nothing to extract since the event is not supported.
           return LambdaRequestData.EMPTY;
       }
     } catch (Exception e) {
