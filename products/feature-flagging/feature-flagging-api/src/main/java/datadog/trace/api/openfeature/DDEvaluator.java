@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway.ConfigSnapshot;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
@@ -43,7 +44,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -112,8 +112,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private final Runnable configCallback;
   private final boolean telemetryEnabled;
-  private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
+  private long lastConfigVersion;
 
   public DDEvaluator(final Runnable configCallback) {
     this(configCallback, true);
@@ -134,7 +134,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   @Override
   public boolean hasConfiguration() {
-    return configuration.get() != null;
+    return FeatureFlaggingGateway.getConfigSnapshot().getConfig() != null;
   }
 
   @Override
@@ -143,8 +143,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   @Override
-  public void accept(final ServerConfiguration config) {
-    configuration.set(config);
+  public synchronized void accept(final ServerConfiguration ignored) {
+    // Listener callbacks are notifications only. Always read the process-wide snapshot so a stale
+    // register-and-replay callback cannot restore an older configuration in this evaluator.
+    final ConfigSnapshot snapshot = FeatureFlaggingGateway.getConfigSnapshot();
+    if (snapshot.getVersion() <= lastConfigVersion) {
+      return;
+    }
+    lastConfigVersion = snapshot.getVersion();
+    final ServerConfiguration config = snapshot.getConfig();
     if (config != null) {
       initializationLatch.countDown();
       configCallback.run();
@@ -162,7 +169,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // Snapshot the config once and thread observeFullEvaluationData through every
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
-    final ServerConfiguration config = configuration.get();
+    final ConfigSnapshot snapshot = FeatureFlaggingGateway.getConfigSnapshot();
+    final ServerConfiguration config = snapshot.getConfig();
     // Boolean.TRUE.equals covers both null (privacy-preserving default) and Boolean.FALSE without
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
     final boolean observeFullEvaluationData =

@@ -66,36 +66,21 @@ public class Provider extends EventProvider implements Metadata {
     this.options = options;
     this.telemetryEnabled = options.isTelemetryEnabled();
     this.evaluator = evaluator;
+
     FlagEvalMetrics metrics = null;
-    FlagEvalMetricsHook hook = null;
+    FlagEvalMetricsHook metricsHook = null;
+    SpanEnrichmentHook enrichmentHook = null;
+    final List<Hook> hooks = new ArrayList<>(3);
     if (telemetryEnabled) {
       try {
         metrics = new FlagEvalMetrics();
-        hook = new FlagEvalMetricsHook(metrics);
+        metricsHook = new FlagEvalMetricsHook(metrics);
+        hooks.add(metricsHook);
       } catch (LinkageError | Exception e) {
         // This outer catch fires when the metrics helper itself can't load (OTel API absent).
         log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
       }
-    }
-    this.flagEvalMetrics = metrics;
-    this.flagEvalMetricsHook = hook;
 
-    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
-    // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        telemetryEnabled
-            && (spanEnrichmentEnabledOverride != null
-                ? spanEnrichmentEnabledOverride
-                : SpanEnrichmentGate.isEnabled());
-    this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
-
-    // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
-    // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
-    if (flagEvalMetricsHook != null) {
-      hooks.add(flagEvalMetricsHook);
-    }
-    if (telemetryEnabled) {
       // EVP flagevaluation hook: registered when provider telemetry is enabled; no-op when the
       // writer is absent (killswitch off). The writer is resolved lazily on each call.
       try {
@@ -106,10 +91,25 @@ public class Provider extends EventProvider implements Metadata {
       } catch (LinkageError | Exception e) {
         // Keep older bootstrap/API combinations working: EVP recording is best-effort.
       }
+
+      // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
+      // per-evaluation overhead.
+      final boolean spanEnrichmentEnabled =
+          spanEnrichmentEnabledOverride != null
+              ? spanEnrichmentEnabledOverride
+              : SpanEnrichmentGate.isEnabled();
+      enrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
+      if (enrichmentHook != null) {
+        hooks.add(enrichmentHook);
+      }
     }
-    if (spanEnrichmentHook != null) {
-      hooks.add(spanEnrichmentHook);
-    }
+
+    this.flagEvalMetrics = metrics;
+    this.flagEvalMetricsHook = metricsHook;
+    this.spanEnrichmentHook = enrichmentHook;
+
+    // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
+    // allocates nothing, including when telemetry is disabled.
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 

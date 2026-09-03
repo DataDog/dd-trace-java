@@ -79,14 +79,15 @@ EvaluationContext analyticsContext = new MutableContext("user-123");
 boolean checkoutEnabled = checkoutClient.getBooleanValue(
     "my-feature", false, checkoutContext);
 
-// Returns the same evaluation result without emitting Datadog telemetry.
+// Evaluates against the shared current configuration without emitting Datadog telemetry.
 boolean analyticsEnabled = analyticsClient.getBooleanValue(
     "my-feature", false, analyticsContext);
 ```
 
 `telemetryEnabled(false)` suppresses exposures, EVP flag-evaluation events, OpenTelemetry
 evaluation metrics, and APM span enrichment for that provider. It does not disable evaluation or
-change the configuration used to resolve flags.
+change the configuration used to resolve flags. All provider domains read the same process-wide
+configuration snapshot and share one configuration request path.
 
 ## Evaluation metrics
 

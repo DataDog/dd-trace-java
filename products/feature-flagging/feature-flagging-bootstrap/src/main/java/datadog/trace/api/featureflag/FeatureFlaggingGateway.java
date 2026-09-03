@@ -10,6 +10,25 @@ import java.util.function.Consumer;
 
 public abstract class FeatureFlaggingGateway {
 
+  /** An immutable, process-wide view of the current configuration and its publication order. */
+  public static final class ConfigSnapshot {
+    private final long version;
+    private final ServerConfiguration config;
+
+    private ConfigSnapshot(final long version, final ServerConfiguration config) {
+      this.version = version;
+      this.config = config;
+    }
+
+    public long getVersion() {
+      return version;
+    }
+
+    public ServerConfiguration getConfig() {
+      return config;
+    }
+  }
+
   public interface ConfigListener extends Consumer<ServerConfiguration> {}
 
   public interface ActivationListener {
@@ -26,8 +45,8 @@ public abstract class FeatureFlaggingGateway {
   private static final List<SpanEnrichmentListener> SPAN_ENRICHMENT_LISTENERS =
       new CopyOnWriteArrayList<>();
 
-  private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
-      new AtomicReference<>();
+  private static final AtomicReference<ConfigSnapshot> CURRENT_CONFIG =
+      new AtomicReference<>(new ConfigSnapshot(0, null));
 
   /**
    * The active EVP flagevaluation writer. Registered by {@code FlagEvaluationWriterImpl.start()}
@@ -44,9 +63,9 @@ public abstract class FeatureFlaggingGateway {
 
   public static void addConfigListener(final ConfigListener listener) {
     CONFIG_LISTENERS.add(listener);
-    final ServerConfiguration current = CURRENT_CONFIG.get();
-    if (current != null) {
-      listener.accept(current);
+    final ConfigSnapshot current = CURRENT_CONFIG.get();
+    if (current.getConfig() != null) {
+      listener.accept(current.getConfig());
     }
   }
 
@@ -55,8 +74,12 @@ public abstract class FeatureFlaggingGateway {
   }
 
   public static void dispatch(final ServerConfiguration config) {
-    CURRENT_CONFIG.set(config);
+    CURRENT_CONFIG.updateAndGet(current -> new ConfigSnapshot(current.getVersion() + 1, config));
     CONFIG_LISTENERS.forEach(listener -> listener.accept(config));
+  }
+
+  public static ConfigSnapshot getConfigSnapshot() {
+    return CURRENT_CONFIG.get();
   }
 
   public static void addActivationListener(final ActivationListener listener) {

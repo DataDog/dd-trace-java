@@ -160,6 +160,8 @@ class FeatureFlaggingSystemTest {
 
     FeatureFlaggingSystem.start(sharedCommunicationObjects);
     FeatureFlaggingSystem.start(sharedCommunicationObjects);
+    FeatureFlaggingGateway.activate();
+    FeatureFlaggingGateway.activate();
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), any());
