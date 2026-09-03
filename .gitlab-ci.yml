@@ -519,9 +519,21 @@ validate_build:
     - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    # Scheduled builds refresh dependency locks before creating the reference artifacts.
+    # Refresh them here as well so the candidate uses the same dependency resolution.
+    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
     # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
-    - ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
+    # Keep both JAR sets for direct inspection when the comparison fails.
+    - |
+      if ! ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
+        mkdir -p jar-comparison-artifacts/reference jar-comparison-artifacts/candidate
+        cp reference-artifacts/*.jar jar-comparison-artifacts/reference/
+        cp workspace/dd-java-agent/build/libs/*.jar jar-comparison-artifacts/candidate/
+        cp workspace/dd-trace-api/build/libs/*.jar jar-comparison-artifacts/candidate/
+        cp workspace/dd-trace-ot/build/libs/*.jar jar-comparison-artifacts/candidate/
+        exit 1
+      fi
   after_script:
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -531,6 +543,7 @@ validate_build:
     when: always
     paths:
       - ./check_reports
+      - './jar-comparison-artifacts'
       - '.gradle/daemon/*/*.out.log'
 
 .check_job:
