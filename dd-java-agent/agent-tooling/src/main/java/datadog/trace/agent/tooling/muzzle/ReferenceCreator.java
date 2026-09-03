@@ -232,6 +232,7 @@ public final class ReferenceCreator {
     return shader == null ? descriptor : shader.shadeMethodDescriptor(descriptor);
   }
 
+  /** Returns the minimum access required for {@code from} to access class {@code to}. */
   private static int computeMinimumClassAccess(String from, String to) {
     if (from.equalsIgnoreCase(to)) {
       return 0;
@@ -242,18 +243,25 @@ public final class ReferenceCreator {
     }
   }
 
+  /** Returns the minimum access required for {@code from} to access a field on {@code to}. */
   private static int computeMinimumFieldAccess(String from, String to) {
     if (from.equalsIgnoreCase(to)) {
       return 0;
     } else if (samePackage(from, to)) {
       return Reference.EXPECTS_NON_PRIVATE;
     } else {
+      // Checking the type hierarchy of FROM would distinguish public from protected.
       return Reference.EXPECTS_PUBLIC_OR_PROTECTED;
     }
   }
 
+  /** Returns the minimum access required for {@code from} to access a method on {@code to}. */
   private static int computeMinimumMethodAccess(String from, String to) {
-    return from.equalsIgnoreCase(to) ? 0 : Reference.EXPECTS_PUBLIC_OR_PROTECTED;
+    if (from.equalsIgnoreCase(to)) {
+      return 0;
+    }
+    // Checking the type hierarchy of FROM would distinguish public from protected.
+    return Reference.EXPECTS_PUBLIC_OR_PROTECTED;
   }
 
   private static boolean samePackage(String from, String to) {
@@ -262,16 +270,23 @@ public final class ReferenceCreator {
     return fromLength == toLength && from.regionMatches(0, to, 0, fromLength + 1);
   }
 
+  /** Returns whether this class is always available and does not require a muzzle check. */
   private static boolean ignoreReference(String name) {
     String dottedName = name.replace('/', '.');
+    // Drop any array prefix so the component type can be checked.
     if (dottedName.startsWith("[")) {
       int componentMarker = dottedName.lastIndexOf("[L");
       if (componentMarker < 0) {
+        // Primitive array references never require muzzle checks.
         return true;
       }
       dottedName = dottedName.substring(componentMarker + 2);
     }
-    if (dottedName.startsWith("java.") || dottedName.startsWith("org.slf4j.")) {
+    if (dottedName.startsWith("java.")) {
+      return true;
+    }
+    // SLF4J references are relocated to datadog.slf4j in the final agent jar.
+    if (dottedName.startsWith("org.slf4j.")) {
       return true;
     }
     for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
