@@ -527,11 +527,11 @@ validate_build:
     # Keep both JAR sets for direct inspection when the comparison fails.
     - |
       if ! ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
-        mkdir -p jar-comparison-artifacts/reference jar-comparison-artifacts/candidate
-        cp reference-artifacts/*.jar jar-comparison-artifacts/reference/
-        cp workspace/dd-java-agent/build/libs/*.jar jar-comparison-artifacts/candidate/
-        cp workspace/dd-trace-api/build/libs/*.jar jar-comparison-artifacts/candidate/
-        cp workspace/dd-trace-ot/build/libs/*.jar jar-comparison-artifacts/candidate/
+        mkdir -p check_reports/jar-comparison-artifacts/reference check_reports/jar-comparison-artifacts/candidate
+        cp reference-artifacts/*.jar check_reports/jar-comparison-artifacts/reference/
+        cp workspace/dd-java-agent/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
+        cp workspace/dd-trace-api/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
+        cp workspace/dd-trace-ot/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         exit 1
       fi
   after_script:
@@ -543,7 +543,6 @@ validate_build:
     when: always
     paths:
       - ./check_reports
-      - './jar-comparison-artifacts'
       - '.gradle/daemon/*/*.out.log'
 
 .check_job:
