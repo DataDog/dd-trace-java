@@ -10,6 +10,7 @@ import org.gradle.api.model.ObjectFactory
 /** Extension configuring the tag-registry generator inputs/outputs. */
 abstract class TagRegistryExtension @Inject constructor(objects: ObjectFactory) {
   val domainYaml: RegularFileProperty = objects.fileProperty()
+  val overlayYaml: RegularFileProperty = objects.fileProperty()
   val destinationDirectory: DirectoryProperty = objects.directoryProperty()
 }
 
@@ -23,11 +24,13 @@ class TagRegistryGeneratorPlugin : Plugin<Project> {
     val ext = project.extensions.create("tagRegistry", TagRegistryExtension::class.java)
     project.tasks.register("generateKnownTags", GenerateKnownTagsTask::class.java) {
       domainYaml.set(ext.domainYaml)
+      overlayYaml.set(ext.overlayYaml)
       destinationDirectory.set(ext.destinationDirectory)
     }
     val verify =
       project.tasks.register("verifyKnownTags", VerifyKnownTagsTask::class.java) {
         domainYaml.set(ext.domainYaml)
+        overlayYaml.set(ext.overlayYaml)
         committedDirectory.set(ext.destinationDirectory)
       }
     // `check` is contributed by lifecycle-base (via java-library); wait for it before wiring.

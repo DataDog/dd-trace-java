@@ -272,6 +272,7 @@ extra["excludedClassesInstructionCoverage"] = listOf("datadog.trace.util.stacktr
 // not on every build, so the committed source stays the source of truth for the compiler.
 tagRegistry {
   domainYaml.set(rootProject.layout.projectDirectory.file("tag-conventions.yaml"))
+  overlayYaml.set(rootProject.layout.projectDirectory.file("tag-conventions.java.yaml"))
   destinationDirectory.set(layout.projectDirectory.dir("src/generated"))
 }
 
