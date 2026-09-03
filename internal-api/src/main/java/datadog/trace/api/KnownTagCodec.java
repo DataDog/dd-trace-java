@@ -25,15 +25,20 @@ public final class KnownTagCodec {
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
    * are RESERVED and always zero here: they are the window the dense tag store uses for its
    * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
-   * the trace/span LEVEL bit (set ⟹ trace-level); bits 1-0 are reserved. Unknown (string-only)
-   * custom tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * the trace/span LEVEL bit (set ⟹ trace-level) and bit 3 is the INTERCEPTED bit (set ⟹ routed on
+   * the set-path); bits 1-0 are reserved. Unknown (string-only) custom tags are NOT known ids —
+   * {@code keyOf} returns 0 for them, so they are never mistaken for intercepted.
    *
-   * <p>An id says what a tag IS, not how it is SET. Whether the tracer intercepts a tag on the
-   * set-path — routing it to a span field or a sampling directive instead of tag storage — belongs
-   * to TagInterceptor, whose {@code needsIntercept} switch is the authority; mirroring it here as a
-   * classification bit and a serial-range tier only created drift between the two. That
-   * classification returns with the work that consumes it (the id→handler dispatch table that
-   * retires TagInterceptor), and re-adding a bit then is purely additive.
+   * <p>Of the low flag bits, bit 3 is the INTERCEPTED bit: set when this tracer routes the tag on
+   * the set-path (to a span field or a sampling directive) rather than merely storing it. It is a
+   * per-language classification, declared in the Java overlay rather than in the
+   * language-agnostic domain spec, and it exists for speed: a stored TagMap entry carries its own
+   * tag id, so screening a bundle for anything the interceptor cares about is a mask test on an id
+   * already in hand — no name lookup and no side table. An earlier version of this bit was deleted
+   * because it could disagree with TagInterceptor's switch; it is back because that agreement is
+   * now a test (see TagInterceptorRoutingTest) rather than a convention. Note it says only that the
+   * tag is routed, never whether it is also stored — {@code http.url} is both, and which of the two
+   * happens is decided per call from the value.
    *
    * <p>There is deliberately NO OpenTelemetry-applicability flag: an absent otel-name means
    * pass-through (the tag is emitted under its Datadog name), so today every known tag has an
@@ -59,6 +64,24 @@ public final class KnownTagCodec {
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
   public static long traceLevel(long tagId) {
     return tagId | LEVEL_TRACE;
+  }
+
+  /**
+   * Set-path ROUTING bit (low-32 carve, bit 3). Set marks a tag this tracer diverts on the set path
+   * — to a span field, a metric, or a sampling directive — as declared in the Java overlay (its
+   * `intercepted` and `reserved` sections). Clear marks a tag that is only ever stored. Being
+   * routed does not imply not being stored; that is decided per call from the value.
+   */
+  public static final long INTERCEPTED = 1L << 3;
+
+  /**
+   * True if the tagId names a tag this tracer routes on the set-path. A single mask test, and a
+   * stored entry already carries its id, so this is the cheap form of the pre-screen that
+   * TagInterceptor's name switch used to do. Returns false for id 0 (an unknown custom tag), which
+   * is the right answer: routing is only ever declared for known tags.
+   */
+  public static boolean isIntercepted(long tagId) {
+    return (tagId & INTERCEPTED) != 0L;
   }
 
   /**
