@@ -182,5 +182,12 @@ public final class TracerConfig {
   public static final String TRACE_ORG_GUARD_STRICT = "trace.org.guard.strict";
   public static final String TRACE_ORG_GUARD_TRUSTED_OPMS = "trace.org.guard.trusted.opms";
 
+  /**
+   * Routes known tags through the dense (id-keyed) tag store instead of per-tag entries.
+   * Experimental, OFF by default. The {@code KnownTagCodec} is registered regardless; this flag
+   * only selects whether tags take the dense storage path.
+   */
+  public static final String TRACE_DENSE_TAGS_ENABLED = "trace.experimental.dense.tags.enabled";
+
   private TracerConfig() {}
 }
