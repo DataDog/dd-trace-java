@@ -203,6 +203,23 @@ class SpanLinksDecoderTest {
   }
 
   @Test
+  void anEmptyStructuredSpanLinksFieldWinsOverTheMetaTag() {
+    // A v1.0 payload always carries the span_links field, so an empty one means the span has no
+    // link, whichever legacy meta tag the payload also holds.
+    String json =
+        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+            + "\"metrics\":{},\"meta\":{\""
+            + SPAN_LINKS_TAG
+            + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
+            + "\"span_links\":[]}]]";
+
+    DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
+
+    assertTrue(span.getLinks().isEmpty(), "the structured field is preferred, even when empty");
+  }
+
+  @Test
   void decodedSpanWithoutTheTagExposesNoLink() {
     String json =
         "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","

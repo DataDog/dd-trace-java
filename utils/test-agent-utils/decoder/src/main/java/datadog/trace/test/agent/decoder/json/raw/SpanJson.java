@@ -132,7 +132,7 @@ public final class SpanJson implements DecodedSpan {
    * submitted a {@code v1.0} payload) and from the meta tag otherwise.
    */
   void resolveLinks() {
-    if (this.spanLinks == null || this.spanLinks.isEmpty()) {
+    if (this.spanLinks == null) {
       this.links = DecodedSpanLinks.fromMeta(getMeta());
       return;
     }
