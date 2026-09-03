@@ -7,9 +7,7 @@ Read this reference for whole-comment Javadoc rewrites or explicit tag repairs.
 When rewriting a Javadoc, also fix missing, stale, malformed, or misused tags in
 that same comment when the source makes the intended contract clear. Preserve the
 project's local ordering and style, and do not invent guarantees merely to fill a
-tag. Apply this bonus pass only to a whole-comment rewrite or an explicit tag-repair
-request. For a sentence-, typo-, or wording-limited request, leave unrelated tags
-unchanged and report any separate defect.
+tag.
 
 - Use `@param` for each documented type parameter, record component, and method or
   constructor parameter. Describe its role, constraints, or special values instead
