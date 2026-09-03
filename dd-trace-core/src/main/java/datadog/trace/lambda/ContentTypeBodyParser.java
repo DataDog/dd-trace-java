@@ -174,12 +174,12 @@ final class ContentTypeBodyParser {
       }
       final String pair = tokenizer.nextToken();
       final int equals = pair.indexOf('=');
+      // An empty name is kept rather than dropped: the handler still decodes the parameter, so
+      // dropping it would hide its value from the WAF. The Netty body collector keeps it too.
       final String name = decode(equals == -1 ? pair : pair.substring(0, equals));
-      if (!name.isEmpty()) {
-        parameters
-            .computeIfAbsent(name, k -> new ArrayList<>(1))
-            .add(equals == -1 ? "" : decode(pair.substring(equals + 1)));
-      }
+      parameters
+          .computeIfAbsent(name, k -> new ArrayList<>(1))
+          .add(equals == -1 ? "" : decode(pair.substring(equals + 1)));
     }
     if (parameters.isEmpty()) {
       return null;
@@ -225,8 +225,10 @@ final class ContentTypeBodyParser {
         }
         continue;
       }
+      // A part with no name parameter at all is not a form field, but one named "" is: the handler
+      // decodes it, so it is reported under the empty key rather than dropped, as Netty does.
       final String name = MultipartSplitter.parameter(disposition, "name");
-      if (name == null || name.isEmpty()) {
+      if (name == null) {
         continue;
       }
       final String partContentType = part.contentType;

@@ -128,11 +128,13 @@ class ContentTypeBodyParserTest {
   }
 
   @Test
-  void skipsEmptyUrlEncodedPairsAndNames() {
+  void skipsEmptyUrlEncodedPairsButKeepsEmptyNames() {
     Map<?, ?> parsed = urlEncoded("&&=orphan&&a=1&&");
 
     assertEquals(singletonList("1"), parsed.get("a"));
-    assertEquals(1, parsed.size());
+    // A pair with no name still carries a value the handler decodes, so the WAF must see it
+    assertEquals(singletonList("orphan"), parsed.get(""));
+    assertEquals(2, parsed.size());
   }
 
   @Test
@@ -176,9 +178,18 @@ class ContentTypeBodyParserTest {
 
   @Test
   void skipsMultipartPartsWithoutAName() {
-    String body = outer(part("form-data", "novalue"), part("form-data; name=", "empty"));
+    // No name parameter at all, in either part: nothing is a field, so the raw string is kept
+    String body = outer(part("form-data", "novalue"), part("form-data; charset=utf-8", "other"));
 
     assertEquals(body, parseBody(body, MULTIPART));
+  }
+
+  @Test
+  void treatsABareNameParameterAsAnEmptyName() {
+    // "name=" is present but empty, which the handler decodes as a field named ""
+    Map<?, ?> parsed = multipart(part("form-data; name=", "payload"));
+
+    assertEquals(singletonMap("", "payload"), parsed);
   }
 
   @Test
@@ -351,6 +362,19 @@ class ContentTypeBodyParserTest {
     assertEquals(asList("cat.png", "report.pdf"), filenamesOf(body));
     // The file parts are not fields, so only the field survives into the body map
     assertEquals(singletonMap("user", "admin"), multipartBody(body));
+  }
+
+  @Test
+  void keepsAMultipartFieldWithAnEmptyName() {
+    // The handler decodes this part like any other, so dropping it would hide its value from the
+    // WAF. Only a part with no name parameter at all is not a field.
+    String body = outer(field("", "payload"), part("form-data", "unnamed"), field("a", "1"));
+
+    Map<?, ?> parsed = multipartBody(body);
+
+    assertEquals("payload", parsed.get(""));
+    assertEquals("1", parsed.get("a"));
+    assertEquals(2, parsed.size());
   }
 
   @Test
