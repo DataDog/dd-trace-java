@@ -68,6 +68,14 @@ public class AgentTracer {
     return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
+  /**
+   * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
+   */
+  public static AgentSpan startSpan(
+      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+    return get().startSpan(prototype, operationName);
+  }
+
   public static AgentScope activateSpan(final AgentSpan span) {
     return get().activateSpan(span);
   }
@@ -346,6 +354,30 @@ public class AgentTracer {
     SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
 
     /**
+     * Returns a SpanBuilder seeded from a {@link SpanPrototype}: the prototype supplies the
+     * instrumentation name, span type, and constant tags. {@code operationName} overrides the
+     * prototype's when non-null — the explicit value wins, the prototype is the fallback.
+     *
+     * <p>This default seeds identity only; a real tracer should override it to also seed the
+     * prototype's tags (see {@code CoreTracer}). The no-op tracer discards tags, so identity-only
+     * is correct there.
+     */
+    default SpanBuilder buildSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
+      return buildSpan(
+          prototype.instrumentationName(),
+          operationName != null ? operationName : prototype.operationName());
+    }
+
+    /**
+     * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
+     * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
+     * {@link #buildSpan(SpanPrototype, CharSequence)}.
+     */
+    default AgentSpan startSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
+      return buildSpan(prototype, operationName).start();
+    }
+
+    /**
      * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
      * single span creation limitation, this method is more efficient than {@link #buildSpan}
      */
@@ -450,6 +482,13 @@ public class AgentTracer {
 
     @Override
     public AgentSpan startSpan(
+        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+      // The default routes through buildSpan(String,...), which is null on the noop tracer -> NPE.
+      return NoopSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
         final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
       return NoopSpan.INSTANCE;
     }
@@ -532,6 +571,15 @@ public class AgentTracer {
 
     @Override
     public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
+      return null;
+    }
+
+    @Override
+    public SpanBuilder buildSpan(
+        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+      // Mirrors buildSpan(String,...): the noop tracer returns a null builder. Callers that need a
+      // noop-safe entry point use startSpan(...), which is overridden above. A chainable
+      // NoopSpanBuilder would fix the null-vs-NoopSpan asymmetry, but that is a separate PR.
       return null;
     }
 
