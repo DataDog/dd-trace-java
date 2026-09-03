@@ -124,7 +124,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap$ThreadLocalDepth:build_time,"
               + "datadog.trace.bootstrap.ContextStore$Factory:build_time,"
-              + "datadog.trace.bootstrap.ContextStore$KeyAwareFactory:build_time,"
               + "datadog.trace.bootstrap.DatadogClassLoader:build_time,"
               + "datadog.trace.bootstrap.InstrumentationClassLoader:build_time,"
               + "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
