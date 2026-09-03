@@ -161,7 +161,7 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(currentThread().getId(),
-        UTF8BytesString.create(currentThread().getName()), fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0,
+        UTF8BytesString.create(currentThread().getName()), fromMap(tags), baggage, UNSET, measured, topLevel, 0, null, 0,
         tagsForSerialization, emptyList())
     }
 
