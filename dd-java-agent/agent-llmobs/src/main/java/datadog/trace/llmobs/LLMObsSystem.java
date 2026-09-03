@@ -51,6 +51,8 @@ public class LLMObsSystem {
     LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
 
     LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+
+    LLMObsInternal.setPropagator(new DDLLMObsPropagator());
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {
