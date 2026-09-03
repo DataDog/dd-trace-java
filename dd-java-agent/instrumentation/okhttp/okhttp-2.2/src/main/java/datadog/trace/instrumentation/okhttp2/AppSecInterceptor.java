@@ -152,7 +152,15 @@ public class AppSecInterceptor implements Interceptor {
       }
     }
 
-    publish(ctx, clientResponse, responseCb);
+    try {
+      publish(ctx, clientResponse, responseCb);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      // the response body has already been captured into `result` above; don't lose it by
+      // letting the caller fall back to the original (possibly already-consumed) response
+      LOGGER.debug("Failed to run AppSec response hooks", e);
+    }
     return result;
   }
 
