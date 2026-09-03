@@ -76,6 +76,17 @@ class OtelTraceStateTest {
   }
 
   @Test
+  void limiterRejectionRetainsInheritedRandomness() {
+    OtelTraceState state =
+        OtelTraceState.parse("rv:ef284ace7a91e1;th:8;foo:bar", 2);
+
+    state = OtelTraceState.updateProbability(state, 1, 0.5, true, SAMPLER_DROP);
+
+    assertEquals("rv:ef284ace7a91e1;foo:bar", state.getValue());
+    assertEquals(0, state.getInheritedPosition());
+  }
+
+  @Test
   void nonProbabilityDecisionRetainsOnlyInheritedRandomnessAndUnknownFields() {
     OtelTraceState state = OtelTraceState.parse("th:e6666666666668;foo:bar;rv:ef284ace7a91e1", 2);
 

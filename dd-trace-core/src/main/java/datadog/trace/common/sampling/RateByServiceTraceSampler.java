@@ -61,20 +61,13 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     boolean sampled = sampler.sample(span);
     int samplingPriority = sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP;
 
-    if (rates.hasAgentRates()) {
-      span.setSamplingPriority(
-          samplingPriority,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE,
-          sampled);
-    } else {
-      span.setSamplingPriority(
-          samplingPriority,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    }
+    Boolean probabilitySamplingResult = rates.hasAgentRates() ? sampled : null;
+    span.setSamplingPriority(
+        samplingPriority,
+        SAMPLING_AGENT_RATE,
+        sampler.getSampleRate(),
+        SamplingMechanism.AGENT_RATE,
+        probabilitySamplingResult);
   }
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
