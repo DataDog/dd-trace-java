@@ -378,6 +378,20 @@ class SmokeMatcherTest {
   }
 
   @Test
+  void anyLinkIgnoresFlagsStateAndAttributes() {
+    List<DecodedTrace> traces = Decoder.decodeJson(refinedLinkTraceJson()).getTraces();
+    assertTraces(traces, trace(span().operationName("merge").root().links(any())));
+    // A constraint applied on top of any() is still asserted.
+    assertThrows(
+        AssertionError.class,
+        () ->
+            assertTraces(
+                traces,
+                trace(span().operationName("merge").root().links(any().traceFlags((byte) 0)))),
+        "wrong trace flags");
+  }
+
+  @Test
   void negativeLinkTargetIndexIsRejected() {
     assertThrows(IllegalArgumentException.class, () -> toIndex(-1));
   }

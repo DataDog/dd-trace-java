@@ -81,13 +81,17 @@ public final class SpanLinkMatcher {
   }
 
   /**
-   * Checks a link is present, whichever span it refers to. Useful to assert a link count, or to
-   * skip over a link whose target does not matter.
+   * Checks a link is present, whichever span it refers to and whichever flags, trace state and
+   * attributes it carries. Useful to assert a link count, or to skip over a link whose content does
+   * not matter.
    *
    * @return A new {@link SpanLinkMatcher} instance matching any link.
    */
   public static SpanLinkMatcher any() {
-    return new SpanLinkMatcher(Matchers.any(), Matchers.any(), NO_SPAN_INDEX);
+    return new SpanLinkMatcher(Matchers.any(), Matchers.any(), NO_SPAN_INDEX)
+        .traceFlags(Matchers.any())
+        .traceState(Matchers.any())
+        .attributes(Matchers.any());
   }
 
   /**
