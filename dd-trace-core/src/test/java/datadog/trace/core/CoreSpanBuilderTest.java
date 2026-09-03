@@ -67,6 +67,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   private static final String OTEL_MEMBER = "ot=";
   private static final String THRESHOLD_0_5 = ";th:8";
   private static final double SAMPLE_RATE_0_5 = 0.5;
+  private static final String DATADOG_TRACE_STATE = "_dd.p.dm=934086a686-4,_dd.p.anytag=value";
 
   private ListWriter writer;
   private CoreTracer tracer;

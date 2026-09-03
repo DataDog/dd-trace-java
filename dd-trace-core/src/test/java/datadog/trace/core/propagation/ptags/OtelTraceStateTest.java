@@ -3,7 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.util.stream.Stream;
@@ -16,6 +15,7 @@ class OtelTraceStateTest {
 
   // A stable trace ID covers sampling decisions at representative rates.
   private static final long TRACE_ID = 1;
+  private static final long OTEL_SPEC_WORKED_EXAMPLE_TRACE_ID = 0xfff972474538efffL;
   private static final String LOCAL_RANDOM_VALUE = "f0948a54d43b8e";
   private static final double SAMPLE_RATE_0_01 = 0.01;
   private static final String THRESHOLD_0_01 = "fd70a3d70a3d7";
@@ -60,8 +60,19 @@ class OtelTraceStateTest {
   }
 
   @Test
-  void omitsStateAtRateZero() {
-    assertNull(OtelTraceState.updateProbability(null, TRACE_ID, 0, false, SAMPLER_DROP));
+  void matchesOtelSpecWorkedExample() {
+    OtelTraceState state =
+        OtelTraceState.updateProbability(
+            null, OTEL_SPEC_WORKED_EXAMPLE_TRACE_ID, SAMPLE_RATE_0_1, true, SAMPLER_KEEP);
+
+    assertEquals(traceState(INHERITED_RANDOM_VALUE, THRESHOLD_0_1), state.getValue());
+  }
+
+  @Test
+  void emitsMaxThresholdAtRateZero() {
+    OtelTraceState state = OtelTraceState.updateProbability(null, TRACE_ID, 0, false, SAMPLER_DROP);
+
+    assertEquals(traceState(LOCAL_RANDOM_VALUE, TINY_POSITIVE_THRESHOLD), state.getValue());
   }
 
   @Test
@@ -94,7 +105,7 @@ class OtelTraceStateTest {
   }
 
   @Test
-  void limiterRejectionRemovesLocallyGeneratedProbability() {
+  void limiterRejectionRetainsLocallyGeneratedRandomness() {
     OtelTraceState state =
         OtelTraceState.updateProbability(
             OtelTraceState.parse(UNKNOWN_FIELD, INHERITED_POSITION),
@@ -105,7 +116,7 @@ class OtelTraceStateTest {
 
     state = OtelTraceState.updateProbability(state, TRACE_ID, SAMPLE_RATE_0_5, true, SAMPLER_DROP);
 
-    assertEquals(UNKNOWN_FIELD, state.getValue());
+    assertEquals("rv:" + LOCAL_RANDOM_VALUE + ";" + UNKNOWN_FIELD, state.getValue());
     assertEquals(0, state.getInheritedPosition());
   }
 

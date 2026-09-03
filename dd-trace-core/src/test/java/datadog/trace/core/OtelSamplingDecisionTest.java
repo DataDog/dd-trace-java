@@ -33,6 +33,8 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   private static final String OTEL_MEMBER = "ot=";
   private static final String OTEL_RANDOM_VALUE_PREFIX = "ot=rv:";
   private static final String HALF_THRESHOLD = ";th:8";
+  private static final String MAX_THRESHOLD = ";th:ffffffffffffff";
+  private static final String OTEL_THRESHOLD_PREFIX = ";th:";
   private static final double SAMPLE_RATE_0_5 = 0.5;
   private static final String SAMPLE_RATE_0_5_RULE = "[{\"sample_rate\": 0.5}]";
   private static final String FULL_SAMPLE_RATE_RULE = "[{\"sample_rate\": 1}]";
@@ -73,7 +75,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void loadedZeroAgentRateDoesNotEstablishOtelProbabilityState() {
+  void loadedZeroAgentRateEstablishesOtelProbabilityStateWithMaxThreshold() {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
     sampler.onResponse(AGENT_RATE_ENDPOINT, agentRates(0));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -82,7 +84,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
 
       sampler.setSamplingPriority(span);
 
-      assertFalse(w3cHeader(span).contains(OTEL_MEMBER));
+      String header = w3cHeader(span);
+      assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+      assertTrue(header.contains(MAX_THRESHOLD));
     } finally {
       tracer.close();
     }
@@ -114,7 +118,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void limiterRejectionDoesNotTurnProbabilityKeepIntoOtelDrop() {
+  void limiterRejectionStripsThresholdButKeepsOtelRandomValue() {
     Properties properties = new Properties();
     properties.setProperty(TRACE_SAMPLING_RULES, FULL_SAMPLE_RATE_RULE);
     properties.setProperty(TRACE_RATE_LIMIT, ONE_PER_SECOND_RATE_LIMIT);
@@ -129,7 +133,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
 
       assertTrue(w3cHeader(allowed).contains(OTEL_RANDOM_VALUE_PREFIX));
       assertEquals(USER_DROP, rejected.samplingPriority());
-      assertFalse(w3cHeader(rejected).contains(OTEL_MEMBER));
+      String rejectedHeader = w3cHeader(rejected);
+      assertTrue(rejectedHeader.contains(OTEL_RANDOM_VALUE_PREFIX));
+      assertFalse(rejectedHeader.contains(OTEL_THRESHOLD_PREFIX));
     } finally {
       tracer.close();
     }
