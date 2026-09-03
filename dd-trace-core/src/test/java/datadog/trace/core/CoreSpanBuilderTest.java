@@ -60,6 +60,14 @@ import org.tabletest.junit.TableTest;
 
 public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
 
+  // Propagation fixtures preserve the raw inbound vendor values as a single test vector.
+  private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
+  private static final String OTEL_TRACE_STATE =
+      "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
+  private static final String OTEL_MEMBER = "ot=";
+  private static final String THRESHOLD_0_5 = ";th:8";
+  private static final double SAMPLE_RATE_0_5 = 0.5;
+
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -370,9 +378,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   @Test
   void extractedContextShouldPreserveOtelTraceState() {
     PropagationTags propagationTags =
-        PropagationTags.factory()
-            .fromHeaderValue(
-                PropagationTags.HeaderType.W3C, "dd=s:0,ot=rv:ef284ace7a91e1;th:e6666666666668");
+        PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.W3C, OTEL_TRACE_STATE);
     ExtractedContext extractedContext =
         new ExtractedContext(
             DDTraceId.ONE,
@@ -390,7 +396,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
 
     assertEquals(
-        "dd=s:0,ot=rv:ef284ace7a91e1;th:e6666666666668",
+        OTEL_TRACE_STATE,
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C));
   }
 
@@ -426,14 +432,14 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
         link.traceState());
     String initialTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertTrue(initialTraceState == null || !initialTraceState.contains("ot="));
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
 
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, 0.5, LOCAL_USER_RULE, true);
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE, true);
 
     String freshTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertFalse(freshTraceState.contains("ef284ace7a91e1"));
-    assertTrue(freshTraceState.contains(";th:8"));
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
   }
 
   @Test
@@ -460,22 +466,21 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertTrue(span.getLinks().isEmpty());
     String initialTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertTrue(initialTraceState == null || !initialTraceState.contains("ot="));
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
 
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, 0.5, LOCAL_USER_RULE, true);
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE, true);
 
     String freshTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertFalse(freshTraceState.contains("ef284ace7a91e1"));
-    assertTrue(freshTraceState.contains(";th:8"));
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
   }
 
   private static PropagationTags propagationTagsWithOtelState() {
     PropagationTags propagationTags =
         PropagationTags.factory()
-            .fromHeaderValue(
-                PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value");
-    propagationTags.updateW3CTracestate("dd=s:0,ot=rv:ef284ace7a91e1;th:e6666666666668");
+            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, DATADOG_TRACE_STATE);
+    propagationTags.updateW3CTracestate(OTEL_TRACE_STATE);
     return propagationTags;
   }
 

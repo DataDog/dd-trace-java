@@ -26,6 +26,20 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
 
+  private static final String AGENT_RATE_ENDPOINT = "traces";
+  private static final String INSTRUMENTATION_NAME = "datadog";
+  private static final String OPERATION_NAME = "operation";
+  private static final String SERVICE_NAME = "service";
+  private static final String OTEL_MEMBER = "ot=";
+  private static final String OTEL_RANDOM_VALUE_PREFIX = "ot=rv:";
+  private static final String HALF_THRESHOLD = ";th:8";
+  private static final double SAMPLE_RATE_0_5 = 0.5;
+  private static final String SAMPLE_RATE_0_5_RULE = "[{\"sample_rate\": 0.5}]";
+  private static final String FULL_SAMPLE_RATE_RULE = "[{\"sample_rate\": 1}]";
+  // Keeps configured-rule vectors out of the limiter path.
+  private static final String HIGH_RATE_LIMIT = "10000000";
+  private static final String ONE_PER_SECOND_RATE_LIMIT = "1";
+
   @Test
   void initialAgentRateDoesNotEstablishOtelProbabilityState() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -34,7 +48,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
 
       new RateByServiceTraceSampler().setSamplingPriority(span);
 
-      assertFalse(w3cHeader(span).contains("ot="));
+      assertFalse(w3cHeader(span).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
@@ -43,7 +57,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   @Test
   void loadedAgentRateEstablishesOtelProbabilityState() {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
-    sampler.onResponse("traces", agentRates(0.5));
+    sampler.onResponse(AGENT_RATE_ENDPOINT, agentRates(SAMPLE_RATE_0_5));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       DDSpan span = newRootSpan(tracer);
@@ -51,8 +65,8 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
       sampler.setSamplingPriority(span);
 
       String header = w3cHeader(span);
-      assertTrue(header.contains("ot=rv:"));
-      assertTrue(header.contains(";th:8"));
+      assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+      assertTrue(header.contains(HALF_THRESHOLD));
     } finally {
       tracer.close();
     }
@@ -61,14 +75,14 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   @Test
   void loadedZeroAgentRateDoesNotEstablishOtelProbabilityState() {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
-    sampler.onResponse("traces", agentRates(0));
+    sampler.onResponse(AGENT_RATE_ENDPOINT, agentRates(0));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       DDSpan span = newRootSpan(tracer);
 
       sampler.setSamplingPriority(span);
 
-      assertFalse(w3cHeader(span).contains("ot="));
+      assertFalse(w3cHeader(span).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
@@ -79,11 +93,11 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   void configuredRulesEstablishOtelProbabilityState(boolean traceRule) {
     Properties properties = new Properties();
     if (traceRule) {
-      properties.setProperty(TRACE_SAMPLING_RULES, "[{\"sample_rate\": 0.5}]");
+      properties.setProperty(TRACE_SAMPLING_RULES, SAMPLE_RATE_0_5_RULE);
     } else {
-      properties.setProperty(TRACE_SAMPLE_RATE, "0.5");
+      properties.setProperty(TRACE_SAMPLE_RATE, String.valueOf(SAMPLE_RATE_0_5));
     }
-    properties.setProperty(TRACE_RATE_LIMIT, "10000000");
+    properties.setProperty(TRACE_RATE_LIMIT, HIGH_RATE_LIMIT);
     PrioritySampler sampler = (PrioritySampler) Sampler.Builder.forConfig(properties);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
@@ -92,8 +106,8 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
       sampler.setSamplingPriority(span);
 
       String header = w3cHeader(span);
-      assertTrue(header.contains("ot=rv:"));
-      assertTrue(header.contains(";th:8"));
+      assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+      assertTrue(header.contains(HALF_THRESHOLD));
     } finally {
       tracer.close();
     }
@@ -102,8 +116,8 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   @Test
   void limiterRejectionDoesNotTurnProbabilityKeepIntoOtelDrop() {
     Properties properties = new Properties();
-    properties.setProperty(TRACE_SAMPLING_RULES, "[{\"sample_rate\": 1}]");
-    properties.setProperty(TRACE_RATE_LIMIT, "1");
+    properties.setProperty(TRACE_SAMPLING_RULES, FULL_SAMPLE_RATE_RULE);
+    properties.setProperty(TRACE_RATE_LIMIT, ONE_PER_SECOND_RATE_LIMIT);
     PrioritySampler sampler = (PrioritySampler) Sampler.Builder.forConfig(properties);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
@@ -113,9 +127,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
       sampler.setSamplingPriority(allowed);
       sampler.setSamplingPriority(rejected);
 
-      assertTrue(w3cHeader(allowed).contains("ot=rv:"));
+      assertTrue(w3cHeader(allowed).contains(OTEL_RANDOM_VALUE_PREFIX));
       assertEquals(USER_DROP, rejected.samplingPriority());
-      assertFalse(w3cHeader(rejected).contains("ot="));
+      assertFalse(w3cHeader(rejected).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
@@ -126,12 +140,13 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       DDSpan span = newRootSpan(tracer);
-      span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, 0.5, LOCAL_USER_RULE, true);
-      assertTrue(w3cHeader(span).contains("ot=rv:"));
+      span.setSamplingPriority(
+          USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE, true);
+      assertTrue(w3cHeader(span).contains(OTEL_RANDOM_VALUE_PREFIX));
 
       span.spanContext().forceKeep();
 
-      assertFalse(w3cHeader(span).contains("ot="));
+      assertFalse(w3cHeader(span).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
@@ -140,8 +155,8 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   private static DDSpan newRootSpan(CoreTracer tracer) {
     return (DDSpan)
         tracer
-            .buildSpan("datadog", "operation")
-            .withServiceName("service")
+            .buildSpan(INSTRUMENTATION_NAME, OPERATION_NAME)
+            .withServiceName(SERVICE_NAME)
             .ignoreActiveSpan()
             .start();
   }
