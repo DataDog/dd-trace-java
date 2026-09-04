@@ -1,0 +1,362 @@
+name: dd-apm-sdk-review
+version: "0.1"
+
+cases:
+  - id: java-perf-lens-wrong-collection-001
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (reviewers/performance.md, its
+      .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
+      following method. No git checkout available — this snippet is the entire change to
+      review.
+
+      ```java
+      private final Map<String, Object> sessionCache = new LinkedHashMap<>();
+
+      void recordSession(String sessionId, Object payload) {
+        sessionCache.put(sessionId, payload);
+      }
+      ```
+    expected_criteria:
+      - "Flags the LinkedHashMap as the wrong collection type per addendum J12 — order isn't relied on here, so a plain HashMap is the lighter fix."
+      - "Also flags, independently or as part of the same finding, that the map is unbounded and keyed by a high-cardinality value (sessionId) — a SEV-1 concern under universal check three, mapped to P0 or P1 per performance.md's SEV-to-P mapping section."
+      - "Names HashMap as the concrete fix, not just \"reconsider the data structure.\""
+    bad_signals:
+      - "Treats the LinkedHashMap choice as a pure style nit with no cost explanation."
+      - "Misses the unbounded / high-cardinality aspect entirely."
+      - "Invents a Datadog-internal collection type name that doesn't exist in this repo's toolkit (Strings, SubSequence, HashingUtils, Hashtable, RE2J)."
+
+  - id: java-perf-pipeline-full-review-002
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/security.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/design.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/maintainability.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+      - .agents/dd-apm-sdk-review-overrides/repo-context.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/security.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/design.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      index 1111111..2222222 100644
+      --- a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      +++ b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
+      @@ -10,6 +10,10 @@ class SpanCache {
+      -  private final Map<String, Span> byResource = new HashMap<>();
+      +  private final Map<String, Span> byResource = new LinkedHashMap<>();
+      +
+      +  String describe(String resourceName) {
+      +    return String.format("resource=%s", resourceName);
+      +  }
+      ```
+    expected_criteria:
+      - "The report's Mode line states pasted diff / no git (e.g. \"pasted diff, no git\")."
+      - "Includes a \"Rule files used\" section listing which reviewer files were used, per report-template.md."
+      - "Raises a performance finding on the LinkedHashMap swap (J12) and/or the hot-path String.format call (J10), classified under the report's P0/P1/P2 sections, not the internal SEV vocabulary."
+      - "States an explicit verdict line (BLOCK / APPROVE_WITH_COMMENTS / APPROVE) and a final READY TO PUSH / DO NOT PUSH statement."
+      - "The maintainability lens does not invent its own release-note or public-API policy — per its override (.agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md), it defers to conventions.md's actual policy (no changelog file; the PR title is the release note) rather than asking for a CHANGELOG.md entry."
+    bad_signals:
+      - "Attempts to run git commands despite the change set being pasted inline."
+      - "The maintainability lens asks for a CHANGELOG.md or changelog entry to be added."
+      - "Skips straight to a verdict with no per-lens findings or \"Rule files used\" section."
+      - "Reports SEV-1 / SEV-2 labels in the final report without resolving them to P0/P1/P2."
+
+  - id: java-security-crash-handler-before-trust
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/security.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/security.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java b/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java
+      @@ -358,10 +358,16 @@ private static void initializeCrashUploader(FlagAccess flags) {
+      +      // set the JVM flag
+      +      boolean rslt = flags.setValue("OnError", onErrorVal);
+      +      if (!rslt && LOG.isDebugEnabled()) {
+      +        LOG.debug(
+      +            SEND_TELEMETRY,
+      +            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+      +            onErrorVal);
+      +      }
+      +
+      +      // validate the script directory/file is owned by this JVM user and not
+      +      // group/world-writable before trusting it; if a pre-existing dir/script
+      +      // fails this check, initialize() returns false and skips writing config.
+      +      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
+      ```
+    expected_criteria:
+      - "Flags that the JVM handler flag (`OnError`) is set to the target script/path BEFORE `CrashUploaderScriptInitializer.initialize(...)` — the ownership/trust validation — has run and returned a result. It is not enough to note that a validation step exists; the report must call out the ordering problem — if `initialize(...)` later rejects the path, the flag has already been committed to the untrusted path and the JVM crash handler will still execute it on a crash."
+      - "Classifies this as a security finding (P0 or P1, not merely a style/maintainability nit) — a security control that can be silently bypassed."
+      - "Recommends gating the flag-setter on the validator's result (e.g. `if (initialize(...)) { flags.setValue(...) }`) or clearing/restoring the flag on validation failure — not just \"add more logging\" or \"add a comment\"."
+      - "States the verdict line as exactly Verdict BLOCK and ends with DO NOT PUSH."
+    bad_signals:
+      - "Misses the ordering problem and only notes that a validation step exists."
+      - "Treats this as a style or logging nit rather than a security bypass."
+      - "Approves the change or uses APPROVE / APPROVE_WITH_COMMENTS / READY TO PUSH."
+
+  - id: java-correctness-capture-before-send
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java b/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/probe/LogProbe.java
+      @@ -700,6 +700,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContext.Status {
+      +  // PR #12207: processCaptureExpressions() runs for every hit, regardless of
+      +  // whether the probe's condition/sampler has already decided this hit will
+      +  // not be sent. logStatus.shouldSend() reflects that effective send decision
+      +  // and is already computed by the caller before this method runs.
+      +  private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
+      +    if (captureExpressions == null) {
+      +      return;
+      +    }
+      +    for (CaptureExpression captureExpression : captureExpressions) {
+      +      try {
+      +        context.addCaptureExpression(captureExpression.evaluate(context));
+      +      } catch (Exception ex) {
+      +        DEBUGGER_METRICS.increment(EVALUATION_ERROR);
+      +        reportEvaluationError(captureExpression, ex);
+      +      }
+      +    }
+      +  }
+      ```
+    expected_criteria:
+      - "Flags that `processCaptureExpressions()` evaluates every capture expression as soon as `captureExpressions` is non-null, without checking `logStatus.shouldSend()` — the effective send/sampling decision already computed by the caller."
+      - "Explains the concrete consequence — a hit that is rejected or rate-limited still pays for expression evaluation, so a broken capture expression on a hot method produces an unthrottled stream of evaluation errors for every hit."
+      - "Recommends gating the evaluation loop on the send decision, e.g. `if (captureExpressions == null || !logStatus.shouldSend()) { return; }`."
+      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+    bad_signals:
+      - "Only notes the null check and misses the missing `shouldSend()` gate."
+      - "Treats this as a cosmetic style issue rather than reliability/performance."
+      - "Suggests only \"add rate limiting to error reporting\" without gating evaluation."
+
+  - id: java-correctness-sqs-queue-name-incomplete
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/instrumentation/aws-java/aws-java-sdk-2.2/src/main/java/datadog/trace/instrumentation/aws/v2/AwsSdkClientDecorator.java b/dd-java-agent/instrumentation/aws-java/aws-java-sdk-2.2/src/main/java/datadog/trace/instrumentation/aws/v2/AwsSdkClientDecorator.java
+      @@ -150,10 +150,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse> {
+      +      // PR #12159: tag the SQS queue name for observability dashboards. The SDK
+      +      // request model exposes both a "QueueUrl" field (always present on
+      +      // SendMessage/DeleteMessage/batch receive calls) and an optional
+      +      // "QueueName" field (only populated by some request types).
+      +      request
+      +          .getValueForField("QueueUrl", String.class)
+      +          .ifPresent(
+      +              url -> {
+      +                span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+      +                setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+      +              });
+      +      request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
+      ```
+    expected_criteria:
+      - "Flags that the queue-name tag (`setQueueName`) is only set from the optional `QueueName` field, and is never derived from the always-tagged `QueueUrl` field when `QueueName` is absent."
+      - "Explains the concrete consequence — SQS request types that only populate `QueueUrl` silently ship with no queue-name tag — incomplete telemetry, not a crash."
+      - "Recommends deriving the queue name from the URL (e.g. last path segment) as a fallback whenever `QueueName` is absent."
+      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+    bad_signals:
+      - "Only notes that `QueueName` is Optional without calling out the missing URL fallback."
+      - "Treats this as a crash/exception bug rather than a silent data-completeness gap."
+      - "Suggests only logging when QueueName is missing, with no URL-derived fallback."
+
+  - id: java-maintainability-resource-leak-streams
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/maintainability.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/symbol/SymbolAggregator.java b/dd-java-agent/agent-debugger/src/main/java/com/datadog/debugger/symbol/SymbolAggregator.java
+      @@ -270,10 +270,10 @@ public class SymbolAggregator {
+      +  // PR #12143: parse a single .class entry out of the scanned jar and hand its
+      +  // bytes to parseClass(). jarFile itself is opened in a try-with-resources
+      +  // block by the caller.
+      +  private void parseJarEntry(
+      +      SymDBReport symDBReport,
+      +      JarFile jarFile,
+      +      JarEntry jarEntry,
+      +      Path jarPath,
+      +      ByteArrayOutputStream baos,
+      +      byte[] buffer) {
+      +    LOGGER.debug("parsing jarEntry class: {}", jarEntry.getName());
+      +    try {
+      +      InputStream inputStream = jarFile.getInputStream(jarEntry);
+      +      int readBytes;
+      +      baos.reset();
+      +      while ((readBytes = inputStream.read(buffer)) != -1) {
+      +        baos.write(buffer, 0, readBytes);
+      +      }
+      +      parseClass(symDBReport, jarEntry.getName(), baos.toByteArray(), jarPath.toString());
+      +    } catch (IOException ex) {
+      +      LOGGER.warn("Failed to parse jar entry {}", jarEntry.getName(), ex);
+      +    }
+      +  }
+      +
+      +  // Directory-scan counterpart of the jar path above: walks jarPath looking for
+      +  // .class files on disk instead of inside a jar.
+      +  private void scanDirectory(
+      +      Path jarPath,
+      +      Set<String> alreadyScannedJars,
+      +      ByteArrayOutputStream baos,
+      +      byte[] buffer,
+      +      SymDBReport symDBReport) {
+      +    try {
+      +      Files.walk(jarPath)
+      +          // explicitly no follow links walking the directory to avoid cycles
+      +          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+      +          .filter(path -> path.toString().endsWith(".class"))
+      +          .forEach(path -> parseClassFile(symDBReport, path, baos, buffer));
+      +    } catch (IOException ex) {
+      +      LOGGER.warn("Failed to walk directory {}", jarPath, ex);
+      +    }
+      +    alreadyScannedJars.add(jarPath.toString());
+      +  }
+      ```
+    expected_criteria:
+      - "Flags that `parseJarEntry()` obtains `inputStream` from `jarFile.getInputStream(jarEntry)` and never closes it — no try-with-resources and no explicit `close()` in a `finally`."
+      - "Explains the concrete consequence as a resource leak (Inflater / native memory pressure when scanning a large jar), not a style nit."
+      - "Separately flags that `scanDirectory()`'s `Files.walk(jarPath)` stream is also never closed — its own finding, not folded into the InputStream one."
+      - "Recommends wrapping both the `InputStream` and the `Files.walk()` stream in try-with-resources."
+      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+    bad_signals:
+      - "Misses the unclosed InputStream or the unclosed Files.walk stream."
+      - "Folds both leaks into one vague \"resource handling\" note without naming both."
+      - "Suggests only broader exception catching / logging without try-with-resources."
+
+  - id: java-correctness-span-events-list-only
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV1.java b/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV1.java
+      @@ -203,12 +203,12 @@ public final class TraceMapperV1 implements TraceMapper {
+      +  // PR #12107: eventsObject comes from the SPAN_EVENTS tag. Most call paths set
+      +  // it as a List (structured events built in-process), but the OTel bridge sets
+      +  // it as a pre-serialized JSON string (a CharSequence) instead.
+      +  private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
+      +    writable.writeInt(fieldId);
+      +    if (!(eventsObject instanceof List) || ((List<?>) eventsObject).isEmpty()) {
+      +      writable.startArray(0);
+      +      return;
+      +    }
+      +
+      +    List<?> events = (List<?>) eventsObject;
+      +    int encodableCount = 0;
+      +    for (Object event : events) {
+      +      if (isEncodableSpanEvent(event)) {
+      +        encodableCount++;
+      +      }
+      +    }
+      +    writable.startArray(encodableCount);
+      +    for (Object event : events) {
+      +      if (isEncodableSpanEvent(event)) {
+      +        encodeSpanEvent(writable, (Map<?, ?>) event);
+      +      }
+      +    }
+      +  }
+      ```
+    expected_criteria:
+      - "Flags that `encodeSpanEvents()` treats any non-`List` `eventsObject` as empty, even though the comment states the OTel bridge supplies span events as a pre-serialized JSON string (`CharSequence`)."
+      - "Explains the concrete consequence — OTel-bridge spans silently drop span events from the encoded v1 payload — empty events array, no exception — silent data loss."
+      - "Recommends recognizing/normalizing the `CharSequence`/JSON-string representation into a `List` before the List-shaped encoding logic runs."
+      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+    bad_signals:
+      - "Only praises the empty/null defensive handling and misses the CharSequence path."
+      - "Treats this as a crash bug rather than silent data loss."
+      - "Suggests only \"add a null check\" or \"log a warning\" without parsing the string form."
+
+  - id: java-correctness-mapper-state-leak
+    files:
+      - .agents/skills/dd-apm-sdk-review/SKILL.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+    input: |
+      Run dd-apm-sdk-review on the following change. There is no git repository to
+      inspect — this diff is the entire change set; do not attempt any git commands, go
+      straight to running the reviewers on the pasted content below.
+
+      ```diff
+      diff --git a/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java b/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java
+      @@ -300,10 +300,20 @@ public final class TraceMapperV0_4 implements TraceMapper {
+      +  // PR #12096: process/propagation tags (dd-p-*) must be written once per
+      +  // payload, on the first span of the trace chunk currently being mapped.
+      +  // This TraceMapperV0_4 instance is held by DDAgentWriter and reused across
+      +  // every trace chunk sent for the lifetime of the writer.
+      +  private boolean firstSpanWritten;
+      +
+      +  @Override
+      +  public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+      +    writable.startArray(trace.size());
+      +    for (int i = 0; i < trace.size(); i++) {
+      +      CoreSpan<?> span = trace.get(i);
+      +      writeSpanFields(writable, span);
+      +      span.processTagsAndBaggage(
+      +          metaWriter
+      +              .withWritable(writable)
+      +              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+      +      firstSpanWritten = true;
+      +    }
+      +  }
+      ```
+    expected_criteria:
+      - "Flags that `firstSpanWritten` is an instance field that is only ever set to `true` and is never reset to `false` at the start of `map()`."
+      - "Explains the concrete consequence given mapper reuse across the writer's lifetime: after the first chunk, subsequent chunks never write process/ propagation tags (`dd-p-*`) on their first span — silent cross-payload data loss."
+      - "Recommends resetting `firstSpanWritten` to `false` at the start of each `map()` call (or an explicit `reset()` before each `map()`)."
+      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+    bad_signals:
+      - "Notes the flag exists but misses that nothing re-initializes it per chunk."
+      - "Suggests only \"make the field volatile\" or \"add logging\" without a per-map reset."
+      - "Treats this as a crash rather than silent data loss from leaked state."
