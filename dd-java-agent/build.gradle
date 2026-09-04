@@ -7,11 +7,11 @@ import java.util.jar.JarFile
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.conventions.java'
 }
 
 description = 'dd-java-agent'
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/publish.gradle"
 
 configurations {
