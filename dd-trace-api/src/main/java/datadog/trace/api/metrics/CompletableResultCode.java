@@ -2,11 +2,15 @@ package datadog.trace.api.metrics;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification = "Not a singleton")
 public final class CompletableResultCode {
   private static final CompletableResultCode SUCCESS = new CompletableResultCode(true);
   private static final CompletableResultCode FAILURE = new CompletableResultCode(false);
