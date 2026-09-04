@@ -449,12 +449,11 @@ public final class SpanMatcher {
     int linkCount = links == null ? 0 : links.size();
     int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
-      assertionFailure()
+      throw assertionFailure()
           .message("Unexpected span link count")
           .expected(expectedLinkCount)
           .actual(linkCount)
-          .buildAndThrow();
-      return;
+          .build();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[i];
