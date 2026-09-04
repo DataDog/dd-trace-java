@@ -12,6 +12,8 @@ final class OtelTraceState {
   private static final int HAS_LOCALLY_GENERATED_RANDOM_VALUE = 1 << 1;
   private static final String RANDOM_VALUE_KEY = "rv:";
   private static final String THRESHOLD_KEY = "th:";
+  private static final int DEFAULT_VALUE_CAPACITY =
+      RANDOM_VALUE_KEY.length() + HEX_DIGITS + 1 + THRESHOLD_KEY.length() + HEX_DIGITS;
 
   private final String value;
   private final long randomValue;
@@ -158,7 +160,7 @@ final class OtelTraceState {
 
   private static OtelTraceState create(
       long randomValue, long threshold, String previousValue, boolean locallyGeneratedRandomValue) {
-    StringBuilder value = new StringBuilder();
+    StringBuilder value = new StringBuilder(DEFAULT_VALUE_CAPACITY);
     if (randomValue != NO_VALUE) {
       appendRandomValue(value, randomValue);
     }
