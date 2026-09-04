@@ -627,6 +627,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -1309,6 +1310,8 @@ public class Config {
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
   private final int jmsUnacknowledgedMaxAge;
+
+  private final Map<String, String> responseStatusExceptionAccessors;
 
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
@@ -3124,6 +3127,8 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
     jmsUnacknowledgedMaxAge = configProvider.getInteger(JMS_UNACKNOWLEDGED_MAX_AGE, 3600);
 
+    responseStatusExceptionAccessors = configProvider.getMergedMap(RESPONSE_STATUS_EXCEPTIONS, '#');
+
     rabbitPropagationEnabled = isPropagationEnabled(true, "rabbit", "rabbitmq");
     rabbitPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
@@ -3723,6 +3728,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public Map<String, String> getResponseStatusExceptionAccessors() {
+    return responseStatusExceptionAccessors;
   }
 
   public boolean isRequestHeaderTagsCommaAllowed() {
@@ -6858,6 +6867,8 @@ public class Config {
         + jmsPropagationDisabledTopics
         + ", jmsPropagationDisabledQueues="
         + jmsPropagationDisabledQueues
+        + ", responseStatusExceptionAccessors="
+        + responseStatusExceptionAccessors
         + ", rabbitPropagationEnabled="
         + rabbitPropagationEnabled
         + ", rabbitPropagationDisabledQueues="

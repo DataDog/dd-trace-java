@@ -11,6 +11,8 @@ import jakarta.ws.rs.PATCH
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.PUT
 import jakarta.ws.rs.Path
+import jakarta.ws.rs.WebApplicationException
+import jakarta.ws.rs.core.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -140,6 +142,228 @@ class JakartaRsAnnotations3InstrumentationTest extends InstrumentationSpecificat
     className = JakartaRsAnnotationsDecorator.DECORATE.className(obj.class)
   }
 
+  def "resource method exception with an embedded non-5xx status is not flagged as an error"() {
+    setup:
+    // jakarta-rs-annotations-3.0's test classpath has no JAX-RS runtime implementation, so
+    // WebApplicationException's convenience constructors (which build a Response via
+    // RuntimeDelegate) can't be used here. Stub the Response instead.
+    def response = Stub(Response) {
+      getStatus() >> 404
+      getStatusInfo() >> Response.Status.NOT_FOUND
+    }
+    def obj = new Jakarta() {
+        @GET
+        @Path("/not-found")
+        void call() {
+          throw new WebApplicationException(response)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /not-found"
+          spanType "web"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/not-found"
+            errorTags(WebApplicationException, "HTTP 404 Not Found")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception with an embedded 5xx status is flagged as an error"() {
+    setup:
+    def response = Stub(Response) {
+      getStatus() >> 500
+      getStatusInfo() >> Response.Status.INTERNAL_SERVER_ERROR
+    }
+    def obj = new Jakarta() {
+        @GET
+        @Path("/internal-error")
+        void call() {
+          throw new WebApplicationException(response)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /internal-error"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/internal-error"
+            errorTags(WebApplicationException, "HTTP 500 Internal Server Error")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception with an embedded out-of-range status falls back to normal error handling"() {
+    setup:
+    // A misbehaving custom Response reporting a negative "unknown" status must not be used to
+    // index into the configured server-error statuses.
+    def response = Stub(Response) {
+      getStatus() >> -1
+      getStatusInfo() >> Stub(Response.StatusType) {
+        getStatusCode() >> -1
+        getReasonPhrase() >> "Custom"
+        getFamily() >> Response.Status.Family.OTHER
+      }
+    }
+    def obj = new Jakarta() {
+        @GET
+        @Path("/custom-status")
+        void call() {
+          throw new WebApplicationException(response)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    def ex = thrown(WebApplicationException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /custom-status"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-status"
+            errorTags(WebApplicationException, ex.message)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method with a plain exception is still flagged as an error"() {
+    setup:
+    def obj = new Jakarta() {
+        @GET
+        @Path("/boom")
+        void call() {
+          throw new IllegalStateException("boom")
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(IllegalStateException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /boom"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/boom"
+            errorTags(IllegalStateException, "boom")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+
+  def "resource method exception recognized via configured custom accessor with a non-5xx status is not flagged as an error"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS, "${CustomStatusException.name}#httpCode")
+    def obj = new Jakarta() {
+        @GET
+        @Path("/custom-not-found")
+        void call() {
+          throw new CustomStatusException(404)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(CustomStatusException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /custom-not-found"
+          spanType "web"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-not-found"
+            errorTags(CustomStatusException)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "resource method exception recognized via configured custom accessor with a 5xx status is flagged as an error"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESPONSE_STATUS_EXCEPTIONS, "${CustomStatusException.name}#httpCode")
+    def obj = new Jakarta() {
+        @GET
+        @Path("/custom-internal-error")
+        void call() {
+          throw new CustomStatusException(500)
+        }
+      }
+
+    when:
+    obj.call()
+
+    then:
+    thrown(CustomStatusException)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "jakarta-rs.request"
+          resourceName "GET /custom-internal-error"
+          spanType "web"
+          errored true
+          tags {
+            "$Tags.COMPONENT" "jakarta-rs-controller"
+            "$Tags.HTTP_ROUTE" "/custom-internal-error"
+            errorTags(CustomStatusException)
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "no annotations has no effect"() {
     setup:
     def obj = new Jakarta() {
@@ -161,6 +385,18 @@ class JakartaRsAnnotations3InstrumentationTest extends InstrumentationSpecificat
           }
         }
       }
+    }
+  }
+
+  static class CustomStatusException extends RuntimeException {
+    private final int status
+
+    CustomStatusException(int status) {
+      this.status = status
+    }
+
+    int httpCode() {
+      return status
     }
   }
 
