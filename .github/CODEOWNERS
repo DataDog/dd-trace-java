@@ -8,7 +8,6 @@
 /.claude/                             @DataDog/apm-java
 /.agents/dd-apm-sdk-review-overrides/ @DataDog/apm-java
 /.llm-validation/                     @DataDog/apm-java
-/.promptfoo/                          @DataDog/apm-java
 /AGENTS.md                            @DataDog/apm-java
 /ARCHITECTURE.md                      @DataDog/apm-java
 /CONTRIBUTING.md                      @DataDog/apm-java
