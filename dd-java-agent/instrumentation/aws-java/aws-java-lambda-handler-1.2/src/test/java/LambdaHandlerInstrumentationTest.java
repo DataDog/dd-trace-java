@@ -15,9 +15,11 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Flow;
@@ -33,6 +35,8 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -572,6 +576,46 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
                     error(Error.class, "Some error"))));
+  }
+
+  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  @Test
+  void stripsInjectedDatadogContextFromEventBridgeDetail() throws IOException {
+    String eventJson =
+        "{"
+            + "\"detail-type\": \"order.created\","
+            + "\"detail\": {"
+            + "  \"orderId\": 42,"
+            + "  \"_datadog\": {\"x-datadog-trace-id\": \"123\"}"
+            + "}"
+            + "}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    class CapturingHandler implements RequestStreamHandler {
+      String capturedBody;
+
+      @Override
+      public void handleRequest(InputStream in, OutputStream out, Context context)
+          throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        int n;
+        while ((n = in.read(chunk)) != -1) {
+          buffer.write(chunk, 0, n);
+        }
+        capturedBody = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+        out.write("{}".getBytes(StandardCharsets.UTF_8));
+      }
+    }
+
+    CapturingHandler handler = new CapturingHandler();
+    handler.handleRequest(input, output, newContext());
+
+    assertFalse(handler.capturedBody.contains("_datadog"));
+    assertTrue(handler.capturedBody.contains("\"orderId\":42"));
   }
 
   private static final class TestContext implements Context {

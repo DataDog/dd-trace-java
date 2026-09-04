@@ -219,6 +219,7 @@ class ConfigTest extends DDSpecification {
   private static final SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sfn.inject.datadog.attribute.enabled"
   private static final SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sns.inject.datadog.attribute.enabled"
   private static final SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sqs.inject.datadog.attribute.enabled"
+  private static final LAMBDA_STRIP_INJECTED_CONTEXT = "lambda.strip.injected.context"
 
   private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
   private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"
@@ -2671,6 +2672,21 @@ class ConfigTest extends DDSpecification {
     config.llmObsMlApp == "test-service"
   }
 
+  def "test lambda strip injected context default"() {
+    when:
+    def config = new Config()
+
+    then:
+    !config.isLambdaStripInjectedContextEnabled()
+  }
+
+  def "test lambda strip injected context enabled via config"() {
+    setup:
+    injectSysConfig(LAMBDA_STRIP_INJECTED_CONTEXT, "true")
+
+    expect:
+    Config.get().isLambdaStripInjectedContextEnabled()
+  }
 
   def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) via sys prop and ml app is set"() {
     setup:

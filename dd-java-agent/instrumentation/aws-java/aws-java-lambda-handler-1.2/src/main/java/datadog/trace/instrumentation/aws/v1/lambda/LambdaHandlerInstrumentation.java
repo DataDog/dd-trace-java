@@ -18,6 +18,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -26,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.config.inversion.ConfigHelper;
+import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -82,7 +84,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     @OnMethodEnter
     static AgentScope enter(
         @This final Object that,
-        @Advice.Argument(0) final Object in,
+        @Advice.Argument(value = 0, readOnly = false) InputStream in,
         @Advice.Argument(1) final Object out,
         @Advice.Argument(2) final Context awsContext,
         @Origin("#m") final String methodName) {
@@ -92,6 +94,15 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       }
       String lambdaRequestId = awsContext.getAwsRequestId();
       AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
+
+      // Skip the strip pass entirely (extra read/parse/re-serialize) unless explicitly enabled.
+      if (Config.get().isLambdaStripInjectedContextEnabled()) {
+        InputStream stripped = AgentTracer.get().stripLambdaInjectedContext(in);
+        if (stripped != null) {
+          in = stripped;
+        }
+      }
+
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan("java-aws-sdk", INVOCATION_SPAN_NAME);
