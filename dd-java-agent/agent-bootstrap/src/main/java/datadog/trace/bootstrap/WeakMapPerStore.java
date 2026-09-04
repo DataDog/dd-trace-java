@@ -1,49 +1,53 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStore;
+
 import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
 
 /**
- * Weak {@link ContextStore} that acts as a fall-back when field-injection isn't possible.
+ * Weak "map-per-store" fall-back to track contexts when field-injection isn't possible.
  *
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
-final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
-  private static final int DEFAULT_MAX_SIZE = 50_000;
+public final class WeakMapPerStore<K, V> {
 
-  private final int maxSize;
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static Object get(final Object key, final int storeId) {
+    return getContextStore(storeId).weakStore().get(key);
+  }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static void put(final Object key, final int storeId, final Object context) {
+    getContextStore(storeId).weakStore().put(key, context);
+  }
+
+  private static final int MAX_SIZE = 50_000;
+
   private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
 
-  public WeakMapContextStore(int maxSize) {
-    this.maxSize = maxSize;
-  }
+  WeakMapPerStore() {}
 
-  public WeakMapContextStore() {
-    this(DEFAULT_MAX_SIZE);
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
-  public V get(final K key) {
+  V get(final K key) {
     return (V) map.get(key);
   }
 
-  @Override
-  public void put(final K key, final V context) {
-    if (map.size() < maxSize) {
+  void put(final K key, final V context) {
+    if (map.size() < MAX_SIZE) {
       map.put(key, context);
     }
   }
 
-  @Override
-  public V putIfAbsent(final K key, final V context) {
+  V getOrPut(final K key, final V context) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
       // we want to avoid prematurely calling the factory if
-      // someone else is doing a putIfAbsent at the same time.
+      // someone else is doing a getOrPut at the same time.
       // There is still the possibility that there is a concurrent
       // call to put that will win, but that is indistinguishable
-      // from the put happening right after the putIfAbsent.
+      // from the put happening right after the getOrPut.
       synchronized (map) {
         existingContext = get(key);
         if (null == existingContext) {
@@ -55,21 +59,15 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     return existingContext;
   }
 
-  @Override
-  public V putIfAbsent(final K key, final Factory<V> contextFactory) {
-    return computeIfAbsent(key, contextFactory);
-  }
-
-  @Override
-  public V computeIfAbsent(K key, KeyAwareFactory<? super K, V> contextFactory) {
+  V getOrCompute(K key, KeyAwareFactory<? super K, V> contextFactory) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
       // we want to avoid prematurely calling the factory if
-      // someone else is doing a putIfAbsent at the same time.
+      // someone else is doing a getOrCompute at the same time.
       // There is still the possibility that there is a concurrent
       // call to put that will win, but that is indistinguishable
-      // from the put happening right after the putIfAbsent.
+      // from the put happening right after the getOrCompute.
       synchronized (map) {
         existingContext = get(key);
         if (null == existingContext) {
@@ -81,9 +79,8 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     return existingContext;
   }
 
-  @Override
   @SuppressWarnings("unchecked")
-  public V remove(final K key) {
+  V remove(final K key) {
     return (V) map.remove(key);
   }
 

@@ -82,7 +82,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create);
+              .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
 
       // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
       // rest of the frameworks
