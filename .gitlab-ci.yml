@@ -219,7 +219,8 @@ default:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   cache:
-    - key: dependency-$CACHE_TYPE # Dependencies cache
+    - &dependency_cache
+      key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
@@ -231,7 +232,8 @@ default:
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
-    - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
+    - &build_cache
+      key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
@@ -389,14 +391,65 @@ build_tests:
     - ./gradlew --version
     - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
-populate_dep_cache:
-  extends: build_tests
-  variables:
-    BUILD_CACHE_POLICY: pull
-    DEPENDENCY_CACHE_POLICY: push
+populate_plugin_cache:
+  extends: .gradle_build
+  cache:
+    - &plugin_cache
+      key: dependency-plugins-v1
+      paths:
+        - .gradle-plugin-cache/caches/modules-2
+      policy: pull-push
+      when: always
+      unprotect: true
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
+  script:
+    - mkdir -p .gradle-plugin-cache
+    - sudo chown -R 1001:1001 .gradle-plugin-cache
+    - export GRADLE_USER_HOME=$(pwd)/.gradle-plugin-cache
+    - |
+      gradle_status=0
+      ./gradlew help -PskipTests $GRADLE_ARGS || gradle_status=$?
+      if ! find .gradle-plugin-cache/caches/modules-2/files-2.1 -type f -print -quit 2>/dev/null | grep -q .; then
+        echo "WARNING: No plugin artifacts were cached; skipping the cache upload."
+        rm -rf .gradle-plugin-cache/caches/modules-2
+      fi
+      exit "$gradle_status"
+  # This cache warmer is an optimization; population jobs can continue with a cold plugin cache.
+  allow_failure: true
+
+populate_dep_cache:
+  extends: build_tests
+  # Wait for build-cache producers so their caches are uploaded before this job restores them.
+  needs:
+    - job: populate_plugin_cache
+    - job: build
+      artifacts: false
+    - job: build_tests
+      artifacts: false
+  variables:
+    BUILD_CACHE_POLICY: pull
+    DEPENDENCY_CACHE_POLICY: push
+  cache:
+    - <<: *plugin_cache
+      policy: pull
+    - *dependency_cache
+    - *build_cache
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+  before_script:
+    - !reference [.gradle_build, before_script]
+    # Seed the otherwise cold writable cache, keeping the cache uploaded below self-contained.
+    - mkdir -p .gradle/caches
+    - |
+      if [ -d .gradle-plugin-cache/caches/modules-2 ]; then
+        sudo chown -R 1001:1001 .gradle-plugin-cache
+        cp -a .gradle-plugin-cache/caches/modules-2 .gradle/caches/
+      else
+        echo "Plugin cache is unavailable; continuing with a cold dependency cache."
+      fi
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
