@@ -340,7 +340,11 @@ class HealthMetricsTest {
     verifyNoMoreInteractions(statsD);
   }
 
-  @TableTest({"scenario  | manual", "automatic | false ", "manual    | true  "})
+  @TableTest({
+    "scenario  | manual",
+    "automatic | false ",
+    "manual    | true  "
+  })
   @ParameterizedTest(name = "testOnScopeCloseError [{index}]")
   void testOnScopeCloseError(boolean manual) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(manual ? 2 : 1);

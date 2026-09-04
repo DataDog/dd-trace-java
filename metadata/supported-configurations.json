@@ -6356,6 +6356,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_GUAVA_ENABLED", "DD_INTEGRATION_GUAVA_ENABLED"]
       }
     ],
+    "DD_TRACE_GUIDEWIRE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
+      }
+    ],
     "DD_TRACE_HAZELCAST_ENABLED": [
       {
         "version": "A",
@@ -9781,6 +9789,14 @@
       }
     ],
     "DD_TRACE_RUNTIME_CONTEXT_FIELD_INJECTION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE": [
       {
         "version": "A",
         "type": "boolean",
