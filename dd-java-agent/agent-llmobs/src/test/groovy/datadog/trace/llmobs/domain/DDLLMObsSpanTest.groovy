@@ -796,6 +796,9 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def innerSpan = (AgentSpan) test.span
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
     innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
+
+    cleanup:
+    test.finish()
   }
 
   def "agent manifest full annotation sets correct tag"() {

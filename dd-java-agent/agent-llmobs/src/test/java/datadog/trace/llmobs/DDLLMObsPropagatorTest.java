@@ -1,7 +1,6 @@
 package datadog.trace.llmobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,8 +74,12 @@ class DDLLMObsPropagatorTest {
 
   @Test
   void activateWithoutTraceContextIsNoOp() throws Exception {
+    // Compare against whatever LLMObsContext happened to be ambient going in, rather than
+    // asserting a global null baseline — this test runs alongside many others in the same JVM
+    // and must not assume it is the only thing that has ever touched ambient context.
+    Object ambientBefore = LLMObsContext.current();
     try (Closeable scope = propagator.activateDistributedHeaders(new HashMap<>())) {
-      assertNull(LLMObsContext.current());
+      assertEquals(ambientBefore, LLMObsContext.current());
     }
   }
 
