@@ -68,6 +68,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final String spanKind;
   private final String mlApp;
   private final boolean hasSessionId;
+  private final String sessionId;
+  private final String parentAgentSpanId;
+  private final String parentAgentName;
   private final ContextScope scope;
   // Non-null only for agent-kind spans started without an ambient APM root. Activating the
   // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
@@ -160,6 +163,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    this.sessionId = this.hasSessionId ? sessionId : null;
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
@@ -197,6 +201,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
         span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedParentAgentName);
       }
     }
+    this.parentAgentSpanId = resolvedParentAgentSpanId;
+    this.parentAgentName = resolvedParentAgentName;
 
     // Propagate the effective sessionId and agent attribution to descendant LLMObs spans.
     scope =
@@ -680,5 +686,36 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
+  }
+
+  /** Internal accessor for the underlying APM span, used by {@code DDLLMObsPropagator}. */
+  public AgentSpan getAgentSpan() {
+    return span;
+  }
+
+  /** Internal accessor for this span's effective ml_app, used by {@code DDLLMObsPropagator}. */
+  public String getMlApp() {
+    return mlApp;
+  }
+
+  /**
+   * Internal accessor for this span's effective session_id (including one inherited from an
+   * enclosing LLMObs span), used by {@code DDLLMObsPropagator}. May be {@code null}.
+   */
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  /**
+   * Internal accessor for this span's effective agent attribution, used by {@code
+   * DDLLMObsPropagator}. May be {@code null}.
+   */
+  public String getParentAgentSpanId() {
+    return parentAgentSpanId;
+  }
+
+  /** See {@link #getParentAgentSpanId()}. May be {@code null}. */
+  public String getParentAgentName() {
+    return parentAgentName;
   }
 }

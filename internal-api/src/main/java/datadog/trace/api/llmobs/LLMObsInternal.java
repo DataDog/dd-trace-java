@@ -21,6 +21,11 @@ public final class LLMObsInternal extends LLMObs {
     FEEDBACK_PROCESSOR = feedbackProcessor;
   }
 
+  /** Sets the LLM Observability distributed tracing propagator. */
+  public static void setPropagator(LLMObsPropagator propagator) {
+    PROPAGATOR = propagator;
+  }
+
   /** Returns the registered user span processor, if any. */
   @Nullable
   public static LLMObsSpanProcessor getSpanProcessor() {

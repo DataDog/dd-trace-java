@@ -2,7 +2,9 @@ package datadog.trace.api.llmobs;
 
 import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsFeedbackProcessor;
+import datadog.trace.api.llmobs.noop.NoOpLLMObsPropagator;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,6 +25,7 @@ public class LLMObs {
   @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
   protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
       NoOpLLMObsFeedbackProcessor.INSTANCE;
+  protected static LLMObsPropagator PROPAGATOR = NoOpLLMObsPropagator.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -182,6 +185,44 @@ public class LLMObs {
     FEEDBACK_PROCESSOR.submitFeedback(feedback);
   }
 
+  /**
+   * Injects {@code span}'s distributed tracing context into {@code headers}, for manual propagation
+   * across a boundary automatic instrumentation doesn't cover — e.g. a queue/worker hop such as
+   * SQS, where a customer reads and writes message attributes themselves.
+   *
+   * <p>This populates the standard APM propagation headers (trace id, parent id, sampling, etc.) as
+   * well as LLMObs-specific propagating tags (ml_app, session_id, agent attribution) so a
+   * downstream call to {@link #activateDistributedHeaders} can resume the same LLMObs trace.
+   *
+   * <p>{@code headers} is mutated in place and returned for convenience.
+   *
+   * @param span the span whose context to inject; must be a span started by this SDK
+   * @param headers the carrier to inject propagation headers into
+   * @throws NullPointerException if {@code span} or {@code headers} is {@code null}
+   */
+  public static Map<String, String> injectDistributedHeaders(
+      LLMObsSpan span, Map<String, String> headers) {
+    return PROPAGATOR.injectDistributedHeaders(span, headers);
+  }
+
+  /**
+   * Activates a distributed tracing context previously injected by {@link
+   * #injectDistributedHeaders}, so that LLMObs spans started while the returned {@link Closeable}
+   * is open join the originating trace (same trace id, correct parent, inherited session_id and
+   * agent attribution).
+   *
+   * <p>Callers must close the returned {@link Closeable} once done processing under this context —
+   * e.g. per message in an SQS consumer loop, so unrelated messages don't share a trace.
+   *
+   * @param headers the carrier to extract propagation headers from
+   * @return a {@link Closeable} that deactivates the context when closed; never {@code null}, a
+   *     no-op if {@code headers} carries no recognizable distributed tracing context
+   * @throws NullPointerException if {@code headers} is {@code null}
+   */
+  public static Closeable activateDistributedHeaders(Map<String, String> headers) {
+    return PROPAGATOR.activateDistributedHeaders(headers);
+  }
+
   public interface LLMObsSpanFactory {
     LLMObsSpan startLLMSpan(
         String spanName,
@@ -242,6 +283,12 @@ public class LLMObs {
 
   public interface LLMObsFeedbackProcessor {
     void submitFeedback(Feedback feedback);
+  }
+
+  public interface LLMObsPropagator {
+    Map<String, String> injectDistributedHeaders(LLMObsSpan span, Map<String, String> headers);
+
+    Closeable activateDistributedHeaders(Map<String, String> headers);
   }
 
   /**
