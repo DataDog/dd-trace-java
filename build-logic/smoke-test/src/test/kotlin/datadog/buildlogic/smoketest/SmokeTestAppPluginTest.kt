@@ -184,26 +184,23 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
-  fun `manual NestedGradleBuild task receives smokeTestApp conventions`() {
+  fun `manual NestedGradleBuild task exposes independent repository proxy inputs`() {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     project.plugins.apply("dd-trace-java.smoke-test-app")
-
-    val extension = project.extensions.getByType<SmokeTestAppExtension>()
-    extension.initScripts.set(listOf("init-script"))
-    extension.gradleProperties.set(
-      mapOf("mavenRepositoryProxy" to "https://repo.example"),
-    )
 
     val task = project.tasks.register("customBuild", NestedGradleBuild::class.java) {
       applicationDir.set(project.layout.projectDirectory.dir("application"))
       applicationBuildDir.set(project.layout.buildDirectory.dir("application"))
       tasksToRun.set(listOf("buildJar"))
+      mavenRepositoryProxy.set("https://repo.example")
+      gradlePluginProxy.set("https://plugins.example")
     }.get()
 
-    assertThat(task.initScripts.get()).containsExactly("init-script")
-    assertThat(task.gradleProperties.get())
-      .containsEntry("mavenRepositoryProxy", "https://repo.example")
+    assertThat(task.mavenRepositoryProxy.get()).isEqualTo("https://repo.example")
+    assertThat(task.gradlePluginProxy.get()).isEqualTo("https://plugins.example")
+    assertThat(task.initScripts.get()).isEmpty()
+    assertThat(task.gradleProperties.get()).isEmpty()
   }
 
   @Test
