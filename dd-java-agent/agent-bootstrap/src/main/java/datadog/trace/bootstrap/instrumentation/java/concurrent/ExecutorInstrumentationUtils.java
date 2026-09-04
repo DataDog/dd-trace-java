@@ -41,7 +41,7 @@ public final class ExecutorInstrumentationUtils {
    */
   public static <T> State setupState(
       final ContextStore<T, State> contextStore, final T task, final Context context) {
-    final State state = contextStore.putIfAbsent(task, State.FACTORY);
+    final State state = contextStore.getOrCreate(task, State.FACTORY);
     if (!state.captureAndSetContinuation(context)) {
       log.debug(
           "continuation was already set for {} in context {}, no continuation captured.",

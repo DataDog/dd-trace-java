@@ -16,6 +16,9 @@ public final class LLMObsContext {
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
       ContextKey.named("llmobs_agent_version");
+  private static final ContextKey<String> PAGENT_SPAN_ID_KEY =
+      ContextKey.named("llmobs_pagent_span_id");
+  private static final ContextKey<String> PAGENT_NAME_KEY = ContextKey.named("llmobs_pagent_name");
 
   /**
    * Attach an LLMObs span context, leaving any inherited session_id/agent_version from an enclosing
@@ -56,6 +59,37 @@ public final class LLMObsContext {
         .attach();
   }
 
+  /**
+   * Attach an LLMObs span context, propagating session_id, agent_version, and agent attribution to
+   * descendant LLMObs spans. pagentSpanId identifies the nearest agent-kind ancestor; pagentName is
+   * its name (may be null). Both pagent keys are always written — null clears stale values from an
+   * outer scope.
+   */
+  public static ContextScope attach(
+      AgentSpanContext ctx,
+      String sessionId,
+      String agentVersion,
+      String parentAgentSpanId,
+      String parentAgentName) {
+    Context updated = Context.current().with(CONTEXT_KEY, ctx);
+    if (sessionId != null && !sessionId.isEmpty()) {
+      updated = updated.with(SESSION_ID_KEY, sessionId);
+    }
+    updated =
+        updated.with(
+            AGENT_VERSION_KEY,
+            agentVersion != null && !agentVersion.isEmpty() ? agentVersion : null);
+    // Always write both pagent keys. Per the Context API contract (Context.java: "Mapping to a
+    // null value will remove the key-value from the context copy"), with(key, null) clears any
+    // stale value inherited from an outer scope. This prevents two leakage scenarios:
+    //   1. An unsafe-named inner agent must not let descendants see the outer agent's name.
+    //   2. A non-agent span whose trace-ID gate blocked attribution must not let its same-trace
+    //      children pick up a pagent ID that belongs to a different trace.
+    updated = updated.with(PAGENT_SPAN_ID_KEY, parentAgentSpanId);
+    updated = updated.with(PAGENT_NAME_KEY, parentAgentName);
+    return updated.attach();
+  }
+
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
   }
@@ -73,5 +107,17 @@ public final class LLMObsContext {
    */
   public static String currentAgentVersion() {
     return Context.current().get(AGENT_VERSION_KEY);
+  }
+
+  /**
+   * Return the parent agent span ID propagated from an enclosing agent-kind LLMObs span, or null.
+   */
+  public static String currentParentAgentSpanId() {
+    return Context.current().get(PAGENT_SPAN_ID_KEY);
+  }
+
+  /** Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null. */
+  public static String currentParentAgentName() {
+    return Context.current().get(PAGENT_NAME_KEY);
   }
 }
