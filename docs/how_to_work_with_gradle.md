@@ -613,11 +613,12 @@ Each test suite (like `test`, `integrationTest`) gets its own set of configurati
 
 In this project, the `gradle/test-suites.gradle` script provides helpers to create test suites with proper configuration inheritance:
 
-| Helper                                                 | Description                                                                    |
-|--------------------------------------------------------|--------------------------------------------------------------------------------|
-| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`             |
-| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`              |
-| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/` |
+| Helper                                                 | Description                                                                           |
+|--------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`                    |
+| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`                    |
+| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/`        |
+| `addForkedTestTask('name')`                            | Creates `nameForkedTest`, reusing the `name` source set output and runtime classpath |
 
 For example:
 
@@ -625,8 +626,8 @@ For example:
 // Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/
 addTestSuite('latestDepTest')
 
-// Creates 'latestDepForkedTest' suite extending 'latestDepTest', sources in src/latestDepTest/
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+// Creates 'latestDepTestForkedTest' using the compiled latestDepTest classes and dependencies
+addForkedTestTask('latestDepTest')
 ```
 
 ```mermaid
@@ -643,14 +644,13 @@ graph LR
         latestDepTestImplementation
     end
 
-    subgraph latestDepForkedTest
-        latestDepForkedTestImplementation
-    end
-
-    implementation --> testImplementation --> latestDepTestImplementation --> latestDepForkedTestImplementation
+    implementation --> testImplementation --> latestDepTestImplementation
 ```
 
 *Similar inheritance applies to `compileOnly`, `runtimeOnly`, and `annotationProcessor` configurations.*
+
+Use a separate suite only when forked tests need different sources or dependencies. When they run
+the same source set and classpath, prefer `addForkedTestTask` to avoid compiling those sources twice.
 
 ### Creating Custom Configurations
 
