@@ -130,19 +130,7 @@ final class LambdaEventParser {
       Map<String, String> headers = extractHeaderMap(response.get("headers"));
 
       // Merge multiValueHeaders if present (API GW v1 / ALB), also lowercasing keys
-      Object multiValueHeadersObj = response.get("multiValueHeaders");
-      if (multiValueHeadersObj instanceof Map) {
-        Map<?, ?> multiValueHeaders = (Map<?, ?>) multiValueHeadersObj;
-        for (Map.Entry<?, ?> entry : multiValueHeaders.entrySet()) {
-          if (entry.getKey() != null && entry.getValue() instanceof List) {
-            String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
-            List<?> values = (List<?>) entry.getValue();
-            String joinedValue =
-                values.stream().map(String::valueOf).collect(Collectors.joining(", "));
-            headers.put(key, joinedValue);
-          }
-        }
-      }
+      headers = mergeMultiValueHeaders(headers, response.get("multiValueHeaders"));
 
       // Extract body
       Object body = null;
@@ -232,7 +220,11 @@ final class LambdaEventParser {
 
   /** Extracts data from API Gateway v1 (REST API) event */
   private static LambdaRequestData extractApiGatewayV1Data(Map<String, Object> event) {
-    Map<String, String> headers = extractHeaders(event.get("headers"));
+    // A REST proxy event carries both maps, and the single-value one keeps only the last value of a
+    // repeated header, so the multi-value one is merged over it
+    Map<String, String> headers =
+        mergeMultiValueHeaders(
+            extractHeaders(event.get("headers")), event.get("multiValueHeaders"));
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     // Preferred over queryStringParameters, which keeps only the last value of a repeated key
     Map<String, List<String>> queryParameters =
@@ -373,27 +365,7 @@ final class LambdaEventParser {
     Map<String, String> headers;
 
     if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
-      // Handle multi-value headers (combine multiple values with comma)
-      headers = new HashMap<>();
-      Object multiValueHeadersObj = event.get("multiValueHeaders");
-      if (multiValueHeadersObj instanceof Map) {
-        Map<?, ?> rawHeaders = (Map<?, ?>) multiValueHeadersObj;
-        for (Map.Entry<?, ?> entry : rawHeaders.entrySet()) {
-          if (entry.getKey() != null && entry.getValue() != null) {
-            // Lowercased for the same reason as extractHeaders
-            String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
-            if (entry.getValue() instanceof List) {
-              List<?> values = (List<?>) entry.getValue();
-              // Join multiple values with comma
-              String joinedValue =
-                  values.stream().map(String::valueOf).collect(Collectors.joining(", "));
-              headers.put(key, joinedValue);
-            } else {
-              headers.put(key, String.valueOf(entry.getValue()));
-            }
-          }
-        }
-      }
+      headers = mergeMultiValueHeaders(new HashMap<>(), event.get("multiValueHeaders"));
       if (headers.isEmpty()) {
         // multiValueHeaders was present but unusable — fall back to the single-value map
         headers = extractHeaders(event.get("headers"));
@@ -531,6 +503,39 @@ final class LambdaEventParser {
     log.debug("Extracted {} headers", headers.size());
     if (headers.containsKey("cookie")) {
       log.debug("Cookie header found with value length: {}", headers.get("cookie").length());
+    }
+    return headers;
+  }
+
+  /**
+   * Merges a {@code multiValueHeaders} map over headers already extracted from the single-value
+   * map, joining a header's values with {@code ", "} as the HTTP grammar allows. API Gateway v1 and
+   * ALB send both maps, and the single-value one keeps only one value of a repeated header, so
+   * reading it alone would hide the others from the WAF.
+   *
+   * @param headers mutated in place and returned; a value it already holds is overwritten by the
+   *     multi-value reading of the same header
+   * @param multiValueHeadersObj the raw event member, of any shape or absent
+   */
+  private static Map<String, String> mergeMultiValueHeaders(
+      Map<String, String> headers, Object multiValueHeadersObj) {
+    if (!(multiValueHeadersObj instanceof Map)) {
+      return headers;
+    }
+    for (Map.Entry<?, ?> entry : ((Map<?, ?>) multiValueHeadersObj).entrySet()) {
+      if (entry.getKey() == null || entry.getValue() == null) {
+        continue;
+      }
+      // Lowercased for the same reason as extractHeaderMap
+      String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
+      if (entry.getValue() instanceof List) {
+        List<?> values = (List<?>) entry.getValue();
+        headers.put(key, values.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+      } else {
+        // Not a shape AWS sends, but reported rather than dropped: the runtime would still deliver
+        // the header
+        headers.put(key, String.valueOf(entry.getValue()));
+      }
     }
     return headers;
   }
