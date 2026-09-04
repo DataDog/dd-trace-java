@@ -2,6 +2,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -102,6 +103,8 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
           .build()
       }
     })
+    TEST_WRITER.waitForTraces(1)
+    def sfnSpan = TEST_WRITER.flatten().find { it.resourceName.toString() == "Sfn.StartExecution" }
 
     then:
     def execution = sfnClient.describeExecution { builder ->
@@ -110,8 +113,8 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
     }
     def input = new JsonSlurper().parseText(execution.input())
     input["key"] == "value"
-    input["_datadog"]["x-datadog-trace-id"] != null
-    input["_datadog"]["x-datadog-parent-id"] != null
+    input["_datadog"]["x-datadog-trace-id"] == sfnSpan.traceId.toString()
+    input["_datadog"]["x-datadog-parent-id"] == DDSpanId.toString(sfnSpan.spanId)
     input["_datadog"]["x-datadog-sampling-priority"] != null
     input["_datadog"]["x-datadog-tags"] instanceof String
     input["_datadog"]["x-datadog-tags"].contains("_dd.p.")
