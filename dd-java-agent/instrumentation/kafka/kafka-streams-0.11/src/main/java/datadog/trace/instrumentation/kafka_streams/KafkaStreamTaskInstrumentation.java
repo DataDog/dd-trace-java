@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.Utils.newPathwayOnlySpan;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.JAVA_KAFKA;
@@ -42,8 +43,6 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -65,20 +64,6 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
 
   public KafkaStreamTaskInstrumentation() {
     super(KafkaStreamsDecorator.INTEGRATION_NAME, KafkaStreamsDecorator.LEGACY_INTEGRATION_NAME);
-  }
-
-  // setSamplingPriority is trace-level: it resolves to the local root span. Only force the
-  // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
-  // active when we started (no local parent, no header-extracted parent) and the local root
-  // really is the first span we created here.
-  public static void maybeDropForDataStreamsOnly(
-      final AgentSpan span, final AgentSpan localActiveSpan, final AgentSpan ourLocalRoot) {
-    if (!KafkaStreamsDecorator.TRACING_ENABLED
-        && traceConfig().isDataStreamsEnabled()
-        && localActiveSpan == null
-        && span.getLocalRootSpan() == ourLocalRoot) {
-      span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
-    }
   }
 
   @Override
@@ -293,15 +278,33 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         return;
       }
 
-      // Captured before any span is created. A non-null value here means this record is being
-      // consumed either inside a locally active trace, or under a context that the sibling
-      // ContextPropagationAdvice extracted from the record headers and attached to the scope
-      // (it is registered on the same method and runs first). Either way the spans created
-      // below will not own the resulting trace.
-      final AgentSpan localActiveSpan = activeSpan();
-      AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      String applicationId =
+          streamTaskContext != null ? streamTaskContext.getApplicationId() : null;
+
+      final AgentSpan span =
+          !KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+              ? startDsmOnlyPathwaySpan(record, applicationId)
+              : startTracedConsumeSpan(record, node, applicationId);
+
+      AgentScope agentScope = activateSpan(span);
+
+      if (streamTaskContext == null) {
+        streamTaskContext = new StreamTaskContext();
+      }
+      streamTaskContext.setAgentScope(agentScope);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
+    }
+
+    /**
+     * Creates and activates the real APM consume span (and, when time-in-queue is enabled, its
+     * broker parent), tags it, and reports DSM checkpoints/transactions off of it.
+     */
+    private static AgentSpan startTracedConsumeSpan(
+        final StampedRecord record, final ProcessorNode node, final String applicationId) {
+      AgentSpan span, queueSpan = null;
       long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
@@ -317,41 +320,56 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
-      maybeDropForDataStreamsOnly(span, localActiveSpan, ourLocalRoot);
-      String applicationId = null;
-      if (streamTaskContext != null) {
-        applicationId = streamTaskContext.getApplicationId();
-      }
       DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
 
       final long payloadSize =
           traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
+      reportDsmCheckpointOrInject(span, record, tags, payloadSize);
+
+      CONSUMER_DECORATE.afterStart(span);
+      CONSUMER_DECORATE.onConsume(span, record, node);
+      if (null != queueSpan) {
+        queueSpan.finish();
+      }
+      return span;
+    }
+
+    /**
+     * DSM-only mode (tracing disabled for kafka-streams, DSM enabled): never creates a real span,
+     * so no span is ever written to the agent for this integration. Only the pathway
+     * checkpoint/injection happens, carried by a lightweight, never-collected span shim.
+     */
+    private static AgentSpan startDsmOnlyPathwaySpan(
+        final StampedRecord record, final String applicationId) {
+      final AgentSpan localActiveSpan = activeSpan();
+      final AgentSpan span =
+          newPathwayOnlySpan(localActiveSpan == null ? null : localActiveSpan.spanContext());
+
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      final long payloadSize = computePayloadSizeBytes(record.value);
+      reportDsmCheckpointOrInject(span, record, tags, payloadSize);
+      return span;
+    }
+
+    /**
+     * Reports a DSM checkpoint for {@code record}'s topic, or - when in a streaming context and
+     * {@code record}'s topic is a source topic - injects the pathway context so it survives leaving
+     * the topology on another instance of the application.
+     */
+    private static void reportDsmCheckpointOrInject(
+        final AgentSpan span,
+        final StampedRecord record,
+        final DataStreamsTags tags,
+        final long payloadSize) {
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
-        }
+      } else if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
       }
-
-      CONSUMER_DECORATE.afterStart(span);
-      CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
-      if (null != queueSpan) {
-        queueSpan.finish();
-      }
-
-      if (streamTaskContext == null) {
-        streamTaskContext = new StreamTaskContext();
-      }
-      streamTaskContext.setAgentScope(agentScope);
-      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
-          .put(task, streamTaskContext);
     }
   }
 
@@ -367,15 +385,43 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         return;
       }
 
-      // Captured before any span is created. A non-null value here means this record is being
-      // consumed either inside a locally active trace, or under a context that the sibling
-      // ContextPropagationAdvice extracted from the record headers and attached to the scope
-      // (it is registered on the same method and runs first). Either way the spans created
-      // below will not own the resulting trace.
-      final AgentSpan localActiveSpan = activeSpan();
-      AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      String applicationId =
+          streamTaskContext != null ? streamTaskContext.getApplicationId() : null;
+
+      final AgentSpan span =
+          !KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+              ? startDsmOnlyPathwaySpan(record, applicationId)
+              : startTracedConsumeSpan(record, node, applicationId);
+
+      AgentScope agentScope = activateSpan(span);
+
+      if (streamTaskContext == null) {
+        streamTaskContext = new StreamTaskContext();
+      }
+      streamTaskContext.setAgentScope(agentScope);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
+    }
+
+    private static long payloadSizeBytes(final ProcessorRecordContext record) {
+      // we have to go through Object to get the RecordMetadata here because the class of `record`
+      // only implements it after 2.7 (and this class is only used if v >= 2.7)
+      if ((Object) record instanceof RecordMetadata) { // should always be true
+        RecordMetadata metadata = (RecordMetadata) (Object) record;
+        return metadata.serializedKeySize() + metadata.serializedValueSize();
+      }
+      return 0;
+    }
+
+    /**
+     * Creates and activates the real APM consume span (and, when time-in-queue is enabled, its
+     * broker parent), tags it, and reports DSM checkpoints/transactions off of it.
+     */
+    private static AgentSpan startTracedConsumeSpan(
+        final ProcessorRecordContext record, final ProcessorNode node, final String applicationId) {
+      AgentSpan span, queueSpan = null;
       long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
@@ -391,47 +437,54 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
         // spans are written out together by TraceStructureWriter when running in strict mode
       }
 
-      final AgentSpan ourLocalRoot = queueSpan == null ? span : queueSpan;
-      maybeDropForDataStreamsOnly(span, localActiveSpan, ourLocalRoot);
-      String applicationId = null;
-      if (streamTaskContext != null) {
-        applicationId = streamTaskContext.getApplicationId();
-      }
       DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      long payloadSize = payloadSizeBytes(record);
+      reportDsmCheckpointOrInject(span, record, tags, payloadSize);
 
-      long payloadSize = 0;
-      // we have to go through Object to get the RecordMetadata here because the class of `record`
-      // only implements it after 2.7 (and this class is only used if v >= 2.7)
-      if ((Object) record instanceof RecordMetadata) { // should always be true
-        RecordMetadata metadata = (RecordMetadata) (Object) record;
-        payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
+      CONSUMER_DECORATE.afterStart(span);
+      CONSUMER_DECORATE.onConsume(span, record, node);
+      if (null != queueSpan) {
+        queueSpan.finish();
       }
+      return span;
+    }
 
+    /**
+     * DSM-only mode (tracing disabled for kafka-streams, DSM enabled): never creates a real span,
+     * so no span is ever written to the agent for this integration. Only the pathway
+     * checkpoint/injection happens, carried by a lightweight, never-collected span shim.
+     */
+    private static AgentSpan startDsmOnlyPathwaySpan(
+        final ProcessorRecordContext record, final String applicationId) {
+      final AgentSpan localActiveSpan = activeSpan();
+      final AgentSpan span =
+          newPathwayOnlySpan(localActiveSpan == null ? null : localActiveSpan.spanContext());
+
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      long payloadSize = payloadSizeBytes(record);
+      reportDsmCheckpointOrInject(span, record, tags, payloadSize);
+      return span;
+    }
+
+    /**
+     * Reports a DSM checkpoint for {@code record}'s topic, or - when in a streaming context and
+     * {@code record}'s topic is a source topic - injects the pathway context so it survives leaving
+     * the topology on another instance of the application.
+     */
+    private static void reportDsmCheckpointOrInject(
+        final AgentSpan span,
+        final ProcessorRecordContext record,
+        final DataStreamsTags tags,
+        final long payloadSize) {
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
-        }
+      } else if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
       }
-
-      CONSUMER_DECORATE.afterStart(span);
-      CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
-      if (null != queueSpan) {
-        queueSpan.finish();
-      }
-
-      if (streamTaskContext == null) {
-        streamTaskContext = new StreamTaskContext();
-      }
-      streamTaskContext.setAgentScope(agentScope);
-      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
-          .put(task, streamTaskContext);
     }
   }
 

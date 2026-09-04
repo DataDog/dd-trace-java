@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.api.sampling.PrioritySampling
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -13,11 +12,10 @@ import org.springframework.kafka.test.utils.KafkaTestUtils
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 /**
- * DSM billing-suppression coverage for kafka-clients-3.8, mirroring the kafka-clients-0.11 suite.
- *
- * <p>Both scenarios run under "kafka tracing disabled (integrations.enabled=false) + DSM enabled",
- * the configuration in which the suppression guard is active. These specs deliberately do not
- * extend {@code KafkaClientTestBase}: that base asserts Code Origin tags, which are correctly
+ * DSM-only coverage for kafka-clients-3.8: when Kafka APM tracing is disabled
+ * (integrations.enabled=false) but DSM is enabled, this integration must never create or write a
+ * real span/trace, while pathway checkpoints must still be tracked. These specs deliberately do
+ * not extend {@code KafkaClientTestBase}: that base asserts on APM spans, which are correctly
  * absent once Kafka tracing is off.
  */
 abstract class KafkaClientDataStreamsOnlyForkedTest extends InstrumentationSpecification {
@@ -40,25 +38,14 @@ abstract class KafkaClientDataStreamsOnlyForkedTest extends InstrumentationSpeci
   }
 
   @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("integrations.enabled", "false")
-    injectSysConfig("data.streams.enabled", "true")
-  }
-
-  /**
-   * Locates a written span by operation name. The consumer's kafka.poll spans interleave
-   * unpredictably with the produce/consume traces, so indexing into TEST_WRITER is unreliable.
-   */
-  protected findSpan(String operationName) {
-    for (int i = 0; i < 100; i++) {
-      def span = TEST_WRITER.flatten().find { it.operationName.toString() == operationName }
-      if (span != null) {
-        return span
-      }
-      Thread.sleep(100)
-    }
-    return null
   }
 
   protected KafkaProducer<String, String> newProducer() {
@@ -70,12 +57,13 @@ abstract class KafkaClientDataStreamsOnlyForkedTest extends InstrumentationSpeci
 }
 
 /**
- * A genuinely local-root produce/consume span must have its sampling priority forced to USER_DROP
- * so it does not count towards APM billing.
+ * Regression guard for the contract that "integration disabled => zero spans of that type ever
+ * reach the agent": producing and consuming a message in DSM-only mode must not write any trace,
+ * even though DSM checkpoints for the same produce/consume are still tracked.
  */
-class KafkaClientDataStreamsOnlyLocalRootForkedTest extends KafkaClientDataStreamsOnlyForkedTest {
+class KafkaClientDataStreamsOnlyNoSpansForkedTest extends KafkaClientDataStreamsOnlyForkedTest {
 
-  def "local-root produce and consume spans are forced to USER_DROP"() {
+  def "produce and consume in DSM-only mode write no spans, but still track DSM checkpoints"() {
     setup:
     def kafkaPartition = 0
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -84,27 +72,19 @@ class KafkaClientDataStreamsOnlyLocalRootForkedTest extends KafkaClientDataStrea
     def producer = newProducer()
     consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
 
-    when: "a message is produced with no propagated trace headers, i.e. a genuine local root"
-    producer.send(new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "local-root-message")).get()
-
-    then: "the produce span's trace is forced to USER_DROP to suppress APM billing"
-    TEST_WRITER.waitForTraces(1)
-    def produceSpan = findSpan("kafka.produce")
-    produceSpan != null
-    produceSpan.getSamplingPriority() == PrioritySampling.USER_DROP
-
-    when: "the message is consumed"
+    when: "a message is produced and consumed with no active trace"
+    producer.send(new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "dsm-only-message")).get()
     def recs = KafkaTestUtils.getRecords(consumer)
       .records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
 
-    then: "the consume span's trace is also forced to USER_DROP"
+    then: "the message is delivered and DSM checkpoints are tracked for both hops"
     recs.hasNext()
-    recs.next().value() == "local-root-message"
+    recs.next().value() == "dsm-only-message"
     !recs.hasNext()
-    TEST_WRITER.waitForTraces(2)
-    def consumeSpan = findSpan("kafka.consume")
-    consumeSpan != null
-    consumeSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2, 15000)
+
+    and: "no span was ever created or written for this integration"
+    TEST_WRITER.isEmpty()
 
     cleanup:
     consumer?.close()
@@ -113,14 +93,12 @@ class KafkaClientDataStreamsOnlyLocalRootForkedTest extends KafkaClientDataStrea
 }
 
 /**
- * Regression guard for the producer suppression site: producing a message from inside an already
- * active local trace must NOT force that customer trace to USER_DROP. The produce span is created
- * with a scope-honouring startSpan overload, so it becomes a child of the active span, and
- * setSamplingPriority is trace-level.
+ * Regression guard: producing from inside an already active local trace in DSM-only mode must not
+ * create any additional span either - the surrounding customer trace is untouched.
  */
 class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientDataStreamsOnlyForkedTest {
 
-  def "producing inside an active local trace does not force that trace to USER_DROP"() {
+  def "producing inside an active local trace in DSM-only mode adds no span to that trace"() {
     setup:
     def producer = newProducer()
 
@@ -129,11 +107,10 @@ class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientDa
       producer.send(new ProducerRecord(SHARED_TOPIC, 0, null, "in-active-trace")).get()
     }
 
-    then: "the surrounding customer trace is not force-dropped"
+    then: "the surrounding customer trace contains only its own span, no kafka.produce span"
     TEST_WRITER.waitForTraces(1)
-    def localRoot = TEST_WRITER[0][0].localRootSpan
-    localRoot.operationName.toString() == "parent"
-    localRoot.getSamplingPriority() != PrioritySampling.USER_DROP
+    TEST_WRITER[0].size() == 1
+    TEST_WRITER[0][0].operationName.toString() == "parent"
 
     cleanup:
     producer?.close()
@@ -142,12 +119,13 @@ class KafkaClientDataStreamsOnlyActiveLocalTraceForkedTest extends KafkaClientDa
 
 /**
  * Regression guard for the poll-span suppression site: KafkaConsumerInfoInstrumentation's
- * RecordsAdvice creates a standalone "kafka.poll" span/trace around every consumer.poll() call
- * whenever DSM is enabled, regardless of whether Kafka APM tracing itself is enabled.
+ * RecordsAdvice used to create a standalone "kafka.poll" span/trace around every consumer.poll()
+ * call whenever DSM is enabled, regardless of whether Kafka APM tracing itself was enabled. In
+ * DSM-only mode that span must no longer be created at all.
  */
 class KafkaClientDataStreamsOnlyPollSpanForkedTest extends KafkaClientDataStreamsOnlyForkedTest {
 
-  def "poll span is forced to USER_DROP"() {
+  def "no poll span is created in DSM-only mode"() {
     setup:
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
     consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
@@ -157,10 +135,8 @@ class KafkaClientDataStreamsOnlyPollSpanForkedTest extends KafkaClientDataStream
     when: "the consumer polls with no active local trace and no records to consume"
     KafkaTestUtils.getRecords(consumer)
 
-    then: "the standalone kafka.poll trace is forced to USER_DROP, so it is not billed as APM"
-    def pollSpan = findSpan("kafka.poll")
-    pollSpan != null
-    pollSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+    then: "no standalone kafka.poll trace was written"
+    TEST_WRITER.isEmpty()
 
     cleanup:
     consumer?.close()
