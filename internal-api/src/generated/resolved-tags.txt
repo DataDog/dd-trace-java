@@ -1,0 +1,86 @@
+# Resolved per-type tag sets (concrete span types).
+#
+# LAYOUT GAP: these mixins apply to span types not modeled here, so they
+# contribute to no resolved set below. Their tags ARE registered (an id is
+# identity, not layout) -- they simply occupy no per-type slot yet.
+#   ci_visibility -> test
+
+db.client  (22 tags):
+  - _dd.parent_id
+  - service
+  - component
+  - span.kind
+  - _dd.integration
+  - _dd.svc_src
+  - error.type
+  - error.message
+  - error.stack
+  - db.type
+  - db.instance
+  - db.operation
+  - db.user
+  - db.pool.name
+  - db.statement
+  - peer.service
+  - _dd.peer.service.source
+  - _dd.peer.service.remapped_from
+  - peer.hostname
+  - peer.ipv4
+  - peer.ipv6
+  - peer.port
+
+http.client  (21 tags):
+  - _dd.parent_id
+  - service
+  - component
+  - span.kind
+  - _dd.integration
+  - _dd.svc_src
+  - error.type
+  - error.message
+  - error.stack
+  - http.method
+  - http.status_code
+  - network.protocol.version
+  - http.url
+  - http.resend_count
+  - peer.service
+  - _dd.peer.service.source
+  - _dd.peer.service.remapped_from
+  - peer.hostname
+  - peer.ipv4
+  - peer.ipv6
+  - peer.port
+
+http.server  (19 tags):
+  - _dd.parent_id
+  - service
+  - component
+  - span.kind
+  - _dd.integration
+  - _dd.svc_src
+  - error.type
+  - error.message
+  - error.stack
+  - http.method
+  - http.status_code
+  - network.protocol.version
+  - http.url
+  - http.route
+  - http.hostname
+  - http.useragent
+  - http.query.string
+  - servlet.path
+  - servlet.context
+
+view.render  (10 tags):
+  - _dd.parent_id
+  - service
+  - component
+  - span.kind
+  - _dd.integration
+  - _dd.svc_src
+  - error.type
+  - error.message
+  - error.stack
+  - view.name

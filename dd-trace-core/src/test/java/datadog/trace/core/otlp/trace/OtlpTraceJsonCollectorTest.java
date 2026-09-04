@@ -78,6 +78,33 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
+  void tagsAreEmittedUnderTheirOpenTelemetryName() throws IOException {
+    // The JSON encoder is a second exporter of the same spans, so it must apply the registry's
+    // OpenTelemetry naming exactly as the protobuf one does: which transport protocol is configured
+    // must not change the attribute names a backend receives.
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+    agentSpan.setResourceName("GET /api");
+    agentSpan.setTag("http.method", "GET");
+    agentSpan.setTag("custom.unregistered", "value");
+    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+    agentSpan.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+    assertTrue(
+        attrKeys.contains("http.request.method"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.method"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("custom.unregistered"),
+        "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  @Test
   void spanKindIsEncodedAsInteger() throws IOException {
     DDSpan span = startAndFinish("op.server", "GET /api", SPAN_KIND_SERVER);
 
