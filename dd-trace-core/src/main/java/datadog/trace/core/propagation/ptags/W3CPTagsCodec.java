@@ -50,13 +50,19 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
+    int otelMemberValueStart = -1;
+    int otelMemberValueEnd = -1;
+    int otelMemberPosition = 0;
+    int otherMemberPosition = 0;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
       }
-      if (ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean otelMember = value.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (ddMemberIndex == -1 && datadogMember) {
         ddMemberStart = memberStart;
         ddMemberIndex = memberIndex;
       }
@@ -69,6 +75,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (ddMemberValueStart == -1 && ddMemberIndex != -1) {
         ddMemberValueStart = pos;
       }
+      int memberValueStart = pos;
       pos = validateMemberValue(value, pos);
       if (pos < 0) {
         // TODO should we return one with an error?
@@ -76,6 +83,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       if (ddMemberValueEnd == -1 && ddMemberIndex != -1) {
         ddMemberValueEnd = pos;
+      }
+      if (otelMemberValueStart == -1) {
+        if (otelMember) {
+          otelMemberValueStart = memberValueStart;
+          otelMemberValueEnd = stripTrailingOWC(value, memberValueStart, pos);
+          otelMemberPosition = otherMemberPosition;
+        } else if (!datadogMember) {
+          otherMemberPosition++;
+        }
       }
       memberStart = findNextMember(value, pos);
       if (memberStart < 0) {
@@ -85,9 +101,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       memberIndex++;
     }
 
+    OtelTraceState otelTraceState =
+        otelMemberValueStart < 0
+            ? null
+            : OtelTraceState.parse(
+                value.substring(otelMemberValueStart, otelMemberValueEnd), otelMemberPosition);
+
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
-      return empty(tagsFactory, value, extractOtelTraceState(value));
+      return empty(tagsFactory, value, otelTraceState);
     }
 
     List<TagElement> tagPairs = null;
@@ -159,7 +181,13 @@ public class W3CPTagsCodec extends PTagsCodec {
               if (tagKey.equals(TRACE_ID_TAG)) {
                 return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
-              return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+              return empty(
+                  tagsFactory,
+                  value,
+                  firstMemberStart,
+                  ddMemberStart,
+                  ddMemberValueEnd,
+                  otelTraceState);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
               decisionMakerTagValue = tagValue;
@@ -203,7 +231,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         maxUnknownSize,
         lastParentId,
         orgPropagationMarkerTagValue,
-        extractOtelTraceState(value));
+        otelTraceState);
   }
 
   @Override
@@ -801,21 +829,6 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static W3CPTags empty(
       PTagsFactory factory, String original, OtelTraceState otelTraceState) {
     return empty(factory, original, 0, -1, -1, otelTraceState);
-  }
-
-  private static W3CPTags empty(
-      PTagsFactory factory,
-      String original,
-      int firstMemberStart,
-      int ddMemberStart,
-      int ddMemberValueEnd) {
-    return empty(
-        factory,
-        original,
-        firstMemberStart,
-        ddMemberStart,
-        ddMemberValueEnd,
-        extractOtelTraceState(original));
   }
 
   private static W3CPTags empty(
