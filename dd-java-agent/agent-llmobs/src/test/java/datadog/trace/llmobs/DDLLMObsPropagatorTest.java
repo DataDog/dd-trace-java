@@ -1,12 +1,15 @@
 package datadog.trace.llmobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -107,6 +110,51 @@ class DDLLMObsPropagatorTest {
         }
       }
     }
+  }
+
+  /**
+   * The automatic path: no LLMObs propagation API is called at all. Injecting the active span the
+   * way any auto-instrumented HTTP/gRPC client does must still carry the LLMObs context, matching
+   * dd-trace-py's {@code http.span_inject} hook.
+   */
+  @Test
+  void autoInstrumentedInjectCarriesLlmObsContextWithoutManualPropagation() {
+    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
+    Map<String, String> headers = new HashMap<>();
+
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agent = newAgentSpan("producer-agent", "my-ml-app", "session-123");
+      try {
+        Propagators.defaultPropagator().inject(agent.getAgentSpan(), headers, Map::put);
+      } finally {
+        agent.finish();
+      }
+    }
+
+    String xDatadogTags = headers.get("x-datadog-tags");
+    assertNotNull(xDatadogTags, "expected x-datadog-tags to be injected");
+    assertTrue(
+        xDatadogTags.contains("_dd.p.llmobs_ml_app=my-ml-app"),
+        () -> "ml_app missing from " + xDatadogTags);
+    assertTrue(
+        xDatadogTags.contains("_dd.p.llmobs_sid=session-123"),
+        () -> "session_id missing from " + xDatadogTags);
+  }
+
+  /** An outbound call made with no LLMObs span active must not pick up LLMObs tags. */
+  @Test
+  void autoInstrumentedInjectAddsNothingWithoutAnActiveLlmObsSpan() {
+    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
+    Map<String, String> headers = new HashMap<>();
+
+    try (AgentScope apmScope = startRootApmScope()) {
+      Propagators.defaultPropagator().inject(apmScope.span(), headers, Map::put);
+    }
+
+    String xDatadogTags = headers.get("x-datadog-tags");
+    assertTrue(
+        xDatadogTags == null || !xDatadogTags.contains("_dd.p.llmobs_"),
+        () -> "unexpected LLMObs tags in " + xDatadogTags);
   }
 
   @Test

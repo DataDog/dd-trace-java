@@ -21,6 +21,12 @@ import org.slf4j.LoggerFactory;
  * Explicit, manual distributed tracing propagation for LLM Observability, for boundaries that
  * automatic instrumentation doesn't cover — e.g. an SQS worker reading its own message attributes.
  *
+ * <p>Boundaries that <em>are</em> auto-instrumented (HTTP, gRPC, ...) need none of this: {@link
+ * LLMObsContextPropagator} is registered as a propagation concern and stages the same {@code
+ * _dd.p.llmobs_*} tags on every injection. This class is the manual equivalent for carriers no
+ * instrumentation reaches, mirroring dd-trace-py's {@code inject_distributed_headers} / {@code
+ * activate_distributed_headers}.
+ *
  * <p>The standard APM trace context (trace id, parent id, sampling, {@code x-datadog-tags}, ...) is
  * injected/extracted via the normal {@link Propagators}. LLMObs-specific values (ml_app,
  * session_id, agent attribution) are written onto the span's {@link AgentSpanContext} as dedicated
@@ -46,6 +52,8 @@ public class DDLLMObsPropagator implements LLMObs.LLMObsPropagator {
     DDLLMObsSpan llmObsSpan = (DDLLMObsSpan) span;
     AgentSpan agentSpan = llmObsSpan.getAgentSpan();
 
+    // Stage this span's own LLMObs values rather than relying on the ambient context: the caller
+    // may hand us a span that isn't the innermost active one, and may not even be inside its scope.
     AgentSpanContext spanContext = agentSpan.spanContext();
     spanContext.updateLLMObsMlApp(llmObsSpan.getMlApp());
     spanContext.updateLLMObsSessionId(llmObsSpan.getSessionId());
@@ -71,6 +79,7 @@ public class DDLLMObsPropagator implements LLMObs.LLMObsPropagator {
     }
 
     AgentSpanContext extractedContext = extractedSpan.spanContext();
+    CharSequence mlApp = extractedContext.getLLMObsMlApp();
     CharSequence sessionId = extractedContext.getLLMObsSessionId();
     CharSequence pagentSpanId = extractedContext.getLLMObsParentAgentSpanId();
     CharSequence pagentName = extractedContext.getLLMObsParentAgentName();
@@ -79,6 +88,7 @@ public class DDLLMObsPropagator implements LLMObs.LLMObsPropagator {
     ContextScope llmObsScope =
         LLMObsContext.attach(
             extractedContext,
+            mlApp == null ? null : mlApp.toString(),
             sessionId == null ? null : sessionId.toString(),
             null,
             pagentSpanId == null ? null : pagentSpanId.toString(),

@@ -1,6 +1,7 @@
 package datadog.trace.llmobs;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -8,6 +9,7 @@ import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
@@ -53,6 +55,11 @@ public class LLMObsSystem {
     LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
 
     LLMObsInternal.setPropagator(new DDLLMObsPropagator());
+
+    // Automatic propagation: every boundary that injects trace context now carries the LLMObs
+    // propagation tags too, matching dd-trace-py. DDLLMObsPropagator stays as the manual entry
+    // point for carriers no instrumentation covers (e.g. SQS message attributes).
+    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {

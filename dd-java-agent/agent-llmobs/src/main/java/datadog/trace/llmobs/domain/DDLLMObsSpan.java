@@ -162,6 +162,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
+    // No in-process LLMObs parent: this span may still be continuing a trace that arrived from
+    // another service, in which case the upstream session_id is on the span context's propagation
+    // tags (parsed back out of x-datadog-tags / tracestate by the tracing propagator).
+    if (null == parent && (sessionId == null || sessionId.isEmpty())) {
+      CharSequence propagated = span.spanContext().getLLMObsSessionId();
+      if (propagated != null && propagated.length() > 0) {
+        sessionId = propagated.toString();
+      }
+    }
+
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
     this.sessionId = this.hasSessionId ? sessionId : null;
     if (this.hasSessionId) {
@@ -191,6 +201,14 @@ public class DDLLMObsSpan implements LLMObsSpan {
       if (null != parent && parent.getTraceId() == span.getTraceId()) {
         resolvedParentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
+      } else if (null == parent) {
+        // Continuing a distributed trace: attribute to the upstream agent carried on the wire.
+        CharSequence propagatedId = span.spanContext().getLLMObsParentAgentSpanId();
+        if (propagatedId != null && propagatedId.length() > 0) {
+          resolvedParentAgentSpanId = propagatedId.toString();
+          CharSequence propagatedName = span.spanContext().getLLMObsParentAgentName();
+          resolvedParentAgentName = propagatedName == null ? null : propagatedName.toString();
+        }
       }
     }
 
@@ -208,6 +226,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     scope =
         LLMObsContext.attach(
             span.spanContext(),
+            mlApp,
             sessionId,
             resolvedAgentVersion,
             resolvedParentAgentSpanId,

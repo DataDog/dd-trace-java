@@ -13,6 +13,7 @@ public final class LLMObsContext {
   }
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
+  private static final ContextKey<String> ML_APP_KEY = ContextKey.named("llmobs_ml_app");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
       ContextKey.named("llmobs_agent_version");
@@ -71,7 +72,26 @@ public final class LLMObsContext {
       String agentVersion,
       String parentAgentSpanId,
       String parentAgentName) {
+    return attach(ctx, null, sessionId, agentVersion, parentAgentSpanId, parentAgentName);
+  }
+
+  /**
+   * Attach an LLMObs span context, propagating ml_app alongside session_id, agent_version, and
+   * agent attribution. See {@link #attach(AgentSpanContext, String, String, String, String)}.
+   *
+   * <p>ml_app is carried here — rather than only as a span tag — so that distributed propagation
+   * can read the innermost active LLMObs span's ml_app at injection time, without needing a
+   * reference to the span itself.
+   */
+  public static ContextScope attach(
+      AgentSpanContext ctx,
+      String mlApp,
+      String sessionId,
+      String agentVersion,
+      String parentAgentSpanId,
+      String parentAgentName) {
     Context updated = Context.current().with(CONTEXT_KEY, ctx);
+    updated = updated.with(ML_APP_KEY, mlApp != null && !mlApp.isEmpty() ? mlApp : null);
     if (sessionId != null && !sessionId.isEmpty()) {
       updated = updated.with(SESSION_ID_KEY, sessionId);
     }
@@ -92,6 +112,11 @@ public final class LLMObsContext {
 
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
+  }
+
+  /** Return the ml_app of the innermost active LLMObs span, or null if none is active. */
+  public static String currentMlApp() {
+    return Context.current().get(ML_APP_KEY);
   }
 
   /**
