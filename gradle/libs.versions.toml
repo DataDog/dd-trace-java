@@ -43,7 +43,7 @@ scala33 = "3.3.0"
 autoservice = "1.1.1"
 asm = "9.10.1"
 byte-buddy = "1.18.12"
-instrument-java = "0.0.4"
+instrument-java = "0.0.5"
 
 # Benchmarks
 jmh = "1.37"

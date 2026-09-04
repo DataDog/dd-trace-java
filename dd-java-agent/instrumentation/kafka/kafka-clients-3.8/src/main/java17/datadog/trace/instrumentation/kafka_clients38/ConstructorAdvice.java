@@ -59,7 +59,7 @@ public class ConstructorAdvice {
     if (Config.get().isDataStreamsEnabled()) {
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .putIfAbsent(metadata, MetadataState::new);
+              .getOrCreate(metadata, MetadataState::new);
       KafkaConfigHelper.storePendingConsumerConfig(
           state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }

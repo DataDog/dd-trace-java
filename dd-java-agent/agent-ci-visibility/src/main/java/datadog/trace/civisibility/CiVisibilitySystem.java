@@ -38,7 +38,7 @@ import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
-import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
+import datadog.trace.civisibility.utils.StrongMapContextStore;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
@@ -198,8 +198,8 @@ public class CiVisibilitySystem {
                       repoServices.moduleName, component, null, capabilities),
               repoServices.moduleName,
               eagerSessionStart,
-              suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-              testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
+              suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+              testStore != null ? testStore : new StrongMapContextStore<>());
       handlers.add(handler);
       return handler;
     }

@@ -90,7 +90,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:495.0.0-emulators"))
+    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"))
     emulator.start()
     channel = ManagedChannelBuilder.forTarget(emulator.getEmulatorEndpoint()).usePlaintext().build()
     transportChannelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel))
