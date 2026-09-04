@@ -395,7 +395,7 @@ populate_plugin_cache:
   extends: .gradle_build
   cache:
     - &plugin_cache
-      key: dependency-plugins-$GRADLE_VERSION
+      key: dependency-plugins-v1
       paths:
         - .gradle-plugin-cache/caches/modules-2
       policy: pull-push
@@ -409,29 +409,15 @@ populate_plugin_cache:
     - sudo chown -R 1001:1001 .gradle-plugin-cache
     - export GRADLE_USER_HOME=$(pwd)/.gradle-plugin-cache
     - |
-      plugin_cache_log=plugin-cache-population.log
-      set +e
-      ./gradlew help -PskipTests $GRADLE_ARGS 2>&1 | tee "$plugin_cache_log"
-      gradle_status=${PIPESTATUS[0]}
-      set -e
-
-      if [ "$gradle_status" -eq 0 ]; then
-        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=false"
-        echo "Plugin cache population completed successfully."
-      elif grep -Eq 'https://repo\.maven\.apache\.org/|https://repo1\.maven\.org/' "$plugin_cache_log" &&
-           grep -Eq 'Received status code 429|Too Many Requests' "$plugin_cache_log"; then
-        rate_limit_count=$(grep -Ec 'Received status code 429|Too Many Requests' "$plugin_cache_log" || true)
-        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=true count=$rate_limit_count"
-        echo "WARNING: Maven Central rate limiting interrupted plugin cache population."
-        echo "Keeping the partially populated cache so the next nightly run can resume from it."
-      else
-        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=false"
-        echo "ERROR: Plugin cache population failed without a Maven Central 429 (Gradle exit $gradle_status)."
-        exit "$gradle_status"
+      gradle_status=0
+      ./gradlew help -PskipTests $GRADLE_ARGS || gradle_status=$?
+      if ! find .gradle-plugin-cache/caches/modules-2/files-2.1 -type f -print -quit 2>/dev/null | grep -q .; then
+        echo "WARNING: No plugin artifacts were cached; skipping the cache upload."
+        rm -rf .gradle-plugin-cache/caches/modules-2
       fi
-  retry:
-    max: 2
-    when: script_failure
+      exit "$gradle_status"
+  # This cache warmer is an optimization; population jobs can continue with a cold plugin cache.
+  allow_failure: true
 
 populate_dep_cache:
   extends: build_tests
@@ -455,10 +441,15 @@ populate_dep_cache:
       when: on_success
   before_script:
     - !reference [.gradle_build, before_script]
-    - sudo chown -R 1001:1001 .gradle-plugin-cache
     # Seed the otherwise cold writable cache, keeping the cache uploaded below self-contained.
     - mkdir -p .gradle/caches
-    - cp -a .gradle-plugin-cache/caches/modules-2 .gradle/caches/
+    - |
+      if [ -d .gradle-plugin-cache/caches/modules-2 ]; then
+        sudo chown -R 1001:1001 .gradle-plugin-cache
+        cp -a .gradle-plugin-cache/caches/modules-2 .gradle/caches/
+      else
+        echo "Plugin cache is unavailable; continuing with a cold dependency cache."
+      fi
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
