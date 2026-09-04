@@ -56,6 +56,58 @@ public interface AgentSpanContext {
   default void setIntegrationName(CharSequence componentName) {}
 
   /**
+   * Gets the LLM Observability {@code ml_app} propagated with this trace, or {@code null} if none
+   * is set or this context implementation doesn't have propagation-tags access.
+   */
+  default CharSequence getLLMObsMlApp() {
+    return null;
+  }
+
+  /** Sets the LLM Observability {@code ml_app} to propagate with this trace. No-op by default. */
+  default void updateLLMObsMlApp(CharSequence mlApp) {}
+
+  /**
+   * Gets the LLM Observability {@code session_id} propagated with this trace, or {@code null} if
+   * none is set or this context implementation doesn't have propagation-tags access.
+   */
+  default CharSequence getLLMObsSessionId() {
+    return null;
+  }
+
+  /**
+   * Sets the LLM Observability {@code session_id} to propagate with this trace. No-op by default.
+   */
+  default void updateLLMObsSessionId(CharSequence sessionId) {}
+
+  /**
+   * Gets the span id of the parent LLM Observability agent span propagated with this trace, or
+   * {@code null} if none is set or this context implementation doesn't have propagation-tags
+   * access.
+   */
+  default CharSequence getLLMObsParentAgentSpanId() {
+    return null;
+  }
+
+  /**
+   * Sets the parent LLM Observability agent span id to propagate with this trace. No-op by default.
+   */
+  default void updateLLMObsParentAgentSpanId(CharSequence parentAgentSpanId) {}
+
+  /**
+   * Gets the name of the parent LLM Observability agent span propagated with this trace, or {@code
+   * null} if none is set or this context implementation doesn't have propagation-tags access.
+   */
+  default CharSequence getLLMObsParentAgentName() {
+    return null;
+  }
+
+  /**
+   * Sets the parent LLM Observability agent span name to propagate with this trace. No-op by
+   * default.
+   */
+  default void updateLLMObsParentAgentName(CharSequence parentAgentName) {}
+
+  /**
    * Gets whether the span context used is part of the local trace or from another service
    *
    * @return boolean representing if the span context is part of the local trace

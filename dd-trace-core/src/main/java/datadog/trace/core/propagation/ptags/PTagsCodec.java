@@ -23,6 +23,10 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
+  protected static final TagKey LLMOBS_ML_APP_TAG = TagKey.from("llmobs_ml_app");
+  protected static final TagKey LLMOBS_SESSION_ID_TAG = TagKey.from("llmobs_sid");
+  protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
+  protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
     return headerValue(codec, ptags, null);
@@ -64,6 +68,22 @@ abstract class PTagsCodec {
         size =
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+      }
+      if (ptags.getLLMObsMlAppTagValue() != null) {
+        size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, ptags.getLLMObsMlAppTagValue(), size);
+      }
+      if (ptags.getLLMObsSessionIdTagValue() != null) {
+        size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, ptags.getLLMObsSessionIdTagValue(), size);
+      }
+      if (ptags.getLLMObsParentAgentSpanIdTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, LLMOBS_PAGENT_SPAN_ID_TAG, ptags.getLLMObsParentAgentSpanIdTagValue(), size);
+      }
+      if (ptags.getLLMObsParentAgentNameTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, LLMOBS_PAGENT_NAME_TAG, ptags.getLLMObsParentAgentNameTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -136,6 +156,29 @@ abstract class PTagsCodec {
               .getTraceIdHighOrderBitsHexTagValue()
               .forType(Encoding.DATADOG)
               .toString());
+    }
+    if (propagationTags.getLLMObsMlAppTagValue() != null) {
+      tagMap.put(
+          LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getLLMObsMlAppTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getLLMObsSessionIdTagValue() != null) {
+      tagMap.put(
+          LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getLLMObsSessionIdTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getLLMObsParentAgentSpanIdTagValue() != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags
+              .getLLMObsParentAgentSpanIdTagValue()
+              .forType(Encoding.DATADOG)
+              .toString());
+    }
+    if (propagationTags.getLLMObsParentAgentNameTagValue() != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getLLMObsParentAgentNameTagValue().forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
