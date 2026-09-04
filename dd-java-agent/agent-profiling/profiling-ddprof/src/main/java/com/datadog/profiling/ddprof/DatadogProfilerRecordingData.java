@@ -24,7 +24,7 @@ final class DatadogProfilerRecordingData extends RecordingData {
   }
 
   @Override
-  public void release() {
+  protected void doRelease() {
     try {
       Files.deleteIfExists(recordingFile);
     } catch (IOException e) {

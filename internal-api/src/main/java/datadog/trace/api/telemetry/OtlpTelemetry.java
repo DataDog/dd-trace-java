@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
 /** Collects telemetry metrics for the OTLP trace, metrics, and log exporters. */
@@ -23,6 +24,14 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   private final String[] tracesTags = tagsFor(Config.get().getOtlpTracesProtocol());
   private final String[] metricsTags = tagsFor(Config.get().getOtlpMetricsProtocol());
   private final String[] logsTags = tagsFor(Config.get().getOtlpLogsProtocol());
+
+  private final String[] profilesTags = tagsFor(Config.get().getOtlpProfilesProtocol());
+  private final ExportCounters profilesExport = new ExportCounters("profiles");
+
+  // JFR→OTLP conversion timings, reported as avg/max gauges per flush window
+  private final LongAdder profilesConversionNanosTotal = new LongAdder();
+  private final LongAdder profilesConversionCount = new LongAdder();
+  private final LongAccumulator profilesConversionNanosMax = new LongAccumulator(Long::max, 0);
 
   private final ExportCounters tracesExport = new ExportCounters("traces");
   private final ExportCounters metricsExport = new ExportCounters("metrics");
@@ -44,8 +53,23 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     metricsExport.attempts.increment();
   }
 
+  public void onProfilesExportAttempt() {
+    profilesExport.attempts.increment();
+  }
+
   public void onMetricsExportComplete(boolean success) {
     metricsExport.complete(success);
+  }
+
+  public void onProfilesExportComplete(boolean success) {
+    profilesExport.complete(success);
+  }
+
+  /** Records the duration of a single JFR→OTLP profile conversion. */
+  public void onProfilesConversion(long nanos) {
+    profilesConversionNanosTotal.add(nanos);
+    profilesConversionCount.increment();
+    profilesConversionNanosMax.accumulate(nanos);
   }
 
   public void onLogRecordsSubmitted(long count) {
@@ -64,10 +88,26 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   public void prepareMetrics() {
     tracesExport.stageInto(telemetryQueue, tracesTags);
     metricsExport.stageInto(telemetryQueue, metricsTags);
+    profilesExport.stageInto(telemetryQueue, profilesTags);
+    long conversionCount = profilesConversionCount.sumThenReset();
+    if (conversionCount > 0) {
+      double avgNanos = profilesConversionNanosTotal.sumThenReset() / (double) conversionCount;
+      long maxNanos = profilesConversionNanosMax.getThenReset();
+      telemetryQueue.offer(
+          new OtlpMetric(
+              "otel.profiles_conversion_ms", "gauge", nanosToMillis(avgNanos), profilesTags));
+      telemetryQueue.offer(
+          new OtlpMetric(
+              "otel.profiles_conversion_max_ms", "gauge", nanosToMillis(maxNanos), profilesTags));
+    }
     long logRecordCount = logRecords.sumThenReset();
     if (logRecordCount > 0) {
       telemetryQueue.offer(new OtlpMetric("otel.log_records", logRecordCount, logsTags));
     }
+  }
+
+  private static double nanosToMillis(double nanos) {
+    return nanos / 1_000_000.0;
   }
 
   @Override
@@ -117,7 +157,11 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
 
   public static class OtlpMetric extends MetricCollector.Metric {
     public OtlpMetric(String metricName, long value, String... tags) {
-      super(NAMESPACE, true, metricName, "count", value, tags);
+      this(metricName, "count", value, tags);
+    }
+
+    OtlpMetric(String metricName, String type, Number value, String... tags) {
+      super(NAMESPACE, true, metricName, type, value, tags);
     }
   }
 }

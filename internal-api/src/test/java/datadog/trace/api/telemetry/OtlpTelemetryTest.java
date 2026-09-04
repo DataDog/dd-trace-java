@@ -87,6 +87,40 @@ class OtlpTelemetryTest {
   }
 
   @Test
+  void onProfilesConversionQueuesAvgAndMaxGauges() {
+    collector.onProfilesConversion(50_000_000L); // 50 ms
+    collector.onProfilesConversion(150_000_000L); // 150 ms
+    collector.prepareMetrics();
+
+    Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
+
+    Map<String, OtlpTelemetry.OtlpMetric> gaugesByName = new HashMap<>();
+    for (OtlpTelemetry.OtlpMetric metric : metrics) {
+      gaugesByName.put(metric.metricName, metric);
+    }
+    assertEquals(2, gaugesByName.size());
+
+    OtlpTelemetry.OtlpMetric avg = gaugesByName.get("otel.profiles_conversion_ms");
+    assertEquals("gauge", avg.type);
+    assertEquals(100.0, avg.value.doubleValue(), 0.001);
+    assertTrue(avg.tags.contains("protocol:http"));
+
+    OtlpTelemetry.OtlpMetric max = gaugesByName.get("otel.profiles_conversion_max_ms");
+    assertEquals("gauge", max.type);
+    assertEquals(150.0, max.value.doubleValue(), 0.001);
+    assertTrue(max.tags.contains("protocol:http"));
+  }
+
+  @Test
+  void onProfilesConversionOmittedWhenNoConversions() {
+    collector.prepareMetrics();
+
+    for (OtlpTelemetry.OtlpMetric metric : collector.drain()) {
+      assertTrue(!metric.metricName.startsWith("otel.profiles_conversion"));
+    }
+  }
+
+  @Test
   void onLogRecordsSubmittedQueuesCountWithGivenValue() {
     collector.onLogRecordsSubmitted(5);
     collector.prepareMetrics();

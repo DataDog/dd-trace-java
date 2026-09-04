@@ -131,7 +131,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_PROFILES_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -500,6 +502,11 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROFILES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
@@ -1039,6 +1046,12 @@ public class Config {
   private final OtlpConfig.Protocol otlpTracesProtocol;
   private final OtlpConfig.Compression otlpTracesCompression;
   private final int otlpTracesTimeout;
+
+  private final String otlpProfilesEndpoint;
+  private final Map<String, String> otlpProfilesHeaders;
+  private final OtlpConfig.Protocol otlpProfilesProtocol;
+  private final OtlpConfig.Compression otlpProfilesCompression;
+  private final int otlpProfilesTimeout;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -2230,6 +2243,39 @@ public class Config {
       }
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
+
+    // OTLP Profiles config — mirrors the traces/logs/metrics pattern
+    int profilesTimeout =
+        configProvider.getInteger(OTLP_PROFILES_TIMEOUT, DEFAULT_OTLP_PROFILES_TIMEOUT);
+    if (profilesTimeout < 0) {
+      log.warn("Invalid OTLP profiles timeout: {}. The value must be positive", profilesTimeout);
+      profilesTimeout = DEFAULT_OTLP_PROFILES_TIMEOUT;
+    }
+    otlpProfilesTimeout = profilesTimeout;
+
+    otlpProfilesHeaders = configProvider.getMergedMap(OTLP_PROFILES_HEADERS, '=');
+    otlpProfilesProtocol =
+        configProvider.getEnum(
+            OTLP_PROFILES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpProfilesCompression =
+        configProvider.getEnum(
+            OTLP_PROFILES_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+
+    String otlpProfilesEndpointFromEnvironment = configProvider.getString(OTLP_PROFILES_ENDPOINT);
+    if (otlpProfilesEndpointFromEnvironment == null) {
+      if (otlpProfilesProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpProfilesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+      } else {
+        otlpProfilesEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT;
+      }
+    }
+    otlpProfilesEndpoint = otlpProfilesEndpointFromEnvironment;
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
@@ -5912,6 +5958,26 @@ public class Config {
 
   public int getOtlpTracesTimeout() {
     return otlpTracesTimeout;
+  }
+
+  public String getOtlpProfilesEndpoint() {
+    return otlpProfilesEndpoint;
+  }
+
+  public Map<String, String> getOtlpProfilesHeaders() {
+    return otlpProfilesHeaders;
+  }
+
+  public OtlpConfig.Protocol getOtlpProfilesProtocol() {
+    return otlpProfilesProtocol;
+  }
+
+  public OtlpConfig.Compression getOtlpProfilesCompression() {
+    return otlpProfilesCompression;
+  }
+
+  public int getOtlpProfilesTimeout() {
+    return otlpProfilesTimeout;
   }
 
   public boolean isRuleEnabled(final String name) {
