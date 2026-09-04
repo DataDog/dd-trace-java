@@ -19,6 +19,7 @@ public final class LLMObsContext {
   }
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
+  private static final ContextKey<String> ML_APP_KEY = ContextKey.named("llmobs_ml_app");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
       ContextKey.named("llmobs_agent_version");
@@ -108,9 +109,38 @@ public final class LLMObsContext {
       String samplingDecision,
       String parentAgentSpanId,
       String parentAgentName) {
+    return attach(
+        ctx,
+        null,
+        sessionId,
+        agentVersion,
+        sampleRate,
+        samplingDecision,
+        parentAgentSpanId,
+        parentAgentName);
+  }
+
+  /**
+   * Attach an LLMObs span context, propagating ml_app alongside everything {@link
+   * #attach(AgentSpanContext, String, String, String, String, String, String)} carries.
+   *
+   * <p>ml_app is held here — rather than only as a span tag — so that distributed propagation can
+   * read the innermost active LLMObs span's ml_app when injecting, without needing a reference to
+   * the span itself.
+   */
+  public static ContextScope attach(
+      AgentSpanContext ctx,
+      String mlApp,
+      String sessionId,
+      String agentVersion,
+      String sampleRate,
+      String samplingDecision,
+      String parentAgentSpanId,
+      String parentAgentName) {
     String decision = emptyToNull(samplingDecision);
     return Context.current()
         .with(CONTEXT_KEY, ctx)
+        .with(ML_APP_KEY, emptyToNull(mlApp))
         .with(SESSION_ID_KEY, emptyToNull(sessionId))
         .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
         .with(SAMPLING_DECISION_KEY, decision)
@@ -122,6 +152,11 @@ public final class LLMObsContext {
 
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
+  }
+
+  /** Return the ml_app of the innermost active LLMObs span, or null if none is active. */
+  public static String currentMlApp() {
+    return Context.current().get(ML_APP_KEY);
   }
 
   /**

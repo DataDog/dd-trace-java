@@ -159,6 +159,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     String samplingDecision = null;
     String resolvedParentAgentSpanId = null;
     String resolvedParentAgentName = null;
+    boolean inheritedInProcess = false;
     if (null != parent) {
       if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
@@ -168,6 +169,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getTraceId(),
             span.getSpanId());
       } else {
+        inheritedInProcess = true;
         parentSpanID = String.valueOf(parent.getSpanId());
         // Inherit session_id from parent context only when it belongs to the same trace.
         // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
@@ -194,6 +196,23 @@ public class DDLLMObsSpan implements LLMObsSpan {
         // this span is itself an agent.
         resolvedParentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
+      }
+    }
+
+    if (!inheritedInProcess) {
+      // No usable in-process LLMObs parent, but this span may still be continuing a trace that
+      // arrived from another service — an SQS worker handling a message, an inbound HTTP request.
+      // The upstream values are on the span context's propagation tags, parsed back out of
+      // x-datadog-tags / tracestate by the tracing propagator.
+      //
+      // This also covers the trace-mismatch branch above: a stale context leaked from an unrelated
+      // trace must not suppress attribution that legitimately arrived over the wire.
+      if (sessionId == null || sessionId.isEmpty()) {
+        sessionId = asString(span.spanContext().getLLMObsSessionId());
+      }
+      resolvedParentAgentSpanId = asString(span.spanContext().getLLMObsParentAgentSpanId());
+      if (resolvedParentAgentSpanId != null) {
+        resolvedParentAgentName = asString(span.spanContext().getLLMObsParentAgentName());
       }
     }
 
@@ -236,6 +255,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     scope =
         LLMObsContext.attach(
             span.spanContext(),
+            mlApp,
             sessionId,
             resolvedAgentVersion,
             sampleRate,
@@ -716,5 +736,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
+  }
+
+  /** Narrow a propagated tag value to a non-empty String, or null. */
+  private static String asString(CharSequence value) {
+    return value == null || value.length() == 0 ? null : value.toString();
   }
 }
