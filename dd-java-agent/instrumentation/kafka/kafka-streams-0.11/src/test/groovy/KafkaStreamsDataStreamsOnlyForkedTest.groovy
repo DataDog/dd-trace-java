@@ -1,7 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader
@@ -20,10 +18,9 @@ import spock.lang.Shared
 import java.nio.charset.StandardCharsets
 
 /**
- * DSM billing-suppression coverage for the kafka-streams StreamTask consume spans.
- *
- * <p>Both scenarios run under "kafka tracing disabled (integrations.enabled=false) + DSM enabled",
- * the configuration in which the suppression guard is active.
+ * DSM-only coverage for the kafka-streams StreamTask consume path: when Kafka APM tracing is
+ * disabled (integrations.enabled=false) but DSM is enabled, this integration must never create or
+ * write a real span/trace, whether or not the record carries a propagated trace context.
  */
 abstract class KafkaStreamsDataStreamsOnlyForkedTest extends InstrumentationSpecification {
   static final STREAM_PENDING = "test.pending"
@@ -45,12 +42,16 @@ abstract class KafkaStreamsDataStreamsOnlyForkedTest extends InstrumentationSpec
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("integrations.enabled", "false")
-    injectSysConfig("data.streams.enabled", "true")
   }
 
   @Override
   boolean useStrictTraceWrites() {
     return false
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
   }
 
   protected KafkaStreams startLowercasingTopology() {
@@ -82,29 +83,11 @@ abstract class KafkaStreamsDataStreamsOnlyForkedTest extends InstrumentationSpec
       new StringSerializer(),
       new StringSerializer())
   }
-
-  /**
-   * Polls the test writer until a kafka-streams consume span shows up, so the assertions do not
-   * depend on how many other traces (produce, poll, downstream produce) are flushed first.
-   */
-  protected findStreamsConsumeSpan() {
-    for (int i = 0; i < 100; i++) {
-      def span = TEST_WRITER.flatten().find {
-        it.operationName.toString() == "kafka.consume" &&
-          it.getTag(Tags.COMPONENT)?.toString() == "java-kafka-streams"
-      }
-      if (span != null) {
-        return span
-      }
-      Thread.sleep(100)
-    }
-    return null
-  }
 }
 
 /**
- * A record with no propagated Datadog trace context produces a genuinely local-root streams
- * consume span, which must be forced to USER_DROP so it does not count towards APM billing.
+ * A record with no propagated Datadog trace context must not create any streams consume span in
+ * DSM-only mode - only a DSM checkpoint, tracked via the lightweight pathway-only span shim.
  */
 class KafkaStreamsDataStreamsOnlyLocalRootForkedTest extends KafkaStreamsDataStreamsOnlyForkedTest {
 
@@ -118,7 +101,7 @@ class KafkaStreamsDataStreamsOnlyLocalRootForkedTest extends KafkaStreamsDataStr
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, STREAM_PENDING)
   }
 
-  def "a local-root streams consume span is forced to USER_DROP"() {
+  def "a local-root record does not create a streams consume span"() {
     setup:
     def streams = startLowercasingTopology()
     def producer = newProducer()
@@ -127,9 +110,8 @@ class KafkaStreamsDataStreamsOnlyLocalRootForkedTest extends KafkaStreamsDataStr
     producer.send(new ProducerRecord<String, String>(STREAM_PENDING, "LOCAL ROOT")).get()
 
     then:
-    def consumeSpan = findStreamsConsumeSpan()
-    consumeSpan != null
-    consumeSpan.getSamplingPriority() == PrioritySampling.USER_DROP
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    TEST_WRITER.isEmpty()
 
     cleanup:
     producer?.close()
@@ -138,14 +120,12 @@ class KafkaStreamsDataStreamsOnlyLocalRootForkedTest extends KafkaStreamsDataStr
 }
 
 /**
- * Regression guard: a record carrying a real, externally-propagated Datadog trace context must NOT
- * have its trace force-dropped. The sibling ContextPropagationAdvice attaches that extracted
- * context to the scope before the span-starting advice runs, and setSamplingPriority is
- * trace-level, so without the guard the whole propagated trace would be silently dropped.
+ * Regression guard: a record carrying a real, externally-propagated Datadog trace context must
+ * still not create any streams consume span in DSM-only mode.
  */
 class KafkaStreamsDataStreamsOnlyExtractedParentForkedTest extends KafkaStreamsDataStreamsOnlyForkedTest {
 
-  def "a streams consume span continuing a propagated trace is not forced to USER_DROP"() {
+  def "a record continuing a propagated trace does not create a streams consume span either"() {
     setup:
     def streams = startLowercasingTopology()
     def producer = newProducer()
@@ -161,10 +141,8 @@ class KafkaStreamsDataStreamsOnlyExtractedParentForkedTest extends KafkaStreamsD
     producer.send(new ProducerRecord<String, String>(STREAM_PENDING, null, null, "PROPAGATED", headers)).get()
 
     then:
-    def consumeSpan = findStreamsConsumeSpan()
-    consumeSpan != null
-    consumeSpan.traceId.toLong() == existingTraceId
-    consumeSpan.getSamplingPriority() != PrioritySampling.USER_DROP
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    TEST_WRITER.isEmpty()
 
     cleanup:
     producer?.close()
