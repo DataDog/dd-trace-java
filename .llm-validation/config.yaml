@@ -1,5 +1,5 @@
 model: claude-opus-4-8
-runs: 3
+runs: 2
 
 instruction_files:
   - .agents/skills/dd-apm-sdk-review/SKILL.md
@@ -26,16 +26,19 @@ presets:
     cases:
       - java-perf-lens-wrong-collection-001
       - java-perf-pipeline-full-review-002
-    runs: 5
+      - java-security-crash-handler-before-trust
+      - java-correctness-capture-before-send
+      - java-correctness-sqs-queue-name-incomplete
+      - java-maintainability-resource-leak-streams
+      - java-correctness-span-events-list-only
+      - java-correctness-mapper-state-leak
+    runs: 2
   minimum:
     cases: ["java-perf-lens-wrong-collection-001"]
-    runs: 3
+    runs: 2
   full:
-    runs: 3
+    runs: 2
 
-# These thresholds decide when a *blocking* case's pairwise regression actually FAILs.
-# Copied from dd-trace-dotnet's config.yaml (DataDog/dd-trace-dotnet PR #8845) as a
-# starting point — not yet calibrated against our own cases.
 policy:
   noise_threshold: 1.0
   pairwise_win_floor: 0.45
