@@ -282,6 +282,11 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return wafRequestBlockFailure;
   }
 
+  @Override
+  public void reportBlockFailure() {
+    setWafRequestBlockFailure();
+  }
+
   public void setWafRateLimited() {
     this.wafRateLimited = true;
   }
