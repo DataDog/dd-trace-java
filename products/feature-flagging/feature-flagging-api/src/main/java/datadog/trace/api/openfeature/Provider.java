@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -29,10 +30,11 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
-
-  private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
+  private static final long DEFAULT_INIT_TIMEOUT = 30;
   private volatile Evaluator evaluator;
-  private final Options options;
+  private final long initTimeout;
+  private final TimeUnit initTimeoutUnit;
+  private final boolean telemetryEnabled;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -44,7 +46,7 @@ public class Provider extends EventProvider implements Metadata {
   private final List<Hook> providerHooks;
 
   public Provider() {
-    this(DEFAULT_OPTIONS, null);
+    this(new Options(), null);
   }
 
   public Provider(final Options options) {
@@ -56,54 +58,63 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   /**
-   * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
-   *     seam); when null, the gate is read via {@link SpanEnrichmentGate}.
+   * @param spanEnrichmentEnabledOverride when non-null, replaces the {@link SpanEnrichmentGate}
+   *     reading (test seam); when null, the gate is read via {@link SpanEnrichmentGate}. Either way
+   *     span enrichment stays off when {@code options.isTelemetryEnabled()} is false.
    */
   Provider(
       final Options options,
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
-    this.options = options;
+    requireNonNull(options, "options");
+    this.initTimeout = options.getTimeout();
+    this.initTimeoutUnit = options.getUnit();
+    this.telemetryEnabled = options.isTelemetryEnabled();
     this.evaluator = evaluator;
-    FlagEvalMetrics metrics = null;
-    FlagEvalMetricsHook hook = null;
-    try {
-      metrics = new FlagEvalMetrics();
-      hook = new FlagEvalMetricsHook(metrics);
-    } catch (LinkageError | Exception e) {
-      // This outer catch fires when the metrics helper itself can't load (OTel API absent).
-      log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
-    }
-    this.flagEvalMetrics = metrics;
-    this.flagEvalMetricsHook = hook;
 
-    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
-    // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        spanEnrichmentEnabledOverride != null
-            ? spanEnrichmentEnabledOverride
-            : SpanEnrichmentGate.isEnabled();
-    this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
+    FlagEvalMetrics metrics = null;
+    FlagEvalMetricsHook metricsHook = null;
+    SpanEnrichmentHook enrichmentHook = null;
+    final List<Hook> hooks = new ArrayList<>(3);
+    if (telemetryEnabled) {
+      try {
+        metrics = new FlagEvalMetrics();
+        metricsHook = new FlagEvalMetricsHook(metrics);
+        hooks.add(metricsHook);
+      } catch (LinkageError | Exception e) {
+        // This outer catch fires when the metrics helper itself can't load (OTel API absent).
+        log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
+      }
+
+      // EVP flagevaluation hook: registered when provider telemetry is enabled; no-op when the
+      // writer is absent (killswitch off). The writer is resolved lazily on each call.
+      try {
+        final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
+        if (flagEvalLoggingHook != null) {
+          hooks.add(flagEvalLoggingHook);
+        }
+      } catch (LinkageError | Exception e) {
+        // Keep older bootstrap/API combinations working: EVP recording is best-effort.
+      }
+
+      // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
+      // per-evaluation overhead.
+      final boolean spanEnrichmentEnabled =
+          spanEnrichmentEnabledOverride != null
+              ? spanEnrichmentEnabledOverride
+              : SpanEnrichmentGate.isEnabled();
+      enrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
+      if (enrichmentHook != null) {
+        hooks.add(enrichmentHook);
+      }
+    }
+
+    this.flagEvalMetrics = metrics;
+    this.flagEvalMetricsHook = metricsHook;
+    this.spanEnrichmentHook = enrichmentHook;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
-    // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
-    if (flagEvalMetricsHook != null) {
-      hooks.add(flagEvalMetricsHook);
-    }
-    // EVP flagevaluation hook: always registered; no-op when writer is absent (killswitch off).
-    // Writer is resolved lazily from FeatureFlaggingGateway.getFlagEvalWriter() on each call.
-    try {
-      final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
-      if (flagEvalLoggingHook != null) {
-        hooks.add(flagEvalLoggingHook);
-      }
-    } catch (LinkageError | Exception e) {
-      // Keep older bootstrap/API combinations working: EVP recording is best-effort.
-    }
-    if (spanEnrichmentHook != null) {
-      hooks.add(spanEnrichmentHook);
-    }
+    // allocates nothing, including when telemetry is disabled.
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
@@ -121,7 +132,7 @@ public class Provider extends EventProvider implements Metadata {
     initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
-      if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
+      if (!evaluator.initialize(initTimeout, initTimeoutUnit, context)) {
         if (markInitialConfigReceivedReady()) {
           return;
         }
@@ -137,6 +148,13 @@ public class Provider extends EventProvider implements Metadata {
     } catch (final OpenFeatureError e) {
       markInitializationError();
       throw e;
+    } catch (final LinkageError e) {
+      markInitializationError();
+      throw new FatalError(
+          "Failed to initialize provider: a required Datadog agent class or method is missing."
+              + " The Datadog Java agent is likely absent, or older than this dd-openfeature"
+              + " release.",
+          e);
     } catch (final Throwable e) {
       markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
@@ -217,8 +235,8 @@ public class Provider extends EventProvider implements Metadata {
       return evaluator;
     }
     final Class<?> evaluatorClass = loadEvaluatorClass();
-    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
-    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class, boolean.class);
+    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange, telemetryEnabled);
   }
 
   @Override
@@ -303,8 +321,9 @@ public class Provider extends EventProvider implements Metadata {
 
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = DEFAULT_INIT_TIMEOUT;
+    private TimeUnit unit = SECONDS;
+    private boolean telemetryEnabled = true;
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;
@@ -318,6 +337,27 @@ public class Provider extends EventProvider implements Metadata {
 
     public TimeUnit getUnit() {
       return unit;
+    }
+
+    /**
+     * Enables or disables Datadog telemetry produced by this provider.
+     *
+     * <p>When disabled, evaluations still use the current Datadog configuration and return normal
+     * results, but the provider emits no exposures, EVP flag-evaluation events, OpenTelemetry
+     * evaluation metrics, or APM span enrichment. This is useful with OpenFeature domains: bind a
+     * telemetry-enabled provider to a live domain and a telemetry-disabled provider to a domain
+     * used only to inspect evaluations.
+     *
+     * @param telemetryEnabled whether this provider should produce Datadog telemetry
+     * @return these options
+     */
+    public Options telemetryEnabled(final boolean telemetryEnabled) {
+      this.telemetryEnabled = telemetryEnabled;
+      return this;
+    }
+
+    public boolean isTelemetryEnabled() {
+      return telemetryEnabled;
     }
   }
 }

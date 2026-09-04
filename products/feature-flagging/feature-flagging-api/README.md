@@ -16,6 +16,9 @@ Published as `com.datadoghq:dd-openfeature` on Maven Central.
 
 The OpenFeature SDK (`dev.openfeature:sdk`) is included as a transitive dependency.
 
+`dd-openfeature` 1.66.0 and later requires `dd-java-agent` 1.66.0 or later because it uses
+the process-wide Feature Flagging configuration snapshot API.
+
 ### Evaluation metrics (optional)
 
 To enable evaluation metrics (`feature_flag.evaluations` counter), enable the Datadog Java agent's
@@ -54,6 +57,40 @@ Client client = api.getClient();
 boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
+
+### Inspecting evaluations without telemetry
+
+Use OpenFeature domains when one client should perform normal live evaluations and another should
+only inspect the result. Register a separate `Provider` for each domain and disable telemetry on the
+provider assigned to the inspection domain:
+
+```java
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+
+api.setProviderAndWait("live", new Provider());
+api.setProviderAndWait(
+    "peek",
+    new Provider(new Provider.Options().telemetryEnabled(false)));
+
+Client checkoutClient = api.getClient("live");
+Client analyticsClient = api.getClient("peek");
+
+EvaluationContext checkoutContext = new MutableContext("session-abc");
+EvaluationContext analyticsContext = new MutableContext("user-123");
+
+// Evaluates normally and emits the configured Datadog telemetry.
+boolean checkoutEnabled = checkoutClient.getBooleanValue(
+    "my-feature", false, checkoutContext);
+
+// Evaluates against the shared current configuration without emitting Datadog telemetry.
+boolean analyticsEnabled = analyticsClient.getBooleanValue(
+    "my-feature", false, analyticsContext);
+```
+
+`telemetryEnabled(false)` suppresses exposures, EVP flag-evaluation events, OpenTelemetry
+evaluation metrics, and APM span enrichment for that provider. It does not disable evaluation or
+change the configuration used to resolve flags. All provider domains read the same process-wide
+configuration snapshot and share one configuration request path.
 
 ## Evaluation metrics
 

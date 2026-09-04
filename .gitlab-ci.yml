@@ -352,7 +352,7 @@ build:
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests -x spotlessCheck $GRADLE_ARGS
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar :products:feature-flagging:feature-flagging-api:jar -PskipTests -x spotlessCheck $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -362,6 +362,7 @@ build:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/products/feature-flagging/feature-flagging-api/build/libs/*.jar'
       - 'upstream.env'
       - '.gradle/daemon/*/*.out.log'
     reports:
@@ -478,9 +479,11 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
+    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-openfeature.jar
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
+    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
       cat << EOF > links.json 
         {
@@ -489,6 +492,12 @@ publish-artifacts-to-s3:
               "external_link": {
                 "label": "Public Link to dd-java-agent.jar",
                 "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+              }
+            },
+            {
+              "external_link": {
+                "label": "Public Link to dd-openfeature.jar",
+                "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar"
               }
             }
           ]
