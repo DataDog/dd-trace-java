@@ -75,6 +75,74 @@ class CompletableResultCodeTest {
   }
 
   @Test
+  void resultViewFollowsSourceOutcome() {
+    CompletableResultCode source = new CompletableResultCode();
+    CompletableResultCode success = source.newResultView();
+    CompletableResultCode failure = ofFailure().newResultView();
+
+    source.succeed();
+
+    assertTrue(success.isSuccess());
+    assertTrue(failure.isDone());
+    assertFalse(failure.isSuccess());
+  }
+
+  @Test
+  void resultViewCanCompleteIndependently() {
+    CompletableResultCode source = new CompletableResultCode();
+    CompletableResultCode result = source.newResultView();
+
+    result.fail();
+    source.succeed();
+
+    assertTrue(source.isSuccess());
+    assertFalse(result.isSuccess());
+  }
+
+  @Test
+  void resultViewChainsCompleteWithoutGrowingTheStack() {
+    CompletableResultCode source = new CompletableResultCode();
+    CompletableResultCode result = source;
+    for (int i = 0; i < 100_000; i++) {
+      result = result.newResultView();
+    }
+    CompletableResultCode sibling = source.newResultView();
+
+    source.succeed();
+
+    assertTrue(result.isSuccess());
+    assertTrue(sibling.isSuccess());
+  }
+
+  @Test
+  void blockedCallbackDoesNotDelaySiblingResultView() throws Exception {
+    CompletableResultCode source = new CompletableResultCode();
+    CompletableResultCode blocking = source.newResultView();
+    CompletableResultCode unaffected = source.newResultView();
+    CountDownLatch callbackEntered = new CountDownLatch(1);
+    CountDownLatch releaseCallback = new CountDownLatch(1);
+    blocking.whenComplete(
+        () -> {
+          callbackEntered.countDown();
+          try {
+            assertTrue(releaseCallback.await(5, SECONDS));
+          } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+          }
+        });
+    Thread completer = new Thread(source::succeed);
+
+    completer.start();
+    assertTrue(callbackEntered.await(5, SECONDS));
+    try {
+      assertTrue(unaffected.join(1, SECONDS).isSuccess());
+    } finally {
+      releaseCallback.countDown();
+    }
+    completer.join();
+  }
+
+  @Test
   void joinReturnsAfterCompletion() throws Exception {
     CompletableResultCode result = new CompletableResultCode();
     CountDownLatch started = new CountDownLatch(1);

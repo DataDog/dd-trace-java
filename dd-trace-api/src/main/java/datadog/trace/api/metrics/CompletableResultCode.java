@@ -1,22 +1,34 @@
 package datadog.trace.api.metrics;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public final class CompletableResultCode {
   private static final CompletableResultCode SUCCESS = new CompletableResultCode(true);
   private static final CompletableResultCode FAILURE = new CompletableResultCode(false);
 
-  private Boolean success;
+  private final SharedState sharedState;
+  private final boolean resultView;
+
+  private Boolean resultViewSuccess;
   private List<Runnable> callbacks;
 
-  public CompletableResultCode() {}
+  public CompletableResultCode() {
+    this(new SharedState(), false);
+  }
+
+  private CompletableResultCode(SharedState sharedState, boolean resultView) {
+    this.sharedState = sharedState;
+    this.resultView = resultView;
+  }
 
   private CompletableResultCode(boolean success) {
-    this.success = success;
+    this();
+    sharedState.success = success;
   }
 
   public static CompletableResultCode ofSuccess() {
@@ -27,6 +39,10 @@ public final class CompletableResultCode {
     return FAILURE;
   }
 
+  public CompletableResultCode newResultView() {
+    return new CompletableResultCode(sharedState, true);
+  }
+
   public CompletableResultCode succeed() {
     return complete(true);
   }
@@ -35,12 +51,16 @@ public final class CompletableResultCode {
     return complete(false);
   }
 
-  public synchronized boolean isSuccess() {
-    return Boolean.TRUE.equals(success);
+  public boolean isSuccess() {
+    synchronized (sharedState) {
+      return Boolean.TRUE.equals(outcome());
+    }
   }
 
-  public synchronized boolean isDone() {
-    return success != null;
+  public boolean isDone() {
+    synchronized (sharedState) {
+      return outcome() != null;
+    }
   }
 
   /**
@@ -53,10 +73,14 @@ public final class CompletableResultCode {
    */
   public CompletableResultCode whenComplete(Runnable callback) {
     Objects.requireNonNull(callback, "callback");
-    synchronized (this) {
-      if (success == null) {
+    synchronized (sharedState) {
+      if (outcome() == null) {
         if (callbacks == null) {
           callbacks = new ArrayList<>();
+          if (sharedState.callbackResults == null) {
+            sharedState.callbackResults = new ArrayList<>();
+          }
+          sharedState.callbackResults.add(this);
         }
         callbacks.add(callback);
         return this;
@@ -75,29 +99,45 @@ public final class CompletableResultCode {
    * @return this result, which may still be incomplete after the timeout
    */
   public CompletableResultCode join(long timeout, TimeUnit unit) {
-    if (isDone()) {
-      return this;
-    }
-    CountDownLatch completed = new CountDownLatch(1);
-    whenComplete(completed::countDown);
-    try {
-      completed.await(timeout, unit);
-    } catch (InterruptedException ignored) {
-      Thread.currentThread().interrupt();
+    synchronized (sharedState) {
+      if (outcome() != null) {
+        return this;
+      }
+
+      long remainingNanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
+      while (outcome() == null && remainingNanos > 0) {
+        long start = System.nanoTime();
+        try {
+          NANOSECONDS.timedWait(sharedState, remainingNanos);
+        } catch (InterruptedException ignored) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+        remainingNanos -= Math.max(1, System.nanoTime() - start);
+      }
     }
     return this;
   }
 
   private CompletableResultCode complete(boolean succeeded) {
     List<Runnable> completionCallbacks;
-    synchronized (this) {
-      if (success != null) {
+    synchronized (sharedState) {
+      if (outcome() != null) {
         return this;
       }
-      success = succeeded;
-      completionCallbacks = callbacks;
-      callbacks = null;
+
+      if (resultView) {
+        resultViewSuccess = succeeded;
+        completionCallbacks = callbacks;
+        callbacks = null;
+        removeCallbackResult();
+      } else {
+        sharedState.success = succeeded;
+        completionCallbacks = collectCallbacks();
+      }
+      sharedState.notifyAll();
     }
+
     Throwable firstFailure = null;
     if (completionCallbacks != null) {
       for (Runnable callback : completionCallbacks) {
@@ -117,5 +157,36 @@ public final class CompletableResultCode {
       throw (Error) firstFailure;
     }
     return this;
+  }
+
+  private Boolean outcome() {
+    return resultView && resultViewSuccess != null ? resultViewSuccess : sharedState.success;
+  }
+
+  private List<Runnable> collectCallbacks() {
+    if (sharedState.callbackResults == null) {
+      return null;
+    }
+    List<Runnable> completionCallbacks = new ArrayList<>();
+    for (CompletableResultCode result : sharedState.callbackResults) {
+      completionCallbacks.addAll(result.callbacks);
+      result.callbacks = null;
+    }
+    sharedState.callbackResults = null;
+    return completionCallbacks;
+  }
+
+  private void removeCallbackResult() {
+    if (sharedState.callbackResults != null) {
+      sharedState.callbackResults.remove(this);
+      if (sharedState.callbackResults.isEmpty()) {
+        sharedState.callbackResults = null;
+      }
+    }
+  }
+
+  private static final class SharedState {
+    private Boolean success;
+    private List<CompletableResultCode> callbackResults;
   }
 }

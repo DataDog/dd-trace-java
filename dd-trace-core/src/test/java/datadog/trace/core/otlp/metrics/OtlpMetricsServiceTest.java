@@ -346,6 +346,44 @@ class OtlpMetricsServiceTest {
     verify(test.sender).shutdown();
   }
 
+  @Test
+  void blockedCallbackOnOneShutdownViewDoesNotDelayAnotherView() throws Exception {
+    TestService test = service(PAYLOAD);
+    CountDownLatch exportEntered = new CountDownLatch(1);
+    CountDownLatch releaseExport = new CountDownLatch(1);
+    CountDownLatch callbackEntered = new CountDownLatch(1);
+    CountDownLatch releaseCallback = new CountDownLatch(1);
+    when(test.sender.send(PAYLOAD))
+        .thenAnswer(
+            ignored -> {
+              exportEntered.countDown();
+              assertTrue(releaseExport.await(5, SECONDS));
+              return success(200);
+            });
+
+    CompletableResultCode blocking = test.service.shutdown();
+    blocking.whenComplete(
+        () -> {
+          callbackEntered.countDown();
+          try {
+            assertTrue(releaseCallback.await(5, SECONDS));
+          } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+          }
+        });
+    CompletableResultCode unaffected = test.service.shutdown();
+
+    assertTrue(exportEntered.await(5, SECONDS));
+    releaseExport.countDown();
+    assertTrue(callbackEntered.await(5, SECONDS));
+    try {
+      assertTrue(unaffected.join(1, SECONDS).isSuccess());
+    } finally {
+      releaseCallback.countDown();
+    }
+    assertTrue(blocking.join(5, SECONDS).isSuccess());
+  }
+
   private TestService service(OtlpPayload payload) {
     ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     executors.add(executor);

@@ -140,16 +140,7 @@ public final class OtlpMetricsService {
   }
 
   private CompletableResultCode shutdownResultView() {
-    CompletableResultCode result = new CompletableResultCode();
-    shutdownResult.whenComplete(
-        () -> {
-          if (shutdownResult.isSuccess()) {
-            result.succeed();
-          } else {
-            result.fail();
-          }
-        });
-    return result;
+    return shutdownResult.newResultView();
   }
 
   private void execute(Runnable task) {
