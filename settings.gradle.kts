@@ -14,8 +14,13 @@ pluginManagement {
         isAllowInsecureProtocol = true
       }
     }
-    gradlePluginPortal()
-    mavenCentral()
+    // TODO: temporary fix for Maven Central rate limiting
+    if (!settings.extra.has("gradlePluginProxy")) {
+      gradlePluginPortal()
+    }
+    if (!settings.extra.has("mavenRepositoryProxy")) {
+      mavenCentral()
+    }
     // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {

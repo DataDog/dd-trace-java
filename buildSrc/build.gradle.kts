@@ -84,7 +84,15 @@ gradlePlugin {
 apply(from = "$rootDir/../gradle/repositories.gradle")
 
 repositories {
-  gradlePluginPortal()
+  // TODO: temporary fix for Maven Central rate limiting
+  if (rootProject.hasProperty("gradlePluginProxy")) {
+    maven {
+      url = uri(rootProject.property("gradlePluginProxy") as String)
+      isAllowInsecureProtocol = true
+    }
+  } else {
+    gradlePluginPortal()
+  }
 }
 
 dependencies {
