@@ -210,6 +210,7 @@ public interface AgentSpan
 
   AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
 
+  @Nonnull
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
