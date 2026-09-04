@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -18,30 +19,16 @@ public interface ContextStore<K, C> {
    *
    * @param <C> context type
    */
-  interface Factory<C> extends KeyAwareFactory<Object, C> {
+  interface Factory<C> extends Function<Object, C> {
 
     /**
      * @return new context instance
      */
     C create();
 
-    default C create(Object key) {
+    default C apply(Object key) {
       return create();
     }
-  }
-
-  /**
-   * Factory interface to create context instances using context key instances
-   *
-   * @param <K> context key type
-   * @param <C> context value type
-   */
-  interface KeyAwareFactory<K, C> {
-
-    /**
-     * @return new context instance
-     */
-    C create(K key);
   }
 
   /**
@@ -91,7 +78,7 @@ public interface ContextStore<K, C> {
    * @param contextFactory factory instance to produce new context instances
    * @return existing context instance if present; otherwise new instance
    */
-  C getOrCompute(K key, KeyAwareFactory<? super K, C> contextFactory);
+  C getOrCompute(K key, Function<? super K, C> contextFactory);
 
   /**
    * Removes the context instance for the given key.

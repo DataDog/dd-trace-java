@@ -172,6 +172,22 @@ In a well-organized Gradle project, build logic lives in specific places:
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
 
+### Running Build Logic Tests
+
+Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
+detects the injected `idea.active` system property.
+
+However, via the command line, `buildSrc/` tests are disabled unless opted in with
+`-PrunBuildSrcTests`:
+
+```shell
+./gradlew -p buildSrc :test -PrunBuildSrcTests            # whole suite
+./gradlew -p buildSrc :test -PrunBuildSrcTests --tests '*MuzzlePluginFunctionalTest'
+```
+
+Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
+propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
+
 ### How Gradle Compiles Build Scripts
 
 During the **Configuration phase**, Gradle doesn't simply execute build scripts top-to-bottom. Instead, it first extracts and processes certain special blocks before compiling the rest of the script. This is necessary because Gradle needs to know which plugins to apply before it can understand the DSL extensions they provide.

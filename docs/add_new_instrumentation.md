@@ -1,7 +1,7 @@
 # Add a New Instrumentation
 
 Now we will step through adding a very basic instrumentation to the trace agent. The
-existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client)
+existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client-1.19)
 will be used as an example.
 
 ## Clone the dd-trace-java repo
@@ -161,7 +161,7 @@ When applying multiple advices, consider using the `@AppliesOn` annotation to co
 ## Add the HeadersInjectAdapter
 
 This particular instrumentation uses
-a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
+a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client-1.19/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
 class to assist with HTTP header injection. This is not required of all instrumentations. (
 See [InjectorAdapters](./how_instrumentations_work.md#injectadapters--custom-getterssetters)).
 
@@ -487,11 +487,11 @@ The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fai
 is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
-a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
+a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientTest.groovy)
 and
-an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
+an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
 Both test classes inherit
-from [HttpClientTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
+from [HttpClientTest](../dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
 which provides a testing framework used by many HTTP client integrations. (
 see [Testing](./how_instrumentations_work.md#testing))
 
