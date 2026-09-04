@@ -4,6 +4,7 @@ import datadog.trace.api.appsec.MediaType;
 import datadog.trace.lambda.MultipartSplitter.Part;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +32,9 @@ final class ContentTypeBodyParser {
   static final int MAX_BYTES = 1024 * 1024;
   static final int MAX_PARTS = 256;
   static final int MAX_DEPTH = 20;
+
+  /** What a form body's percent-escapes mean when it declares no charset of its own. */
+  private static final String DEFAULT_CHARSET = "UTF-8";
 
   private ContentTypeBodyParser() {}
 
@@ -135,7 +139,7 @@ final class ContentTypeBodyParser {
     }
     if ("application".equals(mediaType.getType())
         && "x-www-form-urlencoded".equals(mediaType.getSubtype())) {
-      final Object parsed = parseUrlEncoded(body, context);
+      final Object parsed = parseUrlEncoded(body, charsetName(mediaType), context);
       return parsed != null ? parsed : body;
     }
     if ("multipart".equals(mediaType.getType())) {
@@ -161,7 +165,7 @@ final class ContentTypeBodyParser {
    *     the part allowance
    */
   private static Map<String, List<String>> parseUrlEncoded(
-      final String body, final ParseContext context) {
+      final String body, final String charset, final ParseContext context) {
     if (body.isEmpty()) {
       return null;
     }
@@ -176,10 +180,10 @@ final class ContentTypeBodyParser {
       final int equals = pair.indexOf('=');
       // An empty name is kept rather than dropped: the handler still decodes the parameter, so
       // dropping it would hide its value from the WAF. The Netty body collector keeps it too.
-      final String name = decode(equals == -1 ? pair : pair.substring(0, equals));
+      final String name = decode(equals == -1 ? pair : pair.substring(0, equals), charset);
       parameters
           .computeIfAbsent(name, k -> new ArrayList<>(1))
-          .add(equals == -1 ? "" : decode(pair.substring(equals + 1)));
+          .add(equals == -1 ? "" : decode(pair.substring(equals + 1), charset));
     }
     if (parameters.isEmpty()) {
       return null;
@@ -274,13 +278,46 @@ final class ContentTypeBodyParser {
     }
   }
 
+  /**
+   * Resolves the charset a form body declares, which decides what its percent-escapes mean: {@code
+   * %E9} is one character under ISO-8859-1 and an invalid sequence under UTF-8. Reading it the way
+   * the handler does keeps the WAF matching on the same value the application consumes.
+   *
+   * @return the declared charset, or UTF-8 when none is declared or it is not one this JVM has
+   */
+  private static String charsetName(final MediaType mediaType) {
+    String declared = mediaType.getCharset();
+    if (declared == null) {
+      return DEFAULT_CHARSET;
+    }
+    // MediaType keeps everything past "charset=", so a parameter after it, or quotes around the
+    // value, come along with it
+    final int nextParameter = declared.indexOf(';');
+    declared = (nextParameter == -1 ? declared : declared.substring(0, nextParameter)).trim();
+    if (declared.length() > 1 && declared.charAt(0) == '"' && declared.endsWith("\"")) {
+      declared = declared.substring(1, declared.length() - 1);
+    }
+    if (declared.isEmpty()) {
+      return DEFAULT_CHARSET;
+    }
+    try {
+      if (Charset.isSupported(declared)) {
+        return declared;
+      }
+    } catch (final IllegalArgumentException e) {
+      // Not a charset name at all: a body may declare anything
+    }
+    log.debug("Unsupported charset {} declared, decoding the body as UTF-8", declared);
+    return DEFAULT_CHARSET;
+  }
+
   /** Percent-decodes a single token, keeping it undecoded rather than dropping it on failure. */
-  private static String decode(final String value) {
+  private static String decode(final String value, final String charset) {
     if (value.isEmpty()) {
       return value;
     }
     try {
-      return URLDecoder.decode(value, "UTF-8");
+      return URLDecoder.decode(value, charset);
     } catch (final UnsupportedEncodingException | IllegalArgumentException e) {
       return value;
     }
