@@ -219,7 +219,8 @@ default:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   cache:
-    - key: dependency-$CACHE_TYPE # Dependencies cache
+    - &dependency_cache
+      key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
@@ -231,7 +232,8 @@ default:
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
-    - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
+    - &build_cache
+      key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
@@ -389,14 +391,74 @@ build_tests:
     - ./gradlew --version
     - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
-populate_dep_cache:
-  extends: build_tests
-  variables:
-    BUILD_CACHE_POLICY: pull
-    DEPENDENCY_CACHE_POLICY: push
+populate_plugin_cache:
+  extends: .gradle_build
+  cache:
+    - &plugin_cache
+      key: dependency-plugins-$GRADLE_VERSION
+      paths:
+        - .gradle-plugin-cache/caches/modules-2
+      policy: pull-push
+      when: always
+      unprotect: true
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
+  script:
+    - mkdir -p .gradle-plugin-cache
+    - sudo chown -R 1001:1001 .gradle-plugin-cache
+    - export GRADLE_USER_HOME=$(pwd)/.gradle-plugin-cache
+    - |
+      plugin_cache_log=plugin-cache-population.log
+      set +e
+      ./gradlew help -PskipTests $GRADLE_ARGS 2>&1 | tee "$plugin_cache_log"
+      gradle_status=${PIPESTATUS[0]}
+      set -e
+
+      if [ "$gradle_status" -eq 0 ]; then
+        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=false"
+        echo "Plugin cache population completed successfully."
+      elif grep -Eq 'https://repo\.maven\.apache\.org/|https://repo1\.maven\.org/' "$plugin_cache_log" &&
+           grep -Eq 'Received status code 429|Too Many Requests' "$plugin_cache_log"; then
+        rate_limit_count=$(grep -Ec 'Received status code 429|Too Many Requests' "$plugin_cache_log" || true)
+        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=true count=$rate_limit_count"
+        echo "WARNING: Maven Central rate limiting interrupted plugin cache population."
+        echo "Keeping the partially populated cache so the next nightly run can resume from it."
+      else
+        echo "PLUGIN_CACHE_MAVEN_CENTRAL_429=false"
+        echo "ERROR: Plugin cache population failed without a Maven Central 429 (Gradle exit $gradle_status)."
+        exit "$gradle_status"
+      fi
+  retry:
+    max: 2
+    when: script_failure
+
+populate_dep_cache:
+  extends: build_tests
+  # Wait for build-cache producers so their caches are uploaded before this job restores them.
+  needs:
+    - job: populate_plugin_cache
+    - job: build
+      artifacts: false
+    - job: build_tests
+      artifacts: false
+  variables:
+    BUILD_CACHE_POLICY: pull
+    DEPENDENCY_CACHE_POLICY: push
+  cache:
+    - <<: *plugin_cache
+      policy: pull
+    - *dependency_cache
+    - *build_cache
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+  before_script:
+    - !reference [.gradle_build, before_script]
+    - sudo chown -R 1001:1001 .gradle-plugin-cache
+    # Seed the otherwise cold writable cache, keeping the cache uploaded below self-contained.
+    - mkdir -p .gradle/caches
+    - cp -a .gradle-plugin-cache/caches/modules-2 .gradle/caches/
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
