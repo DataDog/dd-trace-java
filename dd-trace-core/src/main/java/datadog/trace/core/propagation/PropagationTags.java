@@ -91,6 +91,13 @@ public abstract class PropagationTags {
   public abstract String getW3CTracestate();
 
   /**
+   * Gets the OpenTelemetry {@code ot} tracestate member value, without the member key.
+   *
+   * @return The OpenTelemetry tracestate value, or {@code null} if none is present.
+   */
+  public abstract String getOtelTraceState();
+
+  /**
    * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
    * tracestate header</a> value.
    *

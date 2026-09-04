@@ -561,8 +561,14 @@ public class PTagsFactory implements PropagationTags.Factory {
       setOtelTraceState(W3CPTagsCodec.extractOtelTraceState(tracestate));
     }
 
-    OtelTraceState getOtelTraceState() {
+    OtelTraceState getOtelTraceStateForW3C() {
       return otelTraceState;
+    }
+
+    @Override
+    public String getOtelTraceState() {
+      OtelTraceState state = otelTraceState;
+      return state == null ? null : state.getValue();
     }
 
     void setOtelTraceState(OtelTraceState otelTraceState) {

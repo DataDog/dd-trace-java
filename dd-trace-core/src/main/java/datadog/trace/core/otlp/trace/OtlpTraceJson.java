@@ -32,7 +32,6 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
-import datadog.trace.core.propagation.PropagationTags;
 import java.util.List;
 import java.util.Map;
 
@@ -48,17 +47,23 @@ public final class OtlpTraceJson {
 
   /** Writes one complete {@code Span} JSON object. */
   public static void writeSpan(
-      JsonWriter writer, DDSpan span, MetaWriter metaWriter, List<? extends AgentSpanLink> links) {
-    PropagationTags propagationTags = span.spanContext().getPropagationTags();
+      JsonWriter writer,
+      DDSpan span,
+      MetaWriter metaWriter,
+      List<? extends AgentSpanLink> links,
+      String otelTraceState) {
 
     writer.beginObject();
 
     writer.name("traceId").value(hexTraceId(span.getTraceId()));
     writer.name("spanId").value(hexSpanId(span.getSpanId()));
 
-    String tracestate = propagationTags.getW3CTracestate();
-    if (tracestate != null) {
-      writer.name("traceState").value(tracestate);
+    String traceState = span.spanContext().getPropagationTags().getW3CTracestate();
+    if (traceState == null) {
+      traceState = otelTraceState;
+    }
+    if (traceState != null) {
+      writer.name("traceState").value(traceState);
     }
 
     if (span.getParentId() != 0) {
