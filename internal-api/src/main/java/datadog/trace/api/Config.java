@@ -2217,7 +2217,7 @@ public class Config {
 
     String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
     if (otlpTracesEndpointFromEnvironment == null) {
-      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+      if (otlpTracesProtocol == OtlpConfig.Protocol.GRPC) {
         otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         otlpTracesEndpointFromEnvironment =
