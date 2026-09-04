@@ -1,5 +1,5 @@
 model: claude-opus-4-8
-runs: 3
+runs: 2
 
 instruction_files:
   - .agents/skills/dd-apm-sdk-review/SKILL.md
@@ -32,12 +32,12 @@ presets:
       - java-maintainability-resource-leak-streams
       - java-correctness-span-events-list-only
       - java-correctness-mapper-state-leak
-    runs: 5
+    runs: 2
   minimum:
     cases: ["java-perf-lens-wrong-collection-001"]
-    runs: 3
+    runs: 2
   full:
-    runs: 3
+    runs: 2
 
 policy:
   noise_threshold: 1.0
