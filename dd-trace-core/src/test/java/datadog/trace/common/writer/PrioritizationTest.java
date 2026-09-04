@@ -1,6 +1,5 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.DROPPED_BUFFER_OVERFLOW;
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,17 +64,18 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @SuppressWarnings("unchecked")
   @TableTest({
-    "scenario  | priority                      | primaryOffers | secondaryOffers",
-    "unset     | PrioritySampling.UNSET        | 1             | 0              ",
-    "drop      | PrioritySampling.SAMPLER_DROP | 0             | 1              ",
-    "keep      | PrioritySampling.SAMPLER_KEEP | 1             | 0              ",
-    "drop 2    | PrioritySampling.SAMPLER_DROP | 0             | 1              ",
-    "user keep | PrioritySampling.USER_KEEP    | 1             | 0              "
+    "scenario  | priority                      | primaryOffers | secondaryOffers | expectedResult                     ",
+    "unset     | PrioritySampling.UNSET        | 1             | 0               | DROPPED_BUFFER_OVERFLOW            ",
+    "drop      | PrioritySampling.SAMPLER_DROP | 0             | 1               | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT",
+    "keep      | PrioritySampling.SAMPLER_KEEP | 1             | 0               | DROPPED_BUFFER_OVERFLOW            ",
+    "drop 2    | PrioritySampling.SAMPLER_DROP | 0             | 1               | DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT",
+    "user keep | PrioritySampling.USER_KEEP    | 1             | 0               | DROPPED_BUFFER_OVERFLOW            "
   })
   void testFastLaneStrategySendsKeptAndUnsetPriorityTracesToPrimaryQueue(
       @ConvertWith(PrioritySamplingConverter.class) int priority,
       int primaryOffers,
-      int secondaryOffers) {
+      int secondaryOffers,
+      PublishResult expectedResult) {
     List<DDSpan> trace = Collections.emptyList();
     Queue<Object> primary = mock(Queue.class);
     Queue<Object> secondary = mock(Queue.class);
@@ -84,7 +84,7 @@ class PrioritizationTest extends DDJavaSpecification {
 
     PublishResult publishResult = fastLane.publish(mock(DDSpan.class), priority, trace);
 
-    assertEquals(DROPPED_BUFFER_OVERFLOW, publishResult);
+    assertEquals(expectedResult, publishResult);
     verify(primary, times(primaryOffers)).offer(trace);
     verify(secondary, times(secondaryOffers)).offer(trace);
   }
@@ -160,27 +160,27 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @SuppressWarnings("unchecked")
   @TableTest({
-    "scenario                 | primaryFull | priority                      | primaryOffers | singleSpanOffers | singleSpanFull | expectedResult                   ",
-    "unset full ss-not-full   | true        | PrioritySampling.UNSET        | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop full ss-not-full    | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "keep full ss-not-full    | true        | PrioritySampling.SAMPLER_KEEP | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop full 2 ss-not-full  | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "ukeep full ss-not-full   | true        | PrioritySampling.USER_KEEP    | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "unset nfull ss-not-full  | false       | PrioritySampling.UNSET        | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop nfull ss-not-full   | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "keep nfull ss-not-full   | false       | PrioritySampling.SAMPLER_KEEP | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop nfull 2 ss-not-full | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "ukeep nfull ss-not-full  | false       | PrioritySampling.USER_KEEP    | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "unset full ss-full       | true        | PrioritySampling.UNSET        | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop full ss-full        | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "keep full ss-full        | true        | PrioritySampling.SAMPLER_KEEP | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop full 2 ss-full      | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "ukeep full ss-full       | true        | PrioritySampling.USER_KEEP    | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "unset nfull ss-full      | false       | PrioritySampling.UNSET        | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop nfull ss-full       | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "keep nfull ss-full       | false       | PrioritySampling.SAMPLER_KEEP | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop nfull 2 ss-full     | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "ukeep nfull ss-full      | false       | PrioritySampling.USER_KEEP    | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       "
+    "scenario                 | primaryFull | priority                      | primaryOffers | singleSpanOffers | singleSpanFull | expectedResult                     ",
+    "unset full ss-not-full   | true        | PrioritySampling.UNSET        | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop full ss-not-full    | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "keep full ss-not-full    | true        | PrioritySampling.SAMPLER_KEEP | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop full 2 ss-not-full  | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "ukeep full ss-not-full   | true        | PrioritySampling.USER_KEEP    | 2             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "unset nfull ss-not-full  | false       | PrioritySampling.UNSET        | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop nfull ss-not-full   | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "keep nfull ss-not-full   | false       | PrioritySampling.SAMPLER_KEEP | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop nfull 2 ss-not-full | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "ukeep nfull ss-not-full  | false       | PrioritySampling.USER_KEEP    | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "unset full ss-full       | true        | PrioritySampling.UNSET        | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop full ss-full        | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "keep full ss-full        | true        | PrioritySampling.SAMPLER_KEEP | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop full 2 ss-full      | true        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "ukeep full ss-full       | true        | PrioritySampling.USER_KEEP    | 2             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "unset nfull ss-full      | false       | PrioritySampling.UNSET        | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop nfull ss-full       | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "keep nfull ss-full       | false       | PrioritySampling.SAMPLER_KEEP | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop nfull 2 ss-full     | false       | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "ukeep nfull ss-full      | false       | PrioritySampling.USER_KEEP    | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         "
   })
   void testEnsureTraceStrategyWithSpanSamplingQueue(
       boolean primaryFull,
@@ -208,17 +208,17 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @SuppressWarnings("unchecked")
   @TableTest({
-    "scenario              | priority                      | primaryOffers | singleSpanOffers | singleSpanFull | expectedResult                   ",
-    "unset ss-not-full     | PrioritySampling.UNSET        | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop ss-not-full      | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "keep ss-not-full      | PrioritySampling.SAMPLER_KEEP | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop 2 ss-not-full    | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING",
-    "user keep ss-not-full | PrioritySampling.USER_KEEP    | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "unset ss-full         | PrioritySampling.UNSET        | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop ss-full          | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "keep ss-full          | PrioritySampling.SAMPLER_KEEP | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "drop 2 ss-full        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "user keep ss-full     | PrioritySampling.USER_KEEP    | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION       "
+    "scenario              | priority                      | primaryOffers | singleSpanOffers | singleSpanFull | expectedResult                     ",
+    "unset ss-not-full     | PrioritySampling.UNSET        | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop ss-not-full      | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "keep ss-not-full      | PrioritySampling.SAMPLER_KEEP | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop 2 ss-not-full    | PrioritySampling.SAMPLER_DROP | 0             | 1                | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "user keep ss-not-full | PrioritySampling.USER_KEEP    | 1             | 0                | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "unset ss-full         | PrioritySampling.UNSET        | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop ss-full          | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "keep ss-full          | PrioritySampling.SAMPLER_KEEP | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "drop 2 ss-full        | PrioritySampling.SAMPLER_DROP | 0             | 1                | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "user keep ss-full     | PrioritySampling.USER_KEEP    | 1             | 0                | true           | ENQUEUED_FOR_SERIALIZATION         "
   })
   void testFastLaneStrategyWithSpanSamplingQueue(
       @ConvertWith(PrioritySamplingConverter.class) int priority,
@@ -276,11 +276,15 @@ class PrioritizationTest extends DDJavaSpecification {
 
   @SuppressWarnings("unchecked")
   @TableTest({
-    "scenario                  | strategy  | forceKeep | singleSpanFull | expectedResult                   ",
-    "force keep true full      | FAST_LANE | true      | true           | ENQUEUED_FOR_SERIALIZATION       ",
-    "force keep false full     | FAST_LANE | false     | true           | DROPPED_BUFFER_OVERFLOW          ",
-    "force keep true not full  | FAST_LANE | true      | false          | ENQUEUED_FOR_SERIALIZATION       ",
-    "force keep false not full | FAST_LANE | false     | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING"
+    "scenario                               | strategy     | forceKeep | singleSpanFull | expectedResult                     ",
+    "force keep true full fast lane         | FAST_LANE    | true      | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "force keep false full fast lane        | FAST_LANE    | false     | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "force keep true not full fast lane     | FAST_LANE    | true      | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "force keep false not full fast lane    | FAST_LANE    | false     | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  ",
+    "force keep true full ensure trace      | ENSURE_TRACE | true      | true           | ENQUEUED_FOR_SERIALIZATION         ",
+    "force keep false full ensure trace     | ENSURE_TRACE | false     | true           | DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN",
+    "force keep true not full ensure trace  | ENSURE_TRACE | true      | false          | ENQUEUED_FOR_SERIALIZATION         ",
+    "force keep false not full ensure trace | ENSURE_TRACE | false     | false          | ENQUEUED_FOR_SINGLE_SPAN_SAMPLING  "
   })
   void testSpanSamplingDropStrategyRespectsForceKeep(
       Prioritization strategy,
