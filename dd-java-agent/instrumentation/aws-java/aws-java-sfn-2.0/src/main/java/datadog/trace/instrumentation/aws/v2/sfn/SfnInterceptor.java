@@ -1,11 +1,8 @@
 package datadog.trace.instrumentation.aws.v2.sfn;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context.ModifyRequest;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
@@ -38,14 +35,13 @@ public class SfnInterceptor implements ExecutionInterceptor {
   public SdkRequest modifyRequestImpl(
       ModifyRequest context, ExecutionAttributes executionAttributes) {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    final AgentSpan span = fromContext(ddContext);
     // StartExecutionRequest
     if (context.request() instanceof StartExecutionRequest) {
       StartExecutionRequest request = (StartExecutionRequest) context.request();
       if (request.input() == null) {
         return request;
       }
-      return injectTraceContext(span, request);
+      return injectTraceContext(ddContext, request);
     }
 
     // StartSyncExecutionRequest
@@ -54,14 +50,14 @@ public class SfnInterceptor implements ExecutionInterceptor {
       if (request.input() == null) {
         return request;
       }
-      return injectTraceContext(span, request);
+      return injectTraceContext(ddContext, request);
     }
 
     return context.request();
   }
 
-  private SdkRequest injectTraceContext(AgentSpan span, StartExecutionRequest request) {
-    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
+  private SdkRequest injectTraceContext(Context ddContext, StartExecutionRequest request) {
+    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
     // Inject the trace context into the StartExecutionRequest input
     String modifiedInput =
         InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
@@ -69,8 +65,8 @@ public class SfnInterceptor implements ExecutionInterceptor {
     return request.toBuilder().input(modifiedInput).build();
   }
 
-  private SdkRequest injectTraceContext(AgentSpan span, StartSyncExecutionRequest request) {
-    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
+  private SdkRequest injectTraceContext(Context ddContext, StartSyncExecutionRequest request) {
+    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(ddContext);
     // Inject the trace context into the StartSyncExecutionRequest input
     String modifiedInput =
         InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
