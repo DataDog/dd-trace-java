@@ -45,23 +45,33 @@ public class AppSecInterceptor implements Interceptor {
 
   @Override
   public Response intercept(final Chain chain) throws IOException {
+    Request request = chain.request();
+    final AgentSpan span = AgentTracer.activeSpan();
+    final RequestContext ctx = span == null ? null : span.getRequestContext();
+    if (ctx == null) {
+      return chain.proceed(request);
+    }
+    boolean sampled = false;
     try {
-      final AgentSpan span = AgentTracer.activeSpan();
-      final RequestContext ctx = span == null ? null : span.getRequestContext();
-      if (ctx == null) {
-        return chain.proceed(chain.request());
-      }
       final long requestId = span.getSpanId();
-      final boolean sampled = sampleRequest(ctx, requestId);
-      final String url = span.getTag(Tags.HTTP_URL).toString();
-      final Request request = onRequest(span, sampled, url, chain.request());
-      final Response response = chain.proceed(request);
+      sampled = sampleRequest(ctx, requestId);
+      final Object urlTag = span.getTag(Tags.HTTP_URL);
+      final String url = urlTag == null ? null : urlTag.toString();
+      request = onRequest(span, sampled, url, request);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to run AppSec request hooks", e);
+    }
+    // let real connection/IO failures propagate rather than swallowing and retrying the request
+    final Response response = chain.proceed(request);
+    try {
       return onResponse(span, sampled, response);
     } catch (final BlockingException e) {
       throw e;
     } catch (final Exception e) {
-      LOGGER.debug("Failed to intercept request", e);
-      return chain.proceed(chain.request());
+      LOGGER.debug("Failed to run AppSec response hooks", e);
+      return response;
     }
   }
 
