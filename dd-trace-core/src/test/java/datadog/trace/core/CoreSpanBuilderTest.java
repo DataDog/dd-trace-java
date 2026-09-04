@@ -12,10 +12,15 @@ import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,6 +59,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
+
+  // Propagation fixtures preserve the raw inbound vendor values as a single test vector.
+  private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
+  private static final String OTEL_TRACE_STATE =
+      "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
+  private static final String OTEL_MEMBER = "ot=";
+  private static final String THRESHOLD_0_5 = ";th:8";
+  private static final double SAMPLE_RATE_0_5 = 0.5;
+  private static final String DATADOG_TRACE_STATE = "_dd.p.dm=934086a686-4,_dd.p.anytag=value";
 
   private ListWriter writer;
   private CoreTracer tracer;
@@ -363,6 +377,31 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void extractedContextShouldPreserveOtelTraceState() {
+    PropagationTags propagationTags =
+        PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.W3C, OTEL_TRACE_STATE);
+    ExtractedContext extractedContext =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            2,
+            PrioritySampling.SAMPLER_DROP,
+            null,
+            0,
+            Collections.<String, String>emptyMap(),
+            Collections.<String, Object>emptyMap(),
+            null,
+            propagationTags,
+            null,
+            TRACECONTEXT);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+
+    assertEquals(
+        OTEL_TRACE_STATE,
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C));
+  }
+
+  @Test
   @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
   void buildContextFromExtractedContextWithRestartBehavior() {
     ExtractedContext extractedContext =
@@ -375,9 +414,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             Collections.<String, String>emptyMap(),
             Collections.<String, Object>emptyMap(),
             null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            propagationTagsWithOtelState(),
             null,
             DATADOG);
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
@@ -394,6 +431,16 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals(
         extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C),
         link.traceState());
+    String initialTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE, true);
+
+    String freshTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
   }
 
   @Test
@@ -409,9 +456,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             Collections.<String, String>emptyMap(),
             Collections.<String, Object>emptyMap(),
             null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            propagationTagsWithOtelState(),
             null,
             DATADOG);
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
@@ -420,6 +465,24 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
     assertEquals(PrioritySampling.UNSET, span.samplingPriority());
     assertTrue(span.getLinks().isEmpty());
+    String initialTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE, true);
+
+    String freshTraceState =
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
+  }
+
+  private static PropagationTags propagationTagsWithOtelState() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, DATADOG_TRACE_STATE);
+    propagationTags.updateW3CTracestate(OTEL_TRACE_STATE);
+    return propagationTags;
   }
 
   @Test

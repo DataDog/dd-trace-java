@@ -233,6 +233,9 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     private void doUpdateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
+      boolean removeOtelProbability =
+          samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE
+              && !isProbabilitySamplingMechanism(samplingMechanism);
       if (this.samplingPriority != samplingPriority) {
         // This should invalidate any cached w3c header
         clearCachedHeader(W3C);
@@ -264,6 +267,17 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         decisionMakerTagValue = null;
       }
+      if (removeOtelProbability && otelTraceState != null) {
+        setOtelTraceState(otelTraceState.removeForNonProbabilityDecision());
+      }
+    }
+
+    @Override
+    public void updateOtelTraceState(
+        long traceIdLowOrderBits, double sampleRate, boolean sampled, int samplingPriority) {
+      setOtelTraceState(
+          OtelTraceState.updateProbability(
+              otelTraceState, traceIdLowOrderBits, sampleRate, sampled, samplingPriority));
     }
 
     @Override
@@ -571,6 +585,20 @@ public class PTagsFactory implements PropagationTags.Factory {
           clearCachedHeader(DATADOG);
           clearCachedHeader(W3C);
         }
+      }
+    }
+
+    private static boolean isProbabilitySamplingMechanism(int samplingMechanism) {
+      switch (samplingMechanism) {
+        case SamplingMechanism.AGENT_RATE:
+        case SamplingMechanism.REMOTE_AUTO_RATE:
+        case SamplingMechanism.LOCAL_USER_RULE:
+        case SamplingMechanism.REMOTE_USER_RATE:
+        case SamplingMechanism.REMOTE_USER_RULE:
+        case SamplingMechanism.REMOTE_ADAPTIVE_RULE:
+          return true;
+        default:
+          return false;
       }
     }
   }
