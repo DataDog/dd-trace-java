@@ -1,6 +1,7 @@
 package datadog.trace.llmobs;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -8,6 +9,7 @@ import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
@@ -51,6 +53,10 @@ public class LLMObsSystem {
     LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
 
     LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+
+    // Carry LLMObs context across every boundary automatic instrumentation already covers, by
+    // staging the _dd.p.llmobs_* tags on each injected span context. See LLMObsContextPropagator.
+    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {

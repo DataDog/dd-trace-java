@@ -4,6 +4,10 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_ML_APP_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_NAME_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_SPAN_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SESSION_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
@@ -50,7 +54,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null, null);
   }
 
   @Override
@@ -71,14 +75,16 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource,
-      TagValue orgPropagationMarkerTagValue) {
+      TagValue orgPropagationMarkerTagValue,
+      LLMObsTagValues llmObsTagValues) {
     return new PTags(
         this,
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
-        orgPropagationMarkerTagValue);
+        orgPropagationMarkerTagValue,
+        llmObsTagValues);
   }
 
   PropagationTags createInvalid(String error) {
@@ -111,6 +117,11 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue knuthSamplingRateTagValue;
 
     private volatile TagValue orgPropagationMarkerTagValue;
+
+    private volatile TagValue llmObsMlAppTagValue;
+    private volatile TagValue llmObsSessionIdTagValue;
+    private volatile TagValue llmObsParentAgentSpanIdTagValue;
+    private volatile TagValue llmObsParentAgentNameTagValue;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -158,7 +169,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int traceSource,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues) {
       this(
           factory,
           tagPairs,
@@ -168,7 +180,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           PrioritySampling.UNSET,
           null,
           null,
-          orgPropagationMarkerTagValue);
+          orgPropagationMarkerTagValue,
+          llmObsTagValues);
     }
 
     PTags(
@@ -180,7 +193,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -191,6 +205,11 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
+      LLMObsTagValues lov = llmObsTagValues != null ? llmObsTagValues : LLMObsTagValues.EMPTY;
+      this.llmObsMlAppTagValue = lov.mlApp;
+      this.llmObsSessionIdTagValue = lov.sessionId;
+      this.llmObsParentAgentSpanIdTagValue = lov.parentAgentSpanId;
+      this.llmObsParentAgentNameTagValue = lov.parentAgentName;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -210,6 +229,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               ProductTraceSource.UNSET,
               PrioritySampling.UNSET,
+              null,
               null,
               null,
               null);
@@ -378,6 +398,96 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public CharSequence getLLMObsMlApp() {
+      return llmObsMlAppTagValue;
+    }
+
+    @Override
+    public void updateLLMObsMlApp(CharSequence mlApp) {
+      TagValue newValue = toTagValue(mlApp);
+      if (!Objects.equals(this.llmObsMlAppTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.llmObsMlAppTagValue = newValue;
+      }
+    }
+
+    TagValue getLLMObsMlAppTagValue() {
+      return llmObsMlAppTagValue;
+    }
+
+    @Override
+    public CharSequence getLLMObsSessionId() {
+      return llmObsSessionIdTagValue;
+    }
+
+    @Override
+    public void updateLLMObsSessionId(CharSequence sessionId) {
+      TagValue newValue = toTagValue(sessionId);
+      if (!Objects.equals(this.llmObsSessionIdTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.llmObsSessionIdTagValue = newValue;
+      }
+    }
+
+    TagValue getLLMObsSessionIdTagValue() {
+      return llmObsSessionIdTagValue;
+    }
+
+    @Override
+    public CharSequence getLLMObsParentAgentSpanId() {
+      return llmObsParentAgentSpanIdTagValue;
+    }
+
+    @Override
+    public void updateLLMObsParentAgentSpanId(CharSequence parentAgentSpanId) {
+      TagValue newValue = toTagValue(parentAgentSpanId);
+      if (!Objects.equals(this.llmObsParentAgentSpanIdTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.llmObsParentAgentSpanIdTagValue = newValue;
+      }
+    }
+
+    TagValue getLLMObsParentAgentSpanIdTagValue() {
+      return llmObsParentAgentSpanIdTagValue;
+    }
+
+    @Override
+    public CharSequence getLLMObsParentAgentName() {
+      return llmObsParentAgentNameTagValue;
+    }
+
+    @Override
+    public void updateLLMObsParentAgentName(CharSequence parentAgentName) {
+      TagValue newValue = toTagValue(parentAgentName);
+      if (!Objects.equals(this.llmObsParentAgentNameTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.llmObsParentAgentNameTagValue = newValue;
+      }
+    }
+
+    TagValue getLLMObsParentAgentNameTagValue() {
+      return llmObsParentAgentNameTagValue;
+    }
+
+    /**
+     * Wraps a non-empty value as a {@link TagValue}, or {@code null} if empty. No length capping is
+     * applied here — matching dd-trace-py, which writes these free-form values (ml_app, session_id,
+     * agent id/name) as-is and relies on the codecs' own overflow handling (dropping the whole
+     * {@code x-datadog-tags} header on the Datadog codec, or dropping individual overlong tags on
+     * the W3C codec) rather than a fixed per-field character limit.
+     */
+    private static TagValue toTagValue(CharSequence value) {
+      if (value == null || value.length() == 0) {
+        return null;
+      }
+      return TagValue.from(value);
+    }
+
+    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -512,6 +622,15 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
+        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, llmObsMlAppTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_SESSION_ID_TAG, llmObsSessionIdTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsParentAgentSpanIdTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_PAGENT_NAME_TAG, llmObsParentAgentNameTagValue);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
