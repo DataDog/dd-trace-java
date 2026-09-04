@@ -71,7 +71,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
   // DSM-only drop when this instrumentation owns the whole local trace, i.e. nothing was
   // active when we started (no local parent, no header-extracted parent) and the local root
   // really is the first span we created here.
-  private static void maybeDropForDataStreamsOnly(
+  public static void maybeDropForDataStreamsOnly(
       final AgentSpan span, final AgentSpan localActiveSpan, final AgentSpan ourLocalRoot) {
     if (!KafkaStreamsDecorator.TRACING_ENABLED
         && traceConfig().isDataStreamsEnabled()
