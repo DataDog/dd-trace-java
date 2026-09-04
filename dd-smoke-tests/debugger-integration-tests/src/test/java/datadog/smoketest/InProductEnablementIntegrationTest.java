@@ -11,6 +11,8 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
@@ -81,6 +83,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
 
   @Test
   @DisplayName("testExceptionReplayEnablement")
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testExceptionReplayEnablement() throws Exception {
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     appUrl = startAppAndAndGetUrl();
@@ -100,6 +103,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testExceptionReplayEnablementFailure() throws Exception {
     additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
