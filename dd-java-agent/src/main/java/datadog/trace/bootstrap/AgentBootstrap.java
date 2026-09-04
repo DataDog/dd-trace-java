@@ -160,12 +160,42 @@ public final class AgentBootstrap {
       throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
     }
     try {
-      final Method startMethod =
-          agentClass.getMethod(
-              "start", Object.class, Instrumentation.class, URL.class, String.class);
-      startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+      invokeStartAndRelease(
+          agentClass, agentClassName, initTelemetry, inst, agentJarURL, agentArgs);
     } catch (Throwable e) {
       throw new IllegalStateException("Unable to start DD Java Agent.", e);
+    }
+  }
+
+  static void invokeStartAndRelease(
+      final Class<?> agentClass,
+      final String agentClassName,
+      final Object initTelemetry,
+      final Instrumentation inst,
+      final URL agentJarURL,
+      final String agentArgs)
+      throws Throwable {
+    final Method startMethod =
+        agentClass.getMethod("start", Object.class, Instrumentation.class, URL.class, String.class);
+    Throwable startFailure = null;
+    try {
+      startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+    } catch (Throwable failure) {
+      startFailure = failure;
+    }
+
+    if ("datadog.trace.bootstrap.Agent".equals(agentClassName)) {
+      try {
+        agentClass.getMethod("releaseClassData").invoke(null);
+      } catch (Throwable releaseFailure) {
+        if (startFailure == null) {
+          throw releaseFailure;
+        }
+        startFailure.addSuppressed(releaseFailure);
+      }
+    }
+    if (startFailure != null) {
+      throw startFailure;
     }
   }
 

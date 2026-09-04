@@ -31,6 +31,7 @@ public final class DatadogClassLoader extends SecureClassLoader {
   private final CodeSource agentCodeSource;
   private final String agentResourcePrefix;
   private final AgentJarIndex agentJarIndex;
+  private final PackedClassData packedClassData;
 
   private final Object instrumentationClassLoaderLock = new Object();
   private volatile WeakReference<InstrumentationClassLoader> instrumentationClassLoader =
@@ -47,6 +48,7 @@ public final class DatadogClassLoader extends SecureClassLoader {
     // findResource() returns URLs that openStream() cannot read. See APMS-19624 / #6398.
     agentResourcePrefix = "jar:" + agentJarURL + "!/";
     agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
+    packedClassData = PackedClassData.from(agentJarFile);
   }
 
   /** For testing purposes only. */
@@ -57,6 +59,7 @@ public final class DatadogClassLoader extends SecureClassLoader {
     agentJarFile = null;
     agentResourcePrefix = null;
     agentJarIndex = AgentJarIndex.emptyIndex();
+    packedClassData = null;
   }
 
   @Override
@@ -82,7 +85,7 @@ public final class DatadogClassLoader extends SecureClassLoader {
         }
       }
     }
-    return null;
+    return packedClassData == null ? null : packedClassData.resource(name);
   }
 
   @Override
@@ -135,11 +138,28 @@ public final class DatadogClassLoader extends SecureClassLoader {
 
   @Override
   protected Class<?> findClass(String name) throws ClassNotFoundException {
-    byte[] buf = loadClassBytes(name);
+    PackedClassData.Slice packed = findPackedClassData(name);
+    if (packed != null) {
+      Class<?> defined =
+          defineClass(name, packed.data, packed.offset, packed.length, agentCodeSource);
+      return defined;
+    }
+    byte[] buf = loadIndividualClassBytes(name);
     return defineClass(name, buf, 0, buf.length, agentCodeSource);
   }
 
   byte[] loadClassBytes(String name) throws ClassNotFoundException {
+    PackedClassData.Slice packed = findPackedClassData(name);
+    if (packed != null) {
+      byte[] copy = new byte[packed.length];
+      System.arraycopy(packed.data, packed.offset, copy, 0, packed.length);
+      // InstrumentationClassLoader defines this copied bytecode in its own unloadable loader.
+      return copy;
+    }
+    return loadIndividualClassBytes(name);
+  }
+
+  private byte[] loadIndividualClassBytes(String name) throws ClassNotFoundException {
     String entryName = agentJarIndex.classEntryName(name);
     if (null != entryName) {
       JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
@@ -165,6 +185,33 @@ public final class DatadogClassLoader extends SecureClassLoader {
       }
     }
     throw new ClassNotFoundException(name);
+  }
+
+  private PackedClassData.Slice findPackedClassData(String name) {
+    if (packedClassData != null) {
+      try {
+        return packedClassData.find(name);
+      } catch (IOException e) {
+        throw new IllegalStateException("Problem reading " + PackedClassData.ENTRY_NAME, e);
+      }
+    }
+    return null;
+  }
+
+  void close() throws IOException {
+    if (agentJarFile != null) {
+      agentJarFile.close();
+    }
+  }
+
+  int retainedPackedClassBytes() {
+    return packedClassData == null ? 0 : packedClassData.retainedChunkBytes();
+  }
+
+  void releasePackedClassData() {
+    if (packedClassData != null) {
+      packedClassData.release();
+    }
   }
 
   @Override

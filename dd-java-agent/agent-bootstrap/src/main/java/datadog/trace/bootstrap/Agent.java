@@ -757,6 +757,14 @@ public class Agent {
     }
   }
 
+  /** Releases temporary packed class-data buffers retained during synchronous agent startup. */
+  public static void releaseClassData() {
+    ClassLoader classLoader = AGENT_CLASSLOADER;
+    if (classLoader instanceof DatadogClassLoader) {
+      ((DatadogClassLoader) classLoader).releasePackedClassData();
+    }
+  }
+
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
     if (!remoteConfigEnabled) {
       return;
