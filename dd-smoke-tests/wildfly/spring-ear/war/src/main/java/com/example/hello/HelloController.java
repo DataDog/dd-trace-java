@@ -1,6 +1,6 @@
 package com.example.hello;
 
-import static com.example.Common.ENABLED;
+import static com.example.Common.TRACE_REQUEST_PENDING;
 
 import java.util.concurrent.CompletableFuture;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +17,11 @@ public class HelloController {
 
   @RequestMapping("/enableScheduling")
   public CompletableFuture<ResponseEntity<Void>> enableScheduling() {
-    ENABLED.set(true);
+    TRACE_REQUEST_PENDING.set(true);
     return CompletableFuture.supplyAsync(
         () -> {
-          while (!ENABLED.get()) {
+          // Wait until the scheduled task picks up the request.
+          while (TRACE_REQUEST_PENDING.get()) {
             try {
               Thread.sleep(200);
             } catch (InterruptedException e) {
