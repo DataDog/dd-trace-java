@@ -54,6 +54,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -3009,6 +3010,23 @@ class ConfigTest {
 
     assertTrue(config.isLlmObsEnabled());
     assertEquals("test-service", config.getLlmObsMlApp());
+  }
+
+  @Test
+  void lambdaStripInjectedContextIsDisabledByDefault() throws Exception {
+    Config config = newConfig();
+
+    assertFalse(config.isLambdaStripInjectedContextEnabled());
+  }
+
+  @Test
+  void lambdaStripInjectedContextCanBeEnabled() throws Exception {
+    Properties properties = new Properties();
+    properties.setProperty(LAMBDA_STRIP_INJECTED_CONTEXT, "true");
+
+    Config config = newConfig(withPropertiesOverride(properties));
+
+    assertTrue(config.isLambdaStripInjectedContextEnabled());
   }
 
   @Test

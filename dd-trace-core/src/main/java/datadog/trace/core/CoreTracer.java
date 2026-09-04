@@ -117,8 +117,10 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
+import datadog.trace.lambda.StripInjectedContext;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1362,6 +1364,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     } finally {
       LambdaAppSecHandler.processRequestEnd(span);
     }
+  }
+
+  @Override
+  public InputStream stripLambdaInjectedContext(InputStream in) {
+    return StripInjectedContext.replaceInputStream(in);
   }
 
   @Override
