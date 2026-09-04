@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.test.util.PollingConditions;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,23 @@ class CompletableResultCodeTest {
   }
 
   @Test
+  void callbackErrorDoesNotPreventRemainingCallbacks() {
+    CompletableResultCode result = new CompletableResultCode();
+    AtomicInteger callbacks = new AtomicInteger();
+    AssertionError failure = new AssertionError("boom");
+    result.whenComplete(
+        () -> {
+          throw failure;
+        });
+    result.whenComplete(callbacks::incrementAndGet);
+
+    assertSame(failure, assertThrows(AssertionError.class, result::succeed));
+
+    assertTrue(result.isSuccess());
+    assertEquals(1, callbacks.get());
+  }
+
+  @Test
   void resultViewFollowsSourceOutcome() {
     CompletableResultCode source = new CompletableResultCode();
     CompletableResultCode success = source.newResultView();
@@ -97,6 +115,25 @@ class CompletableResultCodeTest {
 
     assertTrue(source.isSuccess());
     assertFalse(result.isSuccess());
+  }
+
+  @Test
+  void independentlyCompletedResultViewRunsItsCallbacksOnlyOnce() {
+    CompletableResultCode source = new CompletableResultCode();
+    CompletableResultCode result = source.newResultView();
+    CompletableResultCode sibling = source.newResultView();
+    AtomicInteger resultCallbacks = new AtomicInteger();
+    AtomicInteger siblingCallbacks = new AtomicInteger();
+    result.whenComplete(resultCallbacks::incrementAndGet);
+    sibling.whenComplete(siblingCallbacks::incrementAndGet);
+
+    result.fail();
+    source.succeed();
+
+    assertEquals(1, resultCallbacks.get());
+    assertEquals(1, siblingCallbacks.get());
+    assertFalse(result.isSuccess());
+    assertTrue(sibling.isSuccess());
   }
 
   @Test
@@ -143,21 +180,26 @@ class CompletableResultCodeTest {
   }
 
   @Test
-  void joinReturnsAfterCompletion() throws Exception {
+  void joinWaitsForCompletion() throws Exception {
     CompletableResultCode result = new CompletableResultCode();
-    CountDownLatch started = new CountDownLatch(1);
-    Thread completer =
-        new Thread(
-            () -> {
-              started.countDown();
-              result.succeed();
-            });
-    completer.start();
+    Thread waiter = new Thread(() -> result.join(30, SECONDS));
+    waiter.start();
 
-    assertTrue(started.await(5, SECONDS));
-    assertSame(result, result.join(5, SECONDS));
+    try {
+      new PollingConditions(5)
+          .delay(0.01)
+          .eventually(() -> assertEquals(Thread.State.TIMED_WAITING, waiter.getState()));
+
+      result.succeed();
+      waiter.join(SECONDS.toMillis(5));
+    } finally {
+      result.succeed();
+      waiter.interrupt();
+      waiter.join(SECONDS.toMillis(5));
+    }
+
+    assertFalse(waiter.isAlive());
     assertTrue(result.isSuccess());
-    completer.join();
   }
 
   @Test
