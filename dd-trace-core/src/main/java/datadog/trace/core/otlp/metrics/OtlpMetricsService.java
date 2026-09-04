@@ -6,13 +6,13 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXP
 
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentThreadFactory;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +34,7 @@ public final class OtlpMetricsService {
   private final Object lifecycleLock = new Object();
 
   private ScheduledFuture<?> scheduledTask;
-  private CompletableFuture<Boolean> shutdownFuture;
+  private CompletableResultCode shutdownResult;
 
   OtlpMetricsService(Config config) {
     this.executor =
@@ -88,7 +88,7 @@ public final class OtlpMetricsService {
                 5_000);
 
     synchronized (lifecycleLock) {
-      if (shutdownFuture == null && scheduledTask == null) {
+      if (shutdownResult == null && scheduledTask == null) {
         scheduledTask =
             executor.scheduleAtFixedRate(
                 this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
@@ -96,56 +96,60 @@ public final class OtlpMetricsService {
     }
   }
 
-  public CompletableFuture<Boolean> forceFlush() {
-    synchronized (lifecycleLock) {
-      if (sender == null || shutdownFuture != null) {
-        return CompletableFuture.completedFuture(false);
-      }
-      CompletableFuture<Boolean> result = new CompletableFuture<>();
-      try {
-        execute(() -> result.complete(export()));
-      } catch (RejectedExecutionException e) {
-        LOGGER.debug("OTLP metrics executor rejected force flush", e);
-        result.complete(false);
-      }
-      return result;
-    }
-  }
-
   public void flush() {
-    forceFlush();
-  }
-
-  public CompletableFuture<Boolean> shutdown() {
     synchronized (lifecycleLock) {
-      if (shutdownFuture != null) {
-        return shutdownResult();
+      if (sender == null || shutdownResult != null) {
+        return;
       }
-
-      shutdownFuture = new CompletableFuture<>();
-      if (scheduledTask != null) {
-        scheduledTask.cancel(false);
-      }
-      if (sender == null) {
-        executor.shutdown();
-        shutdownFuture.complete(false);
-        return shutdownResult();
-      }
-
       try {
-        execute(this::finishShutdown);
+        execute(this::export);
       } catch (RejectedExecutionException e) {
-        LOGGER.debug("OTLP metrics executor rejected shutdown", e);
-        closeSender();
-        executor.shutdown();
-        shutdownFuture.complete(false);
+        LOGGER.debug("OTLP metrics executor rejected flush", e);
       }
-      return shutdownResult();
     }
   }
 
-  private CompletableFuture<Boolean> shutdownResult() {
-    return shutdownFuture.thenApply(result -> result);
+  public CompletableResultCode shutdown() {
+    synchronized (lifecycleLock) {
+      if (shutdownResult != null) {
+        return shutdownResultView();
+      }
+
+      shutdownResult = new CompletableResultCode();
+      boolean cancellationSucceeded = cancelScheduledExport();
+      if (sender == null) {
+        boolean executorShutdown = shutdownExecutor();
+        if (cancellationSucceeded && executorShutdown) {
+          shutdownResult.succeed();
+        } else {
+          shutdownResult.fail();
+        }
+        return shutdownResultView();
+      }
+
+      try {
+        execute(() -> finishShutdown(cancellationSucceeded));
+      } catch (Throwable e) {
+        LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
+        closeSender();
+        shutdownExecutor();
+        shutdownResult.fail();
+      }
+      return shutdownResultView();
+    }
+  }
+
+  private CompletableResultCode shutdownResultView() {
+    CompletableResultCode result = new CompletableResultCode();
+    shutdownResult.whenComplete(
+        () -> {
+          if (shutdownResult.isSuccess()) {
+            result.succeed();
+          } else {
+            result.fail();
+          }
+        });
+    return result;
   }
 
   private void execute(Runnable task) {
@@ -162,18 +166,35 @@ public final class OtlpMetricsService {
     }
   }
 
-  private void finishShutdown() {
+  private boolean cancelScheduledExport() {
+    if (scheduledTask == null) {
+      return true;
+    }
+    try {
+      scheduledTask.cancel(false);
+      return true;
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to cancel scheduled OTLP metrics export", e);
+      return false;
+    }
+  }
+
+  private void finishShutdown(boolean cancellationSucceeded) {
     boolean result = export();
+    if (!cancellationSucceeded) {
+      result = false;
+    }
     if (!closeSender()) {
       result = false;
     }
-    try {
-      executor.shutdown();
-    } catch (Throwable e) {
-      LOGGER.debug("Failed to shut down OTLP metrics executor", e);
+    if (!shutdownExecutor()) {
       result = false;
     }
-    shutdownFuture.complete(result);
+    if (result) {
+      shutdownResult.succeed();
+    } else {
+      shutdownResult.fail();
+    }
   }
 
   private boolean closeSender() {
@@ -182,6 +203,16 @@ public final class OtlpMetricsService {
       return true;
     } catch (Throwable e) {
       LOGGER.debug("Failed to shut down OTLP metrics sender", e);
+      return false;
+    }
+  }
+
+  private boolean shutdownExecutor() {
+    try {
+      executor.shutdown();
+      return true;
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to shut down OTLP metrics executor", e);
       return false;
     }
   }

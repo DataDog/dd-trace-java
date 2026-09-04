@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.api.metrics.CompletableResultCode.ofSuccess;
+
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextListener;
@@ -21,6 +23,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
@@ -261,6 +264,8 @@ public class AgentTracer {
 
   public interface TracerAPI
       extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
+
+    CompletableResultCode shutdownOtelMetrics();
 
     /**
      * Create and start a new span.
@@ -553,6 +558,11 @@ public class AgentTracer {
 
     @Override
     public void flushMetrics() {}
+
+    @Override
+    public CompletableResultCode shutdownOtelMetrics() {
+      return ofSuccess();
+    }
 
     @Override
     public void flushLogs() {}

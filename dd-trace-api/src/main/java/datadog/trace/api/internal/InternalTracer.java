@@ -2,7 +2,6 @@ package datadog.trace.api.internal;
 
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.profiling.Profiling;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Tracer internal features. Those features are not part of public API and can change or be removed
@@ -20,14 +19,6 @@ public interface InternalTracer {
   void flush();
 
   void flushMetrics();
-
-  default CompletableFuture<Boolean> forceFlushOtelMetrics() {
-    return CompletableFuture.completedFuture(false);
-  }
-
-  default CompletableFuture<Boolean> shutdownOtelMetrics() {
-    return CompletableFuture.completedFuture(false);
-  }
 
   void flushLogs();
 

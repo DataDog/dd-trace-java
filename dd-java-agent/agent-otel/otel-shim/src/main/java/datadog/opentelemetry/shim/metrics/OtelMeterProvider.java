@@ -1,5 +1,8 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.trace.api.metrics.CompletableResultCode;
+import datadog.trace.api.metrics.DatadogMeterProvider;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.util.Strings;
@@ -15,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
-public final class OtelMeterProvider implements MeterProvider {
+public final class OtelMeterProvider implements MeterProvider, DatadogMeterProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeterProvider.class);
   private static final String DEFAULT_METER_NAME = "unknown";
 
@@ -41,6 +44,11 @@ public final class OtelMeterProvider implements MeterProvider {
   @Override
   public MeterBuilder meterBuilder(String instrumentationScopeName) {
     return new OtelMeterBuilder(this, instrumentationScopeName);
+  }
+
+  @Override
+  public CompletableResultCode shutdown() {
+    return AgentTracer.get().shutdownOtelMetrics();
   }
 
   OtelMeter getMeterShim(
