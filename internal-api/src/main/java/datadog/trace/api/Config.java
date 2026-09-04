@@ -116,6 +116,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
@@ -406,6 +407,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
@@ -1408,6 +1410,7 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
   private final int dogStatsDPort;
+  private final boolean lambdaStripInjectedContextEnabled;
 
   private String env;
   private String version;
@@ -1802,6 +1805,10 @@ public class Config {
     } else {
       spanAttributeSchemaVersion = configuredSpanAttributeSchemaVersion;
     }
+
+    lambdaStripInjectedContextEnabled =
+        configProvider.getBoolean(
+            LAMBDA_STRIP_INJECTED_CONTEXT, DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT);
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
@@ -5457,6 +5464,10 @@ public class Config {
     return sfnInjectDatadogAttributeEnabled;
   }
 
+  public boolean isLambdaStripInjectedContextEnabled() {
+    return lambdaStripInjectedContextEnabled;
+  }
+
   /**
    * @return A map of tags to be applied only to the local application root span.
    */
@@ -7216,6 +7227,8 @@ public class Config {
         + sqsInjectDatadogAttributeEnabled
         + ", snsInjectDatadogAttributeEnabled="
         + snsInjectDatadogAttributeEnabled
+        + ", lambdaStripInjectedContextEnabled="
+        + lambdaStripInjectedContextEnabled
         + '}';
   }
 }
