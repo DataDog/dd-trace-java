@@ -20,8 +20,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -254,15 +252,11 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.D
         }
       }
 
-      if (traceConfig().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled() && KafkaDecorator.TRACING_ENABLED) {
+        // DSM-only mode (tracing disabled) never creates a real poll span: TracingIterator
+        // carries its pathway context on a lightweight, never-collected span shim instead, so
+        // there's nothing here that needs wrapping/protecting from being force-dropped.
         final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
-        // setSamplingPriority is trace-level: it resolves to the local root span. This 2-arg
-        // startSpan honours the active scope, so `span` may be a child of a customer trace. Only
-        // force the DSM-only drop when `span` is the local root, otherwise we would silently drop
-        // that whole customer trace.
-        if (!KafkaDecorator.TRACING_ENABLED && span.getLocalRootSpan() == span) {
-          span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
-        }
         return activateSpan(span);
       }
       return null;

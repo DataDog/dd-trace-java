@@ -19,6 +19,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
+import static datadog.trace.instrumentation.kafka_common.Utils.newPathwayOnlySpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -38,8 +39,6 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -157,29 +156,32 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.DataS
       final AgentSpanContext extractedContext =
           extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
 
-      final AgentSpan localActiveSpan = activeSpan();
-
       final AgentSpan span;
       final AgentSpan callbackParentSpan;
 
-      if (extractedContext != null) {
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
+      if (!KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+        // DSM-only mode: never create a real span, so nothing for this integration is ever
+        // written to the agent. The pathway is carried on a lightweight, never-collected span
+        // shim instead, falling back to whatever pathway the currently active span (if any)
+        // is carrying so a consume->produce chain keeps propagating the same pathway.
+        final AgentSpan localActiveSpan = activeSpan();
+        final AgentSpanContext pathwaySource =
+            extractedContext != null
+                ? extractedContext
+                : localActiveSpan == null ? null : localActiveSpan.spanContext();
+        span = newPathwayOnlySpan(pathwaySource);
         callbackParentSpan = span;
       } else {
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
-        callbackParentSpan = localActiveSpan;
-        // setSamplingPriority is trace-level: it resolves to the local root span. This 2-arg
-        // startSpan honours the active scope, so `span` may be a child of a customer trace
-        // (localActiveSpan above). Only force the DSM-only drop when `span` is the local root,
-        // otherwise we would silently drop that whole customer trace.
-        if (!KafkaDecorator.TRACING_ENABLED
-            && traceConfig().isDataStreamsEnabled()
-            && span.getLocalRootSpan() == span) {
-          span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.DATA_STREAMS);
+        if (extractedContext != null) {
+          span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
+          callbackParentSpan = span;
+        } else {
+          span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
+          callbackParentSpan = activeSpan();
         }
+        PRODUCER_DECORATE.afterStart(span);
+        PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
       }
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
