@@ -133,6 +133,20 @@ public class OpenAiDecorator extends ClientDecorator {
         }
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
+
+      // Inherit agent attribution only when the LLMObs context belongs to the same trace.
+      // Mirrors the gate in DDLLMObsSpan: a stale LLMObsContext from a different async trace
+      // must not stamp its agent ID onto this span.
+      if (parent != null && parent.getTraceId() == span.getTraceId()) {
+        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        if (parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+          String parentAgentName = LLMObsContext.currentParentAgentName();
+          if (parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
+          }
+        }
+      }
     }
     super.doAfterStart(span);
   }
