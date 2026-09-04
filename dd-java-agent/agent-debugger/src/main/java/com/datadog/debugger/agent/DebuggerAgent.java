@@ -21,7 +21,6 @@ import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.symbol.WireFilter;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassNameFiltering;
-import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -30,6 +29,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -368,12 +368,7 @@ public class DebuggerAgent {
     SnapshotSink snapshotSink = new SnapshotSink(config, tags, lowRateUploader, highRateUploader);
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
-        config,
-        tags,
-        DebuggerMetrics.getInstance(config),
-        probeStatusSink,
-        snapshotSink,
-        symbolSink);
+        config, tags, DebuggerMetricCollector.get(), probeStatusSink, snapshotSink, symbolSink);
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
