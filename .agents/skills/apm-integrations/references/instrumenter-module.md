@@ -58,6 +58,7 @@ Examples of such SPIs:
 
 - Declare the interception library **`compileOnly`** so it is not put on the application's runtime classpath, and inject your listener implementation and any glue via the module's `helperClassNames()` (the same mechanism used for decorators and other injected helpers). The listener classes travel inside the agent, not the user's app.
 - If helper injection is impractical for a given SPI, the alternative is to **shade/bundle** the interception library's classes into the instrumentation rather than depend on it at runtime.
+- The `compileOnly` interception library must also be added to muzzle's classpath via `extraDependency` (see the worked example below) — otherwise muzzle validation fails with "missing class" for every type the listener/wrap-helper classes reference from it.
 
 Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice (and the `compileOnly`/injection approach) in the PR so a reviewer sees the dependency was considered.
 
@@ -110,6 +111,21 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
    ```
 
    `beforeQuery`/`afterQuery` fire once per logical operation and `r2dbc-proxy` itself owns completion/error/**cancel** — you do not hand-roll a `Publisher` wrapper to catch those.
+
+4. **Muzzle needs an `extraDependency` for the `compileOnly` interception library.** Muzzle only puts the module's pinned primary dependency (here, `r2dbc-spi`) on its validation classpath by default. Since the wrap helper and listener classes reference the interception library's own types directly (`ProxyConnectionFactory`, `ProxyMethodExecutionListener`, `QueryExecutionInfo`, ...), muzzle reports them as "missing class" unless you add the interception library explicitly:
+
+   ```groovy
+   muzzle {
+     pass {
+       group = "io.r2dbc"
+       module = "r2dbc-spi"
+       versions = "[1.0.0.RELEASE,)"
+       extraDependency 'io.r2dbc:r2dbc-proxy:1.1.0.RELEASE'
+     }
+   }
+   ```
+
+   This is the same `extraDependency` directive used elsewhere for a module's secondary compile-time dependency — it is not R2DBC-specific.
 
 Net result: 1 advice (factory hook) + 1 wrap helper + 1 listener class — smaller than the method-advice alternative (which needs per-method advice on both `Statement.execute()` and `Batch.execute()`, plus a hand-rolled cancel-safe `Publisher` wrapper) and correct by construction on cancellation. The same shape applies to any other SPI in the examples list above: hook the registration/interceptor-installation point, not the client's own operational methods.
 
