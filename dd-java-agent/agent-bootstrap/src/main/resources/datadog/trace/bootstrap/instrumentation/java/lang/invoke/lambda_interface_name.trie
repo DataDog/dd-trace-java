@@ -1,0 +1,11 @@
+# Reserved lambda interface manifest (inactive)
+
+# Production lambda transformation is intentionally not enabled for any functional interface.
+# This file is not read at build time or runtime. Runtime selection is driven exclusively by
+# enabled Instrumenter.ForLambda implementations and also requires trace.lambda.enabled.
+
+# If a validated manifest is introduced later, entries will use the ClassNameTrie format:
+#
+# 1 java.lang.Runnable
+
+# Tests register Runnable from TestRunnableLambdaInstrumentation; this file has no effect on them.

@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
@@ -20,6 +21,9 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -36,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
@@ -166,6 +171,15 @@ public class AgentInstaller {
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
             .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
 
+    boolean lambdaTransformationEnabled =
+        !Platform.isNativeImageBuilder()
+            && InstrumenterConfig.get()
+                .isIntegrationEnabled(Collections.singleton("lambda"), false);
+    if (lambdaTransformationEnabled) {
+      // The injected metafactory call needs java.base to read the bootstrap helper's module.
+      agentBuilder = agentBuilder.assureReadEdgeTo(inst, LambdaTransformerHelper.class);
+    }
+
     if (DEBUG) {
       agentBuilder =
           agentBuilder
@@ -265,10 +279,84 @@ public class AgentInstaller {
 
     InstrumenterState.resetDefaultState();
     try {
-      return transformerBuilder.installOn(inst);
+      ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
+      if (lambdaTransformationEnabled) {
+        registerLambdaTransformer(classFileTransformer, transformerBuilder.lambdaInterfaces());
+      }
+      return classFileTransformer;
     } finally {
       SharedTypePools.endInstall();
     }
+  }
+
+  /** Registers the installed class-file transformer for generated lambdas. */
+  private static void registerLambdaTransformer(
+      final ClassFileTransformer classFileTransformer, final String[] lambdaInterfaces) {
+    LambdaTransformer transformer =
+        lambdaInterfaces.length == 0 ? null : newLambdaTransformer(classFileTransformer);
+    LambdaTransformerHolder.set(filterLambdaTransformer(transformer, lambdaInterfaces));
+  }
+
+  static LambdaTransformer filterLambdaTransformer(
+      final LambdaTransformer transformer, final String[] lambdaInterfaces) {
+    if (transformer == null) {
+      return null;
+    }
+    return (className, targetClass, classBytes, interfaceName) -> {
+      for (String enabledInterface : lambdaInterfaces) {
+        if (enabledInterface.equals(interfaceName)) {
+          return transformer.transform(className, targetClass, classBytes, interfaceName);
+        }
+      }
+      return null;
+    };
+  }
+
+  /**
+   * Java 9+ requires the module-aware transformer for injected read edges. Failure must disable
+   * lambda transformation rather than fall back to the module-less overload.
+   */
+  @SuppressWarnings("unchecked")
+  private static LambdaTransformer newLambdaTransformer(
+      final ClassFileTransformer classFileTransformer) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        Function<ClassFileTransformer, LambdaTransformer> factory =
+            (Function<ClassFileTransformer, LambdaTransformer>)
+                Instrumenter.class
+                    .getClassLoader()
+                    .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava9LambdaTransformer")
+                    .getField("FACTORY")
+                    .get(null);
+        return factory.apply(classFileTransformer);
+      } catch (Throwable e) {
+        log.debug("Problem loading Java 9 lambda transformer, disabling lambda transformation", e);
+        return null;
+      }
+    }
+    // Avoid invoking the instrumented metafactory while installing its transformer.
+    return new LambdaTransformer() {
+      @Override
+      public byte[] transform(
+          String slashClassName,
+          Class<?> targetClass,
+          byte[] classBytes,
+          String interfaceClassName) {
+        TypePoolFacade.beginLambdaTransform(interfaceClassName);
+        try {
+          return classFileTransformer.transform(
+              targetClass.getClassLoader(),
+              slashClassName,
+              null,
+              targetClass.getProtectionDomain(),
+              classBytes);
+        } catch (Throwable ignored) {
+          return null;
+        } finally {
+          TypePoolFacade.endLambdaTransform();
+        }
+      }
+    };
   }
 
   /** Returns an iterable that combines the original sequence with any discovered extensions. */
