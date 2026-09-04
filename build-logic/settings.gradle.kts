@@ -13,10 +13,8 @@ pluginManagement {
         isAllowInsecureProtocol = true
       }
     }
+    gradlePluginPortal()
     // TODO: temporary fix for Maven Central rate limiting
-    if (!settings.extra.has("gradlePluginProxy")) {
-      gradlePluginPortal()
-    }
     if (!settings.extra.has("mavenRepositoryProxy")) {
       mavenCentral()
     }
@@ -31,22 +29,14 @@ dependencyResolutionManagement {
   }
   repositories {
     mavenLocal()
-    // TODO: temporary fix for Maven Central rate limiting
-    if (settings.extra.has("gradlePluginProxy")) {
-      maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
-        isAllowInsecureProtocol = true
-      }
-    }
     if (settings.extra.has("mavenRepositoryProxy")) {
       maven {
         url = uri(settings.extra["mavenRepositoryProxy"] as String)
         isAllowInsecureProtocol = true
       }
     }
-    if (!settings.extra.has("gradlePluginProxy")) {
-      gradlePluginPortal()
-    }
+    gradlePluginPortal()
+    // TODO: temporary fix for Maven Central rate limiting
     if (!settings.extra.has("mavenRepositoryProxy")) {
       mavenCentral()
     }

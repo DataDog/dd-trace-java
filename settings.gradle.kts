@@ -14,10 +14,8 @@ pluginManagement {
         isAllowInsecureProtocol = true
       }
     }
+    gradlePluginPortal()
     // TODO: temporary fix for Maven Central rate limiting
-    if (!settings.extra.has("gradlePluginProxy")) {
-      gradlePluginPortal()
-    }
     if (!settings.extra.has("mavenRepositoryProxy")) {
       mavenCentral()
     }
