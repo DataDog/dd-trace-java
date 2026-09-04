@@ -18,6 +18,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.S
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.Utils.newPathwayOnlySpan;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.Context;
@@ -97,56 +98,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           previousSpan.finishWithEndToEnd();
         }
       }
-      AgentSpan span, queueSpan = null;
       if (val != null) {
-        if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-            span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
-          } else {
-            queueSpan =
-                startSpan(
-                    JAVA_KAFKA.toString(),
-                    KAFKA_DELIVER,
-                    spanContext,
-                    MILLISECONDS.toMicros(timeInQueueStart));
-            BROKER_DECORATE.afterStart(queueSpan);
-            BROKER_DECORATE.onTimeInQueue(queueSpan, val);
-            span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
-            BROKER_DECORATE.beforeFinish(queueSpan);
-            // The queueSpan will be finished after inner span has been activated to ensure that
-            // spans are written out together by TraceStructureWriter when running in strict mode
-          }
-
-          DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
-          final long payloadSize =
-              traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
-          if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
-          } else {
-            // when we're in a streaming context we want to consume only from source topics
-            if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
-              // We have to inject the context to headers here,
-              // since the data received from the source may leave the topology on
-              // some other instance of the application, breaking the context propagation
-              // for DSM users
-              Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-              DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
-              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
-            }
-          }
-        } else {
-          span = startSpan(JAVA_KAFKA.toString(), operationName, null);
-        }
-        if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
-        }
-        decorator.afterStart(span);
-        decorator.onConsume(span, val, group, clusterId, bootstrapServers);
+        final AgentSpan span =
+            !KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+                ? startDsmOnlyPathwaySpan(val)
+                : startTracedConsumeSpan(val);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           activateNext(span);
         } else {
@@ -155,21 +111,106 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             previousSpan.finishWithEndToEnd();
           }
         }
-        if (null != queueSpan) {
-          queueSpan.finish();
-        }
-
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .trackTransaction(
-                span,
-                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
-                val.headers(),
-                DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);
     }
+  }
+
+  /**
+   * Creates and activates the real APM consume span (and, when time-in-queue is enabled, its broker
+   * parent), tags it, and reports DSM checkpoints/transactions off of it.
+   */
+  private AgentSpan startTracedConsumeSpan(ConsumerRecord<?, ?> val) {
+    AgentSpan span, queueSpan = null;
+    if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+      final AgentSpanContext spanContext = extractContextAndGetSpanContext(val.headers(), GETTER);
+      long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
+      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+        span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
+      } else {
+        queueSpan =
+            startSpan(
+                JAVA_KAFKA.toString(),
+                KAFKA_DELIVER,
+                spanContext,
+                MILLISECONDS.toMicros(timeInQueueStart));
+        BROKER_DECORATE.afterStart(queueSpan);
+        BROKER_DECORATE.onTimeInQueue(queueSpan, val);
+        span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
+        BROKER_DECORATE.beforeFinish(queueSpan);
+        // The queueSpan will be finished after inner span has been activated to ensure that
+        // spans are written out together by TraceStructureWriter when running in strict mode
+      }
+
+      DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
+      final long payloadSize =
+          traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
+      reportDsmCheckpointOrInject(span, val, tags, payloadSize);
+    } else {
+      span = startSpan(JAVA_KAFKA.toString(), operationName, null);
+    }
+    if (val.value() == null) {
+      span.setTag(InstrumentationTags.TOMBSTONE, true);
+    }
+    decorator.afterStart(span);
+    decorator.onConsume(span, val, group, clusterId, bootstrapServers);
+    if (null != queueSpan) {
+      queueSpan.finish();
+    }
+
+    trackDsmConsumeTransaction(span, val);
+    return span;
+  }
+
+  /**
+   * DSM-only mode (tracing disabled for kafka, DSM enabled): never creates a real span, so no span
+   * is ever written to the agent for this integration. Only the pathway checkpoint/injection and
+   * transaction tracking happen, carried by a lightweight, never-collected span shim.
+   */
+  private AgentSpan startDsmOnlyPathwaySpan(ConsumerRecord<?, ?> val) {
+    AgentSpan span;
+    if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+      final AgentSpanContext extractedContext =
+          extractContextAndGetSpanContext(val.headers(), GETTER);
+      span = newPathwayOnlySpan(extractedContext);
+      DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
+      final long payloadSize = computePayloadSizeBytes(val);
+      reportDsmCheckpointOrInject(span, val, tags, payloadSize);
+    } else {
+      span = newPathwayOnlySpan(null);
+    }
+    trackDsmConsumeTransaction(span, val);
+    return span;
+  }
+
+  /**
+   * Reports a DSM checkpoint for {@code val}'s topic, or - when in a streaming context and {@code
+   * val}'s topic is a source topic - injects the pathway context into its headers so it survives
+   * leaving the topology on another instance of the application.
+   */
+  private void reportDsmCheckpointOrInject(
+      AgentSpan span, ConsumerRecord<?, ?> val, DataStreamsTags tags, long payloadSize) {
+    if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
+    } else if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+      // when we're in a streaming context we want to consume only from source topics
+      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+      DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
+      dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+    }
+  }
+
+  private void trackDsmConsumeTransaction(AgentSpan span, ConsumerRecord<?, ?> val) {
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+            val.headers(),
+            DSM_TRANSACTION_SOURCE_READER);
   }
 
   @Override

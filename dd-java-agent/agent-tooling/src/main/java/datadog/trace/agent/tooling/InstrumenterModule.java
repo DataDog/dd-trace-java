@@ -41,6 +41,7 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    *   <li>{@link TargetSystem#USM usm}
+   *   <li>{@link TargetSystem#DATA_STREAMS data-streams}
    *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
    *   <li>{@link TargetSystem#RASP rasp}
    * </ul>
@@ -53,6 +54,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     CIVISIBILITY,
     USM,
     LLMOBS,
+    DATA_STREAMS,
     CONTEXT_TRACKING,
     RASP,
   }
@@ -317,6 +319,24 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.USM);
+    }
+  }
+
+  /** Parent class for instrumentations that support both tracing and Data Streams Monitoring */
+  public abstract static class DataStreams extends InstrumenterModule {
+    public DataStreams(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.TRACING)
+          || enabledSystems.contains(TargetSystem.DATA_STREAMS);
+    }
+
+    @Override
+    public boolean isEnabled() {
+      return super.isEnabled() || InstrumenterConfig.get().isDataStreamsEnabled();
     }
   }
 

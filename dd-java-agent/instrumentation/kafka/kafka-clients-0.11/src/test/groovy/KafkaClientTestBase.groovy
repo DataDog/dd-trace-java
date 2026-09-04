@@ -1544,3 +1544,4 @@ class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification 
     producer?.close()
   }
 }
+

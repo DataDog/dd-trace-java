@@ -12,12 +12,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
+import static datadog.trace.instrumentation.kafka_common.Utils.newPathwayOnlySpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -58,11 +60,11 @@ import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
-public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaProducerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaProducerInstrumentation() {
-    super("kafka", "kafka-0.11");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
@@ -154,20 +156,32 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       final AgentSpanContext extractedContext =
           extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
 
-      final AgentSpan localActiveSpan = activeSpan();
-
       final AgentSpan span;
       final AgentSpan callbackParentSpan;
 
-      if (extractedContext != null) {
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
+      if (!KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
+        // DSM-only mode: never create a real span, so nothing for this integration is ever
+        // written to the agent. The pathway is carried on a lightweight, never-collected span
+        // shim instead, falling back to whatever pathway the currently active span (if any)
+        // is carrying so a consume->produce chain keeps propagating the same pathway.
+        final AgentSpan localActiveSpan = activeSpan();
+        final AgentSpanContext pathwaySource =
+            extractedContext != null
+                ? extractedContext
+                : localActiveSpan == null ? null : localActiveSpan.spanContext();
+        span = newPathwayOnlySpan(pathwaySource);
         callbackParentSpan = span;
       } else {
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
-        callbackParentSpan = localActiveSpan;
+        if (extractedContext != null) {
+          span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
+          callbackParentSpan = span;
+        } else {
+          span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
+          callbackParentSpan = activeSpan();
+        }
+        PRODUCER_DECORATE.afterStart(span);
+        PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
       }
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
