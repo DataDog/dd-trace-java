@@ -1,8 +1,5 @@
 package datadog.trace.core.propagation.ptags;
 
-import java.util.ArrayList;
-import java.util.List;
-
 final class OtelTraceState {
   static final int MAX_VALUE_LENGTH = 256;
 
@@ -10,105 +7,110 @@ final class OtelTraceState {
   private static final long KNUTH_FACTOR = 1111111111111111111L;
   private static final long MAX_THRESHOLD = (1L << 56) - 1;
   private static final double THRESHOLD_RANGE = 1L << 56;
-  private static final String[] EMPTY_UNKNOWN_FIELDS = new String[0];
+  private static final long NO_VALUE = -1;
+  private static final int HAS_MULTIPLE_RANDOM_VALUES = 1;
+  private static final int HAS_LOCALLY_GENERATED_RANDOM_VALUE = 1 << 1;
+  private static final String RANDOM_VALUE_KEY = "rv:";
+  private static final String THRESHOLD_KEY = "th:";
 
   private final String value;
-  private final String randomValue;
-  private final String threshold;
-  private final String[] unknownFields;
-  private final int randomValueCount;
+  private final long randomValue;
+  private final long threshold;
   private final int originalPosition;
   private final int originalSize;
-  private final boolean locallyGeneratedRandomValue;
+  private final int flags;
 
   private OtelTraceState(
       String value,
-      String randomValue,
-      String threshold,
-      String[] unknownFields,
-      int randomValueCount,
+      long randomValue,
+      long threshold,
       int originalPosition,
       int originalSize,
-      boolean locallyGeneratedRandomValue) {
+      int flags) {
     this.value = value;
     this.randomValue = randomValue;
     this.threshold = threshold;
-    this.unknownFields = unknownFields;
-    this.randomValueCount = randomValueCount;
     this.originalPosition = originalPosition;
     this.originalSize = originalSize;
-    this.locallyGeneratedRandomValue = locallyGeneratedRandomValue;
+    this.flags = flags;
   }
 
   static OtelTraceState parse(String raw, int originalPosition, int originalSize) {
     if (raw == null || raw.isEmpty()) {
       return null;
     }
-    List<String> fields = new ArrayList<>();
-    List<String> unknownFields = null;
-    String randomValue = null;
-    String threshold = null;
-    int randomValueCount = 0;
-    boolean changed = false;
+    long randomValue = NO_VALUE;
+    long threshold = NO_VALUE;
+    int flags = 0;
+    StringBuilder normalized = null;
     int start = 0;
     while (start < raw.length()) {
       int end = raw.indexOf(';', start);
       if (end < 0) {
         end = raw.length();
       }
-      String field = raw.substring(start, end);
-      int separator = field.indexOf(':');
-      String key = separator > 0 ? field.substring(0, separator) : field;
-      String fieldValue = separator > 0 ? field.substring(separator + 1) : "";
-      if ("rv".equals(key)) {
-        if (fieldValue.length() == HEX_DIGITS && isLowercaseHex(fieldValue)) {
-          fields.add(field);
-          if (randomValue == null) {
-            randomValue = fieldValue;
+      int separator = raw.indexOf(':', start);
+      if (separator >= end) {
+        separator = -1;
+      }
+      int fieldValueStart = separator < 0 ? end : separator + 1;
+      if (hasKey(raw, start, end, separator, 'r', 'v')) {
+        long parsedRandomValue =
+            end - fieldValueStart == HEX_DIGITS
+                ? parseLowercaseHex(raw, fieldValueStart, end)
+                : NO_VALUE;
+        if (parsedRandomValue != NO_VALUE) {
+          if (randomValue == NO_VALUE) {
+            randomValue = parsedRandomValue;
+          } else {
+            flags |= HAS_MULTIPLE_RANDOM_VALUES;
           }
-          randomValueCount++;
-        } else {
-          changed = true;
-        }
-      } else if ("th".equals(key)) {
-        if (!fieldValue.isEmpty()
-            && fieldValue.length() <= HEX_DIGITS
-            && isLowercaseHex(fieldValue)) {
-          fields.add(field);
-          if (threshold == null) {
-            threshold = fieldValue;
+          if (normalized != null) {
+            appendField(normalized, raw, start, end);
           }
         } else {
-          changed = true;
+          normalized = startNormalizing(raw, normalized, start);
         }
-      } else if (!field.isEmpty()) {
-        fields.add(field);
-        if (unknownFields == null) {
-          unknownFields = new ArrayList<>();
+      } else if (hasKey(raw, start, end, separator, 't', 'h')) {
+        long parsedThreshold =
+            fieldValueStart < end && end - fieldValueStart <= HEX_DIGITS
+                ? parseLowercaseHex(raw, fieldValueStart, end)
+                : NO_VALUE;
+        if (parsedThreshold != NO_VALUE) {
+          if (threshold == NO_VALUE) {
+            threshold = parsedThreshold;
+          }
+          if (normalized != null) {
+            appendField(normalized, raw, start, end);
+          }
+        } else {
+          normalized = startNormalizing(raw, normalized, start);
         }
-        unknownFields.add(field);
+      } else if (start < end) {
+        if (normalized != null) {
+          appendField(normalized, raw, start, end);
+        }
       } else {
-        changed = true;
+        normalized = startNormalizing(raw, normalized, start);
       }
       start = end + 1;
     }
 
-    String value = join(fields);
-    if (value == null) {
-      return null;
+    if (raw.charAt(raw.length() - 1) == ';') {
+      normalized = startNormalizing(raw, normalized, raw.length());
     }
-    if (!value.equals(raw)) {
-      changed = true;
+
+    String value = normalized == null ? raw : normalized.toString();
+    if (value.isEmpty()) {
+      return null;
     }
     return new OtelTraceState(
         value,
         randomValue,
         threshold,
-        unknownFields == null ? EMPTY_UNKNOWN_FIELDS : unknownFields.toArray(new String[0]),
-        randomValueCount,
-        changed ? 0 : originalPosition,
+        normalized == null ? originalPosition : 0,
         originalSize,
-        false);
+        flags);
   }
 
   static OtelTraceState updateProbability(
@@ -117,7 +119,7 @@ final class OtelTraceState {
       double sampleRate,
       boolean sampled,
       int samplingPriority) {
-    String[] unknownFields = current == null ? EMPTY_UNKNOWN_FIELDS : current.unknownFields;
+    String currentValue = current == null ? null : current.value;
     int originalSize = current == null ? 0 : current.originalSize;
 
     // `sampled` is the raw probability result; `samplingPriority` may be changed by rate limiting.
@@ -126,9 +128,9 @@ final class OtelTraceState {
         return current.removeThresholdForLimiterDemotion();
       }
       return create(
-          formatRandomValue(computeRandomValue(traceIdLowOrderBits)),
-          null,
-          unknownFields,
+          computeRandomValue(traceIdLowOrderBits),
+          NO_VALUE,
+          currentValue,
           originalSize,
           true);
     }
@@ -141,27 +143,23 @@ final class OtelTraceState {
       randomValue = threshold == 0 ? 0 : threshold - 1;
     }
 
-    return create(
-        formatRandomValue(randomValue),
-        formatThreshold(threshold),
-        unknownFields,
-        originalSize,
-        true);
+    return create(randomValue, threshold, currentValue, originalSize, true);
   }
 
   OtelTraceState removeForNonProbabilityDecision() {
-    if (!locallyGeneratedRandomValue && threshold == null && randomValueCount <= 1) {
+    if (!hasLocallyGeneratedRandomValue() && threshold == NO_VALUE && !hasMultipleRandomValues()) {
       return this;
     }
-    String retainedRandomValue = locallyGeneratedRandomValue ? null : randomValue;
-    return create(retainedRandomValue, null, unknownFields, originalSize, false);
+    long retainedRandomValue = hasLocallyGeneratedRandomValue() ? NO_VALUE : randomValue;
+    return create(retainedRandomValue, NO_VALUE, value, originalSize, false);
   }
 
   OtelTraceState removeThresholdForLimiterDemotion() {
-    if (threshold == null) {
+    if (threshold == NO_VALUE) {
       return this;
     }
-    return create(randomValue, null, unknownFields, originalSize, locallyGeneratedRandomValue);
+    return create(
+        randomValue, NO_VALUE, value, originalSize, hasLocallyGeneratedRandomValue());
   }
 
   String getValue() {
@@ -181,16 +179,20 @@ final class OtelTraceState {
   }
 
   private static OtelTraceState create(
-      String randomValue,
-      String threshold,
-      String[] unknownFields,
+      long randomValue,
+      long threshold,
+      String previousValue,
       int originalSize,
       boolean locallyGeneratedRandomValue) {
     StringBuilder value = new StringBuilder();
-    append(value, randomValue == null ? null : "rv:" + randomValue);
-    append(value, threshold == null ? null : "th:" + threshold);
-    for (String field : unknownFields) {
-      append(value, field);
+    if (randomValue != NO_VALUE) {
+      appendRandomValue(value, randomValue);
+    }
+    if (threshold != NO_VALUE) {
+      appendThreshold(value, threshold);
+    }
+    if (previousValue != null) {
+      appendUnknownFields(value, previousValue);
     }
     if (value.length() == 0) {
       return null;
@@ -199,49 +201,111 @@ final class OtelTraceState {
         value.toString(),
         randomValue,
         threshold,
-        unknownFields,
-        randomValue == null ? 0 : 1,
         0,
         originalSize,
-        locallyGeneratedRandomValue);
+        locallyGeneratedRandomValue ? HAS_LOCALLY_GENERATED_RANDOM_VALUE : 0);
   }
 
-  private static void append(StringBuilder value, String field) {
-    if (field == null || field.isEmpty()) {
+  private static StringBuilder startNormalizing(String raw, StringBuilder normalized, int start) {
+    if (normalized != null) {
+      return normalized;
+    }
+    normalized = new StringBuilder(raw.length());
+    if (start > 0) {
+      normalized.append(raw, 0, start - 1);
+    }
+    return normalized;
+  }
+
+  private static void appendRandomValue(StringBuilder value, long randomValue) {
+    if (appendFieldPrefix(value, RANDOM_VALUE_KEY.length() + HEX_DIGITS)) {
+      value.append(RANDOM_VALUE_KEY);
+      appendHex(value, randomValue, HEX_DIGITS);
+    }
+  }
+
+  private static void appendThreshold(StringBuilder value, long threshold) {
+    int hexDigits = thresholdHexDigits(threshold);
+    if (appendFieldPrefix(value, THRESHOLD_KEY.length() + hexDigits)) {
+      value.append(THRESHOLD_KEY);
+      appendHex(value, threshold, hexDigits);
+    }
+  }
+
+  private static void appendUnknownFields(StringBuilder value, String previousValue) {
+    int start = 0;
+    while (start < previousValue.length()) {
+      int end = previousValue.indexOf(';', start);
+      if (end < 0) {
+        end = previousValue.length();
+      }
+      int separator = previousValue.indexOf(':', start);
+      if (separator >= end) {
+        separator = -1;
+      }
+      if (!hasKey(previousValue, start, end, separator, 'r', 'v')
+          && !hasKey(previousValue, start, end, separator, 't', 'h')) {
+        appendField(value, previousValue, start, end);
+      }
+      start = end + 1;
+    }
+  }
+
+  private static void appendField(StringBuilder value, String field, int start, int end) {
+    if (!appendFieldPrefix(value, end - start)) {
       return;
     }
+    value.append(field, start, end);
+  }
+
+  private static boolean appendFieldPrefix(StringBuilder value, int fieldLength) {
     int separatorSize = value.length() == 0 ? 0 : 1;
-    if (value.length() + separatorSize + field.length() > MAX_VALUE_LENGTH) {
-      return;
+    if (value.length() + separatorSize + fieldLength > MAX_VALUE_LENGTH) {
+      return false;
     }
     if (separatorSize != 0) {
       value.append(';');
     }
-    value.append(field);
-  }
-
-  private static String join(List<String> fields) {
-    if (fields.isEmpty()) {
-      return null;
-    }
-    StringBuilder value = new StringBuilder();
-    for (String field : fields) {
-      if (value.length() != 0) {
-        value.append(';');
-      }
-      value.append(field);
-    }
-    return value.toString();
-  }
-
-  private static boolean isLowercaseHex(String value) {
-    for (int i = 0; i < value.length(); i++) {
-      char character = value.charAt(i);
-      if (!((character >= '0' && character <= '9') || (character >= 'a' && character <= 'f'))) {
-        return false;
-      }
-    }
     return true;
+  }
+
+  private static boolean hasKey(
+      String value, int start, int end, int separator, char first, char second) {
+    if (separator >= 0) {
+      return separator == start + 2
+          && value.charAt(start) == first
+          && value.charAt(start + 1) == second;
+    }
+    return end == start + 2 && value.charAt(start) == first && value.charAt(start + 1) == second;
+  }
+
+  private static long parseLowercaseHex(String value, int start, int end) {
+    long parsed = 0;
+    for (int i = start; i < end; i++) {
+      char character = value.charAt(i);
+      if (character >= '0' && character <= '9') {
+        parsed = (parsed << 4) | character - '0';
+      } else if (character >= 'a' && character <= 'f') {
+        parsed = (parsed << 4) | character - 'a' + 10;
+      } else {
+        return NO_VALUE;
+      }
+    }
+    return parsed;
+  }
+
+  private boolean hasMultipleRandomValues() {
+    return (flags & HAS_MULTIPLE_RANDOM_VALUES) != 0;
+  }
+
+  private boolean hasLocallyGeneratedRandomValue() {
+    return (flags & HAS_LOCALLY_GENERATED_RANDOM_VALUE) != 0;
+  }
+
+  private static void appendHex(StringBuilder value, long number, int digits) {
+    for (int shift = (HEX_DIGITS - 1) * 4; shift >= (HEX_DIGITS - digits) * 4; shift -= 4) {
+      value.append(Character.forDigit((int) (number >>> shift) & 0xF, 16));
+    }
   }
 
   private static long computeRandomValue(long traceIdLowOrderBits) {
@@ -253,24 +317,12 @@ final class OtelTraceState {
     return Math.max(0, Math.min(threshold, MAX_THRESHOLD));
   }
 
-  private static String formatRandomValue(long randomValue) {
-    String hex = Long.toHexString(randomValue);
-    if (hex.length() == HEX_DIGITS) {
-      return hex;
+  private static int thresholdHexDigits(long threshold) {
+    int digits = HEX_DIGITS;
+    while (digits > 1 && (threshold & 0xF) == 0) {
+      digits--;
+      threshold >>>= 4;
     }
-    StringBuilder padded = new StringBuilder(HEX_DIGITS);
-    for (int i = hex.length(); i < HEX_DIGITS; i++) {
-      padded.append('0');
-    }
-    return padded.append(hex).toString();
-  }
-
-  private static String formatThreshold(long threshold) {
-    String hex = formatRandomValue(threshold);
-    int end = hex.length();
-    while (end > 1 && hex.charAt(end - 1) == '0') {
-      end--;
-    }
-    return hex.substring(0, end);
+    return digits;
   }
 }
