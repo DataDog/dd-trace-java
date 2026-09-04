@@ -46,6 +46,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
   private List<? extends AgentSpanLink> currentSpanLinks = Collections.emptyList();
+  private String currentOtelTraceState;
 
   /** Adds the given trace spans to the collector. */
   @Override
@@ -56,8 +57,9 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
 
     try {
+      String otelTraceState = getOtlpOtelTraceState(spans);
       for (CoreSpan<?> span : spans) {
-        visitSpan(span);
+        visitSpan(span, otelTraceState);
       }
     } catch (Throwable e) {
       // reset the buffer for subsequent traces
@@ -114,6 +116,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     currentScope = null;
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
+    currentOtelTraceState = null;
   }
 
   private void visitScopedSpans(OtelInstrumentationScope scope) {
@@ -128,7 +131,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.name("spans").beginArray();
   }
 
-  private void visitSpan(CoreSpan<?> span) {
+  private void visitSpan(CoreSpan<?> span, String otelTraceState) {
     if (!shouldExport(span)) {
       return;
     }
@@ -141,6 +144,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
     currentSpan = (DDSpan) span;
     currentSpanLinks = currentSpan.getLinks();
+    currentOtelTraceState = otelTraceState;
   }
 
   // called once we've processed all scopes and span messages
@@ -185,12 +189,13 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
       metaWriter.includeProcessTags();
       firstSpanInScope = false;
     }
-    writeSpan(writer, currentSpan, metaWriter, currentSpanLinks);
+    writeSpan(writer, currentSpan, metaWriter, currentSpanLinks, currentOtelTraceState);
     anySpanWritten = true;
 
     // reset temporary elements for next span
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
+    currentOtelTraceState = null;
 
     if (writer.size() > MAX_CAPACITY_BYTES) {
       throw new IllegalStateException(

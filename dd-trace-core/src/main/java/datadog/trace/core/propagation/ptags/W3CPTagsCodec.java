@@ -229,7 +229,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int estimateHeaderSize(PTags pTags) {
-    return estimateHeaderSize(pTags, pTags.getOtelTraceState());
+    return estimateHeaderSize(pTags, pTags.getOtelTraceStateForW3C());
   }
 
   @Override
@@ -320,7 +320,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
-    return appendSuffix(sb, ptags, size, ptags.getOtelTraceState());
+    return appendSuffix(sb, ptags, size, ptags.getOtelTraceStateForW3C());
   }
 
   @Override

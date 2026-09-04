@@ -606,7 +606,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         return;
       }
       PTags sourcePTags = (PTags) source;
-      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
+      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceStateForW3C());
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
@@ -615,8 +615,14 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.otelTraceState = otelTraceState;
     }
 
-    OtelTraceState getOtelTraceState() {
+    OtelTraceState getOtelTraceStateForW3C() {
       return otelTraceState;
+    }
+
+    @Override
+    public String getOtelTraceState() {
+      OtelTraceState state = otelTraceState;
+      return state == null ? null : state.getValue();
     }
 
     void setOtelTraceState(OtelTraceState otelTraceState) {
