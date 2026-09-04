@@ -448,27 +448,127 @@ public final class Initializer {
           PosixFilePermission.OTHERS_WRITE,
           PosixFilePermission.OTHERS_EXECUTE);
 
+  private static final Set<PosixFilePermission> GROUP_WORLD_WRITE_BITS =
+      EnumSet.of(PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE);
+
   /**
-   * Returns {@code true} when {@code f} is safe to trust: on non-POSIX file systems always returns
-   * {@code true}; on POSIX returns {@code true} only when the path is owned by the current JVM user
-   * and has no group or world permission bits set (effective {@code 0700} for dirs, {@code 0600} or
-   * stricter for files).
+   * Returns {@code true} when {@code f} is owned by the current JVM user and has no group/world
+   * <em>write</em> bit set; on non-POSIX file systems always returns {@code true}. Stray
+   * group/world <em>read</em> or <em>execute</em> bits (e.g. the {@code 0755} a pre-upgrade version
+   * of this initializer, which did not lock down permissions, could have left behind) do not
+   * disqualify the path here: those bits are safe to tighten in place with {@link
+   * #stripGroupAndWorldBits(File)} rather than treating the path as untrusted. A group/world write
+   * bit is still treated as a sign of possible tampering and causes this method to return {@code
+   * false}.
    */
-  static boolean isOwnedAndPrivate(File f) {
+  static boolean isSafeToRepair(File f) {
+    return isOwnedWithoutBits(f, GROUP_WORLD_WRITE_BITS);
+  }
+
+  /**
+   * Returns {@code true} when {@code f} is owned by the current JVM user and has none of {@code
+   * forbiddenBits} set. On non-POSIX file systems always returns {@code true}.
+   */
+  private static boolean isOwnedWithoutBits(File f, Set<PosixFilePermission> forbiddenBits) {
     if (OperatingSystem.isWindows()) {
       return true;
     }
     try {
       Path path = f.toPath();
-      UserPrincipal owner = Files.getOwner(path);
-      UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
-      if (!jvmUser.equals(owner)) {
+      if (!isJvmOwner(path)) {
         return false;
       }
       Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
-      return perms.stream().noneMatch(GROUP_WORLD_BITS::contains);
-    } catch (IOException | IllegalStateException e) {
+      return perms.stream().noneMatch(forbiddenBits::contains);
+    } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
       LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
+      return false;
+    }
+  }
+
+  private static boolean isJvmOwner(Path path) throws IOException {
+    UserPrincipal owner = Files.getOwner(path);
+    UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
+    return jvmUser.equals(owner);
+  }
+
+  /**
+   * Sets read/write/execute for the owner only on a freshly created script directory (effective
+   * {@code 0700}, stripping any group/world bits left over from the process umask). Returns {@code
+   * true} when the permissions were applied; on failure the caller must treat the directory as
+   * unusable.
+   */
+  static boolean restrictDirectoryToOwnerOnly(File dir) {
+    return setOwnerOnlyPermissions(dir, true);
+  }
+
+  /**
+   * Sets read/execute (but not write) for the owner only on a freshly created script file. Returns
+   * {@code true} when the permissions were applied; on failure the caller must discard the file.
+   */
+  static boolean restrictScriptToOwnerOnly(File scriptFile) {
+    return setOwnerOnlyPermissions(scriptFile, false);
+  }
+
+  /**
+   * Applies owner-only permissions to {@code f}: all group/world bits are cleared and the owner
+   * keeps read and execute, plus write iff {@code ownerWritable}. On POSIX file systems this is a
+   * single atomic operation whose failure makes the caller refuse the path. On file systems without
+   * POSIX permission bits (e.g. Windows) there is nothing to verify, so restriction is best-effort
+   * through the legacy API and the method returns {@code true} even on partial failure.
+   */
+  private static boolean setOwnerOnlyPermissions(File f, boolean ownerWritable) {
+    Path path = f.toPath();
+    if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      try {
+        Set<PosixFilePermission> perms =
+            EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+        if (ownerWritable) {
+          perms.add(PosixFilePermission.OWNER_WRITE);
+        }
+        Files.setPosixFilePermissions(path, perms);
+        return true;
+      } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
+        LOG.debug("Unable to restrict permissions for {}: {}", f, e.getMessage());
+        return false;
+      }
+    }
+    boolean ok = f.setReadable(false, false);
+    ok &= f.setWritable(false, false);
+    ok &= f.setExecutable(false, false);
+    ok &= f.setReadable(true, true);
+    if (ownerWritable) {
+      ok &= f.setWritable(true, true);
+    }
+    ok &= f.setExecutable(true, true);
+    if (!ok) {
+      LOG.debug(
+          "Unable to fully restrict permissions for {} on a file system without POSIX support", f);
+    }
+    return true;
+  }
+
+  /**
+   * Removes any group/world permission bits from {@code f} while leaving the owner's own bits
+   * untouched, in a single atomic operation. Unlike {@link #restrictDirectoryToOwnerOnly(File)},
+   * this never adds a permission (e.g. owner write) that {@code f} did not already have, so a path
+   * an operator deliberately made non-writable for the owner stays non-writable after repair.
+   * Returns {@code true} when the bits were applied or nothing needed stripping; on failure the
+   * caller must treat {@code f} as unusable. On Windows this is a no-op that returns {@code true}.
+   */
+  static boolean stripGroupAndWorldBits(File f) {
+    if (OperatingSystem.isWindows()) {
+      return true;
+    }
+    try {
+      Path path = f.toPath();
+      Set<PosixFilePermission> perms = EnumSet.noneOf(PosixFilePermission.class);
+      perms.addAll(Files.getPosixFilePermissions(path));
+      perms.removeAll(GROUP_WORLD_BITS);
+      Files.setPosixFilePermissions(path, perms);
+      return true;
+    } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
+      LOG.debug("Unable to strip group/world permissions for {}: {}", f, e.getMessage());
       return false;
     }
   }
