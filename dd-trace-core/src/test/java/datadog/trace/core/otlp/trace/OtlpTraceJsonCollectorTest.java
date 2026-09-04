@@ -130,27 +130,70 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
-  void spanTraceStateIncludedWhenPropagated() throws IOException {
+  void spansExportFullTraceStateWithOtelMember() throws IOException {
     PropagationTags propagationTags = PropagationTags.factory().empty();
-    propagationTags.updateW3CTracestate("vendor=state");
+    propagationTags.updateW3CTracestate("vendor=state,ot=rv:0abcdef1234567;th:80000000000000");
+    propagationTags.updateTraceSamplingPriority(
+        PrioritySampling.USER_KEEP, SamplingMechanism.EXTERNAL_OVERRIDE);
     ExtractedContext parent =
         new ExtractedContext(
             DDTraceId.ONE,
             0L,
-            PrioritySampling.UNSET,
+            PrioritySampling.USER_KEEP,
             null,
             propagationTags,
             TracePropagationStyle.DATADOG);
 
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.tracestate", parent);
-    agentSpan.setResourceName("op.tracestate");
-    agentSpan.finish();
+    AgentSpan root = TRACER.startSpan("test", "op.tracestate.root", parent);
+    root.setResourceName("op.tracestate.root");
+    AgentSpan child = TRACER.startSpan("test", "op.tracestate.child", root.spanContext());
+    child.setResourceName("op.tracestate.child");
+    child.finish();
+    root.finish();
 
     OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
 
-    assertEquals("vendor=state", parsedSpan.get("traceState"));
+    assertEquals(2, parsedSpans.size());
+    for (Map<String, Object> parsedSpan : parsedSpans) {
+      assertEquals(
+          "vendor=state,ot=rv:0abcdef1234567;th:80000000000000", parsedSpan.get("traceState"));
+    }
+  }
+
+  @Test
+  void spansExportOtelTraceStateWithoutW3CTraceState() throws IOException {
+    PropagationTags propagationTags = PropagationTags.factory().empty();
+    propagationTags.updateTraceSamplingPriority(
+        PrioritySampling.USER_KEEP, SamplingMechanism.EXTERNAL_OVERRIDE);
+    propagationTags.updateOtelTraceState(
+        DDTraceId.ONE.toLong(), 0.5, true, PrioritySampling.USER_KEEP);
+    String traceState = "ot=" + propagationTags.getOtelTraceState();
+    ExtractedContext parent =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.USER_KEEP,
+            null,
+            propagationTags,
+            TracePropagationStyle.DATADOG);
+
+    AgentSpan root = TRACER.startSpan("test", "op.otel.root", parent);
+    root.setResourceName("op.otel.root");
+    AgentSpan child = TRACER.startSpan("test", "op.otel.child", root.spanContext());
+    child.setResourceName("op.otel.child");
+    child.finish();
+    root.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+
+    assertEquals(2, parsedSpans.size());
+    for (Map<String, Object> parsedSpan : parsedSpans) {
+      assertEquals(traceState, parsedSpan.get("traceState"));
+    }
   }
 
   @Test

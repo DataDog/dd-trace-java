@@ -46,7 +46,6 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
-import datadog.trace.core.propagation.PropagationTags;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -81,8 +80,8 @@ public final class OtlpTraceProto {
       DDSpan span,
       MetaWriter metaWriter,
       int nestedSpanLinkBytes,
-      OtlpProtoBuffer protobuf) {
-    PropagationTags propagationTags = span.spanContext().getPropagationTags();
+      OtlpProtoBuffer protobuf,
+      String otelTraceState) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -90,10 +89,13 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
-    if (tracestate != null) {
+    String traceState = span.spanContext().getPropagationTags().getW3CTracestate();
+    if (traceState == null) {
+      traceState = otelTraceState;
+    }
+    if (traceState != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
-      writeString(buf, tracestate);
+      writeString(buf, traceState);
     }
 
     if (span.getParentId() != 0) {

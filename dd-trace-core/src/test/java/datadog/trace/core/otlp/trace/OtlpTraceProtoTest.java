@@ -676,6 +676,69 @@ class OtlpTraceProtoTest {
         "spans must appear in trace order in the payload");
   }
 
+  @Test
+  void spansExportFullTraceStateWithOtelMember() throws IOException {
+    PropagationTags propagationTags = PropagationTags.factory().empty();
+    propagationTags.updateW3CTracestate("vendor=state,ot=rv:0abcdef1234567;th:80000000000000");
+    propagationTags.updateTraceSamplingPriority(
+        PrioritySampling.USER_KEEP, SamplingMechanism.EXTERNAL_OVERRIDE);
+    ExtractedContext parent =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.USER_KEEP,
+            null,
+            propagationTags,
+            TracePropagationStyle.DATADOG);
+
+    AgentSpan root = TRACER.startSpan("test", "op.tracestate.root", parent);
+    root.setResourceName("op.tracestate.root");
+    AgentSpan child = TRACER.startSpan("test", "op.tracestate.child", root.spanContext());
+    child.setResourceName("op.tracestate.child");
+    child.finish();
+    root.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((DDSpan) root, (DDSpan) child));
+
+    assertEquals(
+        asList(
+            "vendor=state,ot=rv:0abcdef1234567;th:80000000000000",
+            "vendor=state,ot=rv:0abcdef1234567;th:80000000000000"),
+        parseSpanTraceStatesFromPayload(collector.collectTraces()));
+  }
+
+  @Test
+  void spansExportOtelTraceStateWithoutW3CTraceState() throws IOException {
+    PropagationTags propagationTags = PropagationTags.factory().empty();
+    propagationTags.updateTraceSamplingPriority(
+        PrioritySampling.USER_KEEP, SamplingMechanism.EXTERNAL_OVERRIDE);
+    propagationTags.updateOtelTraceState(
+        DDTraceId.ONE.toLong(), 0.5, true, PrioritySampling.USER_KEEP);
+    String traceState = "ot=" + propagationTags.getOtelTraceState();
+    ExtractedContext parent =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.USER_KEEP,
+            null,
+            propagationTags,
+            TracePropagationStyle.DATADOG);
+
+    AgentSpan root = TRACER.startSpan("test", "op.otel.root", parent);
+    root.setResourceName("op.otel.root");
+    AgentSpan child = TRACER.startSpan("test", "op.otel.child", root.spanContext());
+    child.setResourceName("op.otel.child");
+    child.finish();
+    root.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((DDSpan) root, (DDSpan) child));
+
+    assertEquals(
+        asList(traceState, traceState), parseSpanTraceStatesFromPayload(collector.collectTraces()));
+  }
+
   private static List<String> parseSpanNamesFromPayload(OtlpPayload payload) throws IOException {
     CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
     tracesData.readTag(); // field 1: TracesData.resource_spans
@@ -713,6 +776,45 @@ class OtlpTraceProtoTest {
       }
     }
     return names;
+  }
+
+  private static List<String> parseSpanTraceStatesFromPayload(OtlpPayload payload)
+      throws IOException {
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    tracesData.readTag();
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+
+    CodedInputStream scopeSpans = null;
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        scopeSpans = resourceSpans.readBytes().newCodedInput();
+      } else {
+        resourceSpans.skipField(tag);
+      }
+    }
+    assertNotNull(scopeSpans, "ScopeSpans must be present in ResourceSpans");
+
+    List<String> traceStates = new ArrayList<>();
+    while (!scopeSpans.isAtEnd()) {
+      int tag = scopeSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) != 2) {
+        scopeSpans.skipField(tag);
+        continue;
+      }
+      CodedInputStream spanData = scopeSpans.readBytes().newCodedInput();
+      String traceState = null;
+      while (!spanData.isAtEnd()) {
+        int spanTag = spanData.readTag();
+        if (WireFormat.getTagFieldNumber(spanTag) == 3) {
+          traceState = spanData.readString();
+        } else {
+          spanData.skipField(spanTag);
+        }
+      }
+      traceStates.add(traceState);
+    }
+    return traceStates;
   }
 
   // ── span construction ─────────────────────────────────────────────────────

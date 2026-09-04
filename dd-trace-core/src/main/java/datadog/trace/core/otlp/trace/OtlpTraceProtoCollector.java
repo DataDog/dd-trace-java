@@ -47,6 +47,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
+  private String currentOtelTraceState;
 
   /** Adds the given trace spans to the collector. */
   @Override
@@ -57,9 +58,10 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
 
     try {
+      String otelTraceState = getOtlpOtelTraceState(spans);
       // OtlpProtoBuffer collects spans in reverse
       for (int i = spans.size() - 1; i >= 0; i--) {
-        visitSpan(spans.get(i));
+        visitSpan(spans.get(i), otelTraceState);
       }
     } catch (Throwable e) {
       // reset the buffer for subsequent traces
@@ -109,6 +111,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
     currentScope = null;
     currentSpan = null;
+    currentOtelTraceState = null;
   }
 
   private void visitScopedSpans(OtelInstrumentationScope scope) {
@@ -118,7 +121,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     currentScope = scope;
   }
 
-  private void visitSpan(CoreSpan<?> span) {
+  private void visitSpan(CoreSpan<?> span, String otelTraceState) {
     if (!shouldExport(span)) {
       return;
     }
@@ -131,6 +134,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       completeSpan();
     }
     currentSpan = (DDSpan) span;
+    currentOtelTraceState = otelTraceState;
     currentSpan.getLinks().forEach(this::visitSpanLink);
   }
 
@@ -178,10 +182,12 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   // called once we've processed all span-links in a specific span
   private void completeSpan() {
 
-    scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
+    scopedBytes +=
+        recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf, currentOtelTraceState);
 
     // reset temporary elements for next span
     currentSpan = null;
+    currentOtelTraceState = null;
     spanBytes = 0;
   }
 }

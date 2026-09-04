@@ -256,7 +256,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       // We assume there is no Datadog list-member
       size += pTags.tracestate.length();
     }
-    OtelTraceState otelTraceState = pTags.getOtelTraceState();
+    OtelTraceState otelTraceState = pTags.getOtelTraceStateForW3C();
     if (otelTraceState != null) {
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
@@ -734,7 +734,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static boolean appendOtelAndVendorMembers(
       StringBuilder sb, PTags ptags, boolean hasDatadogMember) {
     String original = ptags.tracestate;
-    OtelTraceState otelTraceState = ptags.getOtelTraceState();
+    OtelTraceState otelTraceState = ptags.getOtelTraceStateForW3C();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     int otherMemberPosition = 0;
     boolean otelTraceStateAppended = false;
