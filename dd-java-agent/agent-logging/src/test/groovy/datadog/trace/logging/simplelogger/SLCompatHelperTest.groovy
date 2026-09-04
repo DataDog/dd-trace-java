@@ -6,7 +6,13 @@ import spock.lang.Specification
 
 import java.text.SimpleDateFormat
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings
+
 class SLCompatHelperTest extends Specification {
+
+  private static String normalizedOutput(ByteArrayOutputStream outputStream) {
+    normalizeLineEndings(outputStream.toString())
+  }
 
   private class NoStackException extends Exception {
     NoStackException(String message) {
@@ -73,7 +79,7 @@ class SLCompatHelperTest extends Specification {
     helper.log(level, null, msg, null)
 
     then:
-    outputStream.toString() == expected
+    normalizedOutput(outputStream) == expected
 
     where:
     name  | level          | msg     | expected
@@ -94,7 +100,7 @@ class SLCompatHelperTest extends Specification {
     helper.log(LogLevel.ERROR, null, "log", exception)
 
     expect:
-    outputStream.toString() == "[$thread] ERROR foo - log\n${NoStackException.getName()}: wrong\n"
+    normalizedOutput(outputStream) == "[$thread] ERROR foo - log\n${NoStackException.getName()}: wrong\n"
   }
 
   def "test logging with an embedded exception in the message"() {
@@ -112,7 +118,7 @@ class SLCompatHelperTest extends Specification {
     }
 
     expect:
-    outputStream.toString() ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+    normalizedOutput(outputStream) ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
 
     where:
     level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
@@ -130,7 +136,7 @@ class SLCompatHelperTest extends Specification {
     helper.log(LogLevel.ERROR, null, "log", null)
 
     expect:
-    outputStream.toString() ==~ /^\d+ ERROR foo - log\n$/
+    normalizedOutput(outputStream) ==~ /^\d+ ERROR foo - log\n$/
   }
 
   def "test log output with configuration"() {
@@ -145,7 +151,7 @@ class SLCompatHelperTest extends Specification {
     helper.log(level, null, 0, 4711, "thread", "log", null)
 
     then:
-    outputStream.toString() == expected
+    normalizedOutput(outputStream) == expected
 
     where:
     level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
@@ -177,7 +183,7 @@ class SLCompatHelperTest extends Specification {
     helper.log(level, null, "log", null)
 
     then:
-    outputStream.toString() == expected
+    normalizedOutput(outputStream) == expected
 
     where:
     level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
@@ -197,7 +203,7 @@ class SLCompatHelperTest extends Specification {
     helper.logJson(level,null,0,4711,"thread","log", null)
 
     then:
-    outputStream.toString() == expected
+    normalizedOutput(outputStream) == expected
 
     where:
     level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
@@ -227,6 +233,6 @@ class SLCompatHelperTest extends Specification {
       helper.log(LogLevel.INFO, null, "log", exception)
     }
     expect:
-    outputStream.toString() ==~ /^\{"origin":"dd.trace","level":"INFO","logger.name":"foo","message":"log","exception":\{"message":"wrong","stackTrace":\[.*\]\}\}\n$/
+    normalizedOutput(outputStream) ==~ /^\{"origin":"dd.trace","level":"INFO","logger.name":"foo","message":"log","exception":\{"message":"wrong","stackTrace":\[.*\]\}\}\n$/
   }
 }

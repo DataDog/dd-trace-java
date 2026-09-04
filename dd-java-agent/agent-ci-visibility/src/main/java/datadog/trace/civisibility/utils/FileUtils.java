@@ -3,12 +3,14 @@ package datadog.trace.civisibility.utils;
 import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.DosFileAttributeView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +28,7 @@ public abstract class FileUtils {
           @Override
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
               throws IOException {
-            Files.delete(file);
+            deleteFile(file);
             return FileVisitResult.CONTINUE;
           }
 
@@ -36,6 +38,20 @@ public abstract class FileUtils {
             return FileVisitResult.CONTINUE;
           }
         });
+  }
+
+  private static void deleteFile(Path file) throws IOException {
+    try {
+      Files.delete(file);
+    } catch (AccessDeniedException e) {
+      DosFileAttributeView dosAttributes =
+          Files.getFileAttributeView(file, DosFileAttributeView.class);
+      if (dosAttributes == null || !dosAttributes.readAttributes().isReadOnly()) {
+        throw e;
+      }
+      dosAttributes.setReadOnly(false);
+      Files.delete(file);
+    }
   }
 
   /**

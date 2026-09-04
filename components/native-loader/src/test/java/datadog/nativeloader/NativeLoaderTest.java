@@ -11,12 +11,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,6 +33,21 @@ import java.util.jar.JarOutputStream;
 import org.junit.jupiter.api.Test;
 
 public class NativeLoaderTest {
+  @Test
+  public void createTempFileOnNonPosixFileSystem() throws IOException {
+    try (FileSystem fileSystem = Jimfs.newFileSystem(Configuration.windows())) {
+      assertFalse(fileSystem.supportedFileAttributeViews().contains("posix"));
+      Path tempDir = fileSystem.getPath("C:\\temp");
+
+      Path tempFile = NativeLoader.TempFileHelper.createTempFile(tempDir, "library", "dll");
+
+      assertTrue(Files.isRegularFile(tempFile));
+      assertTrue(tempFile.startsWith(tempDir));
+      assertTrue(tempFile.getFileName().toString().startsWith("library"));
+      assertTrue(tempFile.getFileName().toString().endsWith(".dll"));
+    }
+  }
+
   @Test
   public void preloaded() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").build();
@@ -458,6 +477,7 @@ public class NativeLoaderTest {
   @Test
   public void fromJarBackedClassLoader_with_unwritable_tempDir()
       throws IOException, LibraryLoadException {
+    requirePosix();
     Path jar = jar("test-data");
     try {
       Path noWriteDir = Paths.get("no-write-temp");
@@ -488,6 +508,7 @@ public class NativeLoaderTest {
 
   @Test
   public void fromJarBackedClassLoader_with_locked_file() throws IOException, LibraryLoadException {
+    requirePosix();
     Path jar = jar("test-data");
     try {
       Path tempDir = Paths.get("temp");
@@ -514,10 +535,20 @@ public class NativeLoaderTest {
 
   void deleteHelper(Path dir) {
     try {
-      Files.setPosixFilePermissions(dir, posixPerms("rwx------"));
+      if (isPosix()) {
+        Files.setPosixFilePermissions(dir, posixPerms("rwx------"));
+      }
       Files.delete(dir);
     } catch (IOException e) {
     }
+  }
+
+  static void requirePosix() {
+    assumeTrue(isPosix(), "Skipping POSIX-only test on non-POSIX file system");
+  }
+
+  static boolean isPosix() {
+    return FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
   }
 
   static URLClassLoader createClassLoader(Path... paths) {
@@ -549,7 +580,7 @@ public class NativeLoaderTest {
   }
 
   static Path jarHelper(Path dir) throws IOException {
-    Path jarPath = Files.createTempFile(dir.toFile().getName(), ".jar", posixAttr("rwx------"));
+    Path jarPath = Files.createTempFile(dir.toFile().getName(), ".jar");
 
     try (JarOutputStream jarStream = new JarOutputStream(Files.newOutputStream(jarPath))) {
       Files.walk(dir)

@@ -243,7 +243,7 @@ class DependencyResolverSpecification extends DepSpecification {
     out.close()
 
     when:
-    URI uri = new URI("jar:file:" + file.getAbsolutePath() + "!/BOOT-INF/lib/lib-1.0.jar!/")
+    URI uri = new URI("jar:" + file.toURI() + "!/BOOT-INF/lib/lib-1.0.jar!/")
     List<Dependency> deps = DependencyResolver.resolve(uri)
 
     then:
@@ -328,13 +328,13 @@ class DependencyResolverSpecification extends DepSpecification {
     out.close()
 
     when:
-    def deps = DependencyResolver.resolve(new URI('jar:file:' + file.getAbsolutePath() + "!/classes!/"))
+    def deps = DependencyResolver.resolve(new URI('jar:' + file.toURI() + "!/classes!/"))
 
     then:
     deps.isEmpty()
 
     when: 'resolve without catching exceptions'
-    deps = DependencyResolver.internalResolve(new URI('jar:file:' + file.getAbsolutePath() + "!/classes!/"))
+    deps = DependencyResolver.internalResolve(new URI('jar:' + file.toURI() + "!/classes!/"))
 
     then: 'it does not throw'
     deps.isEmpty()

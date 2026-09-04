@@ -3,6 +3,7 @@ package datadog.telemetry
 import datadog.environment.OperatingSystem
 import spock.lang.Specification
 
+import static org.junit.jupiter.api.Assumptions.assumeFalse
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class HostInfoTest extends Specification {
@@ -33,6 +34,7 @@ class HostInfoTest extends Specification {
   }
 
   void 'compare to uname'() {
+    assumeFalse(OperatingSystem.isWindows())
     assumeTrue('uname -a'.execute().waitFor() == 0)
 
     expect:
