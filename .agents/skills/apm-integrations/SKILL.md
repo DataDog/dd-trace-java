@@ -93,7 +93,7 @@ Cover all mandatory test types:
 
 ### 1. Instrumentation test (mandatory)
 
-**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add the `tag: override groovy enforcement` label to suppress the `Enforce Groovy Migration` CI check (which blocks new `.groovy` files by default — instrumentation tests are intentionally Groovy/Spock). Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include sibling version modules as `testImplementation` dependencies for mutual-exclusion tests.
+**Read [Writing Tests](references/tests.md) — it defines the Groovy-vs-Java DSL rule; follow it before creating any test files.** Adding new `.groovy` files to a PR triggers the `Enforce Groovy Migration` CI check — add the `tag: override groovy enforcement` label to suppress it. Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). Situational rules (version-mismatch comments, mutual-exclusion deps, etc.) are in [tests-style.md](references/tests-style.md) — check it if your module hits one of those cases.
 
 ### 2. Muzzle directives (mandatory)
 
@@ -101,7 +101,7 @@ Cover all mandatory test types:
 
 ### 3. Latest dependency test (mandatory)
 
-If the library's API surface changes across minor versions (deprecated/removed methods, changed signatures), see [Writing Tests](references/tests.md)'s "Version-sensitive tests belong in a separate `latestDepTest` source set" section for which tests belong in `src/test/` vs `src/latestDepTest/`.
+If the library's API surface changes across minor versions (deprecated/removed methods, changed signatures), see [tests-style.md](references/tests-style.md)'s "Version-sensitive tests belong in a separate `latestDepTest` source set" section for which tests belong in `src/test/` vs `src/latestDepTest/`.
 
 Use `latestDepTestImplementation` in `build.gradle` to pin the latest available version. Run with:
 ```bash
