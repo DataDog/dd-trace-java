@@ -16,8 +16,8 @@ dependencies {
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))
 
-  api(libs.okio)
-  api(libs.okhttp)
+  api(libs.datadog.okio)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
@@ -28,11 +28,7 @@ dependencies {
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-  testImplementation(
-    group = "com.squareup.okhttp3",
-    name = "mockwebserver",
-    version = libs.versions.okhttp.legacy.get() // actually a version range
-  )
+  testImplementation(libs.okhttp3.mockwebserver)
 }
 
 extra["minimumBranchCoverage"] = 0.5

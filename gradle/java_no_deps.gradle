@@ -150,13 +150,8 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
   maxParallelUsages = project.findProperty("testcontainersMaxParallelUsages").toInteger()
 }
 
-// Task for tests that want to run forked in their own separate JVM
-tasks.register('forkedTest', Test) {
-  group = LifecycleBasePlugin.VERIFICATION_GROUP
-  useJUnitPlatform()
-  testClassesDirs = sourceSets.test.output.classesDirs
-  classpath = sourceSets.test.runtimeClasspath
-}
+// Every project gets a forked test task for its default 'test' source set.
+addForkedTestTask('test')
 
 // testRuntimeActivation is registered in individual module build files after this convention is
 // applied, so tasks.named() won't work here — use a lazy hook that intercepts it on registration.
@@ -270,21 +265,22 @@ tasks.withType(Test).configureEach {
 }
 
 
-[JavaCompile, ScalaCompile, GroovyCompile].each {
-  type ->
-  tasks.withType(type).configureEach {
-    if (options.fork) {
-      options.forkOptions.with {
-        memoryMaximumSize = "256M"
-      }
-    }
-  }
+tasks.withType(JavaCompile).configureEach {
+  options.forkOptions.memoryMaximumSize = "256M"
 }
 
-if (project.plugins.hasPlugin('kotlin')) {
+tasks.withType(GroovyCompile).configureEach {
+  it.options.forkOptions.memoryMaximumSize = "256M"
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  options.forkOptions.memoryMaximumSize = "256M"
+}
+
+project.pluginManager.withPlugin('kotlin') {
   ['compileKotlin', 'compileTestKotlin'].each {
-    type ->
-    tasks.named(type) {
+    name ->
+    tasks.named(name) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
   }

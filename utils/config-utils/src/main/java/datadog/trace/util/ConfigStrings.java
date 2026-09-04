@@ -28,6 +28,21 @@ public final class ConfigStrings {
   }
 
   /**
+   * Converts a config key to its canonical {@code DD_} or {@code OTEL_} environment-variable form.
+   *
+   * @param key The config key in any form
+   * @return The canonical environment variable name
+   */
+  @Nonnull
+  public static String toCanonicalEnvVar(final String key) {
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return toEnvVar(key);
+    }
+    final String env = toEnvVar(key);
+    return env.startsWith("DD_") ? env : "DD_" + env;
+  }
+
+  /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
    * `dd.service.name`.
    *

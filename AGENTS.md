@@ -36,6 +36,7 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
 | Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |
@@ -58,6 +59,7 @@ docs/                     Developer documentation (see below)
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
+- **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
