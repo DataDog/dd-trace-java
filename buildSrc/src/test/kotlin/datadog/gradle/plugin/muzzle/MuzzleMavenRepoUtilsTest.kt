@@ -9,6 +9,7 @@ import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.GradleException
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
@@ -128,7 +129,9 @@ class MuzzleMavenRepoUtilsTest {
       .containsExactly("central" to MAVEN_CENTRAL_URL)
   }
 
+  // TODO: Re-enable after removing the temporary Maven Central rate limiting workaround.
   @Test
+  @Disabled("Temporarily using the configured proxy without a Maven Central fallback")
   @EnabledIfEnvironmentVariable(named = "MAVEN_REPOSITORY_PROXY", matches = ".*")
   fun `defaultMuzzleRepos queries the configured proxy before Maven Central`() {
     val proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
