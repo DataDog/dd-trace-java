@@ -9,7 +9,7 @@ include:
     # apm-sdks-benchmarks@petclinic-owners-endpoint (seeded petclinic benchmarks) to
     # measure their stability. The anchor also feeds APM_SDKS_BENCHMARKS_SHA below,
     # which is the runtime clone's checkout, so definitions and benchmark code agree.
-    ref: &apm_sdks_benchmarks_sha 'cd2649f06d00a4558d56c6e074181a630133facb' # was '0899730be7696774b222937adfc6583932c050e1', pinned by "Update apm-sdks-benchmarks reference" workflow
+    ref: &apm_sdks_benchmarks_sha 'b553c737dd77ec3e80bc11a02b8bffbcab3ae5bf' # was '0899730be7696774b222937adfc6583932c050e1', pinned by "Update apm-sdks-benchmarks reference" workflow
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
