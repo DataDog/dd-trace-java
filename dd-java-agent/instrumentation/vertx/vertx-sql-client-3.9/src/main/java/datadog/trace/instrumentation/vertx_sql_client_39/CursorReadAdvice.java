@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_sql_client_39;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_sql_client_39.VertxSqlClientDecorator.DECORATE;
 
 import datadog.context.ContextContinuation;
@@ -29,7 +28,7 @@ public class CursorReadAdvice {
     }
     final AgentSpan parentSpan = activeSpan();
     final ContextContinuation parentContinuation =
-        null == parentSpan ? null : captureSpan(parentSpan);
+        null == parentSpan ? null : parentSpan.captureWithContext();
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpanForStatement(
             ps, InstrumentationContext.get(PreparedStatement.class, Pair.class), true);

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.httpclient;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,7 +27,7 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
     if (subscriber instanceof BodySubscriberWrapper) {
       return subscriber;
     }
-    return new BodySubscriberWrapper<>(subscriber, captureSpan(span));
+    return new BodySubscriberWrapper<>(subscriber, span.captureWithContext());
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {

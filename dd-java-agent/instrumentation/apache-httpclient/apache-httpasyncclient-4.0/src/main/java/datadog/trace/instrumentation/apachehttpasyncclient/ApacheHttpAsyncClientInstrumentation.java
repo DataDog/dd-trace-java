@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.APACHE_HTTPASYNCCLIENT;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.HTTP_REQUEST;
@@ -102,7 +102,7 @@ public class ApacheHttpAsyncClientInstrumentation
         requestProducer = new DelegatingRequestProducer(requestProducer);
       }
 
-      final ContextContinuation parentContinuation = captureActiveSpan();
+      final ContextContinuation parentContinuation = currentContext().capture();
       final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);

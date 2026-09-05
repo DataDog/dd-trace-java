@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+import datadog.context.Context
 import datadog.context.ContextContinuation
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -150,7 +151,7 @@ class ContextPreservingInstrumentationTest extends InstrumentationSpecification 
    */
   private class ParentContext {
     final CapturedContext capturedContext = asyncContextProvider.captureContext()
-    final ContextContinuation spanContinuation = AgentTracer.captureActiveSpan()
+    final ContextContinuation spanContinuation = Context.current().capture()
 
     def releaseParentSpan() {
       spanContinuation.release()
