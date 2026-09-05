@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
+import static datadog.trace.api.metrics.CompletableResultCode.ofSuccess;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
@@ -58,6 +59,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -143,6 +145,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
+  private static final long METRICS_FLUSH_TIMEOUT_MILLIS = 2_500;
 
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
@@ -1528,7 +1531,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.shutdown();
+      CompletableResultCode result =
+          OtlpMetricsService.INSTANCE.shutdown().join(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
+      if (!result.isDone()) {
+        log.debug("Timed out waiting for OTLP metrics shutdown.");
+      } else if (!result.isSuccess()) {
+        log.debug("OTLP metrics shutdown failed.");
+      }
     }
     if (initialConfig.isLogsOtlpExporterEnabled()) {
       OtlpLogsService.INSTANCE.shutdown();
@@ -1564,7 +1573,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
+      metricsAggregator.forceReport().get(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }
@@ -1572,6 +1581,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.flush();
     }
+  }
+
+  @Override
+  public CompletableResultCode shutdownOtelMetrics() {
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      return OtlpMetricsService.INSTANCE.shutdown();
+    }
+    return ofSuccess();
   }
 
   @Override
