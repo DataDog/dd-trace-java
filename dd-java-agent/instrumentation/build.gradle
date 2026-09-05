@@ -135,6 +135,10 @@ tasks.named('shadowJar', ShadowJar) {
     exclude(dependency('com.google.re2j:re2j'))
     deps.excludeShared.execute(it)
   }
+  // Redundant metadata file duplicated across sibling io.r2dbc:* artifacts
+  // (r2dbc-spi, r2dbc-proxy) once a module bundles more than one of them.
+  // Not required content — drop it instead of failing the aggregate jar.
+  exclude 'META-INF/CHANGELOG'
 }
 
 // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
