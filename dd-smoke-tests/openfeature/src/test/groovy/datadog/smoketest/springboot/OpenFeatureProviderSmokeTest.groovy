@@ -16,26 +16,29 @@ import spock.lang.Stepwise
 import spock.lang.Unroll
 import spock.util.concurrent.PollingConditions
 
-/** Due to the exposure cache it's important to run the tests in the specified order */
-@Stepwise
-class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
+abstract class AbstractOpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  private final rcConfig = new JsonSlurper().parse(fetchResource("ffe-system-test-data/ufc-config.json")) as Map<String, Object>
+  protected final rcConfig = new JsonSlurper().parse(fetchResource('ffe-system-test-data/ufc-config.json')) as Map<String, Object>
 
   @Shared
-  private final rcPayload = JsonOutput.toJson(rcConfig)
-
-  @Shared
-  private final loggedAllocations = buildLoggedAllocations(rcConfig)
+  protected final rcPayload = JsonOutput.toJson(rcConfig)
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
+    setRemoteConfig('datadog/2/FFE_FLAGS/1/config', rcPayload)
 
-    final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
+    final springBootShadowJar = System.getProperty(
+      'datadog.smoketest.openfeature.application.path',
+      System.getProperty('datadog.smoketest.springboot.shadowJar.path')
+      )
+    final agentJar = System.getProperty('datadog.smoketest.openfeature.agent.path', shadowJarPath)
+    assert Files.isRegularFile(Paths.get(springBootShadowJar))
+    assert Files.isRegularFile(Paths.get(agentJar))
     final command = [javaPath()]
-    command.addAll(defaultJavaProperties)
+    command.addAll(defaultJavaProperties.collect {
+      it.startsWith('-javaagent:') ? "-javaagent:${agentJar}".toString() : it
+    })
     command.add('-Ddd.trace.debug=true')
     command.add('-Ddd.remote_config.enabled=true')
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
@@ -61,6 +64,35 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       return new JsonSlurper().parse(request.body)
     }
   }
+
+  protected static URL fetchResource(final String name) {
+    return Thread.currentThread().getContextClassLoader().getResource(name)
+  }
+
+  protected static Set<Product> decodeProducts(final Map<String, Object> request) {
+    return request.client.products.collect { Product.valueOf(it) }
+  }
+
+  protected static long decodeCapabilities(final Map<String, Object> request) {
+    final clientCapabilities = request.client.capabilities as byte[]
+    long capabilities = 0l
+    for (int i = 0; i < clientCapabilities.length; i++) {
+      capabilities |= (clientCapabilities[i] & 0xFFL) << ((clientCapabilities.length - i - 1) * 8)
+    }
+    return capabilities
+  }
+
+  protected static boolean hasCapability(final long capabilities, final long test) {
+    return (capabilities & test) > 0
+  }
+}
+
+/** Due to the exposure cache it's important to run the tests in the specified order */
+@Stepwise
+class OpenFeatureProviderSmokeTest extends AbstractOpenFeatureProviderSmokeTest {
+
+  @Shared
+  private final loggedAllocations = buildLoggedAllocations(rcConfig)
 
   void 'test first remote config poll asks agent for feature flags'() {
     when:
@@ -179,10 +211,6 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     testCase << parseTestCases()
   }
 
-  private static URL fetchResource(final String name) {
-    return Thread.currentThread().getContextClassLoader().getResource(name)
-  }
-
   private static List<Map<String, Object>> parseTestCases() {
     final folder = fetchResource('ffe-system-test-data/evaluation-cases')
     final uri = folder.toURI()
@@ -250,21 +278,64 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
     return logged
   }
+}
 
-  private static Set<Product> decodeProducts(final Map<String, Object> request) {
-    return request.client.products.collect { Product.valueOf(it) }
-  }
+/** Stable contract shared by all supported OpenFeature SDK and dd-java-agent versions. */
+@Stepwise
+class OpenFeatureCompatibilitySmokeTest extends AbstractOpenFeatureProviderSmokeTest {
 
-  private static long decodeCapabilities(final Map<String, Object> request) {
-    final clientCapabilities = request.client.capabilities as byte[]
-    long capabilities = 0l
-    for (int i = 0; i < clientCapabilities.length; i++) {
-      capabilities |= (clientCapabilities[i] & 0xFFL) << ((clientCapabilities.length - i - 1) * 8)
+  void 'test agent advertises feature flag remote configuration'() {
+    when:
+    final firstRcRequest = waitForRcClientRequest { req ->
+      return true
     }
-    return capabilities
+
+    then:
+    firstRcRequest == rcClientMessages.first()
+    decodeProducts(firstRcRequest).contains(Product.FFE_FLAGS)
+    hasCapability(
+    decodeCapabilities(firstRcRequest),
+    Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES
+    )
   }
 
-  private static boolean hasCapability(final long capabilities, final long test) {
-    return (capabilities & test) > 0
+  void 'test provider evaluates a flag and reports its exposure'() {
+    setup:
+    setRemoteConfig('datadog/2/FFE_FLAGS/1/config', rcPayload)
+    final request = new Request.Builder()
+    .url("http://localhost:${httpPort}/openfeature/evaluate")
+    .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson([
+      flag: 'boolean-false-assignment',
+      variationType: 'BOOLEAN',
+      defaultValue: true,
+      targetingKey: 'compatibility-test',
+      attributes: [should_disable_feature: true]
+    ])))
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+    final responseBody = new JsonSlurper().parse(response.body().byteStream())
+
+    then:
+    response.code() == 200
+    responseBody.value == false
+    responseBody.reason == 'TARGETING_MATCH'
+    responseBody.variant == 'false-variation'
+    responseBody.flagMetadata.allocationKey == 'disable-feature'
+    new PollingConditions(timeout: 10).eventually {
+      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
+      final events = requests*.exposures.flatten()
+      assert events.find {
+        event ->
+        event.flag.key == 'boolean-false-assignment' &&
+        event.allocation.key == 'disable-feature' &&
+        event.variant.key == 'false-variation' &&
+        event.subject.id == 'compatibility-test'
+      } != null
+    }
+
+    cleanup:
+    response.close()
   }
 }
