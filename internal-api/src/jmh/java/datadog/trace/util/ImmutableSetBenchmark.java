@@ -44,37 +44,41 @@ import org.openjdk.jmh.annotations.Warmup;
  *       indirection cost of the wrapper.
  * </ul>
  *
- * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
- * and never present.
- *
- * <p>JDK 17 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}; M ops/s =
- * millions):
- *
- * <pre>{@code
- * Structure                           hit    miss
- * stringIndex_embedded (static)      2320    2159    (fastest)
- * hashSet                            2198    2134
- * stringIndex (inst)                 2098  1548 *    (* miss bimodal -- see caveat)
- * tracerImmutableSet                 1914    1663    (Set.copyOf / SetN)
- * array                               941     589
- * sortedArray                         685     610
- * treeSet                             657     610
- * }</pre>
- *
- * <p>Key findings:
+ * <p>Lookup variants:
  *
  * <ul>
- *   <li>The static {@code EmbeddingSupport} path is the fastest — it beats {@code HashSet} on hit
- *       and miss and crushes the scan/search/tree forms.
- *   <li>{@code stringIndex} (the instance wrapper) trails {@code EmbeddingSupport} by the
- *       field-load indirection (~10% on hit), landing near {@code HashSet} — fine off the hot path,
- *       prefer {@code EmbeddingSupport} on it.
- *   <li>{@link java.util.Set#copyOf} ({@code SetN}, the agent's compact fixed-set form) is ~1.2x
- *       behind {@code EmbeddingSupport} on hit but the most <i>compact</i> (~27% smaller — no
- *       cached hashes, no 2x table). So StringIndex's edge over {@code SetN} is speed + the {@code
- *       indexOf}-&gt;parallel-array capability, not footprint; over {@code HashSet} it wins both.
- *   <li>{@code array} / {@code sortedArray} / {@code treeSet} trail the hashed structures, most on
- *       miss.
+ *   <li>{@code hit} uses the same interned strings that were inserted, exercising the identity fast
+ *       path.
+ *   <li>{@code hitFresh} uses equal, non-interned strings, avoiding the identity fast path. It is
+ *       measured only for the hash-based structures.
+ *   <li>{@code miss} uses non-interned strings that are not in the set.
+ * </ul>
+ *
+ * <p>Results on an Apple M1 with Java 8u382, {@link BenchmarkUtils#polluteHashDispatch()} enabled,
+ * {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
+ *
+ * <pre>{@code
+ * Structure                    hit   hitFresh    miss
+ * stringIndex_embedded (static) 2098      1563    2030
+ * hashSet                       1723      1276    1823
+ * stringIndex (inst)            1883      1184 *  1700 *
+ * tracerImmutableSet            1632      1232    1625    (SetN)
+ * array                          854         -     495
+ * sortedArray                    713         -     613
+ * treeSet                        646         -     544
+ * }</pre>
+ *
+ * <p>In this run:
+ *
+ * <ul>
+ *   <li>The embedded {@code StringIndex} is fastest for all three lookup variants.
+ *   <li>The {@code StringIndex} wrapper beats {@code HashSet} for interned hits. Its fresh-hit and
+ *       miss results are bimodal and have lower means than {@code HashSet}; prefer the embedded
+ *       form when these paths matter.
+ *   <li>{@code SetN} is slower than the embedded form but about 27% smaller. StringIndex trades
+ *       that space for speed and support for slot-aligned payload arrays.
+ *   <li>Fresh hits are slower than misses for each hash-based structure: a matching distinct string
+ *       reaches {@code equals()}, while a miss can stop on a hash mismatch.
  * </ul>
  *
  * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
@@ -99,6 +103,17 @@ public class ImmutableSetBenchmark {
 
   /** Distinct String instances that are never present, for the miss path. */
   static final String[] MISSES = newMisses();
+
+  /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
+  static final String[] FRESH_STRINGS = newFreshStrings();
+
+  static String[] newFreshStrings() {
+    String[] fresh = new String[STRINGS.length];
+    for (int i = 0; i < STRINGS.length; ++i) {
+      fresh[i] = new String(STRINGS[i]);
+    }
+    return fresh;
+  }
 
   static String[] newMisses() {
     String[] misses = new String[STRINGS.length * 4];
@@ -131,6 +146,8 @@ public class ImmutableSetBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     array = STRINGS;
     sortedArray = Arrays.copyOf(STRINGS, STRINGS.length);
     Arrays.sort(sortedArray);
@@ -144,6 +161,7 @@ public class ImmutableSetBenchmark {
   @State(Scope.Thread)
   public static class Cursor {
     int hitIndex = 0;
+    int hitFreshIndex = 0;
     int missIndex = 0;
 
     String nextHit() {
@@ -153,6 +171,16 @@ public class ImmutableSetBenchmark {
       }
       hitIndex = i;
       return STRINGS[i];
+    }
+
+    /** See {@code hitFresh} in the class javadoc. */
+    String nextHitFresh() {
+      int i = hitFreshIndex + 1;
+      if (i >= FRESH_STRINGS.length) {
+        i = 0;
+      }
+      hitFreshIndex = i;
+      return FRESH_STRINGS[i];
     }
 
     String nextMiss() {
@@ -200,6 +228,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean hashSet_hitFresh(Cursor cursor) {
+    return hashSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean hashSet_miss(Cursor cursor) {
     return hashSet.contains(cursor.nextMiss());
   }
@@ -220,6 +253,11 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean tracerImmutableSet_hitFresh(Cursor cursor) {
+    return tracerImmutableSet.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean tracerImmutableSet_miss(Cursor cursor) {
     return tracerImmutableSet.contains(cursor.nextMiss());
   }
@@ -230,17 +268,27 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
+  public boolean stringIndex_hitFresh(Cursor cursor) {
+    return stringIndex.contains(cursor.nextHitFresh());
+  }
+
+  @Benchmark
   public boolean stringIndex_miss(Cursor cursor) {
     return stringIndex.contains(cursor.nextMiss());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_hit(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHit());
+  }
+
+  @Benchmark
+  public boolean stringIndex_embedded_hitFresh(Cursor cursor) {
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHitFresh());
   }
 
   @Benchmark
   public boolean stringIndex_embedded_miss(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
+    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextMiss());
   }
 }
