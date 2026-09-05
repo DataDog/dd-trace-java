@@ -178,7 +178,7 @@ class TraceGenerator {
               UNSET,
               measured,
               isTopLevel(),
-              null,
+              0,
               null,
               0,
               getTagsForSerialization(),

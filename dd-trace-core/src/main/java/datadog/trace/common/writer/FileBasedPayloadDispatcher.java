@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
 import static datadog.trace.util.Strings.truncate;
 
@@ -388,9 +389,11 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
           w.name(entry.getKey()).value(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH));
         }
       }
-      if (metadata.getHttpStatusCode() != null) {
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
         w.name(Tags.HTTP_STATUS)
-            .value(truncate(metadata.getHttpStatusCode().toString(), MAX_META_STRING_VALUE_LENGTH));
+            .value(
+                truncate(
+                    metadata.getHttpStatusCodeString().toString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
