@@ -85,7 +85,7 @@ subprojects { Project subProj ->
       }
 
       subProj.tasks.withType(Test).configureEach { subTask ->
-        if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
+        if (subTask.name in ['latestDepTest', 'latestDepForkedTest', 'latestDepTestForkedTest']) {
           subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
         }
       }
