@@ -13,12 +13,11 @@ public class MetricProbeTest {
   @Test
   public void metric() {
     MetricProbe.Builder metricBuilder = createMetric();
-    MetricProbe metric =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .build();
+    MetricProbe metric = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .build();
     Assertions.assertEquals("toString()", metric.getWhere().getMethodName());
     Assertions.assertEquals("5-7", metric.getWhere().getLines()[0]);
     Assertions.assertEquals(MetricProbe.MetricKind.COUNT, metric.getKind());
@@ -28,13 +27,12 @@ public class MetricProbeTest {
   @Test
   public void metricWithTags() {
     MetricProbe.Builder metricBuilder = createMetric();
-    MetricProbe metric =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .tags("tag1:foo1", "tag2:foo2")
-            .build();
+    MetricProbe metric = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .tags("tag1:foo1", "tag2:foo2")
+        .build();
     Assertions.assertEquals(2, metric.getTags().length);
     Assertions.assertEquals("foo1", metric.getTagMap().get("tag1"));
     Assertions.assertEquals("foo2", metric.getTagMap().get("tag2"));
@@ -43,40 +41,36 @@ public class MetricProbeTest {
   @Test
   public void metricConstantValueScript() {
     MetricProbe.Builder metricBuilder = createMetric();
-    MetricProbe metric1 =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(DSL.value(42), "42"))
-            .build();
-    MetricProbe metric2 =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(DSL.value(42), "42"))
-            .build();
+    MetricProbe metric1 = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .valueScript(new ValueScript(DSL.value(42), "42"))
+        .build();
+    MetricProbe metric2 = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .valueScript(new ValueScript(DSL.value(42), "42"))
+        .build();
     Assertions.assertEquals(metric1, metric2);
   }
 
   @Test
   public void metricRefValueScript() {
     MetricProbe.Builder metricBuilder = createMetric();
-    MetricProbe metric1 =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
-            .build();
-    MetricProbe metric2 =
-        metricBuilder
-            .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
-            .kind(MetricProbe.MetricKind.COUNT)
-            .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
-            .build();
+    MetricProbe metric1 = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
+        .build();
+    MetricProbe metric2 = metricBuilder
+        .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
+        .kind(MetricProbe.MetricKind.COUNT)
+        .metricName("datadog.debugger.calls")
+        .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
+        .build();
     Assertions.assertEquals(metric1, metric2);
   }
 

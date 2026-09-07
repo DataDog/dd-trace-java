@@ -28,9 +28,8 @@ import java.util.Set;
 import java.util.function.Function;
 
 public class GrpcClientDecorator extends ClientDecorator {
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().client().operationForProtocol("grpc"));
+  public static final CharSequence OPERATION_NAME = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().client().operationForProtocol("grpc"));
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("armeria-grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
@@ -43,15 +42,14 @@ public class GrpcClientDecorator extends ClientDecorator {
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getGrpcClientErrorStatuses();
 
-  private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
-      GenericClassValue.of(
-          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-          new Function<Class<?>, UTF8BytesString>() {
-            @Override
-            public UTF8BytesString apply(Class<?> input) {
-              return UTF8BytesString.create(input.getName());
-            }
-          });
+  private static final ClassValue<UTF8BytesString> MESSAGE_TYPES = GenericClassValue.of(
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
+      new Function<Class<?>, UTF8BytesString>() {
+        @Override
+        public UTF8BytesString apply(Class<?> input) {
+          return UTF8BytesString.create(input.getName());
+        }
+      });
 
   private static final DDCache<String, String> RPC_SERVICE_CACHE = DDCaches.newFixedSizeCache(64);
 
@@ -94,15 +92,14 @@ public class GrpcClientDecorator extends ClientDecorator {
     if (IGNORED_METHODS.contains(method.getFullMethodName())) {
       return AgentTracer.blackholeSpan();
     }
-    AgentSpan span =
-        startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
-            .setTag("request.type", requestMessageType(method))
-            .setTag("response.type", responseMessageType(method))
-            // method.getServiceName() may not be available on some grpc versions
-            .setTag(
-                Tags.RPC_SERVICE,
-                RPC_SERVICE_CACHE.computeIfAbsent(
-                    method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
+    AgentSpan span = startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
+        .setTag("request.type", requestMessageType(method))
+        .setTag("response.type", responseMessageType(method))
+        // method.getServiceName() may not be available on some grpc versions
+        .setTag(
+            Tags.RPC_SERVICE,
+            RPC_SERVICE_CACHE.computeIfAbsent(
+                method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
     span.setResourceName(method.getFullMethodName());
     afterStart(span);
     return span;

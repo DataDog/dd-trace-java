@@ -94,9 +94,8 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
 
       if (map != null) {
         Flow<Void> flow = callback.apply(reqCtx, map);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
+        BlockingException be = MultiPartHelper.tryBlock(
+            reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
         if (be != null) {
           t = be;
         }
@@ -105,9 +104,8 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
       if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
         if (t == null) {
-          BlockingException be =
-              MultiPartHelper.tryBlock(
-                  reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+          BlockingException be = MultiPartHelper.tryBlock(
+              reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
           if (be != null) {
             t = be;
           }
@@ -116,9 +114,8 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
 
       if (t == null && filesContent != null && !filesContent.isEmpty()) {
         Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+        BlockingException be = MultiPartHelper.tryBlock(
+            reqCtx, contentFlow, "Blocked request (multipart file upload content)");
         if (be != null) {
           t = be;
         }

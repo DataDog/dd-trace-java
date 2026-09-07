@@ -263,16 +263,14 @@ public class MoshiSnapshotTestHelper {
       while (jsonReader.hasNext()) {
         String name = jsonReader.nextName();
         switch (name) {
-          case TYPE:
-            {
-              jsonReader.nextString();
-              break;
-            }
-          case NOT_CAPTURED_REASON:
-            {
-              jsonReader.nextString();
-              break;
-            }
+          case TYPE: {
+            jsonReader.nextString();
+            break;
+          }
+          case NOT_CAPTURED_REASON: {
+            jsonReader.nextString();
+            break;
+          }
           default:
             throw new IllegalArgumentException("Unknown field name for 'this' object: " + name);
         }
@@ -333,65 +331,64 @@ public class MoshiSnapshotTestHelper {
             jsonReader.endObject();
             value = fields;
             break;
-          case ELEMENTS:
-            {
-              if (type == null) {
-                throw new RuntimeException("type is null");
+          case ELEMENTS: {
+            if (type == null) {
+              throw new RuntimeException("type is null");
+            }
+            jsonReader.beginArray();
+            List<CapturedContext.CapturedValue> values = new ArrayList<>();
+            while (jsonReader.hasNext()) {
+              CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
+              values.add(elementValue);
+            }
+            jsonReader.endArray();
+            if (type.equals(List.class.getTypeName())
+                || type.equals(ArrayList.class.getTypeName())
+                || type.equals("java.util.Collections$UnmodifiableRandomAccessList")) {
+              List<Object> list = new ArrayList<>();
+              for (CapturedContext.CapturedValue cValue : values) {
+                list.add(cValue.getValue());
               }
-              jsonReader.beginArray();
-              List<CapturedContext.CapturedValue> values = new ArrayList<>();
-              while (jsonReader.hasNext()) {
-                CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
-                values.add(elementValue);
-              }
-              jsonReader.endArray();
-              if (type.equals(List.class.getTypeName())
-                  || type.equals(ArrayList.class.getTypeName())
-                  || type.equals("java.util.Collections$UnmodifiableRandomAccessList")) {
-                List<Object> list = new ArrayList<>();
-                for (CapturedContext.CapturedValue cValue : values) {
-                  list.add(cValue.getValue());
-                }
-                value = list;
-              } else if (type.endsWith("[]")) {
-                String componentType = type.substring(0, type.indexOf('['));
-                if (SerializerWithLimits.isPrimitive(componentType)) {
-                  value = createPrimitiveArray(componentType, values);
-                } else {
-                  value = values.stream().map(CapturedContext.CapturedValue::getValue).toArray();
-                }
-              } else if (type.equals("java.util.Collections$EmptyList")) {
-                value = Collections.emptyList();
+              value = list;
+            } else if (type.endsWith("[]")) {
+              String componentType = type.substring(0, type.indexOf('['));
+              if (SerializerWithLimits.isPrimitive(componentType)) {
+                value = createPrimitiveArray(componentType, values);
               } else {
-                throw new RuntimeException("Cannot deserialize type: " + type);
+                value =
+                    values.stream().map(CapturedContext.CapturedValue::getValue).toArray();
               }
-              break;
+            } else if (type.equals("java.util.Collections$EmptyList")) {
+              value = Collections.emptyList();
+            } else {
+              throw new RuntimeException("Cannot deserialize type: " + type);
             }
-          case ENTRIES:
-            {
+            break;
+          }
+          case ENTRIES: {
+            jsonReader.beginArray();
+            List<CapturedContext.CapturedValue> values = new ArrayList<>();
+            while (jsonReader.hasNext()) {
               jsonReader.beginArray();
-              List<CapturedContext.CapturedValue> values = new ArrayList<>();
-              while (jsonReader.hasNext()) {
-                jsonReader.beginArray();
-                CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
-                values.add(elementValue);
-                elementValue = fromJson(jsonReader);
-                values.add(elementValue);
-                jsonReader.endArray();
-              }
+              CapturedContext.CapturedValue elementValue = fromJson(jsonReader);
+              values.add(elementValue);
+              elementValue = fromJson(jsonReader);
+              values.add(elementValue);
               jsonReader.endArray();
-              Map<Object, Object> entries = new HashMap<>();
-              for (int i = 0; i < values.size(); i += 2) {
-                Object entryKey = values.get(i).getValue();
-                if (i + 1 >= values.size()) {
-                  break;
-                }
-                Object entryValue = values.get(i + 1).getValue();
-                entries.put(entryKey, entryValue);
-              }
-              value = entries;
-              break;
             }
+            jsonReader.endArray();
+            Map<Object, Object> entries = new HashMap<>();
+            for (int i = 0; i < values.size(); i += 2) {
+              Object entryKey = values.get(i).getValue();
+              if (i + 1 >= values.size()) {
+                break;
+              }
+              Object entryValue = values.get(i + 1).getValue();
+              entries.put(entryKey, entryValue);
+            }
+            value = entries;
+            break;
+          }
           case IS_NULL:
             jsonReader.nextBoolean();
             value = null;
@@ -419,87 +416,78 @@ public class MoshiSnapshotTestHelper {
     private Object createPrimitiveArray(
         String componentType, List<CapturedContext.CapturedValue> values) {
       switch (componentType) {
-        case "byte":
-          {
-            byte[] bytes = new byte[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              bytes[i++] = (Byte) capturedValue.getValue();
-            }
-            return bytes;
+        case "byte": {
+          byte[] bytes = new byte[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            bytes[i++] = (Byte) capturedValue.getValue();
           }
-        case "boolean":
-          {
-            boolean[] booleans = new boolean[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              booleans[i++] = (Boolean) capturedValue.getValue();
-            }
-            return booleans;
+          return bytes;
+        }
+        case "boolean": {
+          boolean[] booleans = new boolean[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            booleans[i++] = (Boolean) capturedValue.getValue();
           }
-        case "short":
-          {
-            short[] shorts = new short[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              shorts[i++] = (Short) capturedValue.getValue();
-            }
-            return shorts;
+          return booleans;
+        }
+        case "short": {
+          short[] shorts = new short[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            shorts[i++] = (Short) capturedValue.getValue();
           }
-        case "char":
-          {
-            char[] chars = new char[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              chars[i++] = (Character) capturedValue.getValue();
-            }
-            return chars;
+          return shorts;
+        }
+        case "char": {
+          char[] chars = new char[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            chars[i++] = (Character) capturedValue.getValue();
           }
-        case "int":
-          {
-            int[] ints = new int[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              ints[i++] = (Integer) capturedValue.getValue();
-            }
-            return ints;
+          return chars;
+        }
+        case "int": {
+          int[] ints = new int[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            ints[i++] = (Integer) capturedValue.getValue();
           }
-        case "long":
-          {
-            long[] longs = new long[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              longs[i++] = (Long) capturedValue.getValue();
-            }
-            return longs;
+          return ints;
+        }
+        case "long": {
+          long[] longs = new long[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            longs[i++] = (Long) capturedValue.getValue();
           }
-        case "float":
-          {
-            float[] floats = new float[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              floats[i++] = (Float) capturedValue.getValue();
-            }
-            return floats;
+          return longs;
+        }
+        case "float": {
+          float[] floats = new float[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            floats[i++] = (Float) capturedValue.getValue();
           }
-        case "double":
-          {
-            double[] doubles = new double[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              doubles[i++] = (Double) capturedValue.getValue();
-            }
-            return doubles;
+          return floats;
+        }
+        case "double": {
+          double[] doubles = new double[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            doubles[i++] = (Double) capturedValue.getValue();
           }
-        case "java.lang.String":
-          {
-            String[] strings = new String[values.size()];
-            int i = 0;
-            for (CapturedContext.CapturedValue capturedValue : values) {
-              strings[i++] = (String) capturedValue.getValue();
-            }
-            return strings;
+          return doubles;
+        }
+        case "java.lang.String": {
+          String[] strings = new String[values.size()];
+          int i = 0;
+          for (CapturedContext.CapturedValue capturedValue : values) {
+            strings[i++] = (String) capturedValue.getValue();
           }
+          return strings;
+        }
         default:
           throw new RuntimeException("unsupported primitive type: " + componentType);
       }

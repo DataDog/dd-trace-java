@@ -35,23 +35,22 @@ public class DatadogAsyncHandlerWrapper
       DatadogWrapperHelper.finishSpan(scope.context(), t);
       throw t;
     }
-    final Future<HttpResponse> wrapped =
-        futureResponse.transform(
-            new AbstractFunction1<HttpResponse, HttpResponse>() {
-              @Override
-              public HttpResponse apply(final HttpResponse response) {
-                DatadogWrapperHelper.finishSpan(scope.context(), response);
-                return response;
-              }
-            },
-            new AbstractFunction1<Throwable, Throwable>() {
-              @Override
-              public Throwable apply(final Throwable t) {
-                DatadogWrapperHelper.finishSpan(scope.context(), t);
-                return t;
-              }
-            },
-            executionContext);
+    final Future<HttpResponse> wrapped = futureResponse.transform(
+        new AbstractFunction1<HttpResponse, HttpResponse>() {
+          @Override
+          public HttpResponse apply(final HttpResponse response) {
+            DatadogWrapperHelper.finishSpan(scope.context(), response);
+            return response;
+          }
+        },
+        new AbstractFunction1<Throwable, Throwable>() {
+          @Override
+          public Throwable apply(final Throwable t) {
+            DatadogWrapperHelper.finishSpan(scope.context(), t);
+            return t;
+          }
+        },
+        executionContext);
     scope.close();
     return wrapped;
   }

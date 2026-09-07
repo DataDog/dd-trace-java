@@ -56,9 +56,8 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
       final String handlerSpanKey =
           DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
 
-      if (Boolean.TRUE.equals(
-          servletWebRequest.getAttribute(
-              handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
+      if (Boolean.TRUE.equals(servletWebRequest.getAttribute(
+          handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
         return;
       }
 
@@ -68,9 +67,8 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
       }
       servletWebRequest.setAttribute(
           handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, true, ServletWebRequest.SCOPE_REQUEST);
-      result =
-          ((CompletionStage<?>) result)
-              .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
+      result = ((CompletionStage<?>) result)
+          .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
     }
   }
 }

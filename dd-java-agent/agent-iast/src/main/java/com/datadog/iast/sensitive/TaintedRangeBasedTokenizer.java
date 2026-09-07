@@ -12,7 +12,8 @@ public class TaintedRangeBasedTokenizer implements SensitiveHandler.Tokenizer {
   private final String value;
   private final Range[] ranges;
 
-  @Nullable private Ranged current;
+  @Nullable
+  private Ranged current;
 
   private int rangesIndex;
 

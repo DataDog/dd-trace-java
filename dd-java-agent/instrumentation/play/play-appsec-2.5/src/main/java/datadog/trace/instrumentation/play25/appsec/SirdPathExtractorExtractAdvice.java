@@ -30,8 +30,7 @@ public class SirdPathExtractorExtractAdvice {
       conv.put(Integer.toString(i), stringList.apply(i));
     }
 
-    t =
-        PathExtractionHelpers.callRequestPathParamsCallback(
-            reqCtx, conv, "sird.PathExtractor#extract");
+    t = PathExtractionHelpers.callRequestPathParamsCallback(
+        reqCtx, conv, "sird.PathExtractor#extract");
   }
 }

@@ -51,19 +51,17 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
   void testAutoInjection() throws Exception {
     assumeTrue(OperatingSystem.isLinux()); // we support only linux ATM
 
-    ProcessBuilder pb =
-        new ProcessBuilder(
-            Arrays.asList(
-                javaPath(),
-                "-javaagent:" + agentShadowJar(),
-                "-Xmx96m",
-                "-Xms96m",
-                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
-                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
-                // no need to specify the scripts
-                "-Ddd.trace.enabled=false",
-                "-jar",
-                appShadowJar()));
+    ProcessBuilder pb = new ProcessBuilder(Arrays.asList(
+        javaPath(),
+        "-javaagent:" + agentShadowJar(),
+        "-Xmx96m",
+        "-Xms96m",
+        "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
+        "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
+        // no need to specify the scripts
+        "-Ddd.trace.enabled=false",
+        "-jar",
+        appShadowJar()));
 
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
@@ -84,10 +82,9 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err.log").toString();
 
-    String onErrorArg =
-        !Platform.isLinux()
-            ? "-XX:OnError=" + onErrorValue
-            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    String onErrorArg = !Platform.isLinux()
+        ? "-XX:OnError=" + onErrorValue
+        : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
     // inject the arg
     List<String> processArgs = new ArrayList<>();
     processArgs.add(javaPath());
@@ -109,7 +106,8 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
     assertExpectedCrash(p);
     assertCrashData(assertCrashPing());
@@ -124,21 +122,19 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String script = tempDir.resolve("dd_crash_uploader." + getExtension()).toString();
     String errorFile = tempDir.resolve("hs_err.log").toString();
 
-    ProcessBuilder pb =
-        new ProcessBuilder(
-            Arrays.asList(
-                javaPath(),
-                "-javaagent:" + agentShadowJar(),
-                "-Xmx96m",
-                "-Xms96m",
-                "-XX:OnError=" + script,
-                "-XX:ErrorFile=" + errorFile,
-                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
-                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
-                // the scripts
-                "-Ddd.trace.enabled=false",
-                "-jar",
-                appShadowJar()));
+    ProcessBuilder pb = new ProcessBuilder(Arrays.asList(
+        javaPath(),
+        "-javaagent:" + agentShadowJar(),
+        "-Xmx96m",
+        "-Xms96m",
+        "-XX:OnError=" + script,
+        "-XX:ErrorFile=" + errorFile,
+        "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
+        "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
+        // the scripts
+        "-Ddd.trace.enabled=false",
+        "-jar",
+        appShadowJar()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
@@ -160,10 +156,9 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err_pid%p.log").toString();
 
-    String onOOMEArg =
-        !Platform.isLinux()
-            ? "-XX:OnOutOfMemoryError=" + onErrorValue
-            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    String onOOMEArg = !Platform.isLinux()
+        ? "-XX:OnOutOfMemoryError=" + onErrorValue
+        : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
     // inject the arg
 
     List<String> processArgs = new ArrayList<>();
@@ -189,7 +184,8 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     System.out.println("==> Process args: " + pb.command());
 
     Process p = pb.start();
-    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
 
     assertExpectedCrash(p);
     assertOOMEvent();
@@ -203,27 +199,26 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String onOomeValue = oomeScript + " %p";
     String errorFile = tempDir.resolve("hs_err.log").toString();
 
-    ProcessBuilder pb =
-        new ProcessBuilder(
-            Arrays.asList(
-                javaPath(),
-                "-javaagent:" + agentShadowJar(),
-                "-Xmx96m",
-                "-Xms96m",
-                "-XX:OnOutOfMemoryError=" + onOomeValue,
-                "-XX:OnError=" + onErrorValue,
-                "-XX:ErrorFile=" + errorFile,
-                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
-                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
-                // the scripts
-                "-Ddd.trace.enabled=false",
-                "-jar",
-                appShadowJar()));
+    ProcessBuilder pb = new ProcessBuilder(Arrays.asList(
+        javaPath(),
+        "-javaagent:" + agentShadowJar(),
+        "-Xmx96m",
+        "-Xms96m",
+        "-XX:OnOutOfMemoryError=" + onOomeValue,
+        "-XX:OnError=" + onErrorValue,
+        "-XX:ErrorFile=" + errorFile,
+        "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
+        "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
+        // the scripts
+        "-Ddd.trace.enabled=false",
+        "-jar",
+        appShadowJar()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     Process p = pb.start();
-    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
 
     assertExpectedCrash(p);
     assertCrashData(assertCrashPing());
@@ -245,10 +240,9 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err_pid%p.log").toString();
 
-    String onOOMEArg =
-        !Platform.isLinux()
-            ? "-XX:OnOutOfMemoryError=" + onErrorValue
-            : "-Ddd.crashtracking.debug.autoconfig.enable=true";
+    String onOOMEArg = !Platform.isLinux()
+        ? "-XX:OnOutOfMemoryError=" + onErrorValue
+        : "-Ddd.crashtracking.debug.autoconfig.enable=true";
 
     List<String> processArgs = new ArrayList<>();
     processArgs.add(javaPath());
@@ -284,7 +278,10 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
 
     Process p = pb.start();
     OUTPUT.captureOutput(
-        p, LOG_FILE_DIR.resolve("testProcess.testOomeTrackingWithInheritedEnvVars.log").toFile());
+        p,
+        LOG_FILE_DIR
+            .resolve("testProcess.testOomeTrackingWithInheritedEnvVars.log")
+            .toFile());
 
     assertExpectedCrash(p);
     assertOOMEvent();
@@ -305,10 +302,9 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err.log").toString();
 
-    String onErrorArg =
-        !Platform.isLinux()
-            ? "-XX:OnError=" + onErrorValue
-            : "-Ddd.crashtracking.debug.autoconfig.enable=true";
+    String onErrorArg = !Platform.isLinux()
+        ? "-XX:OnError=" + onErrorValue
+        : "-Ddd.crashtracking.debug.autoconfig.enable=true";
 
     List<String> processArgs = new ArrayList<>();
     processArgs.add(javaPath());
@@ -344,7 +340,10 @@ public class CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest {
 
     Process p = pb.start();
     OUTPUT.captureOutput(
-        p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingWithInheritedEnvVars.log").toFile());
+        p,
+        LOG_FILE_DIR
+            .resolve("testProcess.testCrashTrackingWithInheritedEnvVars.log")
+            .toFile());
 
     assertExpectedCrash(p);
     assertCrashData(assertCrashPing());

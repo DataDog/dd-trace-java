@@ -87,9 +87,8 @@ public class BlockingServiceImpl implements BlockingService {
     }
 
     log.debug("About to call block response function: {}", blockResponseFunction);
-    boolean res =
-        blockResponseFunction.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), statusCode, templateType, extraHeaders, null);
+    boolean res = blockResponseFunction.tryCommitBlockingResponse(
+        reqCtx.getTraceSegment(), statusCode, templateType, extraHeaders, null);
     if (res) {
       TraceSegment traceSegment = reqCtx.getTraceSegment();
       if (traceSegment != null) {

@@ -23,10 +23,9 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       ControllerContext.Snapshot context,
       boolean hasJfrStackDepthApplied) {
     super(configProvider, context.getDatadogProfilerUnavailableReason(), hasJfrStackDepthApplied);
-    this.jfrImplementation =
-        Platform.isNativeImage()
-            ? "native-image"
-            : (JavaVirtualMachine.isOracleJDK8() ? "oracle" : "openjdk");
+    this.jfrImplementation = Platform.isNativeImage()
+        ? "native-image"
+        : (JavaVirtualMachine.isOracleJDK8() ? "oracle" : "openjdk");
     this.isDdprofActive = context.isDatadogProfilerEnabled();
   }
 

@@ -229,14 +229,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+      DSM_TRANSACTION_SOURCE_READER = (source, headerName) -> {
+        try {
+          return getRequestHeader((REQUEST) source, headerName);
+        } catch (Throwable ignored) {
+          return null;
+        }
+      };
 
   public final void onRequest(
       final AgentSpan span,
@@ -585,11 +584,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return Flow.ResultFlow.empty();
     }
     if (cbp != null) {
-      IGKeyClassifier igKeyClassifier =
-          IGKeyClassifier.create(
-              requestContext,
-              cbp.getCallback(EVENTS.requestHeader()),
-              cbp.getCallback(EVENTS.requestHeaderDone()));
+      IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+          requestContext,
+          cbp.getCallback(EVENTS.requestHeader()),
+          cbp.getCallback(EVENTS.requestHeaderDone()));
       if (null != igKeyClassifier) {
         getter.forEachKey(carrier, igKeyClassifier);
         return igKeyClassifier.done();
@@ -641,11 +639,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (contextVisitor == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
+    IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+        requestContext,
+        cbp.getCallback(EVENTS.responseHeader()),
+        cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
       contextVisitor.forEachKey(carrier, igKeyClassifier);
       return igKeyClassifier.done();

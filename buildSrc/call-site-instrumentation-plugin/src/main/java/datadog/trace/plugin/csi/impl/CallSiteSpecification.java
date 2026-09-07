@@ -162,52 +162,44 @@ public class CallSiteSpecification implements Validatable {
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
         final Set<Integer> pointcutParameters) {
-      withParameter(
-          ArgumentSpecification.class,
-          (i, spec) -> {
-            final Type argType = pointcut.getMethodType().getArgumentTypes()[spec.index];
-            final Type advice = adviceArgumentTypes[i];
-            if (!pointcutParameters.remove(spec.index)) {
-              context.addError(ErrorCode.ADVICE_PARAMETER_ARGUMENT_OUT_OF_BOUNDS);
-            }
-            validateCompatibility(
-                context, argType, advice, ErrorCode.ADVICE_METHOD_PARAM_NOT_COMPATIBLE, i);
-          });
+      withParameter(ArgumentSpecification.class, (i, spec) -> {
+        final Type argType = pointcut.getMethodType().getArgumentTypes()[spec.index];
+        final Type advice = adviceArgumentTypes[i];
+        if (!pointcutParameters.remove(spec.index)) {
+          context.addError(ErrorCode.ADVICE_PARAMETER_ARGUMENT_OUT_OF_BOUNDS);
+        }
+        validateCompatibility(
+            context, argType, advice, ErrorCode.ADVICE_METHOD_PARAM_NOT_COMPATIBLE, i);
+      });
     }
 
     private void validateReturnSpecCompatibility(
         final ValidationContext context, final Type[] adviceArgumentTypes) {
-      withParameter(
-          ReturnSpecification.class,
-          (i, spec) -> {
-            final Type rType =
-                pointcut.isConstructor()
-                    ? pointcut.getOwner()
-                    : pointcut.getMethodType().getReturnType();
-            final Type advice = adviceArgumentTypes[i];
-            validateCompatibility(
-                context, rType, advice, ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, i);
-          });
+      withParameter(ReturnSpecification.class, (i, spec) -> {
+        final Type rType = pointcut.isConstructor()
+            ? pointcut.getOwner()
+            : pointcut.getMethodType().getReturnType();
+        final Type advice = adviceArgumentTypes[i];
+        validateCompatibility(
+            context, rType, advice, ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, i);
+      });
     }
 
     private void validateThisSpecCompatibility(
         final ValidationContext context, final Type[] adviceArgumentTypes) {
-      withParameter(
-          ThisSpecification.class,
-          (i, spec) -> {
-            final Type owner = pointcut.getOwner();
-            final Type advice = adviceArgumentTypes[i];
-            validateCompatibility(
-                context, owner, advice, ErrorCode.ADVICE_METHOD_PARAM_THIS_NOT_COMPATIBLE, i);
-          });
+      withParameter(ThisSpecification.class, (i, spec) -> {
+        final Type owner = pointcut.getOwner();
+        final Type advice = adviceArgumentTypes[i];
+        validateCompatibility(
+            context, owner, advice, ErrorCode.ADVICE_METHOD_PARAM_THIS_NOT_COMPATIBLE, i);
+      });
     }
 
     protected void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
       if (!advice.isVoidReturn()) {
-        final Type pointcutType =
-            pointcut.isConstructor()
-                ? pointcut.getOwner()
-                : pointcut.getMethodType().getReturnType();
+        final Type pointcutType = pointcut.isConstructor()
+            ? pointcut.getOwner()
+            : pointcut.getMethodType().getReturnType();
         final Type adviceType = advice.getMethodType().getReturnType();
         validateCompatibility(
             context, pointcutType, adviceType, ErrorCode.ADVICE_METHOD_RETURN_NOT_COMPATIBLE, -1);
@@ -218,34 +210,30 @@ public class CallSiteSpecification implements Validatable {
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
         final Set<Integer> pointcutParameters) {
-      withParameter(
-          InvokeDynamicConstantsSpecification.class,
-          (i, spec) -> {
-            final Type type = Types.OBJECT_ARRAY;
-            final Type advice = adviceArgumentTypes[i];
-            pointcutParameters.clear();
-            validateCompatibility(
-                context,
-                type,
-                advice,
-                ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_NOT_COMPATIBLE,
-                i);
-          });
+      withParameter(InvokeDynamicConstantsSpecification.class, (i, spec) -> {
+        final Type type = Types.OBJECT_ARRAY;
+        final Type advice = adviceArgumentTypes[i];
+        pointcutParameters.clear();
+        validateCompatibility(
+            context,
+            type,
+            advice,
+            ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_NOT_COMPATIBLE,
+            i);
+      });
     }
 
     private void validateAllArgsSpecCompatibility(
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
         final Set<Integer> pointcutParameters) {
-      withParameter(
-          AllArgsSpecification.class,
-          (i, spec) -> {
-            final Type type = Types.OBJECT_ARRAY;
-            final Type advice = adviceArgumentTypes[i];
-            pointcutParameters.clear();
-            validateCompatibility(
-                context, type, advice, ErrorCode.ADVICE_METHOD_PARAM_ALL_ARGS_NOT_COMPATIBLE, i);
-          });
+      withParameter(AllArgsSpecification.class, (i, spec) -> {
+        final Type type = Types.OBJECT_ARRAY;
+        final Type advice = adviceArgumentTypes[i];
+        pointcutParameters.clear();
+        validateCompatibility(
+            context, type, advice, ErrorCode.ADVICE_METHOD_PARAM_ALL_ARGS_NOT_COMPATIBLE, i);
+      });
     }
 
     protected void validateCompatibility(
@@ -680,11 +668,10 @@ public class CallSiteSpecification implements Validatable {
 
     public Enabled(final List<String> enabled) {
       this.arguments = enabled.size() <= 2 ? emptyList() : enabled.subList(2, enabled.size());
-      this.method =
-          new MethodType(
-              classNameToType(enabled.get(0)),
-              enabled.get(1),
-              Type.getMethodType(Types.BOOLEAN, stringTypeArray(arguments.size())));
+      this.method = new MethodType(
+          classNameToType(enabled.get(0)),
+          enabled.get(1),
+          Type.getMethodType(Types.BOOLEAN, stringTypeArray(arguments.size())));
     }
 
     public MethodType getMethod() {

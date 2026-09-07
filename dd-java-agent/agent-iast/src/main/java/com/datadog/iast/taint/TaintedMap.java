@@ -75,9 +75,8 @@ public interface TaintedMap extends Iterable<TaintedObject> {
    * case there is a purge logic that will clear stale entries according to the scheduled interval.
    */
   static TaintedMap buildWithPurge(final int capacity, int maxAge, TimeUnit maxAgeUnit) {
-    final TaintedMapImpl map =
-        new TaintedMapImpl(
-            capacity, DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, AgentTaskScheduler.get());
+    final TaintedMapImpl map = new TaintedMapImpl(
+        capacity, DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, AgentTaskScheduler.get());
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
@@ -242,7 +241,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     private Iterator<TaintedObject> iterator(final int start, final int stop) {
       return new Iterator<TaintedObject>() {
         int currentIndex = start;
-        @Nullable TaintedObject currentSubPos;
+
+        @Nullable
+        TaintedObject currentSubPos;
 
         @Override
         public boolean hasNext() {

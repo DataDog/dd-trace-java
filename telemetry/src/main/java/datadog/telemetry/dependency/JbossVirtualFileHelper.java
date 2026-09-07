@@ -89,9 +89,8 @@ public class JbossVirtualFileHelper {
 
     if (jbossVirtualFileHelper == null) {
       try {
-        jbossVirtualFileHelper =
-            JbossVirtualFileHelper.jbossVirtualFileHelper =
-                new JbossVirtualFileHelper(connection.getClass().getClassLoader());
+        jbossVirtualFileHelper = JbossVirtualFileHelper.jbossVirtualFileHelper =
+            new JbossVirtualFileHelper(connection.getClass().getClassLoader());
       } catch (Exception e) {
         log.debug("Error preparing for inspection of jboss virtual files", e);
         return null;

@@ -38,14 +38,13 @@ public class OkHttpUtils {
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =
       new HttpLoggingInterceptor(CLIENT_LOGGER::debug);
 
-  private static final Interceptor EXPECT_CONTINUE_INTERCEPTOR =
-      chain -> {
-        final Request.Builder builder = chain.request().newBuilder();
-        if (chain.request().body() != null) {
-          builder.addHeader("Expect", "100-continue");
-        }
-        return chain.proceed(builder.build());
-      };
+  private static final Interceptor EXPECT_CONTINUE_INTERCEPTOR = chain -> {
+    final Request.Builder builder = chain.request().newBuilder();
+    if (chain.request().body() != null) {
+      builder.addHeader("Expect", "100-continue");
+    }
+    return chain.proceed(builder.build());
+  };
 
   static {
     LOGGING_INTERCEPTOR.setLevel(Level.BASIC);

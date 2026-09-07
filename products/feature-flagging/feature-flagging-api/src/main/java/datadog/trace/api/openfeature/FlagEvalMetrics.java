@@ -34,13 +34,13 @@ class FlagEvalMetrics implements Closeable {
 
   FlagEvalMetrics() {
     try {
-      Meter meter = GlobalOpenTelemetry.get().getMeterProvider().meterBuilder(METER_NAME).build();
-      counter =
-          meter
-              .counterBuilder(METRIC_NAME)
-              .setUnit(METRIC_UNIT)
-              .setDescription(METRIC_DESC)
-              .build();
+      Meter meter =
+          GlobalOpenTelemetry.get().getMeterProvider().meterBuilder(METER_NAME).build();
+      counter = meter
+          .counterBuilder(METRIC_NAME)
+          .setUnit(METRIC_UNIT)
+          .setDescription(METRIC_DESC)
+          .build();
 
       log.debug("Flag evaluation metrics initialized");
     } catch (NoClassDefFoundError e) {
@@ -68,11 +68,10 @@ class FlagEvalMetrics implements Closeable {
       return;
     }
     try {
-      AttributesBuilder builder =
-          Attributes.builder()
-              .put(ATTR_FLAG_KEY, flagKey)
-              .put(ATTR_VARIANT, variant != null ? variant : "")
-              .put(ATTR_REASON, reason != null ? reason.toLowerCase() : "unknown");
+      AttributesBuilder builder = Attributes.builder()
+          .put(ATTR_FLAG_KEY, flagKey)
+          .put(ATTR_VARIANT, variant != null ? variant : "")
+          .put(ATTR_REASON, reason != null ? reason.toLowerCase() : "unknown");
 
       if (errorCode != null) {
         builder.put(ATTR_ERROR_TYPE, errorCode.name().toLowerCase());

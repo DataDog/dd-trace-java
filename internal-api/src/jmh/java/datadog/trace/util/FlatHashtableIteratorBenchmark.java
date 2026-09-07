@@ -104,13 +104,12 @@ public class FlatHashtableIteratorBenchmark {
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES =
-      new FlatHashtable.HashStrategy[] {
-        ItHashStrategyA.INSTANCE,
-        ItHashStrategyB.INSTANCE,
-        ItHashStrategyC.INSTANCE,
-        ItHashStrategyD.INSTANCE,
-      };
+  static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES = new FlatHashtable.HashStrategy[] {
+    ItHashStrategyA.INSTANCE,
+    ItHashStrategyB.INSTANCE,
+    ItHashStrategyC.INSTANCE,
+    ItHashStrategyD.INSTANCE,
+  };
 
   ItEntry[] table;
 

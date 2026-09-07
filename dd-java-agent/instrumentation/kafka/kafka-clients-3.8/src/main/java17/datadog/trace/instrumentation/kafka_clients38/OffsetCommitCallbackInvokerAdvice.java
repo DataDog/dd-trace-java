@@ -10,9 +10,9 @@ public class OffsetCommitCallbackInvokerAdvice {
   public static void onEnqueue(
       @Advice.Argument(value = 0, readOnly = false) OffsetCommitCallback callback,
       @Advice.This OffsetCommitCallbackInvoker callbackInvoker) {
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
-            .get(callbackInvoker);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+            OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
+        .get(callbackInvoker);
     callback = new DDOffsetCommitCallback(callback, kafkaConsumerInfo);
   }
 }

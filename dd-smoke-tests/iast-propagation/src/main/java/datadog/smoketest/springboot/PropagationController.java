@@ -30,17 +30,15 @@ public class PropagationController {
 
   @SuppressWarnings("unchecked")
   private Supplier<List<String>> supplierForLanguage(final String language) {
-    return suppliers.computeIfAbsent(
-        language,
-        l -> {
-          try {
-            String name = Character.toUpperCase(l.charAt(0)) + l.substring(1) + "Propagation";
-            Class<?> instance = Thread.currentThread().getContextClassLoader().loadClass(name);
-            return (Supplier<List<String>>) instance.newInstance();
-          } catch (final Exception e) {
-            throw new RuntimeException(e);
-          }
-        });
+    return suppliers.computeIfAbsent(language, l -> {
+      try {
+        String name = Character.toUpperCase(l.charAt(0)) + l.substring(1) + "Propagation";
+        Class<?> instance = Thread.currentThread().getContextClassLoader().loadClass(name);
+        return (Supplier<List<String>>) instance.newInstance();
+      } catch (final Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
   }
 
   private String invokeMethod(

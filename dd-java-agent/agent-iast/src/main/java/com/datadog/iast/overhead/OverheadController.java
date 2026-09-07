@@ -52,9 +52,8 @@ public interface OverheadController {
       final int maxConcurrentRequests,
       final boolean globalFallback,
       final AgentTaskScheduler scheduler) {
-    final OverheadControllerImpl result =
-        new OverheadControllerImpl(
-            requestSampling, maxConcurrentRequests, globalFallback, scheduler);
+    final OverheadControllerImpl result = new OverheadControllerImpl(
+        requestSampling, maxConcurrentRequests, globalFallback, scheduler);
     return IastSystem.DEBUG ? new OverheadControllerDebugAdapter(result) : result;
   }
 
@@ -270,15 +269,12 @@ public interface OverheadController {
       int[] copyArray;
 
       if (requestArray == null) {
-        AtomicIntegerArray globalArray =
-            globalMap.computeIfAbsent(
-                currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+        AtomicIntegerArray globalArray = globalMap.computeIfAbsent(
+            currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
         copyArray = toIntArray(globalArray);
         ctx.getCopyMap().put(currentEndpoint, copyArray);
-        requestArray =
-            ctx.getRequestMap()
-                .computeIfAbsent(
-                    currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+        requestArray = ctx.getRequestMap()
+            .computeIfAbsent(currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
       } else {
         copyArray = ctx.getCopyMap().get(currentEndpoint);
       }

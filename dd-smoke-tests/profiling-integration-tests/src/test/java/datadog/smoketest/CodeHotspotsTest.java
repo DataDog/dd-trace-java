@@ -87,16 +87,15 @@ public final class CodeHotspotsTest {
 
     timeout = (int) (TEST_CASE_TIMEOUT * timeoutQuotient);
     if (timeoutQuotient > 1) {
-      System.out.println(
-          "===> Timeout scaled by "
-              + timeoutQuotient
-              + " to "
-              + timeout
-              + "s (load = "
-              + load
-              + ", cores = "
-              + cores
-              + ")");
+      System.out.println("===> Timeout scaled by "
+          + timeoutQuotient
+          + " to "
+          + timeout
+          + "s (load = "
+          + load
+          + ", cores = "
+          + cores
+          + ")");
     }
   }
 
@@ -113,29 +112,27 @@ public final class CodeHotspotsTest {
   @Disabled
   void testReactive(Duration meanServiceTime, int arrivalRate, double minCoverage)
       throws Exception {
-    System.out.println(
-        "=== Test reactive app (mean service time = "
-            + meanServiceTime
-            + ", arrival rate = "
-            + arrivalRate
-            + " tasks/s)");
+    System.out.println("=== Test reactive app (mean service time = "
+        + meanServiceTime
+        + ", arrival rate = "
+        + arrivalRate
+        + " tasks/s)");
     int interval = 10; // milliseconds
     int workers = 2;
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "reactive",
-                Integer.toString(workers),
-                Long.toString(meanServiceTime.toNanos()),
-                Long.toString(arrivalRate),
-                Integer.toString(timeout))
-            .start();
+    Process targetProcess = createProcessBuilder(
+            CodeHotspotsApplication.class.getName(),
+            0,
+            timeout * 2,
+            interval,
+            interval,
+            dumpDir,
+            logFilePath,
+            "reactive",
+            Integer.toString(workers),
+            Long.toString(meanServiceTime.toNanos()),
+            Long.toString(arrivalRate),
+            Integer.toString(timeout))
+        .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     long serviceRate = (long) (workers * 1_000_000_000d) / meanServiceTime.toNanos();
@@ -165,19 +162,18 @@ public final class CodeHotspotsTest {
     int meanServiceTimeSecs = 1; // seconds
     long meanServiceTimeNs = TimeUnit.SECONDS.toNanos(meanServiceTimeSecs);
     int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "batch",
-                Long.toString(meanServiceTimeNs),
-                Integer.toString(timeout))
-            .start();
+    Process targetProcess = createProcessBuilder(
+            CodeHotspotsApplication.class.getName(),
+            0,
+            timeout * 2,
+            interval,
+            interval,
+            dumpDir,
+            logFilePath,
+            "batch",
+            Long.toString(meanServiceTimeNs),
+            Integer.toString(timeout))
+        .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
@@ -196,20 +192,19 @@ public final class CodeHotspotsTest {
     int interval = 10; // milliseconds
     int workers =
         Runtime.getRuntime().availableProcessors() * 2; // more workers than available cores
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "fanout",
-                Integer.toString(workers),
-                Long.toString(meanServiceTimeNs),
-                Integer.toString(timeout))
-            .start();
+    Process targetProcess = createProcessBuilder(
+            CodeHotspotsApplication.class.getName(),
+            0,
+            timeout * 2,
+            interval,
+            interval,
+            dumpDir,
+            logFilePath,
+            "fanout",
+            Integer.toString(workers),
+            Long.toString(meanServiceTimeNs),
+            Integer.toString(timeout))
+        .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
@@ -224,17 +219,16 @@ public final class CodeHotspotsTest {
   void testNativeLibrary(String libraryName) throws Exception {
     System.out.println("Test " + libraryName);
     int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                NativeLibrariesApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                libraryName)
-            .start();
+    Process targetProcess = createProcessBuilder(
+            NativeLibrariesApplication.class.getName(),
+            0,
+            timeout * 2,
+            interval,
+            interval,
+            dumpDir,
+            logFilePath,
+            libraryName)
+        .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
@@ -267,19 +261,18 @@ public final class CodeHotspotsTest {
   private void runTestGenerativeStackTraces(String mode, int depth) throws Exception {
     System.out.println("Test depth=" + depth + " with mode: " + mode);
     int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                GenerativeStackTraces.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                String.valueOf(depth),
-                "1000",
-                mode)
-            .start();
+    Process targetProcess = createProcessBuilder(
+            GenerativeStackTraces.class.getName(),
+            0,
+            timeout * 2,
+            interval,
+            interval,
+            dumpDir,
+            logFilePath,
+            String.valueOf(depth),
+            "1000",
+            mode)
+        .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
@@ -355,14 +348,11 @@ public final class CodeHotspotsTest {
         }
       }
     }
-    spanSampleCnt.values().stream()
-        .map(AtomicLong::get)
-        .forEach(
-            v -> {
-              summaryStats.addValue(v);
-              p99.increment(v);
-              p50.increment(v);
-            });
+    spanSampleCnt.values().stream().map(AtomicLong::get).forEach(v -> {
+      summaryStats.addValue(v);
+      p99.increment(v);
+      p50.increment(v);
+    });
 
     /*
      Qualified samples are scaled according to 'idleness' -

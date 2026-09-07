@@ -27,9 +27,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
           TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
           Collection<String> testTags = TestNGUtils.getGroups(result);
-          executionPolicy =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-                  testIdentifier, testSourceData, testTags);
+          executionPolicy = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+              testIdentifier, testSourceData, testTags);
         }
       }
     }

@@ -42,9 +42,8 @@ public class ContextDispatcher implements Dispatcher {
     if (PROPAGATOR.isOperationWithPayload(operationId)) {
       final ContextPayload payload = ContextPayload.read(in);
       if (payload != null) {
-        final AgentSpanContext context =
-            extractContextAndGetSpanContext(
-                payload.getContext(), ContextVisitors.stringValuesMap());
+        final AgentSpanContext context = extractContextAndGetSpanContext(
+            payload.getContext(), ContextVisitors.stringValuesMap());
         THREAD_LOCAL_CONTEXT.set(context);
       }
     }

@@ -26,9 +26,8 @@ public final class ConcurrentState {
   private volatile ContextContinuation continuation = null;
 
   private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, ContextContinuation.class, "continuation");
+      CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+          ConcurrentState.class, ContextContinuation.class, "continuation");
 
   private ConcurrentState() {}
 

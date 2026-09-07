@@ -58,8 +58,7 @@ class PollerScheduler {
     } else {
       initialDelay = 0;
     }
-    this.scheduled =
-        taskScheduler.scheduleAtFixedRate(
-            poller::poll, poller, initialDelay, currentPollInterval, TimeUnit.MILLISECONDS);
+    this.scheduled = taskScheduler.scheduleAtFixedRate(
+        poller::poll, poller, initialDelay, currentPollInterval, TimeUnit.MILLISECONDS);
   }
 }

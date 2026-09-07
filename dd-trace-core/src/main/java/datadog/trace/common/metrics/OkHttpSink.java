@@ -83,9 +83,8 @@ public final class OkHttpSink implements Sink, EventListener {
       }
     } else {
       if (asyncTaskStarted.compareAndSet(false, true)) {
-        this.future =
-            AgentTaskScheduler.get()
-                .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
+        this.future = AgentTaskScheduler.get()
+            .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
       sendAsync(messageCount, buffer);
     }
@@ -101,8 +100,9 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
-    if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer.duplicate())).build())) {
+    if (!enqueuedRequests.offer(prepareRequest(metricsUrl, headers)
+        .post(makeRequestBody(buffer.duplicate()))
+        .build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,

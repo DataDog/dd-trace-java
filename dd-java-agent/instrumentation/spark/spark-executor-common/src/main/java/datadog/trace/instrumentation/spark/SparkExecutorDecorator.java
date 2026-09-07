@@ -82,7 +82,8 @@ public class SparkExecutorDecorator extends BaseDecorator {
     span.setMetric("spark.output_records", metrics.outputMetrics().recordsWritten());
 
     span.setMetric("spark.shuffle_read_bytes", metrics.shuffleReadMetrics().totalBytesRead());
-    span.setMetric("spark.shuffle_read_bytes_local", metrics.shuffleReadMetrics().localBytesRead());
+    span.setMetric(
+        "spark.shuffle_read_bytes_local", metrics.shuffleReadMetrics().localBytesRead());
     span.setMetric(
         "spark.shuffle_read_bytes_remote", metrics.shuffleReadMetrics().remoteBytesRead());
     span.setMetric(

@@ -43,9 +43,8 @@ class BackendApiFactoryTest {
     agent.start();
     try {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
-      final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+      final BackendApiFactory factory = new BackendApiFactory(
+          Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
       final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
 
       assertNotNull(api);
@@ -71,23 +70,20 @@ class BackendApiFactoryTest {
     agent.start();
     try {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
-      final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
-      final BackendApi api =
-          factory.createEvpProxyApi(
-              Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+      final BackendApiFactory factory = new BackendApiFactory(
+          Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+      final BackendApi api = factory.createEvpProxyApi(
+          Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
 
       assertNotNull(api);
       assertThrows(
           HttpResponseException.class,
-          () ->
-              api.post(
-                  "flagevaluation",
-                  RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
-                  stream -> null,
-                  null,
-                  false));
+          () -> api.post(
+              "flagevaluation",
+              RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+              stream -> null,
+              null,
+              false));
 
       assertEquals(1, agent.getRequestCount());
     } finally {

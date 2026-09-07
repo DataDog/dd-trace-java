@@ -188,12 +188,11 @@ public class DatadogProfilerConfig {
     // JVMTI Allocation Sampler is available since Java 11
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+      boolean enableDdprofAlloc = getBoolean(
+          configProvider,
+          PROFILING_ALLOCATION_ENABLED,
+          dflt,
+          PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
 
       if (!dflt && enableDdprofAlloc) {
         log.warn(
@@ -228,21 +227,18 @@ public class DatadogProfilerConfig {
     // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
     // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
     boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
-    boolean enableDdprofMemleak =
-        getBoolean(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-            isSafe,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
+    boolean enableDdprofMemleak = getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+        isSafe,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
     if (!isSafe && enableDdprofMemleak) {
-      log.warn(
-          "Live heap profiling (ddprof) was enabled although it is not considered stable"
-              + " on this JVM version.");
+      log.warn("Live heap profiling (ddprof) was enabled although it is not considered stable"
+          + " on this JVM version.");
     }
     if (!enableDdprofMemleak && !isOldObjectSampleAvailable()) {
-      log.warn(
-          "ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
-              + " on this JVM. Live heap profiling will be inactive.");
+      log.warn("ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
+          + " on this JVM. Live heap profiling will be inactive.");
     }
     return enableDdprofMemleak;
   }
@@ -367,11 +363,10 @@ public class DatadogProfilerConfig {
   }
 
   public static String getCStack(ConfigProvider configProvider) {
-    String cstack =
-        getString(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_CSTACK,
-            PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+    String cstack = getString(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_CSTACK,
+        PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
     if (cstack.startsWith("vm") && !(JavaVirtualMachine.isHotspot())) {
       // can't use the VM stackwalking on non-hotspot VMs
       // fall-back to 'dwarf' unwinding

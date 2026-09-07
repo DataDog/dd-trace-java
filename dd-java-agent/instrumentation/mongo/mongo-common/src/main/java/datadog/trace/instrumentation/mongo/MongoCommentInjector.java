@@ -73,10 +73,9 @@ public class MongoCommentInjector {
 
     // Extract connection details
     String dbService = dbSpan.getServiceName();
-    String traceParent =
-        Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-            ? W3CTraceParent.from(dbSpan)
-            : null;
+    String traceParent = Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
+        ? W3CTraceParent.from(dbSpan)
+        : null;
 
     // Use shared comment builder directly
     return SharedDBCommenter.buildComment(dbService, "mongodb", hostname, dbName, traceParent);

@@ -60,13 +60,11 @@ public class ConfigurationErrors {
   }
 
   public static void serialize(Serializer s, ConfigurationErrors errors) {
-    byte flags =
-        (byte)
-            ((errors.settings ? SETTINGS_FLAG : 0)
-                | (errors.skippableTests ? SKIPPABLE_TESTS_FLAG : 0)
-                | (errors.flakyTests ? FLAKY_TESTS_FLAG : 0)
-                | (errors.knownTests ? KNOWN_TESTS_FLAG : 0)
-                | (errors.testManagementTests ? TEST_MANAGEMENT_TESTS_FLAG : 0));
+    byte flags = (byte) ((errors.settings ? SETTINGS_FLAG : 0)
+        | (errors.skippableTests ? SKIPPABLE_TESTS_FLAG : 0)
+        | (errors.flakyTests ? FLAKY_TESTS_FLAG : 0)
+        | (errors.knownTests ? KNOWN_TESTS_FLAG : 0)
+        | (errors.testManagementTests ? TEST_MANAGEMENT_TESTS_FLAG : 0));
     s.write(flags);
   }
 

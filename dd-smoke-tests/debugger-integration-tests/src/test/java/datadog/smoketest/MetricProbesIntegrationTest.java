@@ -100,16 +100,16 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
         "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            .where(MAIN_CLASS_NAME, METHOD_NAME)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+    MetricProbe metricProbe = MetricProbe.builder()
+        .probeId(PROBE_ID)
+        .where(MAIN_CLASS_NAME, METHOD_NAME)
+        .kind(kind)
+        .metricName(metricName)
+        .valueScript(script)
+        .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
@@ -123,28 +123,27 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
         "-1"; // wait for TIMEOUT_S for letting the Probe Status to be sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            .where(MAIN_CLASS_NAME, METHOD_NAME)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+    MetricProbe metricProbe = MetricProbe.builder()
+        .probeId(PROBE_ID)
+        .where(MAIN_CLASS_NAME, METHOD_NAME)
+        .kind(kind)
+        .metricName(metricName)
+        .valueScript(script)
+        .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
@@ -206,17 +205,17 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
         "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            // on line: System.out.println("fullMethod");
-            .where("DebuggerTestApplication.java", 95)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+    MetricProbe metricProbe = MetricProbe.builder()
+        .probeId(PROBE_ID)
+        // on line: System.out.println("fullMethod");
+        .where("DebuggerTestApplication.java", 95)
+        .kind(kind)
+        .metricName(metricName)
+        .valueScript(script)
+        .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);

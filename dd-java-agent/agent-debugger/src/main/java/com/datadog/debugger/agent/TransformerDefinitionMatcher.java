@@ -62,10 +62,9 @@ public class TransformerDefinitionMatcher {
       }
       fileName = normalizeWindowsToUnixPath(fileName);
       fileName = fileName.toLowerCase(Locale.ROOT);
-      Map<String, List<ProbeDefinition>> targetMap =
-          fileName.indexOf('/') != -1
-              ? definitionsByQualifiedFileNames
-              : definitionsBySimpleFileNames;
+      Map<String, List<ProbeDefinition>> targetMap = fileName.indexOf('/') != -1
+          ? definitionsByQualifiedFileNames
+          : definitionsBySimpleFileNames;
       targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
     }
   }
@@ -109,10 +108,9 @@ public class TransformerDefinitionMatcher {
       byTypeDefinitions.addAll(definitions);
     }
     // fallback to matching on SimpleName (String)
-    String simpleClassName =
-        classBeingRedefined != null
-            ? classBeingRedefined.getSimpleName()
-            : typeName.substring(typeName.lastIndexOf('.') + 1); // strip the package name
+    String simpleClassName = classBeingRedefined != null
+        ? classBeingRedefined.getSimpleName()
+        : typeName.substring(typeName.lastIndexOf('.') + 1); // strip the package name
     if (typeName.equals(simpleClassName)) {
       return byTypeDefinitions;
     }

@@ -85,11 +85,10 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     Map<String, String> baggageMap = new HashMap<>();
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(baggageMap)
-            .apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
+        .setBaggageMapping(baggageMap)
+        .apply();
     this.extractor = NoneCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
     // spotless:off

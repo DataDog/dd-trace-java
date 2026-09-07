@@ -58,13 +58,11 @@ class ValueRefExpressionTest {
     RuntimeException runtimeException =
         assertThrows(RuntimeException.class, () -> isEmptyInvalid.evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
-    runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(evalContext));
+    runtimeException = assertThrows(
+        RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
-    runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(evalContext));
+    runtimeException = assertThrows(
+        RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
     assertEquals("isEmpty(x)", print(isEmptyInvalid));
   }
@@ -84,10 +82,9 @@ class ValueRefExpressionTest {
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, CapturedValue.of(returnVal));
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, CapturedValue.of(duration));
     exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, CapturedValue.of(exception));
-    EvalContext evalContext =
-        new EvalContext(
-            createResolver(new Obj()).withExtensions(exts),
-            TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
+    EvalContext evalContext = new EvalContext(
+        createResolver(new Obj()).withExtensions(exts),
+        TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
     assertEquals(duration, expression.evaluate(evalContext).getValue());
@@ -108,9 +105,8 @@ class ValueRefExpressionTest {
     assertEquals(6, expression.evaluate(evalContext).getValue()); // int value is widened to long
     assertEquals("i", print(expression));
     ValueRefExpression invalidExpression = ref(ValueReferences.synthetic("invalid"));
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> invalidExpression.evaluate(evalContext).getValue());
+    RuntimeException runtimeException = assertThrows(
+        RuntimeException.class, () -> invalidExpression.evaluate(evalContext).getValue());
     assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
     assertEquals("@invalid", print(invalidExpression));
   }
@@ -145,9 +141,8 @@ class ValueRefExpressionTest {
       class Holder {
         StoreSecret store = new StoreSecret("secret123");
       }
-      RedactedException redactedException =
-          assertThrows(
-              RedactedException.class, () -> valueRef.evaluate(createEvalContext(new Holder())));
+      RedactedException redactedException = assertThrows(
+          RedactedException.class, () -> valueRef.evaluate(createEvalContext(new Holder())));
       assertEquals(
           "Could not evaluate the expression because 'store' was redacted",
           redactedException.getMessage());

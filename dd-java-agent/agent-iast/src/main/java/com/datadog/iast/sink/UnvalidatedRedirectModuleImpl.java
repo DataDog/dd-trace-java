@@ -84,8 +84,11 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   }
 
   private class UnvalidatedRedirectLocationSupplier implements LocationSupplier {
-    @Nullable private final String clazz;
-    @Nullable private final String method;
+    @Nullable
+    private final String clazz;
+
+    @Nullable
+    private final String method;
 
     private UnvalidatedRedirectLocationSupplier(
         @Nullable final String clazz, @Nullable final String method) {

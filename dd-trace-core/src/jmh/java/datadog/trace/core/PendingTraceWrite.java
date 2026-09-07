@@ -31,63 +31,60 @@ public class PendingTraceWrite {
 
   @Setup(Level.Trial)
   public void init(TraceCounters counters, Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, counters, tokens))
-            .strictTraceWrites(false)
-            .build();
+    tracer = CoreTracer.builder()
+        .writer(new BlackholeWriter(blackhole, counters, tokens))
+        .strictTraceWrites(false)
+        .build();
     DDTraceId traceId = DDTraceId.ONE;
     traceCollector = tracer.createTraceCollector(traceId);
-    root =
-        DDSpan.create(
-            "benchmark",
-            System.currentTimeMillis() * 1000,
-            new DDSpanContext(
-                traceId,
-                2,
-                DDSpanId.ZERO,
-                null,
-                "service",
-                "operation",
-                "resource",
-                PrioritySampling.SAMPLER_KEEP,
-                null,
-                Collections.<String, String>emptyMap(),
-                false,
-                "type",
-                0,
-                traceCollector,
-                null,
-                null,
-                NoopPathwayContext.INSTANCE,
-                false,
-                null),
-            null);
-    span =
-        DDSpan.create(
-            "benchmark",
-            System.currentTimeMillis() * 1000,
-            new DDSpanContext(
-                traceId,
-                3,
-                2,
-                null,
-                "service",
-                "operation",
-                "resource",
-                PrioritySampling.SAMPLER_KEEP,
-                null,
-                Collections.<String, String>emptyMap(),
-                false,
-                "type",
-                0,
-                traceCollector,
-                null,
-                null,
-                NoopPathwayContext.INSTANCE,
-                false,
-                null),
-            null);
+    root = DDSpan.create(
+        "benchmark",
+        System.currentTimeMillis() * 1000,
+        new DDSpanContext(
+            traceId,
+            2,
+            DDSpanId.ZERO,
+            null,
+            "service",
+            "operation",
+            "resource",
+            PrioritySampling.SAMPLER_KEEP,
+            null,
+            Collections.<String, String>emptyMap(),
+            false,
+            "type",
+            0,
+            traceCollector,
+            null,
+            null,
+            NoopPathwayContext.INSTANCE,
+            false,
+            null),
+        null);
+    span = DDSpan.create(
+        "benchmark",
+        System.currentTimeMillis() * 1000,
+        new DDSpanContext(
+            traceId,
+            3,
+            2,
+            null,
+            "service",
+            "operation",
+            "resource",
+            PrioritySampling.SAMPLER_KEEP,
+            null,
+            Collections.<String, String>emptyMap(),
+            false,
+            "type",
+            0,
+            traceCollector,
+            null,
+            null,
+            NoopPathwayContext.INSTANCE,
+            false,
+            null),
+        null);
   }
 
   @Threads(4)

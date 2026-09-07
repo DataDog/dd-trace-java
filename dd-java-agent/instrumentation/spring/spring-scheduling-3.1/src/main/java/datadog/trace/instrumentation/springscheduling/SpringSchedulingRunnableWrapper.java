@@ -21,9 +21,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
   static class SchedulingAware extends SpringSchedulingRunnableWrapper
       implements SchedulingAwareRunnable {
 
-    private static final MethodHandle GET_QUALIFIER_MH =
-        new MethodHandles(SchedulingAwareRunnable.class.getClassLoader())
-            .method(SchedulingAwareRunnable.class, "getQualifier");
+    private static final MethodHandle GET_QUALIFIER_MH = new MethodHandles(
+            SchedulingAwareRunnable.class.getClassLoader())
+        .method(SchedulingAwareRunnable.class, "getQualifier");
 
     SchedulingAware(Runnable runnable) {
       super(runnable);
@@ -54,10 +54,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    final AgentSpan span =
-        LEGACY_TRACING
-            ? startSpan("spring-scheduling", SCHEDULED_CALL)
-            : startSpan("spring-scheduling", SCHEDULED_CALL, null);
+    final AgentSpan span = LEGACY_TRACING
+        ? startSpan("spring-scheduling", SCHEDULED_CALL)
+        : startSpan("spring-scheduling", SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
     DECORATE.measureIfEnabled(span);
 

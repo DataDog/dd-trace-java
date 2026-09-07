@@ -96,7 +96,10 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     when(profilingContext.newScopeState(any())).thenReturn(state);
     when(profilingContext.name()).thenReturn("mock");
     writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build();
+    tracer = tracerBuilder()
+        .writer(writer)
+        .profilingContextIntegration(profilingContext)
+        .build();
     AgentTracer.forceRegister(tracer);
     scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
     eventCountingListener = new EventCountingListener();
@@ -362,7 +365,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     // the child has the correct parent
     assertNull(scopeManager.active());
     assertTrue(spanFinished(childSpan));
-    assertEquals(span.spanContext().getSpanId(), ((DDSpan) childSpan).spanContext().getParentId());
+    assertEquals(
+        span.spanContext().getSpanId(), ((DDSpan) childSpan).spanContext().getParentId());
     assertEquals(1, writer.size());
     assertTrue(writer.get(0).containsAll(Arrays.asList(childSpan, span)));
   }
@@ -715,21 +719,18 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     continuation.get().hold();
 
     AtomicInteger iteration = new AtomicInteger(0);
-    ThreadUtils.runConcurrently(
-        8,
-        512,
-        () -> {
-          int iter = iteration.incrementAndGet();
-          if ((iter & 1) != 0) {
-            Thread.sleep(1);
-          }
-          ContextScope s = continuation.get().resume();
-          assertSame(s, scopeManager.active());
-          if ((iter & 2) != 0) {
-            Thread.sleep(1);
-          }
-          s.close();
-        });
+    ThreadUtils.runConcurrently(8, 512, () -> {
+      int iter = iteration.incrementAndGet();
+      if ((iter & 1) != 0) {
+        Thread.sleep(1);
+      }
+      ContextScope s = continuation.get().resume();
+      assertSame(s, scopeManager.active());
+      if ((iter & 2) != 0) {
+        Thread.sleep(1);
+      }
+      s.close();
+    });
 
     long duration = System.nanoTime() - start;
 
@@ -863,20 +864,18 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     Future<?>[] futures = new Future[numTasks];
     for (int i = 0; i < numTasks; i++) {
       final int taskIndex = i;
-      futures[i] =
-          executor.submit(
-              () -> {
-                AgentScope scope = tracer.activateSpan(span);
-                AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
-                AgentScope childScope = tracer.activateSpan(child);
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                  Thread.currentThread().interrupt();
-                }
-                childScope.close();
-                scope.close();
-              });
+      futures[i] = executor.submit(() -> {
+        AgentScope scope = tracer.activateSpan(span);
+        AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
+        AgentScope childScope = tracer.activateSpan(child);
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+          Thread.currentThread().interrupt();
+        }
+        childScope.close();
+        scope.close();
+      });
     }
     for (Future<?> future : futures) {
       future.get();
@@ -1141,13 +1140,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    assertDoesNotThrow(
-        () -> {
-          // NoopAgentTraceCollector handles capture/release without throwing
-          try (ContextScope scope = ctx.attach()) {
-            Context.current().capture().release();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      // NoopAgentTraceCollector handles capture/release without throwing
+      try (ContextScope scope = ctx.attach()) {
+        Context.current().capture().release();
+      }
+    });
   }
 
   private boolean spanFinished(AgentSpan span) {

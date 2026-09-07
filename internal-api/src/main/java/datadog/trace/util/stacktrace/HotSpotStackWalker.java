@@ -7,7 +7,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class HotSpotStackWalker extends AbstractStackWalker {
-  @SuppressForbidden sun.misc.JavaLangAccess access;
+  @SuppressForbidden
+  sun.misc.JavaLangAccess access;
 
   @SuppressForbidden
   HotSpotStackWalker() {

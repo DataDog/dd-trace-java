@@ -77,17 +77,15 @@ public class NettyHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return URIDataAdapterBase.fromURI(
-        request.getUri(),
-        uri -> {
-          if ((uri.getHost() == null || uri.getHost().equals(""))
-              && request.headers().contains(HttpHeaders.Names.HOST)) {
-            return URIDataAdapterBase.fromURI(
-                "http://" + request.headers().get(HttpHeaders.Names.HOST) + request.getUri(),
-                URIDefaultDataAdapter::new);
-          }
-          return new URIDefaultDataAdapter(uri);
-        });
+    return URIDataAdapterBase.fromURI(request.getUri(), uri -> {
+      if ((uri.getHost() == null || uri.getHost().equals(""))
+          && request.headers().contains(HttpHeaders.Names.HOST)) {
+        return URIDataAdapterBase.fromURI(
+            "http://" + request.headers().get(HttpHeaders.Names.HOST) + request.getUri(),
+            URIDefaultDataAdapter::new);
+      }
+      return new URIDefaultDataAdapter(uri);
+    });
   }
 
   @Override
@@ -190,10 +188,8 @@ public class NettyHttpServerDecorator
         pipeline
             .channel()
             .eventLoop()
-            .execute(
-                () ->
-                    commitBlockingResponse(
-                        segment, statusCode, templateType, extraHeaders, securityResponseId));
+            .execute(() -> commitBlockingResponse(
+                segment, statusCode, templateType, extraHeaders, securityResponseId));
         return true;
       } catch (RuntimeException rte) {
         log.warn("Failed scheduling blocking handler", rte);
@@ -222,9 +218,8 @@ public class NettyHttpServerDecorator
         }
       }
 
-      BlockingResponseHandler blockingHandler =
-          new BlockingResponseHandler(
-              segment, statusCode, templateType, extraHeaders, securityResponseId, serverContext);
+      BlockingResponseHandler blockingHandler = new BlockingResponseHandler(
+          segment, statusCode, templateType, extraHeaders, securityResponseId, serverContext);
       ChannelInboundHandlerAdapter beforeBlockingHandler = new ChannelInboundHandlerAdapter();
       try {
         pipeline

@@ -100,10 +100,9 @@ public class LogProbeTest {
   public void budgets() {
     try {
       ProbeRateLimiter.setGlobalSnapshotRate(-1);
-      TracerAPI tracer =
-          CoreTracer.builder()
-              .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
-              .build();
+      TracerAPI tracer = CoreTracer.builder()
+          .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+          .build();
       AgentTracer.registerIfAbsent(tracer);
       String sessionId = "12345";
 
@@ -165,10 +164,9 @@ public class LogProbeTest {
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
-      int budget =
-          logProbe.isCaptureSnapshot()
-              ? LogProbe.CAPTURING_PROBE_BUDGET
-              : LogProbe.NON_CAPTURING_PROBE_BUDGET;
+      int budget = logProbe.isCaptureSnapshot()
+          ? LogProbe.CAPTURING_PROBE_BUDGET
+          : LogProbe.NON_CAPTURING_PROBE_BUDGET;
       int runs = budget + 20;
 
       for (int i = 0; i < runs; i++) {
@@ -188,8 +186,9 @@ public class LogProbeTest {
 
   private boolean fillSnapshot(DebugSessionStatus status) {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
-    TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    TracerAPI tracer = CoreTracer.builder()
+        .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+        .build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
     try (ContextScope scope = tracer.activateManualSpan(span)) {
@@ -257,7 +256,8 @@ public class LogProbeTest {
   @ParameterizedTest
   @ValueSource(strings = {"ENTRY", "EXIT"})
   public void fillSnapshot_shouldSend(String methodLocation) {
-    LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.valueOf(methodLocation)).build();
+    LogProbe logProbe =
+        createLog(null).evaluateAt(MethodLocation.valueOf(methodLocation)).build();
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
     LogStatus logEntryStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
@@ -360,25 +360,23 @@ public class LogProbeTest {
   @Test
   public void captureExpressionsInActiveDebugSession() {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
-    TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    TracerAPI tracer = CoreTracer.builder()
+        .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+        .build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
     try (ContextScope scope = tracer.activateManualSpan(span)) {
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       // the probe sampler always rejects: the active session decision must still win
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
-      LogProbe logProbe =
-          createLog("log line")
-              .probeId(ProbeId.newId())
-              .evaluateAt(MethodLocation.EXIT)
-              .tags(format("session_id:%s", DEBUG_SESSION_ID))
-              .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
-              .captureExpressions(
-                  singletonList(
-                      new LogProbe.CaptureExpression(
-                          "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
-              .build();
+      LogProbe logProbe = createLog("log line")
+          .probeId(ProbeId.newId())
+          .evaluateAt(MethodLocation.EXIT)
+          .tags(format("session_id:%s", DEBUG_SESSION_ID))
+          .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
+          .captureExpressions(singletonList(new LogProbe.CaptureExpression(
+              "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
+          .build();
       logProbe.initSamplers();
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
@@ -444,11 +442,10 @@ public class LogProbeTest {
   public void evaluateConditionFalseDoesNotSkipSnapshot() {
     DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     DebuggerAgentHelper.injectSink(sink);
-    LogProbe logProbe =
-        createLog(null)
-            .evaluateAt(MethodLocation.EXIT)
-            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
-            .build();
+    LogProbe logProbe = createLog(null)
+        .evaluateAt(MethodLocation.EXIT)
+        .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+        .build();
     CapturedContext context = new CapturedContext();
     LogStatus status = new LogStatus(logProbe);
 

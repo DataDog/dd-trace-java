@@ -92,13 +92,12 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         takesNoArguments()
-            .and(
-                named("handle")
-                    .or(
-                        // In 9.0.3 the handle logic was extracted out to "handle"
-                        // but we still want to instrument run in case handle is missing
-                        // (without the risk of double instrumenting).
-                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
+            .and(named("handle")
+                .or(
+                    // In 9.0.3 the handle logic was extracted out to "handle"
+                    // but we still want to instrument run in case handle is missing
+                    // (without the risk of double instrumenting).
+                    named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
         JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
     transformer.applyAdvice(

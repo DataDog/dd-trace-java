@@ -334,12 +334,9 @@ public class SingleThreadedMapBenchmark {
   @Benchmark
   public void iterate_flatHashtable(Blackhole blackhole) {
     // Context-passing forEach: blackhole rides through as context, so the lambda doesn't capture.
-    FlatHashtable.forEach(
-        flatTable,
-        blackhole,
-        (bh, e) -> {
-          bh.consume(e.key);
-          bh.consume(e.value);
-        });
+    FlatHashtable.forEach(flatTable, blackhole, (bh, e) -> {
+      bh.consume(e.key);
+      bh.consume(e.value);
+    });
   }
 }

@@ -25,48 +25,45 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(
-                namedOneOf(
-                    "loadCache",
-                    "size",
-                    "sizeLong",
-                    "invokeAll",
-                    "getAll",
-                    "getEntries",
-                    "getAllOutTx",
-                    "containsKeys",
-                    "putAll",
-                    "removeAll")),
+            .and(namedOneOf(
+                "loadCache",
+                "size",
+                "sizeLong",
+                "invokeAll",
+                "getAll",
+                "getEntries",
+                "getAllOutTx",
+                "containsKeys",
+                "putAll",
+                "removeAll")),
         IgniteCacheSyncInstrumentation.class.getName() + "$IgniteAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(
-                namedOneOf(
-                    "getAndPutIfAbsent",
-                    "get",
-                    "getEntry",
-                    "containsKey",
-                    "getAndPut",
-                    "put",
-                    "putIfAbsent",
-                    "remove",
-                    "getAndRemove",
-                    "replace",
-                    "getAndReplace",
-                    "clear",
-                    "invoke")),
+            .and(namedOneOf(
+                "getAndPutIfAbsent",
+                "get",
+                "getEntry",
+                "containsKey",
+                "getAndPut",
+                "put",
+                "putIfAbsent",
+                "remove",
+                "getAndRemove",
+                "replace",
+                "getAndReplace",
+                "clear",
+                "invoke")),
         IgniteCacheSyncInstrumentation.class.getName() + "$KeyedAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("query"))
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "org.apache.ignite.cache.query.Query",
-                        "org.apache.ignite.cache.query.SqlFieldsQuery"))),
+            .and(takesArgument(
+                0,
+                namedOneOf(
+                    "org.apache.ignite.cache.query.Query",
+                    "org.apache.ignite.cache.query.SqlFieldsQuery"))),
         IgniteCacheSyncInstrumentation.class.getName() + "$QueryAdvice");
   }
 

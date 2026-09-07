@@ -105,9 +105,8 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
         return;
       }
 
-      connectionFuture.whenComplete(
-          MasterReplicaConnectionHelper.onConnectionComplete(
-              span, InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+      connectionFuture.whenComplete(MasterReplicaConnectionHelper.onConnectionComplete(
+          span, InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
     }
   }
 }

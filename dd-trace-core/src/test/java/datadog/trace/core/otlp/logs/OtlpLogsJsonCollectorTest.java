@@ -35,7 +35,8 @@ import org.junit.jupiter.api.Test;
  */
 class OtlpLogsJsonCollectorTest {
 
-  private static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  private static final CoreTracer TRACER =
+      CoreTracer.builder().writer(new LoggingWriter()).build();
   private static final OtelInstrumentationScope SCOPE =
       new OtelInstrumentationScope("test.logger", null, null);
 
@@ -104,14 +105,13 @@ class OtlpLogsJsonCollectorTest {
     // open the attributes array on the shared/reused collector, then blow up before it's closed
     assertThrows(
         RuntimeException.class,
-        () ->
-            collector.collectLogs(
-                (visitor, interval) -> {
-                  OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
-                  scoped.visitAttribute(STRING_ATTRIBUTE, "service.name", "svc");
-                  throw new RuntimeException("boom");
-                },
-                0));
+        () -> collector.collectLogs(
+            (visitor, interval) -> {
+              OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
+              scoped.visitAttribute(STRING_ATTRIBUTE, "service.name", "svc");
+              throw new RuntimeException("boom");
+            },
+            0));
 
     // a subsequent, successful collection must still emit a well-formed attributes array
     OtlpLogRecord record = logRecord("tagged", null, null);

@@ -11,6 +11,8 @@ public class PreparedStatementQueryAdvice {
   public static void afterQuery(
       @Advice.This final PreparedStatement zis, @Advice.Return final Query query) {
     InstrumentationContext.get(Query.class, Pair.class)
-        .put(query, InstrumentationContext.get(PreparedStatement.class, Pair.class).get(zis));
+        .put(
+            query,
+            InstrumentationContext.get(PreparedStatement.class, Pair.class).get(zis));
   }
 }

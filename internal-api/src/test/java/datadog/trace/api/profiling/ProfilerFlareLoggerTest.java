@@ -228,16 +228,13 @@ class ProfilerFlareLoggerTest {
     ZipOutputStream zip = new ZipOutputStream(baos);
 
     try (MockedStatic<TracerFlare> mockedStatic = mockStatic(TracerFlare.class)) {
-      mockedStatic
-          .when(() -> TracerFlare.addText(any(), any(), any()))
-          .then(
-              invocation -> {
-                String content = invocation.getArgument(2);
-                assertTrue(content.contains("Message 1"));
-                assertTrue(content.contains("Message 2 with arg"));
-                assertTrue(content.contains("\n")); // Should have newlines between messages
-                return null;
-              });
+      mockedStatic.when(() -> TracerFlare.addText(any(), any(), any())).then(invocation -> {
+        String content = invocation.getArgument(2);
+        assertTrue(content.contains("Message 1"));
+        assertTrue(content.contains("Message 2 with arg"));
+        assertTrue(content.contains("\n")); // Should have newlines between messages
+        return null;
+      });
 
       logger.addReportToFlare(zip);
     }
@@ -275,21 +272,20 @@ class ProfilerFlareLoggerTest {
 
     for (int i = 0; i < threadCount; i++) {
       final int threadId = i;
-      executor.submit(
-          () -> {
-            try {
-              startLatch.await();
-              for (int j = 0; j < messagesPerThread; j++) {
-                if (logger.log("Thread {} message {}", threadId, j)) {
-                  successCount.incrementAndGet();
-                }
-              }
-            } catch (Exception e) {
-              fail("Exception in thread: " + e.getMessage());
-            } finally {
-              doneLatch.countDown();
+      executor.submit(() -> {
+        try {
+          startLatch.await();
+          for (int j = 0; j < messagesPerThread; j++) {
+            if (logger.log("Thread {} message {}", threadId, j)) {
+              successCount.incrementAndGet();
             }
-          });
+          }
+        } catch (Exception e) {
+          fail("Exception in thread: " + e.getMessage());
+        } finally {
+          doneLatch.countDown();
+        }
+      });
     }
 
     startLatch.countDown();
@@ -311,18 +307,16 @@ class ProfilerFlareLoggerTest {
       CountDownLatch latch = new CountDownLatch(2);
 
       // Logger thread
-      executor.submit(
-          () -> {
-            logger.log("Concurrent message");
-            latch.countDown();
-          });
+      executor.submit(() -> {
+        logger.log("Concurrent message");
+        latch.countDown();
+      });
 
       // Cleanup thread
-      executor.submit(
-          () -> {
-            logger.cleanup();
-            latch.countDown();
-          });
+      executor.submit(() -> {
+        logger.cleanup();
+        latch.countDown();
+      });
 
       assertTrue(latch.await(1, TimeUnit.SECONDS));
     }

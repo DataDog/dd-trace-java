@@ -27,9 +27,8 @@ public final class ClientInvocationInstrumentation
         "datadog.trace.instrumentation.hazelcast4.InvocationAdvice");
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    0, named("com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
+            .and(takesArgument(
+                0, named("com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
         getClass().getName() + "$ConstructAdvice");
   }
 

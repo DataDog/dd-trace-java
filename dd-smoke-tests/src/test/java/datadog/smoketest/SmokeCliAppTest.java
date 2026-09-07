@@ -15,12 +15,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class SmokeCliAppTest {
 
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("test-cli")
-          .mainClass("datadog.smoketest.TestCliApp")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+  static final SmokeCliApp app = SmokeCliApp.named("test-cli")
+      .mainClass("datadog.smoketest.TestCliApp")
+      .backend(AgentBackend.mockAgent())
+      .noAgent()
+      .build();
 
   @Test
   void retainsStartupLogsForAssertion() {

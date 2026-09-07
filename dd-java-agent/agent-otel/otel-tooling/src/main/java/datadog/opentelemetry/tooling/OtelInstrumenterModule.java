@@ -81,14 +81,13 @@ public abstract class OtelInstrumenterModule extends InstrumenterModule.Tracing 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> virtualFields = new HashMap<>();
-    registerMuzzleVirtualFields(
-        new VirtualFieldBuilder() {
-          @Override
-          public VirtualFieldBuilder register(String typeName, String fieldTypeName) {
-            virtualFields.put(typeName, fieldTypeName);
-            return this;
-          }
-        });
+    registerMuzzleVirtualFields(new VirtualFieldBuilder() {
+      @Override
+      public VirtualFieldBuilder register(String typeName, String fieldTypeName) {
+        virtualFields.put(typeName, fieldTypeName);
+        return this;
+      }
+    });
     return virtualFields;
   }
 

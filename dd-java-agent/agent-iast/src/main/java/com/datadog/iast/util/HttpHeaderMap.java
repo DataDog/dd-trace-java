@@ -16,9 +16,11 @@ public class HttpHeaderMap<T> {
 
     private final String key;
 
-    @Nullable private T value;
+    @Nullable
+    private T value;
 
-    @Nullable private Entry<T> next;
+    @Nullable
+    private Entry<T> next;
 
     private Entry(final String key, @Nullable final T value) {
       this.key = key;

@@ -24,30 +24,27 @@ public class ThirdPartyLibraries {
   private static final JsonAdapter<InternalConfig> ADAPTER =
       new Moshi.Builder().build().adapter(InternalConfig.class);
   private static final String FILE_NAME = "/third_party_libraries.json";
-  private static final Set<String> DEFAULT_SHADING_IDENTIFIERS =
-      new HashSet<>(
-          Arrays.asList(
-              "shaded",
-              "thirdparty",
-              "dependencies",
-              "relocated",
-              "bundled",
-              "embedded",
-              "vendor",
-              "repackaged",
-              "shadow",
-              "shim",
-              "wrapper"));
+  private static final Set<String> DEFAULT_SHADING_IDENTIFIERS = new HashSet<>(Arrays.asList(
+      "shaded",
+      "thirdparty",
+      "dependencies",
+      "relocated",
+      "bundled",
+      "embedded",
+      "vendor",
+      "repackaged",
+      "shadow",
+      "shim",
+      "wrapper"));
 
   private ThirdPartyLibraries() {}
 
   public Set<String> getThirdPartyLibraries(Config config) {
     try (InputStream inputStream = this.getClass().getResourceAsStream(FILE_NAME)) {
       InternalConfig defaults = readConfig(inputStream);
-      Set<String> excludes =
-          config.getThirdPartyIncludes().stream()
-              .filter(s -> !s.isEmpty())
-              .collect(Collectors.toSet());
+      Set<String> excludes = config.getThirdPartyIncludes().stream()
+          .filter(s -> !s.isEmpty())
+          .collect(Collectors.toSet());
       excludes.addAll(defaults.getPrefixes());
       return excludes;
     } catch (Exception e) {

@@ -123,16 +123,14 @@ public class ValueScript implements DebuggerScript<Value<?>> {
         while (jsonReader.hasNext()) {
           String fieldName = jsonReader.nextName();
           switch (fieldName) {
-            case "json":
-              {
-                valueExpression = JsonToExpressionConverter.asValueExpression(jsonReader);
-                break;
-              }
-            case "dsl":
-              {
-                dsl = jsonReader.nextString();
-                break;
-              }
+            case "json": {
+              valueExpression = JsonToExpressionConverter.asValueExpression(jsonReader);
+              break;
+            }
+            case "dsl": {
+              dsl = jsonReader.nextString();
+              break;
+            }
             default:
               throw new IOException("Invalid field: " + fieldName);
           }

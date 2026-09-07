@@ -216,14 +216,13 @@ public final class StringIndex {
       }
       double min = Math.ceil(n / (double) loadFactor);
       if (min > MAX_CAPACITY) {
-        throw new IllegalArgumentException(
-            "capacity for n="
-                + n
-                + " at loadFactor="
-                + loadFactor
-                + " exceeds maximum capacity ("
-                + MAX_CAPACITY
-                + ")");
+        throw new IllegalArgumentException("capacity for n="
+            + n
+            + " at loadFactor="
+            + loadFactor
+            + " exceeds maximum capacity ("
+            + MAX_CAPACITY
+            + ")");
       }
       return Integer.highestOneBit((int) min - 1) << 1;
     }

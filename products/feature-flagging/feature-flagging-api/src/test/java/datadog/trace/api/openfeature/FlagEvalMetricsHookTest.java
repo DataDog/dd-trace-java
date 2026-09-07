@@ -20,15 +20,15 @@ class FlagEvalMetricsHookTest {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
     FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
-    FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("my-flag")
-            .value("on-value")
-            .variant("on")
-            .reason(Reason.TARGETING_MATCH.name())
-            .flagMetadata(
-                ImmutableMetadata.builder().addString("allocationKey", "default-alloc").build())
-            .build();
+    FlagEvaluationDetails<Object> details = FlagEvaluationDetails.<Object>builder()
+        .flagKey("my-flag")
+        .value("on-value")
+        .variant("on")
+        .reason(Reason.TARGETING_MATCH.name())
+        .flagMetadata(ImmutableMetadata.builder()
+            .addString("allocationKey", "default-alloc")
+            .build())
+        .build();
 
     hook.finallyAfter(null, details, Collections.emptyMap());
 
@@ -46,13 +46,12 @@ class FlagEvalMetricsHookTest {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
     FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
-    FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("missing-flag")
-            .value("default")
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.FLAG_NOT_FOUND)
-            .build();
+    FlagEvaluationDetails<Object> details = FlagEvaluationDetails.<Object>builder()
+        .flagKey("missing-flag")
+        .value("default")
+        .reason(Reason.ERROR.name())
+        .errorCode(ErrorCode.FLAG_NOT_FOUND)
+        .build();
 
     hook.finallyAfter(null, details, Collections.emptyMap());
 
@@ -70,13 +69,12 @@ class FlagEvalMetricsHookTest {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
     FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
-    FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("my-flag")
-            .value(true)
-            .variant("on")
-            .reason(Reason.TARGETING_MATCH.name())
-            .build();
+    FlagEvaluationDetails<Object> details = FlagEvaluationDetails.<Object>builder()
+        .flagKey("my-flag")
+        .value(true)
+        .variant("on")
+        .reason(Reason.TARGETING_MATCH.name())
+        .build();
 
     hook.finallyAfter(null, details, Collections.emptyMap());
 
@@ -89,8 +87,10 @@ class FlagEvalMetricsHookTest {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
     FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
-    FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder().flagKey("my-flag").value("default").build();
+    FlagEvaluationDetails<Object> details = FlagEvaluationDetails.<Object>builder()
+        .flagKey("my-flag")
+        .value("default")
+        .build();
 
     hook.finallyAfter(null, details, Collections.emptyMap());
 
@@ -112,13 +112,12 @@ class FlagEvalMetricsHookTest {
   void finallyAfterIsNoOpWhenMetricsIsNull() {
     FlagEvalMetricsHook hook = new FlagEvalMetricsHook(null);
 
-    FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("my-flag")
-            .value(true)
-            .variant("on")
-            .reason(Reason.TARGETING_MATCH.name())
-            .build();
+    FlagEvaluationDetails<Object> details = FlagEvaluationDetails.<Object>builder()
+        .flagKey("my-flag")
+        .value(true)
+        .variant("on")
+        .reason(Reason.TARGETING_MATCH.name())
+        .build();
 
     // Should not throw
     hook.finallyAfter(null, details, Collections.emptyMap());

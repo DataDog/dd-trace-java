@@ -33,9 +33,8 @@ public class TestApplicationHelper {
   public static void waitForTransformerInstalled(String logFileName) throws IOException {
     waitForSpecificLogLine(
         Paths.get(logFileName),
-        line ->
-            line.contains(
-                "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"),
+        line -> line.contains(
+            "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"),
         () -> {},
         Duration.ofMillis(SLEEP_MS),
         Duration.ofSeconds(TIMEOUT_S));
@@ -157,16 +156,14 @@ public class TestApplicationHelper {
       System.err.flush();
       init.run();
       AtomicBoolean fromLineMatched = new AtomicBoolean(fromLineMatcher == null);
-      Files.lines(logFilePath)
-          .forEach(
-              line -> {
-                if (!fromLineMatched.get()) {
-                  fromLineMatched.set(fromLineMatcher.test(line));
-                } else if (lineMatcher.test(line)) {
-                  matchedLine.set(line);
-                  result.set(true);
-                }
-              });
+      Files.lines(logFilePath).forEach(line -> {
+        if (!fromLineMatched.get()) {
+          fromLineMatched.set(fromLineMatcher.test(line));
+        } else if (lineMatcher.test(line)) {
+          matchedLine.set(line);
+          result.set(true);
+        }
+      });
       LockSupport.parkNanos(sleep.toNanos());
       i++;
     }

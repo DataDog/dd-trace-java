@@ -67,12 +67,10 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
 
       // that class is not implementing javax.websocket.Session but hides the close() method
       // hence we need an ad hoc advice
-      handlerContext =
-          (HandlerContext.Sender)
-              InstrumentationContext.get(
-                      "javax.websocket.Session",
-                      "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender")
-                  .remove(session);
+      handlerContext = (HandlerContext.Sender) InstrumentationContext.get(
+              "javax.websocket.Session",
+              "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender")
+          .remove(session);
       if (handlerContext == null) {
         return null;
       }

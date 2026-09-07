@@ -77,35 +77,32 @@ final class JfrMBeanHelper {
   private static final String KEY_MAX_AGE = "maxAge";
   private static final String KEY_TO_DISK = "toDisk";
 
-  private static final String[] SETTING_NAMES =
-      new String[] {
-        KEY_NAME,
-        KEY_TO_DISK,
-        KEY_DURATION,
-        KEY_MAX_SIZE,
-        KEY_MAX_AGE,
-        KEY_DESTINATION_FILE,
-        KEY_START_TIME,
-        KEY_DESTINATION_COMPRESSED
-      };
-  private static final OpenType<?>[] SETTING_TYPES =
-      new OpenType[] {
-        SimpleType.STRING,
-        SimpleType.BOOLEAN,
-        SimpleType.LONG,
-        SimpleType.LONG,
-        SimpleType.LONG,
-        SimpleType.STRING,
-        SimpleType.DATE,
-        SimpleType.BOOLEAN
-      };
+  private static final String[] SETTING_NAMES = new String[] {
+    KEY_NAME,
+    KEY_TO_DISK,
+    KEY_DURATION,
+    KEY_MAX_SIZE,
+    KEY_MAX_AGE,
+    KEY_DESTINATION_FILE,
+    KEY_START_TIME,
+    KEY_DESTINATION_COMPRESSED
+  };
+  private static final OpenType<?>[] SETTING_TYPES = new OpenType[] {
+    SimpleType.STRING,
+    SimpleType.BOOLEAN,
+    SimpleType.LONG,
+    SimpleType.LONG,
+    SimpleType.LONG,
+    SimpleType.STRING,
+    SimpleType.DATE,
+    SimpleType.BOOLEAN
+  };
 
   private static final String[] OPTION_NAMES =
       new String[] {KEY_ID, KEY_THRESHOLD, KEY_STACKTRACE_SERVER, KEY_PERIOD_SERVER, KEY_ENABLED};
-  private static final OpenType<?>[] OPTION_TYPES =
-      new OpenType[] {
-        SimpleType.INTEGER, SimpleType.LONG, SimpleType.BOOLEAN, SimpleType.LONG, SimpleType.BOOLEAN
-      };
+  private static final OpenType<?>[] OPTION_TYPES = new OpenType[] {
+    SimpleType.INTEGER, SimpleType.LONG, SimpleType.BOOLEAN, SimpleType.LONG, SimpleType.BOOLEAN
+  };
   private static final CompositeType OPTIONS_COMPOSITE_TYPE = generateOptionsType();
   private static final CompositeType SETTINGS_COMPOSITE_TYPE = generateSettingsType();
 
@@ -247,13 +244,11 @@ final class JfrMBeanHelper {
 
   public ObjectName cloneRecording(ObjectName recordingId) throws IOException {
     log.debug("Cloning recording {}", recordingId.getKeyProperty("name"));
-    ObjectName cloned =
-        (ObjectName)
-            invokeJfrOperation(
-                CLONE_RECORDING,
-                recordingId,
-                "Clone of " + recordingId.getKeyProperty("name"),
-                Boolean.TRUE);
+    ObjectName cloned = (ObjectName) invokeJfrOperation(
+        CLONE_RECORDING,
+        recordingId,
+        "Clone of " + recordingId.getKeyProperty("name"),
+        Boolean.TRUE);
     log.debug(
         "Recording {} has been cloned to {}",
         recordingId.getKeyProperty("name"),
@@ -304,35 +299,31 @@ final class JfrMBeanHelper {
         Object[] values = new Object[] {entry.getKey(), -1L, Boolean.FALSE, -1L, Boolean.FALSE};
         for (Map.Entry<String, String> valueEntry : entry.getValue().entrySet()) {
           switch (valueEntry.getKey()) {
-            case "threshold":
-              {
-                values[1] = parseDuration(valueEntry.getValue(), ChronoUnit.NANOS).toNanos();
-                break;
+            case "threshold": {
+              values[1] = parseDuration(valueEntry.getValue(), ChronoUnit.NANOS).toNanos();
+              break;
+            }
+            case "stackTrace": {
+              values[2] = Boolean.parseBoolean(valueEntry.getValue());
+              break;
+            }
+            case "period": {
+              String valueStr = valueEntry.getValue();
+              if (valueStr.contains("Chunk")) {
+                values[3] = 0L; // magic number for 'everyChunk'
+              } else {
+                values[3] =
+                    parseDuration(valueEntry.getValue(), ChronoUnit.MILLIS).toMillis();
               }
-            case "stackTrace":
-              {
-                values[2] = Boolean.parseBoolean(valueEntry.getValue());
-                break;
-              }
-            case "period":
-              {
-                String valueStr = valueEntry.getValue();
-                if (valueStr.contains("Chunk")) {
-                  values[3] = 0L; // magic number for 'everyChunk'
-                } else {
-                  values[3] = parseDuration(valueEntry.getValue(), ChronoUnit.MILLIS).toMillis();
-                }
-                break;
-              }
-            case "enabled":
-              {
-                values[4] = Boolean.parseBoolean(valueEntry.getValue());
-                break;
-              }
-            default:
-              {
-                log.warn("Unsupported setting name: {}. Skipping.", valueEntry.getKey());
-              }
+              break;
+            }
+            case "enabled": {
+              values[4] = Boolean.parseBoolean(valueEntry.getValue());
+              break;
+            }
+            default: {
+              log.warn("Unsupported setting name: {}. Skipping.", valueEntry.getKey());
+            }
           }
         }
         eventSettings.add(new CompositeDataSupport(OPTIONS_COMPOSITE_TYPE, OPTION_NAMES, values));
@@ -346,10 +337,9 @@ final class JfrMBeanHelper {
   CompositeData encodeRecordingSettings(String name, long maxSize, Duration maxAge)
       throws IOException {
     try {
-      return new CompositeDataSupport(
-          SETTINGS_COMPOSITE_TYPE,
-          SETTING_NAMES,
-          new Object[] {name, false, 0L, maxSize, maxAge.toMillis(), null, new Date(), false});
+      return new CompositeDataSupport(SETTINGS_COMPOSITE_TYPE, SETTING_NAMES, new Object[] {
+        name, false, 0L, maxSize, maxAge.toMillis(), null, new Date(), false
+      });
     } catch (OpenDataException e) {
       throw new IOException(e);
     }
@@ -380,32 +370,26 @@ final class JfrMBeanHelper {
     }
 
     switch (valueUnit[1].toLowerCase(Locale.ROOT)) {
-      case "ns":
-        {
-          return Duration.of(value, ChronoUnit.NANOS);
-        }
-      case "us":
-        {
-          return Duration.of(value, ChronoUnit.MICROS);
-        }
-      case "ms":
-        {
-          return Duration.of(value, ChronoUnit.MILLIS);
-        }
-      case "s":
-        {
-          return Duration.of(value, ChronoUnit.SECONDS);
-        }
-      case "m":
-        {
-          return Duration.of(value, ChronoUnit.MINUTES);
-        }
-      default:
-        {
-          log.debug(
-              "Unsupported time unit: {}. Assuming {}", valueUnit[1], defaultTimeUnit.toString());
-          return Duration.of(value, defaultTimeUnit);
-        }
+      case "ns": {
+        return Duration.of(value, ChronoUnit.NANOS);
+      }
+      case "us": {
+        return Duration.of(value, ChronoUnit.MICROS);
+      }
+      case "ms": {
+        return Duration.of(value, ChronoUnit.MILLIS);
+      }
+      case "s": {
+        return Duration.of(value, ChronoUnit.SECONDS);
+      }
+      case "m": {
+        return Duration.of(value, ChronoUnit.MINUTES);
+      }
+      default: {
+        log.debug(
+            "Unsupported time unit: {}. Assuming {}", valueUnit[1], defaultTimeUnit.toString());
+        return Duration.of(value, defaultTimeUnit);
+      }
     }
   }
 

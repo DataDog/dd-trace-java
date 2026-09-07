@@ -9,7 +9,9 @@ import javax.annotation.Nullable;
 public abstract class AbstractRegexTokenizer implements SensitiveHandler.Tokenizer {
 
   protected final Matcher matcher;
-  @Nullable private Ranged current;
+
+  @Nullable
+  private Ranged current;
 
   protected AbstractRegexTokenizer(final Pattern pattern, final String evidence) {
     matcher = pattern.matcher(evidence);

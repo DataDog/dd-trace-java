@@ -73,8 +73,7 @@ public class CapturedValueAdapterTest {
     }
     value = getCollectionValue(String[].class.getTypeName(), sb.toString());
     assertArrayEquals(
-        new String[] {
-          "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
+        new String[] {"foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
         },
         (String[]) value.getValue());
   }

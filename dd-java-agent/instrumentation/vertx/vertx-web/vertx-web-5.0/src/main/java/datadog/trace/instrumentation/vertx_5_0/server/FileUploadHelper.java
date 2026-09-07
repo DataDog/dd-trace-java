@@ -37,10 +37,9 @@ public class FileUploadHelper {
         return "";
       }
       String charSet = upload.charSet();
-      String contentType =
-          charSet != null && !charSet.isEmpty()
-              ? upload.contentType() + "; charset=" + charSet
-              : upload.contentType();
+      String contentType = charSet != null && !charSet.isEmpty()
+          ? upload.contentType() + "; charset=" + charSet
+          : upload.contentType();
       try (FileInputStream fis = new FileInputStream(path)) {
         return MultipartContentDecoder.readInputStream(fis, maxBytes, contentType);
       }

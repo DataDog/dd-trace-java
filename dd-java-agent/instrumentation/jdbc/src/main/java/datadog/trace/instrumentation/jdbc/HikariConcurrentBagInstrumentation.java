@@ -88,11 +88,10 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         @Advice.Enter final Long startTimeMillis,
         @Advice.Thrown final Throwable throwable) {
       if (HikariBlockedTracker.wasBlocked()) {
-        final AgentSpan span =
-            startSpan(
-                JAVA_JDBC_POOL_WAITING.toString(),
-                POOL_WAITING,
-                TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+        final AgentSpan span = startSpan(
+            JAVA_JDBC_POOL_WAITING.toString(),
+            POOL_WAITING,
+            TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
         DECORATE.afterStart(span);
         DECORATE.onError(span, throwable);
         span.setResourceName("hikari.waiting");

@@ -43,9 +43,8 @@ class FileBasedTelemetryClientTest {
     assertFalse(Files.exists(outputDir));
 
     FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir.toString());
-    TelemetryClient.Result result =
-        client.sendHttpRequest(
-            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
+    TelemetryClient.Result result = client.sendHttpRequest(
+        requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
 
     assertEquals(TelemetryClient.Result.SUCCESS, result);
     assertTrue(Files.isDirectory(outputDir));
@@ -87,8 +86,9 @@ class FileBasedTelemetryClientTest {
   @Test
   void handlesNullRequestBody(@TempDir Path tmp) throws IOException {
     FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
-    Request.Builder builder =
-        new Request.Builder().addHeader("DD-Telemetry-Request-Type", "app-closing").get();
+    Request.Builder builder = new Request.Builder()
+        .addHeader("DD-Telemetry-Request-Type", "app-closing")
+        .get();
 
     TelemetryClient.Result result = client.sendHttpRequest(builder);
 
@@ -106,9 +106,8 @@ class FileBasedTelemetryClientTest {
     FileBasedTelemetryClient client =
         new FileBasedTelemetryClient(collision.resolve("sub").toString());
 
-    TelemetryClient.Result result =
-        client.sendHttpRequest(
-            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
+    TelemetryClient.Result result = client.sendHttpRequest(
+        requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
 
     assertEquals(TelemetryClient.Result.FAILURE, result);
   }

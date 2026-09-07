@@ -18,13 +18,13 @@ public class RedisSubscriptionCommandOnCompleteAdvice {
       @Advice.This RedisCommand command,
       @Advice.FieldValue("subscription") Subscription subscription) {
 
-    AgentSpan span = InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
+    AgentSpan span =
+        InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
 
     if (span != null) {
-      ContextStore<Subscription, RedisSubscriptionState> store =
-          InstrumentationContext.get(
-              "io.lettuce.core.RedisPublisher$RedisSubscription",
-              "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
+      ContextStore<Subscription, RedisSubscriptionState> store = InstrumentationContext.get(
+          "io.lettuce.core.RedisPublisher$RedisSubscription",
+          "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
       RedisSubscriptionState state = store.get(subscription);
       if (state != null) {
         if (state.count > 1) {

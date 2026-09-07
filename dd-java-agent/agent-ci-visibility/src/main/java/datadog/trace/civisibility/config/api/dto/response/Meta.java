@@ -11,8 +11,11 @@ import javax.annotation.Nullable;
 
 public final class Meta {
 
-  @Nullable public final String correlationId;
-  @Nullable public final Map<String, BitSet> coverage;
+  @Nullable
+  public final String correlationId;
+
+  @Nullable
+  public final Map<String, BitSet> coverage;
 
   public Meta(@Nullable String correlationId, @Nullable Map<String, BitSet> coverage) {
     this.correlationId = correlationId;
@@ -36,10 +39,9 @@ public final class Meta {
         coverage = new HashMap<>();
         for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
           String relativeSourceFilePath = e.getKey();
-          String normalizedPath =
-              relativeSourceFilePath.startsWith(File.separator)
-                  ? relativeSourceFilePath.substring(1)
-                  : relativeSourceFilePath;
+          String normalizedPath = relativeSourceFilePath.startsWith(File.separator)
+              ? relativeSourceFilePath.substring(1)
+              : relativeSourceFilePath;
           byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
           coverage.put(normalizedPath, BitSet.valueOf(decodedLines));
         }

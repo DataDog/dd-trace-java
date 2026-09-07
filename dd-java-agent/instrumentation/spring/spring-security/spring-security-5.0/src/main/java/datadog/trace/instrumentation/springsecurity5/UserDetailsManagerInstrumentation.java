@@ -45,9 +45,8 @@ public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
     transformer.applyAdvice(
         isMethod()
             .and(named("createUser"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.security.core.userdetails.UserDetails")))
+            .and(takesArgument(
+                0, named("org.springframework.security.core.userdetails.UserDetails")))
             .and(isPublic()),
         getClass().getName() + "$UserDetailsManagerAdvice");
   }

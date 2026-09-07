@@ -32,13 +32,11 @@ public final class HttpProxy implements Closeable {
     serverSocket = new ServerSocket(0); // random port
     serverSocket.setSoTimeout(0);
     port = serverSocket.getLocalPort();
-    executorService =
-        Executors.newCachedThreadPool(
-            r -> {
-              final Thread thread = new Thread(null, r, "Http Proxy: " + port);
-              thread.setDaemon(true);
-              return thread;
-            });
+    executorService = Executors.newCachedThreadPool(r -> {
+      final Thread thread = new Thread(null, r, "Http Proxy: " + port);
+      thread.setDaemon(true);
+      return thread;
+    });
     executorService.execute(new SocketAcceptor());
     System.out.println("Started proxy server " + this + " on port " + port);
   }

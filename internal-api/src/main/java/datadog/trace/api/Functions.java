@@ -180,12 +180,11 @@ public final class Functions {
   public static final Function<byte[], String> UTF8_BYTES_TO_STRING =
       bytes -> new String(bytes, UTF_8);
 
-  public static final Function<byte[], String> BASE64_DECODE =
-      bytes -> {
-        try {
-          return new String(Base64.getDecoder().decode(bytes), UTF_8);
-        } catch (final Exception ignored) {
-          return null;
-        }
-      };
+  public static final Function<byte[], String> BASE64_DECODE = bytes -> {
+    try {
+      return new String(Base64.getDecoder().decode(bytes), UTF_8);
+    } catch (final Exception ignored) {
+      return null;
+    }
+  };
 }

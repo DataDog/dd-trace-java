@@ -63,17 +63,17 @@ public class RequestMappingInfoIterator implements Iterator<Endpoint> {
     final List<String> responseBody =
         parseMediaTypes(nextInfo.getProducesCondition().getExpressions());
     for (final String path : nextInfo.getPatternsCondition().getPatterns()) {
-      final List<String> methods = Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
+      final List<String> methods =
+          Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
       for (final String method : methods) {
-        Endpoint endpoint =
-            new Endpoint()
-                .type(Endpoint.Type.REST)
-                .operation(Endpoint.Operation.HTTP_REQUEST)
-                .resource(method + " " + path)
-                .path(path)
-                .method(method)
-                .requestBodyType(requestBody)
-                .responseBodyType(responseBody);
+        Endpoint endpoint = new Endpoint()
+            .type(Endpoint.Type.REST)
+            .operation(Endpoint.Operation.HTTP_REQUEST)
+            .resource(method + " " + path)
+            .path(path)
+            .method(method)
+            .requestBodyType(requestBody)
+            .responseBodyType(responseBody);
         if (nextHandler != null) {
           final Map<String, String> metadata = new HashMap<>();
           metadata.put("handler", nextHandler.toString());

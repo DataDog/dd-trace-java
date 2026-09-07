@@ -31,10 +31,9 @@ public class ShedlockConfig {
 
   @Bean
   LockProvider lockProvider(@Autowired DataSource dataSource) {
-    return new JdbcTemplateLockProvider(
-        JdbcTemplateLockProvider.Configuration.builder()
-            .withJdbcTemplate(new JdbcTemplate(dataSource))
-            .usingDbTime()
-            .build());
+    return new JdbcTemplateLockProvider(JdbcTemplateLockProvider.Configuration.builder()
+        .withJdbcTemplate(new JdbcTemplate(dataSource))
+        .usingDbTime()
+        .build());
   }
 }

@@ -38,11 +38,10 @@ public class TestTaskHandle {
   private static final Class<?> TEST_TASK_CONTEXT_CLASS_REF =
       JUnitPlatformUtils.loadClass(TEST_TASK_CONTEXT_CLASS);
 
-  private static final MethodHandle TEST_TASK_CONSTRUCTOR =
-      TEST_TASK_CONTEXT_CLASS_REF != null
-          ? METHOD_HANDLES.constructor(
-              TEST_TASK_CLASS, TEST_TASK_CONTEXT_CLASS_REF, TestDescriptor.class)
-          : null;
+  private static final MethodHandle TEST_TASK_CONSTRUCTOR = TEST_TASK_CONTEXT_CLASS_REF != null
+      ? METHOD_HANDLES.constructor(
+          TEST_TASK_CLASS, TEST_TASK_CONTEXT_CLASS_REF, TestDescriptor.class)
+      : null;
 
   // Legacy fallback setters, lazily created to avoid JEP 500 warnings, only used on 1.3.0
   private static volatile MethodHandle testDescriptorSetter;
@@ -100,35 +99,30 @@ public class TestTaskHandle {
                 .build());
       } else {
         // junit-platform-engine 1.3.0 and earlier
-        return Collections.singletonList(
-            new Reference.Builder(TEST_TASK_CLASS)
-                .withField(
-                    new String[0],
-                    0,
-                    "listener",
-                    "Lorg/junit/platform/engine/EngineExecutionListener;")
-                .build());
+        return Collections.singletonList(new Reference.Builder(TEST_TASK_CLASS)
+            .withField(
+                new String[0], 0, "listener", "Lorg/junit/platform/engine/EngineExecutionListener;")
+            .build());
       }
     }
 
     public static Collection<? extends Reference> compileReferences() {
-      return Collections.singletonList(
-          new Reference.Builder(TEST_TASK_CLASS)
-              .withField(
-                  new String[0], 0, "testDescriptor", "Lorg/junit/platform/engine/TestDescriptor;")
-              .withField(
-                  new String[0], 0, "node", "Lorg/junit/platform/engine/support/hierarchical/Node;")
-              .withField(
-                  new String[0],
-                  0,
-                  "parentContext",
-                  "Lorg/junit/platform/engine/support/hierarchical/EngineExecutionContext;")
-              .withField(
-                  new String[0],
-                  0,
-                  "throwableCollector",
-                  "Lorg/junit/platform/engine/support/hierarchical/ThrowableCollector;")
-              .build());
+      return Collections.singletonList(new Reference.Builder(TEST_TASK_CLASS)
+          .withField(
+              new String[0], 0, "testDescriptor", "Lorg/junit/platform/engine/TestDescriptor;")
+          .withField(
+              new String[0], 0, "node", "Lorg/junit/platform/engine/support/hierarchical/Node;")
+          .withField(
+              new String[0],
+              0,
+              "parentContext",
+              "Lorg/junit/platform/engine/support/hierarchical/EngineExecutionContext;")
+          .withField(
+              new String[0],
+              0,
+              "throwableCollector",
+              "Lorg/junit/platform/engine/support/hierarchical/ThrowableCollector;")
+          .build());
     }
   }
 

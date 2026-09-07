@@ -29,12 +29,11 @@ public class JavaTimerInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(isPrivate())
-            .and(
-                named("sched")
-                    .and(takesArguments(3))
-                    .and(takesArgument(0, named("java.util.TimerTask")))
-                    .and(takesArgument(1, long.class))
-                    .and(takesArgument(2, long.class))),
+            .and(named("sched")
+                .and(takesArguments(3))
+                .and(takesArgument(0, named("java.util.TimerTask")))
+                .and(takesArgument(1, long.class))
+                .and(takesArgument(2, long.class))),
         getClass().getName() + "$TimerScheduleAdvice");
   }
 

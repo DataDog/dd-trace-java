@@ -76,10 +76,9 @@ class ScaReachabilityMethodLevelTest {
   void setUp() throws Exception {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     // Register the same handler as ScaReachabilitySystem.start() does in production
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) ->
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact, version, vulnId, dotClassName, methodName, line));
     db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     transformer = new ScaReachabilityTransformer(db, null);
   }
@@ -243,25 +242,15 @@ class ScaReachabilityMethodLevelTest {
         new HashMap<>();
     callbacksClassA.put(
         "vulnerableMethod",
-        Collections.singletonList(
-            spec(
-                "GHSA-shared",
-                "com.example:lib",
-                "1.0.0",
-                "com.example.ClassA",
-                "vulnerableMethod")));
+        Collections.singletonList(spec(
+            "GHSA-shared", "com.example:lib", "1.0.0", "com.example.ClassA", "vulnerableMethod")));
 
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacksClassB =
         new HashMap<>();
     callbacksClassB.put(
         "vulnerableMethod",
-        Collections.singletonList(
-            spec(
-                "GHSA-shared",
-                "com.example:lib",
-                "1.0.0",
-                "com.example.ClassB",
-                "vulnerableMethod")));
+        Collections.singletonList(spec(
+            "GHSA-shared", "com.example:lib", "1.0.0", "com.example.ClassB", "vulnerableMethod")));
 
     byte[] original = bytecodeOf(TargetClass.class);
     Class<?> clsA = loadModified(ScaMethodCallbackInjector.inject(original, callbacksClassA));
@@ -325,13 +314,12 @@ class ScaReachabilityMethodLevelTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         methodName,
-        Collections.singletonList(
-            spec(
-                "GHSA-first-instruction",
-                "com.example:lib",
-                "1.0.0",
-                UnhandledFirstOpcodeMethods.class.getName(),
-                methodName)));
+        Collections.singletonList(spec(
+            "GHSA-first-instruction",
+            "com.example:lib",
+            "1.0.0",
+            UnhandledFirstOpcodeMethods.class.getName(),
+            methodName)));
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
     assertEquals(
@@ -449,15 +437,9 @@ class ScaReachabilityMethodLevelTest {
     // once the entry callback is spliced in.
     byte[] original = bytecodeOf(OpcodeCoverageMethods.class);
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
-    for (String methodName :
-        new String[] {
-          "intInsn",
-          "jumpInsn",
-          "iincInsn",
-          "tableSwitchInsn",
-          "lookupSwitchInsn",
-          "multiANewArrayInsn"
-        }) {
+    for (String methodName : new String[] {
+      "intInsn", "jumpInsn", "iincInsn", "tableSwitchInsn", "lookupSwitchInsn", "multiANewArrayInsn"
+    }) {
       callbacks.put(
           methodName,
           Collections.singletonList(
@@ -483,24 +465,22 @@ class ScaReachabilityMethodLevelTest {
 
   @Test
   void transform_firstLoad_schedulesRetransformAndReturnsNull() throws Exception {
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase classDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(classDb, null);
 
-    byte[] result =
-        t.transform(
-            null,
-            TargetClass.class.getName().replace('.', '/'),
-            null, // classBeingRedefined == null → first load path
-            TargetClass.class.getProtectionDomain(),
-            bytecodeOf(TargetClass.class));
+    byte[] result = t.transform(
+        null,
+        TargetClass.class.getName().replace('.', '/'),
+        null, // classBeingRedefined == null → first load path
+        TargetClass.class.getProtectionDomain(),
+        bytecodeOf(TargetClass.class));
 
     assertNull(result, "First load must return null (JAR I/O deferred to periodic task)");
     assertFalse(
@@ -518,14 +498,13 @@ class ScaReachabilityMethodLevelTest {
     // is exhausted, which transform_retransform_stopsReQueueingAfterMaxUnresolvedRetries covers.
     // The invariant asserted here is that the retransform path reaches processClass() rather than
     // the first-load fast-path.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
 
@@ -554,14 +533,13 @@ class ScaReachabilityMethodLevelTest {
     // pom.properties anywhere in the test classpath, just like an embedded-Tomcat app never
     // resolving "tomcat"/"tomcat-coyote") must not re-queue itself into pendingRetransformNames
     // forever — every heartbeat would otherwise cost a stop-the-world retransformClasses() call.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-cap\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-cap\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
 
@@ -597,14 +575,13 @@ class ScaReachabilityMethodLevelTest {
     // artifact that stays unresolved for a few heartbeats and then finally resolves (e.g. its JAR
     // is only scanned successfully on a later pass) must behave exactly as before the cap existed:
     // the method-level callback is injected on that attempt, and nothing is given up on early.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-late\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-late\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
 
@@ -687,13 +664,12 @@ class ScaReachabilityMethodLevelTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> m = new HashMap<>();
     m.put(
         methodName,
-        Collections.singletonList(
-            spec(
-                "GHSA-method-0001",
-                "com.example:test-lib",
-                "1.2.3",
-                TargetClass.class.getName(),
-                methodName)));
+        Collections.singletonList(spec(
+            "GHSA-method-0001",
+            "com.example:test-lib",
+            "1.2.3",
+            TargetClass.class.getName(),
+            methodName)));
     return m;
   }
 

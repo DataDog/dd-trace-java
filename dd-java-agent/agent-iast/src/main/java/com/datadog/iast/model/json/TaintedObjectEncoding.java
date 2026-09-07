@@ -8,11 +8,10 @@ import java.util.List;
 
 public class TaintedObjectEncoding {
 
-  private static final JsonAdapter<List<TaintedObject>> LIST_ADAPTER =
-      new Moshi.Builder()
-          .add(new TaintedObjectAdapter())
-          .build()
-          .adapter(Types.newParameterizedType(List.class, TaintedObject.class));
+  private static final JsonAdapter<List<TaintedObject>> LIST_ADAPTER = new Moshi.Builder()
+      .add(new TaintedObjectAdapter())
+      .build()
+      .adapter(Types.newParameterizedType(List.class, TaintedObject.class));
 
   private static final JsonAdapter<TaintedObject> ADAPTER =
       new Moshi.Builder().add(new TaintedObjectAdapter()).build().adapter(TaintedObject.class);

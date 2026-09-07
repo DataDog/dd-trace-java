@@ -45,25 +45,23 @@ public class MessagingNamingBenchmark {
 
   private static final Supplier<String> constantSupplier = () -> "constant";
 
-  private final Supplier<String> complexSupplier =
-      () -> {
-        String ret = weakCache.get(Thread.currentThread().getContextClassLoader());
-        if (ret == null) {
-          ret = Config.get().getServiceName();
-        }
-        return ret;
-      };
+  private final Supplier<String> complexSupplier = () -> {
+    String ret = weakCache.get(Thread.currentThread().getContextClassLoader());
+    if (ret == null) {
+      ret = Config.get().getServiceName();
+    }
+    return ret;
+  };
 
   @Param({"false", "true"})
   boolean pinThreadServiceName;
 
   @Setup(Level.Iteration)
   public void init(Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
+    tracer = CoreTracer.builder()
+        .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+        .strictTraceWrites(false)
+        .build();
     weakCache = new WeakHashMap<>();
     if (pinThreadServiceName) {
       weakCache.put(Thread.currentThread().getContextClassLoader(), constantSupplier.get());

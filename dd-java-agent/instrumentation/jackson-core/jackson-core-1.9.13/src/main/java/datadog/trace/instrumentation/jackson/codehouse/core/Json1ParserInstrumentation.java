@@ -53,9 +53,8 @@ public class Json1ParserInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-            named(hierarchyMarkerType())
-                .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
+    return extendsClass(named(hierarchyMarkerType())
+            .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
         .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
   }
 

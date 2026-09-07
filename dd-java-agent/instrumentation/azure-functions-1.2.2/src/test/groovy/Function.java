@@ -17,6 +17,9 @@ public class Function {
               authLevel = AuthorizationLevel.ANONYMOUS)
           HttpRequestMessage<Optional<String>> request,
       final ExecutionContext context) {
-    return request.createResponseBuilder(HttpStatus.OK).body("Hello Datadog test!").build();
+    return request
+        .createResponseBuilder(HttpStatus.OK)
+        .body("Hello Datadog test!")
+        .build();
   }
 }

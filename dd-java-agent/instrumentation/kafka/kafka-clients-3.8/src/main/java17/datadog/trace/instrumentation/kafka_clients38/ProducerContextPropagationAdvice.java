@@ -55,14 +55,13 @@ public class ProducerContextPropagationAdvice {
       }
     } catch (final IllegalStateException e) {
       // headers must be read-only from reused record. try again with new one.
-      record =
-          new ProducerRecord<>(
-              record.topic(),
-              record.partition(),
-              record.timestamp(),
-              record.key(),
-              record.value(),
-              record.headers());
+      record = new ProducerRecord<>(
+          record.topic(),
+          record.partition(),
+          record.timestamp(),
+          record.key(),
+          record.value(),
+          record.headers());
 
       defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

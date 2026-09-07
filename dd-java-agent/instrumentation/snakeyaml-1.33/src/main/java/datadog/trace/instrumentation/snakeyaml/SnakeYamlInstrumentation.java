@@ -59,10 +59,9 @@ public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("load")
             .and(isMethod())
-            .and(
-                takesArguments(String.class)
-                    .or(takesArguments(InputStream.class))
-                    .or(takesArguments(Reader.class))),
+            .and(takesArguments(String.class)
+                .or(takesArguments(InputStream.class))
+                .or(takesArguments(Reader.class))),
         SnakeYamlInstrumentation.class.getName() + "$LoadAdvice");
   }
 

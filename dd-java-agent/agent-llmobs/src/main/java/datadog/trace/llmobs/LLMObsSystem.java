@@ -61,17 +61,16 @@ public class LLMObsSystem {
         String defaultMLApp, SharedCommunicationObjects sco, Config config) {
 
       this.defaultMLApp = defaultMLApp;
-      this.feedbackProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "feedback",
-              FEEDBACK_API_PATH,
-              AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsFeedbackEvent.batchSerializer());
+      this.feedbackProcessingWorker = new LLMObsIntakeWorker<>(
+          "feedback",
+          FEEDBACK_API_PATH,
+          AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
+          QUEUE_CAPACITY,
+          FLUSH_INTERVAL_MS,
+          TimeUnit.MILLISECONDS,
+          sco,
+          config,
+          LLMObsFeedbackEvent.batchSerializer());
       this.feedbackProcessingWorker.start();
     }
 
@@ -130,17 +129,16 @@ public class LLMObsSystem {
         String defaultMLApp, SharedCommunicationObjects sco, Config config) {
 
       this.defaultMLApp = defaultMLApp;
-      this.evalProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "eval metrics",
-              EVAL_METRIC_API_PATH,
-              AgentThread.LLMOBS_EVALS_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsEval.batchSerializer());
+      this.evalProcessingWorker = new LLMObsIntakeWorker<>(
+          "eval metrics",
+          EVAL_METRIC_API_PATH,
+          AgentThread.LLMOBS_EVALS_PROCESSOR,
+          QUEUE_CAPACITY,
+          FLUSH_INTERVAL_MS,
+          TimeUnit.MILLISECONDS,
+          sco,
+          config,
+          LLMObsEval.batchSerializer());
       this.evalProcessingWorker.start();
     }
 
@@ -167,9 +165,8 @@ public class LLMObsSystem {
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Score score =
-          new LLMObsEval.Score(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
+      LLMObsEval.Score score = new LLMObsEval.Score(
+          traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
       if (!this.evalProcessingWorker.addToQueue(score)) {
         LOGGER.warn(
             "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
@@ -203,9 +200,8 @@ public class LLMObsSystem {
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Categorical category =
-          new LLMObsEval.Categorical(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
+      LLMObsEval.Categorical category = new LLMObsEval.Categorical(
+          traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
       if (!this.evalProcessingWorker.addToQueue(category)) {
         LOGGER.warn(
             "queue full, failed to add categorical eval, ml_app={}, trace_id={}, span_id={}, label={}",
@@ -237,14 +233,13 @@ public class LLMObsSystem {
         @Nullable String mlApp,
         @Nullable String sessionId) {
 
-      DDLLMObsSpan span =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+      DDLLMObsSpan span = new DDLLMObsSpan(
+          Tags.LLMOBS_LLM_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -326,14 +321,13 @@ public class LLMObsSystem {
       if (modelProvider == null) {
         modelProvider = "custom";
       }
-      DDLLMObsSpan embeddingSpan =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_EMBEDDING_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+      DDLLMObsSpan embeddingSpan = new DDLLMObsSpan(
+          Tags.LLMOBS_EMBEDDING_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
       embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
       embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
       return embeddingSpan;

@@ -22,16 +22,14 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 @SuppressForbidden
 public class CleanConfigStateExtension implements BeforeAllCallback, AfterAllCallback {
 
-  private static final List<String> ALLOWED_SYS_PROPS =
-      Arrays.asList(
-          "dd.appsec.enabled", "dd.iast.enabled", "dd.integration.grizzly-filterchain.enabled");
+  private static final List<String> ALLOWED_SYS_PROPS = Arrays.asList(
+      "dd.appsec.enabled", "dd.iast.enabled", "dd.integration.grizzly-filterchain.enabled");
 
   private static final Predicate<String> DATADOG_ENV_VAR_FILTER = k -> k.startsWith("DD_");
-  private static final Predicate<Object> DATADOG_SYS_PROPERTIES_FILTER =
-      o -> {
-        String key = (String) o;
-        return key.startsWith("DD_") && !ALLOWED_SYS_PROPS.contains(key);
-      };
+  private static final Predicate<Object> DATADOG_SYS_PROPERTIES_FILTER = o -> {
+    String key = (String) o;
+    return key.startsWith("DD_") && !ALLOWED_SYS_PROPS.contains(key);
+  };
 
   @Override
   public void beforeAll(ExtensionContext context) {

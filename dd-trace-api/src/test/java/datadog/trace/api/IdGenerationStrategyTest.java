@@ -36,12 +36,10 @@ class IdGenerationStrategyTest {
       assertNotEquals("foo", traceId);
       assertNotEquals(DDTraceId.ZERO, traceId);
 
-      int expectedHash =
-          (int)
-              (traceId.toHighOrderLong()
-                  ^ (traceId.toHighOrderLong() >>> 32)
-                  ^ traceId.toLong()
-                  ^ (traceId.toLong() >>> 32));
+      int expectedHash = (int) (traceId.toHighOrderLong()
+          ^ (traceId.toHighOrderLong() >>> 32)
+          ^ traceId.toLong()
+          ^ (traceId.toLong() >>> 32));
       assertEquals(expectedHash, traceId.hashCode());
 
       assertFalse(checked.contains(traceId));
@@ -57,15 +55,11 @@ class IdGenerationStrategyTest {
 
   @Test
   void exceptionCreatedOnSecureRandomStrategy() {
-    ExceptionInInitializerError error =
-        assertThrows(
-            ExceptionInInitializerError.class,
-            () ->
-                new IdGenerationStrategy.SRandom(
-                    false,
-                    () -> {
-                      throw new IllegalArgumentException("SecureRandom init exception");
-                    }));
+    ExceptionInInitializerError error = assertThrows(
+        ExceptionInInitializerError.class,
+        () -> new IdGenerationStrategy.SRandom(false, () -> {
+          throw new IllegalArgumentException("SecureRandom init exception");
+        }));
 
     assertNotNull(error.getCause());
     assertEquals("SecureRandom init exception", error.getCause().getMessage());
@@ -76,13 +70,10 @@ class IdGenerationStrategyTest {
     ScriptedSecureRandom random = new ScriptedSecureRandom(new long[] {0L, 47L, 0L, 11L});
     CallCounter providerCallCounter = new CallCounter();
 
-    IdGenerationStrategy strategy =
-        new IdGenerationStrategy.SRandom(
-            false,
-            () -> {
-              providerCallCounter.count++;
-              return random;
-            });
+    IdGenerationStrategy strategy = new IdGenerationStrategy.SRandom(false, () -> {
+      providerCallCounter.count++;
+      return random;
+    });
 
     long traceId = strategy.generateTraceId().toLong();
     long spanId = strategy.generateSpanId();

@@ -10,9 +10,8 @@ class EventBridgeInterceptorTest {
 
   @Test
   void buildsDataStreamsTagsFromArnAndDetailType() {
-    DataStreamsTags tags =
-        EventBridgeInterceptor.buildDataStreamsTags(
-            "arn:aws:events:us-east-1:123456789012:event-bus/test-bus", "order.created");
+    DataStreamsTags tags = EventBridgeInterceptor.buildDataStreamsTags(
+        "arn:aws:events:us-east-1:123456789012:event-bus/test-bus", "order.created");
 
     assertEquals(DataStreamsTags.DIRECTION_TAG + ":out", tags.getDirection());
     assertEquals(DataStreamsTags.EXCHANGE_TAG + ":test-bus", tags.getExchange());
@@ -22,10 +21,9 @@ class EventBridgeInterceptorTest {
 
   @Test
   void keepsPartnerBusPathWhenNormalizingArn() {
-    DataStreamsTags tags =
-        EventBridgeInterceptor.buildDataStreamsTags(
-            "arn:aws:events:us-east-1:123456789012:event-bus/aws.partner/example.com/acct/bus-name",
-            "detail-type");
+    DataStreamsTags tags = EventBridgeInterceptor.buildDataStreamsTags(
+        "arn:aws:events:us-east-1:123456789012:event-bus/aws.partner/example.com/acct/bus-name",
+        "detail-type");
 
     assertEquals(
         DataStreamsTags.EXCHANGE_TAG + ":aws.partner/example.com/acct/bus-name",

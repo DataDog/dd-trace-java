@@ -124,11 +124,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
       spanName = kind;
     }
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
-            .withServiceName(serviceName)
-            .withSpanType(DDSpanTypes.LLMOBS);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer.get()
+        .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
+        .withServiceName(serviceName)
+        .withSpanType(DDSpanTypes.LLMOBS);
 
     span = spanBuilder.start();
 
@@ -207,10 +206,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     if (samplingDecision == null || sampleRate == null) {
       sampleRate = sampler.formattedRate();
-      samplingDecision =
-          sampler.sample(span.getTraceId().toLong())
-              ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-              : LLMObsContext.SAMPLING_DECISION_DROPPED;
+      samplingDecision = sampler.sample(span.getTraceId().toLong())
+          ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+          : LLMObsContext.SAMPLING_DECISION_DROPPED;
     }
     span.setTag(LLMOBS_TAG_PREFIX + SAMPLE_RATE_TAG_INTERNAL, sampleRate);
     span.setTag(LLMOBS_TAG_PREFIX + SAMPLING_DECISION_TAG_INTERNAL, samplingDecision);
@@ -233,24 +231,22 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     // Propagate the effective sessionId, agent_version, sampling decision and agent attribution
     // to descendant LLMObs spans via the context.
-    scope =
-        LLMObsContext.attach(
-            span.spanContext(),
-            sessionId,
-            resolvedAgentVersion,
-            sampleRate,
-            samplingDecision,
-            resolvedParentAgentSpanId,
-            resolvedParentAgentName);
+    scope = LLMObsContext.attach(
+        span.spanContext(),
+        sessionId,
+        resolvedAgentVersion,
+        sampleRate,
+        samplingDecision,
+        resolvedParentAgentSpanId,
+        resolvedParentAgentName);
 
     // For standalone agent spans (no ambient APM root), activate the underlying APM span so
     // that child LLMObs spans share the same trace ID and pass the trace-ID gate. Without
     // this, children start a fresh APM trace, the gate rejects the agent context, and
     // agent attribution is silently dropped.
-    standaloneApmScope =
-        Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span
-            ? AgentTracer.activateSpan(span)
-            : null;
+    standaloneApmScope = Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span
+        ? AgentTracer.activateSpan(span)
+        : null;
   }
 
   @Override
@@ -315,16 +311,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
     boolean hasInput = inputData != null && !inputData.isEmpty();
     boolean hasOutput = outputData != null && !outputData.isEmpty();
     if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-      List<LLMObs.LLMMessage> inputMessages =
-          hasInput
-              ? Collections.singletonList(
-                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
-              : null;
-      List<LLMObs.LLMMessage> outputMessages =
-          hasOutput
-              ? Collections.singletonList(
-                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
-              : null;
+      List<LLMObs.LLMMessage> inputMessages = hasInput
+          ? Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
+          : null;
+      List<LLMObs.LLMMessage> outputMessages = hasOutput
+          ? Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
+          : null;
       annotateIO(inputMessages, outputMessages);
       if (hasInput || hasOutput) {
         LOGGER.warn(
@@ -420,10 +412,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // Read existing manifest (may be null on first call)
     Object existing = span.getTag(AGENT_MANIFEST);
     @SuppressWarnings("unchecked")
-    Map<String, Object> base =
-        (existing instanceof Map)
-            ? new LinkedHashMap<>((Map<String, Object>) existing)
-            : new LinkedHashMap<>();
+    Map<String, Object> base = (existing instanceof Map)
+        ? new LinkedHashMap<>((Map<String, Object>) existing)
+        : new LinkedHashMap<>();
     mergeManifest(base, manifest);
     base.put("framework", MANUAL_FRAMEWORK);
     span.setTag(AGENT_MANIFEST, base);
@@ -458,10 +449,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     Map<String, Object> modelSettings = manifest.getModelSettings();
     if (modelSettings != null && !modelSettings.isEmpty()) {
       @SuppressWarnings("unchecked")
-      Map<String, Object> existingSettings =
-          (base.get("model_settings") instanceof Map)
-              ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
-              : new LinkedHashMap<>();
+      Map<String, Object> existingSettings = (base.get("model_settings") instanceof Map)
+          ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
+          : new LinkedHashMap<>();
       existingSettings.putAll(modelSettings);
       base.put("model_settings", existingSettings);
     }

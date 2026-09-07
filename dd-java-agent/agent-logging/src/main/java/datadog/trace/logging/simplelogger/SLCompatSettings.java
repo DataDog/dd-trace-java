@@ -141,15 +141,15 @@ public class SLCompatSettings {
         Class<?> iClass = cl.loadClass("java.time.Instant");
         Class<?> zdtClass = cl.loadClass("java.time.ZonedDateTime");
         Class<?> zClass = cl.loadClass("java.time.ZoneId");
-        this.dateTimeFormatter =
-            l.findStatic(fClass, "ofPattern", MethodType.methodType(fClass, String.class))
-                .invoke(dateTimeFormat);
-        this.formatTo =
-            l.findVirtual(
-                fClass, "formatTo", MethodType.methodType(void.class, tClass, Appendable.class));
+        this.dateTimeFormatter = l.findStatic(
+                fClass, "ofPattern", MethodType.methodType(fClass, String.class))
+            .invoke(dateTimeFormat);
+        this.formatTo = l.findVirtual(
+            fClass, "formatTo", MethodType.methodType(void.class, tClass, Appendable.class));
         this.instantOfEpochMilli =
             l.findStatic(iClass, "ofEpochMilli", MethodType.methodType(iClass, long.class));
-        this.zoneId = l.findStatic(zClass, "systemDefault", MethodType.methodType(zClass)).invoke();
+        this.zoneId =
+            l.findStatic(zClass, "systemDefault", MethodType.methodType(zClass)).invoke();
         this.zdtOfInstant =
             l.findStatic(zdtClass, "ofInstant", MethodType.methodType(zdtClass, iClass, zClass));
       } catch (Throwable t) {
@@ -306,14 +306,12 @@ public class SLCompatSettings {
             properties, fileProperties, Keys.SHOW_SHORT_LOG_NAME, Defaults.SHOW_SHORT_LOG_NAME),
         getBoolean(properties, fileProperties, Keys.SHOW_LOG_NAME, Defaults.SHOW_LOG_NAME),
         getBoolean(properties, fileProperties, Keys.SHOW_THREAD_NAME, Defaults.SHOW_THREAD_NAME),
-        DTFormatter.create(
-            getString(
-                properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)),
+        DTFormatter.create(getString(
+            properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)),
         getBoolean(properties, fileProperties, Keys.SHOW_DATE_TIME, Defaults.SHOW_DATE_TIME),
         getBoolean(properties, fileProperties, Keys.JSON_ENABLED, Defaults.JSON_ENABLED),
-        LogLevel.fromString(
-            getString(
-                properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)),
+        LogLevel.fromString(getString(
+            properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)),
         getBoolean(properties, fileProperties, Keys.EMBED_EXCEPTION, Defaults.EMBED_EXCEPTION));
   }
 

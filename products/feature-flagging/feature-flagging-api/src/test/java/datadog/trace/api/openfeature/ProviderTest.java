@@ -127,37 +127,36 @@ public class ProviderTest {
   public void testSetProviderAndWaitCompletesWhenConfigurationArrivesAtTimeoutBoundary()
       throws Exception {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            return false;
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        return false;
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
@@ -170,39 +169,38 @@ public class ProviderTest {
   @Test
   public void testSetProviderAndWaitFailsWhenConfigurationIsRemovedBeforeInitializationCompletes() {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = false;
-            providerRef[0].onConfigurationChange();
-            return true;
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = false;
+        providerRef[0].onConfigurationChange();
+        return true;
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
@@ -216,42 +214,41 @@ public class ProviderTest {
   @Test
   public void testInitializationErrorDoesNotOverwriteRecoveredReadyState() throws Exception {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = false;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            throw new ProviderNotReadyError(
-                "Provider timed-out while waiting for initial configuration");
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = false;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration");
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
 
@@ -308,15 +305,13 @@ public class ProviderTest {
 
     assertThrows(
         FatalError.class,
-        () ->
-            api.setProviderAndWait(
-                new Provider() {
-                  @Override
-                  protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
-                    throw new ClassNotFoundException(
-                        "Class " + FeatureFlaggingGateway.class.getName() + " not found");
-                  }
-                }));
+        () -> api.setProviderAndWait(new Provider() {
+          @Override
+          protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
+            throw new ClassNotFoundException(
+                "Class " + FeatureFlaggingGateway.class.getName() + " not found");
+          }
+        }));
   }
 
   @Test
@@ -355,18 +350,16 @@ public class ProviderTest {
     when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
     when(evaluator.evaluate(eq(String.class), eq("logged-flag"), eq("default"), any()))
-        .thenReturn(
-            ProviderEvaluation.<String>builder()
-                .value("value")
-                .reason("STATIC")
-                .variant("variant-1")
-                .flagMetadata(
-                    ImmutableMetadata.builder()
-                        .addString("allocationKey", "allocation-1")
-                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
-                        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
-                        .build())
-                .build());
+        .thenReturn(ProviderEvaluation.<String>builder()
+            .value("value")
+            .reason("STATIC")
+            .variant("variant-1")
+            .flagMetadata(ImmutableMetadata.builder()
+                .addString("allocationKey", "allocation-1")
+                .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+                .build())
+            .build());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
     final MutableContext context = new MutableContext("user-1");
@@ -442,12 +435,10 @@ public class ProviderTest {
     when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
     when(evaluator.evaluate(any(), any(), any(), any()))
-        .thenAnswer(
-            invocation ->
-                ProviderEvaluation.builder()
-                    .value(invocation.getArgument(2))
-                    .reason("MOCK")
-                    .build());
+        .thenAnswer(invocation -> ProviderEvaluation.builder()
+            .value(invocation.getArgument(2))
+            .reason("MOCK")
+            .build());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
     final Client client = api.getClient();
@@ -470,11 +461,10 @@ public class ProviderTest {
   private static Consumer<EventDetails> completingHandler(
       final CompletableFuture<EventDetails> event) {
     final Consumer<EventDetails> handler = mock(Consumer.class);
-    doAnswer(
-            invocation -> {
-              event.complete(invocation.getArgument(0));
-              return null;
-            })
+    doAnswer(invocation -> {
+          event.complete(invocation.getArgument(0));
+          return null;
+        })
         .when(handler)
         .accept(any());
     return handler;

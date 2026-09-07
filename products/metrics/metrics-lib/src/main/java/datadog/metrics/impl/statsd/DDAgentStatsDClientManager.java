@@ -128,15 +128,14 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     private final Function<String, String> namePrefixer;
 
     NameResolver(final String namespace) {
-      this.namePrefixer =
-          new Function<String, String>() {
-            private final String prefix = namespace + '.';
+      this.namePrefixer = new Function<String, String>() {
+        private final String prefix = namespace + '.';
 
-            @Override
-            public String apply(final String metricName) {
-              return prefix + metricName;
-            }
-          };
+        @Override
+        public String apply(final String metricName) {
+          return prefix + metricName;
+        }
+      };
     }
 
     @Override
@@ -154,14 +153,13 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
 
     public TagCombiner(final String[] constantTags) {
       this.packedTags = pack(constantTags);
-      this.tagsInserter =
-          tags -> {
-            // extend per-call array by one to add the pre-packed constant tags
-            String[] result = new String[tags.length + 1];
-            System.arraycopy(tags, 0, result, 1, tags.length);
-            result[0] = packedTags[0];
-            return result;
-          };
+      this.tagsInserter = tags -> {
+        // extend per-call array by one to add the pre-packed constant tags
+        String[] result = new String[tags.length + 1];
+        System.arraycopy(tags, 0, result, 1, tags.length);
+        result[0] = packedTags[0];
+        return result;
+      };
     }
 
     @Override

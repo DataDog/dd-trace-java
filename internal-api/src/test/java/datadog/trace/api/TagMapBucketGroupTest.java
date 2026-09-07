@@ -19,10 +19,9 @@ public class TagMapBucketGroupTest {
     int firstHash = firstEntry.hash();
     int secondHash = secondEntry.hash();
 
-    TagMap.BucketGroup group =
-        new TagMap.BucketGroup(
-            firstHash, firstEntry,
-            secondHash, secondEntry);
+    TagMap.BucketGroup group = new TagMap.BucketGroup(
+        firstHash, firstEntry,
+        secondHash, secondEntry);
 
     assertEquals(firstHash, group._hashAt(0));
     assertEquals(firstEntry, group._entryAt(0));
@@ -111,10 +110,9 @@ public class TagMapBucketGroupTest {
     int firstHash = firstEntry.hash();
     int secondHash = secondEntry.hash();
 
-    TagMap.BucketGroup group =
-        new TagMap.BucketGroup(
-            firstHash, firstEntry,
-            secondHash, secondEntry);
+    TagMap.BucketGroup group = new TagMap.BucketGroup(
+        firstHash, firstEntry,
+        secondHash, secondEntry);
 
     assertFalse(group._isEmpty());
 

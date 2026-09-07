@@ -74,9 +74,8 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
       if (callDepth > 0) {
         return null;
       }
-      ContextStore store =
-          InstrumentationContext.get(
-              REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+      ContextStore store = InstrumentationContext.get(
+          REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
       Object o = store.get(thiz.getRequest());
       if (o == null) {
         return null;

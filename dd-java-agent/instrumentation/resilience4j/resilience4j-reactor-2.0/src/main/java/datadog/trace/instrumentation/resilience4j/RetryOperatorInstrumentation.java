@@ -34,13 +34,11 @@ public class RetryOperatorInstrumentation
         @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "retry") Retry retry) {
 
-      result =
-          ReactorHelper.wrapPublisher(
-              result,
-              RetryDecorator.DECORATE,
-              retry,
-              ReactorHelper.putInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+      result = ReactorHelper.wrapPublisher(
+          result,
+          RetryDecorator.DECORATE,
+          retry,
+          ReactorHelper.putInto(InstrumentationContext.get(Publisher.class, HandoffContext.class)));
     }
   }
 }

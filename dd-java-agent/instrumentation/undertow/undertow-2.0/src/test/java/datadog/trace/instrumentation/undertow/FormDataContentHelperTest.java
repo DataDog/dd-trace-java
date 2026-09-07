@@ -21,7 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class FormDataContentHelperTest {
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   @Test
   void diskFile_contentRead() throws IOException {
@@ -133,27 +134,25 @@ class FormDataContentHelperTest {
 
     // Use a Proxy so this compiles against Undertow 2.0 and also works against 2.2.x.
     // getPath() throws to simulate an in-memory upload.
-    FormData.FormValue inMemory =
-        (FormData.FormValue)
-            Proxy.newProxyInstance(
-                FormData.FormValue.class.getClassLoader(),
-                new Class<?>[] {FormData.FormValue.class},
-                (proxy, method, args) -> {
-                  switch (method.getName()) {
-                    case "getFileName":
-                      return filename;
-                    case "getHeaders":
-                      return new HeaderMap();
-                    case "getPath":
-                      throw new IllegalStateException("in-memory upload has no path");
-                    case "isFile":
-                    case "isFileItem":
-                    case "isBigField":
-                      return false;
-                    default:
-                      return null;
-                  }
-                });
+    FormData.FormValue inMemory = (FormData.FormValue) Proxy.newProxyInstance(
+        FormData.FormValue.class.getClassLoader(),
+        new Class<?>[] {FormData.FormValue.class},
+        (proxy, method, args) -> {
+          switch (method.getName()) {
+            case "getFileName":
+              return filename;
+            case "getHeaders":
+              return new HeaderMap();
+            case "getPath":
+              throw new IllegalStateException("in-memory upload has no path");
+            case "isFile":
+            case "isFileItem":
+            case "isBigField":
+              return false;
+            default:
+              return null;
+          }
+        });
 
     Deque<FormData.FormValue> deque = new ArrayDeque<>();
     deque.add(inMemory);

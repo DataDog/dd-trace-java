@@ -49,8 +49,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class DebuggerAgentTest {
 
   public static final String URL_PATH = "/foo";
-  @Mock Config config;
-  @Mock Instrumentation inst;
+
+  @Mock
+  Config config;
+
+  @Mock
+  Instrumentation inst;
+
   final MockWebServer server = new MockWebServer();
   HttpUrl url;
   private ControllableEnvironmentVariables env = ControllableEnvironmentVariables.setup();
@@ -109,10 +114,8 @@ public class DebuggerAgentTest {
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    try (BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                DebuggerAgentTest.class.getResourceAsStream("/test_probe.json")))) {
+    try (BufferedReader reader = new BufferedReader(
+        new InputStreamReader(DebuggerAgentTest.class.getResourceAsStream("/test_probe.json")))) {
       String content = reader.lines().collect(Collectors.joining("\n"));
       String rcContent = RemoteConfigHelper.encode(content, "petclinic");
       server.enqueue(new MockResponse().setResponseCode(200).setBody(rcContent));

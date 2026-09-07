@@ -105,10 +105,9 @@ public class SpanPointersProcessor extends TagsPostProcessor {
       primaryKey2Value = "";
     }
 
-    String[] components =
-        new String[] {
-          tableName, primaryKey1Name, primaryKey1Value, primaryKey2Name, primaryKey2Value
-        };
+    String[] components = new String[] {
+      tableName, primaryKey1Name, primaryKey1Value, primaryKey2Name, primaryKey2Value
+    };
     try {
       String hash = generatePointerHash(components);
       return buildSpanPointer(hash, DYNAMODB_PTR_KIND);
@@ -151,13 +150,12 @@ public class SpanPointersProcessor extends TagsPostProcessor {
   }
 
   private static AgentSpanLink buildSpanPointer(String hash, String ptrKind) {
-    SpanAttributes attributes =
-        SpanAttributes.builder()
-            .put("ptr.kind", ptrKind)
-            .put("ptr.dir", DOWN_DIRECTION)
-            .put("ptr.hash", hash)
-            .put("link.kind", LINK_KIND)
-            .build();
+    SpanAttributes attributes = SpanAttributes.builder()
+        .put("ptr.kind", ptrKind)
+        .put("ptr.dir", DOWN_DIRECTION)
+        .put("ptr.hash", hash)
+        .put("link.kind", LINK_KIND)
+        .build();
 
     return SpanLink.from(noopSpanContext(), DEFAULT_FLAGS, "", attributes);
   }

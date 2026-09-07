@@ -50,11 +50,10 @@ public class ChatCompletionDecorator {
     }
 
     // Keep model_name and output shape stable on error paths where no response is available.
-    modelName.ifPresent(
-        str -> {
-          span.setTag(CommonTags.MODEL_NAME, str);
-          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
-        });
+    modelName.ifPresent(str -> {
+      span.setTag(CommonTags.MODEL_NAME, str);
+      span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+    });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
 
@@ -70,38 +69,32 @@ public class ChatCompletionDecorator {
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
     metadata.put("stream", stream);
-    params
-        .streamOptions()
-        .ifPresent(
-            v -> {
-              if (v.includeUsage().orElse(false)) {
-                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
-              }
-            });
+    params.streamOptions().ifPresent(v -> {
+      if (v.includeUsage().orElse(false)) {
+        metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+      }
+    });
     params.topP().ifPresent(v -> metadata.put("top_p", v));
     params.frequencyPenalty().ifPresent(v -> metadata.put("frequency_penalty", v));
     params.presencePenalty().ifPresent(v -> metadata.put("presence_penalty", v));
     params.n().ifPresent(v -> metadata.put("n", v));
     params.seed().ifPresent(v -> metadata.put("seed", v));
     span.setTag(CommonTags.METADATA, metadata);
-    params
-        .toolChoice()
-        .ifPresent(
-            toolChoice -> {
-              String choice = null;
-              if (toolChoice.isAuto()) {
-                choice = "auto";
-              } else if (toolChoice.isAllowedToolChoice()) {
-                choice = "allowed_tools";
-              } else if (toolChoice.isNamedToolChoice()) {
-                choice = "function";
-              } else if (toolChoice.isNamedToolChoiceCustom()) {
-                choice = "custom";
-              }
-              if (choice != null) {
-                metadata.put("tool_choice", choice);
-              }
-            });
+    params.toolChoice().ifPresent(toolChoice -> {
+      String choice = null;
+      if (toolChoice.isAuto()) {
+        choice = "auto";
+      } else if (toolChoice.isAllowedToolChoice()) {
+        choice = "allowed_tools";
+      } else if (toolChoice.isNamedToolChoice()) {
+        choice = "function";
+      } else if (toolChoice.isNamedToolChoiceCustom()) {
+        choice = "custom";
+      }
+      if (choice != null) {
+        metadata.put("tool_choice", choice);
+      }
+    });
 
     List<ChatCompletionTool> tools = params._tools().asKnown().orElse(Collections.emptyList());
     if (!tools.isEmpty()) {
@@ -138,9 +131,8 @@ public class ChatCompletionDecorator {
       funcDef.description().ifPresent(desc -> toolDef.put("description", desc));
       funcDef
           .parameters()
-          .ifPresent(
-              params ->
-                  toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
+          .ifPresent(params ->
+              toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
       return toolDef;
     }
 
@@ -183,7 +175,8 @@ public class ChatCompletionDecorator {
       return LLMObs.LLMMessage.from(
           "assistant", m.asAssistant().content().map(v -> v.text().orElse(null)).orElse(null));
     } else if (m.isDeveloper()) {
-      return LLMObs.LLMMessage.from("developer", m.asDeveloper().content().text().orElse(null));
+      return LLMObs.LLMMessage.from(
+          "developer", m.asDeveloper().content().text().orElse(null));
     } else if (m.isSystem()) {
       return LLMObs.LLMMessage.from("system", m.asSystem().content().text().orElse(null));
     } else if (m.isTool()) {
@@ -210,19 +203,15 @@ public class ChatCompletionDecorator {
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
-    completion
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              usage
-                  .promptTokensDetails()
-                  .flatMap(details -> details.cachedTokens())
-                  .ifPresent(v -> span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, v));
-            });
+    completion._usage().asKnown().ifPresent(usage -> {
+      span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
+      span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
+      span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+      usage
+          .promptTokensDetails()
+          .flatMap(details -> details.cachedTokens())
+          .ifPresent(v -> span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, v));
+    });
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {

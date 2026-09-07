@@ -77,7 +77,8 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     }
 
     if (response instanceof IndexResponse) {
-      span.setTag("elasticsearch.response.status", ((IndexResponse) response).status().getStatus());
+      span.setTag(
+          "elasticsearch.response.status", ((IndexResponse) response).status().getStatus());
     }
 
     if (response instanceof BulkShardResponse) {

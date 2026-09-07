@@ -186,12 +186,11 @@ public abstract class InitializationTelemetry {
 
     private final MethodHandle findBoundHandle(String name, Class<?> paramType) {
       try {
-        MethodHandle virtualHandle =
-            MethodHandles.publicLookup()
-                .findVirtual(
-                    bootstrapInitTelemetry.getClass(),
-                    name,
-                    MethodType.methodType(void.class, paramType));
+        MethodHandle virtualHandle = MethodHandles.publicLookup()
+            .findVirtual(
+                bootstrapInitTelemetry.getClass(),
+                name,
+                MethodType.methodType(void.class, paramType));
 
         return virtualHandle.bindTo(bootstrapInitTelemetry);
       } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -201,10 +200,9 @@ public abstract class InitializationTelemetry {
 
     private final MethodHandle findBoundHandle(String name) {
       try {
-        MethodHandle virtualHandle =
-            MethodHandles.publicLookup()
-                .findVirtual(
-                    bootstrapInitTelemetry.getClass(), name, MethodType.methodType(void.class));
+        MethodHandle virtualHandle = MethodHandles.publicLookup()
+            .findVirtual(
+                bootstrapInitTelemetry.getClass(), name, MethodType.methodType(void.class));
 
         return virtualHandle.bindTo(bootstrapInitTelemetry);
       } catch (NoSuchMethodException | IllegalAccessException e) {

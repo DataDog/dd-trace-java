@@ -52,9 +52,8 @@ public class DatadogAppender extends AbstractAppender {
       PrintWriter printWriter = new PrintWriter(stringWriter);
       thrown.printStackTrace(printWriter);
       StringBuffer stackTraceBuffer = stringWriter.getBuffer();
-      String stackTraceString =
-          stackTraceBuffer.substring(
-              0, Math.min(stackTraceBuffer.length(), MAX_STACKTRACE_STRING_LENGTH));
+      String stackTraceString = stackTraceBuffer.substring(
+          0, Math.min(stackTraceBuffer.length(), MAX_STACKTRACE_STRING_LENGTH));
       thrownLog.put("extendedStackTrace", stackTraceString);
 
       log.put("thrown", thrownLog);

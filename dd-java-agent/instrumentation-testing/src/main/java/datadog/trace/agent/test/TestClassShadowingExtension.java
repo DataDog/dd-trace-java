@@ -55,10 +55,9 @@ public final class TestClassShadowingExtension
 
   private static void assertNotBootstrapClass(final Class<?> testClass, final Class<?> clazz) {
     if (BootstrapClasspathSetupListener.isBootstrapClass(clazz)) {
-      throw new IllegalStateException(
-          testClass.getName()
-              + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
-              + clazz.getName());
+      throw new IllegalStateException(testClass.getName()
+          + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
+          + clazz.getName());
     }
   }
 

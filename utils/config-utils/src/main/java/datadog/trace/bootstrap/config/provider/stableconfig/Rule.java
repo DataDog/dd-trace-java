@@ -50,23 +50,19 @@ public final class Rule {
           configObj);
     }
 
-    List<Selector> selectors =
-        ((List<?>) selectorsObj)
-            .stream()
-                .filter(Objects::nonNull)
-                .map(
-                    s -> {
-                      if (!(s instanceof Map)) {
-                        throwStableConfigMappingException(
-                            "Each selector must be a map, but got: "
-                                + s.getClass().getSimpleName()
-                                + ": ",
-                            s);
-                      }
+    List<Selector> selectors = ((List<?>) selectorsObj)
+        .stream()
+            .filter(Objects::nonNull)
+            .map(s -> {
+              if (!(s instanceof Map)) {
+                throwStableConfigMappingException(
+                    "Each selector must be a map, but got: " + s.getClass().getSimpleName() + ": ",
+                    s);
+              }
 
-                      return Selector.from((Map<?, ?>) s);
-                    })
-                .collect(toList());
+              return Selector.from((Map<?, ?>) s);
+            })
+            .collect(toList());
 
     return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);
   }

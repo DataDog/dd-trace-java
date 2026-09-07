@@ -28,14 +28,12 @@ public class ClassesToRetransformFinder {
   public void register(String sourceFile, String className) {
     // store only the class name that are different from SourceFile name
     // (Inner or non-public Top-Level classes)
-    classNamesBySourceFile.compute(
-        sourceFile,
-        (key, classNames) -> {
-          if (classNames == null) {
-            return className;
-          }
-          return classNames + "," + className;
-        });
+    classNamesBySourceFile.compute(sourceFile, (key, classNames) -> {
+      if (classNames == null) {
+        return className;
+      }
+      return classNames + "," + className;
+    });
   }
 
   public List<Class<?>> getAllLoadedChangedClasses(
@@ -60,10 +58,9 @@ public class ClassesToRetransformFinder {
   }
 
   Trie getAllChangedClasses(ConfigurationComparer comparer) {
-    List<ProbeDefinition> changedDefinitions =
-        Stream.concat(
-                comparer.getRemovedDefinitions().stream(), comparer.getAddedDefinitions().stream())
-            .collect(Collectors.toList());
+    List<ProbeDefinition> changedDefinitions = Stream.concat(
+            comparer.getRemovedDefinitions().stream(), comparer.getAddedDefinitions().stream())
+        .collect(Collectors.toList());
     Trie changedClasses = new Trie();
     for (ProbeDefinition definition : changedDefinitions) {
       InstrumentationResult instrumentationResult =

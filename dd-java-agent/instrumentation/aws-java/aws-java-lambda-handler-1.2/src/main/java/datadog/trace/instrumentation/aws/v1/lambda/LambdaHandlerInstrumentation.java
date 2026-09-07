@@ -49,9 +49,8 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named(hierarchyMarkerType())
-            .or(named("com.amazonaws.services.lambda.runtime.RequestHandler")));
+    return implementsInterface(named(hierarchyMarkerType())
+        .or(named("com.amazonaws.services.lambda.runtime.RequestHandler")));
   }
 
   @Override

@@ -20,7 +20,10 @@ public class LLMObs {
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
   private static final Object SPAN_PROCESSOR_LOCK = new Object();
-  @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
+
+  @Nullable
+  protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
+
   protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
       NoOpLLMObsFeedbackProcessor.INSTANCE;
 
@@ -321,8 +324,11 @@ public class LLMObs {
 
     /** Who submitted a feedback. */
     public static class Submitter {
-      @Nullable private final String id;
-      @Nullable private final String type;
+      @Nullable
+      private final String id;
+
+      @Nullable
+      private final String type;
 
       /**
        * Creates a submitter. An invalid id is not rejected here but by {@link Feedback#validate()}.
@@ -370,18 +376,40 @@ public class LLMObs {
       }
     }
 
-    @Nullable private final TargetType targetType;
-    @Nullable private final String targetValue;
-    @Nullable private final String label;
-    @Nullable private final MetricType metricType;
-    @Nullable private final Object value;
-    @Nullable private final Submitter submitter;
-    @Nullable private final String mlApp;
-    @Nullable private final Assessment assessment;
-    @Nullable private final String reasoning;
+    @Nullable
+    private final TargetType targetType;
+
+    @Nullable
+    private final String targetValue;
+
+    @Nullable
+    private final String label;
+
+    @Nullable
+    private final MetricType metricType;
+
+    @Nullable
+    private final Object value;
+
+    @Nullable
+    private final Submitter submitter;
+
+    @Nullable
+    private final String mlApp;
+
+    @Nullable
+    private final Assessment assessment;
+
+    @Nullable
+    private final String reasoning;
+
     private final long timestampMs;
-    @Nullable private final Map<String, Object> tags;
-    @Nullable private final ValidationError validationError;
+
+    @Nullable
+    private final Map<String, Object> tags;
+
+    @Nullable
+    private final ValidationError validationError;
 
     private Feedback(Builder builder, long timestampMs, @Nullable ValidationError validationError) {
       this.validationError = validationError;
@@ -1209,14 +1237,12 @@ public class LLMObs {
       this.name = builder.name;
       this.instructions = builder.instructions;
       this.model = builder.model;
-      this.modelSettings =
-          builder.modelSettings == null
-              ? null
-              : Collections.unmodifiableMap(new LinkedHashMap<>(builder.modelSettings));
-      this.tools =
-          builder.tools == null
-              ? null
-              : Collections.unmodifiableList(new ArrayList<>(builder.tools));
+      this.modelSettings = builder.modelSettings == null
+          ? null
+          : Collections.unmodifiableMap(new LinkedHashMap<>(builder.modelSettings));
+      this.tools = builder.tools == null
+          ? null
+          : Collections.unmodifiableList(new ArrayList<>(builder.tools));
     }
 
     @Nullable

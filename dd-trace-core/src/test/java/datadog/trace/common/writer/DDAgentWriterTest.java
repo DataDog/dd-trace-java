@@ -117,9 +117,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
 
   @Test
   void testWriterWritePublishSucceeds() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish succeeds
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
@@ -133,9 +132,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
 
   @Test
   void testWriterWritePublishForSingleSpanSampling() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish succeeds (single span sampling)
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
@@ -153,9 +151,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     "dropped by policy             | DROPPED_BY_POLICY                  "
   })
   void testWriterWritePublishFails(PublishResult publishResult) {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish fails
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
@@ -181,9 +178,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   void testWriterWriteClosed() {
     writer.close();
     clearInvocations(monitor, worker, discovery, api);
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     writer.write(trace);
 

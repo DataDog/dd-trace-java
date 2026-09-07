@@ -10,9 +10,8 @@ public class PlayBodyParsersTolerantFormUrlEncodedAdvice {
   static void after(
       @Advice.Return(readOnly = false)
           BodyParser<scala.collection.immutable.Map<String, Seq<String>>> parser) {
-    parser =
-        parser.map(
-            BodyParserHelpers.getHandleUrlEncodedMapF(),
-            Execution.Implicits$.MODULE$.internalContext());
+    parser = parser.map(
+        BodyParserHelpers.getHandleUrlEncodedMapF(),
+        Execution.Implicits$.MODULE$.internalContext());
   }
 }

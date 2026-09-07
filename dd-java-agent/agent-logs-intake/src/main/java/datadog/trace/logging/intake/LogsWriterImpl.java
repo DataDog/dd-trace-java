@@ -42,9 +42,8 @@ public class LogsWriterImpl implements LogsWriter {
     commonTags.put("hostname", config.getHostName());
 
     messageQueue = new ArrayBlockingQueue<>(config.getAgentlessLogSubmissionQueueSize());
-    messagePollingThread =
-        AgentThreadFactory.newAgentThread(
-            AgentThreadFactory.AgentThread.LOGS_INTAKE, this::logPollingLoop);
+    messagePollingThread = AgentThreadFactory.newAgentThread(
+        AgentThreadFactory.AgentThread.LOGS_INTAKE, this::logPollingLoop);
   }
 
   @Override

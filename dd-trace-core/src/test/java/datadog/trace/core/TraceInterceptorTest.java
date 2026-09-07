@@ -57,21 +57,18 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
   void interceptorsWithSamePriorityReplaced() {
     int priority = 999;
     TestInterceptor.priority = priority;
-    tracer
-        .getInterceptors()
-        .add(
-            new TraceInterceptor() {
-              @Override
-              public Collection<? extends MutableSpan> onTraceComplete(
-                  Collection<? extends MutableSpan> trace) {
-                return emptyList();
-              }
+    tracer.getInterceptors().add(new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        return emptyList();
+      }
 
-              @Override
-              public int priority() {
-                return priority;
-              }
-            });
+      @Override
+      public int priority() {
+        return priority;
+      }
+    });
 
     TraceInterceptor[] interceptors = tracer.getInterceptors().interceptors();
     assertEquals(1, interceptors.length);
@@ -85,19 +82,18 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
   })
   void interceptorsWithDifferentPrioritySorted(int score, boolean reverse) {
     TraceInterceptor existingInterceptor = tracer.getInterceptors().interceptors()[0];
-    TraceInterceptor newInterceptor =
-        new TraceInterceptor() {
-          @Override
-          public Collection<? extends MutableSpan> onTraceComplete(
-              Collection<? extends MutableSpan> trace) {
-            return emptyList();
-          }
+    TraceInterceptor newInterceptor = new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        return emptyList();
+      }
 
-          @Override
-          public int priority() {
-            return score;
-          }
-        };
+      @Override
+      public int priority() {
+        return score;
+      }
+    };
     tracer.getInterceptors().add(newInterceptor);
 
     List<TraceInterceptor> sorted = Arrays.asList(tracer.getInterceptors().interceptors());
@@ -122,23 +118,20 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
     int score = TestInterceptor.priority + deltaPriority;
     AtomicBoolean called = new AtomicBoolean(false);
     CountDownLatch latch = new CountDownLatch(1);
-    tracer
-        .getInterceptors()
-        .add(
-            new TraceInterceptor() {
-              @Override
-              public Collection<? extends MutableSpan> onTraceComplete(
-                  Collection<? extends MutableSpan> trace) {
-                called.set(true);
-                latch.countDown();
-                return emptyList();
-              }
+    tracer.getInterceptors().add(new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        called.set(true);
+        latch.countDown();
+        return emptyList();
+      }
 
-              @Override
-              public int priority() {
-                return score;
-              }
-            });
+      @Override
+      public int priority() {
+        return score;
+      }
+    });
 
     tracer.buildSpan("datadog", "test " + score).start().finish();
     if (score == TestInterceptor.priority) {
@@ -155,31 +148,28 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
 
   @Test
   void interceptorCanModifySpan() throws InterruptedException, TimeoutException {
-    tracer
-        .getInterceptors()
-        .add(
-            new TraceInterceptor() {
-              @Override
-              public Collection<? extends MutableSpan> onTraceComplete(
-                  Collection<? extends MutableSpan> trace) {
-                for (MutableSpan span : trace) {
-                  span.setOperationName("modifiedON-" + span.getOperationName())
-                      .setServiceName("modifiedSN-" + span.getServiceName())
-                      .setResourceName("modifiedRN-" + span.getResourceName())
-                      .setSpanType("modifiedST-" + span.getSpanType())
-                      .setTag("boolean-tag", true)
-                      .setTag("number-tag", 5.0)
-                      .setTag("string-tag", "howdy")
-                      .setError(true);
-                }
-                return trace;
-              }
+    tracer.getInterceptors().add(new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        for (MutableSpan span : trace) {
+          span.setOperationName("modifiedON-" + span.getOperationName())
+              .setServiceName("modifiedSN-" + span.getServiceName())
+              .setResourceName("modifiedRN-" + span.getResourceName())
+              .setSpanType("modifiedST-" + span.getSpanType())
+              .setTag("boolean-tag", true)
+              .setTag("number-tag", 5.0)
+              .setTag("string-tag", "howdy")
+              .setError(true);
+        }
+        return trace;
+      }
 
-              @Override
-              public int priority() {
-                return 1;
-              }
-            });
+      @Override
+      public int priority() {
+        return 1;
+      }
+    });
 
     tracer.buildSpan("datadog", "test").start().finish();
     writer.waitForTraces(1);
@@ -207,21 +197,18 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
 
   @Test
   void robustWhenInterceptorReturnsNull() {
-    tracer
-        .getInterceptors()
-        .add(
-            new TraceInterceptor() {
-              @Override
-              public Collection<? extends MutableSpan> onTraceComplete(
-                  Collection<? extends MutableSpan> trace) {
-                return null;
-              }
+    tracer.getInterceptors().add(new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        return null;
+      }
 
-              @Override
-              public int priority() {
-                return 0;
-              }
-            });
+      @Override
+      public int priority() {
+        return 0;
+      }
+    });
 
     DDSpan span = (DDSpan) tracer.startSpan("test", "test");
     span.phasedFinish();
@@ -231,19 +218,18 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
   @Test
   void registerInterceptorThroughBridge() {
     GlobalTracer.registerIfAbsent(tracer);
-    TraceInterceptor interceptor =
-        new TraceInterceptor() {
-          @Override
-          public Collection<? extends MutableSpan> onTraceComplete(
-              Collection<? extends MutableSpan> trace) {
-            return trace;
-          }
+    TraceInterceptor interceptor = new TraceInterceptor() {
+      @Override
+      public Collection<? extends MutableSpan> onTraceComplete(
+          Collection<? extends MutableSpan> trace) {
+        return trace;
+      }
 
-          @Override
-          public int priority() {
-            return 38;
-          }
-        };
+      @Override
+      public int priority() {
+        return 38;
+      }
+    };
 
     assertTrue(GlobalTracer.get().addTraceInterceptor(interceptor));
     assertTrue(Arrays.asList(tracer.getInterceptors().interceptors()).contains(interceptor));

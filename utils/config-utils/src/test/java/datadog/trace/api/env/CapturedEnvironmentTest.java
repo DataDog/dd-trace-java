@@ -74,13 +74,12 @@ public class CapturedEnvironmentTest {
     int exitCode = process.waitFor();
     // Dumping state on error
     if (exitCode != 0) {
-      System.out.println(
-          "Error printing service name. Exit code "
-              + exitCode
-              + " with service name: '"
-              + serviceName
-              + "' and error:\n"
-              + error);
+      System.out.println("Error printing service name. Exit code "
+          + exitCode
+          + " with service name: '"
+          + serviceName
+          + "' and error:\n"
+          + error);
       throw new IllegalStateException("Process should exit without error");
     }
     return serviceName;

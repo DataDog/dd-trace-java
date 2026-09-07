@@ -78,7 +78,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class OtlpTraceProtoTest {
 
-  static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  static final CoreTracer TRACER =
+      CoreTracer.builder().writer(new LoggingWriter()).build();
 
   // ── spec classes (test-data descriptors) ──────────────────────────────────
 
@@ -376,18 +377,17 @@ class OtlpTraceProtoTest {
             asList(taggedSpan("tagged.op", tags("net.bytes_sent", 1024.5)))),
         Arguments.of(
             "span with multiple mixed tag types",
-            asList(
-                taggedSpan(
-                    "multi.tagged",
-                    tags(
-                        "http.method",
-                        "POST",
-                        "http.status_code",
-                        201L,
-                        "http.ssl",
-                        Boolean.FALSE,
-                        "latency.ms",
-                        3.14)))),
+            asList(taggedSpan(
+                "multi.tagged",
+                tags(
+                    "http.method",
+                    "POST",
+                    "http.status_code",
+                    201L,
+                    "http.ssl",
+                    Boolean.FALSE,
+                    "latency.ms",
+                    3.14)))),
 
         // ── parent–child relationship ─────────────────────────────────────────
         Arguments.of(
@@ -536,12 +536,10 @@ class OtlpTraceProtoTest {
     List<DDSpan> trace1 =
         buildSpans(asList(span("trace1.root", "op.root", "web"), childSpan("trace1.child", 0)));
     List<DDSpan> trace2 = buildSpans(asList(span("trace2.root", "op.root", "db")));
-    List<DDSpan> trace3 =
-        buildSpans(
-            asList(
-                span("trace3.a", "op.a", "web"),
-                span("trace3.b", "op.b", "web"),
-                span("trace3.c", "op.c", "web")));
+    List<DDSpan> trace3 = buildSpans(asList(
+        span("trace3.a", "op.a", "web"),
+        span("trace3.b", "op.b", "web"),
+        span("trace3.c", "op.c", "web")));
 
     // Sanity: all three traces must have distinct trace IDs.
     DDTraceId traceId1 = trace1.get(0).getTraceId();
@@ -659,12 +657,10 @@ class OtlpTraceProtoTest {
   @Test
   void testSpanOrderInTracePreserved() throws IOException {
     // Verifies that spans appear in the payload with the same order as the original trace
-    List<DDSpan> spans =
-        buildSpans(
-            asList(
-                span("first.span", "op.first", "web"),
-                span("second.span", "op.second", "web"),
-                span("third.span", "op.third", "web")));
+    List<DDSpan> spans = buildSpans(asList(
+        span("first.span", "op.first", "web"),
+        span("second.span", "op.second", "web"),
+        span("third.span", "op.third", "web")));
 
     OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
     collector.addTrace(spans);
@@ -723,33 +719,30 @@ class OtlpTraceProtoTest {
     for (SpanSpec spec : specs) {
       AgentSpan agentSpan;
       if (spec.use128BitTraceId) {
-        ExtractedContext parent128 =
-            new ExtractedContext(
-                TRACE_ID_128BIT,
-                0L,
-                PrioritySampling.UNSET,
-                null,
-                PropagationTags.factory().empty(),
-                TracePropagationStyle.DATADOG);
+        ExtractedContext parent128 = new ExtractedContext(
+            TRACE_ID_128BIT,
+            0L,
+            PrioritySampling.UNSET,
+            null,
+            PropagationTags.factory().empty(),
+            TracePropagationStyle.DATADOG);
         agentSpan = TRACER.startSpan("test", spec.operationName, parent128, spec.startMicros);
       } else if (spec.origin != null) {
-        ExtractedContext parentWithOrigin =
-            new ExtractedContext(
-                DDTraceId.ONE,
-                0L,
-                PrioritySampling.UNSET,
-                spec.origin,
-                PropagationTags.factory().empty(),
-                TracePropagationStyle.DATADOG);
+        ExtractedContext parentWithOrigin = new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.UNSET,
+            spec.origin,
+            PropagationTags.factory().empty(),
+            TracePropagationStyle.DATADOG);
         agentSpan =
             TRACER.startSpan("test", spec.operationName, parentWithOrigin, spec.startMicros);
       } else if (spec.parentIndex >= 0) {
-        agentSpan =
-            TRACER.startSpan(
-                "test",
-                spec.operationName,
-                spans.get(spec.parentIndex).spanContext(),
-                spec.startMicros);
+        agentSpan = TRACER.startSpan(
+            "test",
+            spec.operationName,
+            spans.get(spec.parentIndex).spanContext(),
+            spec.startMicros);
       } else {
         agentSpan = TRACER.startSpan("test", spec.operationName, spec.startMicros);
       }
@@ -779,21 +772,19 @@ class OtlpTraceProtoTest {
         agentSpan.setHttpStatusCode(spec.httpStatusCode);
       }
 
-      spec.extraTags.forEach(
-          (key, value) -> {
-            if (value instanceof String) agentSpan.setTag(key, (String) value);
-            else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
-            else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
-            else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
-          });
+      spec.extraTags.forEach((key, value) -> {
+        if (value instanceof String) agentSpan.setTag(key, (String) value);
+        else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
+        else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
+        else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
+      });
 
       for (LinkSpec link : spec.links) {
-        agentSpan.addLink(
-            SpanLink.from(
-                spans.get(link.targetIndex).spanContext(),
-                link.traceFlags,
-                link.traceState,
-                link.attributes));
+        agentSpan.addLink(SpanLink.from(
+            spans.get(link.targetIndex).spanContext(),
+            link.traceFlags,
+            link.traceState,
+            link.attributes));
       }
 
       agentSpan.finish(spec.finishMicros);
@@ -910,25 +901,24 @@ class OtlpTraceProtoTest {
           verifyLink(spanData.readBytes().newCodedInput(), spec.links[linkCount], caseName);
           linkCount++;
           break;
-        case 15:
-          {
-            CodedInputStream status = spanData.readBytes().newCodedInput();
-            statusFound = true;
-            while (!status.isAtEnd()) {
-              int st = status.readTag();
-              switch (WireFormat.getTagFieldNumber(st)) {
-                case 2:
-                  parsedStatusMessage = status.readString();
-                  break;
-                case 3:
-                  statusIsError = status.readEnum() == 2; // STATUS_CODE_ERROR = 2
-                  break;
-                default:
-                  status.skipField(st);
-              }
+        case 15: {
+          CodedInputStream status = spanData.readBytes().newCodedInput();
+          statusFound = true;
+          while (!status.isAtEnd()) {
+            int st = status.readTag();
+            switch (WireFormat.getTagFieldNumber(st)) {
+              case 2:
+                parsedStatusMessage = status.readString();
+                break;
+              case 3:
+                statusIsError = status.readEnum() == 2; // STATUS_CODE_ERROR = 2
+                break;
+              default:
+                status.skipField(st);
             }
-            break;
           }
+          break;
+        }
         case 16:
           parsedFlags = spanData.readFixed32();
           break;
@@ -1042,8 +1032,7 @@ class OtlpTraceProtoTest {
     if (spec.httpStatusCode != 0) {
       assertTrue(
           attrKeys.contains("http.status_code"),
-          "attributes must include 'http.status_code' when set via setHttpStatusCode ["
-              + caseName
+          "attributes must include 'http.status_code' when set via setHttpStatusCode [" + caseName
               + "]");
     }
     if (spec.origin != null) {

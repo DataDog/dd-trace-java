@@ -27,11 +27,10 @@ public class FunctionCallOutputExtractor {
 
     Class<?> outputClass = null;
     try {
-      outputClass =
-          Class.forName(
-              FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
-              false,
-              FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
+      outputClass = Class.forName(
+          FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
+          false,
+          FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
     } catch (Throwable t) {
       log.debug("Output class not found, assuming openai-java version 3.x", t);
     }

@@ -42,26 +42,22 @@ public abstract class TestNGClassListener {
   }
 
   public void invokeBeforeClass(ITestClass testClass, boolean parallelized) {
-    methodsAwaitingExecution.computeIfAbsent(
-        testClass.getRealClass(),
-        k -> {
-          // firing event with the lock held to ensure that the other threads wait until test suite
-          // state is initialized
-          onBeforeClass(testClass, parallelized);
-          return registeredMethods.remove(k);
-        });
+    methodsAwaitingExecution.computeIfAbsent(testClass.getRealClass(), k -> {
+      // firing event with the lock held to ensure that the other threads wait until test suite
+      // state is initialized
+      onBeforeClass(testClass, parallelized);
+      return registeredMethods.remove(k);
+    });
   }
 
   public void invokeAfterClass(ITestClass testClass, IMethodInstance methodInstance) {
     Collection<ConstructorOrMethod> remainingMethods =
-        methodsAwaitingExecution.computeIfPresent(
-            testClass.getRealClass(),
-            (k, v) -> {
-              ITestNGMethod method = methodInstance.getMethod();
-              ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
-              v.remove(constructorOrMethod);
-              return !v.isEmpty() ? v : null;
-            });
+        methodsAwaitingExecution.computeIfPresent(testClass.getRealClass(), (k, v) -> {
+          ITestNGMethod method = methodInstance.getMethod();
+          ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
+          v.remove(constructorOrMethod);
+          return !v.isEmpty() ? v : null;
+        });
 
     if (remainingMethods == null) {
       onAfterClass(testClass);

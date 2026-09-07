@@ -138,14 +138,13 @@ public final class CrashUploader {
     this.errorTrackingUrl = HttpUrl.get(config.getFinalCrashTrackingErrorTrackingUrl());
     this.agentless = config.isCrashTrackingAgentless();
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    this.executor =
-        new ThreadPoolExecutor(
-            0,
-            4,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
+    this.executor = new ThreadPoolExecutor(
+        0,
+        4,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
     this.dispatcher = new Dispatcher(executor);
 
     final StringBuilder tagsBuilder =
@@ -163,23 +162,20 @@ public final class CrashUploader {
 
     ConfigProvider configProvider = config.configProvider();
 
-    this.timeout =
-        SECONDS.toMillis(
-            configProvider.getInteger(
-                CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
+    this.timeout = SECONDS.toMillis(configProvider.getInteger(
+        CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
 
-    uploadClient =
-        OkHttpUtils.buildHttpClient(
-            config,
-            dispatcher, /* dispatcher */
-            telemetryUrl, // will be overridden in each request
-            true, /* retryOnConnectionFailure */
-            4, /* maxRunningRequests */ // not having one request blocking the others
-            configProvider.getString(CRASH_TRACKING_PROXY_HOST),
-            configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
-            configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
-            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD),
-            timeout);
+    uploadClient = OkHttpUtils.buildHttpClient(
+        config,
+        dispatcher, /* dispatcher */
+        telemetryUrl, // will be overridden in each request
+        true, /* retryOnConnectionFailure */
+        4, /* maxRunningRequests */ // not having one request blocking the others
+        configProvider.getString(CRASH_TRACKING_PROXY_HOST),
+        configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
+        configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
+        configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD),
+        timeout);
   }
 
   public void notifyCrashStarted(String error) {
@@ -212,21 +208,19 @@ public final class CrashUploader {
   @VisibleForTesting
   void sendPingToErrorTracking(String error) {
     try {
-      final CrashLog ping =
-          new CrashLog(
-              storedConfig.reportUUID,
-              false,
-              ZonedDateTime.now().format(ISO_OFFSET_DATE_TIME),
-              new ErrorData(
-                  null,
-                  "Crashtracker crash ping: "
-                      + (error != null ? error : "crash processing started"),
-                  null),
+      final CrashLog ping = new CrashLog(
+          storedConfig.reportUUID,
+          false,
+          ZonedDateTime.now().format(ISO_OFFSET_DATE_TIME),
+          new ErrorData(
               null,
-              OSInfo.current(),
-              null,
-              null,
-              "1.0");
+              "Crashtracker crash ping: " + (error != null ? error : "crash processing started"),
+              null),
+          null,
+          OSInfo.current(),
+          null,
+          null,
+          "1.0");
       handleCall(makeErrorTrackingRequest(makeErrorTrackingRequestBody(ping, true)), "ping");
     } catch (Throwable t) {
       log.error("Failed to prepare the error tracking crash ping payload", t);
@@ -333,22 +327,21 @@ public final class CrashUploader {
     return "NativeCrash";
   }
 
-  private static final Pattern ERROR_MESSAGE_PATTERN =
-      Pattern.compile(
-          String.join(
-              "",
-              "^",
-              "(",
-              "# A fatal error has been detected by the Java Runtime Environment:",
-              "|",
-              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
-              ")",
-              "\\n",
-              "(",
-              ".*, pid=-?\\d+, tid=-?\\d+",
-              ")",
-              "$"),
-          Pattern.DOTALL | Pattern.MULTILINE);
+  private static final Pattern ERROR_MESSAGE_PATTERN = Pattern.compile(
+      String.join(
+          "",
+          "^",
+          "(",
+          "# A fatal error has been detected by the Java Runtime Environment:",
+          "|",
+          "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+          ")",
+          "\\n",
+          "(",
+          ".*, pid=-?\\d+, tid=-?\\d+",
+          ")",
+          "$"),
+      Pattern.DOTALL | Pattern.MULTILINE);
 
   @VisibleForTesting
   @SuppressForbidden
@@ -359,11 +352,9 @@ public final class CrashUploader {
       return null;
     }
     return Arrays.stream(matcher.group().split(System.lineSeparator()))
-        .filter(
-            s ->
-                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
-                    && !s.equals(
-                        "# There is insufficient memory for the Java Runtime Environment to continue."))
+        .filter(s -> !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+            && !s.equals(
+                "# There is insufficient memory for the Java Runtime Environment to continue."))
         .map(s -> s.replaceFirst("^#\\s*", "").trim())
         .collect(Collectors.joining("\n"))
         .trim();
@@ -418,10 +409,9 @@ public final class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
-    return uploadClient.newCall(
-        OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
-            .post(requestBody)
-            .build());
+    return uploadClient.newCall(OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
+        .post(requestBody)
+        .build());
   }
 
   private RequestBody makeTelemetryRequestBody(@Nonnull String payload, boolean isPing)
@@ -573,9 +563,8 @@ public final class CrashUploader {
           writer.name("os_type").value(payload.osInfo.osType);
           writer
               .name("version")
-              .value(
-                  SystemProperties.get(
-                      "os.version")); // this has been restructured under OsInfo so taking raw here
+              .value(SystemProperties.get(
+                  "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
         // experimental

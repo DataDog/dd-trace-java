@@ -122,9 +122,8 @@ public class StringWritingTest {
   @ParameterizedTest
   @MethodSource("maps")
   public void testSerialiseTextMapWithCache(List<Map<String, String>> maps) {
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer, maps)));
+    MsgPackWriter packer = new MsgPackWriter(
+        new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer, maps)));
     for (Map<String, String> map : maps) {
       packer.format(map, (m, p) -> p.writeMap(m, CACHE));
     }
@@ -134,9 +133,8 @@ public class StringWritingTest {
   @ParameterizedTest
   @MethodSource("maps")
   public void testSerialiseTextMapWithoutCache(List<Map<String, String>> maps) {
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer, maps)));
+    MsgPackWriter packer = new MsgPackWriter(
+        new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer, maps)));
     for (Map<String, String> map : maps) {
       packer.format(map, (m, p) -> p.writeMap(m, NO_CACHE));
     }

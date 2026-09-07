@@ -24,12 +24,11 @@ import org.slf4j.LoggerFactory;
 
 public class RepoIndex {
 
-  static final RepoIndex EMPTY =
-      new RepoIndex(
-          ClassNameTrie.EMPTY_TRIE,
-          Collections.emptyMap(),
-          Collections.emptyList(),
-          Collections.emptyList());
+  static final RepoIndex EMPTY = new RepoIndex(
+      ClassNameTrie.EMPTY_TRIE,
+      Collections.emptyMap(),
+      Collections.emptyList(),
+      Collections.emptyList());
 
   private static final Logger log = LoggerFactory.getLogger(RepoIndex.class);
 

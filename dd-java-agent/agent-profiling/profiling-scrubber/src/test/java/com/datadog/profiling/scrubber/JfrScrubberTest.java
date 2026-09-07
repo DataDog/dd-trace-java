@@ -24,7 +24,8 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
 class JfrScrubberTest {
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   private Path inputFile;
 

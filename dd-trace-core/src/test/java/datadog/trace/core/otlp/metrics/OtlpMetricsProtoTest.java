@@ -327,138 +327,122 @@ class OtlpMetricsProtoTest {
         // ── counter double with multiple attribute types ───────────────────────
         Arguments.of(
             "counter double with string, long, bool, double attrs",
-            asList(
-                scope(
-                    "io.test",
-                    counterDouble(
-                        "latency",
-                        3.14,
-                        strAttr("service", "web"),
-                        longAttr("status", 200L),
-                        boolAttr("success", true),
-                        dblAttr("rate", 0.5))))),
+            asList(scope(
+                "io.test",
+                counterDouble(
+                    "latency",
+                    3.14,
+                    strAttr("service", "web"),
+                    longAttr("status", 200L),
+                    boolAttr("success", true),
+                    dblAttr("rate", 0.5))))),
 
         // ── histogram — overflow only (no explicit bounds) ────────────────────
         Arguments.of(
             "histogram no explicit bounds — overflow bucket only",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "response.time",
-                        1.0,
-                        asList(Double.POSITIVE_INFINITY),
-                        asList(1.0),
-                        0.5,
-                        0.5,
-                        0.5)))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "response.time",
+                    1.0,
+                    asList(Double.POSITIVE_INFINITY),
+                    asList(1.0),
+                    0.5,
+                    0.5,
+                    0.5)))),
 
         // ── histogram — zero count and sum with overflow bucket ───────────────
         Arguments.of(
             "histogram zero count and sum",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "idle.time",
-                        0.0,
-                        asList(Double.POSITIVE_INFINITY),
-                        asList(0.0),
-                        0.0,
-                        0.0,
-                        0.0)))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "idle.time",
+                    0.0,
+                    asList(Double.POSITIVE_INFINITY),
+                    asList(0.0),
+                    0.0,
+                    0.0,
+                    0.0)))),
 
         // ── histogram — single explicit bound with overflow ───────────────────
         Arguments.of(
             "histogram single bound with overflow",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "request.size",
-                        5.0,
-                        asList(100.0, Double.POSITIVE_INFINITY),
-                        asList(4.0, 1.0),
-                        280.0,
-                        20.0,
-                        200.0)))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "request.size",
+                    5.0,
+                    asList(100.0, Double.POSITIVE_INFINITY),
+                    asList(4.0, 1.0),
+                    280.0,
+                    20.0,
+                    200.0)))),
 
         // ── histogram — finite bounds only (no overflow) — extra zero appended ─
         Arguments.of(
             "histogram finite bounds — no overflow — extra zero bucket appended",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "queue.size",
-                        8.0,
-                        asList(50.0, 100.0),
-                        asList(3.0, 5.0),
-                        750.0,
-                        10.0,
-                        95.0)))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "queue.size", 8.0, asList(50.0, 100.0), asList(3.0, 5.0), 750.0, 10.0, 95.0)))),
 
         // ── histogram — with explicit bounds, overflow, and attrs ─────────────
         Arguments.of(
             "histogram with bounds, overflow, and string attr",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "response.time",
-                        10.0,
-                        asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
-                        asList(2.0, 3.0, 4.0, 1.0),
-                        45.5,
-                        0.5,
-                        12.0,
-                        strAttr("region", "us-east"))))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "response.time",
+                    10.0,
+                    asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
+                    asList(2.0, 3.0, 4.0, 1.0),
+                    45.5,
+                    0.5,
+                    12.0,
+                    strAttr("region", "us-east"))))),
 
         // ── histogram — many buckets with overflow and multiple attrs ──────────
         Arguments.of(
             "histogram many buckets with overflow, long and bool attrs",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "latency.ms",
-                        100.0,
-                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
-                        asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
-                        4321.0,
-                        0.5,
-                        150.0,
-                        longAttr("shard", 3L),
-                        boolAttr("cached", false))))),
+            asList(scope(
+                "io.hist",
+                histogram(
+                    "latency.ms",
+                    100.0,
+                    asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
+                    asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
+                    4321.0,
+                    0.5,
+                    150.0,
+                    longAttr("shard", 3L),
+                    boolAttr("cached", false))))),
 
         // ── scope metadata — optional version and schema URL ──────────────────
         Arguments.of(
             "scope with version and schemaUrl",
-            asList(
-                scopeFull(
-                    "io.opentelemetry",
-                    "1.2.3",
-                    "https://opentelemetry.io/schemas/1.21",
-                    counterLong("events", 1L)))),
+            asList(scopeFull(
+                "io.opentelemetry",
+                "1.2.3",
+                "https://opentelemetry.io/schemas/1.21",
+                counterLong("events", 1L)))),
         Arguments.of(
             "scope with version only — no schemaUrl",
             asList(scopeFull("io.versioned", "2.0.0", null, counterLong("events", 1L)))),
         Arguments.of(
             "scope with schemaUrl only — no version",
-            asList(
-                scopeFull(
-                    "io.schemed",
-                    null,
-                    "https://opentelemetry.io/schemas/1.21",
-                    counterLong("events", 1L)))),
+            asList(scopeFull(
+                "io.schemed",
+                null,
+                "https://opentelemetry.io/schemas/1.21",
+                counterLong("events", 1L)))),
 
         // ── metric metadata — optional description and unit ───────────────────
         Arguments.of(
             "metric with description and unit",
-            asList(
-                scope(
-                    "io.test",
-                    counterLongFull("cpu.usage", "CPU utilisation of the process", "%", 75L)))),
+            asList(scope(
+                "io.test",
+                counterLongFull("cpu.usage", "CPU utilisation of the process", "%", 75L)))),
 
         // ── observable gauge ──────────────────────────────────────────────────
         Arguments.of(
@@ -541,20 +525,18 @@ class OtlpMetricsProtoTest {
     timeSource.set(START_EPOCH_NS); // captured in constructor
     OtlpMetricsProtoCollector collector = new OtlpMetricsProtoCollector(timeSource);
     timeSource.set(END_EPOCH_NS); // captured during collection
-    OtlpPayload payload =
-        collector.collectMetrics(
-            visitor -> {
-              for (ScopeSpec scope : expectedScopes) {
-                OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
-                for (MetricSpec metric : scope.metrics) {
-                  OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
-                  for (AttrSpec attr : metric.attrs) {
-                    mv.visitAttribute(attr.type, attr.key, attr.value);
-                  }
-                  mv.visitDataPoint(metric.point);
-                }
-              }
-            });
+    OtlpPayload payload = collector.collectMetrics(visitor -> {
+      for (ScopeSpec scope : expectedScopes) {
+        OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
+        for (MetricSpec metric : scope.metrics) {
+          OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
+          for (AttrSpec attr : metric.attrs) {
+            mv.visitAttribute(attr.type, attr.key, attr.value);
+          }
+          mv.visitDataPoint(metric.point);
+        }
+      }
+    });
 
     // Scopes with no metrics produce no wire output — filter them for verification
     List<ScopeSpec> nonEmptyScopes = new ArrayList<>();
@@ -621,12 +603,7 @@ class OtlpMetricsProtoTest {
         MetricSpec metricSpec = expectedMetricsByName.get(metricName);
         assertNotNull(
             metricSpec,
-            "unexpected metric '"
-                + metricName
-                + "' in scope "
-                + expected.name
-                + " ["
-                + caseName
+            "unexpected metric '" + metricName + "' in scope " + expected.name + " [" + caseName
                 + "]");
         verifyMetric(CodedInputStream.newInstance(metricBlob), metricSpec);
       }

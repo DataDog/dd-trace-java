@@ -58,7 +58,8 @@ public class StringSplitBenchmark {
     }
   };
 
-  @Param TestString testStr;
+  @Param
+  TestString testStr;
 
   static final String repeat(String repeat, char separator, int length) {
     StringBuilder builder = new StringBuilder(length);

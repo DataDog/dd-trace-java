@@ -41,9 +41,8 @@ public class ConfigurationFileLoader {
       } while (bytesRead > -1);
       byte[] configContent = outputStream.toByteArray();
       JsonAdapter<List<ProbeDefinition>> adapter = new ProbeFileAdapter();
-      List<ProbeDefinition> probeDefinitions =
-          adapter.fromJson(
-              JsonReader.of(Okio.buffer(Okio.source(new ByteArrayInputStream(configContent)))));
+      List<ProbeDefinition> probeDefinitions = adapter.fromJson(
+          JsonReader.of(Okio.buffer(Okio.source(new ByteArrayInputStream(configContent)))));
       return new Configuration(null, probeDefinitions);
     } catch (IOException ex) {
       LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);

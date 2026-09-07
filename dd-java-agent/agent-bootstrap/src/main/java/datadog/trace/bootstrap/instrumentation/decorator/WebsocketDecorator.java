@@ -181,14 +181,13 @@ public class WebsocketDecorator extends BaseDecorator {
       if (useDedicatedTraces || !traceStarter) {
         // the link is not added if the user wants to have receive frames on the same trace as the
         // handshake
-        wsSpan.addLink(
-            SpanLink.from(
-                inheritSampling
-                    ? handshakeSpan.spanContext()
-                    : new NotSampledSpanContext(handshakeSpan.spanContext()),
-                SpanLink.DEFAULT_FLAGS,
-                "",
-                linkAttributes));
+        wsSpan.addLink(SpanLink.from(
+            inheritSampling
+                ? handshakeSpan.spanContext()
+                : new NotSampledSpanContext(handshakeSpan.spanContext()),
+            SpanLink.DEFAULT_FLAGS,
+            "",
+            linkAttributes));
       }
     }
     return wsSpan;

@@ -41,19 +41,17 @@ public class DependencyServiceTests {
 
   private ClassFileTransformer captureTransformer() {
     final ClassFileTransformer[] t = {null};
-    Instrumentation instrumentation =
-        (Instrumentation)
-            Proxy.newProxyInstance(
-                DependencyServiceTests.class.getClassLoader(),
-                new Class<?>[] {Instrumentation.class},
-                (proxy, method, args) -> {
-                  if (method.getName().equals("addTransformer")) {
-                    t[0] = (ClassFileTransformer) args[0];
-                  } else {
-                    throw new UnsupportedOperationException();
-                  }
-                  return null;
-                });
+    Instrumentation instrumentation = (Instrumentation) Proxy.newProxyInstance(
+        DependencyServiceTests.class.getClassLoader(),
+        new Class<?>[] {Instrumentation.class},
+        (proxy, method, args) -> {
+          if (method.getName().equals("addTransformer")) {
+            t[0] = (ClassFileTransformer) args[0];
+          } else {
+            throw new UnsupportedOperationException();
+          }
+          return null;
+        });
 
     depService.installOn(instrumentation);
     assert t[0] != null;
@@ -86,11 +84,9 @@ public class DependencyServiceTests {
     VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
     assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
 
-    VirtualFile virtualDir =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
-                .getResource("datadog/telemetry/dependencies/")
-                .getPath());
+    VirtualFile virtualDir = VFS.getChild(ClassLoader.getSystemClassLoader()
+        .getResource("datadog/telemetry/dependencies/")
+        .getPath());
     assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
 
     Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
@@ -108,11 +104,9 @@ public class DependencyServiceTests {
   public void jboss_vfs_zip_url() throws IOException, IllegalClassFormatException {
     ClassFileTransformer t = captureTransformer();
 
-    VirtualFile zipFile =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
-                .getResource("datadog/telemetry/dependencies/junit.zip")
-                .getPath());
+    VirtualFile zipFile = VFS.getChild(ClassLoader.getSystemClassLoader()
+        .getResource("datadog/telemetry/dependencies/junit.zip")
+        .getPath());
     VirtualFile mountPoint = VFS.getChild("foo.zip");
     tempFileProvider = TempFileProvider.create("test", new ScheduledThreadPoolExecutor(2));
     assemblyHandle = VFS.mountZip(zipFile, mountPoint, tempFileProvider);

@@ -195,19 +195,18 @@ public abstract class Instrumenter {
       case Opcodes.FRETURN:
       case Opcodes.LRETURN:
       case Opcodes.DRETURN:
-      case Opcodes.ARETURN:
-        {
-          // stack [ret_value]
-          InsnList beforeReturnInsnList = getBeforeReturnInsnList(node, frames);
-          if (beforeReturnInsnList != null) {
-            methodNode.instructions.insertBefore(node, beforeReturnInsnList);
-          }
-          AbstractInsnNode prev = node.getPrevious();
-          methodNode.instructions.remove(node);
-          methodNode.instructions.insert(
-              prev, new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
-          return prev;
+      case Opcodes.ARETURN: {
+        // stack [ret_value]
+        InsnList beforeReturnInsnList = getBeforeReturnInsnList(node, frames);
+        if (beforeReturnInsnList != null) {
+          methodNode.instructions.insertBefore(node, beforeReturnInsnList);
         }
+        AbstractInsnNode prev = node.getPrevious();
+        methodNode.instructions.remove(node);
+        methodNode.instructions.insert(
+            prev, new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
+        return prev;
+      }
     }
     return node;
   }
@@ -297,9 +296,8 @@ public abstract class Instrumenter {
 
   protected void installFinallyBlocks() {
     for (FinallyBlock finallyBlock : finallyBlocks) {
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(
-              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
+      methodNode.tryCatchBlocks.add(new TryCatchBlockNode(
+          finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
     }
   }
 

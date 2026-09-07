@@ -61,7 +61,9 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getSession").and(returns(named("jakarta.servlet.http.HttpSession"))).and(isPublic()),
+        named("getSession")
+            .and(returns(named("jakarta.servlet.http.HttpSession")))
+            .and(isPublic()),
         CLASS_NAME + "$GetHttpSessionAdvice");
   }
 
@@ -85,7 +87,8 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
       }
       final ServletContext context = request.getServletContext();
 
-      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
+      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class)
+              .get(context)
           != null) {
         return;
       }

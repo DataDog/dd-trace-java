@@ -26,9 +26,8 @@ public class FallbackOperatorInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(named("decorate"))
-            .and(
-                takesArgument(0, named("java.util.function.UnaryOperator"))
-                    .and(returns(named("java.util.function.Function")))),
+            .and(takesArgument(0, named("java.util.function.UnaryOperator"))
+                .and(returns(named("java.util.function.Function")))),
         FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice");
   }
 
@@ -38,11 +37,10 @@ public class FallbackOperatorInstrumentation
     public static void after(
         @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
 
-      result =
-          ReactorHelper.wrapFunction(
-              result,
-              ReactorHelper.putIfAbsentInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+      result = ReactorHelper.wrapFunction(
+          result,
+          ReactorHelper.putIfAbsentInto(
+              InstrumentationContext.get(Publisher.class, HandoffContext.class)));
     }
 
     // 2.0.0+

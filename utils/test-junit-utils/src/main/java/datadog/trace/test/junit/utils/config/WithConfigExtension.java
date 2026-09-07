@@ -124,16 +124,13 @@ public class WithConfigExtension
 
   private static void applyMethodLevelConfig(ExtensionContext context) {
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
-    context
-        .getTestMethod()
-        .ifPresent(
-            method -> {
-              List<WithConfig> methodConfigs =
-                  AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
-              for (WithConfig cfg : methodConfigs) {
-                applyConfig(cfg);
-              }
-            });
+    context.getTestMethod().ifPresent(method -> {
+      List<WithConfig> methodConfigs =
+          AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
+      for (WithConfig cfg : methodConfigs) {
+        applyConfig(cfg);
+      }
+    });
   }
 
   private static void applyConfig(WithConfig cfg) {
@@ -204,10 +201,9 @@ public class WithConfigExtension
     if (isWritableInstance(CONFIG) && isWritableInstance(INST_CONFIG)) {
       return;
     }
-    throw new IllegalStateException(
-        "Config/InstrumenterConfig INSTANCE fields are not modifiable. "
-            + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
-            + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
+    throw new IllegalStateException("Config/InstrumenterConfig INSTANCE fields are not modifiable. "
+        + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
+        + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
   }
 
   private static boolean isWritableInstance(String className) {

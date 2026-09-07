@@ -7,17 +7,15 @@ final class ContextProviders {
   static volatile ContextBinder customBinder;
 
   private static final class ProvidedManager {
-    static final ContextManager INSTANCE =
-        null != ContextProviders.customManager
-            ? ContextProviders.customManager
-            : ThreadLocalContextManager.INSTANCE;
+    static final ContextManager INSTANCE = null != ContextProviders.customManager
+        ? ContextProviders.customManager
+        : ThreadLocalContextManager.INSTANCE;
   }
 
   private static final class ProvidedBinder {
-    static final ContextBinder INSTANCE =
-        null != ContextProviders.customBinder
-            ? ContextProviders.customBinder
-            : WeakMapContextBinder.INSTANCE;
+    static final ContextBinder INSTANCE = null != ContextProviders.customBinder
+        ? ContextProviders.customBinder
+        : WeakMapContextBinder.INSTANCE;
   }
 
   static ContextManager manager() {

@@ -93,27 +93,24 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     }
     parentSpan.end();
 
-    assertTraces(
-        trace(
-            span().root().operationName("internal").resourceName("some-name"),
-            span().childOfPrevious().operationName("internal").resourceName("other-name")));
+    assertTraces(trace(
+        span().root().operationName("internal").resourceName("some-name"),
+        span().childOfPrevious().operationName("internal").resourceName("other-name")));
   }
 
   @Test
   void testParentSpanUsingReference() {
     Span parentSpan = this.otelTracer.spanBuilder("some-name").startSpan();
-    Span childSpan =
-        this.otelTracer
-            .spanBuilder("other-name")
-            .setParent(Context.current().with(parentSpan))
-            .startSpan();
+    Span childSpan = this.otelTracer
+        .spanBuilder("other-name")
+        .setParent(Context.current().with(parentSpan))
+        .startSpan();
     childSpan.end();
     parentSpan.end();
 
-    assertTraces(
-        trace(
-            span().root().operationName("internal").resourceName("some-name"),
-            span().childOfPrevious().operationName("internal").resourceName("other-name")));
+    assertTraces(trace(
+        span().root().operationName("internal").resourceName("some-name"),
+        span().childOfPrevious().operationName("internal").resourceName("other-name")));
   }
 
   @Test
@@ -131,21 +128,21 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
       childSpan.end();
     }
 
-    assertTraces(
-        trace(
-            span()
-                .traceId(DDTraceId.fromHex(traceId))
-                .childOf(DDSpanId.fromHex(spanId))
-                .operationName("internal")
-                .resourceName("some-name")));
+    assertTraces(trace(span()
+        .traceId(DDTraceId.fromHex(traceId))
+        .childOf(DDSpanId.fromHex(spanId))
+        .operationName("internal")
+        .resourceName("some-name")));
   }
 
   @Test
   void testParentSpanUsingInvalidReference() throws Exception {
     // Root context contains a SpanContext with TID/SID to 0 as current span
     Context invalidCurrentSpanContext = Context.root();
-    Span childSpan =
-        this.otelTracer.spanBuilder("some-name").setParent(invalidCurrentSpanContext).startSpan();
+    Span childSpan = this.otelTracer
+        .spanBuilder("some-name")
+        .setParent(invalidCurrentSpanContext)
+        .startSpan();
     childSpan.end();
 
     writer.waitForTraces(1);
@@ -180,19 +177,13 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     result.addEvent("event");
     result.end();
 
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + timeSource.getCurrentTimeNanos()
-            + ", \"name\": \"event\" }"
-            + "]";
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+    String expectedEventTag = "[" + "{ \"time_unix_nano\": " + timeSource.getCurrentTimeNanos()
+        + ", \"name\": \"event\" }" + "]";
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_EVENTS, isJson(expectedEventTag)))));
   }
 
   static Stream<Arguments> testAddSingleEventArguments() {
@@ -236,28 +227,25 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
       Attributes attributes,
       String expectedAttributes) {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + unit.toNanos(timestamp)
-            + ", \"name\": \""
-            + name
-            + "\""
-            + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
-            + " }"
-            + "]";
+    String expectedEventTag = "["
+        + "{ \"time_unix_nano\": "
+        + unit.toNanos(timestamp)
+        + ", \"name\": \""
+        + name
+        + "\""
+        + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
+        + " }"
+        + "]";
 
     Span result = builder.startSpan();
     result.addEvent(name, attributes, timestamp, unit);
     result.end();
 
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_EVENTS, isJson(expectedEventTag)))));
   }
 
   @Test
@@ -273,22 +261,19 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
         NANOSECONDS);
     result.end();
 
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + TIME_NANO
-            + ", \"name\": \"event1\" },"
-            + "{ \"time_unix_nano\": "
-            + TIME_NANO
-            + ", \"name\": \"event2\", \"attributes\": {\"string-key\": \"string-value\"} }"
-            + "]";
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)))));
+    String expectedEventTag = "["
+        + "{ \"time_unix_nano\": "
+        + TIME_NANO
+        + ", \"name\": \"event1\" },"
+        + "{ \"time_unix_nano\": "
+        + TIME_NANO
+        + ", \"name\": \"event2\", \"attributes\": {\"string-key\": \"string-value\"} }"
+        + "]";
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_EVENTS, isJson(expectedEventTag)))));
   }
 
   @Test
@@ -302,19 +287,17 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     CountDownLatch start = new CountDownLatch(1);
     List<Thread> threads = new ArrayList<>();
     for (int t = 0; t < threadCount; t++) {
-      Thread thread =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                for (int i = 0; i < eventsPerThread; i++) {
-                  span.addEvent("event");
-                }
-              });
+      Thread thread = new Thread(() -> {
+        try {
+          start.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        for (int i = 0; i < eventsPerThread; i++) {
+          span.addEvent("event");
+        }
+      });
       thread.start();
       threads.add(thread);
     }
@@ -337,32 +320,29 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   void testSimpleSpanLinks() {
     String traceId = "1234567890abcdef1234567890abcdef";
     String spanId = "fedcba0987654321";
-    TraceState traceState = TraceState.builder().put("string-key", "string-value").build();
+    TraceState traceState =
+        TraceState.builder().put("string-key", "string-value").build();
 
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\" }"
-            + "]";
+    String expectedLinksTag = "["
+        + "{ \"trace_id\": \""
+        + traceId
+        + "\", \"span_id\": \""
+        + spanId
+        + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\" }"
+        + "]";
 
-    Span span =
-        this.otelTracer
-            .spanBuilder("some-name")
-            .addLink(SpanContext.getInvalid())
-            .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
-            .startSpan();
+    Span span = this.otelTracer
+        .spanBuilder("some-name")
+        .addLink(SpanContext.getInvalid())
+        .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+        .startSpan();
     span.end();
 
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_LINKS, isJson(expectedLinksTag)))));
   }
 
   @Test
@@ -373,27 +353,25 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     for (int i = 0; i <= 9; i++) {
       String traceId = "1234567890abcdef1234567890abcde" + i;
       String spanId = "fedcba098765432" + i;
-      TraceState traceState = TraceState.builder().put("string-key", "string-value" + i).build();
+      TraceState traceState =
+          TraceState.builder().put("string-key", "string-value" + i).build();
       spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState));
-      expectedLinks.add(
-          "{ \"trace_id\": \""
-              + traceId
-              + "\", \"span_id\": \""
-              + spanId
-              + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value"
-              + i
-              + "\" }");
+      expectedLinks.add("{ \"trace_id\": \""
+          + traceId
+          + "\", \"span_id\": \""
+          + spanId
+          + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value"
+          + i
+          + "\" }");
     }
     spanBuilder.startSpan().end();
 
     String expectedLinksTag = "[" + join(",", expectedLinks) + "]";
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_LINKS, isJson(expectedLinksTag)))));
   }
 
   static Stream<Arguments> testSpanLinkAttributesArguments() {
@@ -425,34 +403,30 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   void testSpanLinkAttributes(String scenario, Attributes attributes, String expectedAttributes) {
     String traceId = "1234567890abcdef1234567890abcdef";
     String spanId = "fedcba0987654321";
-    TraceState traceState = TraceState.builder().put("string-key", "string-value").build();
-    Span span =
-        this.otelTracer
-            .spanBuilder("some-name")
-            .addLink(
-                SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState),
-                attributes)
-            .startSpan();
+    TraceState traceState =
+        TraceState.builder().put("string-key", "string-value").build();
+    Span span = this.otelTracer
+        .spanBuilder("some-name")
+        .addLink(
+            SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+        .startSpan();
     span.end();
 
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\""
-            + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
-            + " }"
-            + "]";
+    String expectedLinksTag = "["
+        + "{ \"trace_id\": \""
+        + traceId
+        + "\", \"span_id\": \""
+        + spanId
+        + "\", \"flags\": 1, \"tracestate\": \"string-key=string-value\""
+        + (expectedAttributes == null ? "" : ", \"attributes\": " + expectedAttributes)
+        + " }"
+        + "]";
 
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_LINKS, isJson(expectedLinksTag)))));
   }
 
   static Stream<Arguments> testSpanLinksTraceStateArguments() {
@@ -478,33 +452,29 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     String traceId = "1234567890abcdef1234567890abcdef";
     String spanId = "fedcba0987654321";
 
-    Span span =
-        this.otelTracer
-            .spanBuilder("some-name")
-            .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
-            .startSpan();
+    Span span = this.otelTracer
+        .spanBuilder("some-name")
+        .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+        .startSpan();
     span.end();
 
     String expectedTraceStateJson =
         expectedTraceState == null ? "" : ", \"tracestate\": \"" + expectedTraceState + "\"";
-    String expectedLinksTag =
-        "["
-            + "{ \"trace_id\": \""
-            + traceId
-            + "\", \"span_id\": \""
-            + spanId
-            + "\", \"flags\": 1"
-            + expectedTraceStateJson
-            + " }"
-            + "]";
+    String expectedLinksTag = "["
+        + "{ \"trace_id\": \""
+        + traceId
+        + "\", \"span_id\": \""
+        + spanId
+        + "\", \"flags\": 1"
+        + expectedTraceStateJson
+        + " }"
+        + "]";
 
-    assertTraces(
-        trace(
-            span()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_LINKS, isJson(expectedLinksTag)))));
+    assertTraces(trace(span()
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_LINKS, isJson(expectedLinksTag)))));
   }
 
   static Stream<Arguments> testSpanAttributesArguments() {
@@ -568,63 +538,59 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
     TagsMatcher[] tagsMatchers;
     if (tagSpan) {
-      tagsMatchers =
-          new TagsMatcher[] {
-            defaultTags(),
-            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-            tag("string", is("b")),
-            tag("empty_string", is("")),
-            tag("number", is(2L)),
-            tag("boolean", is(false)),
-            tag("empty-string-attribute", is("")),
-            tag("string-array.0", is("d")),
-            tag("string-array.1", is("e")),
-            tag("string-array.2", is("f")),
-            tag("boolean-array.0", is(false)),
-            tag("boolean-array.1", is(true)),
-            tag("long-array.0", is(5L)),
-            tag("long-array.1", is(6L)),
-            tag("long-array.2", is(7L)),
-            tag("long-array.3", is(8L)),
-            tag("double-array.0", is(2.34D)),
-            tag("double-array.1", is(5.67D)),
-            tag("empty-array", is(""))
-          };
+      tagsMatchers = new TagsMatcher[] {
+        defaultTags(),
+        tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+        tag("string", is("b")),
+        tag("empty_string", is("")),
+        tag("number", is(2L)),
+        tag("boolean", is(false)),
+        tag("empty-string-attribute", is("")),
+        tag("string-array.0", is("d")),
+        tag("string-array.1", is("e")),
+        tag("string-array.2", is("f")),
+        tag("boolean-array.0", is(false)),
+        tag("boolean-array.1", is(true)),
+        tag("long-array.0", is(5L)),
+        tag("long-array.1", is(6L)),
+        tag("long-array.2", is(7L)),
+        tag("long-array.3", is(8L)),
+        tag("double-array.0", is(2.34D)),
+        tag("double-array.1", is(5.67D)),
+        tag("empty-array", is(""))
+      };
     } else if (tagBuilder) {
-      tagsMatchers =
-          new TagsMatcher[] {
-            defaultTags(),
-            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-            tag("string", is("a")),
-            tag("empty_string", is("")),
-            tag("number", is(1L)),
-            tag("boolean", is(true)),
-            tag("empty-string-attribute", is("")),
-            tag("string-array.0", is("a")),
-            tag("string-array.1", is("b")),
-            tag("string-array.2", is("c")),
-            tag("boolean-array.0", is(true)),
-            tag("boolean-array.1", is(false)),
-            tag("long-array.0", is(1L)),
-            tag("long-array.1", is(2L)),
-            tag("long-array.2", is(3L)),
-            tag("long-array.3", is(4L)),
-            tag("double-array.0", is(1.23D)),
-            tag("double-array.1", is(4.56D)),
-            tag("empty-array", is(""))
-          };
+      tagsMatchers = new TagsMatcher[] {
+        defaultTags(),
+        tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+        tag("string", is("a")),
+        tag("empty_string", is("")),
+        tag("number", is(1L)),
+        tag("boolean", is(true)),
+        tag("empty-string-attribute", is("")),
+        tag("string-array.0", is("a")),
+        tag("string-array.1", is("b")),
+        tag("string-array.2", is("c")),
+        tag("boolean-array.0", is(true)),
+        tag("boolean-array.1", is(false)),
+        tag("long-array.0", is(1L)),
+        tag("long-array.1", is(2L)),
+        tag("long-array.2", is(3L)),
+        tag("long-array.3", is(4L)),
+        tag("double-array.0", is(1.23D)),
+        tag("double-array.1", is(4.56D)),
+        tag("empty-array", is(""))
+      };
     } else {
       tagsMatchers = new TagsMatcher[] {defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL))};
     }
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName(expectedResource)
-                .error(false)
-                .tags(tagsMatchers)));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName(expectedResource)
+        .error(false)
+        .tags(tagsMatchers)));
   }
 
   @Test
@@ -649,7 +615,11 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("testSpanKindsArguments")
   void testSpanKinds(SpanKind otelSpanKind, String tagSpanKind) {
-    this.otelTracer.spanBuilder("some-name").setSpanKind(otelSpanKind).startSpan().end();
+    this.otelTracer
+        .spanBuilder("some-name")
+        .setSpanKind(otelSpanKind)
+        .startSpan()
+        .end();
 
     assertTraces(trace(span().tags(defaultTags(), tag(SPAN_KIND, is(tagSpanKind)))));
   }
@@ -660,17 +630,15 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     result.setStatus(ERROR, "some-error");
     result.end();
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName("some-name")
-                .error(true)
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(ERROR_MSG, is("some-error")))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName("some-name")
+        .error(true)
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(ERROR_MSG, is("some-error")))));
   }
 
   @Test
@@ -700,14 +668,12 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
     result.end();
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName("some-name")
-                .error(false)
-                .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName("some-name")
+        .error(false)
+        .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)))));
   }
 
   static Stream<Arguments> testSpanRecordExceptionArguments() {
@@ -773,44 +739,41 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     result.end();
 
     String errorMessage = overriddenMessage != null ? overriddenMessage : exception.getMessage();
-    String errorType = overriddenType != null ? overriddenType : exception.getClass().getName();
+    String errorType =
+        overriddenType != null ? overriddenType : exception.getClass().getName();
     String errorStackTrace =
         overriddenStacktrace != null ? overriddenStacktrace : stringifyErrorStack(exception);
-    String expectedAttributes =
-        "{"
-            + "\"exception.message\": \""
-            + errorMessage
-            + "\", \"exception.type\": \""
-            + errorType
-            + "\", \"exception.stacktrace\": \""
-            + errorStackTrace
-            + "\""
-            + (extraJson != null ? extraJson : "")
-            + "}";
+    String expectedAttributes = "{"
+        + "\"exception.message\": \""
+        + errorMessage
+        + "\", \"exception.type\": \""
+        + errorType
+        + "\", \"exception.stacktrace\": \""
+        + errorStackTrace
+        + "\""
+        + (extraJson != null ? extraJson : "")
+        + "}";
 
-    String expectedEventTag =
-        "["
-            + "{ \"time_unix_nano\": "
-            + timeSource.getCurrentTimeNanos()
-            + ", \"name\": \"exception\", \"attributes\": "
-            + expectedAttributes
-            + " }"
-            + "]";
+    String expectedEventTag = "["
+        + "{ \"time_unix_nano\": "
+        + timeSource.getCurrentTimeNanos()
+        + ", \"name\": \"exception\", \"attributes\": "
+        + expectedAttributes
+        + " }"
+        + "]";
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName("some-name")
-                .error(false)
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, isJson(expectedEventTag)),
-                    tag(ERROR_MSG, is(errorMessage)),
-                    tag(ERROR_TYPE, is(errorType)),
-                    tag(ERROR_STACK, is(errorStackTrace)))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName("some-name")
+        .error(false)
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_EVENTS, isJson(expectedEventTag)),
+            tag(ERROR_MSG, is(errorMessage)),
+            tag(ERROR_TYPE, is(errorType)),
+            tag(ERROR_STACK, is(errorStackTrace)))));
   }
 
   @Test
@@ -823,20 +786,18 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     span.recordException(lastException);
     span.end();
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName("some-name")
-                .error(false)
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(SPAN_EVENTS, any()),
-                    tag(ERROR_MSG, is(lastException.getMessage())),
-                    tag(ERROR_TYPE, is(lastException.getClass().getName())),
-                    tag(ERROR_STACK, is(stringifyErrorStack(lastException))))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName("some-name")
+        .error(false)
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(SPAN_EVENTS, any()),
+            tag(ERROR_MSG, is(lastException.getMessage())),
+            tag(ERROR_TYPE, is(lastException.getClass().getName())),
+            tag(ERROR_STACK, is(stringifyErrorStack(lastException))))));
   }
 
   @Test
@@ -870,17 +831,12 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     result.addEvent("event");
     result.recordException(new Throwable());
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("internal")
-                .resourceName("some-name")
-                .error(true)
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag("string", is("value")))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("internal")
+        .resourceName("some-name")
+        .error(true)
+        .tags(defaultTags(), tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)), tag("string", is("value")))));
   }
 
   private static DDSpan getDDSpan(Span span) {
@@ -888,14 +844,13 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
   }
 
   private static Matcher<String> isJson(String expected) {
-    return Matchers.validates(
-        s -> {
-          try {
-            JSONAssert.assertEquals(expected, s, true);
-            return true;
-          } catch (JSONException e) {
-            return false;
-          }
-        });
+    return Matchers.validates(s -> {
+      try {
+        JSONAssert.assertEquals(expected, s, true);
+        return true;
+      } catch (JSONException e) {
+        return false;
+      }
+    });
   }
 }

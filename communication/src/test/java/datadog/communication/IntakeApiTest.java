@@ -47,14 +47,13 @@ class IntakeApiTest {
 
   private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    final IntakeApi api =
-        new IntakeApi(
-            server.url("/api/v2/"),
-            "api-key",
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            responseCompression);
+    final IntakeApi api = new IntakeApi(
+        server.url("/api/v2/"),
+        "api-key",
+        "123",
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        client,
+        responseCompression);
 
     api.post("flagevaluation", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
 

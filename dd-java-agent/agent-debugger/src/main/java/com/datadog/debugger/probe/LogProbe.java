@@ -300,15 +300,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     @Generated
     @Override
     public String toString() {
-      return "CaptureExpression{"
-          + "name='"
-          + name
-          + '\''
-          + ", expr="
-          + expr
-          + ", capture="
-          + capture
-          + '}';
+      return "CaptureExpression{" + "name='" + name + '\'' + ", expr=" + expr + ", capture="
+          + capture + '}';
     }
   }
 
@@ -464,12 +457,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   }
 
   public void initSamplers() {
-    double rate =
-        sampling != null
-            ? sampling.getEventsPerSecond()
-            : (isFullSnapshot()
-                ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
-                : ProbeRateLimiter.DEFAULT_LOG_RATE);
+    double rate = sampling != null
+        ? sampling.getEventsPerSecond()
+        : (isFullSnapshot()
+            ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
+            : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
     errorSampler = ProbeRateLimiter.createSampler(1.0); // errors are always sampled at 1/s rate
   }
@@ -545,9 +537,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     logStatus.setCondition(evaluateCondition(context, logStatus));
     CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     if (logStatus.hasConditionErrors() && throwable != null) {
-      logStatus.addError(
-          new EvaluationError(
-              "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
+      logStatus.addError(new EvaluationError(
+          "uncaught exception", throwable.getType() + ": " + throwable.getMessage()));
     }
     if (hasCondition() && (logStatus.getCondition() || logStatus.hasConditionErrors())) {
       // sample if probe has condition and condition is true or has error
@@ -585,9 +576,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     // at 1/s rate instead of the log template one
     Sampler localSampler =
         logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
-    boolean sampled =
-        !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
+    boolean sampled = !logStatus.getDebugSessionStatus().isDisabled()
+        && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled && !logStatus.getDebugSessionStatus().isDisabled()) {
       DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
@@ -701,7 +691,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private void addContextWithoutCaptureExpressions(
       CapturedContext context, Consumer<CapturedContext> setContext) {
     // no capture expressions, assign directly the context in the snapshot
-    if (context.getCaptureExpressions() == null || context.getCaptureExpressions().isEmpty()) {
+    if (context.getCaptureExpressions() == null
+        || context.getCaptureExpressions().isEmpty()) {
       setContext.accept(context);
       return;
     }
@@ -740,30 +731,27 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
           throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
         }
         if (result.isNull()) {
-          context.addCaptureExpression(
-              CapturedContext.CapturedValue.of(
-                  captureExpression.getName(), Object.class.getTypeName(), null));
+          context.addCaptureExpression(CapturedContext.CapturedValue.of(
+              captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
-            context.addCaptureExpression(
-                Value.toCapturedSnapshot(
-                    captureExpression.getName(),
-                    result,
-                    captureExpression.capture.maxReferenceDepth,
-                    captureExpression.capture.maxCollectionSize,
-                    captureExpression.capture.maxLength,
-                    captureExpression.capture.maxFieldCount));
+            context.addCaptureExpression(Value.toCapturedSnapshot(
+                captureExpression.getName(),
+                result,
+                captureExpression.capture.maxReferenceDepth,
+                captureExpression.capture.maxCollectionSize,
+                captureExpression.capture.maxLength,
+                captureExpression.capture.maxFieldCount));
           } else {
             // inherit from probe capture field because no specific capture
             if (capture != null) {
-              context.addCaptureExpression(
-                  Value.toCapturedSnapshot(
-                      captureExpression.getName(),
-                      result,
-                      capture.maxReferenceDepth,
-                      capture.maxCollectionSize,
-                      capture.maxLength,
-                      capture.maxFieldCount));
+              context.addCaptureExpression(Value.toCapturedSnapshot(
+                  captureExpression.getName(),
+                  result,
+                  capture.maxReferenceDepth,
+                  capture.maxCollectionSize,
+                  capture.maxLength,
+                  capture.maxFieldCount));
             } else {
               context.addCaptureExpression(
                   Value.toCapturedSnapshot(captureExpression.getName(), result));
@@ -1069,20 +1057,19 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   @Generated
   @Override
   public int hashCode() {
-    int result =
-        Objects.hash(
-            language,
-            id,
-            version,
-            tagMap,
-            where,
-            evaluateAt,
-            template,
-            segments,
-            captureSnapshot,
-            probeCondition,
-            capture,
-            sampling);
+    int result = Objects.hash(
+        language,
+        id,
+        version,
+        tagMap,
+        where,
+        evaluateAt,
+        template,
+        segments,
+        captureSnapshot,
+        probeCondition,
+        capture,
+        sampling);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

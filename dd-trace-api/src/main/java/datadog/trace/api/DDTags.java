@@ -16,15 +16,14 @@ public class DDTags {
   public static final String DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID =
       DD_CODE_ORIGIN_PREFIX + "frames.0.snapshot_id";
 
-  public static final String[] REQUIRED_CODE_ORIGIN_TAGS =
-      new String[] {
-        DD_CODE_ORIGIN_TYPE,
-        DD_CODE_ORIGIN_FRAME_FILE,
-        DD_CODE_ORIGIN_FRAME_METHOD,
-        DD_CODE_ORIGIN_FRAME_LINE,
-        DD_CODE_ORIGIN_FRAME_TYPE,
-        DD_CODE_ORIGIN_FRAME_SIGNATURE,
-      };
+  public static final String[] REQUIRED_CODE_ORIGIN_TAGS = new String[] {
+    DD_CODE_ORIGIN_TYPE,
+    DD_CODE_ORIGIN_FRAME_FILE,
+    DD_CODE_ORIGIN_FRAME_METHOD,
+    DD_CODE_ORIGIN_FRAME_LINE,
+    DD_CODE_ORIGIN_FRAME_TYPE,
+    DD_CODE_ORIGIN_FRAME_SIGNATURE,
+  };
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
@@ -44,7 +43,9 @@ public class DDTags {
   public static final String ERROR_STACK = "error.stack"; // human-readable version of the stack
 
   public static final String ANALYTICS_SAMPLE_RATE = "_dd1.sr.eausr";
-  @Deprecated public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;
+
+  @Deprecated
+  public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;
 
   /** Manually force tracer to keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";

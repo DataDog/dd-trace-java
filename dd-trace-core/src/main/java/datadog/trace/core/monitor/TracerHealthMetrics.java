@@ -112,9 +112,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void start() {
     if (started.compareAndSet(false, true)) {
-      cancellation =
-          AgentTaskScheduler.get()
-              .scheduleAtFixedRate(new Flush(), this, interval, interval, units);
+      cancellation = AgentTaskScheduler.get()
+          .scheduleAtFixedRate(new Flush(), this, interval, interval, units);
     }
   }
 

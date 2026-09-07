@@ -134,13 +134,12 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     }
 
     private void addField() {
-      final FieldVisitor fv =
-          cv.visitField(
-              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
-              FIELD_NAME,
-              SOURCE_CLASS_NAME,
-              null,
-              null);
+      final FieldVisitor fv = cv.visitField(
+          Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
+          FIELD_NAME,
+          SOURCE_CLASS_NAME,
+          null,
+          null);
       fv.visitEnd();
     }
 
@@ -156,9 +155,8 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     }
 
     private void addSetter() {
-      final MethodVisitor mv =
-          cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+      final MethodVisitor mv = cv.visitMethod(
+          Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);
@@ -169,9 +167,8 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     }
 
     private void addSetterDebug() {
-      final MethodVisitor mv =
-          cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+      final MethodVisitor mv = cv.visitMethod(
+          Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);

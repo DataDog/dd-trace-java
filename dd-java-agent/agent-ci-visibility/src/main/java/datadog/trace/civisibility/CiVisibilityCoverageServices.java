@@ -43,13 +43,12 @@ public class CiVisibilityCoverageServices {
                   services.metricCollector)
               : null;
 
-      coverageProcessorFactory =
-          new JacocoCoverageProcessor.Factory(
-              services.config,
-              repoServices.repoIndexProvider,
-              coverageReportUploader,
-              repoServices.repoRoot,
-              moduleSignalRouter);
+      coverageProcessorFactory = new JacocoCoverageProcessor.Factory(
+          services.config,
+          repoServices.repoIndexProvider,
+          coverageReportUploader,
+          repoServices.repoRoot,
+          moduleSignalRouter);
     }
   }
 
@@ -77,13 +76,11 @@ public class CiVisibilityCoverageServices {
       if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
         factory = new NoOpCoverageStore.Factory();
       } else if (services.config.isCiVisibilityCoverageLinesEnabled()) {
-        factory =
-            new LineCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
+        factory = new LineCoverageStore.Factory(
+            services.metricCollector, repoServices.sourcePathResolver);
       } else {
-        factory =
-            new FileCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
+        factory = new FileCoverageStore.Factory(
+            services.metricCollector, repoServices.sourcePathResolver);
       }
 
       if (executionSettings.isItrEnabled()) {

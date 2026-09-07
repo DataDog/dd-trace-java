@@ -25,15 +25,12 @@ public class ExtensionHandler {
 
   /** Provides necessary mappings to load externally built Datadog extensions */
   private static final Function<ClassVisitor, ClassVisitor> DATADOG_MAPPING =
-      cv ->
-          new ClassRemapper(
-              cv,
-              new Remapper() {
-                @Override
-                public String map(String internalName) {
-                  return MAP_LOGGING.apply(internalName);
-                }
-              });
+      cv -> new ClassRemapper(cv, new Remapper() {
+        @Override
+        public String map(String internalName) {
+          return MAP_LOGGING.apply(internalName);
+        }
+      });
 
   /** Override this to map filenames to alternative entries in the extension. */
   public JarEntry mapEntry(JarFile jar, String file) {
@@ -124,21 +121,20 @@ public class ExtensionHandler {
   }
 
   /** Maps logging references in the extension to use the tracer's embedded logger. */
-  public static final Function<String, String> MAP_LOGGING =
-      new Function<String, String>() {
-        // we want to keep this package unchanged so it matches against any unshaded extensions
-        // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
-        private final String ORG_SLF4J = "org|slf4j|".replace('|', '/');
+  public static final Function<String, String> MAP_LOGGING = new Function<String, String>() {
+    // we want to keep this package unchanged so it matches against any unshaded extensions
+    // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
+    private final String ORG_SLF4J = "org|slf4j|".replace('|', '/');
 
-        @Override
-        public String apply(String internalName) {
-          if (internalName.equals("java/util/logging/Logger")) {
-            return "datadog/trace/bootstrap/PatchLogger";
-          }
-          if (internalName.startsWith(ORG_SLF4J)) {
-            return "datadog/slf4j/" + internalName.substring(10);
-          }
-          return internalName;
-        }
-      };
+    @Override
+    public String apply(String internalName) {
+      if (internalName.equals("java/util/logging/Logger")) {
+        return "datadog/trace/bootstrap/PatchLogger";
+      }
+      if (internalName.startsWith(ORG_SLF4J)) {
+        return "datadog/slf4j/" + internalName.substring(10);
+      }
+      return internalName;
+    }
+  };
 }

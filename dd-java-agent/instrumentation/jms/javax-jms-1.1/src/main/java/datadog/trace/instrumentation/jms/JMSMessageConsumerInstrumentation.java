@@ -83,9 +83,9 @@ public final class JMSMessageConsumerInstrumentation
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static MessageConsumerState beforeReceive(@Advice.This final MessageConsumer consumer) {
-      MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
+      MessageConsumerState consumerState = InstrumentationContext.get(
+              MessageConsumer.class, MessageConsumerState.class)
+          .get(consumer);
 
       // ignore consumers who aren't bound to a tracked session via consumerState
       if (null == consumerState) {
@@ -201,9 +201,9 @@ public final class JMSMessageConsumerInstrumentation
   public static class Close {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeClose(@Advice.This final MessageConsumer consumer) {
-      MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
+      MessageConsumerState consumerState = InstrumentationContext.get(
+              MessageConsumer.class, MessageConsumerState.class)
+          .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
@@ -228,15 +228,14 @@ public final class JMSMessageConsumerInstrumentation
         @Advice.This MessageConsumer messageConsumer,
         @Advice.Argument(value = 0, readOnly = false) MessageListener listener) {
       if (null != listener && !(listener instanceof DatadogMessageListener)) {
-        MessageConsumerState consumerState =
-            InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-                .get(messageConsumer);
+        MessageConsumerState consumerState = InstrumentationContext.get(
+                MessageConsumer.class, MessageConsumerState.class)
+            .get(messageConsumer);
         if (null != consumerState) {
-          listener =
-              new DatadogMessageListener(
-                  InstrumentationContext.get(Message.class, SessionState.class),
-                  consumerState,
-                  listener);
+          listener = new DatadogMessageListener(
+              InstrumentationContext.get(Message.class, SessionState.class),
+              consumerState,
+              listener);
         }
       }
     }

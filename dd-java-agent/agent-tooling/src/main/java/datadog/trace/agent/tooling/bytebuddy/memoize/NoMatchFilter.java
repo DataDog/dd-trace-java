@@ -56,12 +56,11 @@ final class NoMatchFilter {
     }
 
     // use different file for each tracer + service combination
-    String filterKey =
-        DDTraceApiInfo.VERSION
-            + "/"
-            + Config.get().getServiceName()
-            + "/"
-            + Config.get().getVersion();
+    String filterKey = DDTraceApiInfo.VERSION
+        + "/"
+        + Config.get().getServiceName()
+        + "/"
+        + Config.get().getVersion();
 
     String noMatchFilterName =
         UUID.nameUUIDFromBytes(filterKey.getBytes(StandardCharsets.UTF_8)) + "-nomatch.filter";

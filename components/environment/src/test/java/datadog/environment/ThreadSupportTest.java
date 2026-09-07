@@ -20,7 +20,8 @@ class ThreadSupportTest {
   @BeforeAll
   static void beforeAll() {
     singleThreadExecutor = Executors.newSingleThreadExecutor();
-    newVirtualThreadPerTaskExecutor = ThreadSupport.newVirtualThreadPerTaskExecutor().orElse(null);
+    newVirtualThreadPerTaskExecutor =
+        ThreadSupport.newVirtualThreadPerTaskExecutor().orElse(null);
   }
 
   @Test
@@ -58,12 +59,10 @@ class ThreadSupportTest {
 
   static void assertVirtualThread(ExecutorService executorService, boolean expected) {
     Future<Boolean> futureCurrent = executorService.submit(() -> ThreadSupport.isVirtual());
-    Future<Boolean> futureGiven =
-        executorService.submit(
-            () -> {
-              Thread thread = Thread.currentThread();
-              return ThreadSupport.isVirtual(thread);
-            });
+    Future<Boolean> futureGiven = executorService.submit(() -> {
+      Thread thread = Thread.currentThread();
+      return ThreadSupport.isVirtual(thread);
+    });
     try {
       assertEquals(expected, futureCurrent.get(), "invalid current thread virtual status");
       assertEquals(expected, futureGiven.get(), "invalid given thread virtual status");

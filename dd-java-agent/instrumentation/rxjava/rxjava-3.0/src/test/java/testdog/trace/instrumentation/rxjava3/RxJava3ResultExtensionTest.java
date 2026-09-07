@@ -175,10 +175,8 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     type.runTerminal(asyncType);
 
     String method = "traceAsync" + type.type;
-    assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+    assertTraces(trace(otelSpan("RxJava3TracedMethods." + method)
+        .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated async method failing {0}")
@@ -194,15 +192,13 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     assertThrows(IllegalStateException.class, () -> type.runTerminal(asyncType));
 
     String method = "traceAsyncFailing" + type.type;
-    assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .error()
-                .tags(
-                    defaultTags(),
-                    otelComponent(),
-                    internalSpanKind(),
-                    error(IllegalStateException.class, EXCEPTION_MESSAGE))));
+    assertTraces(trace(otelSpan("RxJava3TracedMethods." + method)
+        .error()
+        .tags(
+            defaultTags(),
+            otelComponent(),
+            internalSpanKind(),
+            error(IllegalStateException.class, EXCEPTION_MESSAGE))));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated async method cancelled {0}")
@@ -217,10 +213,8 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     type.subscribeAndDispose(asyncType);
 
     String method = "traceAsync" + type.type;
-    assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+    assertTraces(trace(otelSpan("RxJava3TracedMethods." + method)
+        .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated never async method cancelled {0}")
@@ -233,9 +227,7 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     type.subscribeAndDispose(asyncType);
 
     String method = "traceAsyncNever" + type.type;
-    assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+    assertTraces(trace(otelSpan("RxJava3TracedMethods." + method)
+        .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 }

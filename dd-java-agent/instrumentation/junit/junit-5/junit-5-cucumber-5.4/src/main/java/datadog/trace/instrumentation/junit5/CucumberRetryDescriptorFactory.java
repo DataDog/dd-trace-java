@@ -22,42 +22,33 @@ public final class CucumberRetryDescriptorFactory implements RetryDescriptorFact
 
   private static final String PACKAGE = "io.cucumber.junit.platform.engine.";
 
-  private static final MethodHandle CONSTRUCTOR_7_24 =
-      METHOD_HANDLES.constructor(
-          PACKAGE + "CucumberTestDescriptor$PickleDescriptor",
-          JUnitPlatformUtils.loadClass(PACKAGE + "CucumberConfiguration"),
-          UniqueId.class,
-          String.class,
-          TestSource.class,
-          Pickle.class);
-  private static final MethodHandle CONSTRUCTOR_7_7 =
-      METHOD_HANDLES.constructor(
-          PACKAGE + "NodeDescriptor$PickleDescriptor",
-          ConfigurationParameters.class,
-          UniqueId.class,
-          String.class,
-          TestSource.class,
-          Pickle.class);
-  private static final MethodHandle CONSTRUCTOR_6_0 =
-      METHOD_HANDLES.constructor(
-          PACKAGE + "PickleDescriptor",
-          ConfigurationParameters.class,
-          UniqueId.class,
-          String.class,
-          TestSource.class,
-          Pickle.class);
-  private static final MethodHandle CONSTRUCTOR_5_4 =
-      METHOD_HANDLES.constructor(
-          PACKAGE + "PickleDescriptor",
-          UniqueId.class,
-          String.class,
-          TestSource.class,
-          Pickle.class);
+  private static final MethodHandle CONSTRUCTOR_7_24 = METHOD_HANDLES.constructor(
+      PACKAGE + "CucumberTestDescriptor$PickleDescriptor",
+      JUnitPlatformUtils.loadClass(PACKAGE + "CucumberConfiguration"),
+      UniqueId.class,
+      String.class,
+      TestSource.class,
+      Pickle.class);
+  private static final MethodHandle CONSTRUCTOR_7_7 = METHOD_HANDLES.constructor(
+      PACKAGE + "NodeDescriptor$PickleDescriptor",
+      ConfigurationParameters.class,
+      UniqueId.class,
+      String.class,
+      TestSource.class,
+      Pickle.class);
+  private static final MethodHandle CONSTRUCTOR_6_0 = METHOD_HANDLES.constructor(
+      PACKAGE + "PickleDescriptor",
+      ConfigurationParameters.class,
+      UniqueId.class,
+      String.class,
+      TestSource.class,
+      Pickle.class);
+  private static final MethodHandle CONSTRUCTOR_5_4 = METHOD_HANDLES.constructor(
+      PACKAGE + "PickleDescriptor", UniqueId.class, String.class, TestSource.class, Pickle.class);
 
   // 7.24+ stores the configuration on the descriptor, read it back for the reconstruction.
-  private static final MethodHandle CONFIGURATION_GETTER =
-      METHOD_HANDLES.privateFieldGetter(
-          PACKAGE + "CucumberTestDescriptor$PickleDescriptor", "configuration");
+  private static final MethodHandle CONFIGURATION_GETTER = METHOD_HANDLES.privateFieldGetter(
+      PACKAGE + "CucumberTestDescriptor$PickleDescriptor", "configuration");
 
   // The Pickle field was renamed pickleEvent -> pickle; resolved lazily off the descriptor's class.
   private volatile MethodHandle pickleGetter;

@@ -24,11 +24,10 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
     if (tracerAPI == null || tracerAPI == NOOP_TRACER) {
       return DebuggerSpan.NOOP_SPAN;
     }
-    AgentSpan dynamicSpan =
-        tracerAPI
-            .buildSpan("dynamic-instrumentation", OPERATION_NAME)
-            .withResourceName(resourceName)
-            .start();
+    AgentSpan dynamicSpan = tracerAPI
+        .buildSpan("dynamic-instrumentation", OPERATION_NAME)
+        .withResourceName(resourceName)
+        .start();
     if (tags != null) {
       for (String tag : tags) {
         int idx = tag.indexOf(':');

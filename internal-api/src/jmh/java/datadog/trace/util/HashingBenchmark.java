@@ -64,32 +64,28 @@ public class HashingBenchmark {
   }
 
   // strings used in hashing are set up ahead of time, so that the only allocation is from var-args
-  static String[] TEST_STRINGS =
-      init(
-          () -> {
-            ThreadLocalRandom random = ThreadLocalRandom.current();
+  static String[] TEST_STRINGS = init(() -> {
+    ThreadLocalRandom random = ThreadLocalRandom.current();
 
-            String[] strings = new String[1024];
-            for (int i = 0; i < strings.length; ++i) {
-              strings[i] = Double.toString(random.nextDouble());
-            }
-            return strings;
-          });
+    String[] strings = new String[1024];
+    for (int i = 0; i < strings.length; ++i) {
+      strings[i] = Double.toString(random.nextDouble());
+    }
+    return strings;
+  });
 
   static {
-    Thread updaterThread =
-        new Thread(
-            () -> {
-              ThreadLocalRandom random = ThreadLocalRandom.current();
+    Thread updaterThread = new Thread(() -> {
+      ThreadLocalRandom random = ThreadLocalRandom.current();
 
-              while (!Thread.interrupted()) {
-                str0 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str1 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str2 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str3 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str4 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-              }
-            });
+      while (!Thread.interrupted()) {
+        str0 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str1 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str2 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str3 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str4 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+      }
+    });
     updaterThread.setDaemon(true);
     updaterThread.start();
   }

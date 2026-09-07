@@ -61,11 +61,10 @@ public class NoneCodec {
     }
   }
 
-  public static final HttpCodec.Injector INJECTOR =
-      new HttpCodec.Injector() {
-        @Override
-        public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {}
-      };
+  public static final HttpCodec.Injector INJECTOR = new HttpCodec.Injector() {
+    @Override
+    public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {}
+  };
 
   public static HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {

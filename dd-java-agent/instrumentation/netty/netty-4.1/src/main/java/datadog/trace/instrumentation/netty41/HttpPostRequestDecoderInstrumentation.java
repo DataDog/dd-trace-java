@@ -115,18 +115,16 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
       List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
 
-      RuntimeException exc =
-          NettyMultipartHelper.collectBodyData(
-              thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
+      RuntimeException exc = NettyMultipartHelper.collectBodyData(
+          thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
 
       if (callback != null) {
         // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
         // the span synchronously in this Netty path; calling it on a finished span throws.
-        Throwable block =
-            NettyMultipartHelper.tryBlock(
-                requestContext,
-                callback.apply(requestContext, attributes),
-                "Blocked request (multipart/urlencoded post data)");
+        Throwable block = NettyMultipartHelper.tryBlock(
+            requestContext,
+            callback.apply(requestContext, attributes),
+            "Blocked request (multipart/urlencoded post data)");
         if (block != null) {
           thr = block;
         }
@@ -135,18 +133,16 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
         if (thr == null) {
-          thr =
-              NettyMultipartHelper.tryBlock(
-                  requestContext, filenamesFlow, "Blocked request (multipart file upload)");
+          thr = NettyMultipartHelper.tryBlock(
+              requestContext, filenamesFlow, "Blocked request (multipart file upload)");
         }
       }
 
       if (thr == null && filesContent != null && !filesContent.isEmpty()) {
-        thr =
-            NettyMultipartHelper.tryBlock(
-                requestContext,
-                contentCb.apply(requestContext, filesContent),
-                "Blocked request (multipart file upload content)");
+        thr = NettyMultipartHelper.tryBlock(
+            requestContext,
+            contentCb.apply(requestContext, filesContent),
+            "Blocked request (multipart file upload content)");
       }
 
       if (exc != null) {

@@ -61,53 +61,45 @@ class JsonReaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "null", "1", "[]", "true", "false"})
   void testInvalidObjectStart(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{", "{\"key\":\"value\"}", "{null}", "{]"})
   void testInvalidObjectEnd(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.endObject();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.endObject();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{\"key\"}", "{\"key\"\"value\"}", "{key:\"value\"}"})
   void testInvalidObjectNames(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.nextName();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.nextName();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{\"key\":value}"})
   void testInvalidObjectValue(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.nextName();
-            reader.nextValue();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.nextName();
+        reader.nextValue();
+      }
+    });
   }
 
   @Test

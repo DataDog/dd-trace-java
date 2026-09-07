@@ -45,18 +45,16 @@ public class QueryAdvice {
       final AgentSpan parentSpan = activeSpan();
       final ContextContinuation parentContinuation =
           null == parentSpan ? null : captureSpan(parentSpan);
-      final AgentSpan clientSpan =
-          DECORATE.startAndDecorateSpanForStatement(
-              zis, InstrumentationContext.get(Query.class, Pair.class), prepared);
+      final AgentSpan clientSpan = DECORATE.startAndDecorateSpanForStatement(
+          zis, InstrumentationContext.get(Query.class, Pair.class), prepared);
       if (null == clientSpan) {
         return null;
       }
       if (prepared) {
         handler = new QueryResultHandlerWrapper<>(handler, clientSpan, parentContinuation);
       } else {
-        maybeHandler =
-            new QueryResultHandlerWrapper<>(
-                (Handler<AsyncResult<R>>) maybeHandler, clientSpan, parentContinuation);
+        maybeHandler = new QueryResultHandlerWrapper<>(
+            (Handler<AsyncResult<R>>) maybeHandler, clientSpan, parentContinuation);
       }
       return activateSpan(clientSpan);
     }

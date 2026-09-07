@@ -81,9 +81,8 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t =
-              new BlockingException(
-                  "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+          t = new BlockingException(
+              "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }

@@ -31,22 +31,20 @@ class BinaryExpressionTest {
 
   @Test
   void testShortCircuitAnd() {
-    BinaryExpression expression =
-        new BinaryExpression(
-            BooleanExpression.FALSE,
-            valueRefResolver -> Assertions.fail("should not reach"),
-            BinaryOperator.AND);
+    BinaryExpression expression = new BinaryExpression(
+        BooleanExpression.FALSE,
+        valueRefResolver -> Assertions.fail("should not reach"),
+        BinaryOperator.AND);
     assertFalse(expression.evaluate(evalContext));
     assertEquals("false && null", print(expression));
   }
 
   @Test
   void testShortCircuitOr() {
-    BinaryExpression expression =
-        new BinaryExpression(
-            BooleanExpression.TRUE,
-            valueRefResolver -> Assertions.fail("should not reach"),
-            BinaryOperator.OR);
+    BinaryExpression expression = new BinaryExpression(
+        BooleanExpression.TRUE,
+        valueRefResolver -> Assertions.fail("should not reach"),
+        BinaryOperator.OR);
     assertTrue(expression.evaluate(evalContext));
     assertEquals("true || null", print(expression));
   }

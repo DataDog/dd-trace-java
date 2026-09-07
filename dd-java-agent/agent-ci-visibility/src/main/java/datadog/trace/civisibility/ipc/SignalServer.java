@@ -61,9 +61,8 @@ public class SignalServer {
 
       SignalServerRunnable signalServerRunnable =
           new SignalServerRunnable(selector, DEFAULT_BUFFER_CAPACITY, signalHandlers);
-      signalServerThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER, signalServerRunnable);
+      signalServerThread = AgentThreadFactory.newAgentThread(
+          AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER, signalServerRunnable);
       signalServerThread.start();
     }
   }

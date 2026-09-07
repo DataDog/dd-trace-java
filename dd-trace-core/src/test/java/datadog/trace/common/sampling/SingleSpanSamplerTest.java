@@ -28,7 +28,8 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class SingleSpanSamplerTest extends DDCoreJavaSpecification {
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   @TableTest({
     "scenario                | rules                                                                                           ",
@@ -74,14 +75,12 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
 
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
 
     assertEquals(isFirstSampled, sampler.setSamplingPriority(span));
 
@@ -112,22 +111,18 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
 
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
 
-    DDSpan rootSpan =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "web.request")
-                .withServiceName("webserver")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan rootSpan = (DDSpan) tracer
+        .buildSpan("datadog", "web.request")
+        .withServiceName("webserver")
+        .ignoreActiveSpan()
+        .start();
 
-    DDSpan childSpan =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "web.handler")
-                .withServiceName("webserver")
-                .asChildOf(rootSpan)
-                .ignoreActiveSpan()
-                .start();
+    DDSpan childSpan = (DDSpan) tracer
+        .buildSpan("datadog", "web.handler")
+        .withServiceName("webserver")
+        .asChildOf(rootSpan)
+        .ignoreActiveSpan()
+        .start();
 
     // set trace sampling priority to drop the trace
     rootSpan.setSamplingPriority(SAMPLER_DROP, DEFAULT);
@@ -162,23 +157,19 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
 
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
 
-    DDSpan span1 =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span1 = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
 
-    DDSpan span2 =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span2 = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
 
     assertEquals(isFirstSampled, sampler.setSamplingPriority(span1));
     assertEquals(isSecondSampled, sampler.setSamplingPriority(span2));
@@ -194,14 +185,12 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
 
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
 
-    DDSpan span1 =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span1 = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
 
     assertTrue(sampler.setSamplingPriority(span1));
   }
@@ -220,24 +209,20 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
 
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties));
 
-    DDSpan span1 =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span1 = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
 
     assertEquals(matched, sampler.setSamplingPriority(span1));
   }
 
   @Test
   void throwNpeWhenPassedListOfRulesIsNull() {
-    NullPointerException exception =
-        assertThrows(
-            NullPointerException.class,
-            () -> new SingleSpanSampler.RuleBasedSingleSpanSampler(null));
+    NullPointerException exception = assertThrows(
+        NullPointerException.class, () -> new SingleSpanSampler.RuleBasedSingleSpanSampler(null));
     assertEquals("SpanSamplingRules can't be null.", exception.getMessage());
   }
 

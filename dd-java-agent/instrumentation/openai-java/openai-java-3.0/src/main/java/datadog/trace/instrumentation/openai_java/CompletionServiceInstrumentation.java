@@ -99,9 +99,8 @@ public class CompletionServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpStreamResponseWrapper.wrap(
-                response, span, CompletionDecorator.DECORATE::withCompletions);
+        response = HttpStreamResponseWrapper.wrap(
+            response, span, CompletionDecorator.DECORATE::withCompletions);
       }
       scope.close();
     }

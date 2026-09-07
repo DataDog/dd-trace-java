@@ -15,9 +15,8 @@ import java.util.function.Supplier;
 
 public class SqsDecorator extends MessagingClientDecorator {
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
-  public static final CharSequence SQS_INBOUND_OPERATION =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs"));
+  public static final CharSequence SQS_INBOUND_OPERATION = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs"));
   public static final CharSequence SQS_RECEIVE = UTF8BytesString.create("Sqs.ReceiveMessage");
   public static final CharSequence SQS_DELIVER = UTF8BytesString.create("Sqs.DeliverMessage");
   public static final CharSequence SQS_TIME_IN_QUEUE_OPERATION =
@@ -30,20 +29,15 @@ public class SqsDecorator extends MessagingClientDecorator {
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
 
-  public static final SqsDecorator CONSUMER_DECORATE =
-      new SqsDecorator(
-          SPAN_KIND_CONSUMER,
-          MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService("sqs", SQS_LEGACY_TRACING));
+  public static final SqsDecorator CONSUMER_DECORATE = new SqsDecorator(
+      SPAN_KIND_CONSUMER,
+      MESSAGE_CONSUMER,
+      SpanNaming.instance().namingSchema().messaging().inboundService("sqs", SQS_LEGACY_TRACING));
 
-  public static final SqsDecorator BROKER_DECORATE =
-      new SqsDecorator(
-          SPAN_KIND_BROKER,
-          MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
+  public static final SqsDecorator BROKER_DECORATE = new SqsDecorator(
+      SPAN_KIND_BROKER,
+      MESSAGE_BROKER,
+      SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
 
   protected SqsDecorator(
       String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {

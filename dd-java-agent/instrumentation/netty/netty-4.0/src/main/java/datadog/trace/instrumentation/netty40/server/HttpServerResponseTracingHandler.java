@@ -47,10 +47,9 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
           response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
               && "websocket".equals(response.headers().get(UPGRADE_HEADER));
       if (isWebsocketUpgrade) {
-        String channelId =
-            ctx.channel()
-                .attr(CHANNEL_ID)
-                .setIfAbsent(RandomUtils.randomUUID().toString().substring(0, 8));
+        String channelId = ctx.channel()
+            .attr(CHANNEL_ID)
+            .setIfAbsent(RandomUtils.randomUUID().toString().substring(0, 8));
         ctx.channel()
             .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
             .set(new HandlerContext.Sender(span, channelId));

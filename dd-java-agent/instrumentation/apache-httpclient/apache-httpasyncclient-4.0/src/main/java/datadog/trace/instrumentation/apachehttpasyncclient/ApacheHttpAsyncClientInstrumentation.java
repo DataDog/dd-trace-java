@@ -106,9 +106,8 @@ public class ApacheHttpAsyncClientInstrumentation
       final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
-      futureCallback =
-          new TraceContinuedFutureCallback<>(
-              parentContinuation, clientSpan, context, futureCallback);
+      futureCallback = new TraceContinuedFutureCallback<>(
+          parentContinuation, clientSpan, context, futureCallback);
 
       return clientSpan;
     }

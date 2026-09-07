@@ -75,21 +75,18 @@ public class ProbeConditionTest {
     class Obj {
       Container container = new Container("hello");
     }
-    ValueReferenceResolver ctx =
-        EvalContextHelper.createResolver(
-            singletonMap("this", new Obj()), singletonMap("container", new Container("world")));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(
+        singletonMap("this", new Obj()), singletonMap("container", new Container("world")));
 
     assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     class Obj2 {
       Container obj = new Container("hello");
     }
-    ValueReferenceResolver ctx2 =
-        EvalContextHelper.createResolver(
-            singletonMap("this", new Obj2()), singletonMap("container", new Container("world")));
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class,
-            () -> probeCondition.execute(ctx2, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
+    ValueReferenceResolver ctx2 = EvalContextHelper.createResolver(
+        singletonMap("this", new Obj2()), singletonMap("container", new Container("world")));
+    RuntimeException runtimeException = assertThrows(
+        RuntimeException.class,
+        () -> probeCondition.execute(ctx2, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     assertEquals("Cannot dereference field: container", runtimeException.getMessage());
   }
 
@@ -110,9 +107,8 @@ public class ProbeConditionTest {
     class Obj {
       Object objField = new Object();
     }
-    ValueReferenceResolver ctx =
-        EvalContextHelper.createResolver(
-            singletonMap("this", new Obj()), singletonMap("nullField", null));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(
+        singletonMap("this", new Obj()), singletonMap("nullField", null));
     assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
@@ -148,10 +144,9 @@ public class ProbeConditionTest {
 
   @Test
   void testJsonAdapter() throws IOException {
-    Moshi moshi =
-        new Moshi.Builder()
-            .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
-            .build();
+    Moshi moshi = new Moshi.Builder()
+        .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
+        .build();
     JsonAdapter<ProbeCondition> jsonAdapter = moshi.adapter(ProbeCondition.class);
     assertNull(jsonAdapter.fromJson("null"));
     assertEquals(jsonAdapter.toJson(null), "null");
@@ -195,10 +190,9 @@ public class ProbeConditionTest {
 
   @Test
   void testIncorrectSyntax() {
-    UnsupportedOperationException ex =
-        assertThrows(
-            UnsupportedOperationException.class,
-            () -> loadFromResource("/test_conditional_03_error.json"));
+    UnsupportedOperationException ex = assertThrows(
+        UnsupportedOperationException.class,
+        () -> loadFromResource("/test_conditional_03_error.json"));
     assertEquals("Unsupported operation 'gte'", ex.getMessage());
   }
 
@@ -208,10 +202,9 @@ public class ProbeConditionTest {
     Map<String, Object> args = new HashMap<>();
     args.put("password", "secret123");
     ValueReferenceResolver ctx = EvalContextHelper.createResolver(args, null);
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () -> probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
+    EvaluationException evaluationException = assertThrows(
+        EvaluationException.class,
+        () -> probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     assertEquals(
         "Could not evaluate the expression because 'password' was redacted",
         evaluationException.getMessage());
@@ -296,12 +289,10 @@ public class ProbeConditionTest {
     Obj obj = new Obj();
     ValueReferenceResolver ctx = EvalContextHelper.createResolver(obj);
     // first call is longer so ideal to test timeout
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () ->
-                probeCondition.execute(
-                    ctx, TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+    EvaluationException evaluationException = assertThrows(
+        EvaluationException.class,
+        () ->
+            probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
     assertEquals("timeout (1ms)", evaluationException.getMessage());
     // test good execution
     assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
@@ -315,10 +306,9 @@ public class ProbeConditionTest {
     List<String> lines = loadLinesFromResource("/null_expressions.txt");
     for (String line : lines) {
       ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
-      EvaluationException ex =
-          assertThrows(
-              EvaluationException.class,
-              () -> load(line).execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
+      EvaluationException ex = assertThrows(
+          EvaluationException.class,
+          () -> load(line).execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
       assertEquals("Cannot evaluate the expression for null value", ex.getMessage(), line);
     }
   }
@@ -347,10 +337,9 @@ public class ProbeConditionTest {
 
   private static ProbeCondition loadFromResource(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
-    Moshi moshi =
-        new Moshi.Builder()
-            .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
-            .build();
+    Moshi moshi = new Moshi.Builder()
+        .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
+        .build();
     return moshi.adapter(ProbeCondition.class).fromJson(Okio.buffer(Okio.source(input)));
   }
 
@@ -365,10 +354,9 @@ public class ProbeConditionTest {
 
   private static ProbeCondition load(String json) {
     try {
-      Moshi moshi =
-          new Moshi.Builder()
-              .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
-              .build();
+      Moshi moshi = new Moshi.Builder()
+          .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
+          .build();
       return moshi.adapter(ProbeCondition.class).fromJson(json);
     } catch (IOException e) {
       throw new RuntimeException("Failed to load json: " + json, e);

@@ -92,12 +92,10 @@ class SpanEnrichmentAccumulatorTest {
     for (int i = 0; i < 25; i++) {
       acc.addSubject("subjectX", i);
     }
-    final SortedSet<Integer> decoded =
-        decodeDeltaVarint(
-            acc.toSpanTags()
-                .get(SpanEnrichmentAccumulator.TAG_SUBJECTS_ENC)
-                .replaceAll("^\\{\"[a-f0-9]+\":\"", "")
-                .replaceAll("\"\\}$", ""));
+    final SortedSet<Integer> decoded = decodeDeltaVarint(acc.toSpanTags()
+        .get(SpanEnrichmentAccumulator.TAG_SUBJECTS_ENC)
+        .replaceAll("^\\{\"[a-f0-9]+\":\"", "")
+        .replaceAll("\"\\}$", ""));
     assertEquals(SpanEnrichmentAccumulator.MAX_EXPERIMENTS_PER_SUBJECT, decoded.size());
 
     // subject cap: 10 max distinct subjects
@@ -207,9 +205,8 @@ class SpanEnrichmentAccumulatorTest {
   void stringifyDefaultCoversAllNativeShapes() {
     // list containing Double, Long, Short, Byte, null, and a nested Map — exercises every
     // writeJsonValue branch (Number/double, Integer|Long|Short|Byte/long, null, Map, Iterable).
-    final Object nested =
-        java.util.Arrays.asList(
-            1.5d, 3L, (short) 7, (byte) 2, null, Collections.singletonMap("k", "v"));
+    final Object nested = java.util.Arrays.asList(
+        1.5d, 3L, (short) 7, (byte) 2, null, Collections.singletonMap("k", "v"));
     assertEquals(
         "[1.5,3,7,2,null,{\"k\":\"v\"}]", SpanEnrichmentAccumulator.stringifyDefault(nested));
 

@@ -84,15 +84,14 @@ class MavenProjectConfigurator {
         .append(escapeForCommandLine(String.valueOf(agentJar.toPath())));
 
     String existingArgLine = MavenUtils.getArgLine(session, project, mojoExecution);
-    String updatedArgLine =
-        (existingArgLine != null ? existingArgLine + " " : "")
-            +
-            // -javaagent that injects the tracer
-            // has to be the last one,
-            // since if there are other agents
-            // we want to be able to instrument their code
-            // (namely Jacoco's)
-            addedArgLine;
+    String updatedArgLine = (existingArgLine != null ? existingArgLine + " " : "")
+        +
+        // -javaagent that injects the tracer
+        // has to be the last one,
+        // since if there are other agents
+        // we want to be able to instrument their code
+        // (namely Jacoco's)
+        addedArgLine;
 
     Xpp3Dom configuration = mojoExecution.getConfiguration();
     mojoExecution.setConfiguration(
@@ -147,12 +146,11 @@ class MavenProjectConfigurator {
       // we have to add the plugin in there,
       // otherwise it's best to add it as a regular dependency
       if (configuration != null && configuration.getChild("annotationProcessorPaths") != null) {
-        configuration =
-            addAnnotationProcessorPath(
-                configuration,
-                DATADOG_GROUP_ID,
-                DATADOG_JAVAC_PLUGIN_ARTIFACT_ID,
-                compilerPluginVersion);
+        configuration = addAnnotationProcessorPath(
+            configuration,
+            DATADOG_GROUP_ID,
+            DATADOG_JAVAC_PLUGIN_ARTIFACT_ID,
+            compilerPluginVersion);
 
       } else {
         Dependency javacPluginDependency = new Dependency();

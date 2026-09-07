@@ -129,17 +129,16 @@ public class TagMapTest {
 
   @Test
   public void numericZeroToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("int", 0)
-            .set("intObj", Integer.valueOf(0))
-            .set("long", 0L)
-            .set("longObj", Long.valueOf(0L))
-            .set("float", 0F)
-            .set("floatObj", Float.valueOf(0F))
-            .set("double", 0D)
-            .set("doubleObj", Double.valueOf(0D))
-            .build();
+    TagMap map = TagMap.ledger()
+        .set("int", 0)
+        .set("intObj", Integer.valueOf(0))
+        .set("long", 0L)
+        .set("longObj", Long.valueOf(0L))
+        .set("float", 0F)
+        .set("floatObj", Float.valueOf(0F))
+        .set("double", 0D)
+        .set("doubleObj", Double.valueOf(0D))
+        .build();
 
     assertBoolean(false, map, "int");
     assertBoolean(false, map, "intObj");
@@ -155,17 +154,16 @@ public class TagMapTest {
 
   @Test
   public void numericNonZeroToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("int", 1)
-            .set("intObj", Integer.valueOf(1))
-            .set("long", 1L)
-            .set("longObj", Long.valueOf(1L))
-            .set("float", 1F)
-            .set("floatObj", Float.valueOf(1F))
-            .set("double", 1D)
-            .set("doubleObj", Double.valueOf(1D))
-            .build();
+    TagMap map = TagMap.ledger()
+        .set("int", 1)
+        .set("intObj", Integer.valueOf(1))
+        .set("long", 1L)
+        .set("longObj", Long.valueOf(1L))
+        .set("float", 1F)
+        .set("floatObj", Float.valueOf(1F))
+        .set("double", 1D)
+        .set("doubleObj", Double.valueOf(1D))
+        .build();
 
     assertBoolean(true, map, "int");
     assertBoolean(true, map, "intObj");
@@ -181,12 +179,11 @@ public class TagMapTest {
 
   @Test
   public void objectToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("obj", new Object())
-            .set("trueStr", "true")
-            .set("falseStr", "false")
-            .build();
+    TagMap map = TagMap.ledger()
+        .set("obj", new Object())
+        .set("trueStr", "true")
+        .set("falseStr", "false")
+        .build();
 
     assertBoolean(true, map, "obj");
     assertBoolean(true, map, "trueStr");
@@ -489,10 +486,9 @@ public class TagMapTest {
 
     map.freeze();
 
-    assertFrozen(
-        () -> {
-          map.remove("foo");
-        });
+    assertFrozen(() -> {
+      map.remove("foo");
+    });
 
     assertEntry("foo", "bar", map);
 

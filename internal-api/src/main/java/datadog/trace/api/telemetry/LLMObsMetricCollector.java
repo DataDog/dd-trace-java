@@ -101,14 +101,13 @@ public final class LLMObsMetricCollector
         integrationTagCache.computeIfAbsent(integration, key -> "integration:" + key);
     String spanKindTag = spanKindTagCache.computeIfAbsent(spanKind, key -> "span_kind:" + key);
 
-    List<String> tags =
-        Arrays.asList(
-            integrationTag,
-            spanKindTag,
-            isRootSpan ? IS_ROOT_SPAN_TRUE : IS_ROOT_SPAN_FALSE,
-            isAutoInstrumented ? AUTOINSTRUMENTED_TRUE : AUTOINSTRUMENTED_FALSE,
-            hasError ? ERROR_TRUE : ERROR_FALSE,
-            hasSessionId ? HAS_SESSION_ID_TRUE : HAS_SESSION_ID_FALSE);
+    List<String> tags = Arrays.asList(
+        integrationTag,
+        spanKindTag,
+        isRootSpan ? IS_ROOT_SPAN_TRUE : IS_ROOT_SPAN_FALSE,
+        isAutoInstrumented ? AUTOINSTRUMENTED_TRUE : AUTOINSTRUMENTED_FALSE,
+        hasError ? ERROR_TRUE : ERROR_FALSE,
+        hasSessionId ? HAS_SESSION_ID_TRUE : HAS_SESSION_ID_FALSE);
 
     LongAdder counter = spanFinishedCounters.get(tags);
     if (counter == null) {
@@ -134,14 +133,13 @@ public final class LLMObsMetricCollector
    * @param error whether the processor failed
    */
   public void recordUserProcessorCalled(boolean error) {
-    LLMObsMetric metric =
-        new LLMObsMetric(
-            METRIC_NAMESPACE,
-            true,
-            USER_PROCESSOR_CALLED_METRIC,
-            COUNT_METRIC_TYPE,
-            1L,
-            Collections.singletonList(error ? ERROR_TRUE : ERROR_FALSE));
+    LLMObsMetric metric = new LLMObsMetric(
+        METRIC_NAMESPACE,
+        true,
+        USER_PROCESSOR_CALLED_METRIC,
+        COUNT_METRIC_TYPE,
+        1L,
+        Collections.singletonList(error ? ERROR_TRUE : ERROR_FALSE));
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {}", USER_PROCESSOR_CALLED_METRIC);
     }
@@ -171,9 +169,8 @@ public final class LLMObsMetricCollector
     tags.add("metric_type:" + (metricType == null ? OTHER : metricType));
     tags.add("target_type:" + (targetType == null ? OTHER : targetType));
 
-    LLMObsMetric metric =
-        new LLMObsMetric(
-            METRIC_NAMESPACE, true, FEEDBACK_SUBMITTED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
+    LLMObsMetric metric = new LLMObsMetric(
+        METRIC_NAMESPACE, true, FEEDBACK_SUBMITTED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {}", FEEDBACK_SUBMITTED_METRIC);
     }
@@ -189,14 +186,8 @@ public final class LLMObsMetricCollector
       if (value == 0) {
         continue;
       }
-      LLMObsMetric metric =
-          new LLMObsMetric(
-              METRIC_NAMESPACE,
-              true,
-              SPAN_FINISHED_METRIC,
-              COUNT_METRIC_TYPE,
-              value,
-              entry.getKey());
+      LLMObsMetric metric = new LLMObsMetric(
+          METRIC_NAMESPACE, true, SPAN_FINISHED_METRIC, COUNT_METRIC_TYPE, value, entry.getKey());
       if (!metricsQueue.offer(metric)) {
         // Queue is full; give the count back to the counter so it is reported in a later interval
         // instead of being lost, and stop staging for now.

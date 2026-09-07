@@ -42,14 +42,15 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
         }
       }
 
-      DataStreamsTags tags =
-          DataStreamsTags.createWithPartition(
-              "kafka_commit",
-              entry.getKey().topic(),
-              String.valueOf(entry.getKey().partition()),
-              clusterId,
-              consumerGroup);
-      AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
+      DataStreamsTags tags = DataStreamsTags.createWithPartition(
+          "kafka_commit",
+          entry.getKey().topic(),
+          String.valueOf(entry.getKey().partition()),
+          clusterId,
+          consumerGroup);
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackBacklog(tags, entry.getValue().offset());
     }
   }
 }

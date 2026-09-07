@@ -39,8 +39,8 @@ public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
   public static class OnMessageAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(@Advice.This JMSMessageCallBackHandler handler) {
-      String pinnedName =
-          InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class).get(handler);
+      String pinnedName = InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class)
+          .get(handler);
       if (pinnedName != null && activeSpan() != null) {
         final AgentSpan span = activeSpan();
         AgentSpan root = span.getLocalRootSpan();

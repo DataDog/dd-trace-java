@@ -41,12 +41,12 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
 
   // paramHashValues was also of type Hashtable, but only for 4 days between
   // commits c1c2e29d55ea41d76ab4bf688dbaafb9b100eadf and 211c381310db7ded0c7e1a1ef11dd4f62e7c71bb
-  private static final Reference PARAM_HASH_VALUES_MAP_REFERENCE =
-      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-          .withField(new String[0], 0, "paramHashValues", "Ljava/util/Map;")
-          .or()
-          .withField(new String[0], 0, "paramHashValues", "Ljava/util/HashMap;")
-          .build();
+  private static final Reference PARAM_HASH_VALUES_MAP_REFERENCE = new Reference.Builder(
+          "org.apache.tomcat.util.http.Parameters")
+      .withField(new String[0], 0, "paramHashValues", "Ljava/util/Map;")
+      .or()
+      .withField(new String[0], 0, "paramHashValues", "Ljava/util/HashMap;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

@@ -7,17 +7,22 @@ import javax.annotation.Nullable;
 
 public class SecurityControl {
 
-  @Nonnull private SecurityControlType type;
+  @Nonnull
+  private SecurityControlType type;
 
   private int marks;
 
-  @Nonnull private String className;
+  @Nonnull
+  private String className;
 
-  @Nonnull private String method;
+  @Nonnull
+  private String method;
 
-  @Nullable private List<String> parameterTypes;
+  @Nullable
+  private List<String> parameterTypes;
 
-  @Nullable private BitSet parametersToMark;
+  @Nullable
+  private BitSet parametersToMark;
 
   public SecurityControl(
       @Nonnull SecurityControlType type,

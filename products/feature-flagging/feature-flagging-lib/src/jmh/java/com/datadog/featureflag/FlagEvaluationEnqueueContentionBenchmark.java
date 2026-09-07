@@ -91,13 +91,12 @@ public class FlagEvaluationEnqueueContentionBenchmark {
     final Config config = Config.get();
     final BackendApiFactory factory = new BackendApiFactory(config, null);
     // Capacity well above what the batch-draining consumer should ever let build up.
-    writer =
-        new FlagEvaluationWriterImpl(
-            1 << 20,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
-            config);
+    writer = new FlagEvaluationWriterImpl(
+        1 << 20,
+        Long.MAX_VALUE,
+        NANOSECONDS,
+        () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        config);
   }
 
   /**
@@ -109,11 +108,10 @@ public class FlagEvaluationEnqueueContentionBenchmark {
   public void reportOverflow() {
     final long dropped = writer.droppedQueueOverflow();
     if (dropped > 0) {
-      System.out.println(
-          "\nWARNING: queue overflowed "
-              + dropped
-              + " times - consumer could not keep up, enqueue timings for this iteration are"
-              + " measuring overflow accounting, not the enqueue path.");
+      System.out.println("\nWARNING: queue overflowed "
+          + dropped
+          + " times - consumer could not keep up, enqueue timings for this iteration are"
+          + " measuring overflow accounting, not the enqueue path.");
     }
   }
 

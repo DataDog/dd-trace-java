@@ -24,7 +24,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLogRecordBuilder implements LogRecordBuilder {
-  @VisibleForTesting static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
+  @VisibleForTesting
+  static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
 
   private static final AttributeKey<String> EXCEPTION_TYPE_KEY = stringKey("exception.type");
   private static final AttributeKey<String> EXCEPTION_MESSAGE_KEY = stringKey("exception.message");
@@ -34,11 +35,21 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   private long timestampNanos;
   private long observedNanos;
   private Severity severity = Severity.UNDEFINED_SEVERITY_NUMBER;
-  @Nullable private String severityText;
-  @Nullable private String body;
-  @Nullable private Map<AttributeKey<?>, Object> attributes;
-  @Nullable private Context context;
-  @Nullable private String eventName;
+
+  @Nullable
+  private String severityText;
+
+  @Nullable
+  private String body;
+
+  @Nullable
+  private Map<AttributeKey<?>, Object> attributes;
+
+  @Nullable
+  private Context context;
+
+  @Nullable
+  private String eventName;
 
   private boolean attributesEmitted;
 
@@ -148,17 +159,16 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
     }
     Context context = this.context != null ? this.context : Context.current();
     if (logger.isEnabled(severity, context)) {
-      OtelLogRecordProcessor.INSTANCE.addLog(
-          new OtlpLogRecord(
-              logger.instrumentationScope,
-              timestampNanos,
-              observedNanos != 0 ? observedNanos : TIME_SOURCE.getCurrentTimeNanos(),
-              severity.getSeverityNumber(),
-              severityText,
-              body,
-              attributes != null ? attributes : Collections.emptyMap(),
-              extract(context),
-              eventName));
+      OtelLogRecordProcessor.INSTANCE.addLog(new OtlpLogRecord(
+          logger.instrumentationScope,
+          timestampNanos,
+          observedNanos != 0 ? observedNanos : TIME_SOURCE.getCurrentTimeNanos(),
+          severity.getSeverityNumber(),
+          severityText,
+          body,
+          attributes != null ? attributes : Collections.emptyMap(),
+          extract(context),
+          eventName));
 
       attributesEmitted = true;
     }

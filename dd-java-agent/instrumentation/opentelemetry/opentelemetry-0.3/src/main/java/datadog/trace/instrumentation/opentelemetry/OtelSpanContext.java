@@ -8,7 +8,8 @@ import io.opentelemetry.trace.TraceId;
 import io.opentelemetry.trace.TraceState;
 
 public class OtelSpanContext extends SpanContext {
-  private static final TraceFlags FLAGS = TraceFlags.builder().setIsSampled(true).build();
+  private static final TraceFlags FLAGS =
+      TraceFlags.builder().setIsSampled(true).build();
   private final AgentSpanContext delegate;
 
   OtelSpanContext(final AgentSpanContext delegate) {

@@ -823,14 +823,8 @@ public final class Hashtable {
             "startBucket " + startBucket + " out of range [0, " + buckets.length + "]");
       }
       if (endBucket < startBucket || endBucket > buckets.length) {
-        throw new IndexOutOfBoundsException(
-            "endBucket "
-                + endBucket
-                + " out of range ["
-                + startBucket
-                + ", "
-                + buckets.length
-                + "]");
+        throw new IndexOutOfBoundsException("endBucket " + endBucket + " out of range ["
+            + startBucket + ", " + buckets.length + "]");
       }
       this.endBucket = endBucket;
       seekFromBucket(startBucket);

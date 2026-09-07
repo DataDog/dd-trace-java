@@ -65,20 +65,18 @@ public class SymbolExtractor {
         }
       }
       List<Symbol> fields = extractFields(classNode);
-      LanguageSpecifics classSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractClassModifiers(classNode.access))
-              .addInterfaces(extractInterfaces(classNode))
-              .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
-              .superClass(ASMHelper.extractSuperClass(classNode))
-              .build();
-      Scope classScope =
-          Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
-              .name(Strings.getClassName(classNode.name))
-              .scopes(methodScopes)
-              .symbols(fields)
-              .languageSpecifics(classSpecifics)
-              .build();
+      LanguageSpecifics classSpecifics = new LanguageSpecifics.Builder()
+          .addModifiers(extractClassModifiers(classNode.access))
+          .addInterfaces(extractInterfaces(classNode))
+          .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
+          .superClass(ASMHelper.extractSuperClass(classNode))
+          .build();
+      Scope classScope = Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
+          .name(Strings.getClassName(classNode.name))
+          .scopes(methodScopes)
+          .symbols(fields)
+          .languageSpecifics(classSpecifics)
+          .build();
       return Scope.builder(ScopeType.JAR, jarName, 0, 0)
           .name(jarName)
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
@@ -102,18 +100,16 @@ public class SymbolExtractor {
     for (FieldNode fieldNode : classNode.fields) {
       SymbolType symbolType =
           ASMHelper.isStaticField(fieldNode) ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
-      LanguageSpecifics fieldSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractFieldModifiers(fieldNode.access))
-              .addAnnotations(extractAnnotations(fieldNode.visibleAnnotations))
-              .build();
-      fields.add(
-          new Symbol(
-              symbolType,
-              fieldNode.name,
-              0,
-              Type.getType(fieldNode.desc).getClassName(),
-              fieldSpecifics));
+      LanguageSpecifics fieldSpecifics = new LanguageSpecifics.Builder()
+          .addModifiers(extractFieldModifiers(fieldNode.access))
+          .addAnnotations(extractAnnotations(fieldNode.visibleAnnotations))
+          .build();
+      fields.add(new Symbol(
+          symbolType,
+          fieldNode.name,
+          0,
+          Type.getType(fieldNode.desc).getClassName(),
+          fieldSpecifics));
     }
     return fields;
   }
@@ -132,21 +128,20 @@ public class SymbolExtractor {
       if (method.name.startsWith("lambda$")) {
         methodScopeType = ScopeType.CLOSURE;
       }
-      LanguageSpecifics methodSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractMethodModifiers(classNode, method, method.access))
-              .addAnnotations(extractAnnotations(method.visibleAnnotations))
-              .returnType(Type.getType(method.desc).getReturnType().getClassName())
-              .build();
-      Scope methodScope =
-          Scope.builder(methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
-              .name(method.name)
-              .scopes(varScopes)
-              .symbols(methodSymbols)
-              .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
-              .injectibleLines(methodLineInfo.ranges)
-              .languageSpecifics(methodSpecifics)
-              .build();
+      LanguageSpecifics methodSpecifics = new LanguageSpecifics.Builder()
+          .addModifiers(extractMethodModifiers(classNode, method, method.access))
+          .addAnnotations(extractAnnotations(method.visibleAnnotations))
+          .returnType(Type.getType(method.desc).getReturnType().getClassName())
+          .build();
+      Scope methodScope = Scope.builder(
+              methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
+          .name(method.name)
+          .scopes(varScopes)
+          .symbols(methodSymbols)
+          .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
+          .injectibleLines(methodLineInfo.ranges)
+          .languageSpecifics(methodSpecifics)
+          .build();
       methodScopes.add(methodScope);
     }
     return methodScopes;
@@ -399,20 +394,18 @@ public class SymbolExtractor {
           continue;
         }
         minLine = Math.min(line, minLine);
-        varSymbols.add(
-            new Symbol(
-                SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
+        varSymbols.add(new Symbol(
+            SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
       }
       Integer endLine = monotonicLineMap.get(entry.getKey().getLabel());
       if (endLine == null) {
         LOGGER.debug("Cannot find the line from end label");
         continue;
       }
-      Scope varScope =
-          Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
-              .symbols(varSymbols)
-              .scopes(new ArrayList<>())
-              .build();
+      Scope varScope = Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
+          .symbols(varSymbols)
+          .scopes(new ArrayList<>())
+          .build();
       tmpScopes.add(varScope);
     }
     nestScopes(varScopes, tmpScopes);

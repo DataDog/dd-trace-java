@@ -48,13 +48,11 @@ abstract class AbstractPropagatorTest extends AbstractOpenTelemetry14Test {
     }
     localSpan.end();
 
-    assertTraces(
-        trace(
-            span()
-                .traceId((DDTraceId) expectedTraceId(traceId))
-                .childOf(DDSpanId.fromHex(spanId))
-                .operationName("internal")
-                .resourceName("some-name")));
+    assertTraces(trace(span()
+        .traceId((DDTraceId) expectedTraceId(traceId))
+        .childOf(DDSpanId.fromHex(spanId))
+        .operationName("internal")
+        .resourceName("some-name")));
     assertEquals(expectedSampled, spanSampled);
     assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampling);
   }

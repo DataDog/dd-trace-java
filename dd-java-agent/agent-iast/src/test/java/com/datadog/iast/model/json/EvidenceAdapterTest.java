@@ -30,32 +30,30 @@ class EvidenceAdapterTest {
     final Source source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, "query", sql);
     final Range range = new Range(0, sql.length(), source, VulnerabilityMarks.NOT_MARKED);
     final Evidence evidence = new Evidence(sql, new Range[] {range});
-    final Vulnerability vulnerability =
-        new Vulnerability(
-            VulnerabilityType.SQL_INJECTION,
-            Location.forClassAndMethodAndLine("Test", "test", 1),
-            evidence);
+    final Vulnerability vulnerability = new Vulnerability(
+        VulnerabilityType.SQL_INJECTION,
+        Location.forClassAndMethodAndLine("Test", "test", 1),
+        evidence);
     final VulnerabilityBatch batch = new VulnerabilityBatch();
     batch.add(vulnerability);
 
     final String json = VulnerabilityEncoding.toJson(batch);
 
-    final String expected =
-        "{"
-            + "  \"sources\": ["
-            + "    { \"origin\": \"http.request.parameter\", \"name\": \"query\","
-            + "      \"redacted\": true, \"pattern\": \"abcdefghijklmnopqrstu\" }"
-            + "  ],"
-            + "  \"vulnerabilities\": ["
-            + "    { \"type\": \"SQL_INJECTION\", \"evidence\": { \"valueParts\": ["
-            + "      { \"source\": 0, \"value\": \"select '\" },"
-            + "      { \"source\": 0, \"redacted\": true, \"pattern\": \"ijk\" },"
-            + "      { \"source\": 0, \"value\": \"' or '\" },"
-            + "      { \"source\": 0, \"redacted\": true, \"pattern\": \"ijk\" },"
-            + "      { \"source\": 0, \"value\": \"'\" }"
-            + "    ] } }"
-            + "  ]"
-            + "}";
+    final String expected = "{"
+        + "  \"sources\": ["
+        + "    { \"origin\": \"http.request.parameter\", \"name\": \"query\","
+        + "      \"redacted\": true, \"pattern\": \"abcdefghijklmnopqrstu\" }"
+        + "  ],"
+        + "  \"vulnerabilities\": ["
+        + "    { \"type\": \"SQL_INJECTION\", \"evidence\": { \"valueParts\": ["
+        + "      { \"source\": 0, \"value\": \"select '\" },"
+        + "      { \"source\": 0, \"redacted\": true, \"pattern\": \"ijk\" },"
+        + "      { \"source\": 0, \"value\": \"' or '\" },"
+        + "      { \"source\": 0, \"redacted\": true, \"pattern\": \"ijk\" },"
+        + "      { \"source\": 0, \"value\": \"'\" }"
+        + "    ] } }"
+        + "  ]"
+        + "}";
 
     JSONAssert.assertEquals(expected, json, JSONCompareMode.LENIENT);
   }

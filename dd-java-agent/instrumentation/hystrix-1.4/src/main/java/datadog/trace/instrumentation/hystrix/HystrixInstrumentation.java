@@ -29,9 +29,8 @@ public class HystrixInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-        namedOneOf(
-            "com.netflix.hystrix.HystrixCommand", "com.netflix.hystrix.HystrixObservableCommand"));
+    return extendsClass(namedOneOf(
+        "com.netflix.hystrix.HystrixCommand", "com.netflix.hystrix.HystrixObservableCommand"));
   }
 
   @Override

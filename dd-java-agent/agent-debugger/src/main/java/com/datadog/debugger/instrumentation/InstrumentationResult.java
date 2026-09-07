@@ -32,9 +32,8 @@ public class InstrumentationResult {
     public static InstrumentationResult blocked(
         String className, List<ProbeDefinition> definitions, DiagnosticMessage... messages) {
       Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
-      definitions.forEach(
-          probeDefinition ->
-              diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
+      definitions.forEach(probeDefinition ->
+          diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
       return new InstrumentationResult(Status.BLOCKED, diagnostics, null, className, null);
     }
   }

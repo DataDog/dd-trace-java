@@ -18,14 +18,11 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
   private static final CharSequence TRACE_FFM = UTF8BytesString.create("trace-ffm");
   private static final CharSequence OPERATION_NAME = UTF8BytesString.create("trace.native");
 
-  private static final MethodHandle START_SPAN_MH =
-      safeFindStatic(
-          "startSpan",
-          MethodType.methodType(ContextScope.class, CharSequence.class, boolean.class));
-  private static final MethodHandle END_SPAN_MH =
-      safeFindStatic(
-          "endSpan",
-          MethodType.methodType(Object.class, Throwable.class, ContextScope.class, Object.class));
+  private static final MethodHandle START_SPAN_MH = safeFindStatic(
+      "startSpan", MethodType.methodType(ContextScope.class, CharSequence.class, boolean.class));
+  private static final MethodHandle END_SPAN_MH = safeFindStatic(
+      "endSpan",
+      MethodType.methodType(Object.class, Throwable.class, ContextScope.class, Object.class));
 
   public static final FFMNativeMethodDecorator DECORATE = new FFMNativeMethodDecorator();
 
@@ -87,25 +84,22 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
          *
          * So we first permute parameters to swap returnValue and ContextScope.
          */
-        MethodHandle endPermuted =
-            MethodHandles.permuteArguments(
-                END_SPAN_MH,
-                MethodType.methodType(
-                    Object.class, Throwable.class, Object.class, ContextScope.class),
-                0,
-                2,
-                1);
+        MethodHandle endPermuted = MethodHandles.permuteArguments(
+            END_SPAN_MH,
+            MethodType.methodType(Object.class, Throwable.class, Object.class, ContextScope.class),
+            0,
+            2,
+            1);
 
         // Accept original arguments (unused) after the required ones.
         MethodHandle endDropped =
             MethodHandles.dropArguments(endPermuted, 3, originalType.parameterList());
 
         // Adapt return and result parameter types to match the original signature.
-        MethodType cleanupType =
-            endDropped
-                .type()
-                .changeParameterType(1, originalType.returnType())
-                .changeReturnType(originalType.returnType());
+        MethodType cleanupType = endDropped
+            .type()
+            .changeParameterType(1, originalType.returnType())
+            .changeReturnType(originalType.returnType());
 
         cleanup = endDropped.asType(cleanupType);
       }

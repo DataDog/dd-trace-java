@@ -12,9 +12,8 @@ public class Limits {
   public final int maxLength;
   public final int maxFieldCount;
 
-  public static final Limits DEFAULT =
-      new Limits(
-          DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
+  public static final Limits DEFAULT = new Limits(
+      DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
 
   public Limits(int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
     this.maxReferenceDepth = maxReferenceDepth;

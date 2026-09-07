@@ -51,14 +51,14 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   }
 
   // paramHashStringArray was only final for a few days. it doesn't seem to have made into a release
-  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE =
-      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_FINAL,
-              "paramHashStringArray",
-              "Ljava/util/Hashtable;")
-          .build();
+  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE = new Reference.Builder(
+          "org.apache.tomcat.util.http.Parameters")
+      .withField(
+          new String[0],
+          Reference.EXPECTS_NON_FINAL,
+          "paramHashStringArray",
+          "Ljava/util/Hashtable;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

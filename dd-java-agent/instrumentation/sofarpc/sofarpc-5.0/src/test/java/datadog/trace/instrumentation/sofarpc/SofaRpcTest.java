@@ -39,44 +39,39 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
   void setupServers() {
     ApplicationConfig appConfig = new ApplicationConfig().setAppName("test-server");
 
-    providerConfig =
-        new ProviderConfig<GreeterService>()
-            .setApplication(appConfig)
-            .setInterfaceId(GreeterService.class.getName())
-            .setRef(new GreeterServiceImpl())
-            .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(PORT))
-            .setRegister(false);
+    providerConfig = new ProviderConfig<GreeterService>()
+        .setApplication(appConfig)
+        .setInterfaceId(GreeterService.class.getName())
+        .setRef(new GreeterServiceImpl())
+        .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(PORT))
+        .setRegister(false);
     providerConfig.export();
 
-    greeterService =
-        new ConsumerConfig<GreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(GreeterService.class.getName())
-            .setDirectUrl("bolt://127.0.0.1:" + PORT)
-            .setProtocol("bolt")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<GreeterService>()
+        .setApplication(new ApplicationConfig().setAppName("test-client"))
+        .setInterfaceId(GreeterService.class.getName())
+        .setDirectUrl("bolt://127.0.0.1:" + PORT)
+        .setProtocol("bolt")
+        .setRegister(false)
+        .setSubscribe(false)
+        .refer();
 
-    errorProviderConfig =
-        new ProviderConfig<FaultyService>()
-            .setApplication(appConfig)
-            .setInterfaceId(FaultyService.class.getName())
-            .setRef(new FaultyServiceImpl())
-            .setServer(
-                new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(ERROR_PORT))
-            .setRegister(false);
+    errorProviderConfig = new ProviderConfig<FaultyService>()
+        .setApplication(appConfig)
+        .setInterfaceId(FaultyService.class.getName())
+        .setRef(new FaultyServiceImpl())
+        .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(ERROR_PORT))
+        .setRegister(false);
     errorProviderConfig.export();
 
-    faultyService =
-        new ConsumerConfig<FaultyService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(FaultyService.class.getName())
-            .setDirectUrl("bolt://127.0.0.1:" + ERROR_PORT)
-            .setProtocol("bolt")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    faultyService = new ConsumerConfig<FaultyService>()
+        .setApplication(new ApplicationConfig().setAppName("test-client"))
+        .setInterfaceId(FaultyService.class.getName())
+        .setDirectUrl("bolt://127.0.0.1:" + ERROR_PORT)
+        .setProtocol("bolt")
+        .setRegister(false)
+        .setSubscribe(false)
+        .refer();
   }
 
   @AfterAll
@@ -112,7 +107,8 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
     DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
 
     assertNotNull(clientSofaSpan, "Expected sofarpc client span");
-    assertEquals(serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
+    assertEquals(
+        serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
     assertEquals("bolt", String.valueOf(clientSofaSpan.getTag("sofarpc.protocol")));
     assertEquals("sofarpc-client", String.valueOf(clientSofaSpan.getTag("component")));
     assertEquals("client", String.valueOf(clientSofaSpan.getTag("span.kind")));
@@ -123,7 +119,8 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
     assertFalse(clientSofaSpan.isError());
 
     assertNotNull(serverSofaSpan, "Expected sofarpc server span");
-    assertEquals(serviceUniqueName + "/sayHello", serverSofaSpan.getResourceName().toString());
+    assertEquals(
+        serviceUniqueName + "/sayHello", serverSofaSpan.getResourceName().toString());
     assertEquals("bolt", String.valueOf(serverSofaSpan.getTag("sofarpc.protocol")));
     assertEquals("sofarpc-server", String.valueOf(serverSofaSpan.getTag("component")));
     assertEquals("server", String.valueOf(serverSofaSpan.getTag("span.kind")));

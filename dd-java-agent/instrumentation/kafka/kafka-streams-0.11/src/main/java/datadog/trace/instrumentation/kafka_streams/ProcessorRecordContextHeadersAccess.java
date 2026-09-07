@@ -17,10 +17,9 @@ public class ProcessorRecordContextHeadersAccess {
   static {
     MethodHandle method;
     try {
-      method =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
+      method = MethodHandles.publicLookup()
+          .findVirtual(
+              ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
     } catch (Throwable e) {
       log.debug("Exception loading MethodHandle", e);
       method = null;

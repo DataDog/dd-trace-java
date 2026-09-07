@@ -29,11 +29,9 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   private boolean snapshotReceived;
   private Map<String, Snapshot> snapshots = new HashMap<>();
   private List<String> additionalJvmArgs = new ArrayList<>();
-  private Supplier<String> timeoutMessage =
-      () ->
-          String.format(
-              "Timeout! traceReceived=%s snapshotReceived=%s #snapshots=%d",
-              traceReceived, snapshotReceived, snapshots.size());
+  private Supplier<String> timeoutMessage = () -> String.format(
+      "Timeout! traceReceived=%s snapshotReceived=%s #snapshots=%d",
+      traceReceived, snapshotReceived, snapshots.size());
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -61,10 +59,9 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          assertEquals("snapshot", intakeRequest.getType());
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      assertEquals("snapshot", intakeRequest.getType());
+    });
     processRequests(
         () -> {
           if (snapshotIdTags.isEmpty()) {
@@ -75,7 +72,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             Snapshot snapshot = snapshots.get(snapshotId0);
             assertNotNull(snapshot);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             return true;
           }
@@ -95,16 +93,15 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     resetSnapshotsAndTraces();
     // we should not receive any more snapshots after the first one
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // no snapshot should be sent
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isTracedFullMethodSpan(span)) {
-              assertFalse(span.getMeta().containsKey("error.debug_info_captured"));
-              assertFalse(span.getMeta().containsKey("_dd.debug.error.0.snapshot_id"));
-              traceReceived = true;
-            }
-          }
-        });
+    registerTraceListener(decodedTrace -> {
+      for (DecodedSpan span : decodedTrace.getSpans()) {
+        if (isTracedFullMethodSpan(span)) {
+          assertFalse(span.getMeta().containsKey("error.debug_info_captured"));
+          assertFalse(span.getMeta().containsKey("_dd.debug.error.0.snapshot_id"));
+          traceReceived = true;
+        }
+      }
+    });
     processRequests(() -> traceReceived && !snapshotReceived, timeoutMessage);
   }
 
@@ -146,7 +143,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             Snapshot snapshot = snapshots.get(snapshotId0);
             assertNotNull(snapshot);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
                 snapshot.getStack().get(0).getFunction());
@@ -154,7 +152,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 1
             snapshot = snapshots.get(snapshotId1);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
                 snapshot.getStack().get(0).getFunction());
@@ -162,7 +161,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 2
             snapshot = snapshots.get(snapshotId2);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
                 snapshot.getStack().get(0).getFunction());
@@ -208,7 +208,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             Snapshot snapshot = snapshots.get(snapshotId0);
             assertNotNull(snapshot);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
                 snapshot.getStack().get(0).getFunction());
@@ -216,7 +217,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 1
             snapshot = snapshots.get(snapshotId1);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
                 snapshot.getStack().get(0).getFunction());
@@ -224,7 +226,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 2
             snapshot = snapshots.get(snapshotId2);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
                 snapshot.getStack().get(0).getFunction());
@@ -232,7 +235,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 3
             snapshot = snapshots.get(snapshotId3);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3",
                 snapshot.getStack().get(0).getFunction());
@@ -240,7 +244,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             // snapshot 4
             snapshot = snapshots.get(snapshotId4);
             assertEquals(
-                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+                "oops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
                 "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2",
                 snapshot.getStack().get(0).getFunction());
@@ -292,7 +297,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   private static void assertRecursiveSnapshot(Snapshot snapshot) {
     assertNotNull(snapshot);
     assertEquals(
-        "recursiveOops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+        "recursiveOops",
+        snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
     assertEquals(
         "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithRecursiveException",
         snapshot.getStack().get(0).getFunction());

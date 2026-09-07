@@ -88,7 +88,8 @@ class SpanEnrichmentInterceptorTest {
     verify(root, never()).setTag(anyString(), anyString());
     final SpanEnrichmentAccumulator surviving = states.peek(root);
     assertNotNull(surviving, "partial flush must NOT remove the accumulator");
-    assertTrue(surviving.serialIdsView().contains(100) && surviving.serialIdsView().contains(108));
+    assertTrue(
+        surviving.serialIdsView().contains(100) && surviving.serialIdsView().contains(108));
 
     // more evaluations, then the FINAL flush with the root present
     states.getOrCreate(root).addSerialId(128);

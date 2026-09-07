@@ -279,10 +279,8 @@ public abstract class TestNGUtils {
   }
 
   public static List<LibraryCapability> capabilities(String version) {
-    List<LibraryCapability> baseCapabilities =
-        new ArrayList<>(
-            Arrays.asList(
-                LibraryCapability.TIA, LibraryCapability.IMPACTED, LibraryCapability.DISABLED));
+    List<LibraryCapability> baseCapabilities = new ArrayList<>(Arrays.asList(
+        LibraryCapability.TIA, LibraryCapability.IMPACTED, LibraryCapability.DISABLED));
 
     boolean isEFDSupported = isEFDSupported(version);
     boolean isExceptionSuppressionSupported = isExceptionSuppressionSupported(version);

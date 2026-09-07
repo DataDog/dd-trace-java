@@ -57,7 +57,8 @@ public class SessionVisitorFilter extends OncePerRequestFilter {
 
   private static class SessionWrapper implements HttpSession {
 
-    @Delegate private final HttpSession delegate;
+    @Delegate
+    private final HttpSession delegate;
 
     private SessionWrapper(final HttpSession delegate) {
       this.delegate = delegate;

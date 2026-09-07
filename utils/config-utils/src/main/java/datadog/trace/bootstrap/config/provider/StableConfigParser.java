@@ -235,10 +235,9 @@ public class StableConfigParser {
 
   private static String processTemplateVar(String templateVar) throws IOException {
     if (templateVar.startsWith(ENVIRONMENT_VARIABLES_PREFIX) && templateVar.endsWith("']")) {
-      String envVar =
-          templateVar
-              .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
-              .trim();
+      String envVar = templateVar
+          .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
+          .trim();
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
@@ -248,8 +247,9 @@ public class StableConfigParser {
       }
       return value;
     } else if (templateVar.startsWith(PROCESS_ARGUMENTS_PREFIX) && templateVar.endsWith("']")) {
-      String processArg =
-          templateVar.substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2).trim();
+      String processArg = templateVar
+          .substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2)
+          .trim();
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }

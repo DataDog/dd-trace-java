@@ -152,12 +152,10 @@ class OtlpResourceJsonTest {
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
-    Map<String, Object> plain =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap()));
+    Map<String, Object> withDatadog = parseResourceAttributes(
+        OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
+    Map<String, Object> plain = parseResourceAttributes(
+        OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap()));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
@@ -171,22 +169,19 @@ class OtlpResourceJsonTest {
 
   @Test
   void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
-    Config config =
-        Config.get(
-            props(
-                SERVICE_NAME,
-                "my-service",
-                TAGS,
-                "datadog.process_tags:user-value",
-                EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
-                "true"));
+    Config config = Config.get(props(
+        SERVICE_NAME,
+        "my-service",
+        TAGS,
+        "datadog.process_tags:user-value",
+        EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+        "true"));
     ProcessTags.reset(config);
     ProcessTags.addTag("entrypoint.name", "app");
     ProcessTags.addTag("entrypoint.type", "web");
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
+    Map<String, Object> withDatadog = parseResourceAttributes(
+        OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
 
     Object processTags = withDatadog.get("datadog.process_tags");
     assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
@@ -199,14 +194,10 @@ class OtlpResourceJsonTest {
         Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
     Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withMarker =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                withMetrics, traceResourceAttributes(withMetrics)));
-    Map<String, Object> without =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                withoutMetrics, traceResourceAttributes(withoutMetrics)));
+    Map<String, Object> withMarker = parseResourceAttributes(
+        OtlpResourceJson.buildResourceFragment(withMetrics, traceResourceAttributes(withMetrics)));
+    Map<String, Object> without = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        withoutMetrics, traceResourceAttributes(withoutMetrics)));
 
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");

@@ -92,30 +92,28 @@ public class HttpClientAsyncTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .get()
-            .listener(
-                new HttpRequestListener() {
-                  @Override
-                  public void onRequestStart(HttpRequest request) {
-                    startCalled.set(true);
-                  }
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .get()
+        .listener(new HttpRequestListener() {
+          @Override
+          public void onRequestStart(HttpRequest request) {
+            startCalled.set(true);
+          }
 
-                  @Override
-                  public void onRequestEnd(HttpRequest request, HttpResponse response) {
-                    endCalled.set(true);
-                    capturedResponse.set(response);
-                    latch.countDown();
-                  }
+          @Override
+          public void onRequestEnd(HttpRequest request, HttpResponse response) {
+            endCalled.set(true);
+            capturedResponse.set(response);
+            latch.countDown();
+          }
 
-                  @Override
-                  public void onRequestFailure(HttpRequest request, IOException exception) {
-                    fail("Should not fail");
-                  }
-                })
-            .build();
+          @Override
+          public void onRequestFailure(HttpRequest request, IOException exception) {
+            fail("Should not fail");
+          }
+        })
+        .build();
 
     this.client.executeAsync(request);
 
@@ -138,30 +136,28 @@ public class HttpClientAsyncTest {
     AtomicReference<IOException> capturedException = new AtomicReference<>();
     CountDownLatch latch = new CountDownLatch(1);
 
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .get()
-            .listener(
-                new HttpRequestListener() {
-                  @Override
-                  public void onRequestStart(HttpRequest request) {
-                    startCalled.set(true);
-                  }
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .get()
+        .listener(new HttpRequestListener() {
+          @Override
+          public void onRequestStart(HttpRequest request) {
+            startCalled.set(true);
+          }
 
-                  @Override
-                  public void onRequestEnd(HttpRequest request, HttpResponse response) {
-                    fail("Should not succeed");
-                  }
+          @Override
+          public void onRequestEnd(HttpRequest request, HttpResponse response) {
+            fail("Should not succeed");
+          }
 
-                  @Override
-                  public void onRequestFailure(HttpRequest request, IOException exception) {
-                    failureCalled.set(true);
-                    capturedException.set(exception);
-                    latch.countDown();
-                  }
-                })
-            .build();
+          @Override
+          public void onRequestFailure(HttpRequest request, IOException exception) {
+            failureCalled.set(true);
+            capturedException.set(exception);
+            latch.countDown();
+          }
+        })
+        .build();
 
     CompletableFuture<HttpResponse> future = this.client.executeAsync(request);
 
@@ -189,17 +185,13 @@ public class HttpClientAsyncTest {
     HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     // Test thenApply composition
-    CompletableFuture<Integer> future =
-        this.client
-            .executeAsync(request)
-            .thenApply(
-                response -> {
-                  try {
-                    return Integer.parseInt(response.bodyAsString().trim());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                });
+    CompletableFuture<Integer> future = this.client.executeAsync(request).thenApply(response -> {
+      try {
+        return Integer.parseInt(response.bodyAsString().trim());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
 
     Integer result = future.get(TIMEOUT_SECONDS, SECONDS);
     assertEquals(42, result);
@@ -220,10 +212,14 @@ public class HttpClientAsyncTest {
         .when(expectedRequest2)
         .respond(response().withStatusCode(200).withBody("response2"));
 
-    HttpRequest request1 =
-        HttpRequest.newBuilder().url(HttpUrl.parse(this.baseUrl + "/test1")).get().build();
-    HttpRequest request2 =
-        HttpRequest.newBuilder().url(HttpUrl.parse(this.baseUrl + "/test2")).get().build();
+    HttpRequest request1 = HttpRequest.newBuilder()
+        .url(HttpUrl.parse(this.baseUrl + "/test1"))
+        .get()
+        .build();
+    HttpRequest request2 = HttpRequest.newBuilder()
+        .url(HttpUrl.parse(this.baseUrl + "/test2"))
+        .get()
+        .build();
 
     // Execute both requests concurrently
     CompletableFuture<HttpResponse> future1 = this.client.executeAsync(request1);

@@ -297,17 +297,15 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
   void offlineConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(), Config.get()));
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
   void invalidConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(), Config.get()));
   }
 
   @Test
@@ -315,9 +313,8 @@ class FeatureFlaggingSystemTest {
     Config config = mock(Config.class);
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
 
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), config));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(), config));
   }
 
   @Test
@@ -350,7 +347,9 @@ class FeatureFlaggingSystemTest {
   void initializationFailureClosesConfigurationSourceAndExposureWriter() {
     ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
     ExposureWriter exposureWriter = mock(ExposureWriter.class);
-    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+    doThrow(new IllegalStateException("exposure init failed"))
+        .when(exposureWriter)
+        .init();
 
     assertThrows(
         IllegalStateException.class,
@@ -364,7 +363,9 @@ class FeatureFlaggingSystemTest {
   @Test
   void initializationFailureWithoutConfigurationSourceClosesExposureWriter() {
     ExposureWriter exposureWriter = mock(ExposureWriter.class);
-    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+    doThrow(new IllegalStateException("exposure init failed"))
+        .when(exposureWriter)
+        .init();
 
     assertThrows(
         IllegalStateException.class, () -> FeatureFlaggingSystem.initialize(null, exposureWriter));
@@ -376,8 +377,12 @@ class FeatureFlaggingSystemTest {
   void initializationFailureClosesConfigurationSourceWhenExposureWriterCloseFails() {
     ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
     ExposureWriter exposureWriter = mock(ExposureWriter.class);
-    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
-    doThrow(new IllegalArgumentException("exposure close failed")).when(exposureWriter).close();
+    doThrow(new IllegalStateException("exposure init failed"))
+        .when(exposureWriter)
+        .init();
+    doThrow(new IllegalArgumentException("exposure close failed"))
+        .when(exposureWriter)
+        .close();
 
     assertThrows(
         IllegalArgumentException.class,

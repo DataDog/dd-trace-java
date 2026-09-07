@@ -57,9 +57,8 @@ public class OSGiApplication {
       bundle.start();
     }
 
-    ServiceTracker publisherTracker =
-        new ServiceTracker(
-            frameworkContext, "datadog.smoketest.osgi.messaging.PublisherSupport", null);
+    ServiceTracker publisherTracker = new ServiceTracker(
+        frameworkContext, "datadog.smoketest.osgi.messaging.PublisherSupport", null);
     publisherTracker.open();
 
     Object publisher = publisherTracker.waitForService(1_000);

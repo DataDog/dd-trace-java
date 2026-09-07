@@ -130,12 +130,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
     synchronized (lifecycleLock) {
       if (!closed) {
-        scheduledPoll =
-            executor.scheduleWithFixedDelay(
-                this::pollOnceSafely,
-                pollIntervalMillis,
-                pollIntervalMillis,
-                TimeUnit.MILLISECONDS);
+        scheduledPoll = executor.scheduleWithFixedDelay(
+            this::pollOnceSafely, pollIntervalMillis, pollIntervalMillis, TimeUnit.MILLISECONDS);
       }
     }
   }
@@ -273,11 +269,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   }
 
   private static HttpUrl datadogApiServerDistributionEndpoint(final Config config) {
-    final HttpUrl.Builder endpoint =
-        new HttpUrl.Builder()
-            .scheme("https")
-            .host("ufc-server.ff-cdn." + config.getSite())
-            .addPathSegments(DATADOG_UFC_RULES_BASED_SERVER_PATH.substring(1));
+    final HttpUrl.Builder endpoint = new HttpUrl.Builder()
+        .scheme("https")
+        .host("ufc-server.ff-cdn." + config.getSite())
+        .addPathSegments(DATADOG_UFC_RULES_BASED_SERVER_PATH.substring(1));
     final String env = config.getEnv();
     if (env != null && !env.isEmpty()) {
       endpoint.addQueryParameter("dd_env", env);
@@ -318,8 +313,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   static final class UfcHttpResponse {
     final int status;
-    @Nullable final String etag;
-    @Nullable final byte[] body;
+
+    @Nullable
+    final String etag;
+
+    @Nullable
+    final byte[] body;
 
     UfcHttpResponse(final int status, @Nullable final String etag, @Nullable final byte[] body) {
       this.status = status;
@@ -364,10 +363,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         headers.put("If-None-Match", etag);
       }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
-      final Request request =
-          prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
-              .get()
-              .build();
+      final Request request = prepareRequest(
+              endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
+          .get()
+          .build();
       if (!fetching.compareAndSet(false, true)) {
         throw new IllegalStateException("Feature Flagging HTTP request already in flight");
       }
@@ -376,35 +375,28 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         throw new InterruptedIOException("Feature Flagging HTTP client is closed");
       }
       try {
-        final HttpRetryPolicy.Factory retryPolicyFactory =
-            new HttpRetryPolicy.Factory(0, 0, 0) {
-              @Override
-              public HttpRetryPolicy create() {
-                return new AgentlessRetryPolicy(
-                    cancelled, pollIntervalMillis, retrySleeper, jitter);
-              }
-            };
-        final Call.Factory callFactory =
-            retryRequest -> {
-              final Call call = httpClient.newCall(retryRequest);
-              activeCall.set(call);
-              if (cancelled.get()) {
-                call.cancel();
-              }
-              return call;
-            };
-        return sendWithRetries(
-            callFactory,
-            retryPolicyFactory,
-            request,
-            response -> {
-              final int status = response.code();
-              final String responseEtag = response.header("ETag");
-              try (ResponseBody responseBody = response.body()) {
-                final byte[] body = responseBody != null ? responseBody.bytes() : null;
-                return new UfcHttpResponse(status, responseEtag, body);
-              }
-            });
+        final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(0, 0, 0) {
+          @Override
+          public HttpRetryPolicy create() {
+            return new AgentlessRetryPolicy(cancelled, pollIntervalMillis, retrySleeper, jitter);
+          }
+        };
+        final Call.Factory callFactory = retryRequest -> {
+          final Call call = httpClient.newCall(retryRequest);
+          activeCall.set(call);
+          if (cancelled.get()) {
+            call.cancel();
+          }
+          return call;
+        };
+        return sendWithRetries(callFactory, retryPolicyFactory, request, response -> {
+          final int status = response.code();
+          final String responseEtag = response.header("ETag");
+          try (ResponseBody responseBody = response.body()) {
+            final byte[] body = responseBody != null ? responseBody.bytes() : null;
+            return new UfcHttpResponse(status, responseEtag, body);
+          }
+        });
       } finally {
         activeCall.set(null);
         fetching.set(false);

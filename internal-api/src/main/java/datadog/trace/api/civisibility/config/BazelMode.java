@@ -31,15 +31,19 @@ public class BazelMode {
   /* manifestModeEnabled reports whether a supported manifest was found and can be used for config cache */
   private final boolean manifestModeEnabled;
   /* manifestPath is the resolved absolute path to the Bazel manifest while in manifest mode */
-  @Nullable private final String manifestPath;
+  @Nullable
+  private final String manifestPath;
   /* manifestDir is the directory containing the resolved manifest and the cached config files */
-  @Nullable private final String manifestDir;
+  @Nullable
+  private final String manifestDir;
   /* payloadFilesEnabled reports whether Bazel payload-in-file mode is enabled */
   private final boolean payloadFilesEnabled;
   /* payloadsDir is the root directory containing payload output directories */
-  @Nullable private final String payloadsDir;
+  @Nullable
+  private final String payloadsDir;
   /* repoRoot is the absolute path to the runfiles workspace dir, used as a virtual repo root */
-  @Nullable private final String repoRoot;
+  @Nullable
+  private final String repoRoot;
 
   public static BazelMode get() {
     if (INSTANCE == null) {
@@ -232,7 +236,8 @@ public class BazelMode {
       // manifest.txt first line has the shape `version=<int>`
       String trimmed = firstLine.trim();
       int separatorIdx = trimmed.indexOf('=');
-      if (separatorIdx < 0 || !"version".equals(trimmed.substring(0, separatorIdx).trim())) {
+      if (separatorIdx < 0
+          || !"version".equals(trimmed.substring(0, separatorIdx).trim())) {
         LOGGER.warn("[bazel mode] Could not parse manifest version from line: '{}'", trimmed);
         return false;
       }

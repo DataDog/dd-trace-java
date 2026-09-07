@@ -22,9 +22,11 @@ import org.slf4j.Logger;
 @ExtendWith(MockitoExtension.class)
 public class ExceptionHelperTest {
 
-  @Mock Logger logger;
+  @Mock
+  Logger logger;
 
-  @Mock RatelimitedLogger ratelimitedLogger;
+  @Mock
+  RatelimitedLogger ratelimitedLogger;
 
   @Test
   public void testWarn() {
@@ -105,19 +107,13 @@ public class ExceptionHelperTest {
 
   @Test
   public void flattenStackTrace() {
-    Throwable simpleException =
-        new MockException(
-            "oops!",
-            new StackTraceElement[] {
-              new StackTraceElement("MyClass1", "myMethod1", "file1.java", 1)
-            });
-    Throwable nestedException =
-        new MockException(
-            "oops!",
-            new StackTraceElement[] {
-              new StackTraceElement("MyClass2", "myMethod2", "file2.java", 2)
-            },
-            simpleException);
+    Throwable simpleException = new MockException(
+        "oops!",
+        new StackTraceElement[] {new StackTraceElement("MyClass1", "myMethod1", "file1.java", 1)});
+    Throwable nestedException = new MockException(
+        "oops!",
+        new StackTraceElement[] {new StackTraceElement("MyClass2", "myMethod2", "file2.java", 2)},
+        simpleException);
     StackTraceElement[] stack = ExceptionHelper.flattenStackTrace(simpleException);
     assertEquals(1, stack.length);
     stack = ExceptionHelper.flattenStackTrace(nestedException);

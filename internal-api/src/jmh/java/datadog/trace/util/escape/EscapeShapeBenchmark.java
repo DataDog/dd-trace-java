@@ -156,16 +156,15 @@ public class EscapeShapeBenchmark {
   }
 
   /** The absent outcome, reachable from a static, so the merge it takes part in is not local. */
-  static final Outcome STATIC_SINGLETON =
-      new Outcome() {
-        @Override
-        public int value() {
-          return 0;
-        }
+  static final Outcome STATIC_SINGLETON = new Outcome() {
+    @Override
+    public int value() {
+      return 0;
+    }
 
-        @Override
-        public void close() {}
-      };
+    @Override
+    public void close() {}
+  };
 
   /** One allocation site carrying the outcome in a field: the shape that survives. */
   static final class FlaggedAllocation {

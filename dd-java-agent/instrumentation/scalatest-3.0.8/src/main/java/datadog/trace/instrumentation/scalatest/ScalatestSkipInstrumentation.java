@@ -81,13 +81,12 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
         // This shouldn't happen.
         // If it does, instrumentation isn't working as expected, or Scalatest internals changed.
         // Either of the two means associating filters with runs should be done differently.
-        throw new IllegalStateException(
-            "Attempting to associate filter "
-                + filter
-                + " with runstamp "
-                + runStamp
-                + ", while already associated with "
-                + existingContext.getRunStamp());
+        throw new IllegalStateException("Attempting to associate filter "
+            + filter
+            + " with runstamp "
+            + runStamp
+            + ", while already associated with "
+            + existingContext.getRunStamp());
       }
     }
   }

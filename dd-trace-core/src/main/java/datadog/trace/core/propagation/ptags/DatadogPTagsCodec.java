@@ -65,17 +65,15 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int traceSource = 0;
     TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < len) {
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagPos, TAG_KEY_SEPARATOR, DatadogPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value, tagPos, TAG_KEY_SEPARATOR, DatadogPTagsCodec::isAllowedKeyChar);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagValuePos, TAGS_SEPARATOR, DatadogPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value, tagValuePos, TAGS_SEPARATOR, DatadogPTagsCodec::isAllowedValueChar);
       if (tagValueEndsAt < 0) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);

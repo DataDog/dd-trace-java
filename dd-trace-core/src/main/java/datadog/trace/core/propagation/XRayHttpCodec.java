@@ -70,20 +70,18 @@ class XRayHttpCodec {
     public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
 
-      StringBuilder buf =
-          new StringBuilder()
-              .append(ROOT_PREFIX)
-              .append(
-                  String.format(
-                      "%08x",
-                      e2eStart > 0
-                          ? NANOSECONDS.toSeconds(e2eStart)
-                          : MILLISECONDS.toSeconds(
-                              context.getTraceCollector().getTimeSource().getCurrentTimeMillis())))
-              .append(TRACE_ID_PADDING)
-              .append(context.getTraceId().toHexStringPadded(16))
-              .append(';' + PARENT_PREFIX)
-              .append(DDSpanId.toHexStringPadded(context.getSpanId()));
+      StringBuilder buf = new StringBuilder()
+          .append(ROOT_PREFIX)
+          .append(String.format(
+              "%08x",
+              e2eStart > 0
+                  ? NANOSECONDS.toSeconds(e2eStart)
+                  : MILLISECONDS.toSeconds(
+                      context.getTraceCollector().getTimeSource().getCurrentTimeMillis())))
+          .append(TRACE_ID_PADDING)
+          .append(context.getTraceId().toHexStringPadded(16))
+          .append(';' + PARENT_PREFIX)
+          .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
       if (context.lockSamplingPriority()) {
         buf.append(';' + SAMPLED_PREFIX)

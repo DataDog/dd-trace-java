@@ -30,14 +30,14 @@ public class PathHandlerInstrumentation extends InstrumenterModule.AppSec
     };
   }
 
-  private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES =
-      new Reference.Builder("ratpack.path.internal.TokenPathBinder")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC,
-              "tokenNames",
-              "Lcom/google/common/collect/ImmutableList;")
-          .build();
+  private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES = new Reference.Builder(
+          "ratpack.path.internal.TokenPathBinder")
+      .withField(
+          new String[0],
+          Reference.EXPECTS_NON_STATIC,
+          "tokenNames",
+          "Lcom/google/common/collect/ImmutableList;")
+      .build();
 
   // so it doesn't apply to ratpack < 1.5
   private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();

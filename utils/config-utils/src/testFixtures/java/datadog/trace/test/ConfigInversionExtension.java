@@ -31,10 +31,9 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
     ConfigHelper.get().setConfigInversionStrict(previousPolicy);
 
     if (!unsupported.isEmpty()) {
-      throw new AssertionError(
-          "Unsupported configurations found during test. "
-              + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
-              + String.join("\n  ", unsupported));
+      throw new AssertionError("Unsupported configurations found during test. "
+          + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
+          + String.join("\n  ", unsupported));
     }
   }
 }

@@ -73,14 +73,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     response.put("rate_by_service", rates);
     serviceSampler.onResponse("traces", response);
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "fakeOperation")
-                .withServiceName("spock")
-                .withTag("env", "test")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("spock")
+        .withTag("env", "test")
+        .ignoreActiveSpan()
+        .start();
     serviceSampler.setSamplingPriority(span);
 
     Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
@@ -104,14 +102,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
     Sampler sampler = Sampler.Builder.forConfig(properties);
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
     Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
@@ -131,14 +127,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
     Sampler sampler = Sampler.Builder.forConfig(properties);
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
     Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
@@ -157,14 +151,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
     Sampler sampler = Sampler.Builder.forConfig(properties);
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
     Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
@@ -182,14 +174,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
     Sampler sampler = Sampler.Builder.forConfig(properties);
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "operation")
-                .withServiceName("service")
-                .withTag("env", "bar")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "operation")
+        .withServiceName("service")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
     Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
@@ -210,14 +200,12 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     response.put("rate_by_service", rates);
     serviceSampler.onResponse("traces", response);
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "fakeOperation")
-                .withServiceName("spock")
-                .withTag("env", "test")
-                .ignoreActiveSpan()
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("spock")
+        .withTag("env", "test")
+        .ignoreActiveSpan()
+        .start();
     serviceSampler.setSamplingPriority(span);
 
     String headerValue =

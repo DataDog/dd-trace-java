@@ -67,14 +67,13 @@ public class ServerDebuggerTestApplication {
 
   protected void stop() {
     System.out.println("Stopping app...");
-    new Thread(
-            () -> {
-              try {
-                webServer.shutdown();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            })
+    new Thread(() -> {
+          try {
+            webServer.shutdown();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        })
         .start();
   }
 
@@ -185,14 +184,7 @@ public class ServerDebuggerTestApplication {
   private static String fullMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
-      return argInt
-          + ", "
-          + argStr
-          + ", "
-          + argDouble
-          + ", "
-          + argMap
-          + ", "
+      return argInt + ", " + argStr + ", " + argDouble + ", " + argMap + ", "
           + String.join(",", argVar);
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -203,14 +195,7 @@ public class ServerDebuggerTestApplication {
   private static String tracedMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
-      return argInt
-          + ", "
-          + argStr
-          + ", "
-          + argDouble
-          + ", "
-          + argMap
-          + ", "
+      return argInt + ", " + argStr + ", " + argDouble + ", " + argMap + ", "
           + String.join(",", argVar);
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -281,41 +266,35 @@ public class ServerDebuggerTestApplication {
     public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
       String path = request.getRequestUrl().url().getPath();
       switch (path) {
-        case "/app/waitForInstrumentation":
-          {
-            String className = request.getRequestUrl().queryParameter("classname");
-            app.waitForInstrumentation(className);
-            break;
-          }
-        case "/app/waitForReTransformation":
-          {
-            String className = request.getRequestUrl().queryParameter("classname");
-            app.waitForReTransformation(className);
-            break;
-          }
-        case "/app/waitForExceptionFingerprint":
-          {
-            app.waitForExceptionFingerprint();
-            break;
-          }
-        case "/app/waitForSpecificLine":
-          {
-            String feature = request.getRequestUrl().queryParameter("line");
-            app.waitForSpecificLine(feature);
-            break;
-          }
-        case "/app/execute":
-          {
-            String methodName = request.getRequestUrl().queryParameter("methodname");
-            String arg = request.getRequestUrl().queryParameter("arg");
-            app.execute(methodName, arg);
-            break;
-          }
-        case "/app/stop":
-          {
-            app.stop();
-            break;
-          }
+        case "/app/waitForInstrumentation": {
+          String className = request.getRequestUrl().queryParameter("classname");
+          app.waitForInstrumentation(className);
+          break;
+        }
+        case "/app/waitForReTransformation": {
+          String className = request.getRequestUrl().queryParameter("classname");
+          app.waitForReTransformation(className);
+          break;
+        }
+        case "/app/waitForExceptionFingerprint": {
+          app.waitForExceptionFingerprint();
+          break;
+        }
+        case "/app/waitForSpecificLine": {
+          String feature = request.getRequestUrl().queryParameter("line");
+          app.waitForSpecificLine(feature);
+          break;
+        }
+        case "/app/execute": {
+          String methodName = request.getRequestUrl().queryParameter("methodname");
+          String arg = request.getRequestUrl().queryParameter("arg");
+          app.execute(methodName, arg);
+          break;
+        }
+        case "/app/stop": {
+          app.stop();
+          break;
+        }
         default:
           throw new IllegalArgumentException("Unsupported url path: " + path);
       }

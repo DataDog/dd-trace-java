@@ -18,16 +18,15 @@ public abstract class ScalatestUtils {
 
   private static final ClassLoader CLASS_LOADER = Reporter.class.getClassLoader();
 
-  public static final List<LibraryCapability> CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.EFD,
-          LibraryCapability.ATR,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.EFD,
+      LibraryCapability.ATR,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
   private ScalatestUtils() {}
 

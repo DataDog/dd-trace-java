@@ -30,9 +30,8 @@ class LLMObsSpanDataAdapterTest {
     CoreSpan<?> span = mock(CoreSpan.class);
     when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     when(span.getTag(INPUT_TAG))
-        .thenReturn(
-            Collections.singletonList(
-                LLMObs.Document.from("original document", "source.txt", "doc-123", 0.75)));
+        .thenReturn(Collections.singletonList(
+            LLMObs.Document.from("original document", "source.txt", "doc-123", 0.75)));
     when(span.getTag(OUTPUT_TAG)).thenReturn("original output");
 
     LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
@@ -61,9 +60,8 @@ class LLMObsSpanDataAdapterTest {
     CoreSpan<?> span = mock(CoreSpan.class);
     when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_RETRIEVAL_SPAN_KIND);
     when(span.getTag(OUTPUT_TAG))
-        .thenReturn(
-            Collections.singletonList(
-                LLMObs.Document.from("original document", "result.txt", "doc-456", 0.9)));
+        .thenReturn(Collections.singletonList(
+            LLMObs.Document.from("original document", "result.txt", "doc-456", 0.9)));
 
     LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
 

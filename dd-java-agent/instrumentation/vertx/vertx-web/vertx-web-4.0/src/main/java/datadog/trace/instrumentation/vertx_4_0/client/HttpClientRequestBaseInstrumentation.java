@@ -59,8 +59,11 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
         @Advice.FieldValue("stream") final HttpClientStream stream,
         @Advice.Return boolean result) {
       if (result) {
-        Context storedContext =
-            stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();
+        Context storedContext = stream
+            .connection()
+            .channel()
+            .attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
+            .get();
         AgentSpan nettySpan = spanFromContext(storedContext);
         if (nettySpan != null) {
           try (final AgentScope scope = activateSpan(nettySpan)) {

@@ -106,23 +106,21 @@ public class DDIntakeWriter extends RemoteWriter {
       if (tracks.size() == 1) {
         dispatcher = createDispatcher(tracks.entrySet().iterator().next());
       } else {
-        PayloadDispatcher[] dispatchers =
-            tracks.entrySet().stream()
-                .map(this::createDispatcher)
-                .toArray(PayloadDispatcher[]::new);
+        PayloadDispatcher[] dispatchers = tracks.entrySet().stream()
+            .map(this::createDispatcher)
+            .toArray(PayloadDispatcher[]::new);
         dispatcher = new CompositePayloadDispatcher(dispatchers);
       }
 
-      final TraceProcessingWorker traceProcessingWorker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              healthMetrics,
-              dispatcher,
-              droppingPolicy,
-              prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker traceProcessingWorker = new TraceProcessingWorker(
+          traceBufferSize,
+          healthMetrics,
+          dispatcher,
+          droppingPolicy,
+          prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new DDIntakeWriter(
           traceProcessingWorker,

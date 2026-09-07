@@ -98,9 +98,8 @@ public class JettyOnCommitBlockingHelper {
       commit.setAccessible(true);
       commitMh = MethodHandles.lookup().unreflect(commit);
     } catch (NoSuchMethodException | IllegalAccessException e) {
-      log.warn(
-          "Could not find method HttpChannel#commit(MetaData.Response). "
-              + "Blocking on responses will be unavailable");
+      log.warn("Could not find method HttpChannel#commit(MetaData.Response). "
+          + "Blocking on responses will be unavailable");
     }
     COMMIT_METADATA = commitMh;
   }
@@ -148,17 +147,15 @@ public class JettyOnCommitBlockingHelper {
     static {
       MethodHandle mh = null;
       try {
-        mh =
-            MethodHandles.lookup()
-                .findVirtual(HttpOutput.class, "closed", MethodType.methodType(void.class));
+        mh = MethodHandles.lookup()
+            .findVirtual(HttpOutput.class, "closed", MethodType.methodType(void.class));
       } catch (NoSuchMethodException | IllegalAccessException e) {
         try {
-          mh =
-              MethodHandles.lookup()
-                  .findVirtual(
-                      HttpOutput.class,
-                      "completed",
-                      MethodType.methodType(void.class, Throwable.class));
+          mh = MethodHandles.lookup()
+              .findVirtual(
+                  HttpOutput.class,
+                  "completed",
+                  MethodType.methodType(void.class, Throwable.class));
           mh = MethodHandles.insertArguments(mh, 1, new Object[] {null});
         } catch (NoSuchMethodException | IllegalAccessException e2) {
           log.warn(

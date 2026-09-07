@@ -16,14 +16,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class ErrorLogSmokeTest {
 
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("error-logger")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .skipErrorLogCheck()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp.named("error-logger")
+      .mainClass("datadog.smoketest.TestServerApp")
+      .args("--server.port=${app.httpPort}")
+      .backend(AgentBackend.mockAgent())
+      .noAgent()
+      .skipErrorLogCheck()
+      .build();
 
   @Test
   void detectsErrorLinesInTheLog() {

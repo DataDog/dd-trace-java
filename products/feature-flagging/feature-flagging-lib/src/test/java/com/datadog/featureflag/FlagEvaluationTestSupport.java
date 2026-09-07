@@ -133,11 +133,10 @@ final class FlagEvaluationTestSupport {
   static List<CapturedJson> flushAndCaptureAll(final TestWriterSetup setup) throws Exception {
     final List<RequestBody> captured = new ArrayList<>();
     when(setup.mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(1));
-              return null;
-            });
+        .thenAnswer(inv -> {
+          captured.add(inv.getArgument(1));
+          return null;
+        });
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     final List<CapturedJson> json = new ArrayList<>();

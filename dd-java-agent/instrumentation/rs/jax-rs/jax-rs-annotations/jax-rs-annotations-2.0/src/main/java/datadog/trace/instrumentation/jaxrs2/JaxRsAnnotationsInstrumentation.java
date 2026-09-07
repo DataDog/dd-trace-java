@@ -77,9 +77,8 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+        .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
   }
 
   @Override

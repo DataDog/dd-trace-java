@@ -7,11 +7,20 @@ public class StackTraceFrame {
   // Unsigned integer: index of the stack frame (0 = top of stack)
   private final int id;
   // Raw stack frame
-  @Nullable private final String text;
-  @Nullable private final String file;
-  @Nullable private final Integer line;
-  @Nullable private final String class_name;
-  @Nullable private final String function;
+  @Nullable
+  private final String text;
+
+  @Nullable
+  private final String file;
+
+  @Nullable
+  private final Integer line;
+
+  @Nullable
+  private final String class_name;
+
+  @Nullable
+  private final String function;
 
   public StackTraceFrame(final int id, final StackTraceElement element) {
     this.id = id;

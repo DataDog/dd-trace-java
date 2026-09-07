@@ -17,14 +17,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class SmokeServerAppTest {
 
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("test-server")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .placeholder("marker", () -> "resolved-at-launch")
-          .args("--server.port=${app.httpPort}", "--marker=${marker}")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp.named("test-server")
+      .mainClass("datadog.smoketest.TestServerApp")
+      .placeholder("marker", () -> "resolved-at-launch")
+      .args("--server.port=${app.httpPort}", "--marker=${marker}")
+      .backend(AgentBackend.mockAgent())
+      .noAgent()
+      .build();
 
   @Test
   void respondsOnTheAllocatedPort() {

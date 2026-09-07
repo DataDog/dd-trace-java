@@ -14,9 +14,8 @@ public class AllowListHelper {
   private HashSet<String> classes;
 
   public AllowListHelper(Configuration.FilterList allowList) {
-    this.allowAll =
-        allowList == null
-            || allowList.getClasses().isEmpty() && allowList.getPackagePrefixes().isEmpty();
+    this.allowAll = allowList == null
+        || allowList.getClasses().isEmpty() && allowList.getPackagePrefixes().isEmpty();
     if (allowList != null) {
       ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
       allowList.getPackagePrefixes().stream().forEach(s -> builder.put(s + "*", 1));

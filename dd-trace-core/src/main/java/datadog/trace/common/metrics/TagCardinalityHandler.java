@@ -142,10 +142,9 @@ final class TagCardinalityHandler {
     }
     // Reuse the previous encoded "tag:value" UTF8 value if present; otherwise
     // create it from the fixed tag name and the raw value.
-    UTF8BytesString utf8 =
-        priorKey != null
-            ? this.priorValues[priorSlot]
-            : UTF8BytesString.create(this.tag + ":" + value);
+    UTF8BytesString utf8 = priorKey != null
+        ? this.priorValues[priorSlot]
+        : UTF8BytesString.create(this.tag + ":" + value);
     // If still within budget, remember the raw value and its encoded UTF8
     // output in the current-cycle table.
     if (!capExhausted) {

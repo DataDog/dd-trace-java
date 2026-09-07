@@ -21,9 +21,8 @@ public class UndertowBlockResponseFunction implements BlockResponseFunction {
       BlockingContentType templateType,
       Map<String, String> extraHeaders,
       String securityResponseId) {
-    Flow.Action.RequestBlockingAction rab =
-        new Flow.Action.RequestBlockingAction(
-            statusCode, templateType, extraHeaders, securityResponseId);
+    Flow.Action.RequestBlockingAction rab = new Flow.Action.RequestBlockingAction(
+        statusCode, templateType, extraHeaders, securityResponseId);
     exchange.putAttachment(UndertowBlockingHandler.TRACE_SEGMENT, segment);
     exchange.putAttachment(UndertowBlockingHandler.REQUEST_BLOCKING_DATA, rab);
     if (exchange.isInIoThread()) {

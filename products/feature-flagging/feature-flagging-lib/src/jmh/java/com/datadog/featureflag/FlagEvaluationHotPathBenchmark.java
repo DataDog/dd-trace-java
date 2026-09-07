@@ -80,18 +80,16 @@ public class FlagEvaluationHotPathBenchmark {
     final BackendApiFactory factory = new BackendApiFactory(config, null);
     final Map<String, String> ddContext = new HashMap<>();
     ddContext.put("service", "bench-service");
-    handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false), ddContext);
+    handler = FlagEvaluationWriterImpl.createHandlerForTest(
+        () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false), ddContext);
 
     // Capacity large enough that the benchmark never overflows within a measurement window.
-    writer =
-        new FlagEvaluationWriterImpl(
-            1 << 20,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
-            config);
+    writer = new FlagEvaluationWriterImpl(
+        1 << 20,
+        Long.MAX_VALUE,
+        NANOSECONDS,
+        () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        config);
   }
 
   /**

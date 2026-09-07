@@ -216,24 +216,22 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     }
 
     public T where(String sourceFile, int lineFrom, int lineTill) {
-      return where(
-          new Where(
-              null,
-              null,
-              null,
-              new Where.SourceLine[] {new Where.SourceLine(lineFrom, lineTill)},
-              sourceFile));
+      return where(new Where(
+          null,
+          null,
+          null,
+          new Where.SourceLine[] {new Where.SourceLine(lineFrom, lineTill)},
+          sourceFile));
     }
 
     public T where(
         String typeName, String methodName, String signature, int codeLine, String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLine)},
-              source));
+      return where(new Where(
+          typeName,
+          methodName,
+          signature,
+          new Where.SourceLine[] {new Where.SourceLine(codeLine)},
+          source));
     }
 
     public T where(
@@ -243,13 +241,12 @@ public abstract class ProbeDefinition implements ProbeImplementation {
         int codeLineFrom,
         int codeLineTill,
         String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
-              source));
+      return where(new Where(
+          typeName,
+          methodName,
+          signature,
+          new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
+          source));
     }
   }
 

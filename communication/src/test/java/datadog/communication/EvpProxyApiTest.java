@@ -37,25 +37,22 @@ class EvpProxyApiTest {
   @Test
   void reportsHttpStatusForRejectedRequest() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(404).setBody("not found"));
-    final EvpProxyApi api =
-        new EvpProxyApi(
-            "123",
-            server.url("/evp_proxy/v4/"),
-            "event-platform-intake",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            false);
+    final EvpProxyApi api = new EvpProxyApi(
+        "123",
+        server.url("/evp_proxy/v4/"),
+        "event-platform-intake",
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        client,
+        false);
 
-    final HttpResponseException exception =
-        assertThrows(
-            HttpResponseException.class,
-            () ->
-                api.post(
-                    "exposures",
-                    RequestBody.create(MediaType.parse("application/json"), "{}"),
-                    stream -> null,
-                    null,
-                    false));
+    final HttpResponseException exception = assertThrows(
+        HttpResponseException.class,
+        () -> api.post(
+            "exposures",
+            RequestBody.create(MediaType.parse("application/json"), "{}"),
+            stream -> null,
+            null,
+            false));
 
     assertEquals(404, exception.getStatusCode());
     final RecordedRequest request = server.takeRequest();

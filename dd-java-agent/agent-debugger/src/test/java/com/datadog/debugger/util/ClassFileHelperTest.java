@@ -29,7 +29,8 @@ public class ClassFileHelperTest {
 
   private static byte[] readClassFileBytes(String fileName) {
     try {
-      return Files.readAllBytes(Paths.get(ClassFileHelperTest.class.getResource(fileName).toURI()));
+      return Files.readAllBytes(
+          Paths.get(ClassFileHelperTest.class.getResource(fileName).toURI()));
     } catch (IOException | URISyntaxException e) {
       throw new RuntimeException(e);
     }

@@ -55,10 +55,9 @@ public class DDSpanLink extends SpanLink {
    */
   public static SpanLink from(ExtractedContext context, SpanAttributes attributes) {
     byte traceFlags = context.getSamplingPriority() > 0 ? SAMPLED_FLAG : DEFAULT_FLAGS;
-    String traceState =
-        context.getPropagationTags() == null
-            ? ""
-            : context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    String traceState = context.getPropagationTags() == null
+        ? ""
+        : context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
     return new DDSpanLink(
         context.getTraceId(), context.getSpanId(), traceFlags, traceState, attributes);
   }

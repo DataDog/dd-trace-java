@@ -169,10 +169,9 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(language, file);
         if (sourceRoot != null) {
           String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
-          int sourceRootIdx =
-              sourceRoots.computeIfAbsent(
-                  new RepoIndex.SourceRoot(relativeSourceRoot, language),
-                  sr -> sourceRootCounter.getAndIncrement());
+          int sourceRootIdx = sourceRoots.computeIfAbsent(
+              new RepoIndex.SourceRoot(relativeSourceRoot, language),
+              sr -> sourceRootCounter.getAndIncrement());
 
           String relativePath = sourceRoot.relativize(file).toString();
           if (!relativePath.isEmpty()) {
@@ -183,13 +182,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             if (existingSourceRootIdx != null) {
               log.debug("Duplicate repo index key: {}", key);
               duplicateSourceRootIndices
-                  .computeIfAbsent(
-                      key,
-                      k -> {
-                        List<Integer> indices = new ArrayList<>();
-                        indices.add(existingSourceRootIdx); // Initialize with original source root
-                        return indices;
-                      })
+                  .computeIfAbsent(key, k -> {
+                    List<Integer> indices = new ArrayList<>();
+                    indices.add(existingSourceRootIdx); // Initialize with original source root
+                    return indices;
+                  })
                   .add(sourceRootIdx);
             }
           }

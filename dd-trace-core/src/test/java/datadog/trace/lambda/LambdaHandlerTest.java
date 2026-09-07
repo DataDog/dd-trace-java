@@ -47,19 +47,13 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
   void testStartInvocationSuccess() {
     CoreTracer ct = tracerBuilder().build();
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api ->
-                                api.getResponse()
-                                    .status(200)
-                                    .addHeader("x-datadog-trace-id", "1234")
-                                    .addHeader("x-datadog-sampling-priority", "2")
-                                    .send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+        "/lambda/start-invocation",
+        api -> api.getResponse()
+            .status(200)
+            .addHeader("x-datadog-trace-id", "1234")
+            .addHeader("x-datadog-sampling-priority", "2")
+            .send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     AgentSpanContext objTest =
@@ -78,20 +72,14 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
   void testStartInvocationWith128BitTraceId() {
     CoreTracer ct = tracerBuilder().build();
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api ->
-                                api.getResponse()
-                                    .status(200)
-                                    .addHeader("x-datadog-trace-id", "5744042798732701615")
-                                    .addHeader("x-datadog-sampling-priority", "2")
-                                    .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
-                                    .send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+        "/lambda/start-invocation",
+        api -> api.getResponse()
+            .status(200)
+            .addHeader("x-datadog-trace-id", "5744042798732701615")
+            .addHeader("x-datadog-sampling-priority", "2")
+            .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
+            .send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     AgentSpanContext objTest =
@@ -110,14 +98,8 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
   void testStartInvocationFailure() {
     CoreTracer ct = tracerBuilder().build();
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api -> api.getResponse().status(500).send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h ->
+        h.post("/lambda/start-invocation", api -> api.getResponse().status(500).send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     AgentSpanContext objTest =
@@ -146,14 +128,8 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
       Object lambdaResult,
       boolean boolValue,
       String lambdaReqIdHeaderValue) {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h ->
+        h.post("/lambda/end-invocation", api -> api.getResponse().status(200).send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     DDSpan span = mock(DDSpan.class);
@@ -187,14 +163,8 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
       Object lambdaResult,
       boolean boolValue,
       String lambdaReqIdHeaderValue) {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(500).send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h ->
+        h.post("/lambda/end-invocation", api -> api.getResponse().status(500).send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     DDSpan span = mock(DDSpan.class);
@@ -215,14 +185,8 @@ public class LambdaHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void testEndInvocationSuccessWithErrorMetadata() {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h ->
+        h.post("/lambda/end-invocation", api -> api.getResponse().status(200).send())));
     LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
     DDSpan span = mock(DDSpan.class);

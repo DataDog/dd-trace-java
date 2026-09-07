@@ -36,11 +36,9 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     }
 
     if (span != null) {
-      final boolean finishSpan =
-          msg instanceof HttpResponse
-              && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
-                  || "websocket"
-                      .equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
+      final boolean finishSpan = msg instanceof HttpResponse
+          && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
+              || "websocket".equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
       if (finishSpan) {
         try (final ContextScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, (HttpResponse) msg);

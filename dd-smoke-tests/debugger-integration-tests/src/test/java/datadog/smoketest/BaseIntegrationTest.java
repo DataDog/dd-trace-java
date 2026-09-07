@@ -71,21 +71,19 @@ public abstract class BaseIntegrationTest {
   protected static final String SNAPSHOT_UPLOAD_URL_PATH = "/debugger/v2/input";
   protected static final String DIAGNOSTICS_URL_PATH = "/debugger/v1/diagnostics";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
-  private static final Path LOG_FILE_BASE =
-      Paths.get(
-          buildDirectory(),
-          "reports",
-          "testProcess." + SimpleAppDebuggerIntegrationTest.class.getName());
-  private static final String INFO_CONTENT =
-      "{\"endpoints\": [\""
-          + TRACE_URL_PATH
-          + "\", \""
-          + LOG_UPLOAD_URL_PATH
-          + "\", \""
-          + DIAGNOSTICS_URL_PATH
-          + "\", \""
-          + CONFIG_URL_PATH
-          + "\"]}";
+  private static final Path LOG_FILE_BASE = Paths.get(
+      buildDirectory(),
+      "reports",
+      "testProcess." + SimpleAppDebuggerIntegrationTest.class.getName());
+  private static final String INFO_CONTENT = "{\"endpoints\": [\""
+      + TRACE_URL_PATH
+      + "\", \""
+      + LOG_UPLOAD_URL_PATH
+      + "\", \""
+      + DIAGNOSTICS_URL_PATH
+      + "\", \""
+      + CONFIG_URL_PATH
+      + "\"]}";
   private static final MockResponse AGENT_INFO_RESPONSE =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
   private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
@@ -158,27 +156,26 @@ public abstract class BaseIntegrationTest {
   protected abstract String getAppId();
 
   protected List<String> getDebuggerCommandParams() {
-    return new ArrayList<>(
-        Arrays.asList(
-            "-Ddd.service.name=" + getAppId(),
-            "-Ddd.profiling.enabled=false",
-            "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
-            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.agent.core=debug",
-            "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
-            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.bootstrap.debugger=debug",
-            "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
-            "-Ddd.jmxfetch.start-delay=0",
-            "-Ddd.jmxfetch.enabled=false",
-            "-Ddd.dynamic.instrumentation.enabled=true",
-            "-Ddd.remote_config.poll_interval.seconds=1",
-            "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
-            "-Ddd.jmxfetch.statsd.port=" + statsDServer.getPort(),
-            "-Ddd.dynamic.instrumentation.classfile.dump.enabled=true",
-            "-Ddd.dynamic.instrumentation.upload.batch.size=" + batchSize,
-            // flush uploads every 100ms to have quick tests
-            "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
-            // increase timeout for serialization
-            "-Ddd.dynamic.instrumentation.capture.timeout=30000"));
+    return new ArrayList<>(Arrays.asList(
+        "-Ddd.service.name=" + getAppId(),
+        "-Ddd.profiling.enabled=false",
+        "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
+        "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.agent.core=debug",
+        "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
+        "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.bootstrap.debugger=debug",
+        "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
+        "-Ddd.jmxfetch.start-delay=0",
+        "-Ddd.jmxfetch.enabled=false",
+        "-Ddd.dynamic.instrumentation.enabled=true",
+        "-Ddd.remote_config.poll_interval.seconds=1",
+        "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
+        "-Ddd.jmxfetch.statsd.port=" + statsDServer.getPort(),
+        "-Ddd.dynamic.instrumentation.classfile.dump.enabled=true",
+        "-Ddd.dynamic.instrumentation.upload.batch.size=" + batchSize,
+        // flush uploads every 100ms to have quick tests
+        "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
+        // increase timeout for serialization
+        "-Ddd.dynamic.instrumentation.capture.timeout=30000"));
   }
 
   protected enum RequestType {
@@ -246,9 +243,8 @@ public abstract class BaseIntegrationTest {
         } catch (IOException ex) {
           ex.printStackTrace();
         }
-        JsonAdapter<List<ProbeStatus>> adapter =
-            MoshiHelper.createMoshiProbeStatus()
-                .adapter(Types.newParameterizedType(List.class, ProbeStatus.class));
+        JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus()
+            .adapter(Types.newParameterizedType(List.class, ProbeStatus.class));
         String bodyStr = request.getBody().readUtf8();
         LOG.info("got probe status: {}", bodyStr);
         try {
@@ -296,7 +292,8 @@ public abstract class BaseIntegrationTest {
             // Parse headers
             int colon = line.indexOf(':');
             if (colon != -1) {
-              partHeaders.add(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
+              partHeaders.add(
+                  line.substring(0, colon).trim(), line.substring(colon + 1).trim());
             }
           }
 
@@ -338,21 +335,20 @@ public abstract class BaseIntegrationTest {
     AtomicBoolean installed = new AtomicBoolean();
     AtomicBoolean emitting = new AtomicBoolean();
     AtomicBoolean result = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
-              emitting.set(true);
-            }
-            result.set(received.get() && installed.get() && emitting.get());
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
+          emitting.set(true);
+        }
+        result.set(received.get() && installed.get() && emitting.get());
+      }
+    });
     return result;
   }
 
@@ -469,9 +465,8 @@ public abstract class BaseIntegrationTest {
             new Moshi.Builder().build().adapter(ConfigOverrides.class);
         String configOverridesJson = configAdapter.toJson(configOverrides);
         LOG.info("Sending configOverrides json: {}", configOverridesJson);
-        remoteConfigs.add(
-            new RemoteConfigHelper.RemoteConfig(
-                APM_TRACING_PRODUCT, configOverridesJson, APM_CONFIG_ID));
+        remoteConfigs.add(new RemoteConfigHelper.RemoteConfig(
+            APM_TRACING_PRODUCT, configOverridesJson, APM_CONFIG_ID));
       }
       String remoteConfigJson = RemoteConfigHelper.encode(remoteConfigs);
       return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
@@ -487,9 +482,8 @@ public abstract class BaseIntegrationTest {
     for (T probe : probes) {
       String json = probeAdapter.toJson(probe);
       LOG.info("Sending {} json: {}", probe.getClass().getSimpleName(), json);
-      remoteConfigs.add(
-          new RemoteConfigHelper.RemoteConfig(
-              LIVE_DEBUGGING_PRODUCT, json, getProbePrefix(probe) + UUID.randomUUID()));
+      remoteConfigs.add(new RemoteConfigHelper.RemoteConfig(
+          LIVE_DEBUGGING_PRODUCT, json, getProbePrefix(probe) + UUID.randomUUID()));
     }
   }
 
@@ -559,7 +553,10 @@ public abstract class BaseIntegrationTest {
   }
 
   protected Configuration createSpanDecoConfig(SpanDecorationProbe spanDecorationProbe) {
-    return Configuration.builder().setService(getAppId()).add(spanDecorationProbe).build();
+    return Configuration.builder()
+        .setService(getAppId())
+        .add(spanDecorationProbe)
+        .build();
   }
 
   protected Configuration createSpanConfig(SpanProbe spanProbe) {
@@ -618,16 +615,13 @@ public abstract class BaseIntegrationTest {
 
   protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker) {
     try {
-      long errorLines =
-          Files.lines(logFilePath)
-              .filter(
-                  it ->
-                      it.contains(" ERROR ")
-                          || it.contains("ASSERTION FAILED")
-                          || it.contains("Error:")
-                          || checker.apply(it))
-              .peek(System.out::println)
-              .count();
+      long errorLines = Files.lines(logFilePath)
+          .filter(it -> it.contains(" ERROR ")
+              || it.contains("ASSERTION FAILED")
+              || it.contains("Error:")
+              || checker.apply(it))
+          .peek(System.out::println)
+          .count();
       boolean hasErrors = errorLines > 0;
       if (hasErrors) {
         LOG.info("Test application log is containing errors. See full run logs in {}", logFilePath);

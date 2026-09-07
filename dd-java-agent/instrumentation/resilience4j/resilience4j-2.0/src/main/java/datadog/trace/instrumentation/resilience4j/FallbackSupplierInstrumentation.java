@@ -27,9 +27,8 @@ public class FallbackSupplierInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.FieldValue(value = "supplier", readOnly = false) Supplier<?> supplier) {
-      supplier =
-          new WrapperWithContext.SupplierWithContext<>(
-              supplier, Resilience4jSpanDecorator.DECORATE, null);
+      supplier = new WrapperWithContext.SupplierWithContext<>(
+          supplier, Resilience4jSpanDecorator.DECORATE, null);
     }
 
     // 2.0.0+

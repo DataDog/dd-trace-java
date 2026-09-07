@@ -40,11 +40,10 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
 
   private PayloadDispatcherImpl flushCountingPayloadDispatcher(AtomicInteger flushCounter) {
     PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              flushCounter.incrementAndGet();
-              return null;
-            })
+    doAnswer(inv -> {
+          flushCounter.incrementAndGet();
+          return null;
+        })
         .when(dispatcher)
         .flush();
     return dispatcher;
@@ -57,16 +56,15 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   @Test
   void testHeartbeatsShouldBeTriggeredAutomaticallyWhenEnabled() throws Exception {
     AtomicInteger flushCount = new AtomicInteger();
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            mock(HealthMetrics.class),
-            flushCountingPayloadDispatcher(flushCount),
-            () -> false,
-            FAST_LANE,
-            1,
-            TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        mock(HealthMetrics.class),
+        flushCountingPayloadDispatcher(flushCount),
+        () -> false,
+        FAST_LANE,
+        1,
+        TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
+        null)) {
 
       // processor is started
       worker.start();
@@ -88,16 +86,15 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   @Test
   void testHeartbeatsShouldOccurAtLeastOncePerSecondWhenNotThrottled() throws Exception {
     AtomicInteger flushCount = new AtomicInteger();
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            mock(HealthMetrics.class),
-            flushCountingPayloadDispatcher(flushCount),
-            () -> false,
-            FAST_LANE,
-            1,
-            TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        mock(HealthMetrics.class),
+        flushCountingPayloadDispatcher(flushCount),
+        () -> false,
+        FAST_LANE,
+        1,
+        TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
+        null)) {
 
       // processor is started
       worker.start();
@@ -123,16 +120,15 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     AtomicInteger flushCount = new AtomicInteger();
     // prevent heartbeats from helping the flush happen
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            mock(HealthMetrics.class),
-            flushCountingPayloadDispatcher(flushCount),
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        mock(HealthMetrics.class),
+        flushCountingPayloadDispatcher(flushCount),
+        () -> false,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+        null)) {
       // there is pending work it is completed before a flush
       // processing this span will throw an exception, but it should be caught
       // and not disrupt the flush
@@ -164,10 +160,9 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) int priority) throws Exception {
     Throwable theError = new IllegalStateException("thrown by test");
     PayloadDispatcherImpl throwingDispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              throw theError;
-            })
+    doAnswer(inv -> {
+          throw theError;
+        })
         .when(throwingDispatcher)
         .addTrace(any());
 
@@ -176,26 +171,24 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     // do this manually with a counter, despite mockito's lovely syntactical sugar so we don't have
     // a race condition induced flaky test. All we care about is that an error was reported and that
     // it was the right one
-    doAnswer(
-            inv -> {
-              errorReported.incrementAndGet();
-              return null;
-            })
+    doAnswer(inv -> {
+          errorReported.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onFailedSerialize(any(), any());
 
     // prevent heartbeats from helping the flush happen
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            throwingDispatcher,
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        healthMetrics,
+        throwingDispatcher,
+        () -> false,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+        null)) {
       worker.start();
       // a trace is processed but can't be passed on
       worker.publish(mock(DDSpan.class), priority, Collections.singletonList(mock(DDSpan.class)));
@@ -218,19 +211,17 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   void testTraceShouldBePostProcessed() throws Exception {
     AtomicInteger acceptedCount = new AtomicInteger();
     PayloadDispatcherImpl countingDispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              acceptedCount.getAndIncrement();
-              return null;
-            })
+    doAnswer(inv -> {
+          acceptedCount.getAndIncrement();
+          return null;
+        })
         .when(countingDispatcher)
         .addTrace(any());
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     // Create real DDSpan instances via reflection (DDSpan.create is package-private)
-    Method createMethod =
-        DDSpan.class.getDeclaredMethod(
-            "create", String.class, long.class, DDSpanContext.class, List.class);
+    Method createMethod = DDSpan.class.getDeclaredMethod(
+        "create", String.class, long.class, DDSpanContext.class, List.class);
     createMethod.setAccessible(true);
 
     DDSpanContext ctx1 = mock(DDSpanContext.class);
@@ -250,28 +241,26 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     AtomicBoolean processedSpan2 = new AtomicBoolean(false);
 
     SpanPostProcessor mockProcessor = mock(SpanPostProcessor.class);
-    doAnswer(
-            inv -> {
-              Object spanArg = inv.getArgument(0);
-              if (spanArg == span1) processedSpan1.set(true);
-              if (spanArg == span2) processedSpan2.set(true);
-              return null;
-            })
+    doAnswer(inv -> {
+          Object spanArg = inv.getArgument(0);
+          if (spanArg == span1) processedSpan1.set(true);
+          if (spanArg == span2) processedSpan2.set(true);
+          return null;
+        })
         .when(mockProcessor)
         .process(any(), any());
 
     SpanPostProcessor.Holder.INSTANCE = mockProcessor;
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            countingDispatcher,
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS,
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        healthMetrics,
+        countingDispatcher,
+        () -> false,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS,
+        null)) {
       worker.start();
       // traces are submitted
       List<DDSpan> trace = new ArrayList<>();
@@ -324,33 +313,30 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) int priority, int traceCount) throws Exception {
     AtomicInteger acceptedCount = new AtomicInteger();
     PayloadDispatcherImpl countingDispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              acceptedCount.getAndIncrement();
-              return null;
-            })
+    doAnswer(inv -> {
+          acceptedCount.getAndIncrement();
+          return null;
+        })
         .when(countingDispatcher)
         .addTrace(any());
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     // prevent heartbeats from helping the flush happen
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            countingDispatcher,
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        healthMetrics,
+        countingDispatcher,
+        () -> false,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
+        null)) {
       worker.start();
       // traces are submitted
       int submitted = 0;
       for (int i = 0; i < traceCount; ++i) {
-        PublishResult publishResult =
-            worker.publish(
-                mock(DDSpan.class), priority, Collections.singletonList(mock(DDSpan.class)));
+        PublishResult publishResult = worker.publish(
+            mock(DDSpan.class), priority, Collections.singletonList(mock(DDSpan.class)));
         submitted += publishResult == ENQUEUED_FOR_SERIALIZATION ? 1 : 0;
       }
 
@@ -374,16 +360,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   void testFlushOfFullQueueAfterWorkerThreadStoppedWillNotFlushButWillReturn() {
     PayloadDispatcherImpl countingDispatcher = mock(PayloadDispatcherImpl.class);
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            countingDispatcher,
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS,
-            null);
+    TraceProcessingWorker worker = new TraceProcessingWorker(
+        10, healthMetrics, countingDispatcher, () -> false, FAST_LANE, 100, TimeUnit.SECONDS, null);
     worker.start();
     worker.close();
 
@@ -444,42 +422,39 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     AtomicInteger acceptedCount = new AtomicInteger();
     AtomicInteger acceptedSpanCount = new AtomicInteger();
     PayloadDispatcherImpl countingDispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              List<?> traceList = inv.getArgument(0);
-              acceptedSpanCount.getAndAdd(traceList.size());
-              acceptedCount.getAndIncrement();
-              return null;
-            })
+    doAnswer(inv -> {
+          List<?> traceList = inv.getArgument(0);
+          acceptedSpanCount.getAndAdd(traceList.size());
+          acceptedCount.getAndIncrement();
+          return null;
+        })
         .when(countingDispatcher)
         .addTrace(any());
 
     AtomicInteger sampledSpansCount = new AtomicInteger();
     // drop every other span
-    SingleSpanSampler singleSpanSampler =
-        new SingleSpanSampler() {
-          int counter = 0;
+    SingleSpanSampler singleSpanSampler = new SingleSpanSampler() {
+      int counter = 0;
 
-          @Override
-          public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
-            if (counter++ % 2 == 0) {
-              sampledSpansCount.incrementAndGet();
-              return true;
-            }
-            return false;
-          }
-        };
+      @Override
+      public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
+        if (counter++ % 2 == 0) {
+          sampledSpansCount.incrementAndGet();
+          return true;
+        }
+        return false;
+      }
+    };
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            countingDispatcher,
-            () -> true,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS,
-            singleSpanSampler)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        healthMetrics,
+        countingDispatcher,
+        () -> true,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS,
+        singleSpanSampler)) {
       worker.start();
       // traces are submitted
       for (int i = 0; i < traceCount; ++i) {
@@ -553,42 +528,39 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     AtomicInteger chunksCount = new AtomicInteger();
     AtomicInteger spansCount = new AtomicInteger();
     PayloadDispatcherImpl countingDispatcher = mock(PayloadDispatcherImpl.class);
-    doAnswer(
-            inv -> {
-              List<?> traceList = inv.getArgument(0);
-              spansCount.getAndAdd(traceList.size());
-              chunksCount.getAndIncrement();
-              return null;
-            })
+    doAnswer(inv -> {
+          List<?> traceList = inv.getArgument(0);
+          spansCount.getAndAdd(traceList.size());
+          chunksCount.getAndIncrement();
+          return null;
+        })
         .when(countingDispatcher)
         .addTrace(any());
 
     AtomicInteger sampledSpansCount = new AtomicInteger();
     // drop every other span
-    SingleSpanSampler singleSpanSampler =
-        new SingleSpanSampler() {
-          int counter = 0;
+    SingleSpanSampler singleSpanSampler = new SingleSpanSampler() {
+      int counter = 0;
 
-          @Override
-          public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
-            if (counter++ % 2 == 0) {
-              sampledSpansCount.incrementAndGet();
-              return true;
-            }
-            return false;
-          }
-        };
+      @Override
+      public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
+        if (counter++ % 2 == 0) {
+          sampledSpansCount.incrementAndGet();
+          return true;
+        }
+        return false;
+      }
+    };
 
-    try (TraceProcessingWorker worker =
-        new TraceProcessingWorker(
-            10,
-            healthMetrics,
-            countingDispatcher,
-            () -> false,
-            FAST_LANE,
-            100,
-            TimeUnit.SECONDS,
-            singleSpanSampler)) {
+    try (TraceProcessingWorker worker = new TraceProcessingWorker(
+        10,
+        healthMetrics,
+        countingDispatcher,
+        () -> false,
+        FAST_LANE,
+        100,
+        TimeUnit.SECONDS,
+        singleSpanSampler)) {
       worker.start();
       // traces are submitted
       for (int i = 0; i < traceCount; ++i) {

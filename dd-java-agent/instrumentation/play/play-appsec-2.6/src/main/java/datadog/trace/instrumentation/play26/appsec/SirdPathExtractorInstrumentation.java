@@ -79,9 +79,8 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
         conv.put(Integer.toString(i), stringList.apply(i));
       }
 
-      t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              reqCtx, conv, "sird.PathExtractor#extract");
+      t = PathExtractionHelpers.callRequestPathParamsCallback(
+          reqCtx, conv, "sird.PathExtractor#extract");
     }
   }
 }

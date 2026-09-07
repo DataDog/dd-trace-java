@@ -84,9 +84,8 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         RunContext context = RunContext.getOrCreate(runStamp);
         TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
         TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
-        TestExecutionPolicy executionPolicy =
-            context.getOrCreateExecutionPolicy(
-                testIdentifier, testSourceData, context.tags(testIdentifier));
+        TestExecutionPolicy executionPolicy = context.getOrCreateExecutionPolicy(
+            testIdentifier, testSourceData, context.tags(testIdentifier));
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, executionPolicy);
       }
@@ -106,10 +105,8 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         throws Throwable {
       TestExecutionWrapper invokeWrapper = (TestExecutionWrapper) invokeWithFixture;
       if (invokeWrapper.applicable()) {
-        status =
-            (Status)
-                runTest.invokeWithArguments(
-                    engine, suite, testName, args, includeIcon, invokeWithFixture);
+        status = (Status) runTest.invokeWithArguments(
+            engine, suite, testName, args, includeIcon, invokeWithFixture);
       }
     }
   }

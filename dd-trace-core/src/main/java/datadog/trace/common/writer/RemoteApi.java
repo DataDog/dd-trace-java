@@ -41,9 +41,8 @@ public abstract class RemoteApi {
     failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String responseBody = getResponseBody(response);
-    String sendErrorString =
-        createSendLogMessage(
-            traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
+    String sendErrorString = createSendLogMessage(
+        traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
 
     ioLogger.error(sendErrorString, toLoggerResponse(response, responseBody), outer);
   }

@@ -41,19 +41,18 @@ public class SymbolSink {
   // The upload event message JSON. The "final" field is hard-coded to false:
   // the Java tracer continuously uploads new code as classes get loaded, so
   // there is no defined end-of-upload point.
-  private static final String EVENT_FORMAT =
-      "{%n"
-          + "\"ddsource\": \"dd_debugger\",%n"
-          + "\"service\": \"%s\",%n"
-          + "\"version\": \"%s\",%n"
-          + "\"language\": \"java\",%n"
-          + "\"runtimeId\": \"%s\",%n"
-          + "\"type\": \"symdb\",%n"
-          + "\"uploadId\": \"%s\",%n"
-          + "\"batchNum\": %d,%n"
-          + "\"final\": false,%n"
-          + "\"attachmentSize\": %d%n"
-          + "}";
+  private static final String EVENT_FORMAT = "{%n"
+      + "\"ddsource\": \"dd_debugger\",%n"
+      + "\"service\": \"%s\",%n"
+      + "\"version\": \"%s\",%n"
+      + "\"language\": \"java\",%n"
+      + "\"runtimeId\": \"%s\",%n"
+      + "\"type\": \"symdb\",%n"
+      + "\"uploadId\": \"%s\",%n"
+      + "\"batchNum\": %d,%n"
+      + "\"final\": false,%n"
+      + "\"attachmentSize\": %d%n"
+      + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
 
   private final String serviceName;
@@ -179,16 +178,15 @@ public class SymbolSink {
   }
 
   private BatchUploader.MultiPartContent buildEvent(long currentBatch, int attachmentSize) {
-    byte[] eventContent =
-        String.format(
-                EVENT_FORMAT,
-                serviceName,
-                version,
-                runtimeId,
-                uploadId.toString(),
-                currentBatch,
-                attachmentSize)
-            .getBytes(StandardCharsets.UTF_8);
+    byte[] eventContent = String.format(
+            EVENT_FORMAT,
+            serviceName,
+            version,
+            runtimeId,
+            uploadId.toString(),
+            currentBatch,
+            attachmentSize)
+        .getBytes(StandardCharsets.UTF_8);
     return new BatchUploader.MultiPartContent(
         eventContent, "event", "event.json", APPLICATION_JSON);
   }
@@ -242,21 +240,24 @@ public class SymbolSink {
       // split the jar scope in 2 jar scopes with half of the class scopes
       int half = jarScope.getScopes().size() / 2;
       List<Scope> firstHalf = jarScope.getScopes().subList(0, half);
-      List<Scope> secondHalf = jarScope.getScopes().subList(half, jarScope.getScopes().size());
+      List<Scope> secondHalf =
+          jarScope.getScopes().subList(half, jarScope.getScopes().size());
       LOGGER.debug(
           "split jar scope {} in 2 jar scopes: {} and {}",
           jarScope.getName(),
           firstHalf.size(),
           secondHalf.size());
-      splitAndSend(
-          Arrays.asList(
-              createJarScope(jarScope.getName(), firstHalf),
-              createJarScope(jarScope.getName(), secondHalf)));
+      splitAndSend(Arrays.asList(
+          createJarScope(jarScope.getName(), firstHalf),
+          createJarScope(jarScope.getName(), secondHalf)));
     }
   }
 
   private static Scope createJarScope(String jarName, List<Scope> classScopes) {
-    return Scope.builder(ScopeType.JAR, jarName, 0, 0).name(jarName).scopes(classScopes).build();
+    return Scope.builder(ScopeType.JAR, jarName, 0, 0)
+        .name(jarName)
+        .scopes(classScopes)
+        .build();
   }
 
   private void updateStats(List<Scope> scopesToSerialize, long size) {

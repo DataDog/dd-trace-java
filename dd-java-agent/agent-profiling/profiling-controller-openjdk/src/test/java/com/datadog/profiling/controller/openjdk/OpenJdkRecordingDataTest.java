@@ -30,13 +30,26 @@ public class OpenJdkRecordingDataTest {
 
   private static final String TEST_NAME = "recording name";
 
-  @Mock Instant start;
-  @Mock Instant end;
-  @Mock Instant customStart;
-  @Mock Instant customEnd;
-  @Mock private InputStream stream;
-  @Mock private InputStream customStream;
-  @Mock private Recording recording;
+  @Mock
+  Instant start;
+
+  @Mock
+  Instant end;
+
+  @Mock
+  Instant customStart;
+
+  @Mock
+  Instant customEnd;
+
+  @Mock
+  private InputStream stream;
+
+  @Mock
+  private InputStream customStream;
+
+  @Mock
+  private Recording recording;
 
   private OpenJdkRecordingData recordingData;
   private OpenJdkRecordingData customRecordingData;
@@ -51,9 +64,8 @@ public class OpenJdkRecordingDataTest {
     when(recording.getName()).thenReturn(TEST_NAME);
 
     recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
-    customRecordingData =
-        new OpenJdkRecordingData(
-            recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
+    customRecordingData = new OpenJdkRecordingData(
+        recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   @Test

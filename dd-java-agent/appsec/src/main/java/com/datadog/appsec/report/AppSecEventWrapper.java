@@ -10,11 +10,10 @@ import java.util.Objects;
 
 public class AppSecEventWrapper {
 
-  private static final JsonAdapter<AppSecEventWrapper> ADAPTER =
-      new Moshi.Builder()
-          .add(Double.class, new IntegralDoubleJsonAdapter())
-          .build()
-          .adapter(AppSecEventWrapper.class);
+  private static final JsonAdapter<AppSecEventWrapper> ADAPTER = new Moshi.Builder()
+      .add(Double.class, new IntegralDoubleJsonAdapter())
+      .build()
+      .adapter(AppSecEventWrapper.class);
 
   // Writes whole-number Doubles (e.g. key_path array indices) without a trailing ".0".
 

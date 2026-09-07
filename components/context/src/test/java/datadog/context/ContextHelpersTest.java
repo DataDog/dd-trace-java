@@ -177,11 +177,10 @@ class ContextHelpersTest {
     Context context2 = root().with(errorKey, ErrorStats.from(SEVERE, 1)).with(FLOAT_KEY, 3.14F);
     Context context3 = root().with(errorKey, ErrorStats.from(WARNING, 6)).with(BOOLEAN_KEY, true);
 
-    BinaryOperator<Context> errorStatsMerger =
-        (left, right) -> {
-          ErrorStats mergedStats = ErrorStats.merge(left.get(errorKey), right.get(errorKey));
-          return left.with(errorKey, mergedStats);
-        };
+    BinaryOperator<Context> errorStatsMerger = (left, right) -> {
+      ErrorStats mergedStats = ErrorStats.merge(left.get(errorKey), right.get(errorKey));
+      return left.with(errorKey, mergedStats);
+    };
     Context combined = combine(errorStatsMerger, context1, context2, context3);
     ErrorStats combinedStats = combined.get(errorKey);
     assertNotNull(combinedStats, "Failed to combined error stats");

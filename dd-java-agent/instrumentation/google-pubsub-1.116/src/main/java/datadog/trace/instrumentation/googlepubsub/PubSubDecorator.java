@@ -48,12 +48,10 @@ public class PubSubDecorator extends MessagingClientDecorator {
 
   private static final String PUBSUB = "google-pubsub";
   public static final CharSequence JAVA_PUBSUB = UTF8BytesString.create("java-google-pubsub");
-  public static final CharSequence PUBSUB_CONSUME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation(PUBSUB));
-  public static final CharSequence PUBSUB_PRODUCE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().outboundOperation(PUBSUB));
+  public static final CharSequence PUBSUB_CONSUME = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().inboundOperation(PUBSUB));
+  public static final CharSequence PUBSUB_PRODUCE = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().outboundOperation(PUBSUB));
 
   private static final DDCache<CharSequence, CharSequence> TOPIC_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
@@ -73,23 +71,21 @@ public class PubSubDecorator extends MessagingClientDecorator {
   private static final Function<CharSequence, CharSequence> SUBSCRIPTION_EXTRACTION_FUNCTION =
       new RegexExtractor("^projects/(.+)/subscriptions/(.+)$", 2).andThen(UTF8BytesString::create);
 
-  public static final PubSubDecorator PRODUCER_DECORATE =
-      new PubSubDecorator(
-          Tags.SPAN_KIND_PRODUCER,
-          InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .outboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
+  public static final PubSubDecorator PRODUCER_DECORATE = new PubSubDecorator(
+      Tags.SPAN_KIND_PRODUCER,
+      InternalSpanTypes.MESSAGE_PRODUCER,
+      SpanNaming.instance()
+          .namingSchema()
+          .messaging()
+          .outboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
 
-  public static final PubSubDecorator CONSUMER_DECORATE =
-      new PubSubDecorator(
-          Tags.SPAN_KIND_CONSUMER,
-          InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
+  public static final PubSubDecorator CONSUMER_DECORATE = new PubSubDecorator(
+      Tags.SPAN_KIND_CONSUMER,
+      InternalSpanTypes.MESSAGE_CONSUMER,
+      SpanNaming.instance()
+          .namingSchema()
+          .messaging()
+          .inboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
   private final String spanKind;
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;

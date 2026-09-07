@@ -37,19 +37,17 @@ public class StackUtilsTest {
 
   @Test
   public void test_filter_all_datadog() {
-    final StackTraceElement[] stack =
-        new StackTraceElement[] {
-          stack().className("org.junit.jupiter.api.Test").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
-          stack().className("java.util.function.Function").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("org.junit.jupiter.api.Assertions").build()
-        };
+    final StackTraceElement[] stack = new StackTraceElement[] {
+      stack().className("org.junit.jupiter.api.Test").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
+      stack().className("java.util.function.Function").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
+      stack().className("org.junit.jupiter.api.Assertions").build()
+    };
     final StackTraceElement[] expected = new StackTraceElement[] {stack[0], stack[2], stack[4]};
 
-    final Throwable filtered =
-        StackUtils.filter(
-            withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
+    final Throwable filtered = StackUtils.filter(
+        withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
     assertArrayEquals(expected, filtered.getStackTrace());
 
     final Throwable filtered2 = StackUtils.filterDatadog(withStack(stack));
@@ -58,20 +56,18 @@ public class StackUtilsTest {
 
   @Test
   public void test_stack_filters() {
-    final StackTraceElement[] stack =
-        new StackTraceElement[] {
-          stack().className("org.junit.jupiter.api.Test").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
-          stack().className("java.util.function.Function").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("org.junit.jupiter.api.Assertions").build()
-        };
+    final StackTraceElement[] stack = new StackTraceElement[] {
+      stack().className("org.junit.jupiter.api.Test").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
+      stack().className("java.util.function.Function").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
+      stack().className("org.junit.jupiter.api.Assertions").build()
+    };
     final StackTraceElement[] expected =
         new StackTraceElement[] {stack[0], stack[2], stack[3], stack[4]};
 
-    final Throwable filtered =
-        StackUtils.filterFirst(
-            withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
+    final Throwable filtered = StackUtils.filterFirst(
+        withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
     assertArrayEquals(expected, filtered.getStackTrace());
 
     final Throwable filtered2 = StackUtils.filterFirstDatadog(withStack(stack));
@@ -80,20 +76,18 @@ public class StackUtilsTest {
 
   @Test
   public void test_filter_until() {
-    final StackTraceElement[] stack =
-        new StackTraceElement[] {
-          stack().className("org.junit.jupiter.api.Test").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
-          stack().className("java.util.function.Function").build(),
-          stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("org.junit.jupiter.api.Assertions").build()
-        };
+    final StackTraceElement[] stack = new StackTraceElement[] {
+      stack().className("org.junit.jupiter.api.Test").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
+      stack().className("java.util.function.Function").build(),
+      stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
+      stack().className("org.junit.jupiter.api.Assertions").build()
+    };
 
     final StackTraceElement[] expected = new StackTraceElement[] {stack[4]};
-    final Throwable removed =
-        StackUtils.filterUntil(
-            withStack(stack),
-            entry -> entry.getClassName().equals("datadog.trace.util.stacktrace.StackUtils"));
+    final Throwable removed = StackUtils.filterUntil(
+        withStack(stack),
+        entry -> entry.getClassName().equals("datadog.trace.util.stacktrace.StackUtils"));
     assertArrayEquals(expected, removed.getStackTrace());
 
     final Throwable noRemoval = StackUtils.filterUntil(withStack(stack), entry -> false);

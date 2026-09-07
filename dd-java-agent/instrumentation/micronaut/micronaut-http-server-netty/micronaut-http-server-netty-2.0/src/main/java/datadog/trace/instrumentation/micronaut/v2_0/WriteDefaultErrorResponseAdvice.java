@@ -14,7 +14,8 @@ public class WriteDefaultErrorResponseAdvice {
   public static void beginRequest(
       @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest,
       @Advice.Argument(2) final Throwable cause) {
-    AgentSpan span = nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+    AgentSpan span =
+        nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
     if (null == span) {
       return;
     }

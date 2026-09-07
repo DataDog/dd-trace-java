@@ -62,9 +62,8 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
         @Advice.Local("taskScope") ContextScope taskScope) {
 
       // do this before checkpointing, as the envelope's task scope may already be active
-      taskScope =
-          AdviceUtils.startTaskScope(
-              InstrumentationContext.get(Envelope.class, State.class), envelope);
+      taskScope = AdviceUtils.startTaskScope(
+          InstrumentationContext.get(Envelope.class, State.class), envelope);
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point

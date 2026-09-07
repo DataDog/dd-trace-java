@@ -25,8 +25,13 @@ public final class Source implements Taintable.Source {
       "[unknown: original value was garbage collected]";
 
   private final @SourceTypeString byte origin;
-  @Nullable private final Object name;
-  @Nullable private final Object value;
+
+  @Nullable
+  private final Object name;
+
+  @Nullable
+  private final Object value;
+
   private boolean gcReported;
 
   public Source(final byte origin, @Nullable final Object name, @Nullable final Object value) {

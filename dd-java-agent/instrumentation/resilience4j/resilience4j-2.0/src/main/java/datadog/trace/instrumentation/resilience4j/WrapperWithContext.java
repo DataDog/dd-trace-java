@@ -214,12 +214,9 @@ public class WrapperWithContext<T> {
     @Override
     public CompletionStage<?> get() {
       try (ContextScope ignore = activateScope()) {
-        return delegate
-            .get()
-            .whenComplete(
-                (v, e) -> {
-                  finishSpanIfNeeded();
-                });
+        return delegate.get().whenComplete((v, e) -> {
+          finishSpanIfNeeded();
+        });
       }
     }
   }
@@ -239,11 +236,9 @@ public class WrapperWithContext<T> {
       try (ContextScope ignore = activateScope()) {
         Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
-          ((CompletableFuture<?>) future)
-              .whenComplete(
-                  (v, e) -> {
-                    finishSpanIfNeeded();
-                  });
+          ((CompletableFuture<?>) future).whenComplete((v, e) -> {
+            finishSpanIfNeeded();
+          });
           return future;
         }
         return new FinishOnGetFuture<>(future, this);

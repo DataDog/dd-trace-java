@@ -32,23 +32,21 @@ class SharedBackendMultiAppTest {
 
   @Order(2)
   @RegisterExtension
-  static final SmokeServerApp producer =
-      SmokeServerApp.named("producer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
+  static final SmokeServerApp producer = SmokeServerApp.named("producer")
+      .mainClass("datadog.smoketest.TestServerApp")
+      .args("--server.port=${app.httpPort}")
+      .backend(agent)
+      .noAgent()
+      .build();
 
   @Order(3)
   @RegisterExtension
-  static final SmokeServerApp consumer =
-      SmokeServerApp.named("consumer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
+  static final SmokeServerApp consumer = SmokeServerApp.named("consumer")
+      .mainClass("datadog.smoketest.TestServerApp")
+      .args("--server.port=${app.httpPort}")
+      .backend(agent)
+      .noAgent()
+      .build();
 
   @Test
   void bothAppsRunOnDistinctPorts() {

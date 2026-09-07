@@ -429,24 +429,21 @@ public final class Initializer {
   }
 
   private static String getScript(String scriptName) {
-    return TempLocationManager.getInstance().getTempDir().toString()
-        + "/"
-        + getScriptFileName(scriptName)
-        + " %p";
+    return TempLocationManager.getInstance().getTempDir().toString() + "/"
+        + getScriptFileName(scriptName) + " %p";
   }
 
   private static String getScriptFileName(String scriptName) {
     return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
   }
 
-  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
-      EnumSet.of(
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE);
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS = EnumSet.of(
+      PosixFilePermission.GROUP_READ,
+      PosixFilePermission.GROUP_WRITE,
+      PosixFilePermission.GROUP_EXECUTE,
+      PosixFilePermission.OTHERS_READ,
+      PosixFilePermission.OTHERS_WRITE,
+      PosixFilePermission.OTHERS_EXECUTE);
 
   /**
    * Returns {@code true} when {@code f} is safe to trust: on non-POSIX file systems always returns

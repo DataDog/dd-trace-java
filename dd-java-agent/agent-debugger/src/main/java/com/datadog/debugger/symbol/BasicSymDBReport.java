@@ -40,17 +40,17 @@ public class BasicSymDBReport implements SymDBReport {
   }
 
   public void report() {
-    int totalClasses = classCountByJar.values().stream().mapToInt(Integer::intValue).sum();
-    String content =
-        String.format(
-            "SymDB Report: Scanned jar count=%d, Total class count=%d, class count by jar: %s, Scanned jars: %s, Location errors: %s Missing jars: %s IOExceptions: %s",
-            scannedJars.size(),
-            totalClasses,
-            classCountByJar,
-            scannedJars,
-            locationErrors,
-            missingJars,
-            ioExceptions);
+    int totalClasses =
+        classCountByJar.values().stream().mapToInt(Integer::intValue).sum();
+    String content = String.format(
+        "SymDB Report: Scanned jar count=%d, Total class count=%d, class count by jar: %s, Scanned jars: %s, Location errors: %s Missing jars: %s IOExceptions: %s",
+        scannedJars.size(),
+        totalClasses,
+        classCountByJar,
+        scannedJars,
+        locationErrors,
+        missingJars,
+        ioExceptions);
     LOGGER.info(content);
   }
 }

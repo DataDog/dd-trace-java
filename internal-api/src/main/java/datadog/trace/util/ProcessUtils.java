@@ -33,10 +33,9 @@ public abstract class ProcessUtils {
     if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         Supplier<String> jdk9Supplier =
-            (Supplier<String>)
-                Class.forName("datadog.trace.util.JDK9ExecutableSupplier")
-                    .getDeclaredConstructor()
-                    .newInstance();
+            (Supplier<String>) Class.forName("datadog.trace.util.JDK9ExecutableSupplier")
+                .getDeclaredConstructor()
+                .newInstance();
         return jdk9Supplier.get();
       } catch (Throwable e) {
         log.debug("Could not get process executable path using JDK9ExecutableSupplier", e);

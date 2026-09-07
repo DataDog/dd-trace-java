@@ -57,17 +57,16 @@ public final class InstrumentationPoints {
     } else if (expectsResponse(command)) {
       // Register the callback before closing the scope so the active span is correct when
       // the CompletableFuture instrumentation captures context for the finishing lambda.
-      asyncCommand.handleAsync(
-          (value, ex) -> {
-            if (ex instanceof CancellationException) {
-              span.setTag("db.command.cancelled", true);
-            } else {
-              DECORATE.onError(span, ex);
-            }
-            DECORATE.beforeFinish(span);
-            span.finish();
-            return null;
-          });
+      asyncCommand.handleAsync((value, ex) -> {
+        if (ex instanceof CancellationException) {
+          span.setTag("db.command.cancelled", true);
+        } else {
+          DECORATE.onError(span, ex);
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+        return null;
+      });
       scope.close();
     } else {
       // No response is expected, so we must finish the span now.

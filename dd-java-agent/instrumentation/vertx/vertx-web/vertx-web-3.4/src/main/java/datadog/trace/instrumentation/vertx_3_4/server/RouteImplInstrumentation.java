@@ -69,11 +69,10 @@ public class RouteImplInstrumentation extends InstrumenterModule
     transformer.applyAdvice(
         named("matches")
             .and(takesArguments(3))
-            .and(
-                takesArgument(
-                    0,
-                    named("io.vertx.ext.web.impl.RoutingContextImplBase")
-                        .or(named("io.vertx.ext.web.RoutingContext"))))
+            .and(takesArgument(
+                0,
+                named("io.vertx.ext.web.impl.RoutingContextImplBase")
+                    .or(named("io.vertx.ext.web.RoutingContext"))))
             .and(takesArgument(1, String.class))
             .and(takesArgument(2, boolean.class))
             .and(returns(boolean.class)),

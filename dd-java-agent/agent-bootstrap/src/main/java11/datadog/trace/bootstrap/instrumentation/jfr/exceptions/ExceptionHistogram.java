@@ -89,11 +89,10 @@ public class ExceptionHistogram {
   }
 
   void doEmit() {
-    Stream<Pair<String, Long>> items =
-        histogram.entrySet().stream()
-            .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
-            .filter(p -> p.getValue() != 0)
-            .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
+    Stream<Pair<String, Long>> items = histogram.entrySet().stream()
+        .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
+        .filter(p -> p.getValue() != 0)
+        .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
 
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);

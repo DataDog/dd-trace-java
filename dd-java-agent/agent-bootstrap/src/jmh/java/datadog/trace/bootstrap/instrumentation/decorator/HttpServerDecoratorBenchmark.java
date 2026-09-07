@@ -52,12 +52,10 @@ public class HttpServerDecoratorBenchmark {
   @Setup(Level.Trial)
   public void setUp() {
     request = new Request("GET", URI.create(url));
-    CoreTracer tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .writer(new NoOpWriter()) // Avoid writing
-            .build();
+    CoreTracer tracer = CoreTracer.builder()
+        .strictTraceWrites(true) // Avoid any extra bookkeeping for traces since we write directly
+        .writer(new NoOpWriter()) // Avoid writing
+        .build();
     GlobalTracer.forceRegister(tracer);
     decorator = new BenchmarkHttpServerDecorator();
     Context context = decorator.startSpan(emptyMap(), root());

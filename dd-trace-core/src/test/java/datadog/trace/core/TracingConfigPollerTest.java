@@ -114,17 +114,18 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              // capture config updater for further testing
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          // capture config updater for further testing
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -196,7 +197,8 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
           tracer.captureTraceConfig().getDataStreamsTransactionExtractors();
       assertEquals(1, extractors.size());
       assertEquals("test", extractors.get(0).getName());
-      assertEquals(DataStreamsTransactionExtractor.Type.UNKNOWN, extractors.get(0).getType());
+      assertEquals(
+          DataStreamsTransactionExtractor.Type.UNKNOWN, extractors.get(0).getType());
       assertEquals("value", extractors.get(0).getValue());
       // Remove service level config
       updater.remove(serviceKey, null);
@@ -229,17 +231,18 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              // capture config updater for further testing
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          // capture config updater for further testing
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {

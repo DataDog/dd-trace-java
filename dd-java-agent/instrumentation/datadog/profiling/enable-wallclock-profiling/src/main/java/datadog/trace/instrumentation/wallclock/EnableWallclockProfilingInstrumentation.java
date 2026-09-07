@@ -56,10 +56,9 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
     String adviceClassName = getClass().getName() + "$EnableWallclockSampling";
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("run")
-                    .and(isDeclaredBy(namedOneOf(RUNNABLE_EVENT_LOOPS)))
-                    .and(takesNoArguments())),
+            .and(named("run")
+                .and(isDeclaredBy(namedOneOf(RUNNABLE_EVENT_LOOPS)))
+                .and(takesNoArguments())),
         adviceClassName);
     transformer.applyAdvice(
         isMethod()

@@ -89,11 +89,10 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    3,
-                    named(
-                        "org.junit.platform.engine.support.hierarchical.ThrowableCollector.Factory"))),
+            .and(takesArgument(
+                3,
+                named(
+                    "org.junit.platform.engine.support.hierarchical.ThrowableCollector.Factory"))),
         JUnit5ExecutionInstrumentation.class.getName() + "$BeforeTaskConstructor");
     transformer.applyAdvice(
         named("execute").and(takesNoArguments()),
@@ -147,10 +146,9 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
       Collection<String> testTags = JUnitPlatformUtils.getTags(testDescriptor);
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(framework)
-              .executionPolicy(testIdentifier, testSource, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+          .get(framework)
+          .executionPolicy(testIdentifier, testSource, testTags);
       if (!executionPolicy.applicable()) {
         return null;
       }
@@ -182,9 +180,8 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
          * require every test execution to have a distinct unique ID.
          * Rerunning a test with the ID that was executed previously will cause errors.
          */
-        Map<String, Object> suffix =
-            Collections.singletonMap(
-                JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
+        Map<String, Object> suffix = Collections.singletonMap(
+            JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
 
         TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffix);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);

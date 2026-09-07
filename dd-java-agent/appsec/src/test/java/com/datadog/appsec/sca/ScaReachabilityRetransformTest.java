@@ -138,17 +138,16 @@ class ScaReachabilityRetransformTest {
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(poison)).thenReturn(true);
     when(instr.isModifiableClass(healthy)).thenReturn(true);
-    doAnswer(
-            invocation -> {
-              // Mockito flattens the varargs invocation, so getArguments() yields the individual
-              // Class<?> elements rather than the backing array.
-              for (Object arg : invocation.getArguments()) {
-                if (arg == poison) {
-                  throw new RuntimeException("retransform failed");
-                }
-              }
-              return null;
-            })
+    doAnswer(invocation -> {
+          // Mockito flattens the varargs invocation, so getArguments() yields the individual
+          // Class<?> elements rather than the backing array.
+          for (Object arg : invocation.getArguments()) {
+            if (arg == poison) {
+              throw new RuntimeException("retransform failed");
+            }
+          }
+          return null;
+        })
         .when(instr)
         .retransformClasses(any());
 
@@ -203,14 +202,13 @@ class ScaReachabilityRetransformTest {
     String internalName = Target.class.getName().replace('.', '/');
     // com.example:lib never resolves as a dependency in the test classpath, so processClass()
     // always takes the hasUnresolvedMethodLevelSymbols branch where the cap logic lives.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-dedup\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + internalName
-            + "\",\"method\":\"method\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-dedup\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + internalName
+        + "\",\"method\":\"method\"}]"
+        + "}]}";
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
     Instrumentation instr = mock(Instrumentation.class);
@@ -223,19 +221,18 @@ class ScaReachabilityRetransformTest {
     // The mocked Instrumentation does not run the JVM retransform machinery, so it never calls
     // back into transform(). Do it by hand, once per retransformed Class<?>, exactly as the real
     // JVM would within a single retransformClasses() call.
-    doAnswer(
-            invocation -> {
-              for (Object arg : invocation.getArguments()) {
-                Class<?> c = (Class<?>) arg;
-                t.transform(
-                    null,
-                    c.getName().replace('.', '/'),
-                    c, // classBeingRedefined != null → retransform path → processClass()
-                    c.getProtectionDomain(),
-                    ScaBytecodeTestUtils.bytecodeOf(c));
-              }
-              return null;
-            })
+    doAnswer(invocation -> {
+          for (Object arg : invocation.getArguments()) {
+            Class<?> c = (Class<?>) arg;
+            t.transform(
+                null,
+                c.getName().replace('.', '/'),
+                c, // classBeingRedefined != null → retransform path → processClass()
+                c.getProtectionDomain(),
+                ScaBytecodeTestUtils.bytecodeOf(c));
+          }
+          return null;
+        })
         .when(instr)
         .retransformClasses(any());
 

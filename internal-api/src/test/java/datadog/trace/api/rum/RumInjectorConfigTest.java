@@ -73,22 +73,21 @@ class RumInjectorConfigTest {
       Float sessionSampleRate,
       Float sessionReplaySampleRate,
       String remoteConfigurationId) {
-    RumInjectorConfig injectorConfig =
-        new RumInjectorConfig(
-            applicationId,
-            clientToken,
-            site,
-            service,
-            env,
-            majorVersion,
-            version,
-            trackUserInteractions,
-            trackResources,
-            trackLongTask,
-            defaultPrivacyLevel,
-            sessionSampleRate,
-            sessionReplaySampleRate,
-            remoteConfigurationId);
+    RumInjectorConfig injectorConfig = new RumInjectorConfig(
+        applicationId,
+        clientToken,
+        site,
+        service,
+        env,
+        majorVersion,
+        version,
+        trackUserInteractions,
+        trackResources,
+        trackLongTask,
+        defaultPrivacyLevel,
+        sessionSampleRate,
+        sessionReplaySampleRate,
+        remoteConfigurationId);
 
     String jsonPayload = injectorConfig.jsonPayload();
     assertTrue(jsonPayload.contains(applicationId));
@@ -204,21 +203,20 @@ class RumInjectorConfigTest {
       String remoteConfigurationId) {
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            new RumInjectorConfig(
-                applicationId,
-                clientToken,
-                site,
-                service,
-                env,
-                majorVersion,
-                version,
-                trackUserInteractions,
-                trackResources,
-                trackLongTask,
-                defaultPrivacyLevel,
-                sessionSampleRate,
-                sessionReplaySampleRate,
-                remoteConfigurationId));
+        () -> new RumInjectorConfig(
+            applicationId,
+            clientToken,
+            site,
+            service,
+            env,
+            majorVersion,
+            version,
+            trackUserInteractions,
+            trackResources,
+            trackLongTask,
+            defaultPrivacyLevel,
+            sessionSampleRate,
+            sessionReplaySampleRate,
+            remoteConfigurationId));
   }
 }

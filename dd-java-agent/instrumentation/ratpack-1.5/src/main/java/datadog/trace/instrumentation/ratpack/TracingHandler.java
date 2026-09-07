@@ -47,20 +47,18 @@ public final class TracingHandler implements Handler {
 
     try (final ContextScope scope = activateSpan(ratpackSpan)) {
 
-      ctx.getResponse()
-          .beforeSend(
-              response -> {
-                try (final ContextScope ignored = activateSpan(ratpackSpan)) {
-                  if (nettySpan != null) {
-                    // Rename the netty span resource name with the ratpack route.
-                    DECORATE.onContext(nettySpan, ctx);
-                  }
-                  DECORATE.onResponse(ratpackSpan, response);
-                  DECORATE.onContext(ratpackSpan, ctx);
-                  DECORATE.beforeFinish(ratpackSpan);
-                  ratpackSpan.finish();
-                }
-              });
+      ctx.getResponse().beforeSend(response -> {
+        try (final ContextScope ignored = activateSpan(ratpackSpan)) {
+          if (nettySpan != null) {
+            // Rename the netty span resource name with the ratpack route.
+            DECORATE.onContext(nettySpan, ctx);
+          }
+          DECORATE.onResponse(ratpackSpan, response);
+          DECORATE.onContext(ratpackSpan, ctx);
+          DECORATE.beforeFinish(ratpackSpan);
+          ratpackSpan.finish();
+        }
+      });
 
       setFinalizer = true;
 

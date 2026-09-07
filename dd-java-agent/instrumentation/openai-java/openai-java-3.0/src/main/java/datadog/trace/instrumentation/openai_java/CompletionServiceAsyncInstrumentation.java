@@ -71,9 +71,8 @@ public class CompletionServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpResponseWrapper.wrapFuture(
-                future, span, CompletionDecorator.DECORATE::withCompletion);
+        future = HttpResponseWrapper.wrapFuture(
+            future, span, CompletionDecorator.DECORATE::withCompletion);
       }
       scope.close();
     }
@@ -100,9 +99,8 @@ public class CompletionServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpStreamResponseWrapper.wrapFuture(
-                future, span, CompletionDecorator.DECORATE::withCompletions);
+        future = HttpStreamResponseWrapper.wrapFuture(
+            future, span, CompletionDecorator.DECORATE::withCompletions);
       }
       scope.close();
     }

@@ -82,12 +82,11 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("adviceClassShouldBeOnClasspathProvider")
   void testAdviceClassShouldBeOnTheClasspath(Type type, int errors) throws Exception {
     ValidationContext context = mockValidationContext();
-    BeforeSpecification spec =
-        createBeforeSpec(
-            BeforeStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
-            type,
-            Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    BeforeSpecification spec = createBeforeSpec(
+        BeforeStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
+        type,
+        Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -103,14 +102,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("beforeAdviceShouldReturnVoidProvider")
   void testBeforeAdviceShouldReturnVoid(Class<?> returnType, int errors) {
     ValidationContext context = mockValidationContext();
-    BeforeSpecification spec =
-        createBeforeSpec(
-            BeforeStringConcat.class,
-            "concat",
-            returnType,
-            new Class<?>[] {String.class, String.class},
-            Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    BeforeSpecification spec = createBeforeSpec(
+        BeforeStringConcat.class,
+        "concat",
+        returnType,
+        new Class<?>[] {String.class, String.class},
+        Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors)).addError(eq(ErrorCode.ADVICE_BEFORE_SHOULD_RETURN_VOID), any());
@@ -133,14 +131,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("aroundAdviceReturnTypeProvider")
   void testAroundAdviceShouldReturnTypeCompatibleWithPointcut(Class<?> returnType, int errors) {
     ValidationContext context = mockValidationContext();
-    AroundSpecification spec =
-        createAroundSpec(
-            AroundStringConcat.class,
-            "concat",
-            returnType,
-            new Class<?>[] {String.class, String.class},
-            Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AroundSpecification spec = createAroundSpec(
+        AroundStringConcat.class,
+        "concat",
+        returnType,
+        new Class<?>[] {String.class, String.class},
+        Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -164,15 +161,14 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("afterAdviceReturnTypeProvider")
   void testAfterAdviceShouldReturnTypeCompatibleWithPointcut(Class<?> returnType, int errors) {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            AfterStringConcat.class,
-            "concat",
-            returnType,
-            new Class<?>[] {String.class, String.class, String.class},
-            Arrays.asList(
-                new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        AfterStringConcat.class,
+        "concat",
+        returnType,
+        new Class<?>[] {String.class, String.class, String.class},
+        Arrays.asList(
+            new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -190,11 +186,10 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   void testThisParameterShouldAlwaysBeTheFirst(List<ParameterSpecification> params, int errors)
       throws Exception {
     ValidationContext context = mockValidationContext();
-    AroundSpecification spec =
-        createAroundSpec(
-            AroundStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
-            params,
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AroundSpecification spec = createAroundSpec(
+        AroundStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
+        params,
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -212,14 +207,13 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("thisParameterCompatibilityProvider")
   void testThisParameterShouldBeCompatibleWithPointcut(Class<?> type, int errors) {
     ValidationContext context = mockValidationContext();
-    AroundSpecification spec =
-        createAroundSpec(
-            AroundStringConcat.class,
-            "concat",
-            String.class,
-            new Class<?>[] {type, String.class},
-            Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AroundSpecification spec = createAroundSpec(
+        AroundStringConcat.class,
+        "concat",
+        String.class,
+        new Class<?>[] {type, String.class},
+        Arrays.asList(new ThisSpecification(), new ArgumentSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -248,12 +242,11 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   void testReturnParameterShouldAlwaysBeTheLast(List<ParameterSpecification> params, int errors)
       throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            AfterStringConcat.class.getDeclaredMethod(
-                "concat", String.class, String.class, String.class),
-            params,
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        AfterStringConcat.class.getDeclaredMethod(
+            "concat", String.class, String.class, String.class),
+        params,
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -271,15 +264,14 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("returnParameterCompatibilityProvider")
   void testReturnParameterShouldBeCompatibleWithPointcut(Class<?> returnType, int errors) {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            AfterStringConcat.class,
-            "concat",
-            String.class,
-            new Class<?>[] {String.class, String.class, returnType},
-            Arrays.asList(
-                new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        AfterStringConcat.class,
+        "concat",
+        String.class,
+        new Class<?>[] {String.class, String.class, returnType},
+        Arrays.asList(
+            new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -302,15 +294,14 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @MethodSource("argumentParameterCompatibilityProvider")
   void testArgumentParameterShouldBeCompatibleWithPointcut(Class<?> parameterType, int errors) {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            AfterStringConcat.class,
-            "concat",
-            String.class,
-            new Class<?>[] {String.class, parameterType, String.class},
-            Arrays.asList(
-                new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        AfterStringConcat.class,
+        "concat",
+        String.class,
+        new Class<?>[] {String.class, parameterType, String.class},
+        Arrays.asList(
+            new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context, times(errors))
@@ -343,11 +334,10 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   void testAfterAdviceRequiresThisAndReturnParameters(
       List<ParameterSpecification> params, ErrorCode error) throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            BadAfterStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
-            params,
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        BadAfterStringConcat.class.getDeclaredMethod("concat", String.class, String.class),
+        params,
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context).addError(eq(error), any());
@@ -364,12 +354,11 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     ValidationContext context = mockValidationContext();
     AllArgsSpecification allArgs = new AllArgsSpecification();
     allArgs.setIncludeThis(true);
-    AfterSpecification spec =
-        createAfterSpec(
-            BadAllArgsAfterStringConcat.class.getDeclaredMethod(
-                "concat", Object[].class, String.class, String.class),
-            Arrays.asList(allArgs, new ArgumentSpecification(), new ReturnSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        BadAllArgsAfterStringConcat.class.getDeclaredMethod(
+            "concat", Object[].class, String.class, String.class),
+        Arrays.asList(allArgs, new ArgumentSpecification(), new ReturnSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context).addError(eq(ErrorCode.ADVICE_PARAMETER_ALL_ARGS_MIXED), any());
@@ -385,13 +374,12 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @Test
   void testInheritedMethods() throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            TestInheritedMethod.class.getDeclaredMethod(
-                "after", ServletRequest.class, String.class, String.class),
-            Arrays.asList(
-                new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
-            "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        TestInheritedMethod.class.getDeclaredMethod(
+            "after", ServletRequest.class, String.class, String.class),
+        Arrays.asList(
+            new ThisSpecification(), new ArgumentSpecification(), new ReturnSpecification()),
+        "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)");
 
     spec.validate(context);
   }
@@ -406,16 +394,15 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @EnabledForJreRange(min = JRE.JAVA_9)
   void testInvokeDynamicConstants() throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            TestInvokeDynamicConstants.class.getDeclaredMethod(
-                "after", Object[].class, Object.class, Object[].class),
-            Arrays.asList(
-                new AllArgsSpecification(),
-                new ReturnSpecification(),
-                new InvokeDynamicConstantsSpecification()),
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-            true);
+    AfterSpecification spec = createAfterSpec(
+        TestInvokeDynamicConstants.class.getDeclaredMethod(
+            "after", Object[].class, Object.class, Object[].class),
+        Arrays.asList(
+            new AllArgsSpecification(),
+            new ReturnSpecification(),
+            new InvokeDynamicConstantsSpecification()),
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        true);
 
     spec.validate(context);
   }
@@ -442,13 +429,12 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   void testInvokeDynamicConstantsShouldBeLast(List<ParameterSpecification> params, ErrorCode error)
       throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            TestInvokeDynamicConstants.class.getDeclaredMethod(
-                "after", Object[].class, Object.class, Object[].class),
-            params,
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-            true);
+    AfterSpecification spec = createAfterSpec(
+        TestInvokeDynamicConstants.class.getDeclaredMethod(
+            "after", Object[].class, Object.class, Object[].class),
+        params,
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        true);
 
     spec.validate(context);
     if (error != null) {
@@ -466,16 +452,15 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @EnabledForJreRange(min = JRE.JAVA_9)
   void testInvokeDynamicConstantsOnNonInvokeDynamicPointcut() throws Exception {
     ValidationContext context = mockValidationContext();
-    AfterSpecification spec =
-        createAfterSpec(
-            TestInvokeDynamicConstantsNonInvokeDynamic.class.getDeclaredMethod(
-                "after", Object.class, Object[].class, Object.class, Object[].class),
-            Arrays.asList(
-                new ThisSpecification(),
-                new AllArgsSpecification(),
-                new InvokeDynamicConstantsSpecification(),
-                new ReturnSpecification()),
-            "java.lang.String java.lang.String.concat(java.lang.String)");
+    AfterSpecification spec = createAfterSpec(
+        TestInvokeDynamicConstantsNonInvokeDynamic.class.getDeclaredMethod(
+            "after", Object.class, Object[].class, Object.class, Object[].class),
+        Arrays.asList(
+            new ThisSpecification(),
+            new AllArgsSpecification(),
+            new InvokeDynamicConstantsSpecification(),
+            new ReturnSpecification()),
+        "java.lang.String java.lang.String.concat(java.lang.String)");
 
     spec.validate(context);
     verify(context)
@@ -491,13 +476,12 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @EnabledForJreRange(min = JRE.JAVA_9)
   void testInvokeDynamicConstantsOnNonAfterAdvice() throws Exception {
     ValidationContext context = mockValidationContext();
-    BeforeSpecification spec =
-        createBeforeSpec(
-            TestInvokeDynamicConstantsBefore.class.getDeclaredMethod(
-                "before", Object[].class, Object[].class),
-            Arrays.asList(new AllArgsSpecification(), new InvokeDynamicConstantsSpecification()),
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-            true);
+    BeforeSpecification spec = createBeforeSpec(
+        TestInvokeDynamicConstantsBefore.class.getDeclaredMethod(
+            "before", Object[].class, Object[].class),
+        Arrays.asList(new AllArgsSpecification(), new InvokeDynamicConstantsSpecification()),
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        true);
 
     spec.validate(context);
     verify(context)
@@ -519,23 +503,22 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   @EnabledForJreRange(min = JRE.JAVA_9)
   void testInvokeDynamicOnAroundAdvice() throws Exception {
     ValidationContext context = mockValidationContext();
-    AroundSpecification spec =
-        createAroundSpec(
-            TestInvokeDynamicConstantsAround.class.getDeclaredMethod(
-                "around",
-                MethodHandles.Lookup.class,
-                String.class,
-                java.lang.invoke.MethodType.class,
-                String.class,
-                Object[].class),
-            Arrays.asList(
-                new ArgumentSpecification(),
-                new ArgumentSpecification(),
-                new ArgumentSpecification(),
-                new ArgumentSpecification(),
-                new ArgumentSpecification()),
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-            true);
+    AroundSpecification spec = createAroundSpec(
+        TestInvokeDynamicConstantsAround.class.getDeclaredMethod(
+            "around",
+            MethodHandles.Lookup.class,
+            String.class,
+            java.lang.invoke.MethodType.class,
+            String.class,
+            Object[].class),
+        Arrays.asList(
+            new ArgumentSpecification(),
+            new ArgumentSpecification(),
+            new ArgumentSpecification(),
+            new ArgumentSpecification(),
+            new ArgumentSpecification()),
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        true);
 
     spec.validate(context);
   }

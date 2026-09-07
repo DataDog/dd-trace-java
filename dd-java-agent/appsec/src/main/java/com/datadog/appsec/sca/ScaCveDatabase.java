@@ -159,7 +159,9 @@ public final class ScaCveDatabase {
 
   static final class DatabaseJson {
     int version;
-    @Nullable List<EntryJson> entries;
+
+    @Nullable
+    List<EntryJson> entries;
   }
 
   static final class EntryJson {
@@ -167,13 +169,15 @@ public final class ScaCveDatabase {
     @Nullable
     String vulnId;
 
-    @Nullable String artifact;
+    @Nullable
+    String artifact;
 
     @Json(name = "version_ranges")
     @Nullable
     List<String> versionRanges;
 
-    @Nullable List<SymbolJson> symbols;
+    @Nullable
+    List<SymbolJson> symbols;
   }
 
   static final class SymbolJson {
@@ -181,6 +185,7 @@ public final class ScaCveDatabase {
     @Nullable
     String className;
 
-    @Nullable String method;
+    @Nullable
+    String method;
   }
 }

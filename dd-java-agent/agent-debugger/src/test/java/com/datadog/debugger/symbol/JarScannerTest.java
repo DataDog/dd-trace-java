@@ -28,7 +28,8 @@ class JarScannerTest {
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
     assertEquals(
-        jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
+        jarFileUrl.getFile(),
+        JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
     assertEquals(
         jarFileUrl.getFile(),
         JarScanner.extractJarPath(testClass.getProtectionDomain(), null).toString());
@@ -41,7 +42,8 @@ class JarScannerTest {
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarFileUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
     assertEquals(
-        jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
+        jarFileUrl.getFile(),
+        JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
   }
 
   @Test

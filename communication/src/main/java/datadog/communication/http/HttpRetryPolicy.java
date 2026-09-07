@@ -105,9 +105,8 @@ public class HttpRetryPolicy implements AutoCloseable {
       }
 
       retriesLeft = 0;
-      delay =
-          TimeUnit.SECONDS.toMillis(waitTimeSeconds)
-              + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
+      delay = TimeUnit.SECONDS.toMillis(waitTimeSeconds)
+          + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
       return true;
 
     } else if (responseCode >= 500 || responseCode == NO_RESPONSE_RECEIVED) {

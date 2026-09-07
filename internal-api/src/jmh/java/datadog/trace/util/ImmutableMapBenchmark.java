@@ -240,12 +240,10 @@ public class ImmutableMapBenchmark {
   @Benchmark
   public void iterate_tagMap_forEach(Blackhole blackhole) {
     // Taking advantage of passthrough of contextObj to avoid capturing lambda
-    tagMap.forEach(
-        blackhole,
-        (bh, entry) -> {
-          bh.consume(entry.tag());
-          bh.consume(entry.intValue());
-        });
+    tagMap.forEach(blackhole, (bh, entry) -> {
+      bh.consume(entry.tag());
+      bh.consume(entry.intValue());
+    });
   }
 
   @Benchmark

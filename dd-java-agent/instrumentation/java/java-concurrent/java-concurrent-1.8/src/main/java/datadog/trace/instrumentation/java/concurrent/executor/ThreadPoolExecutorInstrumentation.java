@@ -59,10 +59,8 @@ public final class ThreadPoolExecutorInstrumentation
   // executors which do their own wrapping before calling super,
   // leading to double wrapping, once at the child level and once
   // in ThreadPoolExecutor
-  private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION =
-      not(
-          isDeclaredBy(
-              namedOneOf("org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor")));
+  private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION = not(
+      isDeclaredBy(namedOneOf("org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor")));
 
   @Override
   public String hierarchyMarkerType() {

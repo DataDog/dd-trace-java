@@ -41,16 +41,12 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (carrier == null) {
       return context;
     }
-    datadog.context.Context extracted =
-        defaultPropagator()
-            .extract(
-                convertContext(context),
-                carrier,
-                (carrier1, classifier) -> {
-                  for (String key : getter.keys(carrier1)) {
-                    classifier.accept(key, getter.get(carrier1, key));
-                  }
-                });
+    datadog.context.Context extracted = defaultPropagator()
+        .extract(convertContext(context), carrier, (carrier1, classifier) -> {
+          for (String key : getter.keys(carrier1)) {
+            classifier.accept(key, getter.get(carrier1, key));
+          }
+        });
     return new OtelContext(extracted);
   }
 

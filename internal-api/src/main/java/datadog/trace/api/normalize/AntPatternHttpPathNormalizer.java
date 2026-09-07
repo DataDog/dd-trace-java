@@ -20,27 +20,27 @@ final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
   private final AntPathMatcher matcher = new AntPathMatcher();
 
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(512);
-  private final Function<String, String> cacheLoader =
-      new Function<String, String>() {
-        @Override
-        public String apply(String path) {
-          for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
-            if (matcher.match(resourceNameMatcher.getKey(), path)) {
-              if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
-                return path;
-              }
-              return resourceNameMatcher.getValue();
-            }
+  private final Function<String, String> cacheLoader = new Function<String, String>() {
+    @Override
+    public String apply(String path) {
+      for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
+        if (matcher.match(resourceNameMatcher.getKey(), path)) {
+          if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
+            return path;
           }
-          return null;
+          return resourceNameMatcher.getValue();
         }
-      };
+      }
+      return null;
+    }
+  };
 
   AntPatternHttpPathNormalizer(Map<String, String> httpResourceNameMatchers) {
     resourceNameMatchers = httpResourceNameMatchers;
 
     // Clean up invalid patterns
-    List<String> invalidPatterns = new ArrayList<>(httpResourceNameMatchers.keySet().size());
+    List<String> invalidPatterns =
+        new ArrayList<>(httpResourceNameMatchers.keySet().size());
     for (String pattern : resourceNameMatchers.keySet()) {
       if (!matcher.isPattern(pattern)) {
         invalidPatterns.add(pattern);

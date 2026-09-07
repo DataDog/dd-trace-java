@@ -134,9 +134,8 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
+      enumeration = TaintableEnumeration.wrap(
+          ctx, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 
@@ -155,9 +154,8 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
     }
   }
 
@@ -246,9 +244,8 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
     }
   }
 

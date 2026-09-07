@@ -43,19 +43,18 @@ class SymbolExtractionTransformerTest {
   private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
   private static final String EXCLUDED_PACKAGE = "akka.actor.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
-  private static final Set<String> TRANSFORMER_EXCLUDES =
-      Stream.of(
-              "java.",
-              "jdk.",
-              "sun.",
-              "com.sun.",
-              "utils.",
-              "javax.",
-              "javaslang.",
-              "org.omg.",
-              "org.joor.",
-              "com.datadog.debugger.")
-          .collect(toSet());
+  private static final Set<String> TRANSFORMER_EXCLUDES = Stream.of(
+          "java.",
+          "jdk.",
+          "sun.",
+          "com.sun.",
+          "utils.",
+          "javax.",
+          "javaslang.",
+          "org.omg.",
+          "org.joor.",
+          "com.datadog.debugger.")
+      .collect(toSet());
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
@@ -975,16 +974,15 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction16";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction16.kt";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    Set<String> additionalExcludedPackages =
-        Stream.of(
-                "org.jetbrains.",
-                "kotlin.",
-                "kotlinx.",
-                "org.junit.",
-                "io.vavr.",
-                "com.intellij.",
-                "gnu.trove.")
-            .collect(toSet());
+    Set<String> additionalExcludedPackages = Stream.of(
+            "org.jetbrains.",
+            "kotlin.",
+            "kotlinx.",
+            "org.junit.",
+            "io.vavr.",
+            "com.intellij.",
+            "gnu.trove.")
+        .collect(toSet());
     currentTransformer = createTransformer(symbolSinkMock, additionalExcludedPackages);
     instr.addTransformer(currentTransformer);
     URL resource = CapturedSnapshotTest.class.getResource("/" + SOURCE_FILE);
@@ -1064,17 +1062,15 @@ class SymbolExtractionTransformerTest {
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE));
-    currentTransformer =
-        new SymbolExtractionTransformer(
-            new SymbolAggregator(classNameFiltering, emptyList(), symbolSinkMock, 1),
-            classNameFiltering);
+    currentTransformer = new SymbolExtractionTransformer(
+        new SymbolAggregator(classNameFiltering, emptyList(), symbolSinkMock, 1),
+        classNameFiltering);
     instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
-    assertFalse(
-        symbolSinkMock.jarScopes.stream()
-            .flatMap(scope -> scope.getScopes().stream())
-            .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
+    assertFalse(symbolSinkMock.jarScopes.stream()
+        .flatMap(scope -> scope.getScopes().stream())
+        .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
   }
 
   @Test

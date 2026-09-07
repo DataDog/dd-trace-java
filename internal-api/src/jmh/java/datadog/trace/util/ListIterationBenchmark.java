@@ -118,7 +118,8 @@ public class ListIterationBenchmark {
     }
   }
 
-  @Param ListSpec listSpec;
+  @Param
+  ListSpec listSpec;
 
   List<Element> list;
 

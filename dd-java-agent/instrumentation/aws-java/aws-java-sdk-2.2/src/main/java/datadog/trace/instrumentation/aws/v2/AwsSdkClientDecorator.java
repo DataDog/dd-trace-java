@@ -92,9 +92,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     SNS_PUBLISH_OPERATION_NAMES.add("PublishBatch");
   }
 
-  public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
+  public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
 
   // not static because this object would be ClassLoader specific if multiple SDK instances were
   // loaded by different loaders
@@ -108,12 +108,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     return CACHE.computeIfAbsent(
         qualifiedName,
-        s ->
-            SpanNaming.instance()
-                .namingSchema()
-                .cloud()
-                .operationForRequest(
-                    "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
+        s -> SpanNaming.instance()
+            .namingSchema()
+            .cloud()
+            .operationForRequest(
+                "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
   public void onSdkRequest(
@@ -148,17 +147,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             storageClass -> span.setTag(InstrumentationTags.AWS_STORAGE_CLASS, storageClass));
 
     // SQS
-    request
-        .getValueForField("QueueUrl", String.class)
-        .ifPresent(
-            url -> {
-              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
-              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
-              String queueName = urlFileName(url);
-              if (!queueName.isEmpty()) {
-                setQueueName(span, queueName);
-              }
-            });
+    request.getValueForField("QueueUrl", String.class).ifPresent(url -> {
+      span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+      setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+      String queueName = urlFileName(url);
+      if (!queueName.isEmpty()) {
+        setQueueName(span, queueName);
+      }
+    });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
@@ -174,16 +170,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .getValueForField("StreamName", String.class)
         .ifPresent(name -> setStreamName(span, name));
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
-    kinesisStreamArn.ifPresent(
-        streamArn -> {
-          if (traceConfig().isDataStreamsEnabled()) {
-            attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
-          }
-          int streamNameStart = streamArn.indexOf(":stream/");
-          if (streamNameStart >= 0) {
-            setStreamName(span, streamArn.substring(streamNameStart + 8));
-          }
-        });
+    kinesisStreamArn.ifPresent(streamArn -> {
+      if (traceConfig().isDataStreamsEnabled()) {
+        attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
+      }
+      int streamNameStart = streamArn.indexOf(":stream/");
+      if (streamNameStart >= 0) {
+        setStreamName(span, streamArn.substring(streamNameStart + 8));
+      }
+    });
 
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
@@ -194,10 +189,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           && "kinesis".equalsIgnoreCase(awsServiceName)
           && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
         // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
-        List records =
-            request
-                .getValueForField("Records", List.class)
-                .orElse(Collections.singletonList(request)); // For PutRecord use request
+        List records = request
+            .getValueForField("Records", List.class)
+            .orElse(Collections.singletonList(request)); // For PutRecord use request
 
         for (Object ignored : records) {
           AgentTracer.get()
@@ -207,10 +201,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       } else if (snsTopicName.isPresent()
           && "sns".equalsIgnoreCase(awsServiceName)
           && SNS_PUBLISH_OPERATION_NAMES.contains(awsOperationName)) {
-        List entries =
-            request
-                .getValueForField("PublishBatchRequestEntries", List.class)
-                .orElse(Collections.singletonList(request));
+        List entries = request
+            .getValueForField("PublishBatchRequestEntries", List.class)
+            .orElse(Collections.singletonList(request));
 
         for (Object ignored : entries) {
           AgentTracer.get()
@@ -335,43 +328,37 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L350
         String streamArn = attributes.getAttribute(KINESIS_STREAM_ARN_ATTRIBUTE);
         if (null != streamArn) {
-          response
-              .getValueForField("Records", List.class)
-              .ifPresent(
-                  recordsRaw -> {
-                    //noinspection unchecked
-                    List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
-                    if (!records.isEmpty()) {
-                      DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
-                      if (null == kinesisApproximateArrivalTimestampField) {
-                        Optional<SdkField<?>> maybeField =
-                            records.get(0).sdkFields().stream()
-                                .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
-                                .findFirst();
-                        if (maybeField.isPresent()) {
-                          //noinspection unchecked
-                          kinesisApproximateArrivalTimestampField =
-                              (SdkField<Instant>) maybeField.get();
-                        } else {
-                          // shouldn't be possible
-                          return;
-                        }
-                      }
-                      for (SdkPojo record : records) {
-                        Instant arrivalTime =
-                            kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
-                        AgentDataStreamsMonitoring dataStreamsMonitoring =
-                            AgentTracer.get().getDataStreamsMonitoring();
-                        PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-                        pathwayContext.setCheckpoint(
-                            create(tags, arrivalTime.toEpochMilli(), 0),
-                            dataStreamsMonitoring::add);
-                        if (!span.spanContext().getPathwayContext().isStarted()) {
-                          span.spanContext().mergePathwayContext(pathwayContext);
-                        }
-                      }
-                    }
-                  });
+          response.getValueForField("Records", List.class).ifPresent(recordsRaw -> {
+            //noinspection unchecked
+            List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
+            if (!records.isEmpty()) {
+              DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
+              if (null == kinesisApproximateArrivalTimestampField) {
+                Optional<SdkField<?>> maybeField = records.get(0).sdkFields().stream()
+                    .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
+                    .findFirst();
+                if (maybeField.isPresent()) {
+                  //noinspection unchecked
+                  kinesisApproximateArrivalTimestampField = (SdkField<Instant>) maybeField.get();
+                } else {
+                  // shouldn't be possible
+                  return;
+                }
+              }
+              for (SdkPojo record : records) {
+                Instant arrivalTime =
+                    kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
+                AgentDataStreamsMonitoring dataStreamsMonitoring =
+                    AgentTracer.get().getDataStreamsMonitoring();
+                PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+                pathwayContext.setCheckpoint(
+                    create(tags, arrivalTime.toEpochMilli(), 0), dataStreamsMonitoring::add);
+                if (!span.spanContext().getPathwayContext().isStarted()) {
+                  span.spanContext().mergePathwayContext(pathwayContext);
+                }
+              }
+            }
+          });
         }
       }
 

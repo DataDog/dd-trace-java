@@ -33,9 +33,8 @@ class BlockingResponseHandlerTest {
   void removesResponseFunctionHandlersWhenResponseTracingIsUnavailable() {
     EmbeddedChannel channel = new EmbeddedChannel();
     ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
-    BlockingResponseHandler blockingHandler =
-        new BlockingResponseHandler(
-            null, 403, BlockingContentType.NONE, emptyMap(), null, serverContext);
+    BlockingResponseHandler blockingHandler = new BlockingResponseHandler(
+        null, 403, BlockingContentType.NONE, emptyMap(), null, serverContext);
     channel
         .pipeline()
         .addLast(BEFORE_BLOCKING_HANDLER_NAME, new ChannelInboundHandlerAdapter())
@@ -61,9 +60,8 @@ class BlockingResponseHandlerTest {
     NettyBlockResponseFunction responseFunction =
         new NettyBlockResponseFunction(channel.pipeline(), request, null);
 
-    assertFalse(
-        responseFunction.tryCommitBlockingResponse(
-            null, 403, BlockingContentType.NONE, emptyMap(), null));
+    assertFalse(responseFunction.tryCommitBlockingResponse(
+        null, 403, BlockingContentType.NONE, emptyMap(), null));
 
     assertSame(existingBeforeBlockingHandler, channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
     assertNull(channel.pipeline().get(HANDLER_NAME));
@@ -84,35 +82,29 @@ class BlockingResponseHandlerTest {
       AtomicReference<ServerRequestContext> serverContext = new AtomicReference<>();
       channel
           .eventLoop()
-          .submit(
-              () -> {
-                channel
-                    .pipeline()
-                    .addLast(HttpServerRequestTracingHandler.INSTANCE)
-                    .addLast(HttpServerResponseTracingHandler.INSTANCE);
-                ServerRequestContext.add(channel, Context.root(), null);
-                serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
-              })
+          .submit(() -> {
+            channel
+                .pipeline()
+                .addLast(HttpServerRequestTracingHandler.INSTANCE)
+                .addLast(HttpServerResponseTracingHandler.INSTANCE);
+            ServerRequestContext.add(channel, Context.root(), null);
+            serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
+          })
           .sync();
 
-      Future<?> blockingTask =
-          channel
-              .eventLoop()
-              .submit(
-                  () -> {
-                    eventLoopTaskStarted.countDown();
-                    if (!releaseEventLoop.await(5, SECONDS)) {
-                      throw new AssertionError("event loop was not released");
-                    }
-                    return null;
-                  });
+      Future<?> blockingTask = channel.eventLoop().submit(() -> {
+        eventLoopTaskStarted.countDown();
+        if (!releaseEventLoop.await(5, SECONDS)) {
+          throw new AssertionError("event loop was not released");
+        }
+        return null;
+      });
       assertTrue(eventLoopTaskStarted.await(5, SECONDS), "event loop task did not start");
 
       NettyBlockResponseFunction responseFunction =
           new NettyBlockResponseFunction(channel.pipeline(), request, serverContext.get());
-      assertTrue(
-          responseFunction.tryCommitBlockingResponse(
-              null, 403, BlockingContentType.NONE, emptyMap(), null));
+      assertTrue(responseFunction.tryCommitBlockingResponse(
+          null, 403, BlockingContentType.NONE, emptyMap(), null));
       request.release();
 
       assertNull(channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
@@ -148,38 +140,31 @@ class BlockingResponseHandlerTest {
       AtomicReference<ServerRequestContext> serverContext = new AtomicReference<>();
       channel
           .eventLoop()
-          .submit(
-              () -> {
-                channel
-                    .pipeline()
-                    .addLast(HttpServerRequestTracingHandler.INSTANCE)
-                    .addLast(HttpServerResponseTracingHandler.INSTANCE);
-                serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
-              })
+          .submit(() -> {
+            channel
+                .pipeline()
+                .addLast(HttpServerRequestTracingHandler.INSTANCE)
+                .addLast(HttpServerResponseTracingHandler.INSTANCE);
+            serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
+          })
           .sync();
 
-      Future<?> blockingTask =
-          channel
-              .eventLoop()
-              .submit(
-                  () -> {
-                    eventLoopTaskStarted.countDown();
-                    if (!releaseEventLoop.await(5, SECONDS)) {
-                      throw new AssertionError("event loop was not released");
-                    }
-                    return null;
-                  });
+      Future<?> blockingTask = channel.eventLoop().submit(() -> {
+        eventLoopTaskStarted.countDown();
+        if (!releaseEventLoop.await(5, SECONDS)) {
+          throw new AssertionError("event loop was not released");
+        }
+        return null;
+      });
       assertTrue(eventLoopTaskStarted.await(5, SECONDS), "event loop task did not start");
 
-      Future<?> completionTask =
-          channel
-              .eventLoop()
-              .submit(() -> ServerRequestContext.remove(channel, serverContext.get()));
+      Future<?> completionTask = channel
+          .eventLoop()
+          .submit(() -> ServerRequestContext.remove(channel, serverContext.get()));
       NettyBlockResponseFunction responseFunction =
           new NettyBlockResponseFunction(channel.pipeline(), request, serverContext.get());
-      assertTrue(
-          responseFunction.tryCommitBlockingResponse(
-              null, 403, BlockingContentType.NONE, emptyMap(), null));
+      assertTrue(responseFunction.tryCommitBlockingResponse(
+          null, 403, BlockingContentType.NONE, emptyMap(), null));
       request.release();
 
       releaseEventLoop.countDown();

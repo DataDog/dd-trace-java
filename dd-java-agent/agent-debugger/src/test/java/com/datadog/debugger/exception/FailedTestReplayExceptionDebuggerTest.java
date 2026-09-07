@@ -28,9 +28,8 @@ public class FailedTestReplayExceptionDebuggerTest {
   @BeforeEach
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering =
-        new ClassNameFiltering(
-            new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+    classNameFiltering = new ClassNameFiltering(
+        new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     Config config = createConfig();
     exceptionDebugger =
         new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFiltering, config);

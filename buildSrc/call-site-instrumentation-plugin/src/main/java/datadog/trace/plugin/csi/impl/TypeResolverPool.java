@@ -72,10 +72,9 @@ public class TypeResolverPool implements TypeResolver {
     switch (type.getSort()) {
       case Type.ARRAY:
         Type element = type.getElementType();
-        String elementClassName =
-            element.getSort() == Type.OBJECT
-                ? "L" + element.getClassName() + ";"
-                : element.getInternalName();
+        String elementClassName = element.getSort() == Type.OBJECT
+            ? "L" + element.getClassName() + ";"
+            : element.getInternalName();
         return repeat('[', type.getDimensions()) + elementClassName;
       case Type.OBJECT:
         return type.getClassName();

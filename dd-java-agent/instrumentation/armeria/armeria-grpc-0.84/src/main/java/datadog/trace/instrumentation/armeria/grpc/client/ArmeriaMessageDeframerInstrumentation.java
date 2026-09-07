@@ -34,17 +34,15 @@ public class ArmeriaMessageDeframerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
+            .and(takesArgument(
+                0,
+                named(
+                    "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
         getClass().getName() + "$CaptureClientCallArg0");
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
+            .and(takesArgument(
+                2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
         getClass().getName() + "$CaptureClientCallArg2");
     transformer.applyAdvice(
         isMethod().and(named("process").or(named("deframe"))),
@@ -81,9 +79,9 @@ public class ArmeriaMessageDeframerInstrumentation
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
-      ClientCall clientCall =
-          InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-              .get(messageDeframer);
+      ClientCall clientCall = InstrumentationContext.get(
+              ArmeriaMessageDeframer.class, ClientCall.class)
+          .get(messageDeframer);
       if (clientCall != null) {
         AgentSpan span =
             InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(clientCall);

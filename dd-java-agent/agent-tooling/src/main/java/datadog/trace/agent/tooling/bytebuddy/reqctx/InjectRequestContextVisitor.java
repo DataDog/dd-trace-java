@@ -107,10 +107,9 @@ public class InjectRequestContextVisitor extends ClassVisitor {
     String newSignature = signature;
     if (!hasActiveReqCtxParam) {
       int posClosingBracket = descriptor.indexOf(')');
-      newDescriptor =
-          descriptor.substring(0, posClosingBracket)
-              + REQUEST_CONTEXT_DESCRIPTOR
-              + descriptor.substring(posClosingBracket);
+      newDescriptor = descriptor.substring(0, posClosingBracket)
+          + REQUEST_CONTEXT_DESCRIPTOR
+          + descriptor.substring(posClosingBracket);
       if (signature != null) {
         newSignature = newMethodSignature(signature);
       }
@@ -125,15 +124,14 @@ public class InjectRequestContextVisitor extends ClassVisitor {
 
   private String newMethodSignature(String originalSignature) {
     SignatureReader signatureReader = new SignatureReader(originalSignature);
-    SignatureWriter signatureWriter =
-        new SignatureWriter() {
-          @Override
-          public SignatureVisitor visitReturnType() {
-            visitParameterType().visitClassType(Type.getInternalName(RequestContext.class));
-            visitEnd();
-            return super.visitReturnType();
-          }
-        };
+    SignatureWriter signatureWriter = new SignatureWriter() {
+      @Override
+      public SignatureVisitor visitReturnType() {
+        visitParameterType().visitClassType(Type.getInternalName(RequestContext.class));
+        visitEnd();
+        return super.visitReturnType();
+      }
+    };
     signatureReader.accept(signatureWriter);
     return signatureWriter.toString();
   }
@@ -239,13 +237,12 @@ class AdviceMethodVisitor extends MethodVisitor {
   @Override
   public void visitCode() {
     if (this.addReqCtxParam) {
-      suppressSorter(
-          new Runnable() {
-            @Override
-            public void run() {
-              AdviceMethodVisitor.this.annotateReqCtxParam(AdviceMethodVisitor.this.reqCtxParamIdx);
-            }
-          });
+      suppressSorter(new Runnable() {
+        @Override
+        public void run() {
+          AdviceMethodVisitor.this.annotateReqCtxParam(AdviceMethodVisitor.this.reqCtxParamIdx);
+        }
+      });
     }
 
     super.visitCode();
@@ -281,23 +278,21 @@ class AdviceMethodVisitor extends MethodVisitor {
           "(" + Type.getDescriptor(RequestContextSlot.class) + ")Ljava/lang/Object;",
           true);
       super.visitJumpInsn(Opcodes.IFNULL, this.popBeforeEpilogue);
-      suppressSorter(
-          new Runnable() {
-            @Override
-            public void run() {
-              AdviceMethodVisitor.super.visitVarInsn(
-                  Opcodes.ASTORE, AdviceMethodVisitor.this.reqCtxParamIdx);
-            }
-          });
+      suppressSorter(new Runnable() {
+        @Override
+        public void run() {
+          AdviceMethodVisitor.super.visitVarInsn(
+              Opcodes.ASTORE, AdviceMethodVisitor.this.reqCtxParamIdx);
+        }
+      });
     } else {
-      suppressSorter(
-          new Runnable() {
-            @Override
-            public void run() {
-              AdviceMethodVisitor.super.visitVarInsn(
-                  Opcodes.ALOAD, AdviceMethodVisitor.this.reqCtxParamIdx);
-            }
-          });
+      suppressSorter(new Runnable() {
+        @Override
+        public void run() {
+          AdviceMethodVisitor.super.visitVarInsn(
+              Opcodes.ALOAD, AdviceMethodVisitor.this.reqCtxParamIdx);
+        }
+      });
       super.visitJumpInsn(Opcodes.IFNULL, this.epilogueLabel);
     }
   }
@@ -319,13 +314,12 @@ class AdviceMethodVisitor extends MethodVisitor {
   public void visitEnd() {
     if (shouldFetchReqContext()) {
       super.visitLabel(this.popBeforeEpilogue);
-      suppressSorter(
-          new Runnable() {
-            @Override
-            public void run() {
-              buildParameterFrame(new Object[] {Type.getInternalName(Object.class)});
-            }
-          });
+      suppressSorter(new Runnable() {
+        @Override
+        public void run() {
+          buildParameterFrame(new Object[] {Type.getInternalName(Object.class)});
+        }
+      });
       super.visitInsn(Opcodes.POP);
     }
 
@@ -333,13 +327,12 @@ class AdviceMethodVisitor extends MethodVisitor {
 
     TypeDescription.Generic returnType = methodDescription.getReturnType();
     // add a frame with nothing in the stack and only the parameters as locals
-    suppressSorter(
-        new Runnable() {
-          @Override
-          public void run() {
-            buildParameterFrame(new Object[0]);
-          }
-        });
+    suppressSorter(new Runnable() {
+      @Override
+      public void run() {
+        buildParameterFrame(new Object[0]);
+      }
+    });
 
     addDefaultReturn(returnType);
 
@@ -351,19 +344,18 @@ class AdviceMethodVisitor extends MethodVisitor {
           p.name, p.descriptor, p.signature, this.beginLabel, endLabel, p.index);
     }
     if (this.addReqCtxParam) {
-      suppressSorter(
-          new Runnable() {
-            @Override
-            public void run() {
-              AdviceMethodVisitor.super.visitLocalVariable(
-                  "reqCtx",
-                  Type.getType(RequestContext.class).getDescriptor(),
-                  null,
-                  AdviceMethodVisitor.this.beginLabel,
-                  endLabel,
-                  AdviceMethodVisitor.this.reqCtxParamIdx);
-            }
-          });
+      suppressSorter(new Runnable() {
+        @Override
+        public void run() {
+          AdviceMethodVisitor.super.visitLocalVariable(
+              "reqCtx",
+              Type.getType(RequestContext.class).getDescriptor(),
+              null,
+              AdviceMethodVisitor.this.beginLabel,
+              endLabel,
+              AdviceMethodVisitor.this.reqCtxParamIdx);
+        }
+      });
     }
 
     super.visitEnd();

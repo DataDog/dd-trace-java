@@ -34,26 +34,24 @@ class ProcessBuilderHelper {
     // Gradle daemon.
     //
     //   Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
-    String prefsDir =
-        System.getProperty("java.io.tmpdir")
-            + File.separator
-            + "userPrefs"
-            + File.separator
-            + mainClassName
-            + "_"
-            + System.nanoTime();
+    String prefsDir = System.getProperty("java.io.tmpdir")
+        + File.separator
+        + "userPrefs"
+        + File.separator
+        + mainClassName
+        + "_"
+        + System.nanoTime();
 
-    List<String> baseCommand =
-        Arrays.asList(
-            javaPath(),
-            // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-            "-javaagent:" + agentShadowJar(),
-            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-            "-Ddd.env=smoketest",
-            "-Ddd.version=99",
-            "-Djava.util.prefs.userRoot=" + prefsDir);
+    List<String> baseCommand = Arrays.asList(
+        javaPath(),
+        // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
+        "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
+        "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
+        "-javaagent:" + agentShadowJar(),
+        "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+        "-Ddd.env=smoketest",
+        "-Ddd.version=99",
+        "-Djava.util.prefs.userRoot=" + prefsDir);
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);

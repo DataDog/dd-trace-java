@@ -147,10 +147,9 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
       }
     }
     if (!prematureBootstrapClasses.isEmpty()) {
-      throw new AssertionError(
-          prematureBootstrapClasses.size()
-              + " classes were loaded before bootstrap classpath was initialized: "
-              + prematureBootstrapClasses);
+      throw new AssertionError(prematureBootstrapClasses.size()
+          + " classes were loaded before bootstrap classpath was initialized: "
+          + prematureBootstrapClasses);
     }
     try {
       final File bootstrapJar = createBootstrapJar();
@@ -169,10 +168,9 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
         bootstrapClasses.add(info.getResourceName());
       }
     }
-    URL jar =
-        ClasspathUtils.createJarWithClasses(
-            TestClassShadowingExtension.class.getClassLoader(),
-            bootstrapClasses.toArray(new String[0]));
+    URL jar = ClasspathUtils.createJarWithClasses(
+        TestClassShadowingExtension.class.getClassLoader(),
+        bootstrapClasses.toArray(new String[0]));
     return new File(jar.getFile());
   }
 

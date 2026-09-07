@@ -85,9 +85,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final DBInfo dbInfo = JDBCDecorator.parseDBInfo(
+            connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         final AgentSpan span;
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
@@ -98,11 +97,10 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span =
-                AgentTracer.get()
-                    .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
-                    .withSpanId(spanID)
-                    .start();
+            span = AgentTracer.get()
+                .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
+                .withSpanId(spanID)
+                .start();
           } else if (isOracle) {
             span = startSpan("java-jdbc-statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
@@ -161,15 +159,14 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           } else {
             dbService = span.getServiceName();
           }
-          sql =
-              SQLCommenter.inject(
-                  sql,
-                  dbService,
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb(),
-                  injectTraceInComment ? traceParent : null,
-                  appendComment);
+          sql = SQLCommenter.inject(
+              sql,
+              dbService,
+              dbInfo.getType(),
+              dbInfo.getHost(),
+              dbInfo.getDb(),
+              injectTraceInComment ? traceParent : null,
+              appendComment);
         }
         DECORATE.onStatement(span, copy);
         DECORATE.withBaseHash(span);

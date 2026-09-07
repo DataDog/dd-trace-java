@@ -26,9 +26,8 @@ import javax.annotation.Nonnull;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
-  public static final CharSequence GRAPHQL_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("graphql"));
+  public static final CharSequence GRAPHQL_REQUEST = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().server().operationForProtocol("graphql"));
   public static final CharSequence GRAPHQL_PARSING = UTF8BytesString.create("graphql.parsing");
   public static final CharSequence GRAPHQL_VALIDATION =
       UTF8BytesString.create("graphql.validation");

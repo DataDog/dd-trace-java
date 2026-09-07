@@ -60,7 +60,10 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     private final Config config;
     private final RepoIndexProvider repoIndexProvider;
     private final CoverageReportUploader coverageReportUploader;
-    @Nullable private final String repoRoot;
+
+    @Nullable
+    private final String repoRoot;
+
     private final ModuleSignalRouter moduleSignalRouter;
 
     public Factory(
@@ -103,15 +106,18 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JacocoCoverageProcessor.class);
 
-  @Nullable private final JacocoCoverageProcessor parent;
+  @Nullable
+  private final JacocoCoverageProcessor parent;
 
   private final Config config;
 
   private final RepoIndexProvider repoIndexProvider;
 
-  @Nullable private final CoverageReportUploader coverageReportUploader;
+  @Nullable
+  private final CoverageReportUploader coverageReportUploader;
 
-  @Nullable private final String repoRoot;
+  @Nullable
+  private final String repoRoot;
 
   private final long eventId;
 
@@ -344,7 +350,9 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
 
   private static final class RepoIndexFileLocator extends InputStreamSourceFileLocator {
     private final RepoIndex repoIndex;
-    @Nonnull private final String repoRoot;
+
+    @Nonnull
+    private final String repoRoot;
 
     private RepoIndexFileLocator(RepoIndex repoIndex, @Nonnull String repoRoot) {
       super("utf-8", 4);

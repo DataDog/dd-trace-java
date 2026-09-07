@@ -7,18 +7,17 @@ import javax.annotation.Nullable;
 
 public abstract class Iterators {
 
-  private static final Iterator<?> EMPTY =
-      new Iterator<Object>() {
-        @Override
-        public boolean hasNext() {
-          return false;
-        }
+  private static final Iterator<?> EMPTY = new Iterator<Object>() {
+    @Override
+    public boolean hasNext() {
+      return false;
+    }
 
-        @Override
-        public Object next() {
-          throw new NoSuchElementException();
-        }
-      };
+    @Override
+    public Object next() {
+      throw new NoSuchElementException();
+    }
+  };
 
   private Iterators() {}
 
@@ -98,7 +97,9 @@ public abstract class Iterators {
   private static class JoinIterator implements Iterator<Object> {
     private final Iterator<?>[] iterators;
     private int index;
-    @Nullable private Iterator<?> current;
+
+    @Nullable
+    private Iterator<?> current;
 
     private JoinIterator(@Nonnull final Iterator<?>[] iterators) {
       this.iterators = iterators;

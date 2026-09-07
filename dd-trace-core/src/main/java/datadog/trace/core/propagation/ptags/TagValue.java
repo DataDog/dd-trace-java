@@ -118,10 +118,9 @@ final class TagValue extends TagElement {
   TagValue(Encoding encoding, int hash, CharSequence s, int start, int end) {
     this.source = encoding.ordinal();
     this.hash = hash;
-    values[source] =
-        (start == 0 && end == s.length())
-            ? s
-            : new StringBuilder(end - start).append(s, start, end).toString();
+    values[source] = (start == 0 && end == s.length())
+        ? s
+        : new StringBuilder(end - start).append(s, start, end).toString();
   }
 
   CharSequence forType(Encoding encoding) {

@@ -67,22 +67,19 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   //    Request.class bytecode, NOT just classpath presence, so it works even when both
   //    javax.servlet and jakarta.servlet are on the classpath simultaneously.
   //  Note: GetFilenamesAdvice reads _multiParts with typing=DYNAMIC so it works for all versions.
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
-          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
-          .or()
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiParts",
-              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
-          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+          "org.eclipse.jetty.server.Request")
+      .withMethod(new String[0], 0, "extractContentParameters", "V")
+      .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+      .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
+      .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
+      .or()
+      .withMethod(new String[0], 0, "extractContentParameters", "V")
+      .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+      .withField(
+          new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
+      .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

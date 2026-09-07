@@ -55,12 +55,10 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
       // the user explicitly
       if (!Config.get().isServiceNameSetByUser()) {
         try {
-          appName =
-              (String)
-                  process
-                      .getModule(pmContext)
-                      .getPrototype(pmContext)
-                      .getAttributeValue(pmContext, "$bx_applicationName");
+          appName = (String) process
+              .getModule(pmContext)
+              .getPrototype(pmContext)
+              .getAttributeValue(pmContext, "$bx_applicationName");
         } catch (Throwable t) {
           // cannot find the name
         }

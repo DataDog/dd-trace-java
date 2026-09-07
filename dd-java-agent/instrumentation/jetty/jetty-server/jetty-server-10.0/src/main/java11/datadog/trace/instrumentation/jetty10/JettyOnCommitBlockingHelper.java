@@ -93,18 +93,16 @@ public class JettyOnCommitBlockingHelper {
   static {
     MethodHandle mh = null;
     try {
-      Class<?> mutableCls =
-          Class.forName(
-              "org.eclipse.jetty.http.HttpFields$Mutable",
-              false,
-              JettyOnCommitBlockingHelper.class.getClassLoader());
+      Class<?> mutableCls = Class.forName(
+          "org.eclipse.jetty.http.HttpFields$Mutable",
+          false,
+          JettyOnCommitBlockingHelper.class.getClassLoader());
       Method put = mutableCls.getDeclaredMethod("put", String.class, String.class);
       put.setAccessible(true);
       mh = MethodHandles.lookup().unreflect(put);
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException e) {
-      log.warn(
-          "Could not find method HttpFields$Mutable.put(String,String). "
-              + "Blocking on responses will be unavailable");
+      log.warn("Could not find method HttpFields$Mutable.put(String,String). "
+          + "Blocking on responses will be unavailable");
     }
     PUT_HEADER = mh;
   }

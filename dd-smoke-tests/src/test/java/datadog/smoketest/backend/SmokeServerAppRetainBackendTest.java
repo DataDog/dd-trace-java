@@ -23,13 +23,12 @@ class SmokeServerAppRetainBackendTest {
   private static final CountingBackend BACKEND = new CountingBackend();
 
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("retain-server")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(BACKEND)
-          .noAgent()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp.named("retain-server")
+      .mainClass("datadog.smoketest.TestServerApp")
+      .args("--server.port=${app.httpPort}")
+      .backend(BACKEND)
+      .noAgent()
+      .build();
 
   @Test
   void ownedRetainingBackendIsNotClearedBeforeTests() {

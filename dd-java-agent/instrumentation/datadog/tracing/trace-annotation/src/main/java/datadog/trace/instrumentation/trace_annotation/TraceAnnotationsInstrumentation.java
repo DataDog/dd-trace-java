@@ -37,13 +37,12 @@ public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tr
     annotations.add("datadog.trace.api.Trace");
     final String configString = InstrumenterConfig.get().getTraceAnnotations();
     if (configString == null) {
-      annotations.addAll(
-          Arrays.asList(
-              "com.newrelic.api.agent.Trace",
-              "kamon.annotation.Trace",
-              "com.tracelytics.api.ext.LogMethod",
-              "io.opentracing.contrib.dropwizard.Trace",
-              "org.springframework.cloud.sleuth.annotation.NewSpan"));
+      annotations.addAll(Arrays.asList(
+          "com.newrelic.api.agent.Trace",
+          "kamon.annotation.Trace",
+          "com.tracelytics.api.ext.LogMethod",
+          "io.opentracing.contrib.dropwizard.Trace",
+          "org.springframework.cloud.sleuth.annotation.NewSpan"));
     } else if (!configString.matches(CONFIG_FORMAT)) {
       LoggerFactory.getLogger(TraceAnnotationsInstrumentation.class)
           .warn(

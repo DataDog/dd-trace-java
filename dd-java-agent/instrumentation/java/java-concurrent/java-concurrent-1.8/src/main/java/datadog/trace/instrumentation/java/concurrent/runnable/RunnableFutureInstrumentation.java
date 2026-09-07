@@ -53,13 +53,9 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE_FUTURE)
-        .and(
-            extendsClass(
-                named("java.util.concurrent.FutureTask")
-                    .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
-                    .or(
-                        nameEndsWith(
-                            "com.google.common.util.concurrent.TrustedListenableFutureTask"))));
+        .and(extendsClass(named("java.util.concurrent.FutureTask")
+            .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+            .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask"))));
   }
 
   @Override
@@ -73,15 +69,11 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
     // but only instrument the PromiseTask constructor with a Callable argument
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                isDeclaredBy(
-                        named("java.util.concurrent.FutureTask")
-                            .or(
-                                nameEndsWith(
-                                    "com.google.common.util.concurrent.TrustedListenableFutureTask")))
-                    .or(
-                        isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
-                            .and(takesArgument(1, named(Callable.class.getName()))))),
+            .and(isDeclaredBy(named("java.util.concurrent.FutureTask")
+                    .or(nameEndsWith(
+                        "com.google.common.util.concurrent.TrustedListenableFutureTask")))
+                .or(isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                    .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");

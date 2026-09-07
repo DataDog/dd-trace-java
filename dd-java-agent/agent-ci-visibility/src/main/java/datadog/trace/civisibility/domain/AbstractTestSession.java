@@ -77,23 +77,20 @@ public abstract class AbstractTestSession {
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
     DDTraceId traceId = idGenerationStrategy.generateTraceId();
-    AgentSpanContext traceContext =
-        new TagContext(
-            CIConstants.CIAPP_TEST_ORIGIN,
-            null,
-            null,
-            null,
-            PrioritySampling.UNSET,
-            null,
-            NONE,
-            traceId);
+    AgentSpanContext traceContext = new TagContext(
+        CIConstants.CIAPP_TEST_ORIGIN,
+        null,
+        null,
+        null,
+        PrioritySampling.UNSET,
+        null,
+        NONE,
+        traceId);
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
-            .asChildOf(traceContext)
-            .withSpanId(traceId.toLong());
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer.get()
+        .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
+        .asChildOf(traceContext)
+        .withSpanId(traceId.toLong());
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);

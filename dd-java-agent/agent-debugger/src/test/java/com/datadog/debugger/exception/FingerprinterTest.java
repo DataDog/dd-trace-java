@@ -12,29 +12,28 @@ class FingerprinterTest {
   final Throwable TEST_THROWABLE = new RuntimeException("test");
 
   {
-    TEST_THROWABLE.setStackTrace(
-        new StackTraceElement[] {
-          new StackTraceElement(
-              "com.datadog.debugger.exception.FingerprinterTest",
-              "<init>",
-              "FingerprinterTest.java",
-              10),
-          new StackTraceElement(
-              "org.junit.platform.commons.util.ReflectionUtils",
-              "newInstance",
-              "ReflectionUtils.java",
-              552),
-          new StackTraceElement(
-              "org.junit.jupiter.engine.execution.ConstructorInvocation",
-              "proceed",
-              "ConstructorInvocation.java",
-              56),
-          new StackTraceElement(
-              "org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation",
-              "proceed",
-              "InvocationInterceptorChain.java",
-              131),
-        });
+    TEST_THROWABLE.setStackTrace(new StackTraceElement[] {
+      new StackTraceElement(
+          "com.datadog.debugger.exception.FingerprinterTest",
+          "<init>",
+          "FingerprinterTest.java",
+          10),
+      new StackTraceElement(
+          "org.junit.platform.commons.util.ReflectionUtils",
+          "newInstance",
+          "ReflectionUtils.java",
+          552),
+      new StackTraceElement(
+          "org.junit.jupiter.engine.execution.ConstructorInvocation",
+          "proceed",
+          "ConstructorInvocation.java",
+          56),
+      new StackTraceElement(
+          "org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation",
+          "proceed",
+          "InvocationInterceptorChain.java",
+          131),
+    });
   }
 
   final String TEST_FINGERPRINT = "2ec0db28f254ffa383cbb26a32269bf739ba937b9dd8f111d22294e6a494855";

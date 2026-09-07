@@ -128,8 +128,10 @@ public class TraceAssemblyBenchmark {
     root.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
 
     for (int i = 0; i < childCount; i++) {
-      AgentSpan child =
-          tracer.buildSpan(INSTRUMENTATION_NAME, CHILD_OPERATION).asChildOf(root).start();
+      AgentSpan child = tracer
+          .buildSpan(INSTRUMENTATION_NAME, CHILD_OPERATION)
+          .asChildOf(root)
+          .start();
       child.setTag(Tags.COMPONENT, COMPONENT_VALUE);
       child.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
       child.finish();

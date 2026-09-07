@@ -41,9 +41,8 @@ public class ContainerInfo {
   private static final Pattern LINE_PATTERN = Pattern.compile("(\\d+):([^:]*):(.+)$");
   private static final Pattern POD_PATTERN =
       Pattern.compile("(?:.+)?pod(" + UUID_REGEX + ")(?:.slice)?$");
-  private static final Pattern CONTAINER_PATTERN =
-      Pattern.compile(
-          "(?:.+)?(" + UUID_REGEX + "|" + CONTAINER_REGEX + "|" + TASK_REGEX + ")(?:.scope)?$");
+  private static final Pattern CONTAINER_PATTERN = Pattern.compile(
+      "(?:.+)?(" + UUID_REGEX + "|" + CONTAINER_REGEX + "|" + TASK_REGEX + ")(?:.scope)?$");
 
   private static final ContainerInfo INSTANCE;
 

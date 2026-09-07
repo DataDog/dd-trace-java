@@ -65,9 +65,8 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("discover")
-            .and(
-                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
-                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
+            .and(takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+                .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
         JUnit5ExecutionStoreInstrumentation.class.getName() + "$ContextStoreAdvice");
   }
 

@@ -82,12 +82,11 @@ public abstract class AbstractInstrumentationTest {
 
     // Create shared test writer and tracer
     writer = new ListWriter();
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
-            .strictTraceWrites(testConfig.strictTraceWrites)
-            .build();
+    CoreTracer coreTracer = CoreTracer.builder()
+        .writer(writer)
+        .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
+        .strictTraceWrites(testConfig.strictTraceWrites)
+        .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
 
@@ -104,9 +103,8 @@ public abstract class AbstractInstrumentationTest {
             .hasNext(),
         "No instrumentation found");
     transformerListener = new ClassFileTransformerListener();
-    activeTransformer =
-        AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
+    activeTransformer = AgentInstaller.installBytebuddyAgent(
+        INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
 
     // check for instrumentation issues during installation
     assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
@@ -203,8 +201,8 @@ public abstract class AbstractInstrumentationTest {
     if (span instanceof DDSpan) {
       TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
       if (!(traceCollector instanceof PendingTrace)) {
-        throw new IllegalStateException(
-            "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());
+        throw new IllegalStateException("Expected PendingTrace trace collector, got "
+            + traceCollector.getClass().getName());
       }
 
       PendingTrace pendingTrace = (PendingTrace) traceCollector;
@@ -212,9 +210,8 @@ public abstract class AbstractInstrumentationTest {
 
       while (pendingTrace.size() < numberOfSpans) {
         if (System.currentTimeMillis() > deadline) {
-          throw new RuntimeException(
-              new TimeoutException(
-                  "Timed out waiting for child spans. Received: " + pendingTrace.size()));
+          throw new RuntimeException(new TimeoutException(
+              "Timed out waiting for child spans. Received: " + pendingTrace.size()));
         }
         try {
           Thread.sleep(10);

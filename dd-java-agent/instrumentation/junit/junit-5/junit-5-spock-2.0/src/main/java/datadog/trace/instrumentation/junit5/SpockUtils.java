@@ -119,7 +119,10 @@ public class SpockUtils {
     // We want to filter out iteration nodes to avoid reporting the same test twice,
     // but keep them for parameterized tests to report each set of parameters as a separate test.
     return !(testDescriptor instanceof IterationNode)
-        || testDescriptor.getParent().map(c -> c instanceof ParameterizedFeatureNode).orElse(false);
+        || testDescriptor
+            .getParent()
+            .map(c -> c instanceof ParameterizedFeatureNode)
+            .orElse(false);
   }
 
   private static Method getTestMethod(MethodSource methodSource) {

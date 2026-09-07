@@ -56,7 +56,8 @@ public final class LLMObsFeedbackEvent {
    * @return the batch serializer
    */
   public static LLMObsIntakeWorker.BatchSerializer<LLMObsFeedbackEvent> batchSerializer() {
-    Moshi moshi = new Moshi.Builder().add(LLMObsFeedbackEvent.class, new Adapter()).build();
+    Moshi moshi =
+        new Moshi.Builder().add(LLMObsFeedbackEvent.class, new Adapter()).build();
     JsonAdapter<Request> requestAdapter = moshi.adapter(Request.class);
     return batch -> requestAdapter.toJson(new Request(batch));
   }

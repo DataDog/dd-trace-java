@@ -158,10 +158,9 @@ public final class ContinuableScopeManager {
     assert span != null;
 
     // Inherit the async propagation from the active scope unless the value is overridden
-    boolean asyncPropagation =
-        overrideAsyncPropagation
-            ? isAsyncPropagating
-            : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
+    boolean asyncPropagation = overrideAsyncPropagation
+        ? isAsyncPropagating
+        : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     Context context = top != null ? top.context.with(span) : span;
 

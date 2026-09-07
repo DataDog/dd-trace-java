@@ -172,10 +172,9 @@ class StringTokenWriterTest {
 
   private String serializeValue(Object value, Limits limits) throws Exception {
     StringBuilder sb = new StringBuilder();
-    SerializerWithLimits serializer =
-        new SerializerWithLimits(
-            new StringTokenWriter(sb, new ArrayList<>()),
-            TimeoutChecker.create(Config.get(), Duration.ofSeconds(300)));
+    SerializerWithLimits serializer = new SerializerWithLimits(
+        new StringTokenWriter(sb, new ArrayList<>()),
+        TimeoutChecker.create(Config.get(), Duration.ofSeconds(300)));
     serializer.serialize(
         value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
     return sb.toString();

@@ -45,25 +45,22 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
       if (ptags.getTraceSource() != ProductTraceSource.UNSET) {
-        size =
-            codec.appendTag(
-                sb,
-                TRACE_SOURCE_TAG,
-                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
-                size);
+        size = codec.appendTag(
+            sb,
+            TRACE_SOURCE_TAG,
+            TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
+            size);
       }
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
       }
       if (ptags.getKnuthSamplingRateTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+        size = codec.appendTag(
+            sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
       }
       if (ptags.getOrgPropagationMarkerTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+        size = codec.appendTag(
+            sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -122,12 +119,18 @@ abstract class PTagsCodec {
     if (propagationTags.getKnuthSamplingRateTagValue() != null) {
       tagMap.put(
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
+          propagationTags
+              .getKnuthSamplingRateTagValue()
+              .forType(Encoding.DATADOG)
+              .toString());
     }
     if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
       tagMap.put(
           ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString());
+          propagationTags
+              .getOrgPropagationMarkerTagValue()
+              .forType(Encoding.DATADOG)
+              .toString());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(

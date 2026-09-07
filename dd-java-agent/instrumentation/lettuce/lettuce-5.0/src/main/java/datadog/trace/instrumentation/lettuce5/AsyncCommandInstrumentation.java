@@ -48,9 +48,8 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))),
+            .and(takesArguments(1)
+                .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))),
         getClass().getName() + "$Capture");
     transformer.applyAdvice(
         isMethod().and(namedOneOf("complete", "completeExceptionally", "onComplete", "encode")),

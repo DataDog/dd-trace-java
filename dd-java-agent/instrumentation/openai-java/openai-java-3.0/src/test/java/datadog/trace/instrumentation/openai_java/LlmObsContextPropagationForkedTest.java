@@ -39,24 +39,20 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
   @BeforeAll
   static void setupMockOpenAi() throws IOException {
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    mockServer.createContext(
-        "/v1/",
-        exchange -> {
-          exchange.sendResponseHeaders(200, -1);
-          exchange.close();
-        });
+    mockServer.createContext("/v1/", exchange -> {
+      exchange.sendResponseHeaders(200, -1);
+      exchange.close();
+    });
     mockServer.start();
 
-    openAiClient =
-        OpenAIOkHttpClient.builder()
-            .baseUrl(
-                "http://"
-                    + mockServer.getAddress().getHostString()
-                    + ":"
-                    + mockServer.getAddress().getPort()
-                    + "/v1")
-            .credential(BearerTokenCredential.create(""))
-            .build();
+    openAiClient = OpenAIOkHttpClient.builder()
+        .baseUrl("http://"
+            + mockServer.getAddress().getHostString()
+            + ":"
+            + mockServer.getAddress().getPort()
+            + "/v1")
+        .credential(BearerTokenCredential.create(""))
+        .build();
   }
 
   @AfterAll
@@ -172,15 +168,14 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanInheritsDroppedSamplingDecisionFromActiveContext() throws Exception {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              null,
-              null,
-              "0.25",
-              LLMObsContext.SAMPLING_DECISION_DROPPED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          null,
+          null,
+          "0.25",
+          LLMObsContext.SAMPLING_DECISION_DROPPED,
+          null,
+          null)) {
         try {
           openAiClient.chat().completions().create(buildMinimalChatParams());
         } catch (Exception ignored) {
@@ -203,15 +198,14 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanInheritsRetainedSamplingDecisionFromActiveContext() throws Exception {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              null,
-              null,
-              "1",
-              LLMObsContext.SAMPLING_DECISION_SAMPLED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          null,
+          null,
+          "1",
+          LLMObsContext.SAMPLING_DECISION_SAMPLED,
+          null,
+          null)) {
         try {
           openAiClient.chat().completions().create(buildMinimalChatParams());
         } catch (Exception ignored) {
@@ -255,15 +249,14 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     // but its span is never made the active tracer span, so the openai.request call below starts
     // a brand-new trace and the trace-consistency gate in OpenAiDecorator must skip inheritance.
     AgentSpan staleParent = AgentTracer.startSpan("test", "stale-parent");
-    try (ContextScope ignored =
-        LLMObsContext.attach(
-            staleParent.spanContext(),
-            "stale-session",
-            "stale-version",
-            "0.25",
-            LLMObsContext.SAMPLING_DECISION_DROPPED,
-            "stale-agent-span-id",
-            "stale-agent")) {
+    try (ContextScope ignored = LLMObsContext.attach(
+        staleParent.spanContext(),
+        "stale-session",
+        "stale-version",
+        "0.25",
+        LLMObsContext.SAMPLING_DECISION_DROPPED,
+        "stale-agent-span-id",
+        "stale-agent")) {
       try {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       } catch (Exception ignored2) {

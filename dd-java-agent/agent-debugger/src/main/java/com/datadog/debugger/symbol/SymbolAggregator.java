@@ -65,12 +65,10 @@ public class SymbolAggregator {
   }
 
   public void start() {
-    flushRemainingScopeScheduled =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(this::flushRemainingScopes, this, 0, 1, TimeUnit.SECONDS);
-    scanJarsScheduled =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(this::scanQueuedJars, this, 0, 1, TimeUnit.SECONDS);
+    flushRemainingScopeScheduled = AgentTaskScheduler.get()
+        .scheduleAtFixedRate(this::flushRemainingScopes, this, 0, 1, TimeUnit.SECONDS);
+    scanJarsScheduled = AgentTaskScheduler.get()
+        .scheduleAtFixedRate(this::scanQueuedJars, this, 0, 1, TimeUnit.SECONDS);
   }
 
   public void stop() {
@@ -211,10 +209,8 @@ public class SymbolAggregator {
         try (JarFile jarFile = openJarFile(jarPathFile)) {
           jarFile.stream()
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
-              .filter(
-                  jarEntry ->
-                      !classNameFilter.isExcluded(
-                          Strings.getClassName(trimPrefixes(jarEntry.getName()))))
+              .filter(jarEntry -> !classNameFilter.isExcluded(
+                  Strings.getClassName(trimPrefixes(jarEntry.getName()))))
               .forEach(
                   jarEntry -> parseJarEntry(symDBReport, jarEntry, jarFile, jarPath, baos, buffer));
         }
@@ -243,10 +239,8 @@ public class SymbolAggregator {
           // explicitly no follow links walking the directory to avoid cycles
           .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
           .filter(path -> path.toString().endsWith(".class"))
-          .filter(
-              path ->
-                  !classNameFilter.isExcluded(
-                      Strings.getClassName(trimPrefixes(jarPath.relativize(path).toString()))))
+          .filter(path -> !classNameFilter.isExcluded(
+              Strings.getClassName(trimPrefixes(jarPath.relativize(path).toString()))))
           .forEach(path -> parseFileEntry(symDBReport, path, jarPath, baos, buffer));
       alreadyScannedJars.add(jarPath.toString());
     } catch (IOException e) {

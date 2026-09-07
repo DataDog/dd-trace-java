@@ -59,10 +59,8 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
       if (exchange == null || exchange.getInMessage() == null || AgentTracer.activeSpan() != null) {
         return null;
       }
-      final Object contextObj =
-          ServletHelper.getServletRequestAttribute(
-              exchange.getInMessage().get("HTTP.REQUEST"),
-              HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+      final Object contextObj = ServletHelper.getServletRequestAttribute(
+          exchange.getInMessage().get("HTTP.REQUEST"), HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
         return ((Context) contextObj).attach();
       }

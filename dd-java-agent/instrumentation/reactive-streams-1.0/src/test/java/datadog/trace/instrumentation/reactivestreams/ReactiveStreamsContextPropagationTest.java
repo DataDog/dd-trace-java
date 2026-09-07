@@ -37,9 +37,8 @@ class ReactiveStreamsContextPropagationTest {
     try (ContextScope activeScope = active.attach()) {
       assertSame(active, Context.current());
 
-      final ContextScope scope =
-          ReactiveStreamsContextPropagation.captureOnSubscribe(
-              publisher, subscriber, publisherContexts, subscriberContexts);
+      final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+          publisher, subscriber, publisherContexts, subscriberContexts);
       try {
         // The captured context must win over the ambient active one
         assertNotNull(scope, "captured context should be attached over the active context");
@@ -76,9 +75,8 @@ class ReactiveStreamsContextPropagationTest {
 
     final Context active = Context.root().with(KEY, "active");
     try (ContextScope activeScope = active.attach()) {
-      final ContextScope scope =
-          ReactiveStreamsContextPropagation.captureOnSubscribe(
-              publisher, subscriber, publisherContexts, subscriberContexts);
+      final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+          publisher, subscriber, publisherContexts, subscriberContexts);
       if (scope != null) {
         scope.close();
       }
@@ -103,9 +101,8 @@ class ReactiveStreamsContextPropagationTest {
     producer.start();
     producer.join();
 
-    final ContextScope scope =
-        ReactiveStreamsContextPropagation.captureOnSubscribe(
-            publisher, subscriber, publisherContexts, subscriberContexts);
+    final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+        publisher, subscriber, publisherContexts, subscriberContexts);
     if (scope != null) {
       scope.close();
     }

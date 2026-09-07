@@ -52,9 +52,8 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
             .and(named("filter"))
             .and(takesArguments(2))
             .and(takesArgument(0, String.class))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller")))
+            .and(takesArgument(
+                1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller")))
             .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))),
         ParameterDirectivesImplInstrumentation.class.getName() + "$FilterAdvice");
 
@@ -65,9 +64,8 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
             .and(named("repeatedFilter"))
             .and(takesArguments(2))
             .and(takesArgument(0, String.class))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller")))
+            .and(takesArgument(
+                1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller")))
             .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))),
         ParameterDirectivesImplInstrumentation.class.getName() + "$RepeatedFilterAdvice");
   }

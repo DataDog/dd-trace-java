@@ -56,10 +56,8 @@ public class HotspotCrashLogParserTest {
   /** macOS aarch64 uses lowercase register names: x0-x28, fp, lr, sp, pc, cpsr */
   @Test
   public void testRegisterParsingMacosAarch64() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
+    CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
 
     assertNotNull(crashLog.experimental, "experimental field should be populated");
     assertNotNull(crashLog.experimental.ucontext, "ucontext should be populated");
@@ -80,9 +78,8 @@ public class HotspotCrashLogParserTest {
     assertNotNull(crashLog.experimental.runtimeArgs);
     assertTrue(crashLog.experimental.runtimeArgs.contains("--enable-native-access=ALL-UNNAMED"));
     assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
-    assertFalse(
-        crashLog.experimental.runtimeArgs.stream()
-            .anyMatch(arg -> arg.contains("SourceLauncher") || arg.endsWith("CrashTest.java")));
+    assertFalse(crashLog.experimental.runtimeArgs.stream()
+        .anyMatch(arg -> arg.contains("SourceLauncher") || arg.endsWith("CrashTest.java")));
   }
 
   /**
@@ -92,10 +89,8 @@ public class HotspotCrashLogParserTest {
    */
   @Test
   public void testRegisterToMemoryMappingMacosAarch64() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
+    CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
 
     Map<String, String> mapping = crashLog.experimental.registerToMemoryMapping;
 
@@ -135,10 +130,8 @@ public class HotspotCrashLogParserTest {
   /** Linux aarch64 uses uppercase register names: R0-R30 */
   @Test
   public void testRegisterParsingLinuxAarch64() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
+    CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
 
     assertNotNull(crashLog.experimental, "experimental field should be populated");
     assertNotNull(crashLog.experimental.ucontext, "ucontext should be populated");
@@ -150,9 +143,8 @@ public class HotspotCrashLogParserTest {
 
   @Test
   public void testRegisterToMemoryMapping() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
+    CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
 
     assertThat(crashLog.experimental).isNotNull();
     assertThat(crashLog.experimental.registerToMemoryMapping)
@@ -174,10 +166,8 @@ public class HotspotCrashLogParserTest {
 
   @Test
   public void testRegisterToMultilineMemoryMapping() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
+    CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
 
     assertThat(crashLog.experimental).isNotNull();
     assertThat(crashLog.experimental.registerToMemoryMapping).isNotNull().containsKey("R10");
@@ -197,26 +187,21 @@ public class HotspotCrashLogParserTest {
 
   @Test
   public void testRuntimeArgsFilteringFromHotspotJvmArgs() throws Exception {
-    final CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
+    final CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
 
     assertNotNull(crashLog.experimental);
     assertNotNull(crashLog.experimental.runtimeArgs);
-    assertTrue(
-        crashLog.experimental.runtimeArgs.contains(
-            "-javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar"));
+    assertTrue(crashLog.experimental.runtimeArgs.contains(
+        "-javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar"));
     assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
     assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
     assertTrue(
         crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("--add-opens=")));
-    assertFalse(
-        crashLog.experimental.runtimeArgs.stream()
-            .anyMatch(arg -> arg.startsWith("-Djavax.xml.ws.spi.Provider=")));
-    assertTrue(
-        crashLog.experimental.runtimeArgs.stream()
-            .anyMatch(arg -> arg.startsWith("-Djava.util.logging.config.file=")));
+    assertFalse(crashLog.experimental.runtimeArgs.stream()
+        .anyMatch(arg -> arg.startsWith("-Djavax.xml.ws.spi.Provider=")));
+    assertTrue(crashLog.experimental.runtimeArgs.stream()
+        .anyMatch(arg -> arg.startsWith("-Djava.util.logging.config.file=")));
   }
 
   @TableTest({
@@ -234,10 +219,8 @@ public class HotspotCrashLogParserTest {
 
   @Test
   public void testFrameTypesFromHotspotStack() throws Exception {
-    final CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
+    final CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
 
     assertEquals("vm", crashLog.error.stack.frames[0].frameType);
     assertEquals("native", crashLog.error.stack.frames[3].frameType);
@@ -249,11 +232,9 @@ public class HotspotCrashLogParserTest {
 
   @Test
   public void testParsesJdk8CompiledFramesWithoutCompilerLevel() throws Exception {
-    final CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(),
-                readFileAsString("sample-crash-jdk8-zip-getentry.txt"));
+    final CrashLog crashLog = new HotspotCrashLogParser()
+        .parse(
+            UUID.randomUUID().toString(), readFileAsString("sample-crash-jdk8-zip-getentry.txt"));
 
     assertEquals(10, crashLog.error.stack.frames.length);
     // native frames
@@ -300,16 +281,15 @@ public class HotspotCrashLogParserTest {
     // Minimal crash log fragment that drives the parser into REGISTER_TO_MEMORY_MAPPING state,
     // then encounters a siginfo: line (returned null by nextThreadSectionState — intentional, not
     // a state transition), then continues with another register entry.
-    String log =
-        "# A fatal error has been detected by the Java Runtime Environment:\n"
-            + "# A core dump file may have been created\n"
-            + "T H R E A D\n"
-            + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
-            + "Register to memory mapping:\n"
-            + "\n"
-            + "RSP =0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80\n"
-            + "siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000070\n"
-            + "RDI =0x0 is NULL\n";
+    String log = "# A fatal error has been detected by the Java Runtime Environment:\n"
+        + "# A core dump file may have been created\n"
+        + "T H R E A D\n"
+        + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
+        + "Register to memory mapping:\n"
+        + "\n"
+        + "RSP =0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80\n"
+        + "siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000070\n"
+        + "RDI =0x0 is NULL\n";
 
     CrashLog crashLog = new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), log);
 
@@ -362,13 +342,12 @@ public class HotspotCrashLogParserTest {
   @Test
   public void testNoSignalProducesInternalError() throws Exception {
     // A crash log that reaches the PROCESS section but has no siginfo line
-    String crashLog =
-        "# A fatal error has been detected by the Java Runtime Environment:\n"
-            + "#\n"
-            + "# Core dump will be written.\n"
-            + "---------------  T H R E A D  ---------------\n"
-            + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
-            + "---------------  P R O C E S S  ---------------\n";
+    String crashLog = "# A fatal error has been detected by the Java Runtime Environment:\n"
+        + "#\n"
+        + "# Core dump will be written.\n"
+        + "---------------  T H R E A D  ---------------\n"
+        + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
+        + "---------------  P R O C E S S  ---------------\n";
 
     CrashLog result = new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), crashLog);
 

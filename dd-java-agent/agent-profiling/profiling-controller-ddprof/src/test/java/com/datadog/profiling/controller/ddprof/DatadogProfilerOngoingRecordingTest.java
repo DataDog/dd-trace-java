@@ -25,8 +25,11 @@ public class DatadogProfilerOngoingRecordingTest {
 
   private static final String TEST_NAME = "recording name";
 
-  @Mock private Instant start;
-  @Mock private Instant end;
+  @Mock
+  private Instant start;
+
+  @Mock
+  private Instant end;
 
   private DatadogProfilerOngoingRecording ongoingRecording;
 

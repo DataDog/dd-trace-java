@@ -211,9 +211,8 @@ public enum CiVisibilityCountMetric {
       tagIdxMultipliers[0] = 1;
     }
     for (int i = 1; i < tags.length; i++) {
-      tagIdxMultipliers[i] =
-          tagIdxMultipliers[i - 1]
-              * (tagValues[i - 1].length + 1); // +1 to account for "no value" (omitted tag)
+      tagIdxMultipliers[i] = tagIdxMultipliers[i - 1]
+          * (tagValues[i - 1].length + 1); // +1 to account for "no value" (omitted tag)
     }
 
     IndexHolder.INDEX = getEndIndex();
@@ -228,11 +227,10 @@ public enum CiVisibilityCountMetric {
   }
 
   public int getEndIndex() {
-    int delta =
-        tagValues.length > 0
-            ? (tagIdxMultipliers[tagIdxMultipliers.length - 1]
-                * (tagValues[tagValues.length - 1].length + 1))
-            : 1;
+    int delta = tagValues.length > 0
+        ? (tagIdxMultipliers[tagIdxMultipliers.length - 1]
+            * (tagValues[tagValues.length - 1].length + 1))
+        : 1;
     return index + delta;
   }
 
@@ -259,13 +257,12 @@ public enum CiVisibilityCountMetric {
             * (tagValue.ordinal() + 1); // +1 to account for "no value" (omitted tag)
       }
     }
-    throw new IllegalArgumentException(
-        "Metric "
-            + name()
-            + " cannot be tagged with "
-            + tag.getSimpleName()
-            + ", allowed tags are "
-            + Arrays.toString(tags));
+    throw new IllegalArgumentException("Metric "
+        + name()
+        + " cannot be tagged with "
+        + tag.getSimpleName()
+        + ", allowed tags are "
+        + Arrays.toString(tags));
   }
 
   public TagValue[] getTagValues(int index) {

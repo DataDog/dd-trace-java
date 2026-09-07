@@ -81,14 +81,12 @@ final class CardinalityLimitReporter {
   private String summarize() {
     StringBuilder builder = new StringBuilder(blockedByTag.size() * APPROX_CHARS_PER_ENTRY);
     // Non-capturing: the builder is threaded through as forEach's context argument.
-    blockedByTag.forEach(
-        builder,
-        (into, entry) -> {
-          if (into.length() > 0) {
-            into.append(", ");
-          }
-          into.append(entry.key()).append('=').append(entry.count);
-        });
+    blockedByTag.forEach(builder, (into, entry) -> {
+      if (into.length() > 0) {
+        into.append(", ");
+      }
+      into.append(entry.key()).append('=').append(entry.count);
+    });
     return builder.toString();
   }
 

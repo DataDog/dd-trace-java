@@ -111,10 +111,9 @@ public class ProfilingAgent {
       ProfilerFlareReporter.register();
       ProcessContext.register(configProvider);
 
-      boolean startForceFirst =
-          Platform.isNativeImage()
-              || configProvider.getBoolean(
-                  PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+      boolean startForceFirst = Platform.isNativeImage()
+          || configProvider.getBoolean(
+              PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
 
       if (!isStartForceFirstSafe()) {
         log.debug(
@@ -151,11 +150,10 @@ public class ProfilingAgent {
         RecordingDataListener listener = uploader::upload;
         if (dumper != null) {
           RecordingDataListener upload = listener;
-          listener =
-              (type, data, sync) -> {
-                dumper.onNewData(type, data, sync);
-                upload.onNewData(type, data, sync);
-              };
+          listener = (type, data, sync) -> {
+            dumper.onNewData(type, data, sync);
+            upload.onNewData(type, data, sync);
+          };
         }
         // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
         // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
@@ -164,9 +162,8 @@ public class ProfilingAgent {
             && !isOracleJDK8()) {
           List<String> excludeEventTypes =
               configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
-          boolean failOpen =
-              configProvider.getBoolean(
-                  PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+          boolean failOpen = configProvider.getBoolean(
+              PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
           listener = wrapWithScrubber(listener, excludeEventTypes, failOpen);
         }
 
@@ -177,16 +174,15 @@ public class ProfilingAgent {
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        profiler =
-            new ProfilingSystem(
-                configProvider,
-                controller,
-                context.snapshot(),
-                listener,
-                startupDelay,
-                startupDelayRandomRange,
-                uploadPeriod,
-                startForceFirst);
+        profiler = new ProfilingSystem(
+            configProvider,
+            controller,
+            context.snapshot(),
+            listener,
+            startupDelay,
+            startupDelayRandomRange,
+            uploadPeriod,
+            startForceFirst);
         profiler.start();
         log.debug("Profiling has started");
 

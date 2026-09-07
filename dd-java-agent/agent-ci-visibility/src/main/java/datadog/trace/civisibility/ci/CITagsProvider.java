@@ -154,12 +154,14 @@ public class CITagsProvider {
     }
 
     public CITagsBuilder withGitCommitHeadSha(final PullRequestInfo pullRequestInfo) {
-      return putTagValue(Tags.GIT_COMMIT_HEAD_SHA, pullRequestInfo.getHeadCommit().getSha());
+      return putTagValue(
+          Tags.GIT_COMMIT_HEAD_SHA, pullRequestInfo.getHeadCommit().getSha());
     }
 
     public CITagsBuilder withGitCommitHeadAuthorName(final PullRequestInfo pullRequestInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_HEAD_AUTHOR_NAME, pullRequestInfo.getHeadCommit().getAuthor().getName());
+          Tags.GIT_COMMIT_HEAD_AUTHOR_NAME,
+          pullRequestInfo.getHeadCommit().getAuthor().getName());
     }
 
     public CITagsBuilder withGitCommitHeadAuthorEmail(final PullRequestInfo pullRequestInfo) {
@@ -218,11 +220,13 @@ public class CITagsProvider {
     }
 
     public CITagsBuilder withGitCommitAuthorName(final GitInfo gitInfo) {
-      return putTagValue(Tags.GIT_COMMIT_AUTHOR_NAME, gitInfo.getCommit().getAuthor().getName());
+      return putTagValue(
+          Tags.GIT_COMMIT_AUTHOR_NAME, gitInfo.getCommit().getAuthor().getName());
     }
 
     public CITagsBuilder withGitCommitAuthorEmail(final GitInfo gitInfo) {
-      return putTagValue(Tags.GIT_COMMIT_AUTHOR_EMAIL, gitInfo.getCommit().getAuthor().getEmail());
+      return putTagValue(
+          Tags.GIT_COMMIT_AUTHOR_EMAIL, gitInfo.getCommit().getAuthor().getEmail());
     }
 
     public CITagsBuilder withGitCommitAuthorDate(final GitInfo gitInfo) {

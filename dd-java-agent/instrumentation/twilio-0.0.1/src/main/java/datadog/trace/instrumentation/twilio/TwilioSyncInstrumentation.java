@@ -37,13 +37,12 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
   /** Match any child class of the base Twilio service classes. */
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-        namedOneOf(
-            "com.twilio.base.Creator",
-            "com.twilio.base.Deleter",
-            "com.twilio.base.Fetcher",
-            "com.twilio.base.Reader",
-            "com.twilio.base.Updater"));
+    return extendsClass(namedOneOf(
+        "com.twilio.base.Creator",
+        "com.twilio.base.Deleter",
+        "com.twilio.base.Fetcher",
+        "com.twilio.base.Reader",
+        "com.twilio.base.Updater"));
   }
 
   /** Return the helper classes which will be available for use in instrumentation. */

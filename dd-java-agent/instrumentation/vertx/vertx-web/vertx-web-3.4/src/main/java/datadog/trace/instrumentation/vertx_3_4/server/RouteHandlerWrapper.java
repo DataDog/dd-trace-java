@@ -30,9 +30,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     // a route is not found, without this code, a span would be created for the router when it
     // shouldn't
     String name = handler.getClass().getName();
-    spanStarter =
-        !(name.startsWith(RouterImpl.class.getName())
-            || name.startsWith(RouteImpl.class.getName()));
+    spanStarter = !(name.startsWith(RouterImpl.class.getName())
+        || name.startsWith(RouteImpl.class.getName()));
   }
 
   @Override

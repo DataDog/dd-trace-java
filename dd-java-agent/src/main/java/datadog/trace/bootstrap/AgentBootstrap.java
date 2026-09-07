@@ -160,9 +160,8 @@ public final class AgentBootstrap {
       throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
     }
     try {
-      final Method startMethod =
-          agentClass.getMethod(
-              "start", Object.class, Instrumentation.class, URL.class, String.class);
+      final Method startMethod = agentClass.getMethod(
+          "start", Object.class, Instrumentation.class, URL.class, String.class);
       startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
     } catch (Throwable e) {
       throw new IllegalStateException("Unable to start DD Java Agent.", e);
@@ -173,16 +172,15 @@ public final class AgentBootstrap {
     switch (configName) {
       case LIB_INJECTION_ENABLED_ENV_VAR:
         return EnvironmentVariables.get(LIB_INJECTION_ENABLED_ENV_VAR) != null;
-      case LIB_INJECTION_FORCE_SYS_PROP:
-        {
-          String envVarName =
-              LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
-          String injectionForceFlag = EnvironmentVariables.get(envVarName);
-          if (injectionForceFlag == null) {
-            injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
-          }
-          return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
+      case LIB_INJECTION_FORCE_SYS_PROP: {
+        String envVarName =
+            LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
+        String injectionForceFlag = EnvironmentVariables.get(envVarName);
+        if (injectionForceFlag == null) {
+          injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
         }
+        return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
+      }
       default:
         return false;
     }
@@ -477,9 +475,8 @@ public final class AgentBootstrap {
       for (final String argument : JavaVirtualMachine.getVmOptions()) {
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
-          String agentPathname =
-              argument.substring(
-                  JAVA_AGENT_ARGUMENT.length(), index == -1 ? argument.length() : index);
+          String agentPathname = argument.substring(
+              JAVA_AGENT_ARGUMENT.length(), index == -1 ? argument.length() : index);
           File agentFile = new File(agentPathname);
           if (agentFile.exists() && agentFile.isFile()) {
             agentFiles.add(agentFile);
@@ -527,12 +524,11 @@ public final class AgentBootstrap {
         }
       }
     }
-    throw new IllegalStateException(
-        "dd-java-agent is not installed, because class '"
-            + thisClass.getCanonicalName()
-            + "' is located in '"
-            + jarUrl
-            + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
+    throw new IllegalStateException("dd-java-agent is not installed, because class '"
+        + thisClass.getCanonicalName()
+        + "' is located in '"
+        + jarUrl
+        + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
   }
 
   /** Returns {@code true} if the JVM is training, i.e. writing to a CDS/AOT archive. */

@@ -34,10 +34,9 @@ public final class OtlpCommonProto {
   public static final int I32_WIRE_TYPE = 5;
 
   // use same cache approach for attribute keys as TraceMapperV0_4
-  private static final SimpleUtf8Cache KEY_CACHE =
-      Config.get().getTagNameUtf8CacheSize() > 0
-          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
-          : null;
+  private static final SimpleUtf8Cache KEY_CACHE = Config.get().getTagNameUtf8CacheSize() > 0
+      ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+      : null;
 
   // use same cache approach for attribute values as TraceMapperV0_4
   private static final GenerationalUtf8Cache VALUE_CACHE =

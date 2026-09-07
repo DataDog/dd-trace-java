@@ -73,20 +73,18 @@ public class AppSecSystem {
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
-    APP_SEC_CONFIG_SERVICE =
-        new AppSecConfigServiceImpl(
-            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
+    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(
+        config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       APP_SEC_CONFIG_SERVICE.init();
     }
     sco.createRemaining(config);
 
-    GatewayBridge gatewayBridge =
-        new GatewayBridge(
-            gw,
-            REPLACEABLE_EVENT_PRODUCER,
-            () -> API_SECURITY_SAMPLER,
-            APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
+    GatewayBridge gatewayBridge = new GatewayBridge(
+        gw,
+        REPLACEABLE_EVENT_PRODUCER,
+        () -> API_SECURITY_SAMPLER,
+        APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(
         eventDispatcher, sco.monitoring, appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
@@ -120,7 +118,8 @@ public class AppSecSystem {
     // Report to the product change via telemetry
     log.debug("AppSec is now {}", status ? "active" : "inactive");
     ProductChangeCollector.get()
-        .update(new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
+        .update(
+            new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
     if (status) {
       maybeInitializeApiSecurity();
     }

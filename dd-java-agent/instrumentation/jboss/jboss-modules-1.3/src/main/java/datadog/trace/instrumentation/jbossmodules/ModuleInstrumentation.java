@@ -57,13 +57,11 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("loadModuleClass"))
-            .and(
-                takesArguments(1)
+            .and(takesArguments(1)
+                .and(takesArgument(0, String.class))
+                .or(takesArguments(2)
                     .and(takesArgument(0, String.class))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, String.class))
-                            .and(takesArgument(1, boolean.class)))),
+                    .and(takesArgument(1, boolean.class)))),
         ModuleInstrumentation.class.getName() + "$WidenLoadClassAdvice");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureModuleNameAdvice");
   }

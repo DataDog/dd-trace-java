@@ -48,9 +48,8 @@ public final class MDBMessageConsumerInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
-                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
+        .and(hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+            .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
   }
 
   @Override

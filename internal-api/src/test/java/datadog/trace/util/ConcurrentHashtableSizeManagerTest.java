@@ -353,18 +353,17 @@ class ConcurrentHashtableSizeManagerTest {
       java.util.concurrent.atomic.AtomicInteger granted =
           new java.util.concurrent.atomic.AtomicInteger();
       java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
-      Runnable reserve =
-          () -> {
-            try {
-              start.await();
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              return;
-            }
-            if (sizeManager.tryReserve()) {
-              granted.incrementAndGet();
-            }
-          };
+      Runnable reserve = () -> {
+        try {
+          start.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        if (sizeManager.tryReserve()) {
+          granted.incrementAndGet();
+        }
+      };
       Thread t1 = new Thread(reserve, "reserve-1");
       Thread t2 = new Thread(reserve, "reserve-2");
       t1.start();

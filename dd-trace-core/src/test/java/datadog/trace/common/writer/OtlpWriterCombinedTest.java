@@ -23,25 +23,21 @@ class OtlpWriterCombinedTest extends DDCoreJavaSpecification {
 
     CountDownLatch received = new CountDownLatch(1);
     HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    server.createContext(
-        "/v1/traces",
-        exchange -> {
-          received.countDown();
-          exchange.sendResponseHeaders(200, -1);
-          exchange.close();
-        });
+    server.createContext("/v1/traces", exchange -> {
+      received.countDown();
+      exchange.sendResponseHeaders(200, -1);
+      exchange.close();
+    });
     server.start();
 
-    OtlpWriter writer =
-        OtlpWriter.builder()
-            .endpoint(
-                "http://"
-                    + server.getAddress().getHostString()
-                    + ":"
-                    + server.getAddress().getPort()
-                    + "/v1/traces")
-            .flushIntervalMilliseconds(-1)
-            .build();
+    OtlpWriter writer = OtlpWriter.builder()
+        .endpoint("http://"
+            + server.getAddress().getHostString()
+            + ":"
+            + server.getAddress().getPort()
+            + "/v1/traces")
+        .flushIntervalMilliseconds(-1)
+        .build();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
       tracer.buildSpan("test", "fakeOperation").start().finish();

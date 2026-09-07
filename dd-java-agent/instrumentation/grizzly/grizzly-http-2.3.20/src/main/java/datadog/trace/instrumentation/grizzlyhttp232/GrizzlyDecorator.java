@@ -128,9 +128,8 @@ public class GrizzlyDecorator
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      nextAction =
-          GrizzlyHttpBlockingHelper.block(
-              ctx, (HttpServerFilter) thiz, httpRequest, httpResponse, rba, nextAction);
+      nextAction = GrizzlyHttpBlockingHelper.block(
+          ctx, (HttpServerFilter) thiz, httpRequest, httpResponse, rba, nextAction);
     }
     if (ActiveSubsystems.APPSEC_ACTIVE) {
       RequestContext requestContext = span.getRequestContext();

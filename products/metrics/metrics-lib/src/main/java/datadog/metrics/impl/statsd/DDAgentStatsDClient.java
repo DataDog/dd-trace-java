@@ -77,13 +77,12 @@ public final class DDAgentStatsDClient implements StatsDClient {
       final String message,
       final String... tags) {
 
-    ServiceCheck serviceCheck =
-        ServiceCheck.builder()
-            .withName(nameMapping.apply(serviceCheckName))
-            .withStatus(serviceCheckStatus(status))
-            .withMessage(message)
-            .withTags(tagMapping.apply(tags))
-            .build();
+    ServiceCheck serviceCheck = ServiceCheck.builder()
+        .withName(nameMapping.apply(serviceCheckName))
+        .withStatus(serviceCheckStatus(status))
+        .withMessage(message)
+        .withTags(tagMapping.apply(tags))
+        .build();
 
     connection.statsd.recordServiceCheckRun(serviceCheck);
   }
@@ -92,13 +91,12 @@ public final class DDAgentStatsDClient implements StatsDClient {
   public void recordEvent(
       String type, String source, String eventName, String message, String... tags) {
     Event.AlertType alertType = Event.AlertType.valueOf(type.toUpperCase());
-    Event.Builder eventBuilder =
-        Event.builder()
-            .withTitle(eventName)
-            .withText(message)
-            .withSourceTypeName(source)
-            .withDate(System.currentTimeMillis())
-            .withAlertType(alertType);
+    Event.Builder eventBuilder = Event.builder()
+        .withTitle(eventName)
+        .withText(message)
+        .withSourceTypeName(source)
+        .withDate(System.currentTimeMillis())
+        .withAlertType(alertType);
     connection.statsd.recordEvent(eventBuilder.build(), tagMapping.apply(tags));
   }
 

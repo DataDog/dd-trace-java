@@ -61,14 +61,13 @@ public class AsyncServlet3 extends HttpServlet {
 
   {
     try {
-      delegate =
-          new datadog.trace.instrumentation.servlet3.TestServlet3.Sync() {
-            @Override
-            public HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
-              return HttpServerTest.ServerEndpoint.forPath(
-                  req.getRequestURI().substring(req.getRequestURI().lastIndexOf('/')));
-            }
-          };
+      delegate = new datadog.trace.instrumentation.servlet3.TestServlet3.Sync() {
+        @Override
+        public HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+          return HttpServerTest.ServerEndpoint.forPath(
+              req.getRequestURI().substring(req.getRequestURI().lastIndexOf('/')));
+        }
+      };
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -111,28 +110,27 @@ public class AsyncServlet3 extends HttpServlet {
 
       AsyncContext asyncContext = req.startAsync();
       asyncContext.setTimeout(1000);
-      asyncContext.addListener(
-          new AsyncListener() {
-            @Override
-            public void onComplete(AsyncEvent event) throws IOException {
-              log("onComplete");
-            }
+      asyncContext.addListener(new AsyncListener() {
+        @Override
+        public void onComplete(AsyncEvent event) throws IOException {
+          log("onComplete");
+        }
 
-            @Override
-            public void onTimeout(AsyncEvent event) throws IOException {
-              log("onTimeout");
-            }
+        @Override
+        public void onTimeout(AsyncEvent event) throws IOException {
+          log("onTimeout");
+        }
 
-            @Override
-            public void onError(AsyncEvent event) throws IOException {
-              log("onError", event.getThrowable());
-            }
+        @Override
+        public void onError(AsyncEvent event) throws IOException {
+          log("onError", event.getThrowable());
+        }
 
-            @Override
-            public void onStartAsync(AsyncEvent event) throws IOException {
-              event.getAsyncContext().addListener(this);
-            }
-          });
+        @Override
+        public void onStartAsync(AsyncEvent event) throws IOException {
+          event.getAsyncContext().addListener(this);
+        }
+      });
 
       ServletOutputStream outputStream;
       try {
@@ -141,20 +139,19 @@ public class AsyncServlet3 extends HttpServlet {
         throw new RuntimeException(e);
       }
 
-      WriteListener listener =
-          new WriteListener() {
-            @Override
-            public void onWritePossible() throws IOException {
-              outputStream.write(baos.toByteArray());
-              asyncContext.complete();
-            }
+      WriteListener listener = new WriteListener() {
+        @Override
+        public void onWritePossible() throws IOException {
+          outputStream.write(baos.toByteArray());
+          asyncContext.complete();
+        }
 
-            @Override
-            public void onError(Throwable e) {
-              log("onError", e);
-              asyncContext.complete();
-            }
-          };
+        @Override
+        public void onError(Throwable e) {
+          log("onError", e);
+          asyncContext.complete();
+        }
+      };
 
       try {
         Method setWriteListener =

@@ -18,23 +18,14 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
     final IastRequestContext iastRequestContext = new IastRequestContext();
 
     final String tainted = new String("I am a tainted string");
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            tainted,
-            new Range[] {
-              new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
-            });
+    iastRequestContext.getTaintedObjects().taint(tainted, new Range[] {
+      new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
+    });
 
     final String taintedDelimiter = new String("-");
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedDelimiter,
-            new Range[] {
-              new Range(
-                  0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
-            });
+    iastRequestContext.getTaintedObjects().taint(taintedDelimiter, new Range[] {
+      new Range(0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
+    });
 
     return new StringJoinBenchmark.Context(
         iastRequestContext, notTainted, tainted, notTaintedDelimiter, taintedDelimiter);

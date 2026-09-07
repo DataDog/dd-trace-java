@@ -10,15 +10,14 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 final class GetterAccess {
-  private static final ClassValue<GetterAccess> GETTER_ACCESS =
-      GenericClassValue.of(
-          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-          new Function<Class<?>, GetterAccess>() {
-            @Override
-            public GetterAccess apply(final Class<?> requestType) {
-              return new GetterAccess(requestType);
-            }
-          });
+  private static final ClassValue<GetterAccess> GETTER_ACCESS = GenericClassValue.of(
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
+      new Function<Class<?>, GetterAccess>() {
+        @Override
+        public GetterAccess apply(final Class<?> requestType) {
+          return new GetterAccess(requestType);
+        }
+      });
 
   static GetterAccess of(final Object request) {
     return GETTER_ACCESS.get(request.getClass());

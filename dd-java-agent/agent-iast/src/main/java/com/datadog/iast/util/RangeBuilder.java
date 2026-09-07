@@ -25,8 +25,12 @@ public class RangeBuilder {
   private final int maxSize;
   private final int arrayChunkSize;
   private int size;
-  @Nullable protected Entry head;
-  @Nullable protected Entry tail;
+
+  @Nullable
+  protected Entry head;
+
+  @Nullable
+  protected Entry tail;
 
   public RangeBuilder() {
     this(TaintedObject.MAX_RANGE_COUNT);
@@ -141,7 +145,8 @@ public class RangeBuilder {
   }
 
   protected abstract static class Entry {
-    @Nullable protected Entry next;
+    @Nullable
+    protected Entry next;
 
     protected abstract int size();
 

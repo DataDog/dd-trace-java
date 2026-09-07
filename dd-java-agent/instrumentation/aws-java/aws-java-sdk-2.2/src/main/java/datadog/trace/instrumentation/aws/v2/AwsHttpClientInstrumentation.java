@@ -50,9 +50,8 @@ public final class AwsHttpClientInstrumentation
         isMethod()
             .and(isPublic())
             .and(named("execute"))
-            .and(
-                takesArgument(
-                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
+            .and(takesArgument(
+                1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }
 

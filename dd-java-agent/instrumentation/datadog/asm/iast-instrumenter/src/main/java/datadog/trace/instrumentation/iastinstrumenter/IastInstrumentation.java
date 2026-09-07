@@ -58,10 +58,9 @@ public class IastInstrumentation extends CallSiteInstrumentation {
       if (Config.get().isIastHardcodedSecretEnabled()) {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
-      StratumManager stratumManager =
-          StratumManager.init(
-              Config.get().getIastSourceMappingMaxSize(),
-              IastInstrumentation::onSourceMappingLimitReached);
+      StratumManager stratumManager = StratumManager.init(
+          Config.get().getIastSourceMappingMaxSize(),
+          IastInstrumentation::onSourceMappingLimitReached);
       listeners.add(new StratumListener(stratumManager));
     }
     return Advices.fromCallSites(callSites, listeners.toArray(new Listener[0]));

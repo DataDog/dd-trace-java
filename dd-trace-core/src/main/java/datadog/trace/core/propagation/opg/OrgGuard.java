@@ -16,7 +16,8 @@ import javax.annotation.Nullable;
  */
 public final class OrgGuard {
 
-  @Nullable private final OrgGuardEnforcer enforcer;
+  @Nullable
+  private final OrgGuardEnforcer enforcer;
 
   public static OrgGuard create(
       Config config,

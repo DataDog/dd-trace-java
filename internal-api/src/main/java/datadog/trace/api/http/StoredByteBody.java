@@ -272,16 +272,15 @@ class ThreadLocalCoders {
     }
   }
 
-  private static final Cache DECODER_CACHE =
-      new Cache(CACHE_SIZE) {
-        boolean hasName(Object ob, Object name) {
-          return ((CharsetDecoder) ob).charset().equals(name);
-        }
+  private static final Cache DECODER_CACHE = new Cache(CACHE_SIZE) {
+    boolean hasName(Object ob, Object name) {
+      return ((CharsetDecoder) ob).charset().equals(name);
+    }
 
-        Object create(Object charset) {
-          return ((Charset) charset).newDecoder().onUnmappableCharacter(CodingErrorAction.REPLACE);
-        }
-      };
+    Object create(Object charset) {
+      return ((Charset) charset).newDecoder().onUnmappableCharacter(CodingErrorAction.REPLACE);
+    }
+  };
 
   public static CharsetDecoder decoderFor(Charset charset) {
     CharsetDecoder cd = (CharsetDecoder) DECODER_CACHE.forName(charset);

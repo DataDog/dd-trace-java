@@ -58,12 +58,11 @@ public abstract class TestEventsHandlerHolder {
     TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineToFramework(testEngine);
     TestEventsHandler<TestDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
     if (handler == null) {
-      handler =
-          InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(),
-              suiteStore,
-              testStore,
-              JUnitPlatformUtils.capabilities(testEngine));
+      handler = InstrumentationBridge.createTestEventsHandler(
+          framework.name().toLowerCase(),
+          suiteStore,
+          testStore,
+          JUnitPlatformUtils.capabilities(testEngine));
       HANDLERS.put(framework, handler);
     }
   }

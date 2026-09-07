@@ -40,27 +40,23 @@ public class LibraryController {
 
   @GetMapping
   public ResponseEntity<Integer> create() {
-    final Library library =
-        Library.builder()
-            .books(
-                asList(
-                    Book.builder()
-                        .title("The Lord of the Rings")
-                        .owner(Owner.builder().name("Peter Jackson").build())
-                        .authors(
-                            asList(
-                                Author.builder().name("J.R.R Tolkien").build(),
-                                Author.builder().name("Peter Jackson").build()))
-                        .build(),
-                    Book.builder()
-                        .title("The Hobbit")
-                        .owner(Owner.builder().name("Edith Tolkien").build())
-                        .authors(
-                            asList(
-                                Author.builder().name("J.R.R Tolkien").build(),
-                                Author.builder().name("Edith Tolkien").build()))
-                        .build()))
-            .build();
+    final Library library = Library.builder()
+        .books(asList(
+            Book.builder()
+                .title("The Lord of the Rings")
+                .owner(Owner.builder().name("Peter Jackson").build())
+                .authors(asList(
+                    Author.builder().name("J.R.R Tolkien").build(),
+                    Author.builder().name("Peter Jackson").build()))
+                .build(),
+            Book.builder()
+                .title("The Hobbit")
+                .owner(Owner.builder().name("Edith Tolkien").build())
+                .authors(asList(
+                    Author.builder().name("J.R.R Tolkien").build(),
+                    Author.builder().name("Edith Tolkien").build()))
+                .build()))
+        .build();
     libraryService.save(library);
     return ResponseEntity.ok(library.getId());
   }

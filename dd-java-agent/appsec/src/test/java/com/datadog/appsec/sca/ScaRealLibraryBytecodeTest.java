@@ -43,10 +43,9 @@ class ScaRealLibraryBytecodeTest {
   @BeforeEach
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) ->
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact, version, vulnId, dotClassName, methodName, line));
   }
 
   @AfterEach
@@ -66,13 +65,12 @@ class ScaRealLibraryBytecodeTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         "createDirectory",
-        Collections.singletonList(
-            spec(
-                "GHSA-hf5p-q87m-crj7",
-                "com.github.junrar:junrar",
-                "7.5.5",
-                "com.github.junrar.LocalFolderExtractor",
-                "createDirectory")));
+        Collections.singletonList(spec(
+            "GHSA-hf5p-q87m-crj7",
+            "com.github.junrar:junrar",
+            "7.5.5",
+            "com.github.junrar.LocalFolderExtractor",
+            "createDirectory")));
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
@@ -89,13 +87,12 @@ class ScaRealLibraryBytecodeTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         "read",
-        Collections.singletonList(
-            spec(
-                "GHSA-cwq5-8pvq-j65j",
-                "io.github.ndsev:zserio-runtime",
-                "2.16.1",
-                "zserio.runtime.array.Array",
-                "read")));
+        Collections.singletonList(spec(
+            "GHSA-cwq5-8pvq-j65j",
+            "io.github.ndsev:zserio-runtime",
+            "2.16.1",
+            "zserio.runtime.array.Array",
+            "read")));
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
@@ -113,13 +110,12 @@ class ScaRealLibraryBytecodeTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         "parseChunkHeader",
-        Collections.singletonList(
-            spec(
-                "GHSA-563x-q5rq-57qp",
-                "org.apache.tomcat.embed:tomcat-embed-core",
-                "9.0.115",
-                "org.apache.coyote.http11.filters.ChunkedInputFilter",
-                "parseChunkHeader")));
+        Collections.singletonList(spec(
+            "GHSA-563x-q5rq-57qp",
+            "org.apache.tomcat.embed:tomcat-embed-core",
+            "9.0.115",
+            "org.apache.coyote.http11.filters.ChunkedInputFilter",
+            "parseChunkHeader")));
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
@@ -140,13 +136,12 @@ class ScaRealLibraryBytecodeTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         "createDirectory",
-        Collections.singletonList(
-            spec(
-                "GHSA-hf5p-q87m-crj7",
-                "com.github.junrar:junrar",
-                "7.5.5",
-                "com.github.junrar.LocalFolderExtractor",
-                "createDirectory")));
+        Collections.singletonList(spec(
+            "GHSA-hf5p-q87m-crj7",
+            "com.github.junrar:junrar",
+            "7.5.5",
+            "com.github.junrar.LocalFolderExtractor",
+            "createDirectory")));
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);

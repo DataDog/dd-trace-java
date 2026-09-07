@@ -30,27 +30,26 @@ public final class ClassFileLocators {
         }
       };
 
-  private static final ClassFileLocator bootClassFileLocator =
-      new ClassFileLocator() {
-        @Override
-        public Resolution locate(String className) throws IOException {
-          String resourceName = getResourceName(className);
-          long fromTick = InstrumenterMetrics.tick();
-          Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
-          if (resolution != null) {
-            InstrumenterMetrics.resolveClassFile(fromTick);
-            return resolution;
-          } else {
-            InstrumenterMetrics.missingClassFile(fromTick);
-            return new Resolution.Illegal(className);
-          }
-        }
+  private static final ClassFileLocator bootClassFileLocator = new ClassFileLocator() {
+    @Override
+    public Resolution locate(String className) throws IOException {
+      String resourceName = getResourceName(className);
+      long fromTick = InstrumenterMetrics.tick();
+      Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
+      if (resolution != null) {
+        InstrumenterMetrics.resolveClassFile(fromTick);
+        return resolution;
+      } else {
+        InstrumenterMetrics.missingClassFile(fromTick);
+        return new Resolution.Illegal(className);
+      }
+    }
 
-        @Override
-        public void close() {
-          // nothing to close
-        }
-      };
+    @Override
+    public void close() {
+      // nothing to close
+    }
+  };
 
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
     return null != classLoader ? classFileLocators.get(classLoader) : bootClassFileLocator;

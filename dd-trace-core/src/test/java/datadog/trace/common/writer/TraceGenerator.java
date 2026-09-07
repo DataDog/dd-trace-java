@@ -229,20 +229,19 @@ public class TraceGenerator {
       this.measured = measured;
       this.samplingPriority = samplingPriority;
       this.httpStatusCode = (short) statusCode;
-      this.metadata =
-          new Metadata(
-              Thread.currentThread().getId(),
-              UTF8BytesString.create(Thread.currentThread().getName()),
-              TagMap.fromMap(tags),
-              baggage,
-              samplingPriority,
-              measured,
-              isTopLevel(),
-              statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
-              origin,
-              0,
-              ProcessTags.getTagsForSerialization(),
-              spanLinks);
+      this.metadata = new Metadata(
+          Thread.currentThread().getId(),
+          UTF8BytesString.create(Thread.currentThread().getName()),
+          TagMap.fromMap(tags),
+          baggage,
+          samplingPriority,
+          measured,
+          isTopLevel(),
+          statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+          origin,
+          0,
+          ProcessTags.getTagsForSerialization(),
+          spanLinks);
     }
 
     @Override

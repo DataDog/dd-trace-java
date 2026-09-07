@@ -23,10 +23,9 @@ public class CoreInstrumentation extends InstrumenterModule.Tracing
   private static final Reference TRACING_IDENTIFIERS_REFERENCE =
       new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
 
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE = new Reference.Builder(
+          "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
+      .build();
 
   public CoreInstrumentation() {
     super("couchbase");

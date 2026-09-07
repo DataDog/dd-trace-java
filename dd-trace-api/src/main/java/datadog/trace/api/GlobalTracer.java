@@ -13,41 +13,40 @@ import java.util.Collection;
  * to provide a global window to datadog-specific features.
  */
 public class GlobalTracer {
-  private static final Tracer NO_OP =
-      new Tracer() {
-        @Override
-        public String getTraceId() {
-          return "0";
-        }
+  private static final Tracer NO_OP = new Tracer() {
+    @Override
+    public String getTraceId() {
+      return "0";
+    }
 
-        @Override
-        public String getSpanId() {
-          return "0";
-        }
+    @Override
+    public String getSpanId() {
+      return "0";
+    }
 
-        @Override
-        public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
-          return false;
-        }
+    @Override
+    public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
+      return false;
+    }
 
-        @Override
-        public TraceScope muteTracing() {
-          return NoopTraceScope.INSTANCE;
-        }
+    @Override
+    public TraceScope muteTracing() {
+      return NoopTraceScope.INSTANCE;
+    }
 
-        @Override
-        public TraceScope.Continuation captureActiveSpan() {
-          return NoopTraceScope.NoopContinuation.INSTANCE;
-        }
+    @Override
+    public TraceScope.Continuation captureActiveSpan() {
+      return NoopTraceScope.NoopContinuation.INSTANCE;
+    }
 
-        @Override
-        public boolean isAsyncPropagationEnabled() {
-          return false;
-        }
+    @Override
+    public boolean isAsyncPropagationEnabled() {
+      return false;
+    }
 
-        @Override
-        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
-      };
+    @Override
+    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+  };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;

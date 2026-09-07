@@ -34,14 +34,12 @@ public final class SystemAccess {
        * system provider will be loaded at exact moment when the reflection code is executed. Then it is up
        * to the caller to ensure that it is safe to use JMX.
        */
-      systemAccessProvider =
-          (SystemAccessProvider)
-              Class.forName(
-                      "datadog.trace.core.util.JmxSystemAccessProvider",
-                      false,
-                      SystemAccess.class.getClassLoader())
-                  .getField("INSTANCE")
-                  .get(null);
+      systemAccessProvider = (SystemAccessProvider) Class.forName(
+              "datadog.trace.core.util.JmxSystemAccessProvider",
+              false,
+              SystemAccess.class.getClassLoader())
+          .getField("INSTANCE")
+          .get(null);
     } catch (final ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
       log.info("Unable to initialize JMX system provider", e);
     }

@@ -67,10 +67,9 @@ public class RedisInstrumentation extends InstrumenterModule.Tracing
         packageName + ".RedisSendAdvice");
 
     transformer.applyAdvice(
-        isDeclaredBy(
-                namedOneOf(
-                    "io.vertx.redis.client.impl.RedisConnectionImpl",
-                    "io.vertx.redis.client.impl.RedisStandaloneConnection"))
+        isDeclaredBy(namedOneOf(
+                "io.vertx.redis.client.impl.RedisConnectionImpl",
+                "io.vertx.redis.client.impl.RedisStandaloneConnection"))
             .and(isConstructor())
             .and(takesArgument(3, named("io.vertx.core.net.NetSocket"))),
         packageName + ".RedisConnectionConstructAdvice");

@@ -43,9 +43,8 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(
-                named("invoke")
-                    .and(takesArgument(0, named("org.springframework.messaging.Message")))),
+            .and(named("invoke")
+                .and(takesArgument(0, named("org.springframework.messaging.Message")))),
         SpringMessageHandlerInstrumentation.class.getName() + "$ContextPropagationAdvice",
         SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
   }

@@ -107,9 +107,8 @@ public final class OpenJdkController implements Controller {
     Map<String, String> recordingSettings;
 
     try {
-      recordingSettings =
-          JfpUtils.readNamedJfpResource(
-              ultraMinimal ? JfpUtils.SAFEPOINTS_JFP : JfpUtils.DEFAULT_JFP);
+      recordingSettings = JfpUtils.readNamedJfpResource(
+          ultraMinimal ? JfpUtils.SAFEPOINTS_JFP : JfpUtils.DEFAULT_JFP);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
@@ -143,9 +142,8 @@ public final class OpenJdkController implements Controller {
             "enabling Datadog heap histogram on JVM without an efficient implementation of the jdk.ObjectCount event. "
                 + "This may increase p99 latency. Consider upgrading to JDK 17.0.9+ or 21+ to reduce latency impact.");
       }
-      String mode =
-          configProvider.getString(
-              PROFILING_HEAP_HISTOGRAM_MODE, PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT);
+      String mode = configProvider.getString(
+          PROFILING_HEAP_HISTOGRAM_MODE, PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT);
       if ("periodic".equalsIgnoreCase(mode)) {
         enableEvent(recordingSettings, "jdk.ObjectCount", "user enabled histogram heap collection");
       } else {
@@ -156,19 +154,17 @@ public final class OpenJdkController implements Controller {
 
     if (configProvider.getBoolean(
         PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT)) {
-      long threshold =
-          configProvider.getLong(
-              PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
-              PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+      long threshold = configProvider.getLong(
+          PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+          PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
       recordingSettings.put("datadog.QueueTime#threshold", threshold + " ms");
     }
 
     // Toggle settings from override file
 
     try {
-      recordingSettings.putAll(
-          JfpUtils.readOverrideJfpResource(
-              configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
+      recordingSettings.putAll(JfpUtils.readOverrideJfpResource(
+          configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
@@ -210,12 +206,10 @@ public final class OpenJdkController implements Controller {
       // ddprof live heap requires Java 11+ (JVMTI Allocation Sampler)
       // isJmethodIDSafe() matches ddprof's own default for liveheap: it only enables
       // MEMLEAK mode by default on versions where jmethodID is safe.
-      boolean ddprofLikelyActive =
-          isJavaVersionAtLeast(11)
-              && configProvider.getBoolean(
-                  ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, isJmethodIDSafe())
-              && configProvider.getBoolean(
-                  ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, true);
+      boolean ddprofLikelyActive = isJavaVersionAtLeast(11)
+          && configProvider.getBoolean(
+              ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, isJmethodIDSafe())
+          && configProvider.getBoolean(ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, true);
       if (ddprofLikelyActive) {
         disableEvent(
             recordingSettings,
@@ -303,10 +297,9 @@ public final class OpenJdkController implements Controller {
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {
-    String legacy =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
-            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
+    String legacy = configProvider.getString(
+        ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
+        ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
     if (!legacy.equals(ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT)) {
       log.warn(
           "The configuration key {} is deprecated. Please use {} instead.",

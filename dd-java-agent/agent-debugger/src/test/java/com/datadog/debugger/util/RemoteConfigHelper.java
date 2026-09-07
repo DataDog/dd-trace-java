@@ -7,7 +7,8 @@ import java.util.UUID;
 public class RemoteConfigHelper {
   public static String encode(String s, String serviceName) {
     String encodedConfig = new String(Base64.getEncoder().encode(s.getBytes()));
-    String path = UUID.nameUUIDFromBytes(serviceName.getBytes(StandardCharsets.UTF_8)).toString();
+    String path =
+        UUID.nameUUIDFromBytes(serviceName.getBytes(StandardCharsets.UTF_8)).toString();
     return String.format(
         "{\n"
             + "\"targets\": \"\",\n"

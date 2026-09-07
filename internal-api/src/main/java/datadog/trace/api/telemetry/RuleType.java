@@ -11,7 +11,10 @@ public enum RuleType {
   COMMAND_INJECTION(Type.COMMAND_INJECTION, Variant.EXEC);
 
   public final Type type;
-  @Nullable public final Variant variant;
+
+  @Nullable
+  public final Variant variant;
+
   private static final int numValues = RuleType.values().length;
 
   RuleType(Type type) {

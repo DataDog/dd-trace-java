@@ -61,17 +61,16 @@ public class JDK9StackWalkerBenchmark {
 
   private void generateStack(final StackWalker stackWalker) {
 
-    Runnable runnable =
-        new Runnable() {
-          @Override
-          public void run() {
-            stackWalker.walk(this::toLimitedList);
-          }
+    Runnable runnable = new Runnable() {
+      @Override
+      public void run() {
+        stackWalker.walk(this::toLimitedList);
+      }
 
-          private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
-            return stack.limit(limit).collect(Collectors.toList());
-          }
-        };
+      private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
+        return stack.limit(limit).collect(Collectors.toList());
+      }
+    };
 
     RecursiveRunner runner = new RecursiveRunner(deep, runnable);
     runner.run();

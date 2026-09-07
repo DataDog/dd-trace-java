@@ -47,9 +47,8 @@ class MetricsAggregatorFactoryTest {
   void whenAllMetricsDisabledNoOpAggregatorCreated() {
     Config config = Config.get(props(TRACE_STATS_COMPUTATION_ENABLED, "false"));
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+        config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
     assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
   }
@@ -59,9 +58,8 @@ class MetricsAggregatorFactoryTest {
     // tracer metrics default to enabled; OTLP span metrics default off (no OTLP trace export).
     Config config = Config.get(props());
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+        config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
     ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
     assertFalse(conflating.isOtlpStatsExportEnabled());
@@ -72,13 +70,11 @@ class MetricsAggregatorFactoryTest {
 
   @Test
   void whenOtlpTraceMetricsEnabledOtlpStatsMetricWriterSelected() {
-    Config config =
-        Config.get(
-            props(OTEL_TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
+    Config config = Config.get(
+        props(OTEL_TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+        config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
     ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
     assertTrue(conflating.isOtlpStatsExportEnabled());

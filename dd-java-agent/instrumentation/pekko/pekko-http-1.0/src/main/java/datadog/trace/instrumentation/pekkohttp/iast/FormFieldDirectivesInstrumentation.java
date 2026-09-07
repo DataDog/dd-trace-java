@@ -70,10 +70,8 @@ public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
             .and(named("formField").or(named("formFields")))
             .and(returns(Object.class))
             .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named("org.apache.pekko.http.scaladsl.server.directives.FormFieldDirectives")))
+            .and(takesArgument(
+                0, named("org.apache.pekko.http.scaladsl.server.directives.FormFieldDirectives")))
             .and(
                 takesArgument(
                     1,
@@ -86,9 +84,8 @@ public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
         isMethod()
             .and(not(isStatic()))
             .and(named("formField").or(named("formFields")))
-            .and(
-                returns(Object.class)
-                    .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
+            .and(returns(Object.class)
+                .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
             .and(takesArguments(1))
             .and(
                 takesArgument(

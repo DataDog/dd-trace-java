@@ -12,13 +12,11 @@ public class HandlerStreamingWithApiGwResponse implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {
-    PrintWriter writer =
-        new PrintWriter(
-            new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)));
-    writer.write(
-        "{\"statusCode\": 200, "
-            + "\"headers\": {\"content-type\": \"application/json\", \"x-custom\": \"custom-val\"}, "
-            + "\"body\": \"{\\\"result\\\": \\\"ok\\\"}\"}");
+    PrintWriter writer = new PrintWriter(
+        new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)));
+    writer.write("{\"statusCode\": 200, "
+        + "\"headers\": {\"content-type\": \"application/json\", \"x-custom\": \"custom-val\"}, "
+        + "\"body\": \"{\\\"result\\\": \\\"ok\\\"}\"}");
     writer.close();
   }
 }

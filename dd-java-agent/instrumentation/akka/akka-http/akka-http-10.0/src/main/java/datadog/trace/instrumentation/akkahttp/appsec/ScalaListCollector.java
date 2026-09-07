@@ -29,28 +29,19 @@ public class ScalaListCollector<T> implements Collector<T, ListBuffer<T>, List<T
     MethodHandle plusEq;
     MethodHandle plusPlusEq;
     try {
-      plusEq =
-          lookup()
-              .findVirtual(
-                  ListBuffer.class, "$plus$eq", methodType(ListBuffer.class, Object.class));
+      plusEq = lookup()
+          .findVirtual(ListBuffer.class, "$plus$eq", methodType(ListBuffer.class, Object.class));
       Class traversableOnceCls = classLoader.loadClass("scala.collection.TraversableOnce");
-      plusPlusEq =
-          lookup()
-              .findVirtual(
-                  ListBuffer.class,
-                  "$plus$plus$eq",
-                  methodType(ListBuffer.class, traversableOnceCls));
+      plusPlusEq = lookup()
+          .findVirtual(
+              ListBuffer.class, "$plus$plus$eq", methodType(ListBuffer.class, traversableOnceCls));
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException e) {
       try {
-        plusEq =
-            lookup()
-                .findVirtual(
-                    ListBuffer.class, "addOne", methodType(ListBuffer.class, Object.class));
+        plusEq = lookup()
+            .findVirtual(ListBuffer.class, "addOne", methodType(ListBuffer.class, Object.class));
         Class iterableOnceCls = classLoader.loadClass("scala.collection.IterableOnce");
-        plusPlusEq =
-            lookup()
-                .findVirtual(
-                    ListBuffer.class, "addAll", methodType(ListBuffer.class, iterableOnceCls));
+        plusPlusEq = lookup()
+            .findVirtual(ListBuffer.class, "addAll", methodType(ListBuffer.class, iterableOnceCls));
       } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException ex) {
         throw new RuntimeException(ex);
       }

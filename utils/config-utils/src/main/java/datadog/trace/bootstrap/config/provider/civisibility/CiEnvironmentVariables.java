@@ -120,9 +120,8 @@ public class CiEnvironmentVariables {
         return asMap(properties);
 
       } else {
-        try (BufferedReader r =
-            new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader r = new BufferedReader(
+            new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
           String body = r.lines().collect(Collectors.joining("\n"));
           throw new IOException(
               String.format("Remote environment request failed (HTTP %d) %s", code, body));

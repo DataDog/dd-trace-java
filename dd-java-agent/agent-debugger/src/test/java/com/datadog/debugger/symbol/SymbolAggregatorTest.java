@@ -52,7 +52,8 @@ class SymbolAggregatorTest {
     // captor.getAllValues().get(0) is the first argument of the first invocation of parseClass with
     // null
     assertEquals(
-        "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(1));
+        "com/datadog/debugger/symbol/SymbolExtraction01.class",
+        captor.getAllValues().get(1));
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(2));
@@ -82,7 +83,8 @@ class SymbolAggregatorTest {
     // captor.getAllValues().get(0) is the first argument of the first invocation of parseClass with
     // null
     assertEquals(
-        "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(1));
+        "com/datadog/debugger/symbol/SymbolExtraction01.class",
+        captor.getAllValues().get(1));
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(2));
@@ -135,15 +137,14 @@ class SymbolAggregatorTest {
     ScopeFilter mockFilter = mock(ScopeFilter.class);
     when(mockFilter.filterOut(any())).thenReturn(true);
     SymbolSink symbolSink = mock(SymbolSink.class);
-    doAnswer(
-            invocation -> {
-              Object[] args = invocation.getArguments();
-              assertEquals(1, args.length);
-              assertInstanceOf(Scope.class, args[0]);
-              Scope scope = (Scope) args[0];
-              assertTrue(scope.getScopes().isEmpty());
-              return null;
-            })
+    doAnswer(invocation -> {
+          Object[] args = invocation.getArguments();
+          assertEquals(1, args.length);
+          assertInstanceOf(Scope.class, args[0]);
+          Scope scope = (Scope) args[0];
+          assertTrue(scope.getScopes().isEmpty());
+          return null;
+        })
         .when(symbolSink)
         .addScope(any());
     SymbolAggregator symbolAggregator =

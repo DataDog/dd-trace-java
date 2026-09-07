@@ -5,15 +5,19 @@ import javax.annotation.Nullable;
 
 public final class Location {
 
-  @Nullable private final String path;
+  @Nullable
+  private final String path;
 
   private final int line;
 
-  @Nullable private final String method;
+  @Nullable
+  private final String method;
 
-  @Nullable private Long spanId;
+  @Nullable
+  private Long spanId;
 
-  @Nullable private transient String serviceName;
+  @Nullable
+  private transient String serviceName;
 
   private @Nullable String stackId;
 

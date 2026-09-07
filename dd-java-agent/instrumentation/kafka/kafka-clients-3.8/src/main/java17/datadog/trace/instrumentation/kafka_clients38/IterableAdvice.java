@@ -14,22 +14,21 @@ public class IterableAdvice {
       @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
       @Advice.This ConsumerRecords records) {
     if (iterable != null) {
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+              ConsumerRecords.class, KafkaConsumerInfo.class)
+          .get(records);
       String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
-      String clusterId =
-          KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
+      String clusterId = KafkaConsumerInstrumentationHelper.extractClusterId(
+          kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       String bootstrapServers =
           KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
-      iterable =
-          new TracingIterable(
-              iterable,
-              KafkaDecorator.KAFKA_CONSUME,
-              KafkaDecorator.CONSUMER_DECORATE,
-              group,
-              clusterId,
-              bootstrapServers);
+      iterable = new TracingIterable(
+          iterable,
+          KafkaDecorator.KAFKA_CONSUME,
+          KafkaDecorator.CONSUMER_DECORATE,
+          group,
+          clusterId,
+          bootstrapServers);
     }
   }
 }

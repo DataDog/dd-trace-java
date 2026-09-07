@@ -165,12 +165,10 @@ public class RunContext {
   @Nullable
   public TestExecutionTracker popExecutionTracker(TestIdentifier testIdentifier) {
     TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
-    executionPolicies.computeIfPresent(
-        testIdentifier,
-        (ti, policy) -> {
-          holder[0] = policy;
-          return policy.applicable() ? policy : null;
-        });
+    executionPolicies.computeIfPresent(testIdentifier, (ti, policy) -> {
+      holder[0] = policy;
+      return policy.applicable() ? policy : null;
+    });
     return holder[0];
   }
 

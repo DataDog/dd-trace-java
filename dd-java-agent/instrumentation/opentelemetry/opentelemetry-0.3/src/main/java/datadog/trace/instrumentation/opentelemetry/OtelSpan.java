@@ -60,7 +60,7 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
         delegate.setTag(key, value.getBooleanValue());
         break;
       default:
-        // Unsupported.... Ignoring.
+      // Unsupported.... Ignoring.
     }
   }
 

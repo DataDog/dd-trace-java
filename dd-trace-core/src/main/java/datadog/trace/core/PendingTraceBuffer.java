@@ -298,11 +298,10 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();
-      this.runningTracesTracker =
-          runningSpansEnabled
-              ? new LongRunningTracesTracker(
-                  config, bufferSize, sharedCommunicationObjects, healthMetrics)
-              : null;
+      this.runningTracesTracker = runningSpansEnabled
+          ? new LongRunningTracesTracker(
+              config, bufferSize, sharedCommunicationObjects, healthMetrics)
+          : null;
     }
 
     @VisibleForTesting

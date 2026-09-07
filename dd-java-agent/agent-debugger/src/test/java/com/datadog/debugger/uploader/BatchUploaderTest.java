@@ -47,8 +47,11 @@ public class BatchUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
   private static final String API_KEY_VALUE = "testkey";
 
-  @Mock private Config config;
-  @Mock private RatelimitedLogger ratelimitedLogger;
+  @Mock
+  private Config config;
+
+  @Mock
+  private RatelimitedLogger ratelimitedLogger;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -131,11 +134,10 @@ public class BatchUploaderTest {
 
   @Test
   public void testTimeout() throws IOException, InterruptedException {
-    server.enqueue(
-        new MockResponse()
-            .setHeadersDelay(
-                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
-                TimeUnit.MILLISECONDS));
+    server.enqueue(new MockResponse()
+        .setHeadersDelay(
+            REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+            TimeUnit.MILLISECONDS));
 
     uploader.upload(SNAPSHOT_BUFFER);
 
@@ -146,12 +148,11 @@ public class BatchUploaderTest {
   public void testEnqueuedRequestsExecuted() throws IOException, InterruptedException {
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
-      server.enqueue(
-          new MockResponse()
-              .setHeadersDelay(
-                  // 1 second should be enough to schedule all requests and not hit timeout
-                  Duration.ofMillis(1000).toMillis(), TimeUnit.MILLISECONDS)
-              .setResponseCode(200));
+      server.enqueue(new MockResponse()
+          .setHeadersDelay(
+              // 1 second should be enough to schedule all requests and not hit timeout
+              Duration.ofMillis(1000).toMillis(), TimeUnit.MILLISECONDS)
+          .setResponseCode(200));
     }
     server.enqueue(RESPONSE_200);
 
@@ -179,10 +180,9 @@ public class BatchUploaderTest {
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
-      server.enqueue(
-          new MockResponse()
-              .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
-              .setResponseCode(200));
+      server.enqueue(new MockResponse()
+          .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+          .setResponseCode(200));
     }
     server.enqueue(new MockResponse().setResponseCode(200));
 
@@ -223,9 +223,8 @@ public class BatchUploaderTest {
   public void testNoContainerId() throws InterruptedException {
     // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
-    BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(
-            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
+    BatchUploader uploaderWithNoContainerId = new BatchUploader(
+        "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -238,15 +237,14 @@ public class BatchUploaderTest {
   public void testContainerIdHeader() throws InterruptedException {
     server.enqueue(RESPONSE_200);
 
-    BatchUploader uploaderWithContainerId =
-        new BatchUploader(
-            "test",
-            config,
-            url.toString(),
-            ratelimitedLogger,
-            retryPolicy,
-            "testContainerId",
-            "testEntityId");
+    BatchUploader uploaderWithContainerId = new BatchUploader(
+        "test",
+        config,
+        url.toString(),
+        ratelimitedLogger,
+        retryPolicy,
+        "testContainerId",
+        "testEntityId");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
@@ -296,20 +294,18 @@ public class BatchUploaderTest {
     int port = server.getPort();
     server.shutdown();
     ServerSocket serverSocket = new ServerSocket(port);
-    Thread t =
-        new Thread(
-            () -> {
-              try {
-                System.out.println("Accepting connection on port " + port);
-                Socket socket = serverSocket.accept();
-                System.out.println("Accepted connection, closing");
-                socket.setSoLinger(true, 0);
-                socket.close();
-                serverSocket.close();
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-            });
+    Thread t = new Thread(() -> {
+      try {
+        System.out.println("Accepting connection on port " + port);
+        Socket socket = serverSocket.accept();
+        System.out.println("Accepted connection, closing");
+        socket.setSoLinger(true, 0);
+        socket.close();
+        serverSocket.close();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    });
     t.start();
     // only upload once. will fail on first attempt, will succeed on retry
     uploader.upload(SNAPSHOT_BUFFER);

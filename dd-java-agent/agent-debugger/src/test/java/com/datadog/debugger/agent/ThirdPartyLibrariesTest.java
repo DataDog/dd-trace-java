@@ -33,10 +33,9 @@ class ThirdPartyLibrariesTest {
   void testGetExcludesWithExplicitExclude() {
     when(mockConfig.getThirdPartyIncludes())
         .thenReturn(Collections.singleton("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyLibraries(mockConfig)
-            .contains("com.datadog.debugger"));
+    assertTrue(ThirdPartyLibraries.INSTANCE
+        .getThirdPartyLibraries(mockConfig)
+        .contains("com.datadog.debugger"));
   }
 
   @Test
@@ -45,14 +44,12 @@ class ThirdPartyLibrariesTest {
         .thenReturn(Collections.singleton("com.datadog.debugger"));
     when(mockConfig.getThirdPartyExcludes())
         .thenReturn(Collections.singleton("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyLibraries(mockConfig)
-            .contains("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyExcludes(mockConfig)
-            .contains("com.datadog.debugger"));
+    assertTrue(ThirdPartyLibraries.INSTANCE
+        .getThirdPartyLibraries(mockConfig)
+        .contains("com.datadog.debugger"));
+    assertTrue(ThirdPartyLibraries.INSTANCE
+        .getThirdPartyExcludes(mockConfig)
+        .contains("com.datadog.debugger"));
   }
 
   @Test

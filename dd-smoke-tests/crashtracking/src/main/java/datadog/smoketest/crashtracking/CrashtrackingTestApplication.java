@@ -40,18 +40,16 @@ public class CrashtrackingTestApplication {
       System.exit(-1);
     }
 
-    String crashUploaderScript =
-        Arrays.stream(onError.split(";"))
-            .filter(s -> s.trim().contains("dd_crash_uploader"))
-            .findFirst()
-            .map(s -> s.replace(" %p", ""))
-            .orElse(null);
-    String oomeNotifierScript =
-        Arrays.stream(onOutOfMemoryError.split(";"))
-            .filter(s -> s.trim().contains("dd_oome_notifier"))
-            .findFirst()
-            .map(s -> s.replace(" %p", ""))
-            .orElse(null);
+    String crashUploaderScript = Arrays.stream(onError.split(";"))
+        .filter(s -> s.trim().contains("dd_crash_uploader"))
+        .findFirst()
+        .map(s -> s.replace(" %p", ""))
+        .orElse(null);
+    String oomeNotifierScript = Arrays.stream(onOutOfMemoryError.split(";"))
+        .filter(s -> s.trim().contains("dd_oome_notifier"))
+        .findFirst()
+        .map(s -> s.replace(" %p", ""))
+        .orElse(null);
     if (crashUploaderScript == null && oomeNotifierScript == null) {
       System.err.println("Neither OnError nor OnOutOfMemoryError contains the expected value");
       System.exit(-1);
@@ -62,17 +60,15 @@ public class CrashtrackingTestApplication {
 
     CountDownLatch latch = new CountDownLatch(1);
 
-    Thread t =
-        new Thread(
-            () -> {
-              Path scriptPath =
-                  Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
-              while (!Files.exists(scriptPath)) {
-                System.out.println("Waiting for the script " + scriptPath + " to be created...");
-                LockSupport.parkNanos(1_000_000_000L);
-              }
-              latch.countDown();
-            });
+    Thread t = new Thread(() -> {
+      Path scriptPath =
+          Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
+      while (!Files.exists(scriptPath)) {
+        System.out.println("Waiting for the script " + scriptPath + " to be created...");
+        LockSupport.parkNanos(1_000_000_000L);
+      }
+      latch.countDown();
+    });
     t.setDaemon(true);
     t.start();
 

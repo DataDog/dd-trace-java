@@ -61,16 +61,16 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
   //  - _multiPartInputStream exists in 9.3.x and early 9.4.x (< 9.4.10); replaced by _multiParts
   //    in 9.4.10 (covered by jetty-appsec-9.4)
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiPartInputStream",
-              "Lorg/eclipse/jetty/util/MultiPartInputStreamParser;")
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+          "org.eclipse.jetty.server.Request")
+      .withMethod(new String[0], 0, "extractContentParameters", "V")
+      .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+      .withField(
+          new String[0],
+          0,
+          "_multiPartInputStream",
+          "Lorg/eclipse/jetty/util/MultiPartInputStreamParser;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

@@ -124,9 +124,8 @@ public class ReferenceMatcher {
         mismatches.add(new Mismatch.MissingClass(reference.sources, className));
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
-        mismatches.add(
-            new Mismatch.ReferenceCheckError(
-                e, reference, null != loader ? loader.toString() : "<bootstrap>"));
+        mismatches.add(new Mismatch.ReferenceCheckError(
+            e, reference, null != loader ? loader.toString() : "<bootstrap>"));
       }
       return false;
     }
@@ -140,9 +139,8 @@ public class ReferenceMatcher {
 
     if (!Reference.matches(reference.flags, typeOnClasspath.getModifiers())) {
       final String desc = reference.className;
-      mismatches.add(
-          new Mismatch.MissingFlag(
-              reference.sources, desc, reference.flags, typeOnClasspath.getModifiers()));
+      mismatches.add(new Mismatch.MissingFlag(
+          reference.sources, desc, reference.flags, typeOnClasspath.getModifiers()));
     }
 
     // we match the fields and methods we are looking for by name, type or descriptor, and flags.
@@ -171,20 +169,15 @@ public class ReferenceMatcher {
     }
 
     for (Reference.Field missingField : indexedFields.values()) {
-      mismatches.add(
-          new Reference.Mismatch.MissingField(
-              missingField.sources,
-              reference.className,
-              missingField.name,
-              missingField.fieldType));
+      mismatches.add(new Reference.Mismatch.MissingField(
+          missingField.sources, reference.className, missingField.name, missingField.fieldType));
     }
     for (Reference.Method missingMethod : indexedMethods.values()) {
-      mismatches.add(
-          new Reference.Mismatch.MissingMethod(
-              missingMethod.sources,
-              reference.className,
-              missingMethod.name,
-              missingMethod.methodType));
+      mismatches.add(new Reference.Mismatch.MissingMethod(
+          missingMethod.sources,
+          reference.className,
+          missingMethod.name,
+          missingMethod.methodType));
     }
 
     return previousMismatchCount == mismatches.size();
@@ -238,9 +231,8 @@ public class ReferenceMatcher {
         if (null != found) {
           if (!Reference.matches(found.flags, fieldType.getModifiers())) {
             final String desc = reference.className + "#" + found.name + found.fieldType;
-            flagMismatches.add(
-                new Mismatch.MissingFlag(
-                    found.sources, desc, found.flags, fieldType.getModifiers()));
+            flagMismatches.add(new Mismatch.MissingFlag(
+                found.sources, desc, found.flags, fieldType.getModifiers()));
             break;
           }
         }
@@ -287,9 +279,8 @@ public class ReferenceMatcher {
           // will stop looking for this one now, but check it has the right flags
           if (!Reference.matches(found.flags, methodDescription.getModifiers())) {
             final String desc = reference.className + "#" + found.name + found.methodType;
-            flagMismatches.add(
-                new Mismatch.MissingFlag(
-                    found.sources, desc, found.flags, methodDescription.getModifiers()));
+            flagMismatches.add(new Mismatch.MissingFlag(
+                found.sources, desc, found.flags, methodDescription.getModifiers()));
             break;
           }
         }

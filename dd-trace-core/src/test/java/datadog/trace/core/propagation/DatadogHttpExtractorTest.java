@@ -99,8 +99,9 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractHttpHeadersWithoutComma() {
     // Recreate extractor with the new comma config
     this.extractor.cleanup();
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG)).apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
+        .apply();
     this.extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
     String headerWithComma = "my-interesting-info,and-more";

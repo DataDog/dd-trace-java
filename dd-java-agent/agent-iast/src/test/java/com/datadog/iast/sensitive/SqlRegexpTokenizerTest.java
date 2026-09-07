@@ -126,14 +126,12 @@ class SqlRegexpTokenizerTest {
     }
     String sql = builder.toString();
 
-    assertTimeoutPreemptively(
-        Duration.ofSeconds(10),
-        () -> {
-          Tokenizer tokenizer = new SqlRegexpTokenizer(postgresEvidence(sql));
-          // None of the openers has a matching close, so tokenization yields nothing and must
-          // simply terminate quickly.
-          assertFalse(tokenizer.next());
-        });
+    assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+      Tokenizer tokenizer = new SqlRegexpTokenizer(postgresEvidence(sql));
+      // None of the openers has a matching close, so tokenization yields nothing and must
+      // simply terminate quickly.
+      assertFalse(tokenizer.next());
+    });
   }
 
   private static Evidence postgresEvidence(String sql) {

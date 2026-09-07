@@ -19,10 +19,9 @@ public class DataStreamsTransactionExtractors {
   public static final DataStreamsTransactionExtractors EMPTY =
       new DataStreamsTransactionExtractors("[]", Collections.emptyList());
   private static final Logger LOG = LoggerFactory.getLogger(DataStreamsTransactionExtractors.class);
-  private static final Moshi MOSHI =
-      new Moshi.Builder()
-          .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
-          .build();
+  private static final Moshi MOSHI = new Moshi.Builder()
+      .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
+      .build();
   private static final ParameterizedType LIST_OF_RULES =
       Types.newParameterizedType(List.class, DataStreamsTransactionExtractorImpl.class);
   public static final JsonAdapter<List<DataStreamsTransactionExtractor>> LIST_OF_RULES_ADAPTER =

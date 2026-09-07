@@ -34,15 +34,13 @@ public class HttpServerResponseInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         named("putHeader")
-            .and(
-                takesArguments(CharSequence.class, CharSequence.class)
-                    .or(takesArguments(String.class, String.class))),
+            .and(takesArguments(CharSequence.class, CharSequence.class)
+                .or(takesArguments(String.class, String.class))),
         HttpServerResponseInstrumentation.class.getName() + "$PutHeaderAdvice1");
     transformer.applyAdvice(
         named("putHeader")
-            .and(
-                takesArguments(CharSequence.class, Iterable.class)
-                    .or(takesArguments(String.class, Iterable.class))),
+            .and(takesArguments(CharSequence.class, Iterable.class)
+                .or(takesArguments(String.class, Iterable.class))),
         HttpServerResponseInstrumentation.class.getName() + "$PutHeaderAdvice2");
   }
 

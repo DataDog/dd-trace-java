@@ -48,9 +48,8 @@ public final class FutureResponseListenerInstrumentation extends InstrumenterMod
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(0, named("org.eclipse.jetty.client.api.Request"))
-                    .and(takesArguments(2))),
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request"))
+                .and(takesArguments(2))),
         getClass().getName() + "$Link");
   }
 

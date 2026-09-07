@@ -40,10 +40,9 @@ public class ModuleSignalRouter {
     Map<SignalType, Function<Signal, SignalResponse>> handlersByType =
         moduleHandlersById.get(moduleId);
     if (handlersByType == null) {
-      String message =
-          String.format(
-              "Could not find signal handlers for module ID %s, test execution result will be ignored: %s",
-              moduleId, result);
+      String message = String.format(
+          "Could not find signal handlers for module ID %s, test execution result will be ignored: %s",
+          moduleId, result);
       LOGGER.warn(message);
       return new ErrorResponse(message);
     }

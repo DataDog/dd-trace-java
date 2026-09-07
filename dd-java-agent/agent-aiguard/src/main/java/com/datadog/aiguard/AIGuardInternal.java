@@ -100,19 +100,19 @@ public class AIGuardInternal implements Evaluator {
     if (isBlank(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
-    final Map<String, String> headers =
-        mapOf(
-            "DD-API-KEY",
-            apiKey,
-            "DD-APPLICATION-KEY",
-            appKey,
-            "DD-AI-GUARD-VERSION",
-            TRACER_VERSION,
-            "DD-AI-GUARD-SOURCE",
-            "SDK",
-            "DD-AI-GUARD-LANGUAGE",
-            "jvm");
-    final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
+    final Map<String, String> headers = mapOf(
+        "DD-API-KEY",
+        apiKey,
+        "DD-APPLICATION-KEY",
+        appKey,
+        "DD-AI-GUARD-VERSION",
+        TRACER_VERSION,
+        "DD-AI-GUARD-SOURCE",
+        "SDK",
+        "DD-AI-GUARD-LANGUAGE",
+        "jvm");
+    final HttpUrl url =
+        HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
     final OkHttpClient client = buildClient(url, timeout);
     Installer.install(new AIGuardInternal(url, headers, client));
@@ -210,7 +210,9 @@ public class AIGuardInternal implements Evaluator {
       if (message.getToolCalls() != null) {
         for (final ToolCall toolCall : message.getToolCalls()) {
           if (toolCall.getId().equals(id)) {
-            return toolCall.getFunction() == null ? null : toolCall.getFunction().getName();
+            return toolCall.getFunction() == null
+                ? null
+                : toolCall.getFunction().getName();
           }
         }
       }
@@ -297,10 +299,9 @@ public class AIGuardInternal implements Evaluator {
       final Map<String, Object> metaStruct = new HashMap<>(2);
       metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
-      final Request.Builder request =
-          new Request.Builder()
-              .url(url)
-              .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
+      final Request.Builder request = new Request.Builder()
+          .url(url)
+          .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
       headers.forEach(request::header);
       try (final Response response = client.newCall(request.build()).execute()) {
         final Map<String, Object> result = parseResponseBody(response);
@@ -347,9 +348,8 @@ public class AIGuardInternal implements Evaluator {
       throw e;
     } catch (final Exception e) {
       WafMetricCollector.get().aiGuardError();
-      final AIGuardClientError error =
-          new AIGuardClientError(
-              "AI Guard service returned unexpected response: " + e.getMessage(), e);
+      final AIGuardClientError error = new AIGuardClientError(
+          "AI Guard service returned unexpected response: " + e.getMessage(), e);
       span.addThrowable(error);
       throw error;
     } finally {

@@ -65,13 +65,11 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
     transformer.applyAdvice(
         isMethod()
             .and(named("loadClass"))
-            .and(
-                takesArguments(1)
+            .and(takesArguments(1)
+                .and(takesArgument(0, String.class))
+                .or(takesArguments(2)
                     .and(takesArgument(0, String.class))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, String.class))
-                            .and(takesArgument(1, boolean.class)))),
+                    .and(takesArgument(1, boolean.class)))),
         BundleReferenceInstrumentation.class.getName() + "$WidenLoadClassAdvice");
   }
 

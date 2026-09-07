@@ -138,9 +138,8 @@ public class CookieSecurityParser {
         }
         if (addCookie || eof) {
           if (cookieName != null && !cookieName.isEmpty()) {
-            result.add(
-                new Cookie(
-                    cookieName, cookieValue, secure, httpOnly, sameSite, expiresYear, maxAge));
+            result.add(new Cookie(
+                cookieName, cookieValue, secure, httpOnly, sameSite, expiresYear, maxAge));
           }
           cookieName = null;
           cookieValue = null;

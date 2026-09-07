@@ -128,13 +128,12 @@ public class AppSecBenchmark {
   static class StubOkHttpClient extends OkHttpClient {
     @Override
     public Call newCall(final Request request) {
-      final Response response =
-          new Response.Builder()
-              .request(request)
-              .protocol(Protocol.HTTP_1_0)
-              .code(200)
-              .message("OK")
-              .build();
+      final Response response = new Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_0)
+          .code(200)
+          .message("OK")
+          .build();
 
       return new Call() {
         @Override
@@ -150,14 +149,13 @@ public class AppSecBenchmark {
         @Override
         public void enqueue(Callback responseCallback) {
           final Call thiz = this;
-          new Thread(
-                  () -> {
-                    try {
-                      responseCallback.onResponse(thiz, response);
-                    } catch (IOException e) {
-                      throw new UndeclaredThrowableException(e);
-                    }
-                  })
+          new Thread(() -> {
+                try {
+                  responseCallback.onResponse(thiz, response);
+                } catch (IOException e) {
+                  throw new UndeclaredThrowableException(e);
+                }
+              })
               .start();
         }
 

@@ -105,10 +105,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
 
     if (mountPoint != null && path != null) {
-      final String noBackslashhMountPoint =
-          mountPoint.endsWith("/")
-              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-              : mountPoint;
+      final String noBackslashhMountPoint = mountPoint.endsWith("/")
+          ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+          : mountPoint;
       path = noBackslashhMountPoint + path;
     }
     if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {

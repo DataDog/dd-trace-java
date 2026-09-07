@@ -61,21 +61,20 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
       CharSequence httpEndpoint,
       CharSequence grpcStatusCode,
       int hitCount) {
-    AggregateEntry aggregateEntry =
-        AggregateEntryTestUtils.of(
-            resource,
-            service,
-            operationName,
-            serviceSource,
-            type,
-            httpStatusCode,
-            synthetic,
-            traceRoot,
-            spanKind,
-            peerTags,
-            httpMethod,
-            httpEndpoint,
-            grpcStatusCode);
+    AggregateEntry aggregateEntry = AggregateEntryTestUtils.of(
+        resource,
+        service,
+        operationName,
+        serviceSource,
+        type,
+        httpStatusCode,
+        synthetic,
+        traceRoot,
+        spanKind,
+        peerTags,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode);
     for (int i = 0; i < hitCount; i++) {
       aggregateEntry.recordOneDuration(1L);
     }
@@ -83,78 +82,76 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
   }
 
   static Stream<Arguments> shouldProduceCorrectMessageArguments() {
-    List<AggregateEntry> smallContent =
-        Arrays.asList(
-            entry(
-                "resource1",
-                "service1",
-                "operation1",
-                null,
-                "type",
-                0,
-                false,
-                false,
-                "client",
-                Arrays.asList(
-                    UTF8BytesString.create("country:canada"),
-                    UTF8BytesString.create("georegion:amer"),
-                    UTF8BytesString.create("peer.service:remote-service")),
-                null,
-                null,
-                null,
-                10),
-            entry(
-                "resource2",
-                "service2",
-                "operation2",
-                null,
-                "type2",
-                200,
-                true,
-                false,
-                "producer",
-                Arrays.asList(
-                    UTF8BytesString.create("country:canada"),
-                    UTF8BytesString.create("georegion:amer"),
-                    UTF8BytesString.create("peer.service:remote-service")),
-                null,
-                null,
-                null,
-                9),
-            entry(
-                "GET /api/users/:id",
-                "web-service",
-                "http.request",
-                null,
-                "web",
-                200,
-                false,
-                true,
-                "server",
-                Collections.<UTF8BytesString>emptyList(),
-                null,
-                null,
-                null,
-                5));
+    List<AggregateEntry> smallContent = Arrays.asList(
+        entry(
+            "resource1",
+            "service1",
+            "operation1",
+            null,
+            "type",
+            0,
+            false,
+            false,
+            "client",
+            Arrays.asList(
+                UTF8BytesString.create("country:canada"),
+                UTF8BytesString.create("georegion:amer"),
+                UTF8BytesString.create("peer.service:remote-service")),
+            null,
+            null,
+            null,
+            10),
+        entry(
+            "resource2",
+            "service2",
+            "operation2",
+            null,
+            "type2",
+            200,
+            true,
+            false,
+            "producer",
+            Arrays.asList(
+                UTF8BytesString.create("country:canada"),
+                UTF8BytesString.create("georegion:amer"),
+                UTF8BytesString.create("peer.service:remote-service")),
+            null,
+            null,
+            null,
+            9),
+        entry(
+            "GET /api/users/:id",
+            "web-service",
+            "http.request",
+            null,
+            "web",
+            200,
+            false,
+            true,
+            "server",
+            Collections.<UTF8BytesString>emptyList(),
+            null,
+            null,
+            null,
+            5));
 
     List<AggregateEntry> largeContent = new ArrayList<>();
     for (int i = 0; i <= 10000; i++) {
-      largeContent.add(
-          entry(
-              "resource" + i,
-              "service" + i,
-              "operation" + i,
-              null,
-              "type",
-              0,
-              false,
-              false,
-              "producer",
-              Collections.singletonList(UTF8BytesString.create("messaging.destination:dest" + i)),
-              null,
-              null,
-              null,
-              10));
+      largeContent.add(entry(
+          "resource" + i,
+          "service" + i,
+          "operation" + i,
+          null,
+          "type",
+          0,
+          false,
+          false,
+          "producer",
+          Collections.singletonList(UTF8BytesString.create("messaging.destination:dest" + i)),
+          null,
+          null,
+          null,
+          10));
     }
 
     return Stream.of(
@@ -203,38 +200,36 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
 
-    AggregateEntry entryNoSource =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            "GET",
-            "/api/users",
-            null,
-            1);
-    AggregateEntry entryWithSource =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            "source",
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            "POST",
-            null,
-            null,
-            1);
+    AggregateEntry entryNoSource = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        "GET",
+        "/api/users",
+        null,
+        1);
+    AggregateEntry entryWithSource = entry(
+        "resource",
+        "service",
+        "operation",
+        "source",
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        "POST",
+        null,
+        null,
+        1);
 
     List<AggregateEntry> content = Arrays.asList(entryNoSource, entryWithSource);
 
@@ -260,70 +255,66 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
 
-    AggregateEntry entryWithBoth =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            "GET",
-            "/api/users",
-            null,
-            1);
-    AggregateEntry entryWithMethodOnly =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            "POST",
-            null,
-            null,
-            1);
-    AggregateEntry entryWithEndpointOnly =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            null,
-            "/api/orders",
-            null,
-            1);
-    AggregateEntry entryWithNeither =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "client",
-            Collections.<UTF8BytesString>emptyList(),
-            null,
-            null,
-            null,
-            1);
+    AggregateEntry entryWithBoth = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        "GET",
+        "/api/users",
+        null,
+        1);
+    AggregateEntry entryWithMethodOnly = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        "POST",
+        null,
+        null,
+        1);
+    AggregateEntry entryWithEndpointOnly = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        null,
+        "/api/orders",
+        null,
+        1);
+    AggregateEntry entryWithNeither = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "client",
+        Collections.<UTF8BytesString>emptyList(),
+        null,
+        null,
+        null,
+        1);
 
     List<AggregateEntry> content =
         Arrays.asList(entryWithBoth, entryWithMethodOnly, entryWithEndpointOnly, entryWithNeither);
@@ -358,22 +349,21 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
 
-    AggregateEntry aggregateEntry =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "type",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            "GET",
-            "/api/users",
-            null,
-            1);
+    AggregateEntry aggregateEntry = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        "GET",
+        "/api/users",
+        null,
+        1);
 
     List<AggregateEntry> content = Collections.singletonList(aggregateEntry);
 
@@ -401,54 +391,51 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
 
-    AggregateEntry entryWithGrpc =
-        entry(
-            "grpc.service/Method",
-            "grpc-service",
-            "grpc.server",
-            null,
-            "rpc",
-            0,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            null,
-            null,
-            "OK",
-            1);
-    AggregateEntry entryWithGrpcError =
-        entry(
-            "grpc.service/Method",
-            "grpc-service",
-            "grpc.server",
-            null,
-            "rpc",
-            0,
-            false,
-            false,
-            "client",
-            Collections.<UTF8BytesString>emptyList(),
-            null,
-            null,
-            "NOT_FOUND",
-            1);
-    AggregateEntry entryWithoutGrpc =
-        entry(
-            "resource",
-            "service",
-            "operation",
-            null,
-            "web",
-            200,
-            false,
-            false,
-            "server",
-            Collections.<UTF8BytesString>emptyList(),
-            null,
-            null,
-            null,
-            1);
+    AggregateEntry entryWithGrpc = entry(
+        "grpc.service/Method",
+        "grpc-service",
+        "grpc.server",
+        null,
+        "rpc",
+        0,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        null,
+        null,
+        "OK",
+        1);
+    AggregateEntry entryWithGrpcError = entry(
+        "grpc.service/Method",
+        "grpc-service",
+        "grpc.server",
+        null,
+        "rpc",
+        0,
+        false,
+        false,
+        "client",
+        Collections.<UTF8BytesString>emptyList(),
+        null,
+        null,
+        "NOT_FOUND",
+        1);
+    AggregateEntry entryWithoutGrpc = entry(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "web",
+        200,
+        false,
+        false,
+        "server",
+        Collections.<UTF8BytesString>emptyList(),
+        null,
+        null,
+        null,
+        1);
 
     List<AggregateEntry> content =
         Arrays.asList(entryWithGrpc, entryWithGrpcError, entryWithoutGrpc);
@@ -539,13 +526,10 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
 
     // Set only tenant_id; leave region null.
     table
-        .findOrInsert(
-            snapshot(
-                schema,
-                new String[] {
-                  /*region*/
-                  null, /*tenant_id*/ "acme-corp"
-                }))
+        .findOrInsert(snapshot(schema, new String[] {
+          /*region*/
+          null, /*tenant_id*/ "acme-corp"
+        }))
         .recordOneDuration(1L);
 
     List<AggregateEntry> content = contentOf(table);
@@ -725,13 +709,12 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
         boolean hasServiceSource = entry.hasServiceSource();
         boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
         UTF8BytesString[] additionalTags = entry.getAdditionalTags();
-        int expectedMapSize =
-            15
-                + (hasServiceSource ? 1 : 0)
-                + (hasHttpMethod ? 1 : 0)
-                + (hasHttpEndpoint ? 1 : 0)
-                + (hasGrpcStatusCode ? 1 : 0)
-                + (additionalTagsConfigured ? 1 : 0);
+        int expectedMapSize = 15
+            + (hasServiceSource ? 1 : 0)
+            + (hasHttpMethod ? 1 : 0)
+            + (hasHttpEndpoint ? 1 : 0)
+            + (hasGrpcStatusCode ? 1 : 0)
+            + (additionalTagsConfigured ? 1 : 0);
         assertEquals(expectedMapSize, metricMapSize);
         int elementCount = 0;
         assertEquals("Name", unpacker.unpackString());

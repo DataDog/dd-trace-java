@@ -67,9 +67,8 @@ public class JUnitTestDefinitionProcessorInstrumentation extends InstrumenterMod
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
 
-      executor =
-          new DDCollectAllTestDefinitionsExecutor(
-              executor, Thread.currentThread().getContextClassLoader());
+      executor = new DDCollectAllTestDefinitionsExecutor(
+          executor, Thread.currentThread().getContextClassLoader());
     }
   }
 }

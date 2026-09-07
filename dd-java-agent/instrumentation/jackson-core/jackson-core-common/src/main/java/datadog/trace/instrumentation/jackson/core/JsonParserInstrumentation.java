@@ -53,9 +53,8 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return declaresMethod(namedOneOf("getText", "getValueAsString"))
-        .and(
-            extendsClass(named(hierarchyMarkerType()))
-                .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+        .and(extendsClass(named(hierarchyMarkerType()))
+            .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
   }
 
   @Override

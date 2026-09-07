@@ -42,10 +42,9 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   public void apply(Project project) {
     this.project = project;
 
-    CiVisibilityPluginExtension extension =
-        project
-            .getExtensions()
-            .create(PLUGIN_EXTENSION_NAME, CiVisibilityPluginExtension.class, project.getObjects());
+    CiVisibilityPluginExtension extension = project
+        .getExtensions()
+        .create(PLUGIN_EXTENSION_NAME, CiVisibilityPluginExtension.class, project.getObjects());
     calculateCompiledClassesFolders(extension);
     applyCompilerPlugin(extension);
     applyJacocoPlugin(extension);
@@ -75,9 +74,8 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
         SourceSetOutput output = sourceSet.getOutput();
         Collection<File> destinationDirs = output.getFiles();
 
-        sourceSets.add(
-            new datadog.trace.api.civisibility.domain.SourceSet(
-                sourceSetType, srcDirs, destinationDirs));
+        sourceSets.add(new datadog.trace.api.civisibility.domain.SourceSet(
+            sourceSetType, srcDirs, destinationDirs));
       }
     }
 
@@ -93,22 +91,18 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   }
 
   public void addCompilerPluginConfigurations(CiVisibilityPluginExtension extension) {
-    Configuration configuration =
-        project
-            .getConfigurations()
-            .detachedConfiguration(
-                project
-                    .getDependencies()
-                    .create(
-                        String.format(
-                            "com.datadoghq:dd-javac-plugin:%s",
-                            extension.getCompilerPluginVersion())),
-                project
-                    .getDependencies()
-                    .create(
-                        String.format(
-                            "com.datadoghq:dd-javac-plugin-client:%s",
-                            extension.getCompilerPluginVersion())));
+    Configuration configuration = project
+        .getConfigurations()
+        .detachedConfiguration(
+            project
+                .getDependencies()
+                .create(String.format(
+                    "com.datadoghq:dd-javac-plugin:%s", extension.getCompilerPluginVersion())),
+            project
+                .getDependencies()
+                .create(String.format(
+                    "com.datadoghq:dd-javac-plugin-client:%s",
+                    extension.getCompilerPluginVersion())));
 
     disableDependencyVerificationIfConfigured(configuration);
 
@@ -120,12 +114,11 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
       return;
     }
 
-    if (Files.isRegularFile(
-        project
-            .getRootProject()
-            .getProjectDir()
-            .toPath()
-            .resolve("gradle/verification-metadata.xml"))) {
+    if (Files.isRegularFile(project
+        .getRootProject()
+        .getProjectDir()
+        .toPath()
+        .resolve("gradle/verification-metadata.xml"))) {
       if (!project
           .getRootProject()
           .getExtensions()
@@ -189,13 +182,10 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
         project.getExtensions().getByType(JacocoPluginExtension.class);
     jacocoExtension.setToolVersion(extension.getJacocoVersion());
 
-    List<Configuration> jacocoConfigurations =
-        project.getConfigurations().stream()
-            .filter(
-                c ->
-                    JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
-                        || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
-            .collect(Collectors.toList());
+    List<Configuration> jacocoConfigurations = project.getConfigurations().stream()
+        .filter(c -> JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
+            || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
+        .collect(Collectors.toList());
     for (Configuration jacocoConfiguration : jacocoConfigurations) {
       disableDependencyVerificationIfConfigured(jacocoConfiguration);
     }

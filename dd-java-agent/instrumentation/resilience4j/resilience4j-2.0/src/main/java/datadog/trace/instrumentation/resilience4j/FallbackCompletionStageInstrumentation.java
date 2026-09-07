@@ -29,9 +29,8 @@ public class FallbackCompletionStageInstrumentation
     public static void afterExecute(
         @Advice.FieldValue(value = "stageSupplier", readOnly = false)
             Supplier<CompletionStage<?>> stageSupplier) {
-      stageSupplier =
-          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
-              stageSupplier, Resilience4jSpanDecorator.DECORATE, null);
+      stageSupplier = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
+          stageSupplier, Resilience4jSpanDecorator.DECORATE, null);
     }
 
     // 2.0.0+

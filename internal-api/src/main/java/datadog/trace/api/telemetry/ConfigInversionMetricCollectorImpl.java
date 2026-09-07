@@ -36,9 +36,8 @@ public class ConfigInversionMetricCollectorImpl
   }
 
   private void setMetricConfigInversionMetric(final String... tags) {
-    if (!metricsQueue.offer(
-        new ConfigInversionMetricCollectorImpl.ConfigInversionMetric(
-            NAMESPACE, true, CONFIG_INVERSION_METRIC_NAME, "count", 1, tags))) {
+    if (!metricsQueue.offer(new ConfigInversionMetricCollectorImpl.ConfigInversionMetric(
+        NAMESPACE, true, CONFIG_INVERSION_METRIC_NAME, "count", 1, tags))) {
       log.debug("Unable to add telemetry metric {} for {}", CONFIG_INVERSION_METRIC_NAME, tags[0]);
     }
   }

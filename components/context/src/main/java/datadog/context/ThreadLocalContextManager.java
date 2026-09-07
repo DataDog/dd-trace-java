@@ -147,7 +147,8 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   private static final class ResumedScopeImpl extends ContextScopeImpl {
-    @Nullable private ContextContinuationImpl continuation;
+    @Nullable
+    private ContextContinuationImpl continuation;
 
     ResumedScopeImpl(
         Context context,

@@ -115,10 +115,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
 
       // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
       // Missing key = non-DD provider → false, the privacy-preserving default.
-      final Boolean consentFromMetadata =
-          metadata != null
-              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
-              : null;
+      final Boolean consentFromMetadata = metadata != null
+          ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
+          : null;
       final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
 
       // Error message: prefer the human-readable message under consent-on; under consent-off the
@@ -151,16 +150,15 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         attrs = Collections.emptyMap();
       }
 
-      w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              observeFullEvaluationData,
-              attrs));
+      w.enqueue(new FlagEvalEvent(
+          flagKey,
+          variant,
+          allocationKey,
+          targetingKey,
+          errorMessage,
+          evalTimeMs,
+          observeFullEvaluationData,
+          attrs));
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

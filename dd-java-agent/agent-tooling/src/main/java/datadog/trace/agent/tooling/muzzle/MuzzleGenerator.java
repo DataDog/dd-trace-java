@@ -59,13 +59,11 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
     InstrumenterModule module;
     try {
-      module =
-          (InstrumenterModule)
-              Thread.currentThread()
-                  .getContextClassLoader()
-                  .loadClass(moduleDefinition.getName())
-                  .getConstructor()
-                  .newInstance();
+      module = (InstrumenterModule) Thread.currentThread()
+          .getContextClassLoader()
+          .loadClass(moduleDefinition.getName())
+          .getConstructor()
+          .newInstance();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
@@ -86,19 +84,18 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
     final Set<String> adviceClasses = new HashSet<>();
-    instrumenter.methodAdvice(
-        (matcher, adviceClass, additionalClasses) -> {
-          adviceClasses.add(adviceClass);
-          if (additionalClasses != null) {
-            adviceClasses.addAll(asList(additionalClasses));
-          }
-        });
+    instrumenter.methodAdvice((matcher, adviceClass, additionalClasses) -> {
+      adviceClasses.add(adviceClass);
+      if (additionalClasses != null) {
+        adviceClasses.addAll(asList(additionalClasses));
+      }
+    });
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
-        for (Map.Entry<String, Reference> entry :
-            ReferenceCreator.createReferencesFrom(adviceClass, adviceShader, contextClassLoader)
-                .entrySet()) {
+        for (Map.Entry<String, Reference> entry : ReferenceCreator.createReferencesFrom(
+                adviceClass, adviceShader, contextClassLoader)
+            .entrySet()) {
           Reference toMerge = references.get(entry.getKey());
           if (null == toMerge) {
             references.put(entry.getKey(), entry.getValue());
@@ -143,13 +140,12 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
         "java/lang/Object",
         null);
 
-    MethodVisitor mv =
-        cw.visitMethod(
-            Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-            "create",
-            "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
-            null,
-            null);
+    MethodVisitor mv = cw.visitMethod(
+        Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+        "create",
+        "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
+        null,
+        null);
 
     mv.visitCode();
 

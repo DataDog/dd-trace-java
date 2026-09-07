@@ -41,9 +41,8 @@ class SpringHelperTest {
 
   @Test
   void invalidSpringVersion() {
-    IllegalArgumentException illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
+    IllegalArgumentException illegalArgumentException = assertThrows(
+        IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
     assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
   }
 }

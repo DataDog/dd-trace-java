@@ -32,14 +32,12 @@ public class SsrfController {
           httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
         }
       } else {
-        HttpRequest httpRequest =
-            HttpRequest.newBuilder()
-                .uri(new URI(uri))
-                .timeout(
-                    java.time.Duration.ofSeconds(
-                        1)) // prevents Idle timeout expired in jetty servers when the client is not
-                // responding in sync mode
-                .build();
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+            .uri(new URI(uri))
+            .timeout(java.time.Duration.ofSeconds(
+                1)) // prevents Idle timeout expired in jetty servers when the client is not
+            // responding in sync mode
+            .build();
         httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
       }
     } catch (Exception e) {

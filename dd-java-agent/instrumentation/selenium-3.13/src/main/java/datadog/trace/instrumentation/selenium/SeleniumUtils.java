@@ -154,9 +154,8 @@ public abstract class SeleniumUtils {
     if (capabilities != null) {
       String browserName = capabilities.getBrowserName();
       String browserVersion =
-          String.valueOf(
-              Optional.ofNullable(capabilities.getCapability("browserVersion"))
-                  .orElse(Optional.ofNullable(capabilities.getCapability("version")).orElse("")));
+          String.valueOf(Optional.ofNullable(capabilities.getCapability("browserVersion"))
+              .orElse(Optional.ofNullable(capabilities.getCapability("version")).orElse("")));
       span.setTag(Tags.TEST_BROWSER_NAME, browserName);
       span.setTag(Tags.TEST_BROWSER_VERSION, browserVersion);
     }

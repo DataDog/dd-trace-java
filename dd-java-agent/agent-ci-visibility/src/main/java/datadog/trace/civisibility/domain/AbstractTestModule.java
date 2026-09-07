@@ -54,11 +54,9 @@ public abstract class AbstractTestModule {
     this.linesResolver = linesResolver;
     this.onSpanFinish = onSpanFinish;
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
-            .asChildOf(sessionSpanContext);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer.get()
+        .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
+        .asChildOf(sessionSpanContext);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);

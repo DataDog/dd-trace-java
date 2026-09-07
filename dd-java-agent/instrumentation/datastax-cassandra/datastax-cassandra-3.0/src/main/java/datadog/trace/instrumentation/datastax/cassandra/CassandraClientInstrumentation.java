@@ -68,10 +68,9 @@ public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
       if (session.getClass().getName().endsWith("cassandra.TracingSession")) {
         return;
       }
-      session =
-          new TracingSession(
-              session,
-              InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
+      session = new TracingSession(
+          session,
+          InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
     }
   }
 }

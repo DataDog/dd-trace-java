@@ -17,20 +17,16 @@ class OtlpGrpcRequestBodyTest {
 
   @Test
   void contentTypeIsApplicationGrpc() {
-    OtlpGrpcRequestBody body =
-        new OtlpGrpcRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3}), "application/grpc+proto"),
-            false);
+    OtlpGrpcRequestBody body = new OtlpGrpcRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3}), "application/grpc+proto"), false);
 
     assertEquals(MediaType.get("application/grpc"), body.contentType());
   }
 
   @Test
   void contentLengthIsHeaderPlusPayloadWhenUncompressed() {
-    OtlpGrpcRequestBody body =
-        new OtlpGrpcRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/grpc+proto"),
-            false);
+    OtlpGrpcRequestBody body = new OtlpGrpcRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/grpc+proto"), false);
 
     // 5-byte header (1 flag + 4 length) + 4-byte payload = 9
     assertEquals(9, body.contentLength());
@@ -38,10 +34,8 @@ class OtlpGrpcRequestBodyTest {
 
   @Test
   void contentLengthIsNegativeOneWhenGzipped() {
-    OtlpGrpcRequestBody body =
-        new OtlpGrpcRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/grpc+proto"),
-            true);
+    OtlpGrpcRequestBody body = new OtlpGrpcRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/grpc+proto"), true);
 
     assertEquals(-1, body.contentLength());
   }
@@ -49,9 +43,8 @@ class OtlpGrpcRequestBodyTest {
   @Test
   void writeToProducesGrpcFrameWithUncompressedFlagWhenNotGzipped() throws IOException {
     byte[] data = {10, 20, 30, 40, 50};
-    OtlpGrpcRequestBody body =
-        new OtlpGrpcRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(data), "application/grpc+proto"), false);
+    OtlpGrpcRequestBody body = new OtlpGrpcRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(data), "application/grpc+proto"), false);
     Buffer sink = new Buffer();
 
     body.writeTo(sink);
@@ -64,9 +57,8 @@ class OtlpGrpcRequestBodyTest {
   @Test
   void writeToProducesGrpcFrameWithCompressedFlagAndGzipDataWhenGzipped() throws IOException {
     byte[] data = "the quick brown fox jumps over the lazy dog".getBytes();
-    OtlpGrpcRequestBody body =
-        new OtlpGrpcRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(data), "application/grpc+proto"), true);
+    OtlpGrpcRequestBody body = new OtlpGrpcRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(data), "application/grpc+proto"), true);
     Buffer sink = new Buffer();
 
     body.writeTo(sink);

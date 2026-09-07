@@ -88,14 +88,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+      DSM_TRANSACTION_SOURCE_READER = (source, headerName) -> {
+        try {
+          return getRequestHeader((REQUEST) source, headerName);
+        } catch (Throwable ignored) {
+          return null;
+        }
+      };
 
   public final void onRequest(final AgentSpan span, final REQUEST request) {
     try {
@@ -243,10 +242,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     if (url == null) {
       return;
     }
-    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
-        AgentTracer.get()
-            .getCallbackProvider(RequestContextSlot.APPSEC)
-            .getCallback(EVENTS.httpClientRequest());
+    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb = AgentTracer.get()
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.httpClientRequest());
 
     if (requestCb == null) {
       return;

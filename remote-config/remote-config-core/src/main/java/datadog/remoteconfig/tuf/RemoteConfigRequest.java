@@ -25,20 +25,18 @@ public class RemoteConfigRequest {
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
 
-    ClientInfo.TracerInfo tracerInfo =
-        new RemoteConfigRequest.ClientInfo.TracerInfo(
-            runtimeId,
-            tracerVersion,
-            serviceName,
-            extraServices,
-            serviceEnv,
-            serviceVersion,
-            tags,
-            ProcessTags.getTagsAsStringList());
+    ClientInfo.TracerInfo tracerInfo = new RemoteConfigRequest.ClientInfo.TracerInfo(
+        runtimeId,
+        tracerVersion,
+        serviceName,
+        extraServices,
+        serviceEnv,
+        serviceVersion,
+        tags,
+        ProcessTags.getTagsAsStringList());
 
-    ClientInfo clientInfo =
-        new RemoteConfigRequest.ClientInfo(
-            clientState, clientId, productNames, tracerInfo, capabilities);
+    ClientInfo clientInfo = new RemoteConfigRequest.ClientInfo(
+        clientState, clientId, productNames, tracerInfo, capabilities);
 
     return new RemoteConfigRequest(clientInfo, cachedTargetFiles);
   }
@@ -249,10 +247,9 @@ public class RemoteConfigRequest {
         String path, long length, Map<String /*algo*/, String /*digest*/> hashes) {
       this.path = path;
       this.length = length;
-      List<TargetFileHash> hashesList =
-          hashes.entrySet().stream()
-              .map(e -> new TargetFileHash(e.getKey(), e.getValue()))
-              .collect(Collectors.toList());
+      List<TargetFileHash> hashesList = hashes.entrySet().stream()
+          .map(e -> new TargetFileHash(e.getKey(), e.getValue()))
+          .collect(Collectors.toList());
       this.hashes = hashesList;
     }
 

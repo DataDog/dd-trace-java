@@ -116,36 +116,29 @@ class BodyParserHelpersTest {
 
   @Test
   void collectFilenames_nullFilenameExcluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", null)).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(
+        Collections.<Object>singletonList(filePart("f", null)).iterator());
     assertTrue(result.isEmpty());
   }
 
   @Test
   void collectFilenames_emptyFilenameExcluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", "")).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(
+        Collections.<Object>singletonList(filePart("f", "")).iterator());
     assertTrue(result.isEmpty());
   }
 
   @Test
   void collectFilenames_validFilenameIncluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", "evil.php")).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(
+        Collections.<Object>singletonList(filePart("f", "evil.php")).iterator());
     assertEquals(Collections.singletonList("evil.php"), result);
   }
 
   @Test
   void collectFilenames_mixedPartsFiltered() throws Exception {
-    List<Object> parts =
-        Arrays.<Object>asList(
-            filePart("f1", "a.pdf"),
-            filePart("f2", null),
-            filePart("f3", ""),
-            filePart("f4", "b.jpg"));
+    List<Object> parts = Arrays.<Object>asList(
+        filePart("f1", "a.pdf"), filePart("f2", null), filePart("f3", ""), filePart("f4", "b.jpg"));
     List<String> result = BodyParserHelpers.collectFilenames(parts.iterator());
     assertEquals(Arrays.asList("a.pdf", "b.jpg"), result);
   }

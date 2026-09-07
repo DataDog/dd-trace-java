@@ -23,18 +23,16 @@ final class OtlpResourceAttributes {
   /** Marks that the Agent should not recompute trace metrics from the exported spans. */
   private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
 
-  private static final Set<String> IGNORED_GLOBAL_TAGS =
-      new HashSet<>(
-          asList(
-              "service",
-              "env",
-              "version",
-              "service.name",
-              "deployment.environment.name",
-              "service.version",
-              "telemetry.sdk.name",
-              "telemetry.sdk.version",
-              "telemetry.sdk.language"));
+  private static final Set<String> IGNORED_GLOBAL_TAGS = new HashSet<>(asList(
+      "service",
+      "env",
+      "version",
+      "service.name",
+      "deployment.environment.name",
+      "service.version",
+      "telemetry.sdk.name",
+      "telemetry.sdk.version",
+      "telemetry.sdk.language"));
 
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
@@ -62,16 +60,13 @@ final class OtlpResourceAttributes {
     visitor.accept("telemetry.sdk.version", TRACER_VERSION);
     visitor.accept("telemetry.sdk.language", "java");
 
-    config
-        .getGlobalTags()
-        .forEach(
-            (key, value) -> {
-              // ignore global tags replaced by canonical or extra resource attributes
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
-                  && !extraAttributes.containsKey(key)) {
-                visitor.accept(key, value);
-              }
-            });
+    config.getGlobalTags().forEach((key, value) -> {
+      // ignore global tags replaced by canonical or extra resource attributes
+      if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+          && !extraAttributes.containsKey(key)) {
+        visitor.accept(key, value);
+      }
+    });
 
     extraAttributes.forEach(visitor);
   }

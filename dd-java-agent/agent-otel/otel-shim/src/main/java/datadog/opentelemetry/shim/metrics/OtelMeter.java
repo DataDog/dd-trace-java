@@ -103,9 +103,8 @@ final class OtelMeter implements Meter {
   OtelObservableMeasurement registerObservableStorage(
       OtelInstrumentBuilder builder,
       Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return new OtelObservableMeasurement(
-        OtelMetricRegistry.INSTANCE.registerStorage(
-            instrumentationScope, builder.observableDescriptor(), storageFactory));
+    return new OtelObservableMeasurement(OtelMetricRegistry.INSTANCE.registerStorage(
+        instrumentationScope, builder.observableDescriptor(), storageFactory));
   }
 
   <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
@@ -125,7 +124,8 @@ final class OtelMeter implements Meter {
   }
 
   private static boolean validInstrumentName(@Nullable String instrumentName) {
-    if (instrumentName != null && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
+    if (instrumentName != null
+        && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
       return true;
     }
 

@@ -45,10 +45,9 @@ public final class ClientListenerInstrumentation
         @Advice.This final ClientListenerService that,
         @Advice.Argument(0) final ClientMessage clientMessage) {
 
-      final String operationName =
-          clientMessage.getOperationName() != null
-              ? clientMessage.getOperationName()
-              : "Event.Handle";
+      final String operationName = clientMessage.getOperationName() != null
+          ? clientMessage.getOperationName()
+          : "Event.Handle";
       long correlationId = clientMessage.getCorrelationId();
 
       // Ensure that we only create a span for the top-level Hazelcast method; except in the

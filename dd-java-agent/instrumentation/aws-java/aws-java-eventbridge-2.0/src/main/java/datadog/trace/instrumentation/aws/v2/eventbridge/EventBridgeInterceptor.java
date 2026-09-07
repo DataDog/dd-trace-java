@@ -28,9 +28,9 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
   private static final String DEFAULT_EVENT_BUS_NAME = "default";
   private static final String EVENT_BUS_ARN_PREFIX = "event-bus/";
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final String START_TIME_KEY = "x-datadog-start-time";
   private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
@@ -43,7 +43,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     }
 
     PutEventsRequest request = (PutEventsRequest) context.request();
-    List<PutEventsRequestEntry> modifiedEntries = new ArrayList<>(request.entries().size());
+    List<PutEventsRequestEntry> modifiedEntries =
+        new ArrayList<>(request.entries().size());
     long startTime = System.currentTimeMillis();
 
     for (PutEventsRequestEntry entry : request.entries()) {
@@ -58,9 +59,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
         continue;
       }
 
-      String traceContext =
-          getTraceContextToInject(
-              executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
+      String traceContext = getTraceContextToInject(
+          executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
       detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
       if (detailBuilder.length() > 1) {
         detailBuilder.append(", "); // Only add a comma if detail is not empty.
@@ -74,7 +74,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
           .append('}');
 
       String modifiedDetail = detailBuilder.toString();
-      PutEventsRequestEntry modifiedEntry = entry.toBuilder().detail(modifiedDetail).build();
+      PutEventsRequestEntry modifiedEntry =
+          entry.toBuilder().detail(modifiedDetail).build();
       modifiedEntries.add(modifiedEntry);
     }
 

@@ -38,7 +38,8 @@ public class OpenJ9CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest
   @Test
   void testCrashTracking() throws Exception {
     String script = tempDir.resolve("dd_crash_uploader.sh").toString();
-    String javacorePattern = tempDir.resolve("javacore.%Y%m%d.%H%M%S.%pid.%seq.txt").toString();
+    String javacorePattern =
+        tempDir.resolve("javacore.%Y%m%d.%H%M%S.%pid.%seq.txt").toString();
 
     List<String> jvmArgs = new ArrayList<>();
     jvmArgs.add(javaPath());
@@ -59,7 +60,8 @@ public class OpenJ9CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.openj9CrashTracking.log").toFile());
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.openj9CrashTracking.log").toFile());
 
     // OpenJ9 runs the dump tool synchronously on crash, so the upload completes before JVM exits
     assertTrue(p.waitFor(60, TimeUnit.SECONDS), "JVM did not exit within 60s after crash");

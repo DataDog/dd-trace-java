@@ -40,18 +40,16 @@ public class ScriptInitializerTest {
   @Test
   void testCrashUploaderSanity() {
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, null));
-    assertDoesNotThrow(
-        () ->
-            CrashUploaderScriptInitializer.initialize(
-                tempDir.resolve("dummy.sh").toString(), null));
+    assertDoesNotThrow(() ->
+        CrashUploaderScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString(), null));
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, "hs_err.log"));
   }
 
   @Test
   void testOomeNotifierSanity() {
     assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(null));
-    assertDoesNotThrow(
-        () -> OOMENotifierScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString()));
+    assertDoesNotThrow(() ->
+        OOMENotifierScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString()));
   }
 
   @ParameterizedTest

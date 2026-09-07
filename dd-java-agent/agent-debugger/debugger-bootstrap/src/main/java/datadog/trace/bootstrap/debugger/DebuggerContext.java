@@ -281,13 +281,8 @@ public class DebuggerContext {
         if (probeImplementation == null) {
           continue;
         }
-        CapturedContext.Status status =
-            context.evaluate(
-                probeImplementation,
-                callingClass.getTypeName(),
-                startTimestamp,
-                methodLocation,
-                false);
+        CapturedContext.Status status = context.evaluate(
+            probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation, false);
         needFreeze |= status.shouldFreezeContext();
       }
       // only freeze the context when we have at lest one snapshot probe, and we should send
@@ -317,13 +312,8 @@ public class DebuggerContext {
       if (probeImplementation == null) {
         return;
       }
-      CapturedContext.Status status =
-          context.evaluate(
-              probeImplementation,
-              callingClass.getTypeName(),
-              startTimestamp,
-              methodLocation,
-              true);
+      CapturedContext.Status status = context.evaluate(
+          probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation, true);
       boolean needFreeze = status.shouldFreezeContext();
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot

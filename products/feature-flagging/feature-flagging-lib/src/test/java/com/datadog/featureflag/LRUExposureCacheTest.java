@@ -142,20 +142,18 @@ class LRUExposureCacheTest {
   @Test
   void testKeyEqualityWithNullValues() {
     LRUExposureCache cache = new LRUExposureCache(5);
-    ExposureEvent event1 =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new Allocation("allocation"),
-            new Flag(null),
-            new Variant("variant"),
-            new Subject(null, emptyMap()));
-    ExposureEvent event2 =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new Allocation("allocation"),
-            new Flag(null),
-            new Variant("variant"),
-            new Subject(null, emptyMap()));
+    ExposureEvent event1 = new ExposureEvent(
+        System.currentTimeMillis(),
+        new Allocation("allocation"),
+        new Flag(null),
+        new Variant("variant"),
+        new Subject(null, emptyMap()));
+    ExposureEvent event2 = new ExposureEvent(
+        System.currentTimeMillis(),
+        new Allocation("allocation"),
+        new Flag(null),
+        new Variant("variant"),
+        new Subject(null, emptyMap()));
 
     cache.add(event1);
     boolean duplicateAdded = cache.add(event2);

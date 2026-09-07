@@ -35,20 +35,18 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(1)
 public class ClientStatsAggregatorBenchmark {
-  private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new FixedAgentFeaturesDiscovery(
-          Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ClientStatsAggregator aggregator =
-      new ClientStatsAggregator(
-          new WellKnownTags("", "", "", "", "", ""),
-          Collections.emptySet(),
-          AdditionalTagsSchema.EMPTY,
-          featuresDiscovery,
-          HealthMetrics.NO_OP,
-          new NullSink(),
-          2048,
-          2048,
-          false);
+  private final DDAgentFeaturesDiscovery featuresDiscovery = new FixedAgentFeaturesDiscovery(
+      Collections.singleton("peer.hostname"), Collections.emptySet());
+  private final ClientStatsAggregator aggregator = new ClientStatsAggregator(
+      new WellKnownTags("", "", "", "", "", ""),
+      Collections.emptySet(),
+      AdditionalTagsSchema.EMPTY,
+      featuresDiscovery,
+      HealthMetrics.NO_OP,
+      new NullSink(),
+      2048,
+      2048,
+      false);
   private final List<CoreSpan<?>> spans = generateTrace(64);
 
   static List<CoreSpan<?>> generateTrace(int len) {

@@ -32,9 +32,8 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
 
   @BeforeEach
   void setUpRedis() throws Exception {
-    redisServer =
-        new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-            .waitingFor(Wait.forListeningPort());
+    redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+        .waitingFor(Wait.forListeningPort());
     redisServer.start();
 
     host = redisServer.getHost();

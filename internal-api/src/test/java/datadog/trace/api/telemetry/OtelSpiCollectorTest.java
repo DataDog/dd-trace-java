@@ -35,9 +35,8 @@ public class OtelSpiCollectorTest {
     assertEquals("count", metric.type);
     assertTrue(metric.common);
     assertEquals(1, metric.value);
-    assertTrue(
-        metric.tags.contains(
-            "spi_class:io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider"));
+    assertTrue(metric.tags.contains(
+        "spi_class:io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider"));
     assertTrue(metric.tags.contains("source:extensions_path"));
   }
 

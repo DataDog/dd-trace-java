@@ -70,7 +70,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return JavaVirtualMachine.isIbm8();
   }
 
-  @TempDir Path projectHome;
+  @TempDir
+  Path projectHome;
 
   static final MockBackend mockBackend = new MockBackend();
 
@@ -144,21 +145,19 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenImpactedTestsDetection(true);
 
-    boolean coverageReportExpected =
-        jacocoCoverage
-            && CiVisibilitySmokeTest.class
-                    .getClassLoader()
-                    .getResource(projectName + "/coverage_report_event.ftl")
-                != null;
+    boolean coverageReportExpected = jacocoCoverage
+        && CiVisibilitySmokeTest.class
+                .getClassLoader()
+                .getResource(projectName + "/coverage_report_event.ftl")
+            != null;
     if (coverageReportExpected) {
       mockBackend.givenCodeCoverageReportUpload(true);
     }
 
-    Map<String, String> agentArgs =
-        jacocoCoverage
-            ? Collections.singletonMap(
-                CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION, JACOCO_PLUGIN_VERSION)
-            : Collections.emptyMap();
+    Map<String, String> agentArgs = jacocoCoverage
+        ? Collections.singletonMap(
+            CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION, JACOCO_PLUGIN_VERSION)
+        : Collections.emptyMap();
     int exitCode =
         whenRunningMavenBuild(agentArgs, commandLineParams, Collections.emptyMap(), true);
 
@@ -216,9 +215,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "datadog.smoke.TestSucceeded",
         "test_another_succeeded");
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), true);
+    int exitCode = whenRunningMavenBuild(
+        Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), true);
     assertEquals(0, exitCode);
 
     verifyEventsAndCoverages(
@@ -246,10 +244,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       List<TestFQN> expectedOrder,
       int eventsNumber)
       throws Exception {
-    surefireVersion =
-        "latest-maven-surefire".equals(surefireVersion)
-            ? getLatestMavenSurefireVersion()
-            : surefireVersion;
+    surefireVersion = "latest-maven-surefire".equals(surefireVersion)
+        ? getLatestMavenSurefireVersion()
+        : surefireVersion;
     Map<String, String> additionalEnvVars = new HashMap<>();
     additionalEnvVars.put("SMOKE_TEST_SUREFIRE_VERSION", surefireVersion);
 
@@ -272,13 +269,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
           knownTest.getName());
     }
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.singletonMap(
-                CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER),
-            Collections.emptyList(),
-            additionalEnvVars,
-            true);
+    int exitCode = whenRunningMavenBuild(
+        Collections.singletonMap(
+            CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER),
+        Collections.emptyList(),
+        additionalEnvVars,
+        true);
     assertEquals(0, exitCode);
 
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder);
@@ -294,9 +290,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     givenMavenProjectFiles(projectName);
     givenMavenDependenciesAreLoaded(projectName, mavenVersion);
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), false);
+    int exitCode = whenRunningMavenBuild(
+        Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), false);
     assertEquals(0, exitCode);
 
     List<String> additionalDynamicPaths = Collections.singletonList("content.service");
@@ -336,10 +331,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);
     assertEquals(1, exitCode);
 
-    List<String> additionalDynamicTags =
-        Arrays.asList(
-            "content.meta.['_dd.debug.error.3.snapshot_id']",
-            "content.meta.['_dd.debug.error.exception_id']");
+    List<String> additionalDynamicTags = Arrays.asList(
+        "content.meta.['_dd.debug.error.3.snapshot_id']",
+        "content.meta.['_dd.debug.error.exception_id']");
     verifyEventsAndCoverages(
         projectName,
         "maven",
@@ -351,12 +345,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) throws IOException {
-    String distributionUrl =
-        "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/"
-            + mavenVersion
-            + "/apache-maven-"
-            + mavenVersion
-            + "-bin.zip";
+    String distributionUrl = "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/"
+        + mavenVersion
+        + "/apache-maven-"
+        + mavenVersion
+        + "-bin.zip";
 
     Properties properties = new Properties();
     properties.setProperty("distributionUrl", distributionUrl);
@@ -369,33 +362,30 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private void givenMavenProjectFiles(String projectFilesSources) throws Exception {
-    Path projectResourcesPath =
-        Paths.get(this.getClass().getClassLoader().getResource(projectFilesSources).toURI());
+    Path projectResourcesPath = Paths.get(
+        this.getClass().getClassLoader().getResource(projectFilesSources).toURI());
     copyFolder(projectResourcesPath, projectHome);
 
-    Path sharedSettingsPath =
-        Paths.get(this.getClass().getClassLoader().getResource("settings.mirror.xml").toURI());
+    Path sharedSettingsPath = Paths.get(
+        this.getClass().getClassLoader().getResource("settings.mirror.xml").toURI());
     Files.copy(sharedSettingsPath, projectHome.resolve("settings.mirror.xml"));
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
-    Files.walkFileTree(
-        src,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            Files.createDirectories(dest.resolve(src.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-          }
+    Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+          throws IOException {
+        Files.createDirectories(dest.resolve(src.relativize(dir)));
+        return FileVisitResult.CONTINUE;
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.copy(file, dest.resolve(src.relativize(file)));
-            return FileVisitResult.CONTINUE;
-          }
-        });
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.copy(file, dest.resolve(src.relativize(file)));
+        return FileVisitResult.CONTINUE;
+      }
+    });
 
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectHome.resolve(".git"));
@@ -454,12 +444,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         LOGGER.warn("Failed dependency resolution with exception: ", e);
       }
     }
-    throw new AssertionError(
-        "Tried "
-            + DEPENDENCIES_DOWNLOAD_RETRIES
-            + " times to execute "
-            + mvnCommand
-            + " and failed");
+    throw new AssertionError("Tried " + DEPENDENCIES_DOWNLOAD_RETRIES + " times to execute "
+        + mvnCommand + " and failed");
   }
 
   private int whenRunningMavenBuild(
@@ -473,9 +459,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mvnCommand.add("test");
     mvnCommand.addAll(additionalCommandLineParams);
 
-    ProcessBuilder processBuilder =
-        createProcessBuilder(
-            mvnCommand, true, setServiceName, additionalAgentArgs, additionalEnvVars);
+    ProcessBuilder processBuilder = createProcessBuilder(
+        mvnCommand, true, setServiceName, additionalAgentArgs, additionalEnvVars);
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF");
 
@@ -542,11 +527,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     arguments.add("-Dmaven.multiModuleProjectDirectory=" + projectHome.toAbsolutePath());
     arguments.add("-Dmaven.artifact.threads=10");
     if (runWithAgent) {
-      arguments.addAll(
-          buildJvmArguments(
-              mockBackend.getIntakeUrl(),
-              setServiceName ? TEST_SERVICE_NAME : null,
-              additionalAgentArgs));
+      arguments.addAll(buildJvmArguments(
+          mockBackend.getIntakeUrl(),
+          setServiceName ? TEST_SERVICE_NAME : null,
+          additionalAgentArgs));
     }
     return arguments;
   }
@@ -582,10 +566,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static Properties loadLatestToolVersions() {
     Properties properties = new Properties();
-    try (InputStream stream =
-        MavenSmokeTest.class
-            .getClassLoader()
-            .getResourceAsStream("latest-tool-versions.properties")) {
+    try (InputStream stream = MavenSmokeTest.class
+        .getClassLoader()
+        .getResourceAsStream("latest-tool-versions.properties")) {
       if (stream == null) {
         throw new IllegalStateException(
             "Could not find latest-tool-versions.properties on classpath");

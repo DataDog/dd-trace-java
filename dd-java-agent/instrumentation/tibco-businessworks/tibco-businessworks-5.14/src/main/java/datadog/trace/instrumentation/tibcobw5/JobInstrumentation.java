@@ -41,9 +41,8 @@ public class JobInstrumentation extends AbstractTibcoInstrumentation
       AgentSpan span = startSpan("tibco_bw", TIBCO_PROCESS_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onProcessStart(span, workflowName);
-      Map<String, AgentSpan> map =
-          InstrumentationContext.get(ProcessContext.class, Map.class)
-              .getOrCreate(processContext, HashMap::new);
+      Map<String, AgentSpan> map = InstrumentationContext.get(ProcessContext.class, Map.class)
+          .getOrCreate(processContext, HashMap::new);
       map.put(wId, span);
     }
   }

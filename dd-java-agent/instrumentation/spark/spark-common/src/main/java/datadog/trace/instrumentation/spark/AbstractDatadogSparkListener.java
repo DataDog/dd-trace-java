@@ -171,15 +171,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // - no guarantee it will be executed before the tracer shuts down
     // - no access to the exit code
     Runtime.getRuntime()
-        .addShutdownHook(
-            AgentThreadFactory.newAgentThread(
-                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
-                () -> {
-                  if (!applicationEnded) {
-                    log.info("Finishing application trace from shutdown hook");
-                    finishApplication(System.currentTimeMillis(), null, 0, null);
-                  }
-                }));
+        .addShutdownHook(AgentThreadFactory.newAgentThread(
+            AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK, () -> {
+              if (!applicationEnded) {
+                log.info("Finishing application trace from shutdown hook");
+                finishApplication(System.currentTimeMillis(), null, 0, null);
+              }
+            }));
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
@@ -193,15 +191,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       openLineageSparkConf.set(
           "spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
       openLineageSparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
-      String runTags =
-          "_dd.trace_id:"
-              + traceId.toString()
-              + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
-              + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
-              + ";_dd.ol_intake.process_tags:"
-              + ProcessTags.getTagsForSerialization()
-              + ";_dd.ol_app_id:"
-              + appId;
+      String runTags = "_dd.trace_id:"
+          + traceId.toString()
+          + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
+          + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
+          + ";_dd.ol_intake.process_tags:"
+          + ProcessTags.getTagsForSerialization()
+          + ";_dd.ol_app_id:"
+          + appId;
       // _dd.ol_env carries the run environment so the lineage-processor can use it
       // as the Spark application's UGP namespace, letting the OpenLineage-created
       // node and the tracer-only node (djm-span-processor) resolve to the same
@@ -258,10 +255,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     if (openLineageSparkListener != null) {
-      setupOpenLineage(
-          OpenlineageParentContext.from(sparkConf)
-              .map(context -> context.getTraceId())
-              .orElse(predeterminedTraceIdContext.getTraceId()));
+      setupOpenLineage(OpenlineageParentContext.from(sparkConf)
+          .map(context -> context.getTraceId())
+          .orElse(predeterminedTraceIdContext.getTraceId()));
     }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
@@ -276,11 +272,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
-      String ddTags =
-          Config.get().getGlobalTags().entrySet().stream()
-              .sorted(Map.Entry.comparingByKey())
-              .map(e -> e.getKey() + ":" + e.getValue())
-              .collect(Collectors.joining(","));
+      String ddTags = Config.get().getGlobalTags().entrySet().stream()
+          .sorted(Map.Entry.comparingByKey())
+          .map(e -> e.getKey() + ":" + e.getValue())
+          .collect(Collectors.joining(","));
 
       builder
           .withStartTimestamp(applicationStart.time() * 1000)
@@ -452,12 +447,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
-      AgentSpanContext parentContext =
-          new DatabricksParentContext(
-              databricksJobId,
-              databricksJobRunId,
-              databricksTaskRunId,
-              getDatabricksJobRunAttempt(properties));
+      AgentSpanContext parentContext = new DatabricksParentContext(
+          databricksJobId,
+          databricksJobRunId,
+          databricksTaskRunId,
+          getDatabricksJobRunAttempt(properties));
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
@@ -481,14 +475,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    AgentTracer.SpanBuilder spanBuilder =
-        buildSparkSpan("spark.sql", jobProperties)
-            .withStartTimestamp(queryStart.time() * 1000)
-            .withTag("query_id", sqlExecutionId)
-            .withTag("description", queryStart.description())
-            .withTag("details", queryStart.details())
-            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
-            .withTag(DDTags.RESOURCE_NAME, queryStart.description());
+    AgentTracer.SpanBuilder spanBuilder = buildSparkSpan("spark.sql", jobProperties)
+        .withStartTimestamp(queryStart.time() * 1000)
+        .withTag("query_id", sqlExecutionId)
+        .withTag("description", queryStart.description())
+        .withTag("details", queryStart.details())
+        .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
+        .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
       AgentSpan batchSpan =
@@ -514,11 +507,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    AgentTracer.SpanBuilder jobSpanBuilder =
-        buildSparkSpan("spark.job", jobStart.properties())
-            .withStartTimestamp(jobStart.time() * 1000)
-            .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", getStageCount(jobStart));
+    AgentTracer.SpanBuilder jobSpanBuilder = buildSparkSpan("spark.job", jobStart.properties())
+        .withStartTimestamp(jobStart.time() * 1000)
+        .withTag("job_id", jobStart.jobId())
+        .withTag("stage_count", getStageCount(jobStart));
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
@@ -636,17 +628,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         new SparkAggregatedTaskMetrics(computeCurrentAvailableExecutorTime(submissionTimeMs)));
     stageProperties.put(stageSpanKey, stageSubmitted.properties());
 
-    AgentSpan stageSpan =
-        buildSparkSpan("spark.stage", stageSubmitted.properties())
-            .asChildOf(jobSpan.spanContext())
-            .withStartTimestamp(submissionTimeMs * 1000)
-            .withTag("stage_id", stageId)
-            .withTag(
-                "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
-            .withTag("task_count", stageSubmitted.stageInfo().numTasks())
-            .withTag("attempt_id", stageAttemptId)
-            .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
-            .start();
+    AgentSpan stageSpan = buildSparkSpan("spark.stage", stageSubmitted.properties())
+        .asChildOf(jobSpan.spanContext())
+        .withStartTimestamp(submissionTimeMs * 1000)
+        .withTag("stage_id", stageId)
+        .withTag("parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
+        .withTag("task_count", stageSubmitted.stageInfo().numTasks())
+        .withTag("attempt_id", stageAttemptId)
+        .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
+        .start();
 
     setDataJobsSamplingPriority(stageSpan);
     stageSpan.setMeasured(true);
@@ -674,7 +664,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     span.setTag("details", stageCompleted.stageInfo().details());
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
-      span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
+      span.setErrorMessage(
+          getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
       span.setTag(DDTags.ERROR_STACK, stageInfo.failureReason().get());
       span.setTag(DDTags.ERROR_TYPE, "Spark Stage Failed");
     }
@@ -791,21 +782,20 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private void sendTaskSpan(
       AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
-    AgentSpan taskSpan =
-        buildSparkSpan("spark.task", properties)
-            .asChildOf(stageSpan.spanContext())
-            .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
-            .withTag("task_id", taskEnd.taskInfo().taskId())
-            .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
-            .withTag("task_type", taskEnd.taskType())
-            .withTag("stage_id", taskEnd.stageId())
-            .withTag("stage_attempt_id", taskEnd.stageAttemptId())
-            .withTag("executor_id", taskEnd.taskInfo().executorId())
-            .withTag("host", taskEnd.taskInfo().host())
-            .withTag("task_locality", taskEnd.taskInfo().taskLocality().toString())
-            .withTag("speculative", taskEnd.taskInfo().speculative())
-            .withTag("status", taskEnd.taskInfo().status())
-            .start();
+    AgentSpan taskSpan = buildSparkSpan("spark.task", properties)
+        .asChildOf(stageSpan.spanContext())
+        .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
+        .withTag("task_id", taskEnd.taskInfo().taskId())
+        .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
+        .withTag("task_type", taskEnd.taskType())
+        .withTag("stage_id", taskEnd.stageId())
+        .withTag("stage_attempt_id", taskEnd.stageAttemptId())
+        .withTag("executor_id", taskEnd.taskInfo().executorId())
+        .withTag("host", taskEnd.taskInfo().host())
+        .withTag("task_locality", taskEnd.taskInfo().taskLocality().toString())
+        .withTag("speculative", taskEnd.taskInfo().speculative())
+        .withTag("status", taskEnd.taskInfo().status())
+        .start();
 
     if (taskEnd.reason() instanceof TaskFailedReason) {
       TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
@@ -906,12 +896,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
 
       executionUpdateClass = findAdaptiveExecutionUpdateClass();
-      executionIdMethod =
-          lookup.findVirtual(
-              executionUpdateClass, "executionId", MethodType.methodType(long.class));
-      sparkPlanMethod =
-          lookup.findVirtual(
-              executionUpdateClass, "sparkPlanInfo", MethodType.methodType(SparkPlanInfo.class));
+      executionIdMethod = lookup.findVirtual(
+          executionUpdateClass, "executionId", MethodType.methodType(long.class));
+      sparkPlanMethod = lookup.findVirtual(
+          executionUpdateClass, "sparkPlanInfo", MethodType.methodType(SparkPlanInfo.class));
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
     }
 
@@ -1525,9 +1513,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           Iterator<String> allPartitions = topicNode.fieldNames();
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
-            DataStreamsTags tags =
-                DataStreamsTags.createWithPartition(
-                    "kafka_commit", topic, partition, null, appName);
+            DataStreamsTags tags = DataStreamsTags.createWithPartition(
+                "kafka_commit", topic, partition, null, appName);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .trackBacklog(tags, topicNode.get(partition).asLong());
@@ -1573,11 +1560,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return agentUrl;
     }
 
-    StringBuilder sb =
-        new StringBuilder("http://")
-            .append(Config.get().getAgentHost())
-            .append(":")
-            .append(Config.get().getAgentPort());
+    StringBuilder sb = new StringBuilder("http://")
+        .append(Config.get().getAgentHost())
+        .append(":")
+        .append(Config.get().getAgentPort());
     return sb.toString();
   }
 

@@ -35,18 +35,16 @@ public final class DefaultScrubDefinition {
    * @return a configured {@link JfrScrubber}
    */
   public static JfrScrubber create(List<String> excludeEventTypes) {
-    Set<String> excludeSet =
-        excludeEventTypes != null
-            ? new HashSet<>(excludeEventTypes)
-            : Collections.<String>emptySet();
+    Set<String> excludeSet = excludeEventTypes != null
+        ? new HashSet<>(excludeEventTypes)
+        : Collections.<String>emptySet();
 
-    return new JfrScrubber(
-        eventTypeName -> {
-          if (excludeSet.contains(eventTypeName)) {
-            return null;
-          }
-          return DEFAULT_SCRUB_FIELDS.get(eventTypeName);
-        });
+    return new JfrScrubber(eventTypeName -> {
+      if (excludeSet.contains(eventTypeName)) {
+        return null;
+      }
+      return DEFAULT_SCRUB_FIELDS.get(eventTypeName);
+    });
   }
 
   private DefaultScrubDefinition() {}

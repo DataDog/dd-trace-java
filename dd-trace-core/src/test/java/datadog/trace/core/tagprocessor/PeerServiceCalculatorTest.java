@@ -113,9 +113,8 @@ class PeerServiceCalculatorTest extends DDJavaSpecification {
   })
   void shouldApplyPeerServiceMappingsIfConfigured(
       Map<String, Object> tags, String expected, String original) {
-    PeerServiceCalculator calculator =
-        new PeerServiceCalculator(
-            new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping());
+    PeerServiceCalculator calculator = new PeerServiceCalculator(
+        new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping());
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     calculator.processTags(unsafeTags, null, link -> {});
@@ -133,9 +132,8 @@ class PeerServiceCalculatorTest extends DDJavaSpecification {
   })
   void shouldOverridePeerServiceValuesIfConfigured(
       Map<String, Object> tags, String expected, String source) {
-    PeerServiceCalculator calculator =
-        new PeerServiceCalculator(
-            new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides());
+    PeerServiceCalculator calculator = new PeerServiceCalculator(
+        new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides());
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     calculator.processTags(unsafeTags, null, link -> {});

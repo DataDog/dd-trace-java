@@ -16,14 +16,13 @@ public final class RumInjector {
       new RumInjector(Config.get(), InstrumenterConfig.get());
   private static final String MARKER = "</head>";
   private static final char[] MARKER_CHARS = MARKER.toCharArray();
-  private static final Function<String, byte[]> MARKER_BYTES =
-      charset -> {
-        try {
-          return MARKER.getBytes(charset);
-        } catch (Throwable t) {
-          return null;
-        }
-      };
+  private static final Function<String, byte[]> MARKER_BYTES = charset -> {
+    try {
+      return MARKER.getBytes(charset);
+    } catch (Throwable t) {
+      return null;
+    }
+  };
 
   private final boolean enabled;
   private final String snippet;
@@ -45,14 +44,13 @@ public final class RumInjector {
       this.snippetCache = DDCaches.newFixedSizeCache(16);
       this.markerCache = DDCaches.newFixedSizeCache(16);
       this.snippetChars = this.snippet.toCharArray();
-      this.snippetBytes =
-          charset -> {
-            try {
-              return snippet.getBytes(charset);
-            } catch (Throwable t) {
-              return null;
-            }
-          };
+      this.snippetBytes = charset -> {
+        try {
+          return snippet.getBytes(charset);
+        } catch (Throwable t) {
+          return null;
+        }
+      };
     } else {
       this.enabled = false;
       this.snippet = null;

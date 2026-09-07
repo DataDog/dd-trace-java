@@ -57,9 +57,8 @@ public class RemoteConfigResponse {
         byte[] targetsJsonDecoded =
             Base64.getDecoder().decode(targetsJsonBase64.getBytes(StandardCharsets.ISO_8859_1));
         if (targetsJsonDecoded.length > 0) {
-          response.targets =
-              adapterTargets.fromJson(
-                  Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))));
+          response.targets = adapterTargets.fromJson(
+              Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))));
           response.targets.targetsSignedUntyped = extractUntypedSignedField(targetsJsonDecoded);
         }
         response.targetsJson = null;
@@ -135,24 +134,22 @@ public class RemoteConfigResponse {
         byte[] decode = Base64.getDecoder().decode(raw);
         BigInteger gottenHash = sha256(decode);
         if (!expectedHash.equals(gottenHash)) {
-          throw new IntegrityCheckException(
-              "File "
-                  + configKey
-                  + " does not "
-                  + "have the expected sha256 hash: Expected "
-                  + expectedHash.toString(16)
-                  + ", but got "
-                  + gottenHash.toString(16));
+          throw new IntegrityCheckException("File "
+              + configKey
+              + " does not "
+              + "have the expected sha256 hash: Expected "
+              + expectedHash.toString(16)
+              + ", but got "
+              + gottenHash.toString(16));
         }
         if (decode.length != configTarget.length) {
-          throw new IntegrityCheckException(
-              "File "
-                  + configKey
-                  + " does not "
-                  + "have the expected length: Expected "
-                  + configTarget.length
-                  + ", but got "
-                  + decode.length);
+          throw new IntegrityCheckException("File "
+              + configKey
+              + " does not "
+              + "have the expected length: Expected "
+              + configTarget.length
+              + ", but got "
+              + decode.length);
         }
 
         return decode;

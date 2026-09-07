@@ -195,13 +195,10 @@ class HashtableD1Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
     int[] createCount = {0};
-    StringIntEntry created =
-        table.getOrCreate(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 42);
-            });
+    StringIntEntry created = table.getOrCreate("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 42);
+    });
     assertNotNull(created);
     assertEquals("foo", created.key);
     assertEquals(42, created.value);
@@ -216,13 +213,10 @@ class HashtableD1Test {
     StringIntEntry seeded = new StringIntEntry("foo", 1);
     table.insert(seeded);
     int[] createCount = {0};
-    StringIntEntry got =
-        table.getOrCreate(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 999);
-            });
+    StringIntEntry got = table.getOrCreate("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);

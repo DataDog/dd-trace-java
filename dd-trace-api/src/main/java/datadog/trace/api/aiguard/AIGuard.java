@@ -309,8 +309,12 @@ public abstract class AIGuard {
     }
 
     private final Type type;
-    @Nullable private final String text;
-    @Nullable private final ImageURL imageUrl;
+
+    @Nullable
+    private final String text;
+
+    @Nullable
+    private final ImageURL imageUrl;
 
     /**
      * Private constructor to enforce use of factory methods.
@@ -420,8 +424,13 @@ public abstract class AIGuard {
   public static class Message {
 
     private final String role;
-    @Nullable private final String content;
-    @Nullable private final List<ContentPart> contentParts;
+
+    @Nullable
+    private final String content;
+
+    @Nullable
+    private final List<ContentPart> contentParts;
+
     private final List<ToolCall> toolCalls;
     private final String toolCallId;
 

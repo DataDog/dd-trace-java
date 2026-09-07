@@ -24,12 +24,10 @@ class TestEventsHandlerImplTest {
   @Test
   void doesNotCreateSessionWhenUnused() {
     AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return mock(TestFrameworkSession.class);
-            });
+    TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+      creations.incrementAndGet();
+      return mock(TestFrameworkSession.class);
+    });
 
     handler.close();
 
@@ -44,12 +42,10 @@ class TestEventsHandlerImplTest {
     TestIdentifier test = new TestIdentifier("suite", "test", null);
     when(module.skipReason(test)).thenReturn(SkipReason.ITR);
     AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            });
+    TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+      creations.incrementAndGet();
+      return session;
+    });
 
     assertSame(SkipReason.ITR, handler.skipReason(test));
     assertSame(SkipReason.ITR, handler.skipReason(test));
@@ -68,13 +64,12 @@ class TestEventsHandlerImplTest {
     when(session.testModuleStart("module", null)).thenReturn(module);
     AtomicInteger creations = new AtomicInteger();
 
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            },
-            true);
+    TestEventsHandlerImpl<Object, Object> handler = handler(
+        () -> {
+          creations.incrementAndGet();
+          return session;
+        },
+        true);
 
     assertEquals(1, creations.get());
     handler.close();

@@ -27,9 +27,8 @@ public class ServiceNameCollectingTraceInterceptor extends AbstractTraceIntercep
   private static final int SERVICE_NAME_LIMIT =
       Config.get().getJmxFetchMultipleRuntimeServicesLimit();
   private static final AtomicIntegerFieldUpdater<ServiceNameCollectingTraceInterceptor>
-      SERVICE_NAMES_SIZE_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              ServiceNameCollectingTraceInterceptor.class, "serviceNamesSize");
+      SERVICE_NAMES_SIZE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+          ServiceNameCollectingTraceInterceptor.class, "serviceNamesSize");
 
   private volatile int serviceNamesSize = 0;
   private final ConcurrentHashMap<String, Boolean> serviceNames = new ConcurrentHashMap<>();

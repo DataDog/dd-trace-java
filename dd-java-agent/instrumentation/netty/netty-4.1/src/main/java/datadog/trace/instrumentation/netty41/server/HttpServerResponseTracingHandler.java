@@ -39,13 +39,12 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       return;
     }
 
-    final Context storedContext =
-        serverContext == null
-            // HTTP/2 multiplex stream channels only inherit the mirrored context attribute from
-            // Http2MultiplexHandlerStreamChannelInstrumentation.PropagateContextAdvice, without a
-            // per-stream request queue.
-            ? ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get()
-            : serverContext.tracingContext();
+    final Context storedContext = serverContext == null
+        // HTTP/2 multiplex stream channels only inherit the mirrored context attribute from
+        // Http2MultiplexHandlerStreamChannelInstrumentation.PropagateContextAdvice, without a
+        // per-stream request queue.
+        ? ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get()
+        : serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     if (span == null) {

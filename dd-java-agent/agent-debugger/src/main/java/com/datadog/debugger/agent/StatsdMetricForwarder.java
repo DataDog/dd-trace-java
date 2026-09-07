@@ -19,14 +19,13 @@ public class StatsdMetricForwarder
   private final ProbeStatusSink probeStatusSink;
 
   public StatsdMetricForwarder(Config config, ProbeStatusSink probeStatusSink) {
-    statsd =
-        DDAgentStatsDClientManager.statsDClientManager()
-            .statsDClient(
-                config.getJmxFetchStatsdHost(),
-                config.getJmxFetchStatsdPort(),
-                config.getDogStatsDNamedPipe(),
-                METRICPROBE_PREFIX,
-                new String[0]);
+    statsd = DDAgentStatsDClientManager.statsDClientManager()
+        .statsDClient(
+            config.getJmxFetchStatsdHost(),
+            config.getJmxFetchStatsdPort(),
+            config.getDogStatsDNamedPipe(),
+            METRICPROBE_PREFIX,
+            new String[0]);
     this.probeStatusSink = probeStatusSink;
   }
 

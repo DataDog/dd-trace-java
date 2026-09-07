@@ -108,42 +108,41 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializa
   @Override
   public Set<Entry<K, V>> entrySet() {
     if (null == entrySet) {
-      entrySet =
-          new AbstractSet<Map.Entry<K, V>>() {
+      entrySet = new AbstractSet<Map.Entry<K, V>>() {
+        @Override
+        public int size() {
+          return UnionMap.this.size();
+        }
+
+        @Override
+        public Iterator<Map.Entry<K, V>> iterator() {
+          UnionMap.this.dedup();
+
+          return new Iterator<Map.Entry<K, V>>() {
+            private Iterator<Map.Entry<K, V>> itr = primaryMap.entrySet().iterator();
+            private volatile boolean trySecondaryNext = !secondaryMap.isEmpty();
+
             @Override
-            public int size() {
-              return UnionMap.this.size();
+            public boolean hasNext() {
+              return itr.hasNext() || trySecondaryNext;
             }
 
             @Override
-            public Iterator<Map.Entry<K, V>> iterator() {
-              UnionMap.this.dedup();
+            public Map.Entry<K, V> next() {
+              if (!itr.hasNext() && trySecondaryNext) {
+                trySecondaryNext = false;
+                itr = secondaryMap.entrySet().iterator();
+              }
+              return itr.next();
+            }
 
-              return new Iterator<Map.Entry<K, V>>() {
-                private Iterator<Map.Entry<K, V>> itr = primaryMap.entrySet().iterator();
-                private volatile boolean trySecondaryNext = !secondaryMap.isEmpty();
-
-                @Override
-                public boolean hasNext() {
-                  return itr.hasNext() || trySecondaryNext;
-                }
-
-                @Override
-                public Map.Entry<K, V> next() {
-                  if (!itr.hasNext() && trySecondaryNext) {
-                    trySecondaryNext = false;
-                    itr = secondaryMap.entrySet().iterator();
-                  }
-                  return itr.next();
-                }
-
-                @Override
-                public void remove() {
-                  itr.remove();
-                }
-              };
+            @Override
+            public void remove() {
+              itr.remove();
             }
           };
+        }
+      };
     }
     return entrySet;
   }

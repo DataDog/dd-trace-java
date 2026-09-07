@@ -50,7 +50,8 @@ public final class AggregateEntry extends Hashtable.Entry {
 
   // Null until first error; SerializingMetricWriter writes empty histogram form when null. Not
   // thread-safe as well.
-  @Nullable private Histogram errorLatencies;
+  @Nullable
+  private Histogram errorLatencies;
 
   private int errorCount;
   private int hitCount;
@@ -545,10 +546,9 @@ public final class AggregateEntry extends Hashtable.Entry {
       } else {
         snapshottedPeerTags = Arrays.asList(Arrays.copyOf(peerTagsBuffer, n));
       }
-      UTF8BytesString[] snapshottedAdditionalTags =
-          additionalTagsSize == 0
-              ? EMPTY_TAGS
-              : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
+      UTF8BytesString[] snapshottedAdditionalTags = additionalTagsSize == 0
+          ? EMPTY_TAGS
+          : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
       return new AggregateEntry(
           keyHash,
           resource,

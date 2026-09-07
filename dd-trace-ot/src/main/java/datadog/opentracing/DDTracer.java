@@ -215,7 +215,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   // This constructor is already used in the wild, so we have to keep it inside this API for now.
   @Deprecated
   public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    this(CoreTracer.builder().serviceName(serviceName).writer(writer).sampler(sampler).build());
+    this(CoreTracer.builder()
+        .serviceName(serviceName)
+        .writer(writer)
+        .sampler(sampler)
+        .build());
   }
 
   @Deprecated
@@ -224,13 +228,12 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Writer writer,
       final Sampler sampler,
       final Map<String, String> runtimeTags) {
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(runtimeTags)
-            .build());
+    this(CoreTracer.builder()
+        .serviceName(serviceName)
+        .writer(writer)
+        .sampler(sampler)
+        .localRootSpanTags(runtimeTags)
+        .build());
   }
 
   @Deprecated
@@ -253,16 +256,15 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(customRuntimeTags(runtimeId, localRootSpanTags))
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .build());
+    this(CoreTracer.builder()
+        .serviceName(serviceName)
+        .writer(writer)
+        .sampler(sampler)
+        .localRootSpanTags(customRuntimeTags(runtimeId, localRootSpanTags))
+        .defaultSpanTags(defaultSpanTags)
+        .serviceNameMappings(serviceNameMappings)
+        .taggedHeaders(taggedHeaders)
+        .build());
   }
 
   @Deprecated
@@ -275,16 +277,15 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
 
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(localRootSpanTags)
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .build());
+    this(CoreTracer.builder()
+        .serviceName(serviceName)
+        .writer(writer)
+        .sampler(sampler)
+        .localRootSpanTags(localRootSpanTags)
+        .defaultSpanTags(defaultSpanTags)
+        .serviceNameMappings(serviceNameMappings)
+        .taggedHeaders(taggedHeaders)
+        .build());
   }
 
   @Deprecated
@@ -298,17 +299,16 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans) {
 
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(localRootSpanTags)
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .partialFlushMinSpans(partialFlushMinSpans)
-            .build());
+    this(CoreTracer.builder()
+        .serviceName(serviceName)
+        .writer(writer)
+        .sampler(sampler)
+        .localRootSpanTags(localRootSpanTags)
+        .defaultSpanTags(defaultSpanTags)
+        .serviceNameMappings(serviceNameMappings)
+        .taggedHeaders(taggedHeaders)
+        .partialFlushMinSpans(partialFlushMinSpans)
+        .build());
   }
 
   // Should only be used internally by TracerInstaller

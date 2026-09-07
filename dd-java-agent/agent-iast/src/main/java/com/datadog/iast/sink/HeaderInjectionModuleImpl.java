@@ -56,7 +56,9 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
   private static class HeaderInjectionEvidenceBuilder implements EvidenceBuilder {
 
     private final String name;
-    @Nullable private final HttpHeader header;
+
+    @Nullable
+    private final HttpHeader header;
 
     private HeaderInjectionEvidenceBuilder(final String name, @Nullable final HttpHeader header) {
       this.name = name;

@@ -71,7 +71,9 @@ public class CiVisibilityServices {
   final GitInfoProvider gitInfoProvider;
   final LinesResolver linesResolver;
   final RepoIndexProvider.Factory repoIndexProviderFactory;
-  @Nullable final SignalClient.Factory signalClientFactory;
+
+  @Nullable
+  final SignalClient.Factory signalClientFactory;
 
   CiVisibilityServices(
       Config config,
@@ -116,9 +118,8 @@ public class CiVisibilityServices {
 
       FileSystem fileSystem = FileSystems.getDefault();
       PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
-      ResourceResolver resourceResolver =
-          new ConventionBasedResourceResolver(
-              fileSystem, config.getCiVisibilityResourceFolderNames());
+      ResourceResolver resourceResolver = new ConventionBasedResourceResolver(
+          fileSystem, config.getCiVisibilityResourceFolderNames());
       this.repoIndexProviderFactory =
           new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
     }

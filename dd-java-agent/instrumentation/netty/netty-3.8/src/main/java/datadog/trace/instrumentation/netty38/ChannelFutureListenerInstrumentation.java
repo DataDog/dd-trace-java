@@ -97,10 +97,9 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       final ContextStore<Channel, ChannelTraceContext> contextStore =
           InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
-      final ContextContinuation continuation =
-          contextStore
-              .getOrCreate(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
-              .getConnectionContinuation();
+      final ContextContinuation continuation = contextStore
+          .getOrCreate(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
+          .getConnectionContinuation();
       contextStore.get(future.getChannel()).setConnectionContinuation(null);
       if (continuation == null) {
         return null;

@@ -298,12 +298,11 @@ public final class NativeLoader {
       String libName,
       LibraryLoadingListener[] scopedListeners)
       throws LibraryLoadException {
-    SafeLibraryLoadingListener allListeners =
-        (scopedListeners == null
-                || scopedListeners == EMPTY_LISTENERS
-                || scopedListeners.length == 0)
-            ? this.listeners
-            : this.listeners.join(scopedListeners);
+    SafeLibraryLoadingListener allListeners = (scopedListeners == null
+            || scopedListeners == EMPTY_LISTENERS
+            || scopedListeners.length == 0)
+        ? this.listeners
+        : this.listeners.join(scopedListeners);
 
     if (platformSpec.isUnknownOs() || platformSpec.isUnknownArch()) {
       allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, NO_CAUSE);

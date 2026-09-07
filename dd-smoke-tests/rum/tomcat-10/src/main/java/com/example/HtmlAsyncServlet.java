@@ -22,19 +22,18 @@ public class HtmlAsyncServlet extends HttpServlet {
                   asyncContext
                       .getResponse()
                       .getWriter()
-                      .write(
-                          "<!DOCTYPE html>"
-                              + "<html lang=\"en\">"
-                              + "<head>"
-                              + "    <meta charset=\"UTF-8\">"
-                              + "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-                              + "    <title>Hello Servlet</title>"
-                              + "</head>"
-                              + "<body>"
-                              + "    <h1>Hello from Tomcat 9 Servlet!</h1>"
-                              + "    <p>This is a demo HTML page served by Java servlet.</p>"
-                              + "</body>"
-                              + "</html>");
+                      .write("<!DOCTYPE html>"
+                          + "<html lang=\"en\">"
+                          + "<head>"
+                          + "    <meta charset=\"UTF-8\">"
+                          + "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                          + "    <title>Hello Servlet</title>"
+                          + "</head>"
+                          + "<body>"
+                          + "    <h1>Hello from Tomcat 9 Servlet!</h1>"
+                          + "    <p>This is a demo HTML page served by Java servlet.</p>"
+                          + "</body>"
+                          + "</html>");
                   asyncContext.complete();
                 } catch (IOException e) {
                   throw new UncheckedIOException(e);

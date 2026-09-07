@@ -135,13 +135,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
    * differently on the retry — a dropped span would lose its verdict and be re-emitted as retained.
    */
   private static final Set<String> TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  PARENT_ID_TAG_INTERNAL_FULL,
-                  SAMPLING_DECISION_TAG_INTERNAL_FULL,
-                  SAMPLE_RATE_TAG_INTERNAL_FULL,
-                  SPAN_KIND_TAG_KEY)));
+      Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+          PARENT_ID_TAG_INTERNAL_FULL,
+          SAMPLING_DECISION_TAG_INTERNAL_FULL,
+          SAMPLE_RATE_TAG_INTERNAL_FULL,
+          SPAN_KIND_TAG_KEY)));
 
   private static final String PAGENT_SPAN_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
@@ -387,20 +385,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
     private Map<String, String> errorInfo;
 
     private static final Set<String> TAGS_FOR_REMAPPING =
-        Collections.unmodifiableSet(
-            new HashSet<>(
-                Arrays.asList(
-                    LLMOBS_TAG_PREFIX + INPUT,
-                    LLMOBS_TAG_PREFIX + INPUT_PROMPT,
-                    LLMOBS_TAG_PREFIX + OUTPUT,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_NAME,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST,
-                    PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
-                    PAGENT_NAME_TAG_INTERNAL_FULL)));
+        Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            LLMOBS_TAG_PREFIX + INPUT,
+            LLMOBS_TAG_PREFIX + INPUT_PROMPT,
+            LLMOBS_TAG_PREFIX + OUTPUT,
+            LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_NAME,
+            LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
+            LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
+            LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
+            LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
+            LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST,
+            PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
+            PAGENT_NAME_TAG_INTERNAL_FULL)));
 
     MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {
       this.writable = writable;
@@ -490,14 +486,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // agent_attribution block is skipped; subtract 1 for that entry too.
       boolean hasInvalidParentAgentSpanId =
           tagsToRemapToMeta.containsKey(PAGENT_SPAN_ID_TAG_INTERNAL_FULL) && !hasAgentAttribution;
-      int metaSize =
-          tagsToRemapToMeta.size()
-              - (hasInputPrompt ? 1 : 0)
-              + (inputPrompt != null && !hasInput ? 1 : 0)
-              + 1
-              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
-              - (hasAgentAttributionName ? 1 : 0)
-              - (hasInvalidParentAgentSpanId ? 1 : 0);
+      int metaSize = tagsToRemapToMeta.size()
+          - (hasInputPrompt ? 1 : 0)
+          + (inputPrompt != null && !hasInput ? 1 : 0)
+          + 1
+          + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
+          - (hasAgentAttributionName ? 1 : 0)
+          - (hasInvalidParentAgentSpanId ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
@@ -820,12 +815,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
       } else {
-        buffers =
-            Arrays.asList(
-                header.slice(),
-                // Third Value: is an array of spans serialized into the body
-                msgpackArrayHeader(spansWritten),
-                body);
+        buffers = Arrays.asList(
+            header.slice(),
+            // Third Value: is an array of spans serialized into the body
+            msgpackArrayHeader(spansWritten),
+            body);
       }
       return gzippedMsgpackRequestBodyOf(buffers);
     }

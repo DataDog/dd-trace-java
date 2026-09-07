@@ -27,9 +27,8 @@ public class TracedDelegatingConsumer implements Consumer {
 
   public TracedDelegatingConsumer(final String queue, final Consumer delegate) {
     this.queue = queue;
-    this.propagate =
-        Config.get().isRabbitPropagationEnabled()
-            && !Config.get().isRabbitPropagationDisabledForDestination(queue);
+    this.propagate = Config.get().isRabbitPropagationEnabled()
+        && !Config.get().isRabbitPropagationDisabledForDestination(queue);
     this.delegate = delegate;
   }
 

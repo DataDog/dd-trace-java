@@ -57,9 +57,8 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
             .and(named("entity"))
             .and(returns(named("akka.http.scaladsl.server.Directive")))
             .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0, named("akka.http.scaladsl.server.directives.MarshallingDirectives")))
+            .and(takesArgument(
+                0, named("akka.http.scaladsl.server.directives.MarshallingDirectives")))
             .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
         MarshallingDirectivesInstrumentation.class.getName()
             + "$TaintUnmarshallerInputOldScalaAdvice");

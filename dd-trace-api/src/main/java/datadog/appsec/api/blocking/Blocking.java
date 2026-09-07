@@ -70,9 +70,8 @@ public class Blocking {
    */
   public static boolean tryCommitBlockingResponse(int statusCode, BlockingContentType contentType) {
     try {
-      boolean committedBlockingResponse =
-          SERVICE.tryCommitBlockingResponse(
-              statusCode, BlockingContentType.NONE, Collections.emptyMap());
+      boolean committedBlockingResponse = SERVICE.tryCommitBlockingResponse(
+          statusCode, BlockingContentType.NONE, Collections.emptyMap());
       return committedBlockingResponse;
     } catch (Exception e) {
       return false;

@@ -123,14 +123,13 @@ public class DDIntakeApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    final Request request =
-        new Request.Builder()
-            .url(intakeUrl)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
-            .post(payload.toRequest())
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener)
-            .build();
+    final Request request = new Request.Builder()
+        .url(intakeUrl)
+        .addHeader(DD_API_KEY_HEADER, apiKey)
+        .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
+        .post(payload.toRequest())
+        .tag(OkHttpUtils.CustomListener.class, telemetryListener)
+        .build();
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 

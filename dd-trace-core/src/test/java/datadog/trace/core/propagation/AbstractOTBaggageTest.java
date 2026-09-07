@@ -68,9 +68,8 @@ abstract class AbstractOTBaggageTest {
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
   @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "2")
   void chargesRepeatedKeyOnce() {
-    Map<String, String> baggage =
-        extractBaggage(
-            baggageHeaders(baggageItems("key0", "val0", "a", "0123456789", "key0", "val1")));
+    Map<String, String> baggage = extractBaggage(
+        baggageHeaders(baggageItems("key0", "val0", "a", "0123456789", "key0", "val1")));
 
     Map<String, String> expected = new HashMap<>();
     expected.put("key0", "val1");

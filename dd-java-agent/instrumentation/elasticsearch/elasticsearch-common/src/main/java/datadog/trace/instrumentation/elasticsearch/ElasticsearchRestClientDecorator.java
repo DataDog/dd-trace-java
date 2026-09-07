@@ -23,9 +23,8 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("elasticsearch");
 
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().database().operation("elasticsearch.rest"));
+  public static final CharSequence OPERATION_NAME = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().database().operation("elasticsearch.rest"));
   public static final CharSequence ELASTICSEARCH_JAVA =
       UTF8BytesString.create("elasticsearch-java");
 

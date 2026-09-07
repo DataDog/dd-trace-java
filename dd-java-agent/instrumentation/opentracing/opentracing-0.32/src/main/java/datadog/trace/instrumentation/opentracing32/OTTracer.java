@@ -73,9 +73,8 @@ public class OTTracer implements Tracer {
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMapExtract) {
-      final AgentSpanContext tagContext =
-          extractContextAndGetSpanContext(
-              (TextMapExtract) carrier, ContextVisitors.stringValuesEntrySet());
+      final AgentSpanContext tagContext = extractContextAndGetSpanContext(
+          (TextMapExtract) carrier, ContextVisitors.stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {

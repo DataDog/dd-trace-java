@@ -46,8 +46,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertEquals(TEST_NAME, recording.getName());
@@ -63,8 +64,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertEquals(
@@ -81,8 +83,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isOldObjectSampleAvailable()) {
@@ -102,10 +105,10 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData) controller
+            .createRecording(TEST_NAME, new ControllerContext().snapshot())
+            .stop())
+        .getRecording()) {
       // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
       // profiling has no effect — the event cannot be safely enabled.
       assertEquals(
@@ -121,8 +124,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (isObjectAllocationSampleAvailable()) {
@@ -162,8 +166,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isObjectAllocationSampleAvailable()) {
@@ -187,10 +192,10 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData) controller
+            .createRecording(TEST_NAME, new ControllerContext().snapshot())
+            .stop())
+        .getRecording()) {
       if (!isObjectAllocationSampleAvailable()) {
         assertEquals(
             true,
@@ -212,8 +217,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertFalse(
@@ -228,8 +234,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isNativeMethodSampleAvailable()) {
@@ -251,9 +258,9 @@ public class OpenJdkControllerTest {
     context.setDatadogProfilingModes(EnumSet.of(ProfilingMode.MEMLEAK));
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME, context.snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData)
+            controller.createRecording(TEST_NAME, context.snapshot()).stop())
+        .getRecording()) {
       assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
     }
   }
@@ -266,8 +273,9 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertFalse(

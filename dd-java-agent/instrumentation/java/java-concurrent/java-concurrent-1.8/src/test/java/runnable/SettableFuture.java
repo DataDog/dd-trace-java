@@ -5,13 +5,12 @@ import java.util.concurrent.FutureTask;
 
 public class SettableFuture extends FutureTask<String> {
   SettableFuture() {
-    super(
-        new Callable<String>() {
-          @Override
-          public String call() throws Exception {
-            return "async result";
-          }
-        });
+    super(new Callable<String>() {
+      @Override
+      public String call() throws Exception {
+        return "async result";
+      }
+    });
   }
 
   public void set(String value) {

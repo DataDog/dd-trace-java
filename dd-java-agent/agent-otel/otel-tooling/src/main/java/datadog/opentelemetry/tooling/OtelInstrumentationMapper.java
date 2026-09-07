@@ -20,9 +20,8 @@ import net.bytebuddy.jar.asm.commons.Remapper;
 /** Maps OpenTelemetry instrumentations to use the Datadog {@link InstrumenterModule} API. */
 public final class OtelInstrumentationMapper extends ClassRemapper {
 
-  private static final Set<String> UNSUPPORTED_TYPES =
-      Collections.singleton(
-          "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
+  private static final Set<String> UNSUPPORTED_TYPES = Collections.singleton(
+      "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);

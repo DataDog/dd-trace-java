@@ -14,9 +14,8 @@ public class CaptureLibraryNameAdvice {
     // this module is not opened by default hence we are inlining this code into the target to
     // circumvent this limitation
     try {
-      final MethodHandle mh =
-          MethodHandles.lookup()
-              .findVirtual(self.getClass(), "name", MethodType.methodType(String.class));
+      final MethodHandle mh = MethodHandles.lookup()
+          .findVirtual(self.getClass(), "name", MethodType.methodType(String.class));
       String libraryName = (String) mh.invoke(self);
       if (libraryName != null) {
         libraryName = extractLibraryName(libraryName);

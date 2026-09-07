@@ -27,13 +27,11 @@ class TraceMapperTest extends DDCoreJavaSpecification {
   @Test
   void testTraceMapperV05() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", null)
-                .withTag("service.name", "my-service")
-                .withTag("elasticsearch.version", "7.0")
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", null)
+        .withTag("service.name", "my-service")
+        .withTag("elasticsearch.version", "7.0")
+        .start();
     span.setBaggageItem("baggage", "item");
     span.spanContext().setDataTop("mydata", "[1,2,3]");
     List<DDSpan> trace = Collections.singletonList(span);

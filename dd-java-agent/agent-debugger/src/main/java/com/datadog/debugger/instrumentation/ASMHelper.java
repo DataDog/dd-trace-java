@@ -106,13 +106,12 @@ public class ASMHelper {
       org.objectweb.asm.Type returnType,
       org.objectweb.asm.Type... argTypes) {
     // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEINTERFACE,
-            owner.getInternalName(),
-            name,
-            getMethodDescriptor(returnType, argTypes),
-            true));
+    insnList.add(new MethodInsnNode(
+        Opcodes.INVOKEINTERFACE,
+        owner.getInternalName(),
+        name,
+        getMethodDescriptor(returnType, argTypes),
+        true));
     // stack: [ret_type]
   }
 
@@ -123,13 +122,12 @@ public class ASMHelper {
       org.objectweb.asm.Type returnType,
       org.objectweb.asm.Type... argTypes) {
     // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEVIRTUAL,
-            owner.getInternalName(),
-            name,
-            getMethodDescriptor(returnType, argTypes),
-            false));
+    insnList.add(new MethodInsnNode(
+        Opcodes.INVOKEVIRTUAL,
+        owner.getInternalName(),
+        name,
+        getMethodDescriptor(returnType, argTypes),
+        false));
     // stack: [ret_type]
   }
 
@@ -160,13 +158,12 @@ public class ASMHelper {
       org.objectweb.asm.Type returnType,
       org.objectweb.asm.Type... argTypes) {
     // expected stack: [arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESTATIC,
-            owner.getInternalName(),
-            name,
-            getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
+    insnList.add(new MethodInsnNode(
+        Opcodes.INVOKESTATIC,
+        owner.getInternalName(),
+        name,
+        getMethodDescriptor(returnType, argTypes),
+        false)); // stack: [ret_type]
   }
 
   public static void ldc(InsnList insnList, int val) {
@@ -182,9 +179,8 @@ public class ASMHelper {
   }
 
   public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
-    insnList.add(
-        new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
+    insnList.add(new FieldInsnNode(
+        Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
   }
 
   public static void getStatic(
@@ -192,9 +188,8 @@ public class ASMHelper {
       org.objectweb.asm.Type owner,
       String fieldName,
       org.objectweb.asm.Type fieldType) {
-    insnList.add(
-        new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, fieldType.getDescriptor()));
+    insnList.add(new FieldInsnNode(
+        Opcodes.GETSTATIC, owner.getInternalName(), fieldName, fieldType.getDescriptor()));
   }
 
   public static Type decodeSignature(String signature) {
@@ -202,11 +197,10 @@ public class ASMHelper {
     FieldSignatureVisitor fieldSignatureVisitor = new FieldSignatureVisitor();
     sigReader.acceptType(fieldSignatureVisitor);
     org.objectweb.asm.Type mainType = getObjectType(fieldSignatureVisitor.getMainClassName());
-    List<Type> genericTypes =
-        fieldSignatureVisitor.genericTypes.stream()
-            .map(org.objectweb.asm.Type::getObjectType)
-            .map(Type::new)
-            .collect(Collectors.toList());
+    List<Type> genericTypes = fieldSignatureVisitor.genericTypes.stream()
+        .map(org.objectweb.asm.Type::getObjectType)
+        .map(Type::new)
+        .collect(Collectors.toList());
     return new Type(mainType, genericTypes);
   }
 
@@ -225,10 +219,9 @@ public class ASMHelper {
       // This is required to make sure we are not loading the class being transformed during
       // transformation as it will generate a LinkageError with
       // "attempted duplicate class definition"
-      throw new IllegalArgumentException(
-          "Cannot ensure loading class: "
-              + className
-              + " safely as current class being transformed is not provided (null)");
+      throw new IllegalArgumentException("Cannot ensure loading class: "
+          + className
+          + " safely as current class being transformed is not provided (null)");
     }
     if (className.equals(currentClassTransformed)) {
       throw new IllegalArgumentException(
@@ -349,13 +342,12 @@ public class ASMHelper {
   public static void invokeConstructor(
       InsnList insnList, org.objectweb.asm.Type owner, org.objectweb.asm.Type... argTypes) {
     // expected stack: [instance, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESPECIAL,
-            owner.getInternalName(),
-            Types.CONSTRUCTOR,
-            org.objectweb.asm.Type.getMethodDescriptor(org.objectweb.asm.Type.VOID_TYPE, argTypes),
-            false));
+    insnList.add(new MethodInsnNode(
+        Opcodes.INVOKESPECIAL,
+        owner.getInternalName(),
+        Types.CONSTRUCTOR,
+        org.objectweb.asm.Type.getMethodDescriptor(org.objectweb.asm.Type.VOID_TYPE, argTypes),
+        false));
     // stack: []
   }
 

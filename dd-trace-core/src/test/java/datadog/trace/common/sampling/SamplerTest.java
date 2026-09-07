@@ -152,7 +152,8 @@ class SamplerTest extends DDJavaSpecification {
   void spansBuiltWithOtlpEnabledAndPrioritySamplingDisabledHaveNonUnsetSamplingPriority() {
     Config config = Config.get();
     Sampler sampler = Sampler.Builder.forConfig(config, null);
-    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build();
+    CoreTracer tracer =
+        CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
       ((PrioritySampler) sampler).setSamplingPriority(span);

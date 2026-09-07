@@ -56,11 +56,10 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
     // maven has a way of calling System.exit() when the build is done.
     // this is a hack to make it wait until git data upload has finished
-    uploadFinishedShutdownHook =
-        AgentThreadFactory.newAgentThread(
-            AgentThreadFactory.AgentThread.CI_GIT_DATA_SHUTDOWN_HOOK,
-            this::waitForUploadToFinish,
-            false);
+    uploadFinishedShutdownHook = AgentThreadFactory.newAgentThread(
+        AgentThreadFactory.AgentThread.CI_GIT_DATA_SHUTDOWN_HOOK,
+        this::waitForUploadToFinish,
+        false);
   }
 
   /**
@@ -76,9 +75,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
           callback = new CompletableFuture<>();
           Runtime.getRuntime().addShutdownHook(uploadFinishedShutdownHook);
 
-          Thread gitDataUploadThread =
-              AgentThreadFactory.newAgentThread(
-                  AgentThreadFactory.AgentThread.CI_GIT_DATA_UPLOADER, this::uploadGitData, false);
+          Thread gitDataUploadThread = AgentThreadFactory.newAgentThread(
+              AgentThreadFactory.AgentThread.CI_GIT_DATA_UPLOADER, this::uploadGitData, false);
           gitDataUploadThread.start();
         }
       }
@@ -136,11 +134,9 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {
-        List<Path> packFiles =
-            Files.list(packFilesDirectory)
-                .filter(
-                    pf -> pf.getFileName().toString().endsWith(".pack")) // skipping ".idx" files
-                .collect(Collectors.toList());
+        List<Path> packFiles = Files.list(packFilesDirectory)
+            .filter(pf -> pf.getFileName().toString().endsWith(".pack")) // skipping ".idx" files
+            .collect(Collectors.toList());
 
         metricCollector.add(
             CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_FILES, packFiles.size());

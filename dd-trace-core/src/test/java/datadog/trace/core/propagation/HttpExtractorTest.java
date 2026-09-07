@@ -108,7 +108,8 @@ class HttpExtractorTest extends DDJavaSpecification {
       if (expectedTraceId == null) {
         assertNull(context);
       } else {
-        assertEquals(DDTraceId.from(expectedTraceId).toLong(), context.getTraceId().toLong());
+        assertEquals(
+            DDTraceId.from(expectedTraceId).toLong(), context.getTraceId().toLong());
         assertEquals(DDSpanId.from(expectedSpanId), context.getSpanId());
       }
     }
@@ -224,8 +225,10 @@ class HttpExtractorTest extends DDJavaSpecification {
     Config config = mock(Config.class);
     when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(headerTags).setBaggageMapping(emptyMap()).apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(headerTags)
+        .setBaggageMapping(emptyMap())
+        .apply();
     return HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
   }
 

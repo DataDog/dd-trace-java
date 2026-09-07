@@ -243,10 +243,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       return false;
     }
 
-    final long projectedBytes =
-        oldValue == null
-            ? (long) baggageBytes + key.length() + value.length()
-            : (long) baggageBytes + value.length() - oldValue.length();
+    final long projectedBytes = oldValue == null
+        ? (long) baggageBytes + key.length() + value.length()
+        : (long) baggageBytes + value.length() - oldValue.length();
 
     if (projectedBytes > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
@@ -277,10 +276,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     valid = true;
     fullContext = true;
     httpHeaders = null;
-    collectIpHeaders =
-        this.clientIpWithoutAppSec
-            || this.clientIpResolutionEnabled
-                && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
+    collectIpHeaders = this.clientIpWithoutAppSec
+        || this.clientIpResolutionEnabled
+            && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
     headerTags = traceConfig.getRequestHeaderTags();
     baggageMapping = traceConfig.getBaggageMapping();
     propagationTags = null;

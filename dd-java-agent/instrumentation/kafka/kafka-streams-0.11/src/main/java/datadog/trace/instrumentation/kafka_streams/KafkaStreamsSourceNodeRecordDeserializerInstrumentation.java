@@ -46,19 +46,18 @@ public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
     public static void saveHeaders(
         @Advice.Argument(0) final ConsumerRecord incoming,
         @Advice.Return(readOnly = false) ConsumerRecord result) {
-      result =
-          new ConsumerRecord<>(
-              result.topic(),
-              result.partition(),
-              result.offset(),
-              result.timestamp(),
-              TimestampType.CREATE_TIME,
-              result.checksum(),
-              result.serializedKeySize(),
-              result.serializedValueSize(),
-              result.key(),
-              result.value(),
-              incoming.headers());
+      result = new ConsumerRecord<>(
+          result.topic(),
+          result.partition(),
+          result.offset(),
+          result.timestamp(),
+          TimestampType.CREATE_TIME,
+          result.checksum(),
+          result.serializedKeySize(),
+          result.serializedValueSize(),
+          result.key(),
+          result.value(),
+          incoming.headers());
     }
   }
 }

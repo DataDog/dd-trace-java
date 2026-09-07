@@ -76,16 +76,15 @@ public class SpanTagsPropagator {
       }
 
     } else {
-      throw new IllegalArgumentException(
-          "Unexpected tag type(s): "
-              + Tags.TEST_FRAMEWORK
-              + " ("
-              + nameTag
-              + ") "
-              + Tags.TEST_FRAMEWORK_VERSION
-              + " ("
-              + versionTag
-              + ")");
+      throw new IllegalArgumentException("Unexpected tag type(s): "
+          + Tags.TEST_FRAMEWORK
+          + " ("
+          + nameTag
+          + ") "
+          + Tags.TEST_FRAMEWORK_VERSION
+          + " ("
+          + versionTag
+          + ")");
     }
     return frameworks;
   }

@@ -68,33 +68,29 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   AtomicReference<String> endpoint = new AtomicReference<>(null);
   AtomicReference<Map<String, Map<String, Number>>> agentResponse = new AtomicReference<>(null);
 
-  RemoteResponseListener responseListener =
-      (receivedEndpoint, responseJson) -> {
-        endpoint.set(receivedEndpoint);
-        agentResponse.set(responseJson);
-      };
+  RemoteResponseListener responseListener = (receivedEndpoint, responseJson) -> {
+    endpoint.set(receivedEndpoint);
+    agentResponse.set(responseJson);
+  };
 
   @BeforeAll
   static void startSocatProxy() throws IOException {
     File tmpDir = Files.createTempDirectory("dd-api-integration-test").toFile();
     tmpDir.deleteOnExit();
     socketPath = new File(tmpDir, "socket");
-    System.out.println(
-        "!!!socat UNIX-LISTEN:"
+    System.out.println("!!!socat UNIX-LISTEN:"
+        + socketPath
+        + ",reuseaddr,fork TCP-CONNECT:"
+        + getAgentContainerHost()
+        + ":"
+        + getAgentContainerPort());
+    process = Runtime.getRuntime()
+        .exec("socat UNIX-LISTEN:"
             + socketPath
             + ",reuseaddr,fork TCP-CONNECT:"
             + getAgentContainerHost()
             + ":"
             + getAgentContainerPort());
-    process =
-        Runtime.getRuntime()
-            .exec(
-                "socat UNIX-LISTEN:"
-                    + socketPath
-                    + ",reuseaddr,fork TCP-CONNECT:"
-                    + getAgentContainerHost()
-                    + ":"
-                    + getAgentContainerPort());
   }
 
   @BeforeEach
@@ -213,9 +209,8 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   void sendingTracesToUnixDomainSocketSucceeds(ProtocolVersion protocol) throws IOException {
     beforeTest(protocol);
 
-    RemoteApi.Response response =
-        unixDomainSocketApi.sendSerializedTraces(
-            prepareRequest(singletonList(singletonList(span)), mapper));
+    RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(
+        prepareRequest(singletonList(singletonList(span)), mapper));
     assertFalse(response.response().isEmpty());
     assertFalse(response.exception().isPresent());
     assertTrue(response.status().isPresent());

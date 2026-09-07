@@ -102,10 +102,9 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
       Collection<String> testTags =
           JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.JUNIT4)
-              .executionPolicy(testIdentifier, testSourceData, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .executionPolicy(testIdentifier, testSourceData, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

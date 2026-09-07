@@ -50,8 +50,10 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
 
   protected void sendRequest(String httpPort, String urlPath) {
     OkHttpClient client = new OkHttpClient.Builder().build();
-    Request request =
-        new Request.Builder().url("http://localhost:" + httpPort + urlPath).get().build();
+    Request request = new Request.Builder()
+        .url("http://localhost:" + httpPort + urlPath)
+        .get()
+        .build();
     try {
       client.newCall(request).execute();
     } catch (Exception ex) {
@@ -65,13 +67,11 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
     long total = sleep.toNanos() == 0 ? 0 : timeout.toNanos() / sleep.toNanos();
     int i = 0;
     while (i < total && !result[0]) {
-      Files.lines(logFilePath)
-          .forEach(
-              it -> {
-                if (it.contains(line)) {
-                  result[0] = true;
-                }
-              });
+      Files.lines(logFilePath).forEach(it -> {
+        if (it.contains(line)) {
+          result[0] = true;
+        }
+      });
       LockSupport.parkNanos(sleep.toNanos());
       i++;
     }

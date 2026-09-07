@@ -185,12 +185,10 @@ final class Aggregator implements Runnable {
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          aggregates.forEach(
-              writer,
-              (w, entry) -> {
-                w.add(entry);
-                entry.clearAggregate();
-              });
+          aggregates.forEach(writer, (w, entry) -> {
+            w.add(entry);
+            entry.clearAggregate();
+          });
           // note that this may do IO and block
           writer.finishBucket();
         }

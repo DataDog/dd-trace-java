@@ -59,20 +59,20 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     };
   }
 
-  private static final Reference GET_OUTPUT_STREAM_REFERENCE =
-      new Reference.Builder("org.apache.catalina.connector.Response")
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "getOutputStream",
-              "Ljavax/servlet/ServletOutputStream;")
-          .or()
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "getOutputStream",
-              "Ljakarta/servlet/ServletOutputStream;")
-          .build();
+  private static final Reference GET_OUTPUT_STREAM_REFERENCE = new Reference.Builder(
+          "org.apache.catalina.connector.Response")
+      .withMethod(
+          new String[0],
+          EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+          "getOutputStream",
+          "Ljavax/servlet/ServletOutputStream;")
+      .or()
+      .withMethod(
+          new String[0],
+          EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+          "getOutputStream",
+          "Ljakarta/servlet/ServletOutputStream;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -196,7 +196,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         if (span != null) {
           req.setAttribute(
               CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
-          req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
+          req.setAttribute(
+              CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
           Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
           Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : rootContext();
           DECORATE.onRequest(span, req, req, parentContext);

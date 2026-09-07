@@ -49,23 +49,22 @@ public final class IgniteQueryInfo {
 
   static {
     Map<String, UTF8BytesString> validDbOperations = new HashMap<>();
-    for (String op :
-        Arrays.asList(
-            "SELECT",
-            "INSERT",
-            "DELETE",
-            "UPDATE",
-            "CREATE",
-            "ALTER",
-            "DROP",
-            "TRUNCATE",
-            "GRANT",
-            "COMMIT",
-            "REVOKE",
-            "ROLLBACK",
-            "SAVEPOINT",
-            "WITH",
-            "MERGE")) {
+    for (String op : Arrays.asList(
+        "SELECT",
+        "INSERT",
+        "DELETE",
+        "UPDATE",
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "TRUNCATE",
+        "GRANT",
+        "COMMIT",
+        "REVOKE",
+        "ROLLBACK",
+        "SAVEPOINT",
+        "WITH",
+        "MERGE")) {
       validDbOperations.put(op, UTF8BytesString.create(op));
     }
     VALID_DB_OPERATIONS = Collections.unmodifiableMap(validDbOperations);

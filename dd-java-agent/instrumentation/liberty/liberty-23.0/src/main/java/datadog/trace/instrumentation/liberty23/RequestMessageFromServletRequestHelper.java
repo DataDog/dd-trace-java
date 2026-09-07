@@ -20,18 +20,16 @@ public class RequestMessageFromServletRequestHelper {
           ((IRequestExtended) iRequest).getHttpInboundConnection().getRequest();
       try {
         MethodHandle messageGetter =
-            FIELD_CACHE.computeIfAbsent(
-                transportRequest.getClass(),
-                clazz -> {
-                  Field messageField;
-                  try {
-                    messageField = clazz.getDeclaredField("message");
-                    messageField.setAccessible(true);
-                    return MethodHandles.lookup().unreflectGetter(messageField);
-                  } catch (NoSuchFieldException | IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                  }
-                });
+            FIELD_CACHE.computeIfAbsent(transportRequest.getClass(), clazz -> {
+              Field messageField;
+              try {
+                messageField = clazz.getDeclaredField("message");
+                messageField.setAccessible(true);
+                return MethodHandles.lookup().unreflectGetter(messageField);
+              } catch (NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+              }
+            });
         return messageGetter.invoke(transportRequest);
       } catch (Throwable e) {
         throw new RuntimeException(e);

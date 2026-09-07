@@ -26,70 +26,58 @@ import reactor.core.publisher.Mono;
 class TestController {
   @Get(uri = "/success", produces = MediaType.TEXT_PLAIN)
   public Mono<String> success() {
-    return HttpServerTest.controller(
-        SUCCESS,
-        new Closure<Mono<String>>(null) {
-          public Mono<String> doCall() {
-            return Mono.just(SUCCESS.getBody());
-          }
-        });
+    return HttpServerTest.controller(SUCCESS, new Closure<Mono<String>>(null) {
+      public Mono<String> doCall() {
+        return Mono.just(SUCCESS.getBody());
+      }
+    });
   }
 
   @Get(uri = "/exception", produces = MediaType.TEXT_PLAIN)
   public Mono<String> exception() {
-    return HttpServerTest.controller(
-        EXCEPTION,
-        new Closure<Mono<String>>(null) {
-          public Mono<String> doCall() throws Exception {
-            throw new Exception(EXCEPTION.getBody());
-          }
-        });
+    return HttpServerTest.controller(EXCEPTION, new Closure<Mono<String>>(null) {
+      public Mono<String> doCall() throws Exception {
+        throw new Exception(EXCEPTION.getBody());
+      }
+    });
   }
 
   @Get(uri = "/error-status", produces = MediaType.TEXT_PLAIN)
   public HttpResponse<String> error(final HttpRequest<?> request) {
-    return HttpServerTest.controller(
-        ERROR,
-        new Closure<HttpResponse<String>>(null) {
-          public HttpResponse<String> doCall() {
-            return HttpResponse.serverError(ERROR.getBody());
-          }
-        });
+    return HttpServerTest.controller(ERROR, new Closure<HttpResponse<String>>(null) {
+      public HttpResponse<String> doCall() {
+        return HttpResponse.serverError(ERROR.getBody());
+      }
+    });
   }
 
   @Get(uri = "/forwarded", produces = MediaType.TEXT_PLAIN)
   public HttpResponse<String> forwarded(final HttpRequest<?> request) {
-    return HttpServerTest.controller(
-        FORWARDED,
-        new Closure<HttpResponse<String>>(null) {
-          public HttpResponse<String> doCall() {
-            return HttpResponse.ok(
-                request.getHeaders().get("x-forwarded-for", String.class, "unknown"));
-          }
-        });
+    return HttpServerTest.controller(FORWARDED, new Closure<HttpResponse<String>>(null) {
+      public HttpResponse<String> doCall() {
+        return HttpResponse.ok(
+            request.getHeaders().get("x-forwarded-for", String.class, "unknown"));
+      }
+    });
   }
 
   @Get(uri = "/redirect", produces = MediaType.TEXT_PLAIN)
   public MutableHttpResponse<Object> redirect(final HttpRequest<?> request) {
-    return HttpServerTest.controller(
-        REDIRECT,
-        new Closure<MutableHttpResponse<Object>>(null) {
-          public MutableHttpResponse<Object> doCall() {
-            return HttpResponse.status(HttpStatus.valueOf(REDIRECT.getStatus()))
-                .header("location", REDIRECT.getBody());
-          }
-        });
+    return HttpServerTest.controller(REDIRECT, new Closure<MutableHttpResponse<Object>>(null) {
+      public MutableHttpResponse<Object> doCall() {
+        return HttpResponse.status(HttpStatus.valueOf(REDIRECT.getStatus()))
+            .header("location", REDIRECT.getBody());
+      }
+    });
   }
 
   @Get(uri = "/path/{id}/param", produces = MediaType.TEXT_PLAIN)
   public Mono<Integer> path_param(@NotBlank final Integer id) {
-    return HttpServerTest.controller(
-        PATH_PARAM,
-        new Closure<Mono<Integer>>(null) {
-          public Mono<Integer> doCall() {
-            return Mono.just(id);
-          }
-        });
+    return HttpServerTest.controller(PATH_PARAM, new Closure<Mono<Integer>>(null) {
+      public Mono<Integer> doCall() {
+        return Mono.just(id);
+      }
+    });
   }
 
   @Get(uri = "/query", produces = MediaType.TEXT_PLAIN)
@@ -109,14 +97,12 @@ class TestController {
 
   private HttpResponse<String> handle_query(
       final HttpServerTest.ServerEndpoint endpoint, final HttpRequest<?> request) {
-    return HttpServerTest.controller(
-        endpoint,
-        new Closure<HttpResponse<String>>(null) {
-          public HttpResponse<String> doCall() {
-            String query =
-                "some=" + request.getParameters().getFirst("some", String.class).orElse("bad");
-            return HttpResponse.ok(endpoint.bodyForQuery(query));
-          }
-        });
+    return HttpServerTest.controller(endpoint, new Closure<HttpResponse<String>>(null) {
+      public HttpResponse<String> doCall() {
+        String query =
+            "some=" + request.getParameters().getFirst("some", String.class).orElse("bad");
+        return HttpResponse.ok(endpoint.bodyForQuery(query));
+      }
+    });
   }
 }

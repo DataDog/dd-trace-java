@@ -44,21 +44,18 @@ public class SessionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("addMessageHandler")
-                    .and(takesArgument(0, named(namespace + ".websocket.MessageHandler")))),
+            .and(named("addMessageHandler")
+                .and(takesArgument(0, named(namespace + ".websocket.MessageHandler")))),
         getClass().getName() + "$LinkReceiverSessionArg0Advice");
 
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("addMessageHandler")
-                    .and(
-                        takesArgument(
-                            1,
-                            namedOneOf(
-                                namespace + ".websocket.MessageHandler$Whole",
-                                namespace + ".websocket.MessageHandler$Partial")))),
+            .and(named("addMessageHandler")
+                .and(takesArgument(
+                    1,
+                    namedOneOf(
+                        namespace + ".websocket.MessageHandler$Whole",
+                        namespace + ".websocket.MessageHandler$Partial")))),
         getClass().getName() + "$LinkReceiverSessionArg1Advice");
 
     transformer.applyAdvice(
@@ -68,9 +65,8 @@ public class SessionInstrumentation
     transformer.applyAdvice(
         isPublic()
             .and(named("close"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, named(namespace + ".websocket.CloseReason")))),
+            .and(takesArguments(1)
+                .and(takesArgument(0, named(namespace + ".websocket.CloseReason")))),
         getClass().getName() + "$SessionCloseAdvice");
 
     transformer.applyAdvice(
@@ -83,8 +79,9 @@ public class SessionInstrumentation
     public static void onExit(
         @Advice.This final Session session, @Advice.Argument(0) final MessageHandler handler) {
       if (handler != null) {
-        final HandlerContext.Sender sessionState =
-            InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
+        final HandlerContext.Sender sessionState = InstrumentationContext.get(
+                Session.class, HandlerContext.Sender.class)
+            .get(session);
         if (sessionState != null) {
           // If the user is adding singletons that is not going to work. However, in this case there
           // is no chance to have the session linked in any way (even if wrapping the
@@ -109,8 +106,9 @@ public class SessionInstrumentation
     public static void onExit(
         @Advice.This final Session session, @Advice.Argument(1) final MessageHandler handler) {
       if (handler != null) {
-        final HandlerContext.Sender sessionState =
-            InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
+        final HandlerContext.Sender sessionState = InstrumentationContext.get(
+                Session.class, HandlerContext.Sender.class)
+            .get(session);
         if (sessionState != null) {
           // If the user is adding singletons that is not going to work. However, in this case there
           // is no chance to have the session linked in any way (even if wrapping the
@@ -135,8 +133,9 @@ public class SessionInstrumentation
     public static void onExit(
         @Advice.This final Session session, @Advice.Return final RemoteEndpoint remoteEndpoint) {
       if (remoteEndpoint != null) {
-        final HandlerContext.Sender sessionState =
-            InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
+        final HandlerContext.Sender sessionState = InstrumentationContext.get(
+                Session.class, HandlerContext.Sender.class)
+            .get(session);
         if (sessionState != null) {
           InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
               .put(remoteEndpoint, sessionState);
@@ -156,9 +155,8 @@ public class SessionInstrumentation
       if (handlerContext == null) {
         return null;
       }
-      return activateSpan(
-          DECORATE.startOutboundCloseSpan(
-              handlerContext, reason.getReasonPhrase(), reason.getCloseCode().getCode()));
+      return activateSpan(DECORATE.startOutboundCloseSpan(
+          handlerContext, reason.getReasonPhrase(), reason.getCloseCode().getCode()));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -99,9 +99,8 @@ public class ResponseServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpStreamResponseWrapper.wrap(
-                response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
+        response = HttpStreamResponseWrapper.wrap(
+            response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
       }
       scope.close();
     }

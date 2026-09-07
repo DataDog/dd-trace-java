@@ -12,14 +12,13 @@ public class CaptureConnectSpan
 
   @Override
   public Mono<? extends Connection> apply(Mono<? extends Connection> mono) {
-    return mono.contextWrite(
-        reactorCtx -> {
-          final Context context = Context.current();
-          if (context != Context.root()) {
-            return reactorCtx.put(CONNECT_CONTEXT, context);
-          } else {
-            return reactorCtx;
-          }
-        });
+    return mono.contextWrite(reactorCtx -> {
+      final Context context = Context.current();
+      if (context != Context.root()) {
+        return reactorCtx.put(CONNECT_CONTEXT, context);
+      } else {
+        return reactorCtx;
+      }
+    });
   }
 }

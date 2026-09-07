@@ -47,62 +47,57 @@ import org.xmlunit.util.Convert;
 public abstract class CiVisibilityTestUtils {
 
   public static final List<DynamicPath> EVENT_DYNAMIC_PATHS =
-      Collections.unmodifiableList(
-          Arrays.asList(
-              path("content.trace_id"),
-              path("content.span_id"),
-              path("content.parent_id"),
-              path("content.test_session_id"),
-              path("content.test_module_id"),
-              path("content.test_suite_id"),
-              path("content.metrics.process_id"),
-              path("content.meta.['os.architecture']"),
-              path("content.meta.['os.platform']"),
-              path("content.meta.['os.version']"),
-              path("content.meta.['runtime.name']"),
-              path("content.meta.['runtime.vendor']"),
-              path("content.meta.['runtime.version']"),
-              path("content.meta.['ci.workspace_path']"),
-              path("content.meta.['error.message']"),
-              path("content.meta.library_version"),
-              path("content.meta.runtime-id"),
-              path("content.meta.['_dd.tracer_host']"),
-              // Different events might or might not have the same start or duration. Regardless,
-              // the values of these fields should be treated as different.
-              path("content.start", false),
-              path("content.duration", false),
-              path("content.metrics.['_dd.host.vcpu_count']", false),
-              path("content.meta.['_dd.p.tid']", false),
-              path("content.meta.['error.stack']", false)));
+      Collections.unmodifiableList(Arrays.asList(
+          path("content.trace_id"),
+          path("content.span_id"),
+          path("content.parent_id"),
+          path("content.test_session_id"),
+          path("content.test_module_id"),
+          path("content.test_suite_id"),
+          path("content.metrics.process_id"),
+          path("content.meta.['os.architecture']"),
+          path("content.meta.['os.platform']"),
+          path("content.meta.['os.version']"),
+          path("content.meta.['runtime.name']"),
+          path("content.meta.['runtime.vendor']"),
+          path("content.meta.['runtime.version']"),
+          path("content.meta.['ci.workspace_path']"),
+          path("content.meta.['error.message']"),
+          path("content.meta.library_version"),
+          path("content.meta.runtime-id"),
+          path("content.meta.['_dd.tracer_host']"),
+          // Different events might or might not have the same start or duration. Regardless,
+          // the values of these fields should be treated as different.
+          path("content.start", false),
+          path("content.duration", false),
+          path("content.metrics.['_dd.host.vcpu_count']", false),
+          path("content.meta.['_dd.p.tid']", false),
+          path("content.meta.['error.stack']", false)));
 
   // ignored tags on assertion and fixture build
   public static final List<String> IGNORED_TAGS;
 
   static {
-    List<String> ignored =
-        Arrays.stream(LibraryCapability.values())
-            .map(c -> "content.meta.['" + c.asTag() + "']")
-            .collect(Collectors.toList());
+    List<String> ignored = Arrays.stream(LibraryCapability.values())
+        .map(c -> "content.meta.['" + c.asTag() + "']")
+        .collect(Collectors.toList());
     ignored.add("content.meta.['_dd.integration']");
     ignored.add("content.meta.['_dd.svc_src']");
     IGNORED_TAGS = Collections.unmodifiableList(ignored);
   }
 
-  public static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS =
-      Collections.unmodifiableList(
-          Arrays.asList(path("test_session_id"), path("test_suite_id"), path("span_id")));
+  public static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = Collections.unmodifiableList(
+      Arrays.asList(path("test_session_id"), path("test_suite_id"), path("span_id")));
 
   private static final Comparator<Map<?, ?>> EVENT_RESOURCE_COMPARATOR =
-      Comparator.<Map<?, ?>, String>comparing(
-              m -> {
-                Map<?, ?> content = (Map<?, ?>) m.get("content");
-                return (String) content.get("resource");
-              })
-          .thenComparing(
-              Comparator.<Map<?, ?>, String>comparing(
-                      // module and session have the same resource name in headless mode
-                      m -> (String) m.get("type"))
-                  .reversed());
+      Comparator.<Map<?, ?>, String>comparing(m -> {
+            Map<?, ?> content = (Map<?, ?>) m.get("content");
+            return (String) content.get("resource");
+          })
+          .thenComparing(Comparator.<Map<?, ?>, String>comparing(
+                  // module and session have the same resource name in headless mode
+                  m -> (String) m.get("type"))
+              .reversed());
 
   /** Use this method to generate expected data templates. */
   public static void generateTemplates(
@@ -184,13 +179,12 @@ public abstract class CiVisibilityTestUtils {
     Document expected = Convert.toDocument(Input.fromString(expectedXml).build(), dbf);
     Document actual = Convert.toDocument(Input.fromString(actualXml).build(), dbf);
 
-    Diff diff =
-        DiffBuilder.compare(Input.fromDocument(actual))
-            .withTest(Input.fromDocument(expected))
-            .ignoreComments()
-            .ignoreWhitespace()
-            .checkForSimilar()
-            .build();
+    Diff diff = DiffBuilder.compare(Input.fromDocument(actual))
+        .withTest(Input.fromDocument(expected))
+        .ignoreComments()
+        .ignoreWhitespace()
+        .checkForSimilar()
+        .build();
 
     if (diff.hasDifferences()) {
       throw new AssertionError("XML mismatch: " + diff.toString());
@@ -293,9 +287,8 @@ public abstract class CiVisibilityTestUtils {
 
   public static List<TestFQN> getTestIdentifiers(List<? extends Map<?, ?>> events) {
     List<Map<?, ?>> sorted = new ArrayList<>(events);
-    sorted.sort(
-        Comparator.comparing(
-            it -> ((Number) ((Map<?, ?>) it.get("content")).get("start")).longValue()));
+    sorted.sort(Comparator.comparing(
+        it -> ((Number) ((Map<?, ?>) it.get("content")).get("start")).longValue()));
     List<TestFQN> testIdentifiers = new ArrayList<>();
     for (Map<?, ?> event : sorted) {
       Map<?, ?> content = (Map<?, ?>) event.get("content");
@@ -436,19 +429,19 @@ public abstract class CiVisibilityTestUtils {
       for (Map<?, ?> object : objects) {
         DocumentContext ctx = JsonPath.parse(object, JSON_PATH_CONFIG);
         for (DynamicPath dynamicPath : dynamicPaths) {
-          ctx.map(
-              dynamicPath.path,
-              (currentValue, config) -> {
-                if (dynamicPath.unique) {
-                  return uniqueValues.computeIfAbsent(
-                      String.valueOf(currentValue), k -> label.forTemplateKey(dynamicPath.rawPath));
-                }
-                return label.forTemplateKey(dynamicPath.rawPath);
-              });
+          ctx.map(dynamicPath.path, (currentValue, config) -> {
+            if (dynamicPath.unique) {
+              return uniqueValues.computeIfAbsent(
+                  String.valueOf(currentValue), k -> label.forTemplateKey(dynamicPath.rawPath));
+            }
+            return label.forTemplateKey(dynamicPath.rawPath);
+          });
         }
       }
       // remove quotes around placeholders
-      return PLACEHOLDER_PATTERN.matcher(JSON_MAPPER.writeValueAsString(objects)).replaceAll("$1");
+      return PLACEHOLDER_PATTERN
+          .matcher(JSON_MAPPER.writeValueAsString(objects))
+          .replaceAll("$1");
     }
 
     Map<String, String> generateReplacementMap(

@@ -82,12 +82,11 @@ final class AdditionalTagsSchema {
     String[] namesArr = valid.toArray(new String[0]);
     TagCardinalityHandler[] handlersArr = new TagCardinalityHandler[namesArr.length];
     for (int i = 0; i < namesArr.length; i++) {
-      handlersArr[i] =
-          new TagCardinalityHandler(
-              namesArr[i],
-              limit,
-              useBlockedSentinel,
-              MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
+      handlersArr[i] = new TagCardinalityHandler(
+          namesArr[i],
+          limit,
+          useBlockedSentinel,
+          MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
     }
     return new AdditionalTagsSchema(namesArr, handlersArr);
   }

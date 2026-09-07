@@ -28,9 +28,9 @@ public class SnsInterceptor implements ExecutionInterceptor {
   // SQS subscriber limit; SNS inherits it when SQS is used as a subscriber
   private static final int MAX_MESSAGE_ATTRIBUTES = 10;
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private SdkBytes getMessageAttributeValueToInject(
       ExecutionAttributes executionAttributes, String snsTopicName) {
@@ -70,10 +70,9 @@ public class SnsInterceptor implements ExecutionInterceptor {
         }
 
         String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
-        Map<String, MessageAttributeValue> messageAttributes =
-            withDatadogAttribute(
-                request.messageAttributes(),
-                this.getMessageAttributeValueToInject(executionAttributes, snsTopicName));
+        Map<String, MessageAttributeValue> messageAttributes = withDatadogAttribute(
+            request.messageAttributes(),
+            this.getMessageAttributeValueToInject(executionAttributes, snsTopicName));
         return request.toBuilder().messageAttributes(messageAttributes).build();
       }
       return request;
@@ -104,7 +103,8 @@ public class SnsInterceptor implements ExecutionInterceptor {
     // Use Binary since SNS subscription filter policies fail silently with JSON strings
     // https://github.com/DataDog/datadog-lambda-js/pull/269
     modified.put(
-        "_datadog", MessageAttributeValue.builder().dataType("Binary").binaryValue(value).build());
+        "_datadog",
+        MessageAttributeValue.builder().dataType("Binary").binaryValue(value).build());
     return modified;
   }
 }

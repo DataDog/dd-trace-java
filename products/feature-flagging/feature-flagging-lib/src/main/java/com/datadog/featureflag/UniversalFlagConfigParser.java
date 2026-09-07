@@ -52,14 +52,13 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
 
-  private static final Moshi MOSHI =
-      new Moshi.Builder()
-          .add(Instant.class, new InstantAdapter())
-          .add(ShardAdapter.FACTORY)
-          .add(AllocationAdapter.FACTORY)
-          .add(FlagMapAdapter.FACTORY)
-          .add(LenientBooleanAdapter.FACTORY)
-          .build();
+  private static final Moshi MOSHI = new Moshi.Builder()
+      .add(Instant.class, new InstantAdapter())
+      .add(ShardAdapter.FACTORY)
+      .add(AllocationAdapter.FACTORY)
+      .add(FlagMapAdapter.FACTORY)
+      .add(LenientBooleanAdapter.FACTORY)
+      .build();
   private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
 
@@ -214,27 +213,25 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
             case SEMVER_GT:
             case SEMVER_GTE:
               if (!(condition.value instanceof String)) {
-                throw new InvalidSemverComparandException(
-                    "flag \""
-                        + flagKey
-                        + "\" allocation "
-                        + allocIdx
-                        + " rule has condition with operator \""
-                        + condition.operator
-                        + "\" that requires string value");
+                throw new InvalidSemverComparandException("flag \""
+                    + flagKey
+                    + "\" allocation "
+                    + allocIdx
+                    + " rule has condition with operator \""
+                    + condition.operator
+                    + "\" that requires string value");
               }
               final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
               if (parsed == null) {
-                throw new InvalidSemverComparandException(
-                    "flag \""
-                        + flagKey
-                        + "\" allocation "
-                        + allocIdx
-                        + " rule has condition with operator \""
-                        + condition.operator
-                        + "\" and invalid semantic version \""
-                        + condition.value
-                        + "\"");
+                throw new InvalidSemverComparandException("flag \""
+                    + flagKey
+                    + "\" allocation "
+                    + allocIdx
+                    + " rule has condition with operator \""
+                    + condition.operator
+                    + "\" and invalid semantic version \""
+                    + condition.value
+                    + "\"");
               }
               condition.semverComparand = parsed;
               break;
@@ -267,20 +264,19 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
    */
   static final class ShardAdapter extends JsonAdapter<Shard> {
 
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || type != Shard.class) {
-              return null;
-            }
-            return new ShardAdapter(moshi.adapter(ShardJson.class));
-          }
-        };
+    static final Factory FACTORY = new Factory() {
+      @Nullable
+      @Override
+      public JsonAdapter<?> create(
+          @Nonnull final Type type,
+          @Nonnull final Set<? extends Annotation> annotations,
+          @Nonnull final Moshi moshi) {
+        if (!annotations.isEmpty() || type != Shard.class) {
+          return null;
+        }
+        return new ShardAdapter(moshi.adapter(ShardJson.class));
+      }
+    };
 
     private final JsonAdapter<ShardJson> delegate;
 
@@ -334,20 +330,19 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     private static final Type FLAGS_TYPE =
         Types.newParameterizedType(Map.class, String.class, Flag.class);
 
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
-              return null;
-            }
-            return new FlagMapAdapter(moshi.adapter(Flag.class));
-          }
-        };
+    static final Factory FACTORY = new Factory() {
+      @Nullable
+      @Override
+      public JsonAdapter<?> create(
+          @Nonnull final Type type,
+          @Nonnull final Set<? extends Annotation> annotations,
+          @Nonnull final Moshi moshi) {
+        if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
+          return null;
+        }
+        return new FlagMapAdapter(moshi.adapter(Flag.class));
+      }
+    };
 
     private final JsonAdapter<Flag> flagAdapter;
 
@@ -404,20 +399,19 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
    */
   static final class LenientBooleanAdapter extends JsonAdapter<Boolean> {
 
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || type != Boolean.class) {
-              return null;
-            }
-            return new LenientBooleanAdapter();
-          }
-        };
+    static final Factory FACTORY = new Factory() {
+      @Nullable
+      @Override
+      public JsonAdapter<?> create(
+          @Nonnull final Type type,
+          @Nonnull final Set<? extends Annotation> annotations,
+          @Nonnull final Moshi moshi) {
+        if (!annotations.isEmpty() || type != Boolean.class) {
+          return null;
+        }
+        return new LenientBooleanAdapter();
+      }
+    };
 
     @Nullable
     @Override
@@ -458,20 +452,19 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   static final class AllocationAdapter extends JsonAdapter<Allocation> {
 
-    static final Factory FACTORY =
-        new Factory() {
-          @Nullable
-          @Override
-          public JsonAdapter<?> create(
-              @Nonnull final Type type,
-              @Nonnull final Set<? extends Annotation> annotations,
-              @Nonnull final Moshi moshi) {
-            if (!annotations.isEmpty() || !Types.equals(type, Allocation.class)) {
-              return null;
-            }
-            return new AllocationAdapter(moshi.adapter(AllocationJson.class));
-          }
-        };
+    static final Factory FACTORY = new Factory() {
+      @Nullable
+      @Override
+      public JsonAdapter<?> create(
+          @Nonnull final Type type,
+          @Nonnull final Set<? extends Annotation> annotations,
+          @Nonnull final Moshi moshi) {
+        if (!annotations.isEmpty() || !Types.equals(type, Allocation.class)) {
+          return null;
+        }
+        return new AllocationAdapter(moshi.adapter(AllocationJson.class));
+      }
+    };
 
     private final JsonAdapter<AllocationJson> delegate;
 

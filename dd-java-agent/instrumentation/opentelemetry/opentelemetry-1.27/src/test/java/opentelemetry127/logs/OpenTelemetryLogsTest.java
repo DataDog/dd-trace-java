@@ -115,14 +115,12 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     // logs are sorted by scope name, so all scope-a logs come before scope-b logs
     assertEquals(3, logsReader.logs.size());
 
-    List<CapturedLog> scopeALogs =
-        logsReader.logs.stream()
-            .filter(l -> "scope-a".equals(l.scopeName))
-            .collect(Collectors.toList());
-    List<CapturedLog> scopeBLogs =
-        logsReader.logs.stream()
-            .filter(l -> "scope-b".equals(l.scopeName))
-            .collect(Collectors.toList());
+    List<CapturedLog> scopeALogs = logsReader.logs.stream()
+        .filter(l -> "scope-a".equals(l.scopeName))
+        .collect(Collectors.toList());
+    List<CapturedLog> scopeBLogs = logsReader.logs.stream()
+        .filter(l -> "scope-b".equals(l.scopeName))
+        .collect(Collectors.toList());
 
     assertEquals(2, scopeALogs.size());
     assertEquals("a-1", scopeALogs.get(0).body);
@@ -171,13 +169,12 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
 
     @Override
     public void visitLogRecord(OtlpLogRecord logRecord) {
-      logs.add(
-          new CapturedLog(
-              currentScopeName,
-              logRecord.severityNumber,
-              logRecord.severityText,
-              logRecord.body,
-              new HashMap<>(currentAttributes)));
+      logs.add(new CapturedLog(
+          currentScopeName,
+          logRecord.severityNumber,
+          logRecord.severityText,
+          logRecord.body,
+          new HashMap<>(currentAttributes)));
       currentAttributes.clear();
     }
   }

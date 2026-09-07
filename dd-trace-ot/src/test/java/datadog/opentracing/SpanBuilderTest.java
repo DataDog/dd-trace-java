@@ -35,24 +35,21 @@ class SpanBuilderTest extends DDJavaSpecification {
     String expectedBaggageItemKey = "fakeKey";
     String expectedBaggageItemValue = "fakeValue";
 
-    Span parent =
-        tracer
-            .buildSpan(expectedName)
-            .withServiceName("foo")
-            .withResourceName(expectedParentResourceName)
-            .withSpanType(expectedParentType)
-            .start();
+    Span parent = tracer
+        .buildSpan(expectedName)
+        .withServiceName("foo")
+        .withResourceName(expectedParentResourceName)
+        .withSpanType(expectedParentType)
+        .start();
 
     parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue);
 
     // ServiceName and SpanType are always set by the parent if they are not present in the child
-    OTSpan span =
-        (OTSpan)
-            tracer
-                .buildSpan(expectedName)
-                .withServiceName(expectedParentServiceName)
-                .addReference("child_of", parent.context())
-                .start();
+    OTSpan span = (OTSpan) tracer
+        .buildSpan(expectedName)
+        .withServiceName(expectedParentServiceName)
+        .addReference("child_of", parent.context())
+        .start();
 
     assertEquals(expectedName, span.getDelegate().getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
@@ -65,15 +62,13 @@ class SpanBuilderTest extends DDJavaSpecification {
     assertNull(((DDSpanContext) ((OTSpanContext) span.context()).getDelegate()).getSpanType());
 
     // ServiceName and SpanType are always overwritten by the child if they are present
-    span =
-        (OTSpan)
-            tracer
-                .buildSpan(expectedName)
-                .withServiceName(expectedChildServiceName)
-                .withResourceName(expectedChildResourceName)
-                .withSpanType(expectedChildType)
-                .addReference("child_of", parent.context())
-                .start();
+    span = (OTSpan) tracer
+        .buildSpan(expectedName)
+        .withServiceName(expectedChildServiceName)
+        .withResourceName(expectedChildResourceName)
+        .withSpanType(expectedChildType)
+        .addReference("child_of", parent.context())
+        .start();
 
     assertEquals(expectedName, span.getDelegate().getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
@@ -100,24 +95,21 @@ class SpanBuilderTest extends DDJavaSpecification {
     String expectedBaggageItemKey = "fakeKey";
     String expectedBaggageItemValue = "fakeValue";
 
-    Span parent =
-        tracer
-            .buildSpan(expectedName)
-            .withServiceName("foo")
-            .withResourceName(expectedParentResourceName)
-            .withSpanType(expectedParentType)
-            .start();
+    Span parent = tracer
+        .buildSpan(expectedName)
+        .withServiceName("foo")
+        .withResourceName(expectedParentResourceName)
+        .withSpanType(expectedParentType)
+        .start();
 
     parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue);
 
     // ServiceName and SpanType are always set by the parent if they are not present in the child
-    OTSpan span =
-        (OTSpan)
-            tracer
-                .buildSpan(expectedName)
-                .withServiceName(expectedParentServiceName)
-                .addReference("follows_from", parent.context())
-                .start();
+    OTSpan span = (OTSpan) tracer
+        .buildSpan(expectedName)
+        .withServiceName(expectedParentServiceName)
+        .addReference("follows_from", parent.context())
+        .start();
 
     assertEquals(expectedName, span.getDelegate().getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
@@ -130,15 +122,13 @@ class SpanBuilderTest extends DDJavaSpecification {
     assertNull(((DDSpanContext) ((OTSpanContext) span.context()).getDelegate()).getSpanType());
 
     // ServiceName and SpanType are always overwritten by the child if they are present
-    span =
-        (OTSpan)
-            tracer
-                .buildSpan(expectedName)
-                .withServiceName(expectedChildServiceName)
-                .withResourceName(expectedChildResourceName)
-                .withSpanType(expectedChildType)
-                .addReference("follows_from", parent.context())
-                .start();
+    span = (OTSpan) tracer
+        .buildSpan(expectedName)
+        .withServiceName(expectedChildServiceName)
+        .withResourceName(expectedChildResourceName)
+        .withSpanType(expectedChildType)
+        .addReference("follows_from", parent.context())
+        .start();
 
     assertEquals(expectedName, span.getDelegate().getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));

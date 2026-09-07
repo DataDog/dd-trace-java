@@ -62,10 +62,9 @@ class CodeInjectionModuleTest {
 
   @BeforeEach
   void setup() {
-    contextProvider =
-        Config.get().getIastContextMode() == GLOBAL
-            ? new IastGlobalContext.Provider()
-            : new IastRequestContext.Provider();
+    contextProvider = Config.get().getIastContextMode() == GLOBAL
+        ? new IastGlobalContext.Provider()
+        : new IastRequestContext.Provider();
     ctx = (IastRequestContext) contextProvider.buildRequestContext();
 
     TraceSegment traceSegment = mock(TraceSegment.class);
@@ -87,13 +86,8 @@ class CodeInjectionModuleTest {
     when(overheadController.acquireRequest()).thenReturn(true);
     when(overheadController.consumeQuota(any(), any(), any())).thenReturn(true);
 
-    Dependencies dependencies =
-        new Dependencies(
-            Config.get(),
-            reporter,
-            overheadController,
-            StackWalkerFactory.INSTANCE,
-            contextProvider);
+    Dependencies dependencies = new Dependencies(
+        Config.get(), reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
 
     AgentTracer.forceRegister(tracer);
     IastContext.Provider.register(contextProvider);

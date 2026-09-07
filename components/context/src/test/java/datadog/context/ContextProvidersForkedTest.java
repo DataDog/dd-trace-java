@@ -27,23 +27,22 @@ class ContextProvidersForkedTest {
     assertSame(root(), Context.from(carrier));
 
     // now register a NOOP context binder
-    ContextBinder.register(
-        new ContextBinder() {
-          @Override
-          public Context from(@Nonnull Object carrier) {
-            return root();
-          }
+    ContextBinder.register(new ContextBinder() {
+      @Override
+      public Context from(@Nonnull Object carrier) {
+        return root();
+      }
 
-          @Override
-          public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
-            // no-op
-          }
+      @Override
+      public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
+        // no-op
+      }
 
-          @Override
-          public Context detachFrom(@Nonnull Object carrier) {
-            return root();
-          }
-        });
+      @Override
+      public Context detachFrom(@Nonnull Object carrier) {
+        return root();
+      }
+    });
 
     // NOOP binder, context will always be root
     context.attachTo(carrier);
@@ -75,31 +74,30 @@ class ContextProvidersForkedTest {
     assertSame(root(), Context.current());
 
     // now register a NOOP context manager
-    ContextManager.register(
-        new ContextManager() {
-          @Override
-          public Context current() {
-            return root();
-          }
+    ContextManager.register(new ContextManager() {
+      @Override
+      public Context current() {
+        return root();
+      }
 
-          @Override
-          public ContextScope attach(@Nonnull Context context) {
-            return new NoopContextScope(root());
-          }
+      @Override
+      public ContextScope attach(@Nonnull Context context) {
+        return new NoopContextScope(root());
+      }
 
-          @Override
-          public Context swap(@Nonnull Context context) {
-            return root();
-          }
+      @Override
+      public Context swap(@Nonnull Context context) {
+        return root();
+      }
 
-          @Override
-          public ContextContinuation capture(@Nonnull Context context) {
-            return new NoopContextContinuation(root());
-          }
+      @Override
+      public ContextContinuation capture(@Nonnull Context context) {
+        return new NoopContextContinuation(root());
+      }
 
-          @Override
-          public void addListener(@Nonnull ContextListener listener) {}
-        });
+      @Override
+      public void addListener(@Nonnull ContextListener listener) {}
+    });
 
     ContextTestBase.TrackingListener listener = trackingListener();
     ContextManager.register(listener);

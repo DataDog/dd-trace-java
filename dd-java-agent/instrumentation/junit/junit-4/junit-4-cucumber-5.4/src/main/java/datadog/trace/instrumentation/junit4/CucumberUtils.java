@@ -32,9 +32,8 @@ public abstract class CucumberUtils {
   private static final ClassLoader CUCUMBER_CLASS_LOADER = ClassLoaders.getDefaultClassLoader();
 
   public static String getVersion() {
-    try (InputStream cucumberPropsStream =
-        CUCUMBER_CLASS_LOADER.getResourceAsStream(
-            "META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
+    try (InputStream cucumberPropsStream = CUCUMBER_CLASS_LOADER.getResourceAsStream(
+        "META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
       Properties cucumberProps = new Properties();
       cucumberProps.load(cucumberPropsStream);
       String version = cucumberProps.getProperty("version");
@@ -68,15 +67,14 @@ public abstract class CucumberUtils {
   private static final MethodHandle PICKLE_RUNNER_WITH_STEP_GET_PICKLE =
       REFLECTION.privateFieldGetter(WITH_STEP_PICKLE_RUNNER_CLASSNAME, "pickle");
 
-  public static final List<LibraryCapability> CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
   private CucumberUtils() {}
 

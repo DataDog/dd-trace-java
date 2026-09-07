@@ -122,7 +122,8 @@ class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
   }
 
   private void write(byte priority, PublishResult result) {
-    DDSpan root = buildSpan(0L, "test.tag", "test.value", PropagationTags.factory().empty());
+    DDSpan root =
+        buildSpan(0L, "test.tag", "test.value", PropagationTags.factory().empty());
     root.setSamplingPriority(priority);
     List<DDSpan> trace = Collections.singletonList(root);
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(result);

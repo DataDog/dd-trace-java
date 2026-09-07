@@ -25,10 +25,10 @@ public class LogsIntakeHelper {
       Map<String, Object> thrownLog = new HashMap<>();
       thrownLog.put("message", event.getThrowableProxy().getMessage());
       thrownLog.put("name", event.getThrowableProxy().getClassName());
-      String stackTraceString =
-          Arrays.stream(event.getThrowableProxy().getStackTraceElementProxyArray())
-              .map(StackTraceElementProxy::getSTEAsString)
-              .collect(Collectors.joining(" "));
+      String stackTraceString = Arrays.stream(
+              event.getThrowableProxy().getStackTraceElementProxyArray())
+          .map(StackTraceElementProxy::getSTEAsString)
+          .collect(Collectors.joining(" "));
       thrownLog.put("extendedStackTrace", stackTraceString);
       log.put("thrown", thrownLog);
     }

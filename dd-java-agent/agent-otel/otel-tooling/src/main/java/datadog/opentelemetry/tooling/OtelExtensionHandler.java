@@ -73,13 +73,12 @@ public final class OtelExtensionHandler extends ExtensionHandler {
           null,
           "java/lang/Object",
           null);
-      MethodVisitor mv =
-          cw.visitMethod(
-              Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-              "create",
-              "()L" + REFERENCE_MATCHER_CLASS + ";",
-              null,
-              null);
+      MethodVisitor mv = cw.visitMethod(
+          Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+          "create",
+          "()L" + REFERENCE_MATCHER_CLASS + ";",
+          null,
+          null);
       mv.visitCode();
       mv.visitTypeInsn(Opcodes.NEW, REFERENCE_MATCHER_CLASS);
       mv.visitInsn(Opcodes.DUP);

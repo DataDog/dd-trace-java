@@ -28,9 +28,8 @@ public final class OtelLoggerProvider implements LoggerProvider {
     // register attribute reader for class-loader where this provider is being used/injected
     OtelLogRecordProcessor.registerAttributeReader(
         AttributeKey.class.getClassLoader(),
-        (attributes, visitor) ->
-            ((Map<AttributeKey<?>, ?>) attributes)
-                .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
+        (attributes, visitor) -> ((Map<AttributeKey<?>, ?>) attributes)
+            .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
   }
 
   @Override

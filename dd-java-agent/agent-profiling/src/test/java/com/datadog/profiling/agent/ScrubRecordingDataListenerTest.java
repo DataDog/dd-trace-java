@@ -29,7 +29,8 @@ import org.mockito.ArgumentCaptor;
 
 class ScrubRecordingDataListenerTest {
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   private RecordingDataListener delegate;
   private JfrScrubber scrubber;
@@ -122,7 +123,8 @@ class ScrubRecordingDataListenerTest {
     listener.onNewData(RecordingType.CONTINUOUS, mockData, false);
 
     // After success, temp input should be cleaned up, only scrubbed output remains
-    long jfrCount = Files.list(tempDir).filter(p -> p.toString().contains("dd-scrub-in-")).count();
+    long jfrCount =
+        Files.list(tempDir).filter(p -> p.toString().contains("dd-scrub-in-")).count();
     assertEquals(0L, jfrCount, "Temp input files should be cleaned up");
   }
 }

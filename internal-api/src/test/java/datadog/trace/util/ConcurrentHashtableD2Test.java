@@ -36,14 +36,10 @@ class ConcurrentHashtableD2Test {
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 8);
     int[] createCount = {0};
-    PairEntry created =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2);
-            });
+    PairEntry created = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2);
+    });
     assertNotNull(created);
     assertEquals("a", created.key1);
     assertEquals(Integer.valueOf(1), created.key2);
@@ -58,14 +54,10 @@ class ConcurrentHashtableD2Test {
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry seeded = table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
     int[] createCount = {0};
-    PairEntry got =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2);
-            });
+    PairEntry got = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -108,24 +100,19 @@ class ConcurrentHashtableD2Test {
 
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    42,
-                    (k1, k2) -> {
-                      createCount.incrementAndGet();
-                      return new PairEntry(k1, k2);
-                    });
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull("shared", 42, (k1, k2) -> {
+          createCount.incrementAndGet();
+          return new PairEntry(k1, k2);
+        });
+      });
       workers[i].start();
     }
     ready.await();
@@ -174,18 +161,16 @@ class ConcurrentHashtableD2Test {
     for (int i = 0; i < threads; i++) {
       final String k1 = k1s[i];
       final Integer k2 = k2s[i];
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
+      });
       workers[i].start();
     }
     ready.await();
@@ -325,16 +310,15 @@ class ConcurrentHashtableD2Test {
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 1);
     PairEntry a = table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
-    Maybe<PairEntry> got =
-        table.tryGetOrCreateOrEvict(
-            "a",
-            1,
-            (k1, k2) -> {
-              throw new AssertionError("creator must not run on a hit");
-            },
-            e -> {
-              throw new AssertionError("evictable must not run on a hit");
-            });
+    Maybe<PairEntry> got = table.tryGetOrCreateOrEvict(
+        "a",
+        1,
+        (k1, k2) -> {
+          throw new AssertionError("creator must not run on a hit");
+        },
+        e -> {
+          throw new AssertionError("evictable must not run on a hit");
+        });
     assertSame(a, got.getOrNull());
     assertEquals(1, table.size());
   }
@@ -375,14 +359,13 @@ class ConcurrentHashtableD2Test {
 
     assertThrows(
         RuntimeException.class,
-        () ->
-            table.tryGetOrCreateOrEvictOrNull(
-                "new",
-                2,
-                (k1, k2) -> {
-                  throw new RuntimeException("boom");
-                },
-                e -> true));
+        () -> table.tryGetOrCreateOrEvictOrNull(
+            "new",
+            2,
+            (k1, k2) -> {
+              throw new RuntimeException("boom");
+            },
+            e -> true));
 
     // Eviction already happened before the creator threw: the table is left one entry smaller,
     // not corrupted or double-booked.

@@ -35,36 +35,34 @@ class JvmOtlpRuntimeMetricsForkedTest {
 
     Set<String> names = collector.metricNames;
 
-    List<String> expectedStableMetrics =
-        Arrays.asList(
-            "jvm.memory.used",
-            "jvm.memory.committed",
-            "jvm.memory.limit",
-            "jvm.memory.used_after_last_gc",
-            "jvm.thread.count",
-            "jvm.class.loaded",
-            "jvm.class.count",
-            "jvm.class.unloaded",
-            "jvm.cpu.time",
-            "jvm.cpu.count",
-            "jvm.cpu.recent_utilization",
-            "jvm.gc.duration");
+    List<String> expectedStableMetrics = Arrays.asList(
+        "jvm.memory.used",
+        "jvm.memory.committed",
+        "jvm.memory.limit",
+        "jvm.memory.used_after_last_gc",
+        "jvm.thread.count",
+        "jvm.class.loaded",
+        "jvm.class.count",
+        "jvm.class.unloaded",
+        "jvm.cpu.time",
+        "jvm.cpu.count",
+        "jvm.cpu.recent_utilization",
+        "jvm.gc.duration");
     for (String metric : expectedStableMetrics) {
       assertTrue(
           names.contains(metric),
           "Expected stable metric '" + metric + "' not found. Got: " + new TreeSet<>(names));
     }
 
-    List<String> developmentMetrics =
-        Arrays.asList(
-            "jvm.memory.init",
-            "jvm.buffer.memory.used",
-            "jvm.buffer.memory.limit",
-            "jvm.buffer.count",
-            "jvm.system.cpu.utilization",
-            "jvm.system.cpu.load_1m",
-            "jvm.file_descriptor.count",
-            "jvm.file_descriptor.limit");
+    List<String> developmentMetrics = Arrays.asList(
+        "jvm.memory.init",
+        "jvm.buffer.memory.used",
+        "jvm.buffer.memory.limit",
+        "jvm.buffer.count",
+        "jvm.system.cpu.utilization",
+        "jvm.system.cpu.load_1m",
+        "jvm.file_descriptor.count",
+        "jvm.file_descriptor.limit");
     for (String metric : developmentMetrics) {
       assertFalse(
           names.contains(metric),
@@ -96,11 +94,9 @@ class JvmOtlpRuntimeMetricsForkedTest {
     assertFalse(points.isEmpty(), "jvm.gc.duration should have at least one data point");
     assertTrue(
         points.stream()
-            .allMatch(
-                p ->
-                    p.attrs.containsKey("jvm.gc.name")
-                        && p.attrs.containsKey("jvm.gc.action")
-                        && !p.attrs.containsKey("jvm.gc.cause")),
+            .allMatch(p -> p.attrs.containsKey("jvm.gc.name")
+                && p.attrs.containsKey("jvm.gc.action")
+                && !p.attrs.containsKey("jvm.gc.cause")),
         "jvm.gc.duration data points must carry jvm.gc.name and jvm.gc.action, but not jvm.gc.cause"
             + " when experimental disabled");
   }

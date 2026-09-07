@@ -18,9 +18,9 @@ public class JoinGroupAdvice {
     if (memberId == null || memberId.isEmpty()) {
       return;
     }
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .get(coordinator);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+            ConsumerCoordinator.class, KafkaConsumerInfo.class)
+        .get(coordinator);
     if (kafkaConsumerInfo == null) {
       return;
     }

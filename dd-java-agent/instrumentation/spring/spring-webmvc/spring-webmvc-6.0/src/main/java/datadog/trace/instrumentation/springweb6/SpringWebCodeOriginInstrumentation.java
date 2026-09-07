@@ -18,13 +18,12 @@ public class SpringWebCodeOriginInstrumentation extends CodeOriginInstrumentatio
 
   @Override
   protected Set<String> getAnnotations() {
-    return new HashSet<>(
-        asList(
-            WEB_BIND_ANNOTATION + "DeleteMapping",
-            WEB_BIND_ANNOTATION + "GetMapping",
-            WEB_BIND_ANNOTATION + "PatchMapping",
-            WEB_BIND_ANNOTATION + "PostMapping",
-            WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "RequestMapping"));
+    return new HashSet<>(asList(
+        WEB_BIND_ANNOTATION + "DeleteMapping",
+        WEB_BIND_ANNOTATION + "GetMapping",
+        WEB_BIND_ANNOTATION + "PatchMapping",
+        WEB_BIND_ANNOTATION + "PostMapping",
+        WEB_BIND_ANNOTATION + "PutMapping",
+        WEB_BIND_ANNOTATION + "RequestMapping"));
   }
 }

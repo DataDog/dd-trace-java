@@ -32,9 +32,8 @@ public class ASTReferenceInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("render")
             .and(isMethod())
-            .and(
-                takesArgument(0, named("org.apache.velocity.context.InternalContextAdapter"))
-                    .and(takesArgument(1, named("java.io.Writer")))),
+            .and(takesArgument(0, named("org.apache.velocity.context.InternalContextAdapter"))
+                .and(takesArgument(1, named("java.io.Writer")))),
         ASTReferenceInstrumentation.class.getName() + "$ASTReferenceAdvice");
   }
 

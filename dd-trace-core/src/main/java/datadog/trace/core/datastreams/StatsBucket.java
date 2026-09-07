@@ -33,9 +33,8 @@ public class StatsBucket {
     hashToGroup
         .computeIfAbsent(
             statsPoint.getAggregationHash(),
-            hash ->
-                new StatsGroup(
-                    statsPoint.getTags(), statsPoint.getHash(), statsPoint.getParentHash()))
+            hash -> new StatsGroup(
+                statsPoint.getTags(), statsPoint.getHash(), statsPoint.getParentHash()))
         .add(
             statsPoint.getPathwayLatencyNano(),
             statsPoint.getEdgeLatencyNano(),
@@ -49,14 +48,13 @@ public class StatsBucket {
   }
 
   public void addSchemaRegistryUsage(SchemaRegistryUsage usage) {
-    SchemaKey key =
-        new SchemaKey(
-            usage.getTopic(),
-            usage.getClusterId(),
-            usage.getSchemaId(),
-            usage.isSuccess(),
-            usage.isKey(),
-            usage.getOperation());
+    SchemaKey key = new SchemaKey(
+        usage.getTopic(),
+        usage.getClusterId(),
+        usage.getSchemaId(),
+        usage.isSuccess(),
+        usage.isKey(),
+        usage.getOperation());
     schemaRegistryUsages.merge(key, 1L, Long::sum);
   }
 

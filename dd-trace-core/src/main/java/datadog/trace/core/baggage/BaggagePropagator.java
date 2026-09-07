@@ -141,7 +141,9 @@ public class BaggagePropagator implements Propagator {
   private class BaggageExtractor implements BiConsumer<String, String> {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
-    @Nullable private Baggage extracted;
+
+    @Nullable
+    private Baggage extracted;
 
     /** URL decode value */
     private String decode(final String value) {

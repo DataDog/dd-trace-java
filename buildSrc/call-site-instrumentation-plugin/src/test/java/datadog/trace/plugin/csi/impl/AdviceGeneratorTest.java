@@ -23,7 +23,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class AdviceGeneratorTest extends BaseCsiPluginTest {
 
-  @TempDir private File buildDir;
+  @TempDir
+  private File buildDir;
 
   @CallSite(spi = CallSites.class)
   public static class BeforeAdvice {
@@ -43,19 +44,17 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(BeforeAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.type("BEFORE");
-          advice.pointcut(
-              "java/security/MessageDigest",
-              "getInstance",
-              "(Ljava/lang/String;)Ljava/security/MessageDigest;");
-          advice.statements(
-              "handler.dupParameters(descriptor, StackDupMode.COPY);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$BeforeAdvice\", \"before\", \"(Ljava/lang/String;)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
+    asserter.advices(0, advice -> {
+      advice.type("BEFORE");
+      advice.pointcut(
+          "java/security/MessageDigest",
+          "getInstance",
+          "(Ljava/lang/String;)Ljava/security/MessageDigest;");
+      advice.statements(
+          "handler.dupParameters(descriptor, StackDupMode.COPY);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$BeforeAdvice\", \"before\", \"(Ljava/lang/String;)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -81,17 +80,15 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(AroundAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.type("AROUND");
-          advice.pointcut(
-              "java/lang/String",
-              "replaceAll",
-              "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
-          advice.statements(
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundAdvice\", \"around\", \"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.type("AROUND");
+      advice.pointcut(
+          "java/lang/String",
+          "replaceAll",
+          "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
+      advice.statements(
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundAdvice\", \"around\", \"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;\");");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -116,16 +113,14 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(AfterAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.type("AFTER");
-          advice.pointcut("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
-          advice.statements(
-              "handler.dupInvoke(owner, descriptor, StackDupMode.COPY);",
-              "handler.method(opcode, owner, name, descriptor, isInterface);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice\", \"after\", \"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.type("AFTER");
+      advice.pointcut("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
+      advice.statements(
+          "handler.dupInvoke(owner, descriptor, StackDupMode.COPY);",
+          "handler.method(opcode, owner, name, descriptor, isInterface);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice\", \"after\", \"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;\");");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -147,15 +142,13 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(AfterAdviceCtor.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut("java/net/URL", "<init>", "(Ljava/lang/String;)V");
-          advice.statements(
-              "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);",
-              "handler.method(opcode, owner, name, descriptor, isInterface);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceCtor\", \"after\", \"([Ljava/lang/Object;Ljava/net/URL;)Ljava/net/URL;\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut("java/net/URL", "<init>", "(Ljava/lang/String;)V");
+      advice.statements(
+          "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);",
+          "handler.method(opcode, owner, name, descriptor, isInterface);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceCtor\", \"after\", \"([Ljava/lang/Object;Ljava/net/URL;)Ljava/net/URL;\");");
+    });
   }
 
   @CallSite(spi = SpiAdvice.SampleSpi.class)
@@ -203,18 +196,16 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(InvokeDynamicAfterAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut(
-              "java/lang/invoke/StringConcatFactory",
-              "makeConcatWithConstants",
-              "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
-          advice.statements(
-              "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);",
-              "handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAfterAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut(
+          "java/lang/invoke/StringConcatFactory",
+          "makeConcatWithConstants",
+          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
+      advice.statements(
+          "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);",
+          "handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAfterAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;\");");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -245,16 +236,14 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(InvokeDynamicAroundAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut(
-              "java/lang/invoke/StringConcatFactory",
-              "makeConcatWithConstants",
-              "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
-          advice.statements(
-              "handler.invokeDynamic(name, descriptor, new Handle(Opcodes.H_INVOKESTATIC, \"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAroundAdvice\", \"around\", \"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;\", false), bootstrapMethodArguments);");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut(
+          "java/lang/invoke/StringConcatFactory",
+          "makeConcatWithConstants",
+          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
+      advice.statements(
+          "handler.invokeDynamic(name, descriptor, new Handle(Opcodes.H_INVOKESTATIC, \"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAroundAdvice\", \"around\", \"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;\", false), bootstrapMethodArguments);");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -283,19 +272,17 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     CallSiteAssert asserter = assertCallSites(result.getFile());
     asserter.interfaces(CallSites.class);
     asserter.helpers(InvokeDynamicWithConstantsAdvice.class);
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut(
-              "java/lang/invoke/StringConcatFactory",
-              "makeConcatWithConstants",
-              "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
-          advice.statements(
-              "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);",
-              "handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);",
-              "handler.loadConstantArray(bootstrapMethodArguments);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicWithConstantsAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut(
+          "java/lang/invoke/StringConcatFactory",
+          "makeConcatWithConstants",
+          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;");
+      advice.statements(
+          "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);",
+          "handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);",
+          "handler.loadConstantArray(bootstrapMethodArguments);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicWithConstantsAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\");");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -319,17 +306,13 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
 
     assertNoErrors(result);
     CallSiteAssert asserter = assertCallSites(result.getFile());
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut("javax/servlet/ServletRequest", "getParameterMap", "()Ljava/util/Map;");
-        });
-    asserter.advices(
-        1,
-        advice -> {
-          advice.pointcut(
-              "javax/servlet/ServletRequestWrapper", "getParameterMap", "()Ljava/util/Map;");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut("javax/servlet/ServletRequest", "getParameterMap", "()Ljava/util/Map;");
+    });
+    asserter.advices(1, advice -> {
+      advice.pointcut(
+          "javax/servlet/ServletRequestWrapper", "getParameterMap", "()Ljava/util/Map;");
+    });
   }
 
   public static class MinJavaVersionCheck {
@@ -390,40 +373,34 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
 
     assertNoErrors(result);
     CallSiteAssert asserter = assertCallSites(result.getFile());
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut(
-              "java/sql/Statement", "executeUpdate", "(Ljava/lang/String;[Ljava/lang/String;)I");
-          advice.statements(
-              "int[] parameterIndices = new int[] { 0 };",
-              "handler.dupParameters(descriptor, parameterIndices, owner);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/lang/String;)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
-    asserter.advices(
-        1,
-        advice -> {
-          advice.pointcut(
-              "java/lang/String",
-              "format",
-              "(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
-          advice.statements(
-              "int[] parameterIndices = new int[] { 1 };",
-              "handler.dupParameters(descriptor, parameterIndices, null);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"([Ljava/lang/Object;)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
-    asserter.advices(
-        2,
-        advice -> {
-          advice.pointcut("java/lang/String", "subSequence", "(II)Ljava/lang/CharSequence;");
-          advice.statements(
-              "int[] parameterIndices = new int[] { 0 };",
-              "handler.dupInvoke(owner, descriptor, parameterIndices);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/lang/String;I)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut(
+          "java/sql/Statement", "executeUpdate", "(Ljava/lang/String;[Ljava/lang/String;)I");
+      advice.statements(
+          "int[] parameterIndices = new int[] { 0 };",
+          "handler.dupParameters(descriptor, parameterIndices, owner);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/lang/String;)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
+    asserter.advices(1, advice -> {
+      advice.pointcut(
+          "java/lang/String",
+          "format",
+          "(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+      advice.statements(
+          "int[] parameterIndices = new int[] { 1 };",
+          "handler.dupParameters(descriptor, parameterIndices, null);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"([Ljava/lang/Object;)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
+    asserter.advices(2, advice -> {
+      advice.pointcut("java/lang/String", "subSequence", "(II)Ljava/lang/CharSequence;");
+      advice.statements(
+          "int[] parameterIndices = new int[] { 0 };",
+          "handler.dupInvoke(owner, descriptor, parameterIndices);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/lang/String;I)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
   }
 
   /**
@@ -462,33 +439,29 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
     assertNoErrors(result);
     CallSiteAssert asserter = assertCallSites(result.getFile());
     // In-order capture: {0, 1} matches both advice and pointcut order
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut(
-              "java/lang/String",
-              "format",
-              "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
-          advice.statements(
-              "int[] parameterIndices = new int[] { 0, 1 };",
-              "handler.dupParameters(descriptor, parameterIndices, null);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/util/Locale;Ljava/lang/String;)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut(
+          "java/lang/String",
+          "format",
+          "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+      advice.statements(
+          "int[] parameterIndices = new int[] { 0, 1 };",
+          "handler.dupParameters(descriptor, parameterIndices, null);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/util/Locale;Ljava/lang/String;)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
     // Reversed capture: {1, 0} follows the advice signature, not the pointcut index order {0, 1}
-    asserter.advices(
-        1,
-        advice -> {
-          advice.pointcut(
-              "java/lang/String",
-              "format",
-              "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
-          advice.statements(
-              "int[] parameterIndices = new int[] { 1, 0 };",
-              "handler.dupParameters(descriptor, parameterIndices, null);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"beforeReversed\", \"(Ljava/lang/String;Ljava/util/Locale;)V\");",
-              "handler.method(opcode, owner, name, descriptor, isInterface);");
-        });
+    asserter.advices(1, advice -> {
+      advice.pointcut(
+          "java/lang/String",
+          "format",
+          "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+      advice.statements(
+          "int[] parameterIndices = new int[] { 1, 0 };",
+          "handler.dupParameters(descriptor, parameterIndices, null);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"beforeReversed\", \"(Ljava/lang/String;Ljava/util/Locale;)V\");",
+          "handler.method(opcode, owner, name, descriptor, isInterface);");
+    });
   }
 
   @CallSite(spi = CallSites.class)
@@ -509,16 +482,14 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
 
     assertNoErrors(result);
     CallSiteAssert asserter = assertCallSites(result.getFile());
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut("java/lang/StringBuilder", "<init>", "(Ljava/lang/String;)V");
-          advice.statements(
-              "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);",
-              "handler.method(opcode, owner, name, descriptor, isInterface);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;\");",
-              "handler.instruction(Opcodes.CHECKCAST, \"java/lang/StringBuilder\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut("java/lang/StringBuilder", "<init>", "(Ljava/lang/String;)V");
+      advice.statements(
+          "handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);",
+          "handler.method(opcode, owner, name, descriptor, isInterface);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice\", \"after\", \"([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;\");",
+          "handler.instruction(Opcodes.CHECKCAST, \"java/lang/StringBuilder\");");
+    });
   }
 
   @CallSite(spi = {IastCallSites.class, RaspCallSites.class})
@@ -557,15 +528,13 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
 
     assertNoErrors(result);
     CallSiteAssert asserter = assertCallSites(result.getFile());
-    asserter.advices(
-        0,
-        advice -> {
-          advice.pointcut("java/lang/StringBuilder", "setLength", "(I)V");
-          advice.statements(
-              "handler.dupInvoke(owner, descriptor, StackDupMode.COPY);",
-              "handler.method(opcode, owner, name, descriptor, isInterface);",
-              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceWithVoidReturn\", \"after\", \"(Ljava/lang/StringBuilder;I)V\");");
-        });
+    asserter.advices(0, advice -> {
+      advice.pointcut("java/lang/StringBuilder", "setLength", "(I)V");
+      advice.statements(
+          "handler.dupInvoke(owner, descriptor, StackDupMode.COPY);",
+          "handler.method(opcode, owner, name, descriptor, isInterface);",
+          "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceWithVoidReturn\", \"after\", \"(Ljava/lang/StringBuilder;I)V\");");
+    });
   }
 
   private static AdviceGenerator buildAdviceGenerator(File targetFolder) {

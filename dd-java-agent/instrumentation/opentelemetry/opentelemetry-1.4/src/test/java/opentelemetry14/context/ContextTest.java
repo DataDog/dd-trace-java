@@ -184,7 +184,8 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
     Span current = Span.current();
 
     assertEquals(
-        DDSpanId.toHexStringPadded(ddChildSpan.getSpanId()), current.getSpanContext().getSpanId());
+        DDSpanId.toHexStringPadded(ddChildSpan.getSpanId()),
+        current.getSpanContext().getSpanId());
 
     // Activate OTel grandchild span and verify DD active span
     Span otelGrandChildSpan = this.otelTracer.spanBuilder("another-name").startSpan();
@@ -205,11 +206,10 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
     otelParentScope.close();
     otelParentSpan.end();
 
-    assertTraces(
-        trace(
-            span().root().operationName("internal").resourceName("some-name"),
-            span().childOfPrevious().operationName("other-name"),
-            span().childOfPrevious().operationName("internal").resourceName("another-name")));
+    assertTraces(trace(
+        span().root().operationName("internal").resourceName("some-name"),
+        span().childOfPrevious().operationName("other-name"),
+        span().childOfPrevious().operationName("internal").resourceName("another-name")));
   }
 
   @DisplayName("test context spans retrieval")
@@ -284,13 +284,12 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
     assertNull(otelBaggageFromContextOrNull);
 
     // After making OTel baggage current
-    Scope otelScope =
-        Baggage.builder()
-            .put("foo", "otel_value_to_be_replaced")
-            .put("FOO", "OTEL_UNTOUCHED")
-            .put("remove_me_key", "otel_remove_me_value")
-            .build()
-            .makeCurrent();
+    Scope otelScope = Baggage.builder()
+        .put("foo", "otel_value_to_be_replaced")
+        .put("FOO", "OTEL_UNTOUCHED")
+        .put("remove_me_key", "otel_remove_me_value")
+        .build()
+        .makeCurrent();
     otelBaggage = Baggage.current();
     otelBaggageFromContext = Baggage.fromContext(Context.current());
     otelBaggageFromContextOrNull = Baggage.fromContextOrNull(Context.current());

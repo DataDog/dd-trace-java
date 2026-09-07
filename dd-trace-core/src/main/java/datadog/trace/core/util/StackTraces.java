@@ -65,12 +65,11 @@ public final class StackTraces {
       // StackOverflowError while formatting an already stack-constrained throwable).
       // Reconstruct from getStackTrace() so the call site is still locatable.
       try {
-        trace =
-            t.getClass().getName()
-                + System.lineSeparator()
-                + Arrays.stream(t.getStackTrace())
-                    .map(f -> "\tat " + f)
-                    .collect(Collectors.joining(System.lineSeparator()));
+        trace = t.getClass().getName()
+            + System.lineSeparator()
+            + Arrays.stream(t.getStackTrace())
+                .map(f -> "\tat " + f)
+                .collect(Collectors.joining(System.lineSeparator()));
       } catch (Exception | StackOverflowError ignored2) {
         try {
           trace = t.getClass().getName() + ": " + t.getMessage();
@@ -121,18 +120,15 @@ public final class StackTraces {
 
   private static String abbreviatePackageNames(String trace) {
     StringBuilder sb = new StringBuilder(trace.length());
-    new BufferedReader(new StringReader(trace))
-        .lines()
-        .forEach(
-            line -> {
-              Matcher m = FRAME.matcher(line);
-              if (m.matches()) {
-                sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
-              } else {
-                sb.append(line);
-              }
-              sb.append(System.lineSeparator());
-            });
+    new BufferedReader(new StringReader(trace)).lines().forEach(line -> {
+      Matcher m = FRAME.matcher(line);
+      if (m.matches()) {
+        sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
+      } else {
+        sb.append(line);
+      }
+      sb.append(System.lineSeparator());
+    });
     return sb.toString();
   }
 

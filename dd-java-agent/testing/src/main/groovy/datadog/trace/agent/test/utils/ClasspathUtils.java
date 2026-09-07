@@ -53,9 +53,8 @@ public class ClasspathUtils {
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    try (final JarOutputStream target =
-        new JarOutputStream(
-            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest)) {
+    try (final JarOutputStream target = new JarOutputStream(
+        new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest)) {
       for (final String resourceName : resourceNames) {
         try (InputStream is = loader.getResourceAsStream(resourceName)) {
           if (is != null) {
@@ -83,9 +82,8 @@ public class ClasspathUtils {
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    final JarOutputStream target =
-        new JarOutputStream(
-            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest);
+    final JarOutputStream target = new JarOutputStream(
+        new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest);
     for (final Class<?> clazz : classes) {
       addToJar(getResourceName(clazz.getName()), convertToByteArray(clazz), target);
     }

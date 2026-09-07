@@ -14,28 +14,19 @@ public class IastSinksVerticle extends AbstractVerticle {
   public void start(final Promise<Void> startPromise) throws Exception {
     final Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
-    router
-        .route("/iast/sinks/reroute1")
-        .handler(
-            rc -> {
-              final String path = rc.request().getParam("path");
-              rc.reroute(path);
-            });
-    router
-        .route("/iast/sinks/reroute2")
-        .handler(
-            rc -> {
-              final String path = rc.request().getParam("path");
-              rc.reroute(HttpMethod.GET, path);
-            });
-    router
-        .route("/iast/sinks/redirectheader")
-        .handler(
-            rc -> {
-              final String name = rc.request().getParam("name");
-              final String value = rc.request().getParam("value");
-              rc.response().putHeader(name, value).end();
-            });
+    router.route("/iast/sinks/reroute1").handler(rc -> {
+      final String path = rc.request().getParam("path");
+      rc.reroute(path);
+    });
+    router.route("/iast/sinks/reroute2").handler(rc -> {
+      final String path = rc.request().getParam("path");
+      rc.reroute(HttpMethod.GET, path);
+    });
+    router.route("/iast/sinks/redirectheader").handler(rc -> {
+      final String name = rc.request().getParam("name");
+      final String value = rc.request().getParam("value");
+      rc.response().putHeader(name, value).end();
+    });
 
     final EventBus eventBus = vertx.eventBus();
     final HttpServerOptions serverOptions = new HttpServerOptions();
@@ -44,18 +35,13 @@ public class IastSinksVerticle extends AbstractVerticle {
         .createHttpServer(serverOptions)
         .requestHandler(router)
         .listen(0)
-        .onSuccess(
-            server ->
-                eventBus.request(
-                    "PORT_DATA",
-                    server.actualPort(),
-                    ar -> {
-                      if (ar.succeeded()) {
-                        startPromise.complete();
-                      } else {
-                        startPromise.fail(ar.cause());
-                      }
-                    }))
+        .onSuccess(server -> eventBus.request("PORT_DATA", server.actualPort(), ar -> {
+          if (ar.succeeded()) {
+            startPromise.complete();
+          } else {
+            startPromise.fail(ar.cause());
+          }
+        }))
         .onFailure(startPromise::fail);
   }
 }

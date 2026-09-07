@@ -11,7 +11,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 public class BuildIdCollectorTest {
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   @Test
   void testAwaitCollectionDoneWithinTimeout() throws IOException {

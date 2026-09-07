@@ -30,17 +30,15 @@ abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
   @BeforeAll
   void startServer() throws Exception {
     eventLoopGroup = new NioEventLoopGroup(1);
-    ServerBootstrap bootstrap =
-        new ServerBootstrap()
-            .group(eventLoopGroup)
-            .channel(NioServerSocketChannel.class)
-            .childHandler(
-                new ChannelInitializer<Channel>() {
-                  @Override
-                  protected void initChannel(Channel ch) {
-                    configurePipeline(ch);
-                  }
-                });
+    ServerBootstrap bootstrap = new ServerBootstrap()
+        .group(eventLoopGroup)
+        .channel(NioServerSocketChannel.class)
+        .childHandler(new ChannelInitializer<Channel>() {
+          @Override
+          protected void initChannel(Channel ch) {
+            configurePipeline(ch);
+          }
+        });
     serverChannel = bootstrap.bind(0).sync().channel();
     port = ((InetSocketAddress) serverChannel.localAddress()).getPort();
   }

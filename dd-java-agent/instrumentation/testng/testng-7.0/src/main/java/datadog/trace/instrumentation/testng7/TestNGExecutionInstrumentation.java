@@ -124,9 +124,8 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
       } else if (result.isSuccess() && ddRetryAnalyzer.shouldPropagateFailure()) {
         // mark status as failed to propagate an earlier failure suppressed by TestNG
         result.setStatus(ITestResult.FAILURE);
-        result.setThrowable(
-            new AssertionError(
-                "Datadog: propagating test failure based on aggregated execution results"));
+        result.setThrowable(new AssertionError(
+            "Datadog: propagating test failure based on aggregated execution results"));
       }
     }
   }

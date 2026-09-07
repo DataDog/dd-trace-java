@@ -19,14 +19,13 @@ public class PgDriverAdvice {
     if (databases instanceof SingletonSupplier) {
       SqlConnectOptions options = (SqlConnectOptions) ((SingletonSupplier) databases).unwrap();
       DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-      DBInfo info =
-          builder
-              .host(options.getHost())
-              .port(options.getPort())
-              .db(options.getDatabase())
-              .user(options.getUser())
-              .type("postgresql")
-              .build();
+      DBInfo info = builder
+          .host(options.getHost())
+          .port(options.getPort())
+          .db(options.getDatabase())
+          .user(options.getUser())
+          .type("postgresql")
+          .build();
       InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
     }
   }

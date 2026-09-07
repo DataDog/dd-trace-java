@@ -18,12 +18,10 @@ public class AvroFilter implements ScopeFilter {
     if (scope.getScopeType() == ScopeType.CLASS
         && scope.getSymbols() != null
         && scope.getSymbols().stream()
-            .anyMatch(
-                it ->
-                    it.getSymbolType() == SymbolType.STATIC_FIELD
-                        && "SCHEMA$".equals(it.getName())
-                        && it.getType() != null
-                        && it.getType().contains("org.apache.avro.Schema"))) {
+            .anyMatch(it -> it.getSymbolType() == SymbolType.STATIC_FIELD
+                && "SCHEMA$".equals(it.getName())
+                && it.getType() != null
+                && it.getType().contains("org.apache.avro.Schema"))) {
       return true;
     }
     // Otherwise, do not filter.

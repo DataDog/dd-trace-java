@@ -128,18 +128,16 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
   @Test
   void reactorNettyCompletesPipelinedFixedLengthResponses() throws Exception {
-    DisposableServer reactorServer =
-        HttpServer.create()
-            .host("localhost")
-            .port(0)
-            .handle(
-                (request, response) -> {
-                  String body = "response " + request.uri();
-                  response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
-                  return Mono.delay(Duration.ofMillis(100))
-                      .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
-                })
-            .bindNow();
+    DisposableServer reactorServer = HttpServer.create()
+        .host("localhost")
+        .port(0)
+        .handle((request, response) -> {
+          String body = "response " + request.uri();
+          response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
+          return Mono.delay(Duration.ofMillis(100))
+              .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
+        })
+        .bindNow();
 
     try {
       try (Socket socket = new Socket("localhost", reactorServer.port())) {
@@ -458,14 +456,12 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
     originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
     ActiveSubsystems.APPSEC_ACTIVE = true;
 
-    subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
-        });
+    subscriptions.registerCallback(EVENTS.requestStarted(), new Supplier<Flow<Object>>() {
+      @Override
+      public Flow<Object> get() {
+        return new Flow.ResultFlow<>(new Object());
+      }
+    });
     return subscriptions;
   }
 
@@ -474,12 +470,11 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   }
 
   private static TraceMatcher serverTrace(String method, String path) {
-    return trace(
-        span()
-            .root()
-            .operationName(Pattern.compile("netty\\.request"))
-            .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
-            .type("web"));
+    return trace(span()
+        .root()
+        .operationName(Pattern.compile("netty\\.request"))
+        .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
+        .type("web"));
   }
 
   @ChannelHandler.Sharable
@@ -551,13 +546,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
         BlockResponseFunction blockResponseFunction =
             requestContext == null ? null : requestContext.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockingResponseCommitted =
-              blockResponseFunction.tryCommitBlockingResponse(
-                  requestContext.getTraceSegment(),
-                  403,
-                  BlockingContentType.NONE,
-                  emptyMap(),
-                  null);
+          blockingResponseCommitted = blockResponseFunction.tryCommitBlockingResponse(
+              requestContext.getTraceSegment(), 403, BlockingContentType.NONE, emptyMap(), null);
         }
         if (blockingResponseCommitted && blockResponseFunctionRequestSeen != null) {
           blockResponseFunctionRequestSeen.countDown();
@@ -587,19 +577,16 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         responsePaths = new ArrayList<>(paths);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                for (String path : responsePaths) {
-                  byte[] body = ("response " + path).getBytes(UTF_8);
-                  DefaultFullHttpResponse response =
-                      new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                  response.headers().set(CONTENT_LENGTH, body.length);
-                  responseContext.write(response);
-                }
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        for (String path : responsePaths) {
+          byte[] body = ("response " + path).getBytes(UTF_8);
+          DefaultFullHttpResponse response =
+              new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+          response.headers().set(CONTENT_LENGTH, body.length);
+          responseContext.write(response);
+        }
+        responseContext.flush();
+      });
     }
 
     private void writeChunkedResponse() {
@@ -611,18 +598,15 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-                response.headers().set(TRANSFER_ENCODING, CHUNKED);
-                responseContext.write(response);
-                responseContext.write(new DefaultHttpContent(Unpooled.wrappedBuffer(body)));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(TRANSFER_ENCODING, CHUNKED);
+        responseContext.write(response);
+        responseContext.write(new DefaultHttpContent(Unpooled.wrappedBuffer(body)));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+        responseContext.flush();
+      });
     }
 
     private void writeHeaderOnlyResponseHeaders() {
@@ -630,14 +614,11 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       if (responseContext == null) {
         throw new IllegalStateException("no request context captured");
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
-                response.headers().set(CONNECTION, KEEP_ALIVE);
-                responseContext.writeAndFlush(response);
-              });
+      responseContext.executor().execute(() -> {
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
+        response.headers().set(CONNECTION, KEEP_ALIVE);
+        responseContext.writeAndFlush(response);
+      });
     }
 
     private void writeLastContent() {
@@ -647,9 +628,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       }
       responseContext
           .executor()
-          .execute(
-              () ->
-                  responseContext.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)));
+          .execute(() ->
+              responseContext.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)));
     }
 
     private void writeHeadResponse() {
@@ -661,17 +641,14 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+        responseContext.flush();
+      });
     }
 
     private void writeInterimResponseWithTerminatorThenResponse() {
@@ -683,20 +660,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                responseContext.write(new DefaultHttpResponse(HTTP_1_1, CONTINUE));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+      responseContext.executor().execute(() -> {
+        responseContext.write(new DefaultHttpResponse(HTTP_1_1, CONTINUE));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
 
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultFullHttpResponse response =
-                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.flush();
-              });
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultFullHttpResponse response =
+            new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.flush();
+      });
     }
 
     private void writeEarlyHintsWithTerminatorThenResponse() {
@@ -712,20 +686,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                responseContext.write(new DefaultHttpResponse(HTTP_1_1, status));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+      responseContext.executor().execute(() -> {
+        responseContext.write(new DefaultHttpResponse(HTTP_1_1, status));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
 
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultFullHttpResponse response =
-                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.flush();
-              });
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultFullHttpResponse response =
+            new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.flush();
+      });
     }
   }
 }

@@ -118,12 +118,11 @@ public class StatusLoggerTest extends DDJavaSpecification {
   }
 
   private static Map<String, Object> startupLog() throws IOException {
-    String json =
-        new Moshi.Builder()
-            .add(new StatusLogger())
-            .build()
-            .adapter(Config.class)
-            .toJson(Config.get());
+    String json = new Moshi.Builder()
+        .add(new StatusLogger())
+        .build()
+        .adapter(Config.class)
+        .toJson(Config.get());
     return JsonMapper.fromJsonToMap(json);
   }
 

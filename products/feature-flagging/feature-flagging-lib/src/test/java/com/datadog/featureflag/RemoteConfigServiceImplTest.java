@@ -50,8 +50,11 @@ import org.tabletest.junit.TableTest;
 @ExtendWith(MockitoExtension.class)
 class RemoteConfigServiceImplTest {
 
-  @Mock private FeatureFlaggingGateway.ConfigListener listener;
-  @Captor private ArgumentCaptor<ConfigurationDeserializer> deserializerCaptor;
+  @Mock
+  private FeatureFlaggingGateway.ConfigListener listener;
+
+  @Captor
+  private ArgumentCaptor<ConfigurationDeserializer> deserializerCaptor;
 
   @AfterEach
   void cleanup() {
@@ -84,34 +87,32 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsMalformedFlagAllocationsAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"malformed-flag\":{"
-                + "\"key\":\"malformed-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
-                + "\"allocations\":\"this-is-not-a-list\""
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + "\"malformed-flag\":{"
+        + "\"key\":\"malformed-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+        + "\"allocations\":\"this-is-not-a-list\""
+        + "},"
+        + "\"valid-flag\":{"
+        + "\"key\":\"valid-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"default-allocation\","
+        + "\"rules\":[],"
+        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "}"
+        + "}"
+        + "}");
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("malformed-flag"));
@@ -121,15 +122,13 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void ignoresUnknownTopLevelFields() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"segments\":{\"new-schema-key\":{\"ignored\":true}},"
-                + "\"flags\":{}"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"segments\":{\"new-schema-key\":{\"ignored\":true}},"
+        + "\"flags\":{}"
+        + "}");
 
     assertNotNull(config);
     assertEquals("2024-04-17T19:40:53.716Z", config.createdAt);
@@ -141,29 +140,27 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void parsesAllocationWindowDatesAsDateFieldsWithInstantAccessors() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"dated-flag\":{"
-                + "\"key\":\"dated-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"dated-allocation\","
-                + "\"rules\":[],"
-                + "\"startAt\":\"2023-01-01T01:00:00.123456+01:00\","
-                + "\"endAt\":\"2023-01-02T00:00:00.987654Z\","
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + "\"dated-flag\":{"
+        + "\"key\":\"dated-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"dated-allocation\","
+        + "\"rules\":[],"
+        + "\"startAt\":\"2023-01-01T01:00:00.123456+01:00\","
+        + "\"endAt\":\"2023-01-02T00:00:00.987654Z\","
+        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "}"
+        + "}"
+        + "}");
 
     final Allocation allocation = config.flags.get("dated-flag").allocations.get(0);
     assertEquals(Date.class, Allocation.class.getField("startAt").getType());
@@ -181,43 +178,41 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"operator-grease-flag\":{"
-                + "\"key\":\"operator-grease-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"trap\":{\"key\":\"trap\",\"value\":\"trap\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"grease-allocation\","
-                + "\"rules\":[{\"conditions\":[{"
-                + "\"attribute\":\"country\","
-                + "\"operator\":\"not-a-real-operator\","
-                + "\"value\":\"anything\""
-                + "}]}],"
-                + "\"splits\":[{\"variationKey\":\"trap\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + "\"operator-grease-flag\":{"
+        + "\"key\":\"operator-grease-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"trap\":{\"key\":\"trap\",\"value\":\"trap\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"grease-allocation\","
+        + "\"rules\":[{\"conditions\":[{"
+        + "\"attribute\":\"country\","
+        + "\"operator\":\"not-a-real-operator\","
+        + "\"value\":\"anything\""
+        + "}]}],"
+        + "\"splits\":[{\"variationKey\":\"trap\",\"shards\":[]}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "},"
+        + "\"valid-flag\":{"
+        + "\"key\":\"valid-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"default-allocation\","
+        + "\"rules\":[],"
+        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "}"
+        + "}"
+        + "}");
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("operator-grease-flag"));
@@ -237,29 +232,25 @@ class RemoteConfigServiceImplTest {
     assertTrue(adapter instanceof UniversalFlagConfigParser.FlagMapAdapter);
     assertNull(
         UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
-    assertNull(
-        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(
-            flagsType, singleton(mock(Annotation.class)), moshi));
+    assertNull(UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(
+        flagsType, singleton(mock(Annotation.class)), moshi));
   }
 
   @Test
   void lenientBooleanAdapterFactoryOnlyCreatesAdapterForUnannotatedBoxedBoolean() {
     final Moshi moshi = moshi();
 
-    final JsonAdapter<?> adapter =
-        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
-            Boolean.class, emptySet(), moshi);
+    final JsonAdapter<?> adapter = UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+        Boolean.class, emptySet(), moshi);
 
     assertNotNull(adapter);
     assertTrue(adapter instanceof UniversalFlagConfigParser.LenientBooleanAdapter);
     // Primitive boolean keeps Moshi's strict adapter so mandatory fields still reject bad values.
-    assertNull(
-        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
-            boolean.class, emptySet(), moshi));
+    assertNull(UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+        boolean.class, emptySet(), moshi));
     // A qualified Boolean belongs to whichever adapter declared the qualifier, not to this one.
-    assertNull(
-        UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
-            Boolean.class, singleton(mock(Annotation.class)), moshi));
+    assertNull(UniversalFlagConfigParser.LenientBooleanAdapter.FACTORY.create(
+        Boolean.class, singleton(mock(Annotation.class)), moshi));
   }
 
   @Test
@@ -273,14 +264,12 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void allowsNullFlagMap() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":null"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":null"
+        + "}");
 
     assertNotNull(config);
     assertNull(config.flags);
@@ -288,28 +277,26 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsNullFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"null-flag\":null,"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize("{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + "\"null-flag\":null,"
+        + "\"valid-flag\":{"
+        + "\"key\":\"valid-flag\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"default-allocation\","
+        + "\"rules\":[],"
+        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "}"
+        + "}"
+        + "}");
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("null-flag"));
@@ -331,18 +318,15 @@ class RemoteConfigServiceImplTest {
   void allocationAdapterFactoryOnlyCreatesAllocationAdapterForAllocationType() {
     final Moshi moshi = moshi();
 
-    final JsonAdapter<?> adapter =
-        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
-            Allocation.class, emptySet(), moshi);
+    final JsonAdapter<?> adapter = UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+        Allocation.class, emptySet(), moshi);
 
     assertNotNull(adapter);
     assertTrue(adapter instanceof UniversalFlagConfigParser.AllocationAdapter);
-    assertNull(
-        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
-            String.class, emptySet(), moshi));
-    assertNull(
-        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
-            Allocation.class, singleton(mock(Annotation.class)), moshi));
+    assertNull(UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+        String.class, emptySet(), moshi));
+    assertNull(UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+        Allocation.class, singleton(mock(Annotation.class)), moshi));
   }
 
   @Test

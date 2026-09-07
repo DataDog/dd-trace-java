@@ -112,17 +112,15 @@ public class IastSystem {
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);
     if (overheadController == null) {
-      overheadController =
-          OverheadController.build(
-              globalContext ? UNLIMITED : config.getIastRequestSampling(),
-              config.getIastMaxConcurrentRequests(),
-              globalContext,
-              AgentTaskScheduler.get());
+      overheadController = OverheadController.build(
+          globalContext ? UNLIMITED : config.getIastRequestSampling(),
+          config.getIastMaxConcurrentRequests(),
+          globalContext,
+          AgentTaskScheduler.get());
     }
     IastContext.Provider.register(contextProvider);
-    final Dependencies dependencies =
-        new Dependencies(
-            config, reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
+    final Dependencies dependencies = new Dependencies(
+        config, reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules(iast, dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
@@ -158,38 +156,37 @@ public class IastSystem {
 
   private static Stream<IastModule> iastModules(
       final ProductActivation iast, final Dependencies dependencies) {
-    Stream<Class<? extends IastModule>> modules =
-        Stream.of(
-            StringModuleImpl.class,
-            CodecModuleImpl.class,
-            SqlInjectionModuleImpl.class,
-            PathTraversalModuleImpl.class,
-            CommandInjectionModuleImpl.class,
-            WeakCipherModuleImpl.class,
-            WeakHashModuleImpl.class,
-            LdapInjectionModuleImpl.class,
-            PropagationModuleImpl.class,
-            HttpResponseHeaderModuleImpl.class,
-            HstsMissingHeaderModuleImpl.class,
-            InsecureCookieModuleImpl.class,
-            NoHttpOnlyCookieModuleImpl.class,
-            XContentTypeModuleImpl.class,
-            NoSameSiteCookieModuleImpl.class,
-            SsrfModuleImpl.class,
-            UnvalidatedRedirectModuleImpl.class,
-            WeakRandomnessModuleImpl.class,
-            XPathInjectionModuleImpl.class,
-            TrustBoundaryViolationModuleImpl.class,
-            XssModuleImpl.class,
-            StacktraceLeakModuleImpl.class,
-            HeaderInjectionModuleImpl.class,
-            ApplicationModuleImpl.class,
-            HardcodedSecretModuleImpl.class,
-            InsecureAuthProtocolModuleImpl.class,
-            ReflectionInjectionModuleImpl.class,
-            UntrustedDeserializationModuleImpl.class,
-            EmailInjectionModuleImpl.class,
-            CodeInjectionModuleImpl.class);
+    Stream<Class<? extends IastModule>> modules = Stream.of(
+        StringModuleImpl.class,
+        CodecModuleImpl.class,
+        SqlInjectionModuleImpl.class,
+        PathTraversalModuleImpl.class,
+        CommandInjectionModuleImpl.class,
+        WeakCipherModuleImpl.class,
+        WeakHashModuleImpl.class,
+        LdapInjectionModuleImpl.class,
+        PropagationModuleImpl.class,
+        HttpResponseHeaderModuleImpl.class,
+        HstsMissingHeaderModuleImpl.class,
+        InsecureCookieModuleImpl.class,
+        NoHttpOnlyCookieModuleImpl.class,
+        XContentTypeModuleImpl.class,
+        NoSameSiteCookieModuleImpl.class,
+        SsrfModuleImpl.class,
+        UnvalidatedRedirectModuleImpl.class,
+        WeakRandomnessModuleImpl.class,
+        XPathInjectionModuleImpl.class,
+        TrustBoundaryViolationModuleImpl.class,
+        XssModuleImpl.class,
+        StacktraceLeakModuleImpl.class,
+        HeaderInjectionModuleImpl.class,
+        ApplicationModuleImpl.class,
+        HardcodedSecretModuleImpl.class,
+        InsecureAuthProtocolModuleImpl.class,
+        ReflectionInjectionModuleImpl.class,
+        UntrustedDeserializationModuleImpl.class,
+        EmailInjectionModuleImpl.class,
+        CodeInjectionModuleImpl.class);
     if (iast != FULLY_ENABLED) {
       modules = modules.filter(IastSystem::isOptOut);
     }
@@ -232,10 +229,9 @@ public class IastSystem {
   private static void registerRequestStartedCallback(
       final SubscriptionService ss, final boolean addTelemetry, final Dependencies dependencies) {
     final EventType<Supplier<Flow<Object>>> event = Events.get().requestStarted();
-    final Supplier<Flow<Object>> handler =
-        addTelemetry
-            ? new TelemetryRequestStartedHandler(dependencies)
-            : new RequestStartedHandler(dependencies);
+    final Supplier<Flow<Object>> handler = addTelemetry
+        ? new TelemetryRequestStartedHandler(dependencies)
+        : new RequestStartedHandler(dependencies);
     ss.registerCallback(event, handler);
   }
 

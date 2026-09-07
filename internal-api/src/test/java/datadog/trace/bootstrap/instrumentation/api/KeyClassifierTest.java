@@ -31,11 +31,10 @@ class KeyClassifierTest {
   void defaultTransformerMethodAppliesTransformerAndDelegates() {
     RecordingClassifier classifier = new RecordingClassifier(true);
 
-    boolean result =
-        classifier.accept(
-            "my-key",
-            "raw".getBytes(StandardCharsets.UTF_8),
-            bytes -> new String(bytes, StandardCharsets.UTF_8));
+    boolean result = classifier.accept(
+        "my-key",
+        "raw".getBytes(StandardCharsets.UTF_8),
+        bytes -> new String(bytes, StandardCharsets.UTF_8));
 
     assertEquals("my-key", classifier.lastKey);
     assertEquals("raw", classifier.lastValue);
@@ -47,19 +46,15 @@ class KeyClassifierTest {
     AtomicInteger callCount = new AtomicInteger(0);
     AtomicReference<String> transformed = new AtomicReference<>();
 
-    AgentPropagation.KeyClassifier classifier =
-        (key, value) -> {
-          transformed.set(value);
-          return true;
-        };
+    AgentPropagation.KeyClassifier classifier = (key, value) -> {
+      transformed.set(value);
+      return true;
+    };
 
-    classifier.accept(
-        "key",
-        "input",
-        v -> {
-          callCount.incrementAndGet();
-          return v.toUpperCase();
-        });
+    classifier.accept("key", "input", v -> {
+      callCount.incrementAndGet();
+      return v.toUpperCase();
+    });
 
     assertEquals(1, callCount.get());
     assertEquals("INPUT", transformed.get());

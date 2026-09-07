@@ -50,11 +50,10 @@ abstract class AbstractHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> baggageMapping = new HashMap<>();
     baggageMapping.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
     baggageMapping.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(baggageMapping)
-            .apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
+        .setBaggageMapping(baggageMapping)
+        .apply();
     return factory.apply(Config.get(), dynamicConfig::captureTraceConfig);
   }
 }

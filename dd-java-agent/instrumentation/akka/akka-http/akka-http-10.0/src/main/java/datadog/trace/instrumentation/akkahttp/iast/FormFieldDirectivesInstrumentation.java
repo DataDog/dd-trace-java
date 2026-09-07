@@ -72,10 +72,8 @@ public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
             .and(takesArguments(2))
             .and(
                 takesArgument(0, named("akka.http.scaladsl.server.directives.FormFieldDirectives")))
-            .and(
-                takesArgument(
-                    1,
-                    named("akka.http.scaladsl.server.directives.FormFieldDirectives$FieldMagnet"))),
+            .and(takesArgument(
+                1, named("akka.http.scaladsl.server.directives.FormFieldDirectives$FieldMagnet"))),
         FormFieldDirectivesInstrumentation.class.getName()
             + "$TaintSingleFormFieldDirectiveOldScalaAdvice");
 
@@ -85,10 +83,8 @@ public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
             .and(named("formField").or(named("formFields")))
             .and(returns(Object.class).or(returns(named("akka.http.scaladsl.server.Directive"))))
             .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named("akka.http.scaladsl.server.directives.FormFieldDirectives$FieldMagnet"))),
+            .and(takesArgument(
+                0, named("akka.http.scaladsl.server.directives.FormFieldDirectives$FieldMagnet"))),
         FormFieldDirectivesInstrumentation.class.getName()
             + "$TaintSingleFormFieldDirectiveNewScalaAdvice");
   }

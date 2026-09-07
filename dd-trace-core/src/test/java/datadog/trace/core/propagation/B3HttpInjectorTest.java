@@ -90,8 +90,10 @@ class B3HttpInjectorTest extends AbstractHttpInjectorTest {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(emptyMap())
+        .setBaggageMapping(emptyMap())
+        .apply();
     HttpCodec.Extractor extractor =
         B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
     TagContext context = extractor.extract(headers, stringValuesMap());

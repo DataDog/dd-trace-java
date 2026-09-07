@@ -272,11 +272,10 @@ public class DefaultConfigurationPoller
     try {
       // Initialization of these is delayed until the remote config URL is available.
       // See #initialize().
-      Moshi moshi =
-          new Moshi.Builder()
-              .add(Instant.class, new InstantJsonAdapter())
-              .add(ByteString.class, new RawJsonAdapter())
-              .build();
+      Moshi moshi = new Moshi.Builder()
+          .add(Instant.class, new InstantJsonAdapter())
+          .add(ByteString.class, new RawJsonAdapter())
+          .build();
       this.responseFactory = new RemoteConfigResponse.Factory(moshi);
       this.requestFactory =
           new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
@@ -289,12 +288,8 @@ public class DefaultConfigurationPoller
   }
 
   private Response fetchConfiguration() throws IOException {
-    Request request =
-        this.requestFactory.newConfigurationRequest(
-            getSubscribedProductNames(),
-            this.nextClientState,
-            getCachedTargetFiles(),
-            capabilities);
+    Request request = this.requestFactory.newConfigurationRequest(
+        getSubscribedProductNames(), this.nextClientState, getCachedTargetFiles(), capabilities);
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
@@ -414,12 +409,11 @@ public class DefaultConfigurationPoller
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
         Product product = parsedConfigKey.getProduct();
         if (!(productStates.containsKey(product))) {
-          throw new ReportableException(
-              "Told to handle config key "
-                  + configKey
-                  + ", but the product "
-                  + parsedConfigKey.getProductName()
-                  + " is not being handled");
+          throw new ReportableException("Told to handle config key "
+              + configKey
+              + ", but the product "
+              + parsedConfigKey.getProductName()
+              + " is not being handled");
         }
         parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
       } catch (ReportableException e) {

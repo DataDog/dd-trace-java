@@ -17,19 +17,17 @@ public abstract class MUnitUtils {
 
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(MUnitRunner.class.getClassLoader());
-  private static final MethodHandle RUNNER_CREATE_TEST_DESCRIPTION =
-      METHOD_HANDLES.method(
-          MUnitRunner.class,
-          m -> "createTestDescription".equals(m.getName()) && m.getParameterCount() == 1);
+  private static final MethodHandle RUNNER_CREATE_TEST_DESCRIPTION = METHOD_HANDLES.method(
+      MUnitRunner.class,
+      m -> "createTestDescription".equals(m.getName()) && m.getParameterCount() == 1);
 
-  public static final List<LibraryCapability> CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CAPABILITIES = Arrays.asList(
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
   private MUnitUtils() {}
 

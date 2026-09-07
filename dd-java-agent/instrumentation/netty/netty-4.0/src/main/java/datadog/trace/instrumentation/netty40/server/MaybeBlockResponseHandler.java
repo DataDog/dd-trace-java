@@ -88,9 +88,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
     markAnalyzedResponse(channel);
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
@@ -127,15 +126,13 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              } else {
-                log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
+    ctx.writeAndFlush(response, prm).addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.cause());
+      } else {
+        log.debug("Write of blocking response succeeded");
+      }
+      channel.close();
+    });
   }
 }

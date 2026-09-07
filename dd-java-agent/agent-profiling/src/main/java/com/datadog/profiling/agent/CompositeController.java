@@ -228,13 +228,12 @@ public class CompositeController implements Controller {
     final String javaVendor = SystemProperties.getOrDefault("java.vendor", "unknown");
     final String javaVersion = SystemProperties.getOrDefault("java.version", "unknown");
     final String javaRuntimeName = SystemProperties.getOrDefault("java.runtime.name", "unknown");
-    final String message =
-        "Not enabling profiling for vendor="
-            + javaVendor
-            + ", version="
-            + javaVersion
-            + ", runtimeName="
-            + javaRuntimeName;
+    final String message = "Not enabling profiling for vendor="
+        + javaVendor
+        + ", version="
+        + javaVersion
+        + ", runtimeName="
+        + javaRuntimeName;
     try {
       if (javaVersion == null) {
         return message;

@@ -84,7 +84,8 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureFieldCount(CapturedContext context, int expectedFieldCount) {
-    assertEquals(expectedFieldCount, getFields(context.getArguments().get("this")).size());
+    assertEquals(
+        expectedFieldCount, getFields(context.getArguments().get("this")).size());
   }
 
   public static Map<String, CapturedContext.CapturedValue> getFields(
@@ -111,14 +112,16 @@ public class CapturingTestBase {
 
   protected void assertCaptureFields(
       CapturedContext context, String name, String typeName, String value) {
-    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
+    CapturedContext.CapturedValue field =
+        getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(field));
   }
 
   protected void assertCaptureFields(
       CapturedContext context, String name, String typeName, Collection<?> collection) {
-    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
+    CapturedContext.CapturedValue field =
+        getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Iterator<?> iterator = collection.iterator();
     for (Object obj : getCollection(field)) {
@@ -162,7 +165,8 @@ public class CapturingTestBase {
 
   protected void assertCaptureFields(
       CapturedContext context, String name, String typeName, Map<Object, Object> expectedMap) {
-    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
+    CapturedContext.CapturedValue field =
+        getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Map<Object, Object> map = getMap(field);
     assertEquals(expectedMap.size(), map.size());
@@ -198,7 +202,8 @@ public class CapturingTestBase {
 
   protected void assertCaptureFieldsNotCaptured(
       CapturedContext context, String name, String expectedReasonRegEx) {
-    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
+    CapturedContext.CapturedValue field =
+        getFields(context.getArguments().get("this")).get(name);
     assertTrue(
         field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
   }
@@ -305,8 +310,10 @@ public class CapturingTestBase {
   }
 
   protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
-    return installProbes(
-        Configuration.builder().setService(CapturedSnapshotTest.SERVICE_NAME).add(probes).build());
+    return installProbes(Configuration.builder()
+        .setService(CapturedSnapshotTest.SERVICE_NAME)
+        .add(probes)
+        .build());
   }
 
   public static LogProbe.Builder createProbeBuilder(
@@ -335,20 +342,18 @@ public class CapturingTestBase {
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-    configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            DebuggerTransformer::new,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            instrumentationListener,
-            configurationUpdater.getProbeMetadata(),
-            listener);
+    configurationUpdater = new ConfigurationUpdater(
+        instr,
+        DebuggerTransformer::new,
+        config,
+        new DebuggerSink(config, probeStatusSink),
+        new ClassesToRetransformFinder());
+    currentTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        instrumentationListener,
+        configurationUpdater.getProbeMetadata(),
+        listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(configurationUpdater::resolve);

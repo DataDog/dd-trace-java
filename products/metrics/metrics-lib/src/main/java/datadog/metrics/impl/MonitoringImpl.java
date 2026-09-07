@@ -27,9 +27,8 @@ public final class MonitoringImpl implements Monitoring {
 
   @Override
   public Recording newThreadLocalTimer(final String name) {
-    return new ThreadLocalRecording(
-        ThreadLocal.withInitial(
-            () -> newTimer(name, "thread:" + Thread.currentThread().getName())));
+    return new ThreadLocalRecording(ThreadLocal.withInitial(
+        () -> newTimer(name, "thread:" + Thread.currentThread().getName())));
   }
 
   @Override

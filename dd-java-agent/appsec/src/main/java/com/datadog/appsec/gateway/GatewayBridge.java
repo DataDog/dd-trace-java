@@ -264,8 +264,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.USER_ID, user).build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.USER_ID, user)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -312,10 +313,8 @@ public class GatewayBridge {
     final String subInfoKey =
         addresses.stream().map(Address::getKey).collect(Collectors.joining("|"));
     while (true) {
-      DataSubscriberInfo subInfo =
-          loginEventSubInfo.computeIfAbsent(
-              subInfoKey,
-              t -> producerService.getDataSubscribers(addresses.toArray(new Address[0])));
+      DataSubscriberInfo subInfo = loginEventSubInfo.computeIfAbsent(
+          subInfoKey, t -> producerService.getDataSubscribers(addresses.toArray(new Address[0])));
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
@@ -347,8 +346,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SESSION_ID, sessionId).build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.SESSION_ID, sessionId)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -372,11 +372,10 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
 
-    final MapDataBundle.Builder bundleBuilder =
-        new MapDataBundle.Builder(CAPACITY_3_4)
-            .add(KnownAddresses.IO_NET_URL, request.getUrl())
-            .add(KnownAddresses.IO_NET_REQUEST_METHOD, request.getMethod())
-            .add(KnownAddresses.IO_NET_REQUEST_HEADERS, toLowerCaseHeaders(request.getHeaders()));
+    final MapDataBundle.Builder bundleBuilder = new MapDataBundle.Builder(CAPACITY_3_4)
+        .add(KnownAddresses.IO_NET_URL, request.getUrl())
+        .add(KnownAddresses.IO_NET_REQUEST_METHOD, request.getMethod())
+        .add(KnownAddresses.IO_NET_REQUEST_HEADERS, toLowerCaseHeaders(request.getHeaders()));
 
     if (downstreamSampler().isSampled(ctx, request.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, request);
@@ -389,12 +388,11 @@ public class GatewayBridge {
     while (true) {
       DataSubscriberInfo subInfo = httpClientRequestSubInfo;
       if (subInfo == null) {
-        subInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.IO_NET_URL,
-                KnownAddresses.IO_NET_REQUEST_METHOD,
-                KnownAddresses.IO_NET_REQUEST_HEADERS,
-                KnownAddresses.IO_NET_REQUEST_BODY);
+        subInfo = producerService.getDataSubscribers(
+            KnownAddresses.IO_NET_URL,
+            KnownAddresses.IO_NET_REQUEST_METHOD,
+            KnownAddresses.IO_NET_REQUEST_HEADERS,
+            KnownAddresses.IO_NET_REQUEST_BODY);
         httpClientRequestSubInfo = subInfo;
       }
       try {
@@ -413,10 +411,9 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
 
-    final MapDataBundle.Builder bundleBuilder =
-        new MapDataBundle.Builder(CAPACITY_3_4)
-            .add(KnownAddresses.IO_NET_RESPONSE_STATUS, Integer.toString(response.getStatus()))
-            .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, toLowerCaseHeaders(response.getHeaders()));
+    final MapDataBundle.Builder bundleBuilder = new MapDataBundle.Builder(CAPACITY_3_4)
+        .add(KnownAddresses.IO_NET_RESPONSE_STATUS, Integer.toString(response.getStatus()))
+        .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, toLowerCaseHeaders(response.getHeaders()));
     // ignore the response if not sampled
     if (downstreamSampler().isSampled(ctx, response.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, response);
@@ -430,11 +427,10 @@ public class GatewayBridge {
     while (true) {
       DataSubscriberInfo subInfo = httpClientResponseSubInfo;
       if (subInfo == null) {
-        subInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.IO_NET_RESPONSE_STATUS,
-                KnownAddresses.IO_NET_RESPONSE_HEADERS,
-                KnownAddresses.IO_NET_RESPONSE_BODY);
+        subInfo = producerService.getDataSubscribers(
+            KnownAddresses.IO_NET_RESPONSE_STATUS,
+            KnownAddresses.IO_NET_RESPONSE_HEADERS,
+            KnownAddresses.IO_NET_RESPONSE_BODY);
         httpClientResponseSubInfo = subInfo;
       }
       try {
@@ -495,8 +491,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.EXEC_CMD, command).build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.EXEC_CMD, command)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(true, RuleType.COMMAND_INJECTION);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -520,8 +517,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SHELL_CMD, command).build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.SHELL_CMD, command)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(true, RuleType.SHELL_INJECTION);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -545,8 +543,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.IO_FS_FILE, path).build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.IO_FS_FILE, path)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -564,19 +563,17 @@ public class GatewayBridge {
     while (true) {
       DataSubscriberInfo subInfo = ioFileWriteSubInfo;
       if (subInfo == null) {
-        subInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.IO_FS_FILE, KnownAddresses.IO_FS_FILE_WRITE);
+        subInfo = producerService.getDataSubscribers(
+            KnownAddresses.IO_FS_FILE, KnownAddresses.IO_FS_FILE_WRITE);
         ioFileWriteSubInfo = subInfo;
       }
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2)
-              .add(KnownAddresses.IO_FS_FILE, path)
-              .add(KnownAddresses.IO_FS_FILE_WRITE, path)
-              .build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.IO_FS_FILE, path)
+          .add(KnownAddresses.IO_FS_FILE_WRITE, path)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -651,11 +648,10 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new MapDataBundle.Builder(CAPACITY_0_2)
-              .add(KnownAddresses.DB_TYPE, ctx.getDbType())
-              .add(KnownAddresses.DB_SQL_QUERY, sql)
-              .build();
+      DataBundle bundle = new MapDataBundle.Builder(CAPACITY_0_2)
+          .add(KnownAddresses.DB_TYPE, ctx.getDbType())
+          .add(KnownAddresses.DB_SQL_QUERY, sql)
+          .build();
       try {
         GatewayContext gwCtx = new GatewayContext(true, RuleType.SQL_INJECTION);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -812,13 +808,9 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object converted =
-          ObjectIntrospection.convert(
-              obj,
-              ctx,
-              () -> {
-                ctx.setProcessedResponseBodySizeExceeded(true);
-              });
+      Object converted = ObjectIntrospection.convert(obj, ctx, () -> {
+        ctx.setProcessedResponseBodySizeExceeded(true);
+      });
       ctx.setProcessedRequestBody(converted);
       DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
@@ -1315,33 +1307,31 @@ public class GatewayBridge {
 
     ctx.setReqDataPublished(true);
 
-    MapDataBundle bundle =
-        new MapDataBundle.Builder(CAPACITY_6_10)
-            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
-            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCookies())
-            .add(KnownAddresses.REQUEST_SCHEME, scheme)
-            .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
-            .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
-            .add(KnownAddresses.REQUEST_QUERY, queryParams)
-            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
-            .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
-            .add(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, ctx.getInferredClientIp())
-            .build();
+    MapDataBundle bundle = new MapDataBundle.Builder(CAPACITY_6_10)
+        .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
+        .add(KnownAddresses.REQUEST_COOKIES, ctx.getCookies())
+        .add(KnownAddresses.REQUEST_SCHEME, scheme)
+        .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
+        .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
+        .add(KnownAddresses.REQUEST_QUERY, queryParams)
+        .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
+        .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
+        .add(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, ctx.getInferredClientIp())
+        .build();
 
     while (true) {
       DataSubscriberInfo subInfo = this.initialReqDataSubInfo;
       if (subInfo == null) {
-        subInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.HEADERS_NO_COOKIES,
-                KnownAddresses.REQUEST_COOKIES,
-                KnownAddresses.REQUEST_SCHEME,
-                KnownAddresses.REQUEST_METHOD,
-                KnownAddresses.REQUEST_URI_RAW,
-                KnownAddresses.REQUEST_QUERY,
-                KnownAddresses.REQUEST_CLIENT_IP,
-                KnownAddresses.REQUEST_CLIENT_PORT,
-                KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
+        subInfo = producerService.getDataSubscribers(
+            KnownAddresses.HEADERS_NO_COOKIES,
+            KnownAddresses.REQUEST_COOKIES,
+            KnownAddresses.REQUEST_SCHEME,
+            KnownAddresses.REQUEST_METHOD,
+            KnownAddresses.REQUEST_URI_RAW,
+            KnownAddresses.REQUEST_QUERY,
+            KnownAddresses.REQUEST_CLIENT_IP,
+            KnownAddresses.REQUEST_CLIENT_PORT,
+            KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
         initialReqDataSubInfo = subInfo;
       }
 
@@ -1366,17 +1356,15 @@ public class GatewayBridge {
 
     ctx.setRespDataPublished(true);
 
-    MapDataBundle bundle =
-        MapDataBundle.of(
-            KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
+    MapDataBundle bundle = MapDataBundle.of(
+        KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
+        KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;
       if (subInfo == null) {
-        subInfo =
-            producerService.getDataSubscribers(
-                KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+        subInfo = producerService.getDataSubscribers(
+            KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
         respDataSubInfo = subInfo;
       }
 

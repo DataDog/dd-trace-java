@@ -10,11 +10,9 @@ public class AssertionsUtils {
   }
 
   public static void assertMapContainsKeyValues(Map<?, ?> actual, Map<?, ?> expectedSubset) {
-    expectedSubset.forEach(
-        (k, v) ->
-            assertEquals(
-                v,
-                actual.get(k),
-                () -> "Mismatch for key [" + k + "]: expected=" + v + ", actual=" + actual.get(k)));
+    expectedSubset.forEach((k, v) -> assertEquals(
+        v,
+        actual.get(k),
+        () -> "Mismatch for key [" + k + "]: expected=" + v + ", actual=" + actual.get(k)));
   }
 }

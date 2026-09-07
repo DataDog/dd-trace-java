@@ -29,7 +29,8 @@ class OTSpanTest extends DDJavaSpecification {
 
   @Test
   void testResourceNameAssignmentThroughMutableSpanCasting() {
-    OTSpan testSpan = (OTSpan) tracer.buildSpan("parent").withResourceName("test-resource").start();
+    OTSpan testSpan =
+        (OTSpan) tracer.buildSpan("parent").withResourceName("test-resource").start();
     OTScopeManager.OTScope testScope = (OTScopeManager.OTScope) tracer.activateSpan(testSpan);
 
     Span active = tracer.activeSpan();

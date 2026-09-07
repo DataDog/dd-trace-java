@@ -102,12 +102,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
-            queueSpan =
-                startSpan(
-                    JAVA_KAFKA.toString(),
-                    KafkaDecorator.KAFKA_DELIVER,
-                    spanContext,
-                    MILLISECONDS.toMicros(timeInQueueStart));
+            queueSpan = startSpan(
+                JAVA_KAFKA.toString(),
+                KafkaDecorator.KAFKA_DELIVER,
+                spanContext,
+                MILLISECONDS.toMicros(timeInQueueStart));
             KafkaDecorator.BROKER_DECORATE.afterStart(queueSpan);
             KafkaDecorator.BROKER_DECORATE.onTimeInQueue(queueSpan, val);
             span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());

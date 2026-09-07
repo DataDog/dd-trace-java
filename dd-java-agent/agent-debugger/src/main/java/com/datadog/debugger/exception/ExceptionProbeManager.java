@@ -101,12 +101,11 @@ public class ExceptionProbeManager {
         thirdPartyFrames++;
         continue;
       }
-      Where where =
-          Where.of(
-              stackTraceElement.getClassName(),
-              stackTraceElement.getMethodName(),
-              null,
-              String.valueOf(stackTraceElement.getLineNumber()));
+      Where where = Where.of(
+          stackTraceElement.getClassName(),
+          stackTraceElement.getMethodName(),
+          null,
+          String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where, chainedExceptionIdx);
       probes.putIfAbsent(probe.getId(), probe);
       instrumentedFrames++;
@@ -150,7 +149,8 @@ public class ExceptionProbeManager {
   }
 
   public void addSnapshot(Snapshot snapshot) {
-    Throwable throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+    Throwable throwable =
+        snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
     if (throwable == null) {
       LOGGER.debug("Snapshot has no throwable: {}", snapshot.getId());
       return;
@@ -161,9 +161,8 @@ public class ExceptionProbeManager {
       LOGGER.debug("Unable to find root cause of exception: {}", String.valueOf(throwable));
       return;
     }
-    ThrowableState state =
-        snapshotsByThrowable.computeIfAbsent(
-            throwable, key -> new ThrowableState(RandomUtils.randomUUID().toString()));
+    ThrowableState state = snapshotsByThrowable.computeIfAbsent(
+        throwable, key -> new ThrowableState(RandomUtils.randomUUID().toString()));
     snapshot.setExceptionId(state.getExceptionId());
     state.addSnapshot(snapshot);
   }

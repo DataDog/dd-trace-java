@@ -78,7 +78,8 @@ public class CrashUploaderTest {
     when(config.getHostName()).thenReturn(HOSTNAME);
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
-    when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingTelemetryUrl())
+        .thenReturn(server.url(URL_PATH).toString());
     when(config.getFinalCrashTrackingErrorTrackingUrl())
         .thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
@@ -123,7 +124,8 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("service").asText());
     assertEquals(msg, event.get("message").asText());
     assertEquals(
-        readFileAsString("sample-stacktrace.txt"), event.get("error").get("stack").asText());
+        readFileAsString("sample-stacktrace.txt"),
+        event.get("error").get("stack").asText());
     assertEquals("ERROR", event.get("level").asText());
     assertTrue(event.get("ddtags").asText().contains("is_crash:true"));
   }
@@ -145,12 +147,11 @@ public class CrashUploaderTest {
   public void testTelemetryCrashPing() throws Exception {
     // Given
     final String expected = readFileAsString("golden/telemetry/sample-ping-for-telemetry.json");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -196,13 +197,12 @@ public class CrashUploaderTest {
     expected.remove("ddtags");
     expected.remove("os_info");
     expected.remove("timestamp");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
+        .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -239,19 +239,16 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("runtime_name:"));
 
     // assert platform independent equality
-    assertEquals(
-        expected,
-        extracted,
-        () -> {
-          try {
-            return "Expected: "
-                + mapper.writeValueAsString(expected)
-                + "\nbut got: "
-                + mapper.writeValueAsString(extracted);
-          } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    assertEquals(expected, extracted, () -> {
+      try {
+        return "Expected: "
+            + mapper.writeValueAsString(expected)
+            + "\nbut got: "
+            + mapper.writeValueAsString(extracted);
+      } catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
+      }
+    });
   }
 
   @ParameterizedTest
@@ -266,12 +263,11 @@ public class CrashUploaderTest {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/telemetry/" + log));
     final String inputLog = log.replace(".json", ".txt");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -299,7 +295,8 @@ public class CrashUploaderTest {
     assertThatJson(extracted.toJson())
         .whenIgnoringPaths("os_info", "metadata", "experimental")
         .isEqualTo(expected.toJson());
-    assertEquals("severity:crash,is_crash:true", event.get("payload").get(0).get("tags").asText());
+    assertEquals(
+        "severity:crash,is_crash:true", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
   }
 
@@ -320,14 +317,13 @@ public class CrashUploaderTest {
     expected.remove("ddtags");
     expected.remove("os_info");
     final String inputLog = log.replace(".json", ".txt");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
+        .extendedInfoEnabled(true)
+        .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -369,11 +365,10 @@ public class CrashUploaderTest {
   @Test
   public void testErrorTrackingExcludesExtendedInfoByDefault() throws Exception {
     // extendedInfoEnabled defaults to false — files, thread_name and runtime_args must not appear
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+        .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -390,14 +385,13 @@ public class CrashUploaderTest {
 
   @Test
   public void testErrorTrackingSerializesRuntimeArgs() throws Exception {
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+        .extendedInfoEnabled(true)
+        .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -421,14 +415,13 @@ public class CrashUploaderTest {
 
   @Test
   public void testErrorTrackingSerializesRegisterToMemoryMapping() throws Exception {
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+        .extendedInfoEnabled(true)
+        .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -448,13 +441,12 @@ public class CrashUploaderTest {
   @Test
   public void testErrorTrackingOmitsRegisterToMemoryMappingByDefault() throws Exception {
     // registerMappingEnabled defaults to false — the mapping must not appear in the payload
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+        .reportUUID(SAMPLE_UUID)
+        .processTags("a:b")
+        .runtimeId("1234")
+        .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+        .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -468,7 +460,8 @@ public class CrashUploaderTest {
     // experimental must either be absent or, if present, contain at least one field (no empty {})
     assertThat(experimental.isMissingNode() || (experimental.isObject() && experimental.size() > 0))
         .isTrue();
-    assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode()).isTrue();
+    assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode())
+        .isTrue();
   }
 
   private void assertCommonHeader(JsonNode event) {
@@ -487,7 +480,8 @@ public class CrashUploaderTest {
         event.get("application").get("language_version").asText());
     assertEquals(SERVICE, event.get("application").get("service_name").asText());
     assertEquals(VERSION, event.get("application").get("service_version").asText());
-    assertEquals(VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
+    assertEquals(
+        VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
     assertEquals("a:b", event.get("application").get("process_tags").asText());
     // host
     assertEquals(HOSTNAME, event.get("host").get("hostname").asText());

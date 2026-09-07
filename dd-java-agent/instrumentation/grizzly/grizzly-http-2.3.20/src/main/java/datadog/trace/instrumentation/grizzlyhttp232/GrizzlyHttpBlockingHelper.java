@@ -48,14 +48,12 @@ public class GrizzlyHttpBlockingHelper {
     Method encodeHttpPacket = null;
 
     try {
-      encodeHttpPacket =
-          HttpServerFilter.class.getDeclaredMethod(
-              "encodeHttpPacket", FilterChainContext.class, HttpPacket.class);
+      encodeHttpPacket = HttpServerFilter.class.getDeclaredMethod(
+          "encodeHttpPacket", FilterChainContext.class, HttpPacket.class);
       encodeHttpPacket.setAccessible(true);
     } catch (NoSuchMethodException nsme) {
-      log.error(
-          "Cannot find method HttpServerFilter::encodeHttpPacket. "
-              + "Blocking will not be possible at the grizzly-http level");
+      log.error("Cannot find method HttpServerFilter::encodeHttpPacket. "
+          + "Blocking will not be possible at the grizzly-http level");
     } catch (RuntimeException e) {
       log.error(
           "Exception trying to obtain handle for method HttpServerFilter::encodeHttpPacket. "
@@ -67,9 +65,8 @@ public class GrizzlyHttpBlockingHelper {
       try {
         handle = MethodHandles.lookup().unreflect(encodeHttpPacket);
       } catch (IllegalAccessException e) {
-        log.error(
-            "Exception unreflecting method HttpServerFilter::encodeHttpPacket. "
-                + "Blocking will not be possible at the grizzly-http level");
+        log.error("Exception unreflecting method HttpServerFilter::encodeHttpPacket. "
+            + "Blocking will not be possible at the grizzly-http level");
       }
     }
 
@@ -89,9 +86,8 @@ public class GrizzlyHttpBlockingHelper {
       return nextAction;
     }
 
-    HttpStatus status =
-        HttpStatus.newHttpStatus(
-            BlockingActionHelper.getHttpCode(rba.getStatusCode()), "Request Blocked");
+    HttpStatus status = HttpStatus.newHttpStatus(
+        BlockingActionHelper.getHttpCode(rba.getStatusCode()), "Request Blocked");
     status.setValues(httpResponse);
 
     for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
@@ -107,8 +103,10 @@ public class GrizzlyHttpBlockingHelper {
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       httpResponse.setContentLength(template.length);
-      httpContent =
-          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+      httpContent = HttpContent.builder(httpResponse)
+          .content(HeapBuffer.wrap(template))
+          .last(true)
+          .build();
     } else {
       httpContent = HttpContent.builder(httpResponse).last(true).build();
     }
@@ -169,8 +167,10 @@ public class GrizzlyHttpBlockingHelper {
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
       httpResponse.setContentLength(template.length);
-      httpContent =
-          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+      httpContent = HttpContent.builder(httpResponse)
+          .content(HeapBuffer.wrap(template))
+          .last(true)
+          .build();
     } else {
       httpContent = HttpContent.builder(httpResponse).last(true).build();
     }

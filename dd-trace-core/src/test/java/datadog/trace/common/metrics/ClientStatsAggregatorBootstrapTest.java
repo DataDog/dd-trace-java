@@ -54,18 +54,17 @@ class ClientStatsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
 
     // Do not start the aggregator thread -- reconcile must not run, only bootstrap.
     aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
@@ -91,34 +90,31 @@ class ClientStatsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
       // Both reports flush a bucket; the cycle1/cycle2 countdowns synchronize the test thread
       // with the aggregator thread's per-cycle completion.
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+      org.mockito.Mockito.doAnswer(invocation -> {
+            cycle1.countDown();
+            return null;
+          })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -160,32 +156,29 @@ class ClientStatsAggregatorBootstrapTest {
     // State hash changes every reconcile -- forces reconcile into the slow path each time.
     when(features.state()).thenReturn("state-1", "state-2", "state-3");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+      org.mockito.Mockito.doAnswer(invocation -> {
+            cycle1.countDown();
+            return null;
+          })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -233,32 +226,29 @@ class ClientStatsAggregatorBootstrapTest {
     // (mismatch -> slow path), stable at "state-2" for cycle 2's reconcile (match -> fast path).
     when(features.state()).thenReturn("state-1", "state-2", "state-2");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
+      org.mockito.Mockito.doAnswer(invocation -> {
+            cycle1.countDown();
+            return null;
+          })
+          .doAnswer(invocation -> {
+            cycle2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 

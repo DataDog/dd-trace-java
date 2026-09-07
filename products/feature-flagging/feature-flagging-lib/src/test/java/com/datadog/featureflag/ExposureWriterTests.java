@@ -89,15 +89,10 @@ class ExposureWriterTests {
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
-    server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h -> {
-                      h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                      h.prefix(
-                          DIRECT_EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                    }));
+    server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> {
+      h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
+      h.prefix(DIRECT_EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
+    }));
     sharedCommunicationObjects = sharedCommunicationObjects(true);
   }
 
@@ -110,9 +105,8 @@ class ExposureWriterTests {
 
   private void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
       throws Exception {
-    ExposuresRequest exposuresRequest =
-        adapter.fromJson(
-            Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
+    ExposuresRequest exposuresRequest = adapter.fromJson(
+        Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
     boolean failForever = "fail-forever".equals(serviceName);
     boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
@@ -142,14 +136,13 @@ class ExposureWriterTests {
         writer.accept(exposure);
       }
 
-      poll.eventually(
-          () -> {
-            assertFalse(requests.isEmpty());
-            for (ExposuresRequest request : requests) {
-              assertContext(request.context, service, env, version);
-            }
-            assertExposures(allExposures(), exposures);
-          });
+      poll.eventually(() -> {
+        assertFalse(requests.isEmpty());
+        for (ExposuresRequest request : requests) {
+          assertContext(request.context, service, env, version);
+        }
+        assertExposures(allExposures(), exposures);
+      });
     }
   }
 
@@ -159,14 +152,13 @@ class ExposureWriterTests {
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
     when(config.getApiKey()).thenReturn(API_KEY);
     BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    IntakeApi directApi =
-        new IntakeApi(
-            HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
-            API_KEY,
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            new OkHttpClient.Builder().build(),
-            false);
+    IntakeApi directApi = new IntakeApi(
+        HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
+        API_KEY,
+        "123",
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        new OkHttpClient.Builder().build(),
+        false);
     when(backendApiFactory.createDirectIntakeApi(
             datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
         .thenReturn(directApi);
@@ -181,13 +173,12 @@ class ExposureWriterTests {
         writer.accept(exposure);
       }
 
-      poll.eventually(
-          () -> {
-            assertEquals(DIRECT_EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
-            assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
-            assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
-            assertExposures(allExposures(), exposures);
-          });
+      poll.eventually(() -> {
+        assertEquals(DIRECT_EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
+        assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
+        assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
+        assertExposures(allExposures(), exposures);
+      });
     }
   }
 
@@ -240,16 +231,14 @@ class ExposureWriterTests {
       for (int index = 0; index < exposures.size(); index += exposuresPerThread) {
         List<ExposureEvent> partition =
             exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
-        futures.add(
-            executor.submit(
-                () -> {
-                  latch.await();
-                  for (ExposureEvent exposure : partition) {
-                    MILLISECONDS.sleep(random.nextInt(2));
-                    writer.accept(exposure);
-                  }
-                  return true;
-                }));
+        futures.add(executor.submit(() -> {
+          latch.await();
+          for (ExposureEvent exposure : partition) {
+            MILLISECONDS.sleep(random.nextInt(2));
+            writer.accept(exposure);
+          }
+          return true;
+        }));
       }
       latch.countDown(); // start threads
 
@@ -325,10 +314,8 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(exposures.get(0));
 
-      poll.eventually(
-          () ->
-              verify(proxyApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+      poll.eventually(() ->
+          verify(proxyApi).post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
       MILLISECONDS.sleep(300);
       verify(proxyApi, times(1))
           .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
@@ -336,10 +323,8 @@ class ExposureWriterTests {
           .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
 
       writer.accept(exposures.get(1));
-      poll.eventually(
-          () ->
-              verify(directApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+      poll.eventually(() ->
+          verify(directApi).post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
 
       final ArgumentCaptor<RequestBody> directBody = ArgumentCaptor.forClass(RequestBody.class);
       verify(directApi).post(eq("exposures"), directBody.capture(), any(), any(), eq(false));
@@ -462,9 +447,8 @@ class ExposureWriterTests {
       return result;
     }
 
-    result =
-        compareNullableString(
-            first.allocation == null ? null : first.allocation.key, second.allocation);
+    result = compareNullableString(
+        first.allocation == null ? null : first.allocation.key, second.allocation);
     if (result != 0) {
       return result;
     }
@@ -476,10 +460,9 @@ class ExposureWriterTests {
 
     Map.Entry<String, Object> firstEntry = firstEntry(first.subject);
     Map.Entry<String, Object> secondEntry = firstEntry(second.subject);
-    result =
-        compareNullableString(
-            firstEntry == null ? null : firstEntry.getKey(),
-            secondEntry == null ? null : secondEntry.getKey());
+    result = compareNullableString(
+        firstEntry == null ? null : firstEntry.getKey(),
+        secondEntry == null ? null : secondEntry.getKey());
     if (result != 0) {
       return result;
     }

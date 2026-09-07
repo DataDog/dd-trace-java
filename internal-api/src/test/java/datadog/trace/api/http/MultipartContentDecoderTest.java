@@ -108,7 +108,8 @@ public class MultipartContentDecoderTest {
   @ParameterizedTest
   @CsvSource({"text/plain; charset=UTF-8, UTF-8", "text/xml; charset=ISO-8859-1, ISO-8859-1"})
   void extractCharsetFromStandardContentType(String contentType, String expectedCharset) {
-    assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
+    assertEquals(
+        expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
   }
 
   @Test
@@ -134,12 +135,11 @@ public class MultipartContentDecoderTest {
   }
 
   @ParameterizedTest
-  @CsvSource({
-    "text/plain; charset=\"UTF-8\", UTF-8",
-    "text/xml; charset=\"ISO-8859-1\", ISO-8859-1"
+  @CsvSource({"text/plain; charset=\"UTF-8\", UTF-8", "text/xml; charset=\"ISO-8859-1\", ISO-8859-1"
   })
   void extractCharsetHandlesQuotedCharsetValue(String contentType, String expectedCharset) {
-    assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
+    assertEquals(
+        expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
   }
 
   @Test
@@ -163,13 +163,12 @@ public class MultipartContentDecoderTest {
   void readInputStreamHandlesMultipleReadCallsToFillBuffer() throws IOException {
     byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
     // InputStream that returns 2 bytes per read() call to exercise the accumulation loop.
-    InputStream slow =
-        new ByteArrayInputStream(data) {
-          @Override
-          public synchronized int read(byte[] b, int off, int len) {
-            return super.read(b, off, Math.min(len, 2));
-          }
-        };
+    InputStream slow = new ByteArrayInputStream(data) {
+      @Override
+      public synchronized int read(byte[] b, int off, int len) {
+        return super.read(b, off, Math.min(len, 2));
+      }
+    };
     assertEquals("hello world", MultipartContentDecoder.readInputStream(slow, data.length, null));
   }
 }

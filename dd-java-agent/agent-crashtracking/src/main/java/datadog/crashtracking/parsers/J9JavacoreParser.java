@@ -74,9 +74,8 @@ public final class J9JavacoreParser {
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\\n");
   private static final Pattern SIG_INFO_PATTERN =
       Pattern.compile("1TISIGINFO\\s+Dump Event \"(\\w+)\"(?:\\s+\\((\\w+)\\))?.*");
-  private static final Pattern DATETIME_PATTERN =
-      Pattern.compile(
-          "1TIDATETIME\\s+Date:\\s+(\\d{4}/\\d{2}/\\d{2})\\s+at\\s+(\\d{2}:\\d{2}:\\d{2})(?::(\\d{3}))?.*");
+  private static final Pattern DATETIME_PATTERN = Pattern.compile(
+      "1TIDATETIME\\s+Date:\\s+(\\d{4}/\\d{2}/\\d{2})\\s+at\\s+(\\d{2}:\\d{2}:\\d{2})(?::(\\d{3}))?.*");
   private static final Pattern PID_PATTERN =
       Pattern.compile("1CIPROCESSID\\s+Process ID:\\s+(\\d+).*");
   private static final Pattern CURRENT_THREAD_PATTERN =
@@ -261,10 +260,9 @@ public final class J9JavacoreParser {
       kind = "OutOfMemory";
       message = exceptionDetail != null ? exceptionDetail : "OutOfMemoryError";
     } else if (eventType != null) {
-      kind =
-          sigInfo != null && sigInfo.name != null
-              ? sigInfo.name
-              : eventType.toUpperCase(Locale.ROOT);
+      kind = sigInfo != null && sigInfo.name != null
+          ? sigInfo.name
+          : eventType.toUpperCase(Locale.ROOT);
       message = "Process terminated by signal " + kind;
     } else {
       kind = "InternalError";
@@ -282,43 +280,39 @@ public final class J9JavacoreParser {
       // Try to resolve build ID for this library
       final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.path);
       if (buildInfo != null) {
-        enrichedFrames.add(
-            new StackFrame(
-                frame.path,
-                frame.line,
-                frame.function,
-                frame.frameType,
-                buildInfo.buildId,
-                buildInfo.buildIdType,
-                buildInfo.fileType,
-                frame.ip,
-                frame.symbolAddress,
-                frame.relativeAddress));
+        enrichedFrames.add(new StackFrame(
+            frame.path,
+            frame.line,
+            frame.function,
+            frame.frameType,
+            buildInfo.buildId,
+            buildInfo.buildIdType,
+            buildInfo.fileType,
+            frame.ip,
+            frame.symbolAddress,
+            frame.relativeAddress));
       } else {
         enrichedFrames.add(frame);
       }
     }
 
-    ErrorData error =
-        new ErrorData(
-            kind,
-            message,
-            currentThreadName,
-            new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+    ErrorData error = new ErrorData(
+        kind,
+        message,
+        currentThreadName,
+        new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     List<String> runtimeArgs = j9UserArgs.build();
-    RuntimeInfo runtimeInfo =
-        (j9JavaVersion != null || j9VmVersion != null)
-            ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
-            : null;
-    Experimental experimental =
-        (registers != null && !registers.isEmpty())
-                || (runtimeArgs != null && !runtimeArgs.isEmpty())
-                || runtimeInfo != null
-            ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
-            : null;
+    RuntimeInfo runtimeInfo = (j9JavaVersion != null || j9VmVersion != null)
+        ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
+        : null;
+    Experimental experimental = (registers != null && !registers.isEmpty())
+            || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            || runtimeInfo != null
+        ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
+        : null;
 
     return new CrashLog(
         uuid,

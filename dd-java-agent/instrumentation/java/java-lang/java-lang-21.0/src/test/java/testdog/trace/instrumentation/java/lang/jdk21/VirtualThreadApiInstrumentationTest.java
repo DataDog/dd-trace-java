@@ -100,49 +100,44 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
       @Trace(operationName = "parent")
       @Override
       public void run() {
-        threadBuilder.start(
-            new Runnable() {
-              @Trace(operationName = "child")
+        threadBuilder.start(new Runnable() {
+          @Trace(operationName = "child")
+          @Override
+          public void run() {
+            threadBuilder.start(new Runnable() {
+              @Trace(operationName = "great-child")
               @Override
               public void run() {
-                threadBuilder.start(
-                    new Runnable() {
-                      @Trace(operationName = "great-child")
-                      @Override
-                      public void run() {
-                        threadBuilder.start(
-                            new Runnable() {
-                              @Trace(operationName = "great-great-child")
-                              @Override
-                              public void run() {
-                                System.out.println("complete");
-                              }
-                            });
-                      }
-                    });
+                threadBuilder.start(new Runnable() {
+                  @Trace(operationName = "great-great-child")
+                  @Override
+                  public void run() {
+                    System.out.println("complete");
+                  }
+                });
               }
             });
+          }
+        });
       }
     }.run();
 
     // Block test thread until child spans are reported
     blockUntilTracesMatch(traces -> traces.size() == 1 && traces.get(0).size() == 4);
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("child"),
-            span().childOfPrevious().operationName("great-child"),
-            span().childOfPrevious().operationName("great-great-child")));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span().root().operationName("parent"),
+        span().childOfPrevious().operationName("child"),
+        span().childOfPrevious().operationName("great-child"),
+        span().childOfPrevious().operationName("great-great-child")));
   }
 
   /** Verifies the parent / child span relation. */
   void assertConnectedTrace() {
-    assertTraces(
-        trace(
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("asyncChild")));
+    assertTraces(trace(
+        span().root().operationName("parent"),
+        span().childOfPrevious().operationName("asyncChild")));
   }
 
   private static void tryUnmount() {

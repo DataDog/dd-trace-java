@@ -7,9 +7,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class OnErrorDecorator extends BaseDecorator {
 
-  public static final HandlerContextKey<Context> CONTEXT_CONTEXT_KEY =
-      new HandlerContextKey<>(
-          "DatadogContext"); // same as TracingRequestHandler.CONTEXT_CONTEXT_KEY
+  public static final HandlerContextKey<Context> CONTEXT_CONTEXT_KEY = new HandlerContextKey<>(
+      "DatadogContext"); // same as TracingRequestHandler.CONTEXT_CONTEXT_KEY
 
   public static final OnErrorDecorator DECORATE = new OnErrorDecorator();
 

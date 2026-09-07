@@ -36,40 +36,36 @@ public class ExecutionRequestFactory {
   private static final MethodHandle GET_OUTPUT_DIRECTORY_CREATOR =
       METHOD_HANDLES.method(ExecutionRequest.class, "getOutputDirectoryCreator");
 
-  private static final String[] PARAMETERS_JUNIT6 =
-      new String[] {
-        "org.junit.platform.engine.TestDescriptor",
-        "org.junit.platform.engine.EngineExecutionListener",
-        "org.junit.platform.engine.ConfigurationParameters",
-        "org.junit.platform.engine.OutputDirectoryCreator",
-        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
-        "org.junit.platform.engine.CancellationToken"
-      };
+  private static final String[] PARAMETERS_JUNIT6 = new String[] {
+    "org.junit.platform.engine.TestDescriptor",
+    "org.junit.platform.engine.EngineExecutionListener",
+    "org.junit.platform.engine.ConfigurationParameters",
+    "org.junit.platform.engine.OutputDirectoryCreator",
+    "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
+    "org.junit.platform.engine.CancellationToken"
+  };
 
-  private static final String[] PARAMETERS_JUNIT514 =
-      new String[] {
-        "org.junit.platform.engine.TestDescriptor",
-        "org.junit.platform.engine.EngineExecutionListener",
-        "org.junit.platform.engine.ConfigurationParameters",
-        "org.junit.platform.engine.OutputDirectoryCreator",
-        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
-      };
+  private static final String[] PARAMETERS_JUNIT514 = new String[] {
+    "org.junit.platform.engine.TestDescriptor",
+    "org.junit.platform.engine.EngineExecutionListener",
+    "org.junit.platform.engine.ConfigurationParameters",
+    "org.junit.platform.engine.OutputDirectoryCreator",
+    "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
+  };
 
-  private static final String[] PARAMETERS_JUNIT513 =
-      new String[] {
-        "org.junit.platform.engine.TestDescriptor",
-        "org.junit.platform.engine.EngineExecutionListener",
-        "org.junit.platform.engine.ConfigurationParameters",
-        "org.junit.platform.engine.reporting.OutputDirectoryProvider",
-        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
-      };
+  private static final String[] PARAMETERS_JUNIT513 = new String[] {
+    "org.junit.platform.engine.TestDescriptor",
+    "org.junit.platform.engine.EngineExecutionListener",
+    "org.junit.platform.engine.ConfigurationParameters",
+    "org.junit.platform.engine.reporting.OutputDirectoryProvider",
+    "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
+  };
 
-  private static final String[] PARAMETERS_FALLBACK =
-      new String[] {
-        "org.junit.platform.engine.TestDescriptor",
-        "org.junit.platform.engine.EngineExecutionListener",
-        "org.junit.platform.engine.ConfigurationParameters",
-      };
+  private static final String[] PARAMETERS_FALLBACK = new String[] {
+    "org.junit.platform.engine.TestDescriptor",
+    "org.junit.platform.engine.EngineExecutionListener",
+    "org.junit.platform.engine.ConfigurationParameters",
+  };
 
   private static final BiFunction<ExecutionRequest, EngineExecutionListener, ExecutionRequest>
       EXECUTION_REQUEST_CREATE = createExecutionRequestHandle();
@@ -174,31 +170,28 @@ public class ExecutionRequestFactory {
 
   private static BiFunction<ExecutionRequest, EngineExecutionListener, ExecutionRequest>
       fallbackFactory() {
-    MethodHandle constructor =
-        METHOD_HANDLES.constructor(
-            ExecutionRequest.class,
-            TestDescriptor.class,
-            EngineExecutionListener.class,
-            ConfigurationParameters.class);
+    MethodHandle constructor = METHOD_HANDLES.constructor(
+        ExecutionRequest.class,
+        TestDescriptor.class,
+        EngineExecutionListener.class,
+        ConfigurationParameters.class);
 
-    return (request, listener) ->
-        METHOD_HANDLES.invoke(
-            constructor,
-            request.getRootTestDescriptor(),
-            listener,
-            request.getConfigurationParameters());
+    return (request, listener) -> METHOD_HANDLES.invoke(
+        constructor,
+        request.getRootTestDescriptor(),
+        listener,
+        request.getConfigurationParameters());
   }
 
   @Nullable
   private static MethodHandle findCreateMethod(String... parameterTypes) {
     return METHOD_HANDLES.method(
         ExecutionRequest.class,
-        m ->
-            "create".equals(m.getName())
-                && m.getParameterCount() == parameterTypes.length
-                && Arrays.equals(
-                    Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
-                    parameterTypes));
+        m -> "create".equals(m.getName())
+            && m.getParameterCount() == parameterTypes.length
+            && Arrays.equals(
+                Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
+                parameterTypes));
   }
 
   public static ExecutionRequest createExecutionRequest(

@@ -44,9 +44,8 @@ class AdditionalTagsSchemaTest {
 
   @Test
   void rejectsEmptyAndColonContainingKeys() {
-    AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "", "bad:key", "tenant_id")));
+    AdditionalTagsSchema schema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "", "bad:key", "tenant_id")));
     // Empty key and "bad:key" are dropped; only the two valid keys remain.
     assertArrayEquals(new String[] {"region", "tenant_id"}, schema.names);
   }
@@ -69,20 +68,21 @@ class AdditionalTagsSchemaTest {
   void perKeyCardinalityBudgetsAreIndependent() {
     // Two configured keys, cardinality limit 1 each. Exhausting one key's budget must neither
     // consume nor block the other's -- each key gets its own TagCardinalityHandler.
-    AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
+    AdditionalTagsSchema schema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
     int region = indexOf(schema, "region");
     int tenant = indexOf(schema, "tenant_id");
 
     // region: first value fits, second collapses to the blocked sentinel.
     assertEquals("region:us-east-1", schema.register(region, "us-east-1").toString());
-    assertEquals("region:tracer_blocked_value", schema.register(region, "eu-west-1").toString());
+    assertEquals(
+        "region:tracer_blocked_value", schema.register(region, "eu-west-1").toString());
 
     // tenant_id is untouched by region's exhaustion: its first value still flows through, and its
     // own budget collapses only its own second value.
     assertEquals("tenant_id:acme-corp", schema.register(tenant, "acme-corp").toString());
-    assertEquals("tenant_id:tracer_blocked_value", schema.register(tenant, "globex").toString());
+    assertEquals(
+        "tenant_id:tracer_blocked_value", schema.register(tenant, "globex").toString());
   }
 
   @Test
@@ -137,9 +137,8 @@ class AdditionalTagsSchemaTest {
   void resetHandlersAggregatesCardinalityCollapseAcrossKeysUnderOneFieldTag() {
     // Two keys each collapse: the field-level health metric sums both under a single
     // "collapsed:additional_metric_tags" tag rather than emitting per key name.
-    AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
+    AdditionalTagsSchema schema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
     int region = indexOf(schema, "region");
     int tenant = indexOf(schema, "tenant_id");
     schema.register(region, "us-east-1"); // within budget

@@ -95,15 +95,13 @@ public class TraceConfigInstrumentation extends InstrumenterModule.Tracing {
       }
       ElementMatcher<MethodDescription> methodFilter;
       if (hasWildcard) {
-        methodFilter =
-            not(
-                isHashCode()
-                    .or(isEquals())
-                    .or(isToString())
-                    .or(isFinalizer())
-                    .or(isGetter())
-                    .or(isSetter())
-                    .or(isSynthetic()));
+        methodFilter = not(isHashCode()
+            .or(isEquals())
+            .or(isToString())
+            .or(isFinalizer())
+            .or(isGetter())
+            .or(isSetter())
+            .or(isSynthetic()));
       } else {
         methodFilter = namedOneOf(methodNames);
       }

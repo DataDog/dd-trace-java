@@ -37,15 +37,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private static final Logger log = LoggerFactory.getLogger(DDAgentFeaturesDiscovery.class);
 
-  private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   // Currently all the endpoints that we probe expect a msgpack body of an array of arrays, v3/v4
   // arbitrary size and v5 two elements, so let's give them a two element array of empty arrays
-  private static final byte[] PROBE_MESSAGE = {
-    (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
+  private static final byte[] PROBE_MESSAGE = {(byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
   public static final String V03_ENDPOINT = "v0.3/traces";
@@ -203,13 +201,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private String probeTracesEndpoint(State newState, List<String> endpoints) {
     for (String candidate : endpoints) {
-      try (Response response =
-          client
-              .newCall(
-                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
-                      .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .build())
-              .execute()) {
+      try (Response response = client
+          .newCall(prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+              .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
+              .build())
+          .execute()) {
         if (response.code() != 404) {
           newState.state = response.header(DATADOG_AGENT_STATE);
           return candidate;
@@ -302,21 +298,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
-        newState.supportsDropping =
-            null != canDrop
-                && ("true".equalsIgnoreCase(String.valueOf(canDrop))
-                    || Boolean.TRUE.equals(canDrop));
+        newState.supportsDropping = null != canDrop
+            && ("true".equalsIgnoreCase(String.valueOf(canDrop)) || Boolean.TRUE.equals(canDrop));
 
-        newState.supportsClientSideStats =
-            newState.supportsDropping
-                && (ignoreAgentVersionForStats
-                    || !AgentVersion.isVersionBelow(newState.version, 7, 65, 0));
+        newState.supportsClientSideStats = newState.supportsDropping
+            && (ignoreAgentVersionForStats
+                || !AgentVersion.isVersionBelow(newState.version, 7, 65, 0));
 
         Object peer_tags = map.get("peer_tags");
-        newState.peerTags =
-            peer_tags instanceof List
-                ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
-                : emptySet();
+        newState.peerTags = peer_tags instanceof List
+            ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
+            : emptySet();
       }
       Object opm = map.get("org_prop_marker");
       newState.orgPropagationMarker = (opm instanceof String) ? (String) opm : null;

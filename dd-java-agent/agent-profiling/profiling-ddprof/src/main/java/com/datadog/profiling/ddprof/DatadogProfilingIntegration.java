@@ -28,33 +28,32 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
       DatadogProfilerConfig.isQueueTimeEnabled();
 
-  private final Stateful contextManager =
-      new Stateful() {
-        @Override
-        public void close() {
-          // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
-          // app-managed context, so no separate clearContextValue calls are needed.
-          DDPROF.clearTraceContext();
-        }
+  private final Stateful contextManager = new Stateful() {
+    @Override
+    public void close() {
+      // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
+      // app-managed context, so no separate clearContextValue calls are needed.
+      DDPROF.clearTraceContext();
+    }
 
-        @Override
-        public void activate(Object context) {
-          if (context instanceof ProfilerContext) {
-            ProfilerContext profilerContext = (ProfilerContext) context;
-            // One native call: trace/span context + operation and resource attributes, then
-            // reapply of app-managed context (setTraceContext resets custom slots).
-            DDPROF.setTraceContext(
-                profilerContext.getRootSpanId(),
-                profilerContext.getSpanId(),
-                profilerContext.getTraceIdHigh(),
-                profilerContext.getTraceIdLow(),
-                SPAN_NAME_INDEX,
-                profilerContext.getOperationName(),
-                RESOURCE_NAME_INDEX,
-                profilerContext.getResourceName());
-          }
-        }
-      };
+    @Override
+    public void activate(Object context) {
+      if (context instanceof ProfilerContext) {
+        ProfilerContext profilerContext = (ProfilerContext) context;
+        // One native call: trace/span context + operation and resource attributes, then
+        // reapply of app-managed context (setTraceContext resets custom slots).
+        DDPROF.setTraceContext(
+            profilerContext.getRootSpanId(),
+            profilerContext.getSpanId(),
+            profilerContext.getTraceIdHigh(),
+            profilerContext.getTraceIdLow(),
+            SPAN_NAME_INDEX,
+            profilerContext.getOperationName(),
+            RESOURCE_NAME_INDEX,
+            profilerContext.getResourceName());
+      }
+    }
+  };
 
   @Override
   public Stateful newScopeState(ProfilerContext profilerContext) {

@@ -45,10 +45,9 @@ public class LineProbes implements CoverageProbes {
     try {
       if (lastCoveredClass != clazz) {
         // optimization to avoid map lookup if activating several probes for same class in a row
-        lastCoveredExecutionData =
-            executionData.computeIfAbsent(
-                lastCoveredClass = clazz,
-                k -> new ExecutionDataAdapter(classId, k.getName(), probeCounts.get(k.getName())));
+        lastCoveredExecutionData = executionData.computeIfAbsent(
+            lastCoveredClass = clazz,
+            k -> new ExecutionDataAdapter(classId, k.getName(), probeCounts.get(k.getName())));
       }
       lastCoveredExecutionData.record(probeId);
 

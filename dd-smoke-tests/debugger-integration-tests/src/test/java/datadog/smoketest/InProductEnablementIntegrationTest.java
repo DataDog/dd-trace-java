@@ -33,8 +33,10 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   void testDynamicInstrumentationEnablement() throws Exception {
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+    LogProbe probe = LogProbe.builder()
+        .probeId(PROBE_ID)
+        .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+        .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     waitForInstrumentation(appUrl);
@@ -51,11 +53,10 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder()
-            .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 329)
-            .build();
+    LogProbe probe = LogProbe.builder()
+        .probeId(LINE_PROBE_ID1)
+        .where("ServerDebuggerTestApplication.java", 329)
+        .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     execute(appUrl, "topLevelMethod", "");
@@ -75,8 +76,10 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     additionalJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=false");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+    LogProbe probe = LogProbe.builder()
+        .probeId(PROBE_ID)
+        .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+        .build();
     setCurrentConfiguration(createConfig(probe));
     waitForSpecificLine(appUrl, "Feature dynamic.instrumentation.enabled is explicitly disabled");
   }

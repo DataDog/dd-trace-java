@@ -32,7 +32,8 @@ public class ProcessTags {
   public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
-  @VisibleForTesting static Function<String, String> envGetter = EnvironmentVariables::get;
+  @VisibleForTesting
+  static Function<String, String> envGetter = EnvironmentVariables::get;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -201,19 +202,13 @@ public class ProcessTags {
         return;
       }
       synchronized (Lazy.TAGS) {
-        final Stream<UTF8BytesString> tagStream =
-            TAGS.entrySet().stream()
-                .map(
-                    entry ->
-                        UTF8BytesString.create(
-                            entry.getKey()
-                                + ":"
-                                + TraceUtils.normalizeTagValue(
-                                    entry.getValue().replace(':', '_'))));
+        final Stream<UTF8BytesString> tagStream = TAGS.entrySet().stream()
+            .map(entry -> UTF8BytesString.create(entry.getKey()
+                + ":"
+                + TraceUtils.normalizeTagValue(entry.getValue().replace(':', '_'))));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
-        stringListForm =
-            Collections.unmodifiableList(
-                utf8ListForm.stream().map(UTF8BytesString::toString).collect(Collectors.toList()));
+        stringListForm = Collections.unmodifiableList(
+            utf8ListForm.stream().map(UTF8BytesString::toString).collect(Collectors.toList()));
         serializedForm = UTF8BytesString.create(String.join(",", utf8ListForm));
       }
     }

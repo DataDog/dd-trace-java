@@ -62,9 +62,8 @@ public class EmbeddingServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpResponseWrapper.wrap(
-                response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
+        response = HttpResponseWrapper.wrap(
+            response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
       }
       scope.close();
     }

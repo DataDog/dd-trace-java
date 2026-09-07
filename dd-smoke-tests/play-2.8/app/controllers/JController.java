@@ -25,10 +25,9 @@ public class JController extends Controller {
   @Inject
   public JController(WSClient ws, Configuration configuration, ControllerComponents c) {
     this.ws = ws;
-    this.clientRequestBase =
-        configuration
-            .getOptional("client.request.base", ConfigLoader.stringLoader())
-            .getOrElse(() -> "http://localhost:0/broken/");
+    this.clientRequestBase = configuration
+        .getOptional("client.request.base", ConfigLoader.stringLoader())
+        .getOrElse(() -> "http://localhost:0/broken/");
   }
 
   @With({Action1.class, Action2.class})

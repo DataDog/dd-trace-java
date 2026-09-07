@@ -83,9 +83,8 @@ public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
       return null;
     }
 
-    Function1 lambda =
-        (Function1<ArrayBuffer<AccumulatorV2>, List<AccumulatorV2>>)
-            accumulators -> JavaConverters.seqAsJavaList(accumulators);
+    Function1 lambda = (Function1<ArrayBuffer<AccumulatorV2>, List<AccumulatorV2>>)
+        accumulators -> JavaConverters.seqAsJavaList(accumulators);
     List<AccumulatorV2> res = methodLoader.invoke(withExternalAccums, metrics, lambda);
     if (res != null) {
       return res;

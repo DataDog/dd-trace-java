@@ -26,9 +26,8 @@ public class FallbackCheckedSupplierInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.FieldValue(value = "supplier", readOnly = false) CheckedSupplier<?> supplier) {
-      supplier =
-          new WrapperWithContext.CheckedSupplierWithContext<>(
-              supplier, Resilience4jSpanDecorator.DECORATE, null);
+      supplier = new WrapperWithContext.CheckedSupplierWithContext<>(
+          supplier, Resilience4jSpanDecorator.DECORATE, null);
     }
   }
 }

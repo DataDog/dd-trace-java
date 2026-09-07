@@ -29,16 +29,14 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.setContentType("text/plain");
-              resp.setStatus(endpoint.getStatus());
-              resp.getWriter().print(endpoint.getBody());
-              return null;
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.setContentType("text/plain");
+          resp.setStatus(endpoint.getStatus());
+          resp.getWriter().print(endpoint.getBody());
+          return null;
+        }
+      });
     }
   }
 
@@ -48,16 +46,14 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.setContentType("text/plain");
-              resp.setStatus(endpoint.getStatus());
-              resp.getWriter().print(req.getHeader("x-forwarded-for"));
-              return null;
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.setContentType("text/plain");
+          resp.setStatus(endpoint.getStatus());
+          resp.getWriter().print(req.getHeader("x-forwarded-for"));
+          return null;
+        }
+      });
     }
   }
 
@@ -65,16 +61,14 @@ public class TestServlets {
   public static class BodyUrlEncoded extends HttpServlet {
     @Override
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
-      HttpServerTest.controller(
-          HttpServerTest.ServerEndpoint.BODY_URLENCODED,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.setContentType("text/plain");
-              resp.setStatus(HttpServerTest.ServerEndpoint.BODY_URLENCODED.getStatus());
-              resp.getWriter().print("[a:" + Arrays.asList(req.getParameterValues("a")) + "]");
-              return null;
-            }
-          });
+      HttpServerTest.controller(HttpServerTest.ServerEndpoint.BODY_URLENCODED, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.setContentType("text/plain");
+          resp.setStatus(HttpServerTest.ServerEndpoint.BODY_URLENCODED.getStatus());
+          resp.getWriter().print("[a:" + Arrays.asList(req.getParameterValues("a")) + "]");
+          return null;
+        }
+      });
     }
   }
 
@@ -84,16 +78,14 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.setContentType("text/plain");
-              resp.setStatus(endpoint.getStatus());
-              resp.getWriter().print(endpoint.getBody());
-              return null;
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.setContentType("text/plain");
+          resp.setStatus(endpoint.getStatus());
+          resp.getWriter().print(endpoint.getBody());
+          return null;
+        }
+      });
     }
   }
 
@@ -103,14 +95,12 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.sendRedirect(endpoint.getBody());
-              return null;
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.sendRedirect(endpoint.getBody());
+          return null;
+        }
+      });
     }
   }
 
@@ -120,15 +110,13 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              resp.setContentType("text/plain");
-              resp.sendError(endpoint.getStatus(), endpoint.getBody());
-              return null;
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          resp.setContentType("text/plain");
+          resp.sendError(endpoint.getStatus(), endpoint.getBody());
+          return null;
+        }
+      });
     }
   }
 
@@ -138,13 +126,11 @@ public class TestServlets {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
       final HttpServerTest.ServerEndpoint endpoint =
           HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
-      HttpServerTest.controller(
-          endpoint,
-          new Closure(null) {
-            public Object doCall() throws Exception {
-              throw new Exception(endpoint.getBody());
-            }
-          });
+      HttpServerTest.controller(endpoint, new Closure(null) {
+        public Object doCall() throws Exception {
+          throw new Exception(endpoint.getBody());
+        }
+      });
     }
   }
 
@@ -152,16 +138,13 @@ public class TestServlets {
   public static class CreatedServlet extends HttpServlet {
     @Override
     protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) {
-      controller(
-          CREATED,
-          new Closure(this) {
-            public Object doCall() throws IOException {
-              resp.setStatus(CREATED.getStatus());
-              resp.getWriter()
-                  .print(CREATED.getBody() + ": " + CharStreams.toString(req.getReader()));
-              return null;
-            }
-          });
+      controller(CREATED, new Closure(this) {
+        public Object doCall() throws IOException {
+          resp.setStatus(CREATED.getStatus());
+          resp.getWriter().print(CREATED.getBody() + ": " + CharStreams.toString(req.getReader()));
+          return null;
+        }
+      });
     }
   }
 
@@ -169,20 +152,17 @@ public class TestServlets {
   public static class CreatedISServlet extends HttpServlet {
     @Override
     protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) {
-      controller(
-          CREATED_IS,
-          new Closure(this) {
-            public Object doCall() throws IOException {
-              resp.setStatus(CREATED_IS.getStatus());
-              resp.getWriter()
-                  .print(
-                      CREATED_IS.getBody()
-                          + ": "
-                          + CharStreams.toString(
-                              new InputStreamReader(req.getInputStream(), StandardCharsets.UTF_8)));
-              return null;
-            }
-          });
+      controller(CREATED_IS, new Closure(this) {
+        public Object doCall() throws IOException {
+          resp.setStatus(CREATED_IS.getStatus());
+          resp.getWriter()
+              .print(CREATED_IS.getBody()
+                  + ": "
+                  + CharStreams.toString(
+                      new InputStreamReader(req.getInputStream(), StandardCharsets.UTF_8)));
+          return null;
+        }
+      });
     }
   }
 

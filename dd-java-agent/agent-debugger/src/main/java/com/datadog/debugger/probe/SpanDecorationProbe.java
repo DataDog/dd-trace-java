@@ -259,7 +259,8 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
         } else {
           spanStatus.addTag(tagName, tagValue);
         }
-        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
+        spanStatus.addTag(
+            String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
   }
@@ -273,10 +274,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    CapturedContext.Status status =
-        evaluateAt == MethodLocation.EXIT
-            ? exitContext.getStatus(probeId.getEncodedId())
-            : entryContext.getStatus(probeId.getEncodedId());
+    CapturedContext.Status status = evaluateAt == MethodLocation.EXIT
+        ? exitContext.getStatus(probeId.getEncodedId())
+        : entryContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }

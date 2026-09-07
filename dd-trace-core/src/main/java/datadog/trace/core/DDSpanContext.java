@@ -409,10 +409,9 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags =
-        readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+    this.unsafeTags = readThroughParent != null
+        ? TagMap.createFromParent(readThroughParent)
+        : TagMap.create(capacity);
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -434,10 +433,9 @@ public class DDSpanContext
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
-    this.propagationTags =
-        propagationTags != null
-            ? propagationTags
-            : traceCollector.getTracer().getPropagationTagsFactory().empty();
+    this.propagationTags = propagationTags != null
+        ? propagationTags
+        : traceCollector.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.injectLinksAsTags = injectLinksAsTags;
@@ -969,9 +967,8 @@ public class DDSpanContext
     }
 
     // pre-check to avoid boxing
-    boolean intercepted =
-        precheckIntercept(entry.tag())
-            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
+    boolean intercepted = precheckIntercept(entry.tag())
+        && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
     if (!intercepted) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
@@ -1088,16 +1085,14 @@ public class DDSpanContext
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
         // to avoid using a capturing lambda
-        map.forEach(
-            this,
-            (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
+        map.forEach(this, (ctx, tagEntry) -> {
+          String tag = tagEntry.tag();
+          Object value = tagEntry.objectValue();
 
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
-                ctx.unsafeTags.set(tagEntry);
-              }
-            });
+          if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+            ctx.unsafeTags.set(tagEntry);
+          }
+        });
       } else {
         unsafeTags.putAll(map);
       }
@@ -1341,27 +1336,25 @@ public class DDSpanContext
           serializedPropagationTags.fillTagMap(baggageItemsWithPropagationTags);
         }
       } else {
-        baggageItemsWithPropagationTags =
-            serializedPropagationTags == null
-                ? EMPTY_BAGGAGE
-                : serializedPropagationTags.createTagMap();
+        baggageItemsWithPropagationTags = serializedPropagationTags == null
+            ? EMPTY_BAGGAGE
+            : serializedPropagationTags.createTagMap();
       }
 
-      consumer.accept(
-          new Metadata(
-              threadId,
-              threadName,
-              unsafeTags,
-              baggageItemsWithPropagationTags,
-              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
-              measured,
-              topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
-              // Get origin from rootSpan.context
-              getOrigin(),
-              longRunningVersion,
-              ProcessTags.getTagsForSerialization(),
-              restrictedSpan.getLinks()));
+      consumer.accept(new Metadata(
+          threadId,
+          threadName,
+          unsafeTags,
+          baggageItemsWithPropagationTags,
+          samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
+          measured,
+          topLevel,
+          httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+          // Get origin from rootSpan.context
+          getOrigin(),
+          longRunningVersion,
+          ProcessTags.getTagsForSerialization(),
+          restrictedSpan.getLinks()));
     }
   }
 
@@ -1397,20 +1390,19 @@ public class DDSpanContext
 
   @Override
   public String toString() {
-    final StringBuilder s =
-        new StringBuilder()
-            .append("DDSpan [ t_id=")
-            .append(traceId)
-            .append(", s_id=")
-            .append(DDSpanId.toString(spanId))
-            .append(", p_id=")
-            .append(DDSpanId.toString(parentId))
-            .append(" ] trace=")
-            .append(getServiceName())
-            .append('/')
-            .append(getOperationName())
-            .append('/')
-            .append(getResourceName());
+    final StringBuilder s = new StringBuilder()
+        .append("DDSpan [ t_id=")
+        .append(traceId)
+        .append(", s_id=")
+        .append(DDSpanId.toString(spanId))
+        .append(", p_id=")
+        .append(DDSpanId.toString(parentId))
+        .append(" ] trace=")
+        .append(getServiceName())
+        .append('/')
+        .append(getOperationName())
+        .append('/')
+        .append(getResourceName());
     if (errorFlag) {
       s.append(" *errored*");
     }

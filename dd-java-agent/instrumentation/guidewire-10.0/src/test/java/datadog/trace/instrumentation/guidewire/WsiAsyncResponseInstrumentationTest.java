@@ -36,22 +36,20 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
     // Constructed and run while the caller's span is active; invoke() blocks until the worker ends.
     runUnderTrace("parent", () -> new AsyncResponseImpl().invoke());
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span().root().operationName("parent"),
+        span().childOfPrevious().operationName("soap.call")));
   }
 
   @Test
   void anonymousWorkerPropagatesContext() throws Exception {
     runUnderTrace("parent", () -> AsyncResponseImpl.anonymous().invoke());
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span().root().operationName("parent"),
+        span().childOfPrevious().operationName("soap.call")));
   }
 
   @Test
@@ -59,23 +57,20 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
     // callTimeout <= 0 path: AsyncResponseImpl.run() calls _thread.run() on the caller thread.
     runUnderTrace("parent", () -> new AsyncResponseImpl().invokeSync());
 
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span().root().operationName("parent"),
+        span().childOfPrevious().operationName("soap.call")));
   }
 
   @Test
   void unrelatedThreadIsNotInstrumented() throws Exception {
     // Same construction pattern, but a class the narrow matcher must ignore.
-    runUnderTrace(
-        "parent",
-        () -> {
-          UnrelatedWorker worker = new UnrelatedWorker();
-          worker.start();
-          worker.join();
-        });
+    runUnderTrace("parent", () -> {
+      UnrelatedWorker worker = new UnrelatedWorker();
+      worker.start();
+      worker.join();
+    });
 
     // No propagation: the worker's span starts its own trace instead of joining "parent".
     assertTraces(

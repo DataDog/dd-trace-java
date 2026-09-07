@@ -2,7 +2,8 @@ package datadog.trace.api.config;
 
 public class RemoteConfigConfig {
   /** Replaced by {@link #REMOTE_CONFIGURATION_ENABLED} according the RFC. */
-  @Deprecated public static final String REMOTE_CONFIG_ENABLED = "remote_config.enabled";
+  @Deprecated
+  public static final String REMOTE_CONFIG_ENABLED = "remote_config.enabled";
 
   public static final String REMOTE_CONFIGURATION_ENABLED = "remote_configuration.enabled";
   public static final String REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED =

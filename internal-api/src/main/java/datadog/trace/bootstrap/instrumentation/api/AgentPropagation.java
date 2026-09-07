@@ -65,12 +65,10 @@ public final class AgentPropagation {
     @ParametersAreNonnullByDefault
     @Override
     default void forEachKeyValue(C carrier, BiConsumer<String, String> visitor) {
-      forEachKey(
-          carrier,
-          (key, value) -> {
-            visitor.accept(key, value);
-            return true;
-          });
+      forEachKey(carrier, (key, value) -> {
+        visitor.accept(key, value);
+        return true;
+      });
     }
   }
 }

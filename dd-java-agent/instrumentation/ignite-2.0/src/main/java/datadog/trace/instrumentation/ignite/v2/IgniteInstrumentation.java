@@ -35,13 +35,12 @@ public final class IgniteInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(
-                namedOneOf(
-                    "createCache",
-                    "getOrCreateCache",
-                    "cache",
-                    "createNearCache",
-                    "getOrCreateNearCache"))
+            .and(namedOneOf(
+                "createCache",
+                "getOrCreateCache",
+                "cache",
+                "createNearCache",
+                "getOrCreateNearCache"))
             .and(returns(hasInterface(named("org.apache.ignite.IgniteCache")))),
         IgniteInstrumentation.class.getName() + "$IgniteCacheAdvice");
     transformer.applyAdvice(

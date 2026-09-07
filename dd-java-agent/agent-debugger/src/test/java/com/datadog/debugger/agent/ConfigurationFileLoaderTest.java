@@ -19,8 +19,8 @@ class ConfigurationFileLoaderTest {
 
   @Test
   public void load() throws Exception {
-    Path probeFilePath =
-        Paths.get(ConfigurationFileLoaderTest.class.getResource("/test_probe_file.json").toURI());
+    Path probeFilePath = Paths.get(
+        ConfigurationFileLoaderTest.class.getResource("/test_probe_file.json").toURI());
     Configuration configuration = ConfigurationFileLoader.from(probeFilePath, 1024 * 1024);
     assertNotNull(configuration);
     List<ProbeDefinition> definitions = configuration.getDefinitions();

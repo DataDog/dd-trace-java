@@ -24,20 +24,19 @@ public class CiEnvironmentVariablesTest {
   @BeforeAll
   public static void startServer() throws Exception {
     server = new MockWebServer();
-    server.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(RecordedRequest req) {
-            if (failedResponses.getAndDecrement() > 0) {
-              return new MockResponse().setResponseCode(500);
-            }
-            if (SECRET_KEY.equals(
-                req.getHeader(CiEnvironmentVariables.DD_ENV_VARS_PROVIDER_KEY_HEADER))) {
-              return new MockResponse().setResponseCode(200).setBody("a=1\nb=2");
-            }
-            return new MockResponse().setResponseCode(403);
-          }
-        });
+    server.setDispatcher(new Dispatcher() {
+      @Override
+      public MockResponse dispatch(RecordedRequest req) {
+        if (failedResponses.getAndDecrement() > 0) {
+          return new MockResponse().setResponseCode(500);
+        }
+        if (SECRET_KEY.equals(
+            req.getHeader(CiEnvironmentVariables.DD_ENV_VARS_PROVIDER_KEY_HEADER))) {
+          return new MockResponse().setResponseCode(200).setBody("a=1\nb=2");
+        }
+        return new MockResponse().setResponseCode(403);
+      }
+    });
     server.start();
   }
 
@@ -50,12 +49,11 @@ public class CiEnvironmentVariablesTest {
   void testGetEnvironment() {
     failedResponses.set(1); // to test retries
 
-    Map<String, String> env =
-        CiEnvironmentVariables.getRemoteEnvironmentWithRetries(
-            server.url("/").toString(),
-            SECRET_KEY,
-            new CiEnvironmentVariables.RetryPolicy(2, 3, 2),
-            null);
+    Map<String, String> env = CiEnvironmentVariables.getRemoteEnvironmentWithRetries(
+        server.url("/").toString(),
+        SECRET_KEY,
+        new CiEnvironmentVariables.RetryPolicy(2, 3, 2),
+        null);
     assertEquals(2, env.size());
     assertEquals("1", env.get("a"));
     assertEquals("2", env.get("b"));
@@ -65,12 +63,11 @@ public class CiEnvironmentVariablesTest {
   void testFailedGetEnvironment() {
     failedResponses.set(3);
 
-    Map<String, String> env =
-        CiEnvironmentVariables.getRemoteEnvironmentWithRetries(
-            server.url("/").toString(),
-            SECRET_KEY,
-            new CiEnvironmentVariables.RetryPolicy(2, 3, 2),
-            null);
+    Map<String, String> env = CiEnvironmentVariables.getRemoteEnvironmentWithRetries(
+        server.url("/").toString(),
+        SECRET_KEY,
+        new CiEnvironmentVariables.RetryPolicy(2, 3, 2),
+        null);
     assertNull(env);
   }
 }

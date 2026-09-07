@@ -51,7 +51,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   private final Map<String, String> headers;
-  @VisibleForTesting AgentSpan span;
+
+  @VisibleForTesting
+  AgentSpan span;
   // Service-entry span registered at startSpan() time; used to guard against premature finishing
   // by child spans (e.g., Spring MVC handler spans) before the response status is known.
   private AgentSpan registeredServiceEntrySpan;
@@ -238,10 +240,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       return;
     }
 
-    boolean isServiceEntryOrFallback =
-        registeredServiceEntrySpan == null
-            || callerSpan == null
-            || callerSpan == registeredServiceEntrySpan;
+    boolean isServiceEntryOrFallback = registeredServiceEntrySpan == null
+        || callerSpan == null
+        || callerSpan == registeredServiceEntrySpan;
 
     if (isServiceEntryOrFallback) {
       // Final call: copy all tags (AppSec + HTTP status/error/useragent) and close the span

@@ -257,22 +257,18 @@ public class InstrumenterConfig {
     detailedInstrumentationErrors =
         configProvider.getBoolean(DETAILED_INSTRUMENTATION_ERRORS, false);
 
-    codeOriginEnabled =
-        configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
-    codeOriginInterfaceSupport =
-        configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
-            DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
+    codeOriginEnabled = configProvider.getBoolean(
+        CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
+    codeOriginInterfaceSupport = configProvider.getBoolean(
+        CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT, DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
     logsOtelEnabled = configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED);
 
-    profilingEnabled =
-        ProfilingEnablement.of(
-            configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
+    profilingEnabled = ProfilingEnablement.of(
+        configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
 
@@ -281,12 +277,10 @@ public class InstrumenterConfig {
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-      appSecActivation =
-          ProductActivation.fromString(
-              configProvider.getStringNotEmpty(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED));
-      iastActivation =
-          ProductActivation.fromString(
-              configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      appSecActivation = ProductActivation.fromString(
+          configProvider.getStringNotEmpty(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED));
+      iastActivation = ProductActivation.fromString(
+          configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
       final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
       iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
@@ -322,9 +316,8 @@ public class InstrumenterConfig {
     akkaForkJoinExecutorTaskName = configProvider.getString(AKKA_FORK_JOIN_EXECUTOR_TASK_NAME, "");
     akkaForkJoinPoolName = configProvider.getString(AKKA_FORK_JOIN_POOL_NAME, "");
 
-    directAllocationProfilingEnabled =
-        configProvider.getBoolean(
-            PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
+    directAllocationProfilingEnabled = configProvider.getBoolean(
+        PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
@@ -334,9 +327,8 @@ public class InstrumenterConfig {
 
     deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
 
-    resolverCacheConfig =
-        configProvider.getEnum(
-            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
+    resolverCacheConfig = configProvider.getEnum(
+        RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
     resolverSimpleMethodGraph =
@@ -344,57 +336,46 @@ public class InstrumenterConfig {
         configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
-    resolverResetInterval =
-        Platform.isNativeImageBuilder()
-            ? 0
-            : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+    resolverResetInterval = Platform.isNativeImageBuilder()
+        ? 0
+        : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
     visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
 
-    runtimeContextFieldInjection =
-        configProvider.getBoolean(
-            RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
-    serialVersionUIDFieldInjection =
-        configProvider.getBoolean(
-            SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
-    runtimeContextMapPerStore =
-        configProvider.getBoolean(
-            RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
+    runtimeContextFieldInjection = configProvider.getBoolean(
+        RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+    serialVersionUIDFieldInjection = configProvider.getBoolean(
+        SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+    runtimeContextMapPerStore = configProvider.getBoolean(
+        RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceAnnotationAsync =
         configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
-    traceMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
-    traceNativeMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
-    measureMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
-    measureNativeMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
+    traceMethods = MethodFilterConfigParser.parse(
+        configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    traceNativeMethods = MethodFilterConfigParser.parse(
+        configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
+    measureMethods = MethodFilterConfigParser.parse(
+        configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
+    measureNativeMethods = MethodFilterConfigParser.parse(
+        configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
-    this.websocketTracingEnabled =
-        configProvider.getBoolean(
-            TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
+    this.websocketTracingEnabled = configProvider.getBoolean(
+        TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
     this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
 
     agentlessLogSubmissionEnabled =
         configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
-    apiSecurityEndpointCollectionEnabled =
-        configProvider.getBoolean(
-            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
-            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionEnabled = configProvider.getBoolean(
+        API_SECURITY_ENDPOINT_COLLECTION_ENABLED, DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
 
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
@@ -752,11 +733,10 @@ public class InstrumenterConfig {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  private static final InstrumenterConfig INSTANCE =
-      new InstrumenterConfig(
-          Platform.isNativeImageBuilder()
-              ? ConfigProvider.withoutCollector()
-              : ConfigProvider.getInstance());
+  private static final InstrumenterConfig INSTANCE = new InstrumenterConfig(
+      Platform.isNativeImageBuilder()
+          ? ConfigProvider.withoutCollector()
+          : ConfigProvider.getInstance());
 
   public static boolean getDefaultCodeOriginForSpanEnabled() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {

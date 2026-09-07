@@ -19,7 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class FormDataMapTest {
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   @Test
   void textFieldIsIncluded() {
@@ -103,25 +104,23 @@ class FormDataMapTest {
 
     // Use a Proxy so this compiles against undertow 2.0 and also works against 2.2.x,
     // which added getCharset(), getFileItem(), isFileItem(), and isBigField() to the interface.
-    FormData.FormValue inMemory =
-        (FormData.FormValue)
-            Proxy.newProxyInstance(
-                FormData.FormValue.class.getClassLoader(),
-                new Class<?>[] {FormData.FormValue.class},
-                (proxy, method, args) -> {
-                  switch (method.getName()) {
-                    case "getValue":
-                      return "";
-                    case "isFile":
-                    case "isFileItem":
-                    case "isBigField":
-                      return false;
-                    case "getFileName":
-                      return filename;
-                    default:
-                      return null;
-                  }
-                });
+    FormData.FormValue inMemory = (FormData.FormValue) Proxy.newProxyInstance(
+        FormData.FormValue.class.getClassLoader(),
+        new Class<?>[] {FormData.FormValue.class},
+        (proxy, method, args) -> {
+          switch (method.getName()) {
+            case "getValue":
+              return "";
+            case "isFile":
+            case "isFileItem":
+            case "isBigField":
+              return false;
+            case "getFileName":
+              return filename;
+            default:
+              return null;
+          }
+        });
 
     Deque<FormData.FormValue> deque = new ArrayDeque<>();
     deque.add(inMemory);

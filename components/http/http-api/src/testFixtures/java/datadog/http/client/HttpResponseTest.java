@@ -103,11 +103,10 @@ public class HttpResponseTest {
   void testHeaderNames() throws IOException {
     org.mockserver.model.HttpRequest expectedRequest =
         request().withMethod("GET").withPath("/test");
-    org.mockserver.model.HttpResponse resultResponse =
-        response()
-            .withHeader("Content-Type", "application/json")
-            .withHeader("X-Custom-Header", "custom-value")
-            .withHeader("X-Another-Header", "another-value");
+    org.mockserver.model.HttpResponse resultResponse = response()
+        .withHeader("Content-Type", "application/json")
+        .withHeader("X-Custom-Header", "custom-value")
+        .withHeader("X-Another-Header", "another-value");
     this.server.when(expectedRequest).respond(resultResponse);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");

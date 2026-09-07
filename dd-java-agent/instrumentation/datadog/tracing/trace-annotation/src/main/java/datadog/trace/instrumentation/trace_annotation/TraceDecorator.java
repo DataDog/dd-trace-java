@@ -82,10 +82,9 @@ public class TraceDecorator extends AsyncResultDecorator {
       resourceName = spanNameForMethod(method);
     }
 
-    AgentSpan span =
-        noParent
-            ? startSpan(INSTRUMENTATION_NAME, operationName, null)
-            : startSpan(INSTRUMENTATION_NAME, operationName);
+    AgentSpan span = noParent
+        ? startSpan(INSTRUMENTATION_NAME, operationName, null)
+        : startSpan(INSTRUMENTATION_NAME, operationName);
 
     afterStart(span);
     span.setResourceName(resourceName);

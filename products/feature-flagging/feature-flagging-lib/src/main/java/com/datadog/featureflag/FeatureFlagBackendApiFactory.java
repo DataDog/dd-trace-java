@@ -42,14 +42,13 @@ final class FeatureFlagBackendApiFactory {
     final boolean directFallbackAvailable =
         CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
             && hasDirectCredentials();
-    final BackendApi proxyApi =
-        directFallbackAvailable
-            ? backendApiFactory.createEvpProxyApi(
-                Intake.EVENT_PLATFORM,
-                eventType.responseCompressionEnabled(),
-                HttpRetryPolicy.Factory.NEVER_RETRY)
-            : backendApiFactory.createEvpProxyApi(
-                Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
+    final BackendApi proxyApi = directFallbackAvailable
+        ? backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM,
+            eventType.responseCompressionEnabled(),
+            HttpRetryPolicy.Factory.NEVER_RETRY)
+        : backendApiFactory.createEvpProxyApi(
+            Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
     if (!CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
       if (proxyApi == null) {
         LOGGER.warn(

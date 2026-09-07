@@ -28,7 +28,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 public class TempLocationManagerSecurityTest {
 
-  @TempDir Path baseDir;
+  @TempDir
+  Path baseDir;
 
   @BeforeEach
   void requirePosix() {
@@ -128,15 +129,14 @@ public class TempLocationManagerSecurityTest {
 
   private static void assertTrue0700(Path dir) throws IOException {
     Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
-    for (PosixFilePermission bit :
-        new PosixFilePermission[] {
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE
-        }) {
+    for (PosixFilePermission bit : new PosixFilePermission[] {
+      PosixFilePermission.GROUP_READ,
+      PosixFilePermission.GROUP_WRITE,
+      PosixFilePermission.GROUP_EXECUTE,
+      PosixFilePermission.OTHERS_READ,
+      PosixFilePermission.OTHERS_WRITE,
+      PosixFilePermission.OTHERS_EXECUTE
+    }) {
       if (perms.contains(bit)) {
         throw new AssertionError("Expected 0700 but found group/world bit " + bit + " on " + dir);
       }

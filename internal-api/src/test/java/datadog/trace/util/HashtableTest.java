@@ -391,9 +391,8 @@ class HashtableTest {
           () -> Support.mutatingTableIterator(table.buckets, 4, 2)); // end < start
       assertThrows(
           IndexOutOfBoundsException.class,
-          () ->
-              Support.mutatingTableIterator(
-                  table.buckets, 0, table.buckets.length + 1)); // end > len
+          () -> Support.mutatingTableIterator(
+              table.buckets, 0, table.buckets.length + 1)); // end > len
     }
 
     @Test

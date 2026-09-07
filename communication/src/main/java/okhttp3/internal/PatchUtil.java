@@ -78,13 +78,12 @@ public final class PatchUtil {
   /** GMT and UTC are equivalent for our purposes. */
   public static final TimeZone UTC = TimeZone.getTimeZone("GMT");
 
-  public static final Comparator<String> NATURAL_ORDER =
-      new Comparator<String>() {
-        @Override
-        public int compare(String a, String b) {
-          return a.compareTo(b);
-        }
-      };
+  public static final Comparator<String> NATURAL_ORDER = new Comparator<String>() {
+    @Override
+    public int compare(String a, String b) {
+      return a.compareTo(b);
+    }
+  };
 
   private static final Method addSuppressedExceptionMethod;
 
@@ -403,10 +402,9 @@ public final class PatchUtil {
     // If the input contains a :, it’s an IPv6 address.
     if (host.contains(":")) {
       // If the input is encased in square braces "[...]", drop 'em.
-      InetAddress inetAddress =
-          host.startsWith("[") && host.endsWith("]")
-              ? decodeIpv6(host, 1, host.length() - 1)
-              : decodeIpv6(host, 0, host.length());
+      InetAddress inetAddress = host.startsWith("[") && host.endsWith("]")
+          ? decodeIpv6(host, 1, host.length() - 1)
+          : decodeIpv6(host, 0, host.length());
       if (inetAddress == null) return null;
       byte[] address = inetAddress.getAddress();
       if (address.length == 16) return inet6AddressToAscii(address);

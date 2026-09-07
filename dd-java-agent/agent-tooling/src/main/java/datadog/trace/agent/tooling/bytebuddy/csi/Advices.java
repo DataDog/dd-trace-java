@@ -195,10 +195,9 @@ public class Advices {
       final CallSiteAdvice oldAdvice =
           methodAdvices.put(descriptor, TypedAdvice.withType(advice, type));
       if (oldAdvice != null) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Advice %s and %s match the same pointcut, this is not yet supported",
-                oldAdvice, advice));
+        throw new UnsupportedOperationException(String.format(
+            "Advice %s and %s match the same pointcut, this is not yet supported",
+            oldAdvice, advice));
       }
     }
   }

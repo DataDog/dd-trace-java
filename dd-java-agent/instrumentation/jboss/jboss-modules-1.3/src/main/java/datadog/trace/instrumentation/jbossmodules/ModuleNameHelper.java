@@ -26,12 +26,11 @@ public class ModuleNameHelper {
       getModuleIdentifierHandle = methodHandles.method(Module.class, "getIdentifier");
       if (getModuleIdentifierHandle != null) {
         // chains the two method handle calls
-        ret =
-            java.lang.invoke.MethodHandles.filterReturnValue(
-                getModuleIdentifierHandle,
-                methodHandles.method(
-                    Class.forName("org.jboss.modules.ModuleIdentifier", false, classLoader),
-                    "getName"));
+        ret = java.lang.invoke.MethodHandles.filterReturnValue(
+            getModuleIdentifierHandle,
+            methodHandles.method(
+                Class.forName("org.jboss.modules.ModuleIdentifier", false, classLoader),
+                "getName"));
       }
     } catch (Throwable ignored) {
       // here for caution. It's already caught and logged on MethodHandles

@@ -59,12 +59,10 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
         isMethod()
             .and(named("encodeHttpResponse"))
             .and(takesArgument(1, named("io.micronaut.http.server.netty.NettyHttpRequest")))
-            .and(
-                takesArgument(
-                    2,
-                    namedOneOf(
-                        "io.micronaut.http.MutableHttpResponse",
-                        "io.micronaut.http.HttpResponse"))),
+            .and(takesArgument(
+                2,
+                namedOneOf(
+                    "io.micronaut.http.MutableHttpResponse", "io.micronaut.http.HttpResponse"))),
         packageName + ".EncodeHttpResponseAdvice");
     transformer.applyAdvice(
         isMethod()

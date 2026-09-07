@@ -69,7 +69,8 @@ class CoreHandlersTest {
     handlers.reset(HealthMetrics.NO_OP, new CardinalityLimitReporter());
 
     // Overflow value should now be accepted as a real value.
-    assertNotEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
+    assertNotEquals(
+        "tracer_blocked_value", handlers.spanKind.register("overflow").toString());
     assertEquals("overflow", handlers.spanKind.register("overflow").toString());
   }
 

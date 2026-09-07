@@ -51,10 +51,9 @@ public class ProviderProxyInvokerInstrumentation
       // explicit parent naturally attaches to the active grpc.server span. For REST,
       // parentContext will also be null and the active netty.request span becomes the parent.
       AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
-      AgentSpan span =
-          parentContext != null
-              ? startSpan("sofarpc-server", SOFA_RPC_SERVER, parentContext)
-              : startSpan("sofarpc-server", SOFA_RPC_SERVER);
+      AgentSpan span = parentContext != null
+          ? startSpan("sofarpc-server", SOFA_RPC_SERVER, parentContext)
+          : startSpan("sofarpc-server", SOFA_RPC_SERVER);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       span.setTag("sofarpc.protocol", protocol);

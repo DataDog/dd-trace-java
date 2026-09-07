@@ -49,9 +49,8 @@ public class InjectingPipeOutputStreamBenchmark {
 
   @Benchmark
   public void withPipe() throws Exception {
-    try (final PrintWriter out =
-        new PrintWriter(
-            new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
+    try (final PrintWriter out = new PrintWriter(
+        new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
       htmlContent.forEach(out::println);
     }
   }

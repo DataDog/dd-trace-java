@@ -111,7 +111,8 @@ public final class ClientCallImplInstrumentation
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         return activateSpan(span);
       }
@@ -130,7 +131,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
       // could create a message span here for the request
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
         return activateSpan(span);
       }
@@ -149,7 +151,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodEnter
     public static void before(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         final SocketAddress socketAddress =
             call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
@@ -168,7 +171,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         final SocketAddress socketAddress =
             call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);

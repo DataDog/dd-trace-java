@@ -52,16 +52,18 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   private static final String SYNTHETICS_ORIGIN = "synthetics";
 
-  private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
-      SpanKindFilter.builder()
-          .includeServer()
-          .includeClient()
-          .includeProducer()
-          .includeConsumer()
-          .build();
+  private static final SpanKindFilter METRICS_ELIGIBLE_KINDS = SpanKindFilter.builder()
+      .includeServer()
+      .includeClient()
+      .includeProducer()
+      .includeConsumer()
+      .build();
 
-  private static final SpanKindFilter PEER_AGGREGATION_KINDS =
-      SpanKindFilter.builder().includeClient().includeProducer().includeConsumer().build();
+  private static final SpanKindFilter PEER_AGGREGATION_KINDS = SpanKindFilter.builder()
+      .includeClient()
+      .includeProducer()
+      .includeConsumer()
+      .build();
 
   private static final SpanKindFilter INTERNAL_KIND =
       SpanKindFilter.builder().includeInternal().build();
@@ -279,16 +281,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.metricWriter = metricWriter;
-    this.aggregator =
-        new Aggregator(
-            metricWriter,
-            inbox,
-            maxAggregates,
-            reportingInterval,
-            timeUnit,
-            healthMetric,
-            additionalTagsSchema,
-            this::resetCardinalityHandlers);
+    this.aggregator = new Aggregator(
+        metricWriter,
+        inbox,
+        maxAggregates,
+        reportingInterval,
+        timeUnit,
+        healthMetric,
+        additionalTagsSchema,
+        this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -319,14 +320,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public void start() {
     sink.register(this);
     thread.start();
-    cancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new ReportTask(),
-                this,
-                reportingInterval,
-                reportingInterval,
-                reportingIntervalTimeUnit);
+    cancellation = AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
     log.debug("started metrics aggregator");
   }
 
@@ -486,24 +486,23 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
     String[] additionalTagValues = captureAdditionalTagValues(span);
 
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
-            span.getResourceName(),
-            span.getServiceName(),
-            span.getOperationName(),
-            span.getServiceNameSource(),
-            spanType,
-            span.getHttpStatusCode(),
-            isSynthetic(span),
-            span.getParentId() == 0,
-            spanKind,
-            spanPeerTagSchema,
-            peerTagValues,
-            httpMethod,
-            httpEndpoint,
-            grpcStatusCode,
-            additionalTagValues,
-            tagAndDuration);
+    SpanSnapshot snapshot = new SpanSnapshot(
+        span.getResourceName(),
+        span.getServiceName(),
+        span.getOperationName(),
+        span.getServiceNameSource(),
+        spanType,
+        span.getHttpStatusCode(),
+        isSynthetic(span),
+        span.getParentId() == 0,
+        spanKind,
+        spanPeerTagSchema,
+        peerTagValues,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode,
+        additionalTagValues,
+        tagAndDuration);
     if (!inbox.offer(snapshot)) {
       healthMetrics.onStatsInboxFull();
     }

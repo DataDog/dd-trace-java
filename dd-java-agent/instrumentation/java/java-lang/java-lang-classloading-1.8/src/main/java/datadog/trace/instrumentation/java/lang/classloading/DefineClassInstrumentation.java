@@ -36,15 +36,9 @@ public final class DefineClassInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("defineClass")
-                    .and(
-                        takesArguments(
-                            String.class,
-                            byte[].class,
-                            int.class,
-                            int.class,
-                            ProtectionDomain.class))),
+            .and(named("defineClass")
+                .and(takesArguments(
+                    String.class, byte[].class, int.class, int.class, ProtectionDomain.class))),
         DefineClassInstrumentation.class.getName() + "$DefineClassAdvice");
   }
 

@@ -58,9 +58,8 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
         // Skip not updated counters
         continue;
       }
-      CoreMetric metric =
-          new CoreMetric(
-              METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag());
+      CoreMetric metric = new CoreMetric(
+          METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag());
       if (!this.metricsQueue.offer(metric)) {
         // Stop adding metrics if the queue is full
         break;

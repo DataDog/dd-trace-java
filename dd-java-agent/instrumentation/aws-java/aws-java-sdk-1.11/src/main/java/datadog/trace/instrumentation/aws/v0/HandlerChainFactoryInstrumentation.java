@@ -41,12 +41,11 @@ public final class HandlerChainFactoryInstrumentation
           return;
         }
       }
-      handlers.add(
-          new TracingRequestHandler(
-              InstrumentationContext.get(
-                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
-              InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+      handlers.add(new TracingRequestHandler(
+          InstrumentationContext.get(
+              "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
+          InstrumentationContext.get(
+              "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
     }
   }
 }

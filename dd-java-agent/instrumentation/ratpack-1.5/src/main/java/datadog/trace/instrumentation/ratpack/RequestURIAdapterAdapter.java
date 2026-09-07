@@ -15,14 +15,13 @@ final class RequestURIAdapterAdapter extends URIDataAdapterBase {
   // of the local address of the socket. Usually there will be only one element
   private static final DDCache<String, String> DOMAIN_NAME_MAPPING = DDCaches.newFixedSizeCache(4);
 
-  private static final Function<String, String> GET_CANONICAL_NAME =
-      ip -> {
-        try {
-          return InetAddress.getByName(ip).getCanonicalHostName();
-        } catch (UnknownHostException e) {
-          return ip;
-        }
-      };
+  private static final Function<String, String> GET_CANONICAL_NAME = ip -> {
+    try {
+      return InetAddress.getByName(ip).getCanonicalHostName();
+    } catch (UnknownHostException e) {
+      return ip;
+    }
+  };
 
   private final Request request;
   private final HostAndPort hostAndPort;

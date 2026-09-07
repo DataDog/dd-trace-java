@@ -63,19 +63,18 @@ class ClientStatsAggregatorTest {
     when(features.supportsMetrics()).thenReturn(true);
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
-    try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            wellKnownTags,
-            emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            10,
-            QUEUE_SIZE,
-            1,
-            MILLISECONDS,
-            false)) {
+    try (ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        wellKnownTags,
+        emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        10,
+        QUEUE_SIZE,
+        1,
+        MILLISECONDS,
+        false)) {
       aggregator.start();
 
       aggregator.publish(
@@ -98,53 +97,48 @@ class ClientStatsAggregatorTest {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
     Set<String> ignoredResources = Collections.singleton(ignoredResourceName);
-    try (ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            wellKnownTags,
-            ignoredResources,
-            AdditionalTagsSchema.EMPTY,
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            10,
-            QUEUE_SIZE,
-            1,
-            MILLISECONDS,
-            false)) {
+    try (ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        wellKnownTags,
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        10,
+        QUEUE_SIZE,
+        1,
+        MILLISECONDS,
+        false)) {
       aggregator.start();
       clearInvocations(sink);
 
       // publish ignored resource names
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0, HTTP_OK)));
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                  "",
-                  "",
-                  UTF8BytesString.create(ignoredResourceName),
-                  "",
-                  true,
-                  true,
-                  false,
-                  0,
-                  0,
-                  HTTP_OK)));
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0, HTTP_OK),
-              new SimpleSpan(
-                  "",
-                  "",
-                  "measured, not ignored, but child of ignored, so should be ignored",
-                  "",
-                  true,
-                  true,
-                  false,
-                  0,
-                  0,
-                  HTTP_OK)));
+      aggregator.publish(singletonList(
+          new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0, HTTP_OK)));
+      aggregator.publish(singletonList(new SimpleSpan(
+          "",
+          "",
+          UTF8BytesString.create(ignoredResourceName),
+          "",
+          true,
+          true,
+          false,
+          0,
+          0,
+          HTTP_OK)));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0, HTTP_OK),
+          new SimpleSpan(
+              "",
+              "",
+              "measured, not ignored, but child of ignored, so should be ignored",
+              "",
+              true,
+              true,
+              false,
+              0,
+              0,
+              HTTP_OK)));
       aggregator.forceReport().get(2, SECONDS);
 
       verifyNoInteractions(sink);
@@ -163,45 +157,40 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              null,
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(1, e.getHitCount());
-                assertEquals(1, e.getTopLevelCount());
-                assertEquals(100, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          null,
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(1, e.getHitCount());
+            assertEquals(1, e.getTopLevelCount());
+            assertEquals(100, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                      "service", "operation", null, "type", false, true, false, 0, 100, HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz")));
+      aggregator.publish(singletonList(
+          new SimpleSpan("service", "operation", null, "type", false, true, false, 0, 100, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "baz")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -224,54 +213,40 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(1, e.getHitCount());
-                assertEquals(1, e.getTopLevelCount());
-                assertEquals(100, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(1, e.getHitCount());
+            assertEquals(1, e.getTopLevelCount());
+            assertEquals(100, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz")));
+      aggregator.publish(singletonList(new SimpleSpan(
+              "service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+          .setTag(Tags.SPAN_KIND, "baz")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -312,45 +287,41 @@ class ClientStatsAggregatorTest {
 
       CountDownLatch latch = new CountDownLatch(1);
       if (statsComputed) {
-        AggregateEntry expectedEntry =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service",
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                false,
-                kind == null ? null : kind.toString(),
-                emptyList(),
-                httpMethod,
-                httpEndpoint,
-                null);
-        doAnswer(
-                invocation -> {
-                  AggregateEntry e = invocation.getArgument(0);
-                  assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(0, e.getTopLevelCount());
-                  assertEquals(100, e.getDuration());
-                  return null;
-                })
+        AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+            "resource",
+            "service",
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            false,
+            kind == null ? null : kind.toString(),
+            emptyList(),
+            httpMethod,
+            httpEndpoint,
+            null);
+        doAnswer(invocation -> {
+              AggregateEntry e = invocation.getArgument(0);
+              assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+              assertEquals(1, e.getHitCount());
+              assertEquals(0, e.getTopLevelCount());
+              assertEquals(100, e.getDuration());
+              return null;
+            })
             .when(writer)
             .add(any(AggregateEntry.class));
-        doAnswer(
-                invocation -> {
-                  latch.countDown();
-                  return null;
-                })
+        doAnswer(invocation -> {
+              latch.countDown();
+              return null;
+            })
             .when(writer)
             .finishBucket();
       }
 
-      SimpleSpan span =
-          new SimpleSpan(
-                  "service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK)
-              .setTag(Tags.SPAN_KIND, kind);
+      SimpleSpan span = new SimpleSpan(
+              "service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK)
+          .setTag(Tags.SPAN_KIND, kind);
       if (httpMethod != null) {
         span.setTag("http.method", httpMethod);
       }
@@ -404,93 +375,69 @@ class ClientStatsAggregatorTest {
 
       CountDownLatch latch = new CountDownLatch(1);
 
-      AggregateEntry expectedFranceEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "client",
-              Arrays.asList(
-                  UTF8BytesString.create("country:france"),
-                  UTF8BytesString.create("georegion:europe")),
-              null,
-              null,
-              null);
-      AggregateEntry expectedGermanyEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "client",
-              Arrays.asList(
-                  UTF8BytesString.create("country:germany"),
-                  UTF8BytesString.create("georegion:europe")),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedFranceEntry)
-                    || AggregateEntryTestUtils.equals(e, expectedGermanyEntry)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(0, e.getTopLevelCount());
-                  assertEquals(100, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add(): " + e);
-                }
-                return null;
-              })
+      AggregateEntry expectedFranceEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "client",
+          Arrays.asList(
+              UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")),
+          null,
+          null,
+          null);
+      AggregateEntry expectedGermanyEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "client",
+          Arrays.asList(
+              UTF8BytesString.create("country:germany"),
+              UTF8BytesString.create("georegion:europe")),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedFranceEntry)
+                || AggregateEntryTestUtils.equals(e, expectedGermanyEntry)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(0, e.getTopLevelCount());
+              assertEquals(100, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add(): " + e);
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "client")
-                  .setTag("country", "france")
-                  .setTag("georegion", "europe"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "client")
-                  .setTag("country", "germany")
-                  .setTag("georegion", "europe")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "client")
+              .setTag("country", "france")
+              .setTag("georegion", "europe"),
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "client")
+              .setTag("country", "germany")
+              .setTag("georegion", "europe")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -529,56 +476,42 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              kind,
-              expectedPeerTags,
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(1, e.getHitCount());
-                assertEquals(0, e.getTopLevelCount());
-                assertEquals(100, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          kind,
+          expectedPeerTags,
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(1, e.getHitCount());
+            assertEquals(0, e.getTopLevelCount());
+            assertEquals(100, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, kind)
-                  .setTag("peer.hostname", "localhost")
-                  .setTag("_dd.base_service", UTF8BytesString.create("test"))));
+      aggregator.publish(singletonList(new SimpleSpan(
+              "service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+          .setTag(Tags.SPAN_KIND, kind)
+          .setTag("peer.hostname", "localhost")
+          .setTag("_dd.base_service", UTF8BytesString.create("test"))));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -607,54 +540,49 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(1, e.getHitCount());
-                assertEquals(topLevelCount, e.getTopLevelCount());
-                assertEquals(100, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(1, e.getHitCount());
+            assertEquals(topLevelCount, e.getTopLevelCount());
+            assertEquals(100, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      measured,
-                      topLevel,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz")));
+      aggregator.publish(singletonList(new SimpleSpan(
+              "service",
+              "operation",
+              "resource",
+              "type",
+              measured,
+              topLevel,
+              false,
+              0,
+              100,
+              HTTP_OK)
+          .setTag(Tags.SPAN_KIND, "baz")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -679,98 +607,84 @@ class ClientStatsAggregatorTest {
     try (ClientStatsAggregator aggregator =
         createClientStatsAggregator(features, sink, writer, false)) {
       long duration = 100;
-      List<SimpleSpan> trace =
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz"),
-              new SimpleSpan(
-                      "service1",
-                      "operation1",
-                      "resource1",
-                      "type",
-                      false,
-                      false,
-                      false,
-                      0,
-                      0,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz"),
-              new SimpleSpan(
-                      "service2",
-                      "operation2",
-                      "resource2",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 2,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "baz"));
+      List<SimpleSpan> trace = Arrays.asList(
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration,
+                  HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "baz"),
+          new SimpleSpan(
+                  "service1", "operation1", "resource1", "type", false, false, false, 0, 0, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "baz"),
+          new SimpleSpan(
+                  "service2",
+                  "operation2",
+                  "resource2",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 2,
+                  HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "baz"));
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry1 =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      AggregateEntry expectedEntry2 =
-          AggregateEntryTestUtils.of(
-              "resource2",
-              "service2",
-              "operation2",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedEntry1)) {
-                  assertEquals(count, e.getHitCount());
-                  assertEquals(count * duration, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedEntry2)) {
-                  assertEquals(count, e.getHitCount());
-                  assertEquals(count * duration * 2, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add()");
-                }
-                return null;
-              })
+      AggregateEntry expectedEntry1 = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      AggregateEntry expectedEntry2 = AggregateEntryTestUtils.of(
+          "resource2",
+          "service2",
+          "operation2",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedEntry1)) {
+              assertEquals(count, e.getHitCount());
+              assertEquals(count * duration, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedEntry2)) {
+              assertEquals(count, e.getHitCount());
+              assertEquals(count * duration * 2, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add()");
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -806,111 +720,103 @@ class ClientStatsAggregatorTest {
       CountDownLatch latch = new CountDownLatch(1);
       CountDownLatch latch2 = new CountDownLatch(1);
 
-      AggregateEntry expectedGetUsers =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/users/:id",
-              null);
-      AggregateEntry expectedGetOrders =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/orders/:id",
-              null);
-      AggregateEntry expectedPostUsers =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "POST",
-              "/api/users/:id",
-              null);
+      AggregateEntry expectedGetUsers = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/users/:id",
+          null);
+      AggregateEntry expectedGetOrders = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/orders/:id",
+          null);
+      AggregateEntry expectedPostUsers = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "POST",
+          "/api/users/:id",
+          null);
 
       AtomicInteger cycle = new AtomicInteger(1);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (cycle.get() == 1) {
-                  // should aggregate into single metric
-                  assertTrue(AggregateEntryTestUtils.equals(e, expectedGetUsers));
-                  assertEquals(count, e.getHitCount());
-                  assertEquals(count * duration, e.getDuration());
-                } else {
-                  // separate metrics for each endpoint/method combination
-                  if (AggregateEntryTestUtils.equals(e, expectedGetUsers)) {
-                    assertEquals(1, e.getHitCount());
-                    assertEquals(duration, e.getDuration());
-                  } else if (AggregateEntryTestUtils.equals(e, expectedGetOrders)) {
-                    assertEquals(1, e.getHitCount());
-                    assertEquals(duration * 2, e.getDuration());
-                  } else if (AggregateEntryTestUtils.equals(e, expectedPostUsers)) {
-                    assertEquals(1, e.getHitCount());
-                    assertEquals(duration * 3, e.getDuration());
-                  } else {
-                    throw new AssertionError("Unexpected AggregateEntry in cycle 2 add()");
-                  }
-                }
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (cycle.get() == 1) {
+              // should aggregate into single metric
+              assertTrue(AggregateEntryTestUtils.equals(e, expectedGetUsers));
+              assertEquals(count, e.getHitCount());
+              assertEquals(count * duration, e.getDuration());
+            } else {
+              // separate metrics for each endpoint/method combination
+              if (AggregateEntryTestUtils.equals(e, expectedGetUsers)) {
+                assertEquals(1, e.getHitCount());
+                assertEquals(duration, e.getDuration());
+              } else if (AggregateEntryTestUtils.equals(e, expectedGetOrders)) {
+                assertEquals(1, e.getHitCount());
+                assertEquals(duration * 2, e.getDuration());
+              } else if (AggregateEntryTestUtils.equals(e, expectedPostUsers)) {
+                assertEquals(1, e.getHitCount());
+                assertEquals(duration * 3, e.getDuration());
+              } else {
+                throw new AssertionError("Unexpected AggregateEntry in cycle 2 add()");
+              }
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                cycle.incrementAndGet();
-                latch.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            cycle.incrementAndGet();
+            latch.countDown();
+            return null;
+          })
+          .doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < count; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service",
-                        "operation",
-                        "resource",
-                        "type",
-                        true,
-                        false,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "server")
-                    .setTag("http.method", "GET")
-                    .setTag("http.endpoint", "/api/users/:id")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service",
+                "operation",
+                "resource",
+                "type",
+                true,
+                false,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "server")
+            .setTag("http.method", "GET")
+            .setTag("http.endpoint", "/api/users/:id")));
       }
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
@@ -922,50 +828,49 @@ class ClientStatsAggregatorTest {
           .add(argThat(e -> AggregateEntryTestUtils.equals(e, expectedGetUsers)));
 
       // publish spans with different endpoints
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 2,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/orders/:id"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 3,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "POST")
-                  .setTag("http.endpoint", "/api/users/:id")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration,
+                  HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id"),
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 2,
+                  HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/orders/:id"),
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 3,
+                  HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "POST")
+              .setTag("http.endpoint", "/api/users/:id")));
       aggregator.report();
       boolean latchTriggered2 = latch2.await(2, SECONDS);
 
@@ -997,158 +902,142 @@ class ClientStatsAggregatorTest {
       CountDownLatch latch = new CountDownLatch(1);
       long duration = 100;
 
-      AggregateEntry expectedGet200Users =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/users/:id",
-              null);
-      AggregateEntry expectedPost200Users =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "POST",
-              "/api/users/:id",
-              null);
-      AggregateEntry expectedGet404Users =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              404,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/users/:id",
-              null);
-      AggregateEntry expectedGet200Orders =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/orders/:id",
-              null);
+      AggregateEntry expectedGet200Users = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/users/:id",
+          null);
+      AggregateEntry expectedPost200Users = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "POST",
+          "/api/users/:id",
+          null);
+      AggregateEntry expectedGet404Users = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          404,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/users/:id",
+          null);
+      AggregateEntry expectedGet200Orders = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/orders/:id",
+          null);
 
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedGet200Users)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedPost200Users)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration * 2, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedGet404Users)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration * 3, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedGet200Orders)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration * 4, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add()");
-                }
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedGet200Users)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedPost200Users)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration * 2, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedGet404Users)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration * 3, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedGet200Orders)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration * 4, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add()");
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              // Same endpoint, different methods
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration,
-                      200)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 2,
-                      200)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "POST")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              // Same method/endpoint, different status
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 3,
-                      404)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              // Different endpoint
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 4,
-                      200)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/orders/:id")));
+      aggregator.publish(Arrays.asList(
+          // Same endpoint, different methods
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", true, false, false, 0, duration, 200)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id"),
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 2,
+                  200)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "POST")
+              .setTag("http.endpoint", "/api/users/:id"),
+          // Same method/endpoint, different status
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 3,
+                  404)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id"),
+          // Different endpoint
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 4,
+                  200)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/orders/:id")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -1182,91 +1071,77 @@ class ClientStatsAggregatorTest {
       CountDownLatch latch = new CountDownLatch(1);
       long duration = 100;
 
-      AggregateEntry expectedNoHttpTags =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
-      AggregateEntry expectedWithHttpTags =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/users/:id",
-              null);
+      AggregateEntry expectedNoHttpTags = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
+      AggregateEntry expectedWithHttpTags = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/users/:id",
+          null);
 
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedNoHttpTags)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedWithHttpTags)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration * 2, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add()");
-                }
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedNoHttpTags)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedWithHttpTags)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration * 2, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add()");
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              // Span without HTTP tags (legacy behavior)
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration,
-                      200)
-                  .setTag(Tags.SPAN_KIND, "server"),
-              // Span with HTTP tags (new behavior)
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      false,
-                      false,
-                      0,
-                      duration * 2,
-                      200)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id")));
+      aggregator.publish(Arrays.asList(
+          // Span without HTTP tags (legacy behavior)
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", true, false, false, 0, duration, 200)
+              .setTag(Tags.SPAN_KIND, "server"),
+          // Span with HTTP tags (new behavior)
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  false,
+                  false,
+                  0,
+                  duration * 2,
+                  200)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -1296,108 +1171,103 @@ class ClientStatsAggregatorTest {
       CountDownLatch latch = new CountDownLatch(1);
       long duration = 100;
 
-      AggregateEntry expectedWithSource =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              "source",
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
-      AggregateEntry expectedWithoutSource =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
+      AggregateEntry expectedWithSource = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          "source",
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
+      AggregateEntry expectedWithoutSource = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
 
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedWithSource)) {
-                  assertEquals(2, e.getHitCount());
-                  assertEquals(2 * duration, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedWithoutSource)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(duration, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add()");
-                }
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedWithSource)) {
+              assertEquals(2, e.getHitCount());
+              assertEquals(2 * duration, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedWithoutSource)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(duration, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add()");
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      true,
-                      false,
-                      0,
-                      duration,
-                      200,
-                      false,
-                      0,
-                      "source")
-                  .setTag(Tags.SPAN_KIND, "server"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      true,
-                      false,
-                      0,
-                      duration,
-                      200,
-                      false,
-                      0,
-                      null)
-                  .setTag(Tags.SPAN_KIND, "server"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      true,
-                      true,
-                      false,
-                      0,
-                      duration,
-                      200,
-                      false,
-                      0,
-                      "source")
-                  .setTag(Tags.SPAN_KIND, "server")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  true,
+                  false,
+                  0,
+                  duration,
+                  200,
+                  false,
+                  0,
+                  "source")
+              .setTag(Tags.SPAN_KIND, "server"),
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  true,
+                  false,
+                  0,
+                  duration,
+                  200,
+                  false,
+                  0,
+                  null)
+              .setTag(Tags.SPAN_KIND, "server"),
+          new SimpleSpan(
+                  "service",
+                  "operation",
+                  "resource",
+                  "type",
+                  true,
+                  true,
+                  false,
+                  0,
+                  duration,
+                  200,
+                  false,
+                  0,
+                  "source")
+              .setTag(Tags.SPAN_KIND, "server")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -1423,61 +1293,55 @@ class ClientStatsAggregatorTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
-    try (ClientStatsAggregator aggregator =
-        createClientStatsAggregator(
-            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
+    try (ClientStatsAggregator aggregator = createClientStatsAggregator(
+        features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
 
-      AggregateEntry expectedDropped =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service10",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertEquals(1, e.getHitCount());
-                assertEquals(duration, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedDropped = AggregateEntryTestUtils.of(
+          "resource",
+          "service10",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertEquals(1, e.getHitCount());
+            assertEquals(duration, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < 11; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
@@ -1486,21 +1350,20 @@ class ClientStatsAggregatorTest {
       assertTrue(latchTriggered);
       verify(writer).startBucket(eq(10), anyLong(), eq(SECONDS.toNanos(REPORTING_INTERVAL)));
       for (int i = 0; i < 10; ++i) {
-        AggregateEntry expected =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service" + i,
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                false,
-                "baz",
-                emptyList(),
-                null,
-                null,
-                null);
+        AggregateEntry expected = AggregateEntryTestUtils.of(
+            "resource",
+            "service" + i,
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            false,
+            "baz",
+            emptyList(),
+            null,
+            null,
+            null);
         verify(writer, times(1)).add(argThat(e -> AggregateEntryTestUtils.equals(e, expected)));
       }
       verify(writer, never()).add(argThat(e -> AggregateEntryTestUtils.equals(e, expectedDropped)));
@@ -1523,29 +1386,26 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < maxAggregates + 1; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
@@ -1571,29 +1431,17 @@ class ClientStatsAggregatorTest {
 
       // fill cache and flush — entries are cleared (hitCount=0) but stay in the LRU
       CountDownLatch latch1 = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                latch1.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch1.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < maxAggregates; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        100,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       latch1.await(2, SECONDS);
@@ -1602,29 +1450,17 @@ class ClientStatsAggregatorTest {
 
       // publish new distinct spans — LRU evicts the cleared entries before the next report
       CountDownLatch latch2 = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = maxAggregates; i < maxAggregates * 2; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        100,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       latch2.await(2, SECONDS);
@@ -1643,46 +1479,41 @@ class ClientStatsAggregatorTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
-    try (ClientStatsAggregator aggregator =
-        createClientStatsAggregator(
-            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
+    try (ClientStatsAggregator aggregator = createClientStatsAggregator(
+        features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
       // first cycle
       CountDownLatch latch = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertEquals(1, e.getHitCount());
-                assertEquals(duration, e.getDuration());
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertEquals(1, e.getHitCount());
+            assertEquals(duration, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < 5; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
@@ -1691,50 +1522,46 @@ class ClientStatsAggregatorTest {
       assertTrue(latchTriggered);
       verify(writer).startBucket(eq(5), anyLong(), eq(SECONDS.toNanos(REPORTING_INTERVAL)));
       for (int i = 0; i < 5; ++i) {
-        AggregateEntry expected =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service" + i,
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                false,
-                "baz",
-                emptyList(),
-                null,
-                null,
-                null);
+        AggregateEntry expected = AggregateEntryTestUtils.of(
+            "resource",
+            "service" + i,
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            false,
+            "baz",
+            emptyList(),
+            null,
+            null,
+            null);
         verify(writer, times(1)).add(argThat(e -> AggregateEntryTestUtils.equals(e, expected)));
       }
       verify(writer, times(1)).finishBucket();
 
       // second cycle - service0 not updated
       CountDownLatch latch2 = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 1; i < 5; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "baz")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "baz")));
       }
       aggregator.report();
       boolean latchTriggered2 = latch2.await(2, SECONDS);
@@ -1743,38 +1570,36 @@ class ClientStatsAggregatorTest {
       assertTrue(latchTriggered2);
       verify(writer).startBucket(eq(4), anyLong(), eq(SECONDS.toNanos(REPORTING_INTERVAL)));
       for (int i = 1; i < 5; ++i) {
-        AggregateEntry expected =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service" + i,
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                false,
-                "baz",
-                emptyList(),
-                null,
-                null,
-                null);
+        AggregateEntry expected = AggregateEntryTestUtils.of(
+            "resource",
+            "service" + i,
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            false,
+            "baz",
+            emptyList(),
+            null,
+            null,
+            null);
         verify(writer, times(2)).add(argThat(e -> AggregateEntryTestUtils.equals(e, expected)));
       }
-      AggregateEntry expectedService0 =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service0",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "baz",
-              emptyList(),
-              null,
-              null,
-              null);
+      AggregateEntry expectedService0 = AggregateEntryTestUtils.of(
+          "resource",
+          "service0",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "baz",
+          emptyList(),
+          null,
+          null,
+          null);
       verify(writer, times(1))
           .add(argThat(e -> AggregateEntryTestUtils.equals(e, expectedService0)));
       verify(writer, times(2)).finishBucket();
@@ -1789,46 +1614,41 @@ class ClientStatsAggregatorTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
-    try (ClientStatsAggregator aggregator =
-        createClientStatsAggregator(
-            features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
+    try (ClientStatsAggregator aggregator = createClientStatsAggregator(
+        features, HealthMetrics.NO_OP, sink, writer, maxAggregates, false)) {
       long duration = 100;
       aggregator.start();
 
       // first cycle
       CountDownLatch latch = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertEquals(1, e.getHitCount());
-                assertEquals(duration, e.getDuration());
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertEquals(1, e.getHitCount());
+            assertEquals(duration, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < 5; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK)
-                    .setTag(Tags.SPAN_KIND, "quux")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK)
+            .setTag(Tags.SPAN_KIND, "quux")));
       }
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
@@ -1837,21 +1657,20 @@ class ClientStatsAggregatorTest {
       assertTrue(latchTriggered);
       verify(writer).startBucket(eq(5), anyLong(), eq(SECONDS.toNanos(REPORTING_INTERVAL)));
       for (int i = 0; i < 5; ++i) {
-        AggregateEntry expected =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service" + i,
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                false,
-                "quux",
-                emptyList(),
-                null,
-                null,
-                null);
+        AggregateEntry expected = AggregateEntryTestUtils.of(
+            "resource",
+            "service" + i,
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            false,
+            "quux",
+            emptyList(),
+            null,
+            null,
+            null);
         verify(writer, times(1)).add(argThat(e -> AggregateEntryTestUtils.equals(e, expected)));
       }
       verify(writer, times(1)).finishBucket();
@@ -1882,39 +1701,35 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertEquals(1, e.getHitCount());
-                assertEquals(duration, e.getDuration());
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertEquals(1, e.getHitCount());
+            assertEquals(duration, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
       for (int i = 0; i < 5; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                        "service" + i,
-                        "operation",
-                        "resource",
-                        "type",
-                        false,
-                        true,
-                        false,
-                        0,
-                        duration,
-                        HTTP_OK,
-                        true)
-                    .setTag(Tags.SPAN_KIND, "garply")));
+        aggregator.publish(singletonList(new SimpleSpan(
+                "service" + i,
+                "operation",
+                "resource",
+                "type",
+                false,
+                true,
+                false,
+                0,
+                duration,
+                HTTP_OK,
+                true)
+            .setTag(Tags.SPAN_KIND, "garply")));
       }
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -1922,21 +1737,20 @@ class ClientStatsAggregatorTest {
       assertTrue(latchTriggered);
       verify(writer).startBucket(eq(5), anyLong(), eq(SECONDS.toNanos(1)));
       for (int i = 0; i < 5; ++i) {
-        AggregateEntry expected =
-            AggregateEntryTestUtils.of(
-                "resource",
-                "service" + i,
-                "operation",
-                null,
-                "type",
-                HTTP_OK,
-                false,
-                true,
-                "garply",
-                emptyList(),
-                null,
-                null,
-                null);
+        AggregateEntry expected = AggregateEntryTestUtils.of(
+            "resource",
+            "service" + i,
+            "operation",
+            null,
+            "type",
+            HTTP_OK,
+            false,
+            true,
+            "garply",
+            emptyList(),
+            null,
+            null,
+            null);
         verify(writer, times(1)).add(argThat(e -> AggregateEntryTestUtils.equals(e, expected)));
       }
       verify(writer, times(1)).finishBucket();
@@ -1960,28 +1774,25 @@ class ClientStatsAggregatorTest {
       doThrow(new IllegalArgumentException("something went wrong"))
           .when(writer)
           .startBucket(anyInt(), anyLong(), anyLong());
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .reset();
 
       for (int i = 0; i < 5; ++i) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                    "service" + i,
-                    "operation",
-                    "resource",
-                    "type",
-                    false,
-                    true,
-                    false,
-                    0,
-                    duration,
-                    HTTP_OK)));
+        aggregator.publish(singletonList(new SimpleSpan(
+            "service" + i,
+            "operation",
+            "resource",
+            "type",
+            false,
+            true,
+            false,
+            0,
+            duration,
+            HTTP_OK)));
       }
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -2018,10 +1829,8 @@ class ClientStatsAggregatorTest {
     when(features.peerTags()).thenReturn(emptySet());
     try (ClientStatsAggregator aggregator =
         createClientStatsAggregator(features, sink, writer, 10, 200, MILLISECONDS, false)) {
-      List<SimpleSpan> spans =
-          singletonList(
-              new SimpleSpan(
-                  "service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK));
+      List<SimpleSpan> spans = singletonList(new SimpleSpan(
+          "service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK));
       aggregator.start();
 
       // metrics not available
@@ -2052,15 +1861,13 @@ class ClientStatsAggregatorTest {
         createClientStatsAggregator(features, sink, writer, maxAggregates, 1, SECONDS, false)) {
 
       // call forceReport before start
-      CompletableFuture<Boolean> async =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try {
-                  return aggregator.forceReport().get();
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
+      CompletableFuture<Boolean> async = CompletableFuture.supplyAsync(() -> {
+        try {
+          return aggregator.forceReport().get();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      });
 
       assertThrows(TimeoutException.class, () -> async.get(3, SECONDS));
 
@@ -2084,68 +1891,64 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              true,
-              "",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(1, e.getHitCount());
-                assertEquals(1, e.getTopLevelCount());
-                assertEquals(100, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          true,
+          "",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(1, e.getHitCount());
+            assertEquals(1, e.getTopLevelCount());
+            assertEquals(100, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                  "service",
-                  "operation",
-                  "resource",
-                  "type",
-                  true,
-                  true,
-                  false,
-                  0,
-                  100,
-                  HTTP_OK,
-                  true,
-                  12345),
-              new SimpleSpan(
-                  "service",
-                  "operation",
-                  "resource",
-                  "type",
-                  true,
-                  true,
-                  false,
-                  0,
-                  100,
-                  HTTP_OK,
-                  true,
-                  0)));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+              "service",
+              "operation",
+              "resource",
+              "type",
+              true,
+              true,
+              false,
+              0,
+              100,
+              HTTP_OK,
+              true,
+              12345),
+          new SimpleSpan(
+              "service",
+              "operation",
+              "resource",
+              "type",
+              true,
+              true,
+              false,
+              0,
+              100,
+              HTTP_OK,
+              true,
+              0)));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -2169,82 +1972,51 @@ class ClientStatsAggregatorTest {
 
       // publishing spans with different http.method and http.endpoint
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedEntry =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
-                assertEquals(3, e.getHitCount());
-                assertEquals(3, e.getTopLevelCount());
-                assertEquals(450, e.getDuration());
-                return null;
-              })
+      AggregateEntry expectedEntry = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            assertTrue(AggregateEntryTestUtils.equals(e, expectedEntry));
+            assertEquals(3, e.getHitCount());
+            assertEquals(3, e.getTopLevelCount());
+            assertEquals(450, e.getDuration());
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      200,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "POST")
-                  .setTag("http.endpoint", "/api/orders"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      150,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id"),
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 200, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "POST")
+              .setTag("http.endpoint", "/api/orders"),
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 150, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")));
       aggregator.forceReport().get(2, SECONDS);
       boolean latchTriggered = latch.await(0, SECONDS);
 
@@ -2269,124 +2041,91 @@ class ClientStatsAggregatorTest {
 
       // publishing spans with different http.method and http.endpoint
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedGetUsers =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "GET",
-              "/api/users/:id",
-              null);
-      AggregateEntry expectedPostOrders =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              "POST",
-              "/api/orders",
-              null);
-      AggregateEntry expectedNoHttp =
-          AggregateEntryTestUtils.of(
-              "resource",
-              "service",
-              "operation",
-              null,
-              "type",
-              HTTP_OK,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
+      AggregateEntry expectedGetUsers = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "GET",
+          "/api/users/:id",
+          null);
+      AggregateEntry expectedPostOrders = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          "POST",
+          "/api/orders",
+          null);
+      AggregateEntry expectedNoHttp = AggregateEntryTestUtils.of(
+          "resource",
+          "service",
+          "operation",
+          null,
+          "type",
+          HTTP_OK,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
 
-      doAnswer(
-              invocation -> {
-                AggregateEntry e = invocation.getArgument(0);
-                if (AggregateEntryTestUtils.equals(e, expectedGetUsers)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(1, e.getTopLevelCount());
-                  assertEquals(100, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedPostOrders)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(1, e.getTopLevelCount());
-                  assertEquals(200, e.getDuration());
-                } else if (AggregateEntryTestUtils.equals(e, expectedNoHttp)) {
-                  assertEquals(1, e.getHitCount());
-                  assertEquals(1, e.getTopLevelCount());
-                  assertEquals(150, e.getDuration());
-                } else {
-                  throw new AssertionError("Unexpected AggregateEntry in add()");
-                }
-                return null;
-              })
+      doAnswer(invocation -> {
+            AggregateEntry e = invocation.getArgument(0);
+            if (AggregateEntryTestUtils.equals(e, expectedGetUsers)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(1, e.getTopLevelCount());
+              assertEquals(100, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedPostOrders)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(1, e.getTopLevelCount());
+              assertEquals(200, e.getDuration());
+            } else if (AggregateEntryTestUtils.equals(e, expectedNoHttp)) {
+              assertEquals(1, e.getHitCount());
+              assertEquals(1, e.getTopLevelCount());
+              assertEquals(150, e.getDuration());
+            } else {
+              throw new AssertionError("Unexpected AggregateEntry in add()");
+            }
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      100,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "GET")
-                  .setTag("http.endpoint", "/api/users/:id"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      200,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag("http.method", "POST")
-                  .setTag("http.endpoint", "/api/orders"),
-              new SimpleSpan(
-                      "service",
-                      "operation",
-                      "resource",
-                      "type",
-                      false,
-                      true,
-                      false,
-                      0,
-                      150,
-                      HTTP_OK)
-                  .setTag(Tags.SPAN_KIND, "server")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "GET")
+              .setTag("http.endpoint", "/api/users/:id"),
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 200, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag("http.method", "POST")
+              .setTag("http.endpoint", "/api/orders"),
+          new SimpleSpan(
+                  "service", "operation", "resource", "type", false, true, false, 0, 150, HTTP_OK)
+              .setTag(Tags.SPAN_KIND, "server")));
       aggregator.forceReport().get(2, SECONDS);
       boolean latchTriggered = latch.await(0, SECONDS);
 
@@ -2414,92 +2153,87 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       CountDownLatch latch = new CountDownLatch(1);
-      AggregateEntry expectedGrpcStatus0 =
-          AggregateEntryTestUtils.of(
-              "grpc.service/Method",
-              "service",
-              "grpc.server",
-              null,
-              "rpc",
-              0,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              "0");
-      AggregateEntry expectedGrpcStatus5 =
-          AggregateEntryTestUtils.of(
-              "grpc.service/Method",
-              "service",
-              "grpc.server",
-              null,
-              "rpc",
-              0,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              "5");
-      AggregateEntry expectedHttpSpan =
-          AggregateEntryTestUtils.of(
-              "GET /api",
-              "service",
-              "http.request",
-              null,
-              "web",
-              200,
-              false,
-              false,
-              "server",
-              emptyList(),
-              null,
-              null,
-              null);
+      AggregateEntry expectedGrpcStatus0 = AggregateEntryTestUtils.of(
+          "grpc.service/Method",
+          "service",
+          "grpc.server",
+          null,
+          "rpc",
+          0,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          "0");
+      AggregateEntry expectedGrpcStatus5 = AggregateEntryTestUtils.of(
+          "grpc.service/Method",
+          "service",
+          "grpc.server",
+          null,
+          "rpc",
+          0,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          "5");
+      AggregateEntry expectedHttpSpan = AggregateEntryTestUtils.of(
+          "GET /api",
+          "service",
+          "http.request",
+          null,
+          "web",
+          200,
+          false,
+          false,
+          "server",
+          emptyList(),
+          null,
+          null,
+          null);
 
       doAnswer(invocation -> null).when(writer).add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
-      aggregator.publish(
-          Arrays.asList(
-              new SimpleSpan(
-                      "service",
-                      "grpc.server",
-                      "grpc.service/Method",
-                      "rpc",
-                      true,
-                      false,
-                      false,
-                      0,
-                      100,
-                      0)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag(InstrumentationTags.GRPC_STATUS_CODE, 0),
-              new SimpleSpan(
-                      "service",
-                      "grpc.server",
-                      "grpc.service/Method",
-                      "rpc",
-                      true,
-                      false,
-                      false,
-                      0,
-                      50,
-                      0)
-                  .setTag(Tags.SPAN_KIND, "server")
-                  .setTag(InstrumentationTags.GRPC_STATUS_CODE, 5),
-              new SimpleSpan(
-                      "service", "http.request", "GET /api", "web", true, false, false, 0, 75, 200)
-                  .setTag(Tags.SPAN_KIND, "server")));
+      aggregator.publish(Arrays.asList(
+          new SimpleSpan(
+                  "service",
+                  "grpc.server",
+                  "grpc.service/Method",
+                  "rpc",
+                  true,
+                  false,
+                  false,
+                  0,
+                  100,
+                  0)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag(InstrumentationTags.GRPC_STATUS_CODE, 0),
+          new SimpleSpan(
+                  "service",
+                  "grpc.server",
+                  "grpc.service/Method",
+                  "rpc",
+                  true,
+                  false,
+                  false,
+                  0,
+                  50,
+                  0)
+              .setTag(Tags.SPAN_KIND, "server")
+              .setTag(InstrumentationTags.GRPC_STATUS_CODE, 5),
+          new SimpleSpan(
+                  "service", "http.request", "GET /api", "web", true, false, false, 0, 75, 200)
+              .setTag(Tags.SPAN_KIND, "server")));
       aggregator.report();
       boolean latchTriggered = latch.await(2, SECONDS);
 
@@ -2531,25 +2265,21 @@ class ClientStatsAggregatorTest {
       aggregator.start();
 
       // publish SERVICE+1 distinct services to fill and overflow the cardinality budget
-      doAnswer(
-              invocation -> {
-                cycle1Entries.add(invocation.getArgument(0));
-                return null;
-              })
+      doAnswer(invocation -> {
+            cycle1Entries.add(invocation.getArgument(0));
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch1.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch1.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
       for (int i = 0; i <= MetricCardinalityLimits.SERVICE; i++) {
-        aggregator.publish(
-            singletonList(
-                new SimpleSpan(
-                    "svc-" + i, "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)));
+        aggregator.publish(singletonList(new SimpleSpan(
+            "svc-" + i, "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)));
       }
       aggregator.report();
       latch1.await(2, SECONDS);
@@ -2565,34 +2295,21 @@ class ClientStatsAggregatorTest {
 
       // publish the overflow service in the next cycle after the cardinality reset
       clearInvocations(writer);
-      doAnswer(
-              invocation -> {
-                cycle2Entries.add(invocation.getArgument(0));
-                return null;
-              })
+      doAnswer(invocation -> {
+            cycle2Entries.add(invocation.getArgument(0));
+            return null;
+          })
           .when(writer)
           .add(any(AggregateEntry.class));
-      doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+      doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
       String overflowServiceName = "svc-" + MetricCardinalityLimits.SERVICE;
-      aggregator.publish(
-          singletonList(
-              new SimpleSpan(
-                  overflowServiceName,
-                  "op",
-                  "resource",
-                  "web",
-                  false,
-                  true,
-                  false,
-                  0,
-                  100,
-                  HTTP_OK)));
+      aggregator.publish(singletonList(new SimpleSpan(
+          overflowServiceName, "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)));
       aggregator.report();
       latch2.await(2, SECONDS);
 

@@ -40,9 +40,15 @@ class W3CHttpCodec {
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
   private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
 
-  @VisibleForTesting static final String TRACE_PARENT_KEY = "traceparent";
-  @VisibleForTesting static final String TRACE_STATE_KEY = "tracestate";
-  @VisibleForTesting static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  @VisibleForTesting
+  static final String TRACE_PARENT_KEY = "traceparent";
+
+  @VisibleForTesting
+  static final String TRACE_STATE_KEY = "tracestate";
+
+  @VisibleForTesting
+  static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+
   static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
 
   private W3CHttpCodec() {
@@ -71,9 +77,8 @@ class W3CHttpCodec {
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      String traceparent =
-          W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
+      String traceparent = W3CTraceParent.from(
+          context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
@@ -288,16 +293,14 @@ class W3CHttpCodec {
       }
       DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
       if (traceId.toLong() == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero 64 bit trace id "
-                + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+        throw new IllegalStateException("Illegal all zero 64 bit trace id "
+            + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
       }
       this.traceId = traceId;
       this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero span id "
-                + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
+        throw new IllegalStateException("Illegal all zero span id "
+            + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
       }
       if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
         throw new IllegalStateException("Illegal character after flags in '" + tp + "'");

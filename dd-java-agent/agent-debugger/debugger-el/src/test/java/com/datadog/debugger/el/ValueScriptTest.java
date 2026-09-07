@@ -44,13 +44,10 @@ public class ValueScriptTest {
   public void predicates() {
     ValueScript valueScript = loadFromResource("/test_value_expr_01.json");
     // first call is longer so ideal to test timeout
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () ->
-                valueScript.execute(
-                    createResolver(new Obj()),
-                    TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+    EvaluationException evaluationException = assertThrows(
+        EvaluationException.class,
+        () -> valueScript.execute(
+            createResolver(new Obj()), TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
     assertEquals("timeout (1ms)", evaluationException.getMessage());
     // test good execution
     assertEquals(
@@ -76,30 +73,29 @@ public class ValueScriptTest {
 
   @Test
   public void topLevelPrimitives() {
-    Object[] expectedValues =
-        new Object[] {
-          "hello",
-          "hello",
-          10,
-          100_000_000_000L,
-          2.5F,
-          3.14D,
-          "a",
-          "b",
-          5,
-          3,
-          "el",
-          Values.NULL_OBJECT,
-          Boolean.TRUE,
-          Boolean.FALSE,
-          42,
-          Integer.MAX_VALUE,
-          -42,
-          Integer.MIN_VALUE,
-          17315993717L,
-          -17315993717L,
-          3.14
-        };
+    Object[] expectedValues = new Object[] {
+      "hello",
+      "hello",
+      10,
+      100_000_000_000L,
+      2.5F,
+      3.14D,
+      "a",
+      "b",
+      5,
+      3,
+      "el",
+      Values.NULL_OBJECT,
+      Boolean.TRUE,
+      Boolean.FALSE,
+      42,
+      Integer.MAX_VALUE,
+      -42,
+      Integer.MIN_VALUE,
+      17315993717L,
+      -17315993717L,
+      3.14
+    };
     List<String> lines = loadLinesFromResource("/test_one_liner_value_expr_02.txt");
     int i = 0;
     for (String line : lines) {
@@ -125,8 +121,9 @@ public class ValueScriptTest {
 
   private static ValueScript loadFromResource(String resourcePath) {
     try (InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath)) {
-      Moshi moshi =
-          new Moshi.Builder().add(ValueScript.class, new ValueScript.ValueScriptAdapter()).build();
+      Moshi moshi = new Moshi.Builder()
+          .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+          .build();
       return moshi.adapter(ValueScript.class).fromJson(Okio.buffer(Okio.source(input)));
     } catch (IOException e) {
       throw new RuntimeException("Failed to load resource: " + resourcePath, e);
@@ -135,8 +132,9 @@ public class ValueScriptTest {
 
   private static ValueScript load(String json) {
     try {
-      Moshi moshi =
-          new Moshi.Builder().add(ValueScript.class, new ValueScript.ValueScriptAdapter()).build();
+      Moshi moshi = new Moshi.Builder()
+          .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+          .build();
       return moshi.adapter(ValueScript.class).fromJson(json);
     } catch (IOException e) {
       throw new RuntimeException("Failed to load json: " + json, e);

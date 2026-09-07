@@ -91,11 +91,10 @@ public class AppSecInterceptor implements Interceptor {
           if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
             clientRequest.setBody(mediaType, new ByteArrayInputStream(payload));
           }
-          result =
-              request
-                  .newBuilder()
-                  .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
-                  .build(); // update request
+          result = request
+              .newBuilder()
+              .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
+              .build(); // update request
         }
       } catch (IOException e) {
         // ignore it and keep the original request
@@ -131,11 +130,10 @@ public class AppSecInterceptor implements Interceptor {
           if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
             clientResponse.setBody(mediaType, new ByteArrayInputStream(payload));
           }
-          result =
-              response
-                  .newBuilder()
-                  .body(ResponseBody.create(responseBody.contentType(), payload))
-                  .build();
+          result = response
+              .newBuilder()
+              .body(ResponseBody.create(responseBody.contentType(), payload))
+              .build();
         }
       } catch (IOException e) {
         // ignore it and keep the original response

@@ -158,22 +158,21 @@ final class TracerFlareService {
     try {
       long flareEndMillis = System.currentTimeMillis();
 
-      RequestBody report =
-          RequestBody.create(
-              OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
+      RequestBody report = RequestBody.create(
+          OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
 
-      RequestBody form =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("source", "tracer_java")
-              .addFormDataPart("case_id", caseId)
-              .addFormDataPart("email", email)
-              .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
-              .build();
+      RequestBody form = new MultipartBody.Builder()
+          .setType(MultipartBody.FORM)
+          .addFormDataPart("source", "tracer_java")
+          .addFormDataPart("case_id", caseId)
+          .addFormDataPart("email", email)
+          .addFormDataPart("hostname", hostname)
+          .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
+          .build();
 
-      Request flareRequest =
-          OkHttpUtils.prepareRequest(flareUrl, Collections.emptyMap()).post(form).build();
+      Request flareRequest = OkHttpUtils.prepareRequest(flareUrl, Collections.emptyMap())
+          .post(form)
+          .build();
 
       try (Response response = okHttpClient.newCall(flareRequest).execute()) {
         if (response.code() == 404) {
@@ -252,10 +251,9 @@ final class TracerFlareService {
     StringBuilder buf = new StringBuilder();
     try {
       ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-      for (ThreadInfo threadInfo :
-          threadMXBean.dumpAllThreads(
-              threadMXBean.isObjectMonitorUsageSupported(),
-              threadMXBean.isSynchronizerUsageSupported())) {
+      for (ThreadInfo threadInfo : threadMXBean.dumpAllThreads(
+          threadMXBean.isObjectMonitorUsageSupported(),
+          threadMXBean.isSynchronizerUsageSupported())) {
         buf.append(threadInfo);
       }
     } catch (RuntimeException e) {

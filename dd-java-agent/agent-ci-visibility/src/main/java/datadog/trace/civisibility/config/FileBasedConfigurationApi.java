@@ -32,11 +32,20 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedConfigurationApi.class);
 
-  @Nullable private final Path settingsPath;
-  @Nullable private final Path skippableTestsPath;
-  @Nullable private final Path flakyTestsPath;
-  @Nullable private final Path knownTestsPath;
-  @Nullable private final Path testManagementPath;
+  @Nullable
+  private final Path settingsPath;
+
+  @Nullable
+  private final Path skippableTestsPath;
+
+  @Nullable
+  private final Path flakyTestsPath;
+
+  @Nullable
+  private final Path knownTestsPath;
+
+  @Nullable
+  private final Path testManagementPath;
 
   private final JsonAdapter<Envelope<CiVisibilitySettings>> settingsAdapter;
   private final JsonAdapter<Envelope<KnownTestsResponse>> knownTestsAdapter;
@@ -114,7 +123,8 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     Map<String, Collection<TestFQN>> result =
         TestIdentifierJson.toTestFQNsByModule(envelope.data, tracerEnvironment);
     LOGGER.debug(
-        "Read {} flaky tests from file", result.values().stream().mapToInt(Collection::size).sum());
+        "Read {} flaky tests from file",
+        result.values().stream().mapToInt(Collection::size).sum());
     return result;
   }
 

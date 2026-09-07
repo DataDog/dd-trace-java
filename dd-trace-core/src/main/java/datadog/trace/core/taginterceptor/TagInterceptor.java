@@ -77,10 +77,9 @@ public class TagInterceptor {
     this.ruleFlags = ruleFlags;
     splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
 
-    shouldSet404ResourceName =
-        ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
-            && ruleFlags.isEnabled(STATUS_404)
-            && ruleFlags.isEnabled(STATUS_404_DECORATOR);
+    shouldSet404ResourceName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
+        && ruleFlags.isEnabled(STATUS_404)
+        && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
   }
@@ -229,10 +228,9 @@ public class TagInterceptor {
     }
     if (path != null) {
       final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.getSpanKindString());
-      Pair<CharSequence, Byte> normalized =
-          isClient
-              ? HttpResourceNames.computeForClient(method, path, false)
-              : HttpResourceNames.computeForServer(method, path, false);
+      Pair<CharSequence, Byte> normalized = isClient
+          ? HttpResourceNames.computeForClient(method, path, false)
+          : HttpResourceNames.computeForServer(method, path, false);
       if (normalized.hasLeft()) {
         span.setResourceName(normalized.getLeft(), normalized.getRight());
       }

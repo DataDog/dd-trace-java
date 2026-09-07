@@ -75,10 +75,9 @@ class RateLimitedLoggerTest {
     assertFalse(secondLog);
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 1 minute)"),
-            (Object[]) any());
+        .warn(nullable(Marker.class), eq("test {} {} (Will not log warnings for 1 minute)"), (Object
+                [])
+            any());
   }
 
   @Test
@@ -166,9 +165,8 @@ class RateLimitedLoggerTest {
 
     verify(this.log)
         .warn(
-            nullable(Marker.class),
-            eq("test (Will not log warnings for 1 millisecond)"),
-            (Object[]) any());
+            nullable(Marker.class), eq("test (Will not log warnings for 1 millisecond)"), (Object[])
+                any());
   }
 
   @Test

@@ -45,10 +45,8 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
         isMethod()
             .and(namedOneOf("openSession", "openStatelessSession"))
             .and(takesArguments(0))
-            .and(
-                returns(
-                    namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession")
-                        .or(hasInterface(named("org.hibernate.Session"))))),
+            .and(returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession")
+                .or(hasInterface(named("org.hibernate.Session"))))),
         SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
   }
 

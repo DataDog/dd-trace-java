@@ -50,11 +50,10 @@ import org.tabletest.junit.TypeConverterSources;
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service";
-  private static final Path GRADLE_DAEMON_DIAGNOSTICS_DIR =
-      Paths.get(
-          System.getProperty("datadog.smoketest.builddir", "build"),
-          "reports",
-          "gradle-daemon-diagnostics");
+  private static final Path GRADLE_DAEMON_DIAGNOSTICS_DIR = Paths.get(
+      System.getProperty("datadog.smoketest.builddir", "build"),
+      "reports",
+      "gradle-daemon-diagnostics");
   private static final Pattern DAEMON_LOG_PATTERN = Pattern.compile("daemon-(.+)\\.out\\.log");
 
   // Gradle's default timeout is 10s
@@ -196,9 +195,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleProjectProperties(additionalArgs);
     ensureDependenciesDownloaded(gradleVersion);
 
-    BuildResult buildResult =
-        runGradle(
-            gradleVersion, Arrays.asList("compileJava", "--stacktrace"), !verificationEnabled);
+    BuildResult buildResult = runGradle(
+        gradleVersion, Arrays.asList("compileJava", "--stacktrace"), !verificationEnabled);
 
     if (verificationEnabled) {
       assertTrue(buildResult.getOutput().contains("Dependency verification failed"));
@@ -391,12 +389,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private void ensureDependenciesDownloaded(String gradleVersion) {
     try {
       org.gradle.wrapper.Logger logger = new org.gradle.wrapper.Logger(false);
-      Download download =
-          new Download(
-              logger,
-              "Gradle Tooling API",
-              GradleVersion.current().getVersion(),
-              GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
+      Download download = new Download(
+          logger,
+          "Gradle Tooling API",
+          GradleVersion.current().getVersion(),
+          GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
       java.io.File userHomeDir = testKitFolder.toFile();
       java.io.File projectDir = projectFolder.toFile();
@@ -432,15 +429,14 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
     GradleDistribution.propagateMassReadUrl(buildEnv);
 
-    GradleRunner gradleRunner =
-        GradleDistribution.withDistribution(
-                GradleRunner.create()
-                    .withTestKitDir(testKitFolder.toFile())
-                    .withProjectDir(projectFolder.toFile()),
-                gradleVersion)
-            .withArguments(arguments)
-            .withEnvironment(buildEnv)
-            .forwardOutput();
+    GradleRunner gradleRunner = GradleDistribution.withDistribution(
+            GradleRunner.create()
+                .withTestKitDir(testKitFolder.toFile())
+                .withProjectDir(projectFolder.toFile()),
+            gradleVersion)
+        .withArguments(arguments)
+        .withEnvironment(buildEnv)
+        .forwardOutput();
 
     try {
       return successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
@@ -460,10 +456,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       if (JavaVirtualMachine.isJ9()) {
         arguments.add("-Xdump:directory=" + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath());
       } else {
-        arguments.add(
-            "-XX:ErrorFile="
-                + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath()
-                + "/hs_err_pid%p.log");
+        arguments.add("-XX:ErrorFile=" + GRADLE_DAEMON_DIAGNOSTICS_DIR.toAbsolutePath()
+            + "/hs_err_pid%p.log");
       }
     } catch (IOException e) {
       System.err.println("Failed to configure Gradle daemon crash diagnostics: " + e);
@@ -472,9 +466,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private void collectDaemonDiagnostics(String gradleVersion, Exception failure)
       throws IOException {
-    Path failureDir =
-        GRADLE_DAEMON_DIAGNOSTICS_DIR.resolve(
-            gradleVersion + "-" + projectFolder.getFileName().toString());
+    Path failureDir = GRADLE_DAEMON_DIAGNOSTICS_DIR.resolve(
+        gradleVersion + "-" + projectFolder.getFileName().toString());
     Files.createDirectories(failureDir);
 
     List<String> summary = new ArrayList<>();
@@ -523,9 +516,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
       try {
         System.out.println("==============================================================");
-        System.out.println(
-            "Gradle Daemon log:\n"
-                + new String(Files.readAllBytes(daemonLog), StandardCharsets.UTF_8));
+        System.out.println("Gradle Daemon log:\n"
+            + new String(Files.readAllBytes(daemonLog), StandardCharsets.UTF_8));
         System.out.println("==============================================================");
       } catch (IOException e) {
         summary.add("daemonLogReadFailed=" + e);
@@ -593,7 +585,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
     try (Stream<Path> daemonLogs = Files.list(daemonLogDir)) {
       return daemonLogs
-          .filter(path -> DAEMON_LOG_PATTERN.matcher(path.getFileName().toString()).matches())
+          .filter(
+              path -> DAEMON_LOG_PATTERN.matcher(path.getFileName().toString()).matches())
           .max(Comparator.comparingLong(path -> path.toFile().lastModified()))
           .orElse(null);
     }

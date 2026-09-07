@@ -32,26 +32,22 @@ public final class SourceCompiler {
 
     List<String> options = new ArrayList<>(additionalOptions);
     switch (debug) {
-      case ALL:
-        {
-          options.add("-g");
-          break;
-        }
-      case VARIABLES:
-        {
-          options.add("-g:vars");
-          break;
-        }
-      case LINES:
-        {
-          options.add("-g:lines");
-          break;
-        }
-      case NONE:
-        {
-          options.add("-g:none");
-          break;
-        }
+      case ALL: {
+        options.add("-g");
+        break;
+      }
+      case VARIABLES: {
+        options.add("-g:vars");
+        break;
+      }
+      case LINES: {
+        options.add("-g:lines");
+        break;
+      }
+      case NONE: {
+        options.add("-g:none");
+        break;
+      }
     }
     options.add("-target");
     options.add(version);

@@ -85,7 +85,10 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
       StringBuilder buf = new StringBuilder();
       NumberFormat nf = NumberFormat.getInstance(Locale.ROOT);
       for (Map.Entry<String, Double> metric : h.entrySet()) {
-        buf.append(metric.getKey()).append('=').append(nf.format(metric.getValue())).append('\n');
+        buf.append(metric.getKey())
+            .append('=')
+            .append(nf.format(metric.getValue()))
+            .append('\n');
       }
       TracerFlare.addText(zip, "jmxfetch.txt", buf.toString());
     }

@@ -143,13 +143,12 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final ClassLoaderValue<BitSet> hasClassCache =
-      new ClassLoaderValue<BitSet>() {
-        @Override
-        protected BitSet computeValue(ClassLoader cl) {
-          return buildHasClassMask(cl);
-        }
-      };
+  static final ClassLoaderValue<BitSet> hasClassCache = new ClassLoaderValue<BitSet>() {
+    @Override
+    protected BitSet computeValue(ClassLoader cl) {
+      return buildHasClassMask(cl);
+    }
+  };
 
   /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
   static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();

@@ -36,7 +36,8 @@ public final class SessionState {
         @Override
         public int compare(Map.Entry<Thread, TimeInQueue> o1, Map.Entry<Thread, TimeInQueue> o2) {
           // reverse natural order to sort start time by largest first (ie. youngest)
-          return Long.compare(o2.getValue().span.getStartTime(), o1.getValue().span.getStartTime());
+          return Long.compare(
+              o2.getValue().span.getStartTime(), o1.getValue().span.getStartTime());
         }
       };
 

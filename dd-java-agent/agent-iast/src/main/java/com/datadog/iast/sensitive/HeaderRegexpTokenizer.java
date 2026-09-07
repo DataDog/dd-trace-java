@@ -8,7 +8,8 @@ import javax.annotation.Nullable;
 
 public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
 
-  @Nullable private Ranged current;
+  @Nullable
+  private Ranged current;
 
   private boolean checked = false;
 

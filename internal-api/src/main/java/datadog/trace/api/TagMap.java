@@ -1035,7 +1035,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * final only so {@link #clear()} can detach it (to null); it is otherwise fixed at construction
    * and never re-pointed. Package-visible so same-package tests can assert attach/detach directly.
    */
-  @VisibleForTesting TagMap parent;
+  @VisibleForTesting
+  TagMap parent;
 
   /**
    * Parent keys removed locally (read-through tombstones). Lazily allocated on the first such
@@ -1570,10 +1571,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
             thisBuckets[i] = thatEntry;
             // replacing entry, no size change
           } else {
-            thisBuckets[i] =
-                new BucketGroup(
-                    thisHash, thisEntry,
-                    thatHash, thatEntry);
+            thisBuckets[i] = new BucketGroup(
+                thisHash, thisEntry,
+                thatHash, thatEntry);
             this.size += 1;
           }
         } else if (thatBucket instanceof BucketGroup) {
@@ -2373,7 +2373,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         case 3:
           return this.entry3;
 
-          // Do not use default case, that creates a 5% cost on entry handling
+        // Do not use default case, that creates a 5% cost on entry handling
       }
 
       return null;
@@ -2393,7 +2393,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         case 3:
           return this.hash3;
 
-          // Do not use default case, that creates a 5% cost on entry handling
+        // Do not use default case, that creates a 5% cost on entry handling
       }
 
       return 0;
@@ -2465,29 +2465,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         // First phase - tries to replace or insert each entry in the existing bucket chain
         // Only need to search the original groups for replacements
         // The whole chain is eligible for insertions
-        boolean handled0 =
-            (thatCurGroup.hash0 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash0, thatCurGroup.entry0)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash0, thatCurGroup.entry0);
+        boolean handled0 = (thatCurGroup.hash0 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash0, thatCurGroup.entry0) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash0, thatCurGroup.entry0);
 
-        boolean handled1 =
-            (thatCurGroup.hash1 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash1, thatCurGroup.entry1)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash1, thatCurGroup.entry1);
+        boolean handled1 = (thatCurGroup.hash1 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash1, thatCurGroup.entry1) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash1, thatCurGroup.entry1);
 
-        boolean handled2 =
-            (thatCurGroup.hash2 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash2, thatCurGroup.entry2)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash2, thatCurGroup.entry2);
+        boolean handled2 = (thatCurGroup.hash2 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash2, thatCurGroup.entry2) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash2, thatCurGroup.entry2);
 
-        boolean handled3 =
-            (thatCurGroup.hash3 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash3, thatCurGroup.entry3)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash3, thatCurGroup.entry3);
+        boolean handled3 = (thatCurGroup.hash3 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash3, thatCurGroup.entry3) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash3, thatCurGroup.entry3);
 
         // Second phase - takes any entries that weren't handled by phase 1 and puts them
         // into a new BucketGroup.  Since BucketGroups are fixed size, we know that the
@@ -3006,14 +2998,13 @@ final class TagValueConversions {
   }
 
   static boolean isObject(Object value) {
-    boolean isSupportedPrimitive =
-        (value instanceof Integer)
-            || (value instanceof Long)
-            || (value instanceof Double)
-            || (value instanceof Float)
-            || (value instanceof Boolean)
-            || (value instanceof Short)
-            || (value instanceof Byte);
+    boolean isSupportedPrimitive = (value instanceof Integer)
+        || (value instanceof Long)
+        || (value instanceof Double)
+        || (value instanceof Float)
+        || (value instanceof Boolean)
+        || (value instanceof Short)
+        || (value instanceof Byte);
 
     // NOTE: Character is just treated as Object
     return !isSupportedPrimitive;

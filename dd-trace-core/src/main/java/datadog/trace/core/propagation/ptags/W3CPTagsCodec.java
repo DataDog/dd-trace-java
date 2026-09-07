@@ -27,7 +27,9 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
+
+  @VisibleForTesting
+  public static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -104,14 +106,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tagPos >= ddMemberValueEnd) {
         break;
       }
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagPos,
-              ddMemberValueEnd,
-              KEY_VALUE_SEPARATOR,
-              false,
-              W3CPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagPos,
+          ddMemberValueEnd,
+          KEY_VALUE_SEPARATOR,
+          false,
+          W3CPTagsCodec::isAllowedKeyChar);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
         int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
         maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
@@ -119,14 +120,13 @@ public class W3CPTagsCodec extends PTagsCodec {
         continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagValuePos,
-              ddMemberValueEnd,
-              ELEMENT_SEPARATOR,
-              true,
-              W3CPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagValuePos,
+          ddMemberValueEnd,
+          ELEMENT_SEPARATOR,
+          true,
+          W3CPTagsCodec::isAllowedValueChar);
       if (tagValueEndsAt < 0) {
         int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
         maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements

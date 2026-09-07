@@ -58,9 +58,8 @@ public class ConfigHelperTest {
     testAliasMapping.put(NEW_ALIAS_KEY_2, NEW_ALIAS_TARGET);
 
     // Create and set test configuration source
-    testSource =
-        new TestSupportedConfigurationSource(
-            testSupported, testAliases, testAliasMapping, new HashMap<>());
+    testSource = new TestSupportedConfigurationSource(
+        testSupported, testAliases, testAliasMapping, new HashMap<>());
     ConfigHelper.get().setConfigurationSource(testSource);
     strictness = ConfigHelper.get().configInversionStrictFlag();
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
@@ -138,9 +137,8 @@ public class ConfigHelperTest {
     aliasMap.put("EMPTY_ALIAS_CONFIG", new ArrayList<>());
 
     ConfigHelper.get()
-        .setConfigurationSource(
-            new TestSupportedConfigurationSource(
-                new HashSet<>(), aliasMap, new HashMap<>(), new HashMap<>()));
+        .setConfigurationSource(new TestSupportedConfigurationSource(
+            new HashSet<>(), aliasMap, new HashMap<>(), new HashMap<>()));
 
     assertNull(ConfigHelper.env("EMPTY_ALIAS_CONFIG"));
 

@@ -78,12 +78,10 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
         specificationBuilder.build(advice).orElseThrow(RuntimeException::new);
 
     List<Type> helpers = Arrays.asList(result.getHelpers());
-    assertTrue(
-        helpers.containsAll(
-            Arrays.asList(
-                Type.getType(HelpersAdvice.class),
-                Type.getType(HelpersAdvice.SampleHelper1.class),
-                Type.getType(HelpersAdvice.SampleHelper2.class))));
+    assertTrue(helpers.containsAll(Arrays.asList(
+        Type.getType(HelpersAdvice.class),
+        Type.getType(HelpersAdvice.SampleHelper1.class),
+        Type.getType(HelpersAdvice.SampleHelper2.class))));
   }
 
   @CallSite(spi = CallSites.class)

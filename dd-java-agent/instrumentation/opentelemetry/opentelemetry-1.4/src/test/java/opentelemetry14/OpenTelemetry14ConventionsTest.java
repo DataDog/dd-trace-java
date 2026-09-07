@@ -118,20 +118,17 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     List<TagsMatcher> tagMatchers = new ArrayList<>();
     tagMatchers.add(defaultTags());
     tagMatchers.add(tag(SPAN_KIND, is(expectedSpanKindTag)));
-    attributes.forEach(
-        (key, value) -> {
-          if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
-            tagMatchers.add(tag(key, is(value)));
-          }
-        });
+    attributes.forEach((key, value) -> {
+      if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
+        tagMatchers.add(tag(key, is(value)));
+      }
+    });
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName(expectedOperationName)
-                .resourceName("some-name")
-                .tags(tagMatchers.toArray(new TagsMatcher[0]))));
+    assertTraces(trace(span()
+        .root()
+        .operationName(expectedOperationName)
+        .resourceName("some-name")
+        .tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Stream<Arguments> testSpanSpecificTagsArguments() {
@@ -180,18 +177,16 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     }
     result.end();
 
-    assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("my-operation")
-                .resourceName("/my-resource")
-                .serviceName("my-service")
-                .type("http")
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(DD_SVC_SRC, isManuallySet()))));
+    assertTraces(trace(span()
+        .root()
+        .operationName("my-operation")
+        .resourceName("/my-resource")
+        .serviceName("my-service")
+        .type("http")
+        .tags(
+            defaultTags(),
+            tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+            tag(DD_SVC_SRC, isManuallySet()))));
   }
 
   static Stream<Arguments> testSpanAnalyticsEventSpecificTagArguments() {
@@ -248,9 +243,8 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     if (value != null) {
       tagMatchers.add(tag(ANALYTICS_SAMPLE_RATE, is(expectedMetric)));
     }
-    assertTraces(
-        trace(
-            span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
+    assertTraces(trace(
+        span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Stream<Arguments> testSpanHttpResponseStatusCodeSpecificTagArguments() {
@@ -307,9 +301,8 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
       tagMatchers.add(tag(HTTP_STATUS, is(expectedStatus)));
     }
 
-    assertTraces(
-        trace(
-            span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
+    assertTraces(trace(
+        span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Map<String, String> attributes(String... keyValues) {

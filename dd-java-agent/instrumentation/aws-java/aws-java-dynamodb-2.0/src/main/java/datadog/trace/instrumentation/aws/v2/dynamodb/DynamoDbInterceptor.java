@@ -21,9 +21,9 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 public class DynamoDbInterceptor implements ExecutionInterceptor {
   private static final Logger log = LoggerFactory.getLogger(DynamoDbInterceptor.class);
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
 

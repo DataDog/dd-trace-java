@@ -40,30 +40,29 @@ class SnapshotPrunerTest {
 
   @Test
   public void priorityPruning() {
-    final String INPUT =
-        "{\n"
-            + "  \"elements\":[\n"
-            + "    {\n"
-            + "      \"type\": \"list\",\n"
-            + "      \"notCapturedReason\": \"collectionSize\"\n"
-            + "    },\n"
-            + "    {\n"
-            + "      \"type\": \"complex\",\n"
-            + "      \"notCapturedReason\": \"depth\"\n"
-            + "    },\n"
-            + "    {\n"
-            + "      \"type\": \"deep\",\n"
-            + "      \"subobject\": {\n"
-            + "        \"type\": \"complex\",\n"
-            + "        \"value\": \"subobject\"\n"
-            + "      }\n"
-            + "    }\n"
-            + "    {\n"
-            + "      \"type\": \"complex\",\n"
-            + "      \"value\": \"sfsfsdfklsdfslkfjsdfkjsdklfjsdflksdjfsdlfjsdklfsjdfklsjfksfjslkdfjskdlf\"\n"
-            + "    }\n"
-            + "  ]\n"
-            + "}";
+    final String INPUT = "{\n"
+        + "  \"elements\":[\n"
+        + "    {\n"
+        + "      \"type\": \"list\",\n"
+        + "      \"notCapturedReason\": \"collectionSize\"\n"
+        + "    },\n"
+        + "    {\n"
+        + "      \"type\": \"complex\",\n"
+        + "      \"notCapturedReason\": \"depth\"\n"
+        + "    },\n"
+        + "    {\n"
+        + "      \"type\": \"deep\",\n"
+        + "      \"subobject\": {\n"
+        + "        \"type\": \"complex\",\n"
+        + "        \"value\": \"subobject\"\n"
+        + "      }\n"
+        + "    }\n"
+        + "    {\n"
+        + "      \"type\": \"complex\",\n"
+        + "      \"value\": \"sfsfsdfklsdfslkfjsdfkjsdklfjsdflksdjfsdlfjsdklfsjdfklsjfksfjslkdfjskdlf\"\n"
+        + "    }\n"
+        + "  ]\n"
+        + "}";
     assertEquals(
         "{\n"
             + "  \"elements\":[\n"
@@ -129,17 +128,16 @@ class SnapshotPrunerTest {
 
   @Test
   public void sizeReduction() {
-    final String INPUT =
-        "{\n"
-            + "                \"keep\": {\"type\": \"list\", \"size\":2, \"elements\": [\n"
-            + "                    {\"type\": \"str\", \"value\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\n"
-            + "                    {\"type\": \"str\", \"value\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n"
-            + "                ]},\n"
-            + "                \"prune\": {\"type\": \"list\", \"size\":2, \"elements\": [\n"
-            + "                    {\"type\": \"Custom\", \"notCapturedReason\": \"depth\"},\n"
-            + "                    {\"type\": \"Custom\", \"notCapturedReason\": \"depth\"}\n"
-            + "                ]}\n"
-            + "            }";
+    final String INPUT = "{\n"
+        + "                \"keep\": {\"type\": \"list\", \"size\":2, \"elements\": [\n"
+        + "                    {\"type\": \"str\", \"value\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\n"
+        + "                    {\"type\": \"str\", \"value\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n"
+        + "                ]},\n"
+        + "                \"prune\": {\"type\": \"list\", \"size\":2, \"elements\": [\n"
+        + "                    {\"type\": \"Custom\", \"notCapturedReason\": \"depth\"},\n"
+        + "                    {\"type\": \"Custom\", \"notCapturedReason\": \"depth\"}\n"
+        + "                ]}\n"
+        + "            }";
     assertEquals(
         "{\n"
             + "                \"keep\": {\"type\": \"list\", \"size\":2, \"elements\": [\n"
@@ -203,30 +201,31 @@ class SnapshotPrunerTest {
   @Test
   public void sliceSmallSnapshot() throws Exception {
     final int MIN_LEVEL = 6;
-    String inputSmallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot.json").trim();
+    String inputSmallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot.json")
+        .trim();
     assertEquals(
         inputSmallSnapshot,
         SnapshotPruner.prune(inputSmallSnapshot, inputSmallSnapshot.length(), MIN_LEVEL));
-    String smallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot_pruned0.json")
-            .trim();
+    String smallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot_pruned0.json")
+        .trim();
     assertEquals(smallSnapshot, SnapshotPruner.prune(inputSmallSnapshot, 1500, MIN_LEVEL));
-    smallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot_pruned1.json")
-            .trim();
+    smallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot_pruned1.json")
+        .trim();
     assertEquals(smallSnapshot, SnapshotPruner.prune(inputSmallSnapshot, 1250, MIN_LEVEL));
-    smallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot_pruned2.json")
-            .trim();
+    smallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot_pruned2.json")
+        .trim();
     assertEquals(smallSnapshot, SnapshotPruner.prune(inputSmallSnapshot, 1100, MIN_LEVEL));
-    smallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot_pruned3.json")
-            .trim();
+    smallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot_pruned3.json")
+        .trim();
     assertEquals(smallSnapshot, SnapshotPruner.prune(inputSmallSnapshot, 1000, MIN_LEVEL));
-    smallSnapshot =
-        utils.TestHelper.getFixtureContent("/com/datadog/debugger/util/smallSnapshot_pruned4.json")
-            .trim();
+    smallSnapshot = utils.TestHelper.getFixtureContent(
+            "/com/datadog/debugger/util/smallSnapshot_pruned4.json")
+        .trim();
     assertEquals(smallSnapshot, SnapshotPruner.prune(inputSmallSnapshot, 500, MIN_LEVEL));
   }
 }

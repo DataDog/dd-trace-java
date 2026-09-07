@@ -115,11 +115,10 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         parent = servletSpan.spanContext();
       }
 
-      final AgentSpan span =
-          startSpan(
-              JAVA_WEB_SERVLET_DISPATCHER.toString(),
-              SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
-              parent);
+      final AgentSpan span = startSpan(
+          JAVA_WEB_SERVLET_DISPATCHER.toString(),
+          SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
+          parent);
       DECORATE.afterStart(span);
       span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
       span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));

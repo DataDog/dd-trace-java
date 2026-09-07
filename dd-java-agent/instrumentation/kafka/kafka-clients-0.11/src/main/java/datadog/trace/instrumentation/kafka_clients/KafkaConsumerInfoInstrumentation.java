@@ -159,9 +159,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
 
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
+        MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+            .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
@@ -212,9 +211,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
 
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
+        MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+            .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
@@ -238,8 +236,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
       // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+              KafkaConsumer.class, KafkaConsumerInfo.class)
+          .get(consumer);
       if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
         Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
         if (consumerMetadata != null) {
@@ -267,8 +266,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.Thrown Throwable throwable) {
       int recordsCount = 0;
       if (records != null) {
-        KafkaConsumerInfo kafkaConsumerInfo =
-            InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+        KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                KafkaConsumer.class, KafkaConsumerInfo.class)
+            .get(consumer);
         if (kafkaConsumerInfo != null) {
           InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
               .put(records, kafkaConsumerInfo);

@@ -19,7 +19,8 @@ public class RandomUtilsTest {
   @Test
   public void testSecureRandomUUIDMatchesSpec() {
     for (int i = 0; i < 8; i++) {
-      assertTrue(VERSION_4_UUID.matcher(RandomUtils.secureRandomUUID().toString()).matches());
+      assertTrue(
+          VERSION_4_UUID.matcher(RandomUtils.secureRandomUUID().toString()).matches());
     }
   }
 }

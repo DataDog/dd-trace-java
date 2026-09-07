@@ -28,13 +28,12 @@ public class WeakMaps {
   private WeakMaps() {}
 
   public static void registerAsSupplier() {
-    WeakMap.Supplier.registerIfAbsent(
-        new WeakMap.Supplier() {
-          @Override
-          protected <K, V> WeakMap<K, V> get() {
-            return WeakMaps.newWeakMap();
-          }
-        });
+    WeakMap.Supplier.registerIfAbsent(new WeakMap.Supplier() {
+      @Override
+      protected <K, V> WeakMap<K, V> get() {
+        return WeakMaps.newWeakMap();
+      }
+    });
   }
 
   // Important to use explicit class to avoid implicit hard references to target

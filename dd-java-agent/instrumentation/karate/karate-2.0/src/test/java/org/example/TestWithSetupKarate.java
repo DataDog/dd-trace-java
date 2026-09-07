@@ -10,7 +10,8 @@ public class TestWithSetupKarate {
 
   @Test
   public void test() {
-    Results results = Runner.path("classpath:org/example/test_with_setup.feature").parallel(1);
+    Results results =
+        Runner.path("classpath:org/example/test_with_setup.feature").parallel(1);
     assertEquals(0, results.getFailCount(), results.getErrorMessages());
   }
 }

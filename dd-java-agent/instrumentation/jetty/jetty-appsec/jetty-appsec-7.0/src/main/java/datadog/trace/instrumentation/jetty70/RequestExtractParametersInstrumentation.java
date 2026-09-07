@@ -30,10 +30,10 @@ public class RequestExtractParametersInstrumentation extends InstrumenterModule.
         getClass().getName() + "$ExtractParametersAdvice");
   }
 
-  static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
-          .build();
+  static final Reference REQUEST_REFERENCE = new Reference.Builder(
+          "org.eclipse.jetty.server.Request")
+      .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

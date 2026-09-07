@@ -30,9 +30,8 @@ public class CursorReadAdvice {
     final AgentSpan parentSpan = activeSpan();
     final ContextContinuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
-    final AgentSpan clientSpan =
-        DECORATE.startAndDecorateSpanForStatement(
-            ps, InstrumentationContext.get(PreparedStatement.class, Pair.class), true);
+    final AgentSpan clientSpan = DECORATE.startAndDecorateSpanForStatement(
+        ps, InstrumentationContext.get(PreparedStatement.class, Pair.class), true);
     if (null == clientSpan) {
       return null;
     }

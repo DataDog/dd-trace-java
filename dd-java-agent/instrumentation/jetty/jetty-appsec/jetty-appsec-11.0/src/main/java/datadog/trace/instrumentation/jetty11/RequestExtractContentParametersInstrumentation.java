@@ -61,9 +61,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(
             named("_contentParameters").and(fieldType(named("org.eclipse.jetty.util.MultiMap"))))
-        .and(
-            declaresField(
-                named("_dispatcherType").and(fieldType(named("jakarta.servlet.DispatcherType")))));
+        .and(declaresField(
+            named("_dispatcherType").and(fieldType(named("jakarta.servlet.DispatcherType")))));
   }
 
   @Override

@@ -58,13 +58,12 @@ public class IntakeApi implements BackendApi {
       boolean requestCompression)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
-    Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            .post(requestBody)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
-            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+    Request.Builder requestBuilder = new Request.Builder()
+        .url(url)
+        .post(requestBody)
+        .addHeader(DD_API_KEY_HEADER, apiKey)
+        .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+        .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
@@ -94,15 +93,14 @@ public class IntakeApi implements BackendApi {
 
         return responseParser.apply(responseBodyStream);
       } else {
-        throw new IOException(
-            "Request to "
-                + uri
-                + " returned error response "
-                + response.code()
-                + ": "
-                + response.message()
-                + "; "
-                + (response.body() != null ? response.body().string() : ""));
+        throw new IOException("Request to "
+            + uri
+            + " returned error response "
+            + response.code()
+            + ": "
+            + response.message()
+            + "; "
+            + (response.body() != null ? response.body().string() : ""));
       }
     }
   }

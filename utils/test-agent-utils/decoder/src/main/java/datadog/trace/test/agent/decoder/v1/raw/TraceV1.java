@@ -110,22 +110,21 @@ public class TraceV1 implements DecodedTrace {
           && !metrics.containsKey("_sampling_priority_v1")) {
         metrics.put("_sampling_priority_v1", samplingPriority);
       }
-      updated[i] =
-          new SpanV1(
-              span.getService(),
-              span.getName(),
-              span.getResource(),
-              traceId == 0 ? span.getTraceId() : traceId,
-              span.getSpanId(),
-              span.getParentId(),
-              span.getStart(),
-              span.getDuration(),
-              span.getError(),
-              span.getType(),
-              metrics,
-              span.getMeta(),
-              span.getMetaStruct(),
-              span.getLinks());
+      updated[i] = new SpanV1(
+          span.getService(),
+          span.getName(),
+          span.getResource(),
+          traceId == 0 ? span.getTraceId() : traceId,
+          span.getSpanId(),
+          span.getParentId(),
+          span.getStart(),
+          span.getDuration(),
+          span.getError(),
+          span.getType(),
+          metrics,
+          span.getMeta(),
+          span.getMetaStruct(),
+          span.getLinks());
     }
     return updated;
   }

@@ -91,14 +91,13 @@ class OpenTracingAPITest extends DDJavaSpecification {
 
   @Test
   void spanWithBuilder() throws Exception {
-    Span testSpan =
-        tracer
-            .buildSpan("someOperation")
-            .withTag(Tags.COMPONENT, "opentracing")
-            .withTag("someBoolean", true)
-            .withTag("someNumber", 1)
-            .withTag(DDTags.SERVICE_NAME, "someService")
-            .start();
+    Span testSpan = tracer
+        .buildSpan("someOperation")
+        .withTag(Tags.COMPONENT, "opentracing")
+        .withTag("someBoolean", true)
+        .withTag("someNumber", 1)
+        .withTag(DDTags.SERVICE_NAME, "someService")
+        .start();
 
     Scope scope = null;
     try {
@@ -222,11 +221,10 @@ class OpenTracingAPITest extends DDJavaSpecification {
   void spanWithAsyncPropagation() throws Exception {
     AgentTracer.TracerAPI internalTracer = tracer.getInternalTracer();
 
-    Scope scope =
-        tracer
-            .buildSpan("someOperation")
-            .withTag(DDTags.SERVICE_NAME, "someService")
-            .startActive(true);
+    Scope scope = tracer
+        .buildSpan("someOperation")
+        .withTag(DDTags.SERVICE_NAME, "someService")
+        .startActive(true);
     internalTracer.setAsyncPropagationEnabled(false);
 
     assertTrue(scope instanceof TraceScope);
@@ -257,21 +255,19 @@ class OpenTracingAPITest extends DDJavaSpecification {
   void spanInheritsAsyncPropagation() throws Exception {
     AgentTracer.TracerAPI internalTracer = tracer.getInternalTracer();
 
-    Scope outer =
-        tracer
-            .buildSpan("someOperation")
-            .withTag(DDTags.SERVICE_NAME, "someService")
-            .startActive(true);
+    Scope outer = tracer
+        .buildSpan("someOperation")
+        .withTag(DDTags.SERVICE_NAME, "someService")
+        .startActive(true);
     internalTracer.setAsyncPropagationEnabled(false);
 
     assertTrue(!internalTracer.isAsyncPropagationEnabled());
 
     internalTracer.setAsyncPropagationEnabled(true);
-    Scope inner =
-        tracer
-            .buildSpan("otherOperation")
-            .withTag(DDTags.SERVICE_NAME, "otherService")
-            .startActive(true);
+    Scope inner = tracer
+        .buildSpan("otherOperation")
+        .withTag(DDTags.SERVICE_NAME, "otherService")
+        .startActive(true);
 
     assertTrue(internalTracer.isAsyncPropagationEnabled());
 
@@ -296,7 +292,8 @@ class OpenTracingAPITest extends DDJavaSpecification {
 
   @Test
   void spanContextIdsEqualTracerIds() throws Exception {
-    Span testSpan = tracer.buildSpan("someOperation").withServiceName("someService").start();
+    Span testSpan =
+        tracer.buildSpan("someOperation").withServiceName("someService").start();
     Scope scope = tracer.activateSpan(testSpan);
 
     verify(scopeListener).afterScopeActivated();
@@ -413,12 +410,11 @@ class OpenTracingAPITest extends DDJavaSpecification {
     tracer.inject(testSpan.context(), Format.Builtin.HTTP_HEADERS, textMap);
 
     SpanContext extractedContext = tracer.extract(Format.Builtin.HTTP_HEADERS, textMap);
-    Span serverSpan =
-        tracer
-            .buildSpan("serverOperation")
-            .withServiceName("someService")
-            .asChildOf(extractedContext)
-            .start();
+    Span serverSpan = tracer
+        .buildSpan("serverOperation")
+        .withServiceName("someService")
+        .asChildOf(extractedContext)
+        .start();
     tracer.activateSpan(serverSpan).close();
     serverSpan.finish();
 
@@ -460,7 +456,8 @@ class OpenTracingAPITest extends DDJavaSpecification {
     }
 
     // make sure scope stack has been left in a valid state
-    Span testSpan = tracer.buildSpan("someOperation").withServiceName("someService").start();
+    Span testSpan =
+        tracer.buildSpan("someOperation").withServiceName("someService").start();
     Scope testScope = tracer.scopeManager().activate(testSpan);
     testSpan.finish();
     testScope.close();

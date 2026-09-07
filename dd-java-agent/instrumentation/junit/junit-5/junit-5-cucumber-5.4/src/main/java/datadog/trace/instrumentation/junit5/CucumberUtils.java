@@ -31,12 +31,11 @@ public abstract class CucumberUtils {
   }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {
-    try (InputStream cucumberPropsStream =
-        cucumberEngine
-            .getClass()
-            .getClassLoader()
-            .getResourceAsStream(
-                "META-INF/maven/io.cucumber/cucumber-junit-platform-engine/pom.properties")) {
+    try (InputStream cucumberPropsStream = cucumberEngine
+        .getClass()
+        .getClassLoader()
+        .getResourceAsStream(
+            "META-INF/maven/io.cucumber/cucumber-junit-platform-engine/pom.properties")) {
       Properties cucumberProps = new Properties();
       cucumberProps.load(cucumberPropsStream);
       String version = cucumberProps.getProperty("version");

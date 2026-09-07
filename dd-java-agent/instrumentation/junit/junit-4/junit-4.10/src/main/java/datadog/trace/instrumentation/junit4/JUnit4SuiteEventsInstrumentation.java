@@ -51,11 +51,10 @@ public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisib
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run")
-            .and(
-                takesArgument(
-                    0,
-                    named("org.junit.runner.notification.RunNotifier")
-                        .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
+            .and(takesArgument(
+                0,
+                named("org.junit.runner.notification.RunNotifier")
+                    .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
         JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 

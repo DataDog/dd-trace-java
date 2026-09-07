@@ -24,11 +24,11 @@ public class WrapContinuableResultAdvice {
     }
 
     ServletWebRequest servletWebRequest = (ServletWebRequest) nativeWebRequest;
-    final String handlerSpanKey = DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
+    final String handlerSpanKey =
+        DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
 
-    if (Boolean.TRUE.equals(
-        servletWebRequest.getAttribute(
-            handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
+    if (Boolean.TRUE.equals(servletWebRequest.getAttribute(
+        handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
       return;
     }
     Object span = servletWebRequest.getAttribute(handlerSpanKey, ServletWebRequest.SCOPE_REQUEST);
@@ -37,8 +37,7 @@ public class WrapContinuableResultAdvice {
     }
     servletWebRequest.setAttribute(
         handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, true, ServletWebRequest.SCOPE_REQUEST);
-    result =
-        ((CompletionStage<?>) result)
-            .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
+    result = ((CompletionStage<?>) result)
+        .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
   }
 }

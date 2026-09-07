@@ -41,10 +41,8 @@ public class CiVisibilityGradleListener extends BuildAdapter
   private static final String TRACER_VERSION;
 
   static {
-    try (BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
+    try (BufferedReader reader = new BufferedReader(
+        new InputStreamReader(ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
       TRACER_VERSION = reader.lines().collect(Collectors.joining());
     } catch (IOException e) {
       throw new RuntimeException("Could not read tracer version from dd-java-agent.version", e);
@@ -84,9 +82,8 @@ public class CiVisibilityGradleListener extends BuildAdapter
     this.gradle = gradle;
 
     BuildServiceRegistry sharedServices = gradle.getSharedServices();
-    Provider<CiVisibilityService> ciVisibilityServiceProvider =
-        sharedServices.registerIfAbsent(
-            "ciVisibilityService", CiVisibilityService.class, spec -> {});
+    Provider<CiVisibilityService> ciVisibilityServiceProvider = sharedServices.registerIfAbsent(
+        "ciVisibilityService", CiVisibilityService.class, spec -> {});
     // registration is needed to keep the service alive until the end of the build
     buildEventsListenerRegistry.onTaskCompletion(ciVisibilityServiceProvider);
     ciVisibilityService = ciVisibilityServiceProvider.get();
@@ -187,9 +184,8 @@ public class CiVisibilityGradleListener extends BuildAdapter
     // Android Gradle Plugins. The Android KMP library plugin (AGP 8.8+) is a separate entry point
     // that does NOT apply com.android.base, so it must be checked explicitly.
     PluginManager pluginManager = project.getPluginManager();
-    boolean isAndroid =
-        pluginManager.hasPlugin("com.android.base")
-            || pluginManager.hasPlugin("com.android.kotlin.multiplatform.library");
+    boolean isAndroid = pluginManager.hasPlugin("com.android.base")
+        || pluginManager.hasPlugin("com.android.kotlin.multiplatform.library");
 
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =

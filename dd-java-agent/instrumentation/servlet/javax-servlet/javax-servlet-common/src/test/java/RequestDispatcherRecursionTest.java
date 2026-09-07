@@ -68,16 +68,13 @@ class RequestDispatcherRecursionTest extends AbstractInstrumentationTest {
   /** Creates a proxy stub for {@code iface} where all methods return null / 0 / false. */
   @SuppressWarnings("unchecked")
   static <T> T nullStub(Class<T> iface) {
-    return (T)
-        Proxy.newProxyInstance(
-            iface.getClassLoader(),
-            new Class<?>[] {iface},
-            (proxy, method, args) -> {
-              Class<?> ret = method.getReturnType();
-              if (ret == boolean.class) return false;
-              if (ret == int.class || ret == long.class) return 0;
-              return null;
-            });
+    return (T) Proxy.newProxyInstance(
+        iface.getClassLoader(), new Class<?>[] {iface}, (proxy, method, args) -> {
+          Class<?> ret = method.getReturnType();
+          if (ret == boolean.class) return false;
+          if (ret == int.class || ret == long.class) return 0;
+          return null;
+        });
   }
 
   @Test
@@ -110,12 +107,10 @@ class RequestDispatcherRecursionTest extends AbstractInstrumentationTest {
         };
 
     // runUnderTrace provides an active span; without one the advice exits before injectContext().
-    runUnderTrace(
-        "test",
-        () -> {
-          dispatcher.forward(recursiveRequest, response);
-          return null;
-        });
+    runUnderTrace("test", () -> {
+      dispatcher.forward(recursiveRequest, response);
+      return null;
+    });
 
     assertTrue(
         maxDepth.get() >= 1,
@@ -172,12 +167,10 @@ class RequestDispatcherRecursionTest extends AbstractInstrumentationTest {
         };
 
     try {
-      runUnderTrace(
-          "test",
-          () -> {
-            dispatcher.forward(recursiveRequest, response);
-            return null;
-          });
+      runUnderTrace("test", () -> {
+        dispatcher.forward(recursiveRequest, response);
+        return null;
+      });
     } catch (StackOverflowError ignored) {
       // SOE may reach this level if it is not fully absorbed at inner levels.
     }

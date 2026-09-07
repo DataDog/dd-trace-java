@@ -48,23 +48,20 @@ public class ELIntegrationSanityTest {
     Limits initialLimits = new Limits(2, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     // create new captured context
     CapturedContext capturedContext = new CapturedContext();
-    CapturedContext.CapturedValue thisValue =
-        CapturedContext.CapturedValue.of(
-            "this",
-            Person.class.getName(),
-            p,
-            initialLimits.maxReferenceDepth,
-            initialLimits.maxCollectionSize,
-            initialLimits.maxLength,
-            initialLimits.maxFieldCount);
+    CapturedContext.CapturedValue thisValue = CapturedContext.CapturedValue.of(
+        "this",
+        Person.class.getName(),
+        p,
+        initialLimits.maxReferenceDepth,
+        initialLimits.maxCollectionSize,
+        initialLimits.maxLength,
+        initialLimits.maxFieldCount);
     capturedContext.addArguments(new CapturedContext.CapturedValue[] {thisValue});
 
     // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
-    Value<?> val =
-        DSL.getMember(DSL.ref("name"), "value")
-            .evaluate(
-                new EvalContext(
-                    capturedContext, TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))));
+    Value<?> val = DSL.getMember(DSL.ref("name"), "value")
+        .evaluate(new EvalContext(
+            capturedContext, TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))));
     // make sure the nested field was properly resolved
     assertEquals(p.name.value, val.getValue());
 

@@ -74,13 +74,12 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
       if (cookie != null) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(
-              Cookie.named(cookie.getName())
-                  .value(cookie.getValue())
-                  .secure(cookie.getSecure())
-                  .httpOnly(cookie.isHttpOnly())
-                  .maxAge(cookie.getMaxAge())
-                  .build());
+          mod.onCookie(Cookie.named(cookie.getName())
+              .value(cookie.getValue())
+              .secure(cookie.getSecure())
+              .httpOnly(cookie.isHttpOnly())
+              .maxAge(cookie.getMaxAge())
+              .build());
         }
       }
     }

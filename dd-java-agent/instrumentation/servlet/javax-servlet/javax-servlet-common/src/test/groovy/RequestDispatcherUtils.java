@@ -178,14 +178,12 @@ public class RequestDispatcherUtils {
     @Override
     public void forward(final ServletRequest servletRequest, final ServletResponse servletResponse)
         throws ServletException {
-      runUnderTrace(
-          "forward-child",
-          new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-              return null;
-            }
-          });
+      runUnderTrace("forward-child", new Callable<Object>() {
+        @Override
+        public Object call() throws Exception {
+          return null;
+        }
+      });
       if (toThrow != null) {
         throw toThrow;
       }
@@ -194,14 +192,12 @@ public class RequestDispatcherUtils {
     @Override
     public void include(final ServletRequest servletRequest, final ServletResponse servletResponse)
         throws ServletException {
-      runUnderTrace(
-          "include-child",
-          new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-              return null;
-            }
-          });
+      runUnderTrace("include-child", new Callable<Object>() {
+        @Override
+        public Object call() throws Exception {
+          return null;
+        }
+      });
       if (toThrow != null) {
         throw toThrow;
       }

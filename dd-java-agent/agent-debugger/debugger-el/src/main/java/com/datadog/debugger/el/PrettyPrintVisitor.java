@@ -124,9 +124,7 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(IfExpression ifExpression) {
-    return "if "
-        + nullSafeAccept(ifExpression.getTest())
-        + " then "
+    return "if " + nullSafeAccept(ifExpression.getTest()) + " then "
         + nullSafeAccept(ifExpression.getExpression());
   }
 
@@ -178,17 +176,14 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(GetMemberExpression getMemberExpression) {
-    return nullSafeAccept(getMemberExpression.getTarget())
-        + "."
+    return nullSafeAccept(getMemberExpression.getTarget()) + "."
         + getMemberExpression.getMemberName();
   }
 
   @Override
   public String visit(IndexExpression indexExpression) {
-    return nullSafeAccept(indexExpression.getTarget())
-        + "["
-        + nullSafeAccept(indexExpression.getKey())
-        + "]";
+    return nullSafeAccept(indexExpression.getTarget()) + "["
+        + nullSafeAccept(indexExpression.getKey()) + "]";
   }
 
   @Override

@@ -37,11 +37,8 @@ public class ArmeriaJettyInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("serve"))
-            .and(
-                returns(named("com.linecorp.armeria.common.HttpResponse"))
-                    .and(
-                        takesArgument(
-                            0, named("com.linecorp.armeria.server.ServiceRequestContext")))),
+            .and(returns(named("com.linecorp.armeria.common.HttpResponse"))
+                .and(takesArgument(0, named("com.linecorp.armeria.server.ServiceRequestContext")))),
         getClass().getName() + "$JettySpanCloserAdvice");
   }
 

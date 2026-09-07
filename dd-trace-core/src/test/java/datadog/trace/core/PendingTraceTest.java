@@ -106,15 +106,8 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer, DDTraceId.from(0), buffer, mock(TimeSource.class), null, false, healthMetrics);
 
     DDSpan span = createSimpleSpan(trace);
     trace.registerSpan(span);
@@ -137,15 +130,8 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer, DDTraceId.from(0), buffer, mock(TimeSource.class), null, false, healthMetrics);
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -180,15 +166,8 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer, DDTraceId.from(0), buffer, mock(TimeSource.class), null, false, healthMetrics);
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -214,8 +193,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     assertTrue(
         traceToWrite.containsAll(Arrays.asList(span1, span2, unfinishedSpan, unfinishedSpan2)));
     assertEquals(2, trace.getSpans().size());
-    assertTrue(
-        new ArrayList<>(trace.getSpans())
-            .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2)));
+    assertTrue(new ArrayList<>(trace.getSpans())
+        .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2)));
   }
 }

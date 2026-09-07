@@ -70,9 +70,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
         isMethod()
             .and(isProtected())
             .and(named("handleMatch"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.web.servlet.mvc.method.RequestMappingInfo")))
+            .and(takesArgument(
+                0, named("org.springframework.web.servlet.mvc.method.RequestMappingInfo")))
             .and(takesArgument(1, String.class))
             .and(takesArgument(2, named("javax.servlet.http.HttpServletRequest")))
             .and(takesArguments(3)),
@@ -169,9 +168,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 if (brf != null) {
                   brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
                 }
-                t =
-                    new BlockingException(
-                        "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+                t = new BlockingException(
+                    "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
               }
             }
           }

@@ -44,14 +44,13 @@ public class ServletHelper {
   }
 
   public static Object getServletRequestAttribute(final Object servletRequest, final String name) {
-    final MethodHandle mh =
-        JAVAX_SERVLET_REQUEST_CLASS != null
-                && JAVAX_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
-            ? JAVAX_ATTRIBUTE_ACCESSOR
-            : JAKARTA_SERVLET_REQUEST_CLASS != null
-                    && JAKARTA_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
-                ? JAKARTA_ATTRIBUTE_ACCESSOR
-                : null;
+    final MethodHandle mh = JAVAX_SERVLET_REQUEST_CLASS != null
+            && JAVAX_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
+        ? JAVAX_ATTRIBUTE_ACCESSOR
+        : JAKARTA_SERVLET_REQUEST_CLASS != null
+                && JAKARTA_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
+            ? JAKARTA_ATTRIBUTE_ACCESSOR
+            : null;
     if (mh != null) {
       try {
         return mh.invoke(servletRequest, name);

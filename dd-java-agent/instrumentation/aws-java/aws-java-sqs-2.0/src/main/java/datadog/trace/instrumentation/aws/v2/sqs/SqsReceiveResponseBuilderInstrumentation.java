@@ -27,10 +27,8 @@ public final class SqsReceiveResponseBuilderInstrumentation
         isMethod()
             .and(named("toBuilder"))
             .and(takesNoArguments())
-            .and(
-                returns(
-                    named(
-                        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse$Builder"))),
+            .and(returns(
+                named("software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse$Builder"))),
         getClass().getName() + "$ToBuilderAdvice");
   }
 

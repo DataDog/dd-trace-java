@@ -32,9 +32,8 @@ public class SpringAsyncInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("invoke")
-                    .and(takesArgument(0, named("org.aopalliance.intercept.MethodInvocation")))),
+            .and(named("invoke")
+                .and(takesArgument(0, named("org.aopalliance.intercept.MethodInvocation")))),
         packageName + ".SpringAsyncAdvice");
   }
 }

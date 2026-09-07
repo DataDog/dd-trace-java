@@ -36,10 +36,9 @@ public class RedactionRulesExtractor {
 
     String json = new String(Files.readAllBytes(jsonFile.toPath()));
 
-    JsonAdapter<Map<String, Object>> adapter =
-        new Moshi.Builder()
-            .build()
-            .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+    JsonAdapter<Map<String, Object>> adapter = new Moshi.Builder()
+        .build()
+        .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
     Map<String, Object> map = adapter.fromJson(json);
 
@@ -83,9 +82,8 @@ public class RedactionRulesExtractor {
             responseSensitivePaths);
       }
 
-      List<Map<String, Object>> errors =
-          (List<Map<String, Object>>)
-              operationObject.getOrDefault("errors", Collections.emptyList());
+      List<Map<String, Object>> errors = (List<Map<String, Object>>)
+          operationObject.getOrDefault("errors", Collections.emptyList());
       for (Map<String, Object> error : errors) {
         String errorShape = (String) error.get("shape");
         collectSensitivePaths(

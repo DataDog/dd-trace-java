@@ -145,12 +145,11 @@ class FlagEvalMetricsTest {
   }
 
   private static void assertAttribute(Attributes attrs, String key, String expected) {
-    String value =
-        attrs.asMap().entrySet().stream()
-            .filter(e -> e.getKey().getKey().equals(key))
-            .map(e -> e.getValue().toString())
-            .findFirst()
-            .orElse(null);
+    String value = attrs.asMap().entrySet().stream()
+        .filter(e -> e.getKey().getKey().equals(key))
+        .map(e -> e.getValue().toString())
+        .findFirst()
+        .orElse(null);
     if (!expected.equals(value)) {
       throw new AssertionError("Expected attribute " + key + "=" + expected + " but got " + value);
     }

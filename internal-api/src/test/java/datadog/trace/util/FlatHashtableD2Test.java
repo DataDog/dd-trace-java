@@ -166,14 +166,10 @@ class FlatHashtableD2Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(8);
     int[] createCount = {0};
-    PairEntry created =
-        table.getOrCreate(
-            "foo",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 42);
-            });
+    PairEntry created = table.getOrCreate("foo", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 42);
+    });
     assertNotNull(created);
     assertEquals("foo", created.key1());
     assertEquals(1, created.key2());
@@ -189,14 +185,10 @@ class FlatHashtableD2Test {
     PairEntry seeded = new PairEntry("foo", 1, 1);
     table.insert(seeded);
     int[] createCount = {0};
-    PairEntry got =
-        table.getOrCreate(
-            "foo",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 999);
-            });
+    PairEntry got = table.getOrCreate("foo", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);

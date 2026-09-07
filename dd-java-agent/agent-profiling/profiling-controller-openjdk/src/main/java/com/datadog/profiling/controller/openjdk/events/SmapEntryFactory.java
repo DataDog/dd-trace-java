@@ -48,9 +48,9 @@ public class SmapEntryFactory {
         ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
-        boolean annotatedMapsAvailable =
-            Arrays.stream(mbs.getMBeanInfo(objectName).getOperations())
-                .anyMatch(x -> x.getName().equals("systemMap"));
+        boolean annotatedMapsAvailable = Arrays.stream(
+                mbs.getMBeanInfo(objectName).getOperations())
+            .anyMatch(x -> x.getName().equals("systemMap"));
         if (annotatedMapsAvailable) {
           // Let's register the periodic SmapEntry event.
           // The AggregatedSmapEntry event will be generated from the common logic, based on the

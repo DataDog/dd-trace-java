@@ -36,41 +36,34 @@ public class MainVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router
         .route("/routes")
-        .handler(
-            ctx ->
-                ctx.response()
-                    .setStatusCode(200)
-                    .putHeader("content-type", "text/plain")
-                    .end(randomFactorial().toString()));
+        .handler(ctx -> ctx.response()
+            .setStatusCode(200)
+            .putHeader("content-type", "text/plain")
+            .end(randomFactorial().toString()));
     router
         .route("/api_security/sampling/:status_code")
-        .handler(
-            ctx ->
-                ctx.response()
-                    .setStatusCode(Integer.parseInt(ctx.request().getParam("status_code")))
-                    .end("EXECUTED"));
+        .handler(ctx -> ctx.response()
+            .setStatusCode(Integer.parseInt(ctx.request().getParam("status_code")))
+            .end("EXECUTED"));
 
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
-        .requestHandler(
-            req -> {
-              if (req.path().startsWith("/routes") || req.path().startsWith("/api_security")) {
-                router.accept(req);
-              } else {
-                req.response()
-                    .putHeader("content-type", "text/plain")
-                    .end(randomFactorial().toString());
-              }
-            })
-        .listen(
-            Integer.getInteger("vertx.http.port", 8080),
-            http -> {
-              if (http.succeeded()) {
-                startPromise.complete();
-                System.out.println("HTTP server started");
-              } else {
-                startPromise.fail(http.cause());
-              }
-            });
+        .requestHandler(req -> {
+          if (req.path().startsWith("/routes") || req.path().startsWith("/api_security")) {
+            router.accept(req);
+          } else {
+            req.response()
+                .putHeader("content-type", "text/plain")
+                .end(randomFactorial().toString());
+          }
+        })
+        .listen(Integer.getInteger("vertx.http.port", 8080), http -> {
+          if (http.succeeded()) {
+            startPromise.complete();
+            System.out.println("HTTP server started");
+          } else {
+            startPromise.fail(http.cause());
+          }
+        });
   }
 }

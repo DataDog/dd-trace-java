@@ -36,9 +36,8 @@ public abstract class BasePlayWSClientInstrumentation extends InstrumenterModule
     // CachingAsyncHttpClient rejects overrides to AsyncHandler
     // It also delegates to another AsyncHttpClient
     return nameStartsWith("play.")
-        .and(
-            implementsInterface(named(hierarchyMarkerType()))
-                .and(not(named("play.api.libs.ws.ahc.cache.CachingAsyncHttpClient"))));
+        .and(implementsInterface(named(hierarchyMarkerType()))
+            .and(not(named("play.api.libs.ws.ahc.cache.CachingAsyncHttpClient"))));
   }
 
   @Override

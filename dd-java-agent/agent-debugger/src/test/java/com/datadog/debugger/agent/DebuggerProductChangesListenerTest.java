@@ -41,7 +41,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class DebuggerProductChangesListenerTest {
   private static final String SERVICE_NAME = "service-name";
 
-  @Mock private Config tracerConfig;
+  @Mock
+  private Config tracerConfig;
 
   static class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;
@@ -156,14 +157,12 @@ public class DebuggerProductChangesListenerTest {
     SimpleAcceptor acceptor = new SimpleAcceptor();
     DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
     String probeUUID = UUID.randomUUID().toString();
-    IOException ioException =
-        assertThrows(
-            IOException.class,
-            () ->
-                listener.accept(
-                    createConfigKey("logProbe_" + probeUUID),
-                    "{bad json}".getBytes(StandardCharsets.UTF_8),
-                    NOOP));
+    IOException ioException = assertThrows(
+        IOException.class,
+        () -> listener.accept(
+            createConfigKey("logProbe_" + probeUUID),
+            "{bad json}".getBytes(StandardCharsets.UTF_8),
+            NOOP));
     assertNotNull(acceptor.lastException);
     assertEquals(ioException.getCause(), acceptor.lastException);
   }
@@ -196,10 +195,8 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("metricProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("metricProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
@@ -208,9 +205,8 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("logProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("logProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
@@ -218,24 +214,19 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("spanProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("spanProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void acceptSpanDecorationProbe(
       DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void acceptTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {

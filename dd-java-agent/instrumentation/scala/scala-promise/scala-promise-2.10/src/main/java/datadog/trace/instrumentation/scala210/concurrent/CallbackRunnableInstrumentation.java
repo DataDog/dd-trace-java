@@ -63,13 +63,12 @@ public final class CallbackRunnableInstrumentation
           InstrumentationContext.get(CallbackRunnable.class, State.class);
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
-        state =
-            PromiseHelper.executeCaptureContext(
-                InstrumentationContext.get(Try.class, Context.class),
-                resolved,
-                contextStore,
-                task,
-                state);
+        state = PromiseHelper.executeCaptureContext(
+            InstrumentationContext.get(Try.class, Context.class),
+            resolved,
+            contextStore,
+            task,
+            state);
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {

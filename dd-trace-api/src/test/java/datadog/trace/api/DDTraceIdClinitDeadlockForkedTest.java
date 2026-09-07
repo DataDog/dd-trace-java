@@ -47,29 +47,27 @@ class DDTraceIdClinitDeadlockForkedTest {
     // One thread enters via the superclass (mirrors blackholeSpan() -> DDTraceId.ZERO), the other
     // via the subclass (mirrors IdGenerationStrategy.generateTraceId() -> DD64bTraceId.from()).
 
-    Thread viaSuper =
-        new Thread(
-            () -> {
-              try {
-                barrier.await();
-                Class.forName("datadog.trace.api.DDTraceId", true, cl);
-              } catch (Throwable t) {
-                error.compareAndSet(null, t);
-              }
-            },
-            "init-DDTraceId");
-    Thread viaSub =
-        new Thread(
-            () -> {
-              try {
-                barrier.await();
-                Class.forName("datadog.trace.api.IdGenerationStrategy", true, cl);
-                Class.forName("datadog.trace.api.DD64bTraceId", true, cl);
-              } catch (Throwable t) {
-                error.compareAndSet(null, t);
-              }
-            },
-            "init-DD64bTraceId");
+    Thread viaSuper = new Thread(
+        () -> {
+          try {
+            barrier.await();
+            Class.forName("datadog.trace.api.DDTraceId", true, cl);
+          } catch (Throwable t) {
+            error.compareAndSet(null, t);
+          }
+        },
+        "init-DDTraceId");
+    Thread viaSub = new Thread(
+        () -> {
+          try {
+            barrier.await();
+            Class.forName("datadog.trace.api.IdGenerationStrategy", true, cl);
+            Class.forName("datadog.trace.api.DD64bTraceId", true, cl);
+          } catch (Throwable t) {
+            error.compareAndSet(null, t);
+          }
+        },
+        "init-DD64bTraceId");
     // Daemon so a deadlock cannot block forked-JVM shutdown.
     viaSuper.setDaemon(true);
     viaSub.setDaemon(true);
@@ -80,13 +78,12 @@ class DDTraceIdClinitDeadlockForkedTest {
     viaSub.join(SECONDS.toMillis(15));
 
     if (viaSuper.isAlive() || viaSub.isAlive()) {
-      fail(
-          "DDTraceId/DD64bTraceId class-initialization deadlock: DDTraceId.<clinit> must not "
-              + "reference DD64bTraceId (init-DDTraceId.alive="
-              + viaSuper.isAlive()
-              + ", init-DD64bTraceId.alive="
-              + viaSub.isAlive()
-              + ").");
+      fail("DDTraceId/DD64bTraceId class-initialization deadlock: DDTraceId.<clinit> must not "
+          + "reference DD64bTraceId (init-DDTraceId.alive="
+          + viaSuper.isAlive()
+          + ", init-DD64bTraceId.alive="
+          + viaSub.isAlive()
+          + ").");
     }
     if (error.get() != null) {
       throw new AssertionError(

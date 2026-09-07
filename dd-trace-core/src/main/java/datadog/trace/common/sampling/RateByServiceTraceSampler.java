@@ -136,10 +136,9 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
         }
         fallbackSampler = RateByServiceTraceSampler.createRateSampler(rate);
       } else {
-        double oldRate =
-            currentSnapshot
-                .getSampler(envAndService.lowerEnv, envAndService.lowerService)
-                .getSampleRate();
+        double oldRate = currentSnapshot
+            .getSampler(envAndService.lowerEnv, envAndService.lowerService)
+            .getSampleRate();
         if (shouldCap(oldRate, rate)) {
           if (canIncrease) {
             rate = cappedRate(oldRate);
@@ -149,9 +148,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
           }
         }
         final double effectiveRate = rate;
-        Map<String, RateSampler> serviceRates =
-            updatedEnvServiceRates.computeIfAbsent(
-                envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
+        Map<String, RateSampler> serviceRates = updatedEnvServiceRates.computeIfAbsent(
+            envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
 
         serviceRates.computeIfAbsent(
             envAndService.lowerService,

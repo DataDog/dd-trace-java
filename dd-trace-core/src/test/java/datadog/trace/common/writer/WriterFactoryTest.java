@@ -83,20 +83,17 @@ class WriterFactoryTest extends DDJavaSpecification {
     when(config.isCiVisibilityAgentlessEnabled()).thenReturn(isCiVisibilityAgentlessEnabled);
 
     // Mock agent info response
-    Response response =
-        buildHttpResponse(
-            hasEvpProxy, evpProxySupportsCompression, HttpUrl.parse("http://my-agent.url/info"));
+    Response response = buildHttpResponse(
+        hasEvpProxy, evpProxySupportsCompression, HttpUrl.parse("http://my-agent.url/info"));
 
     // Mock HTTP client that simulates delayed response for async feature discovery
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
-    when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+    when(mockCall.execute()).thenAnswer(inv -> {
+      // Add a delay
+      Thread.sleep(400);
+      return response;
+    });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -106,9 +103,8 @@ class WriterFactoryTest extends DDJavaSpecification {
     sharedComm.createRemaining(config);
     Sampler sampler = mock(Sampler.class);
 
-    Writer writer =
-        WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+    Writer writer = WriterFactory.createWriter(
+        config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
 
     List<Class<?>> expectedApiClasses =
         expectedApiClass != null ? singletonList(expectedApiClass) : null;
@@ -124,9 +120,8 @@ class WriterFactoryTest extends DDJavaSpecification {
 
     assertEquals(expectedWriterClass, writer.getClass());
     assertTrue(expectedApiClasses == null || apiClasses.equals(expectedApiClasses));
-    assertTrue(
-        expectedApiClasses == null
-            || apis.stream().allMatch(api -> api.isCompressionEnabled() == isCompressionEnabled));
+    assertTrue(expectedApiClasses == null
+        || apis.stream().allMatch(api -> api.isCompressionEnabled() == isCompressionEnabled));
   }
 
   @TableTest({
@@ -171,13 +166,11 @@ class WriterFactoryTest extends DDJavaSpecification {
     // Mock HTTP client that simulates delayed response for async feature discovery
     Call mockCall = mock(Call.class);
     OkHttpClient mockHttpClient = mock(OkHttpClient.class);
-    when(mockCall.execute())
-        .thenAnswer(
-            inv -> {
-              // Add a delay
-              Thread.sleep(400);
-              return response;
-            });
+    when(mockCall.execute()).thenAnswer(inv -> {
+      // Add a delay
+      Thread.sleep(400);
+      return response;
+    });
     when(mockHttpClient.newCall(any(Request.class))).thenReturn(mockCall);
 
     // Create SharedCommunicationObjects with mocked HTTP client
@@ -187,24 +180,21 @@ class WriterFactoryTest extends DDJavaSpecification {
     sharedComm.createRemaining(config);
     Sampler sampler = mock(Sampler.class);
 
-    Writer writer =
-        WriterFactory.createWriter(
-            config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
-    List<Class<?>> llmObsApiClasses =
-        ((RemoteWriter) writer)
-            .getApis().stream()
-                .filter(
-                    api -> {
-                      try {
-                        Field trackTypeField = api.getClass().getDeclaredField("trackType");
-                        trackTypeField.setAccessible(true);
-                        return trackTypeField.get(api) == TrackType.LLMOBS;
-                      } catch (Exception e) {
-                        return false;
-                      }
-                    })
-                .map(Object::getClass)
-                .collect(Collectors.toList());
+    Writer writer = WriterFactory.createWriter(
+        config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType);
+    List<Class<?>> llmObsApiClasses = ((RemoteWriter) writer)
+        .getApis().stream()
+            .filter(api -> {
+              try {
+                Field trackTypeField = api.getClass().getDeclaredField("trackType");
+                trackTypeField.setAccessible(true);
+                return trackTypeField.get(api) == TrackType.LLMOBS;
+              } catch (Exception e) {
+                return false;
+              }
+            })
+            .map(Object::getClass)
+            .collect(Collectors.toList());
 
     assertEquals(expectedWriterClass, writer.getClass());
     assertEquals(singletonList(expectedLlmObsApiClass), llmObsApiClasses);

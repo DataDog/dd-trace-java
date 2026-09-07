@@ -11,8 +11,11 @@ public final class OtelInstrumentBuilder {
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
 
-  @Nullable private String description;
-  @Nullable private String unit;
+  @Nullable
+  private String description;
+
+  @Nullable
+  private String unit;
 
   /**
    * Starts building an instrument of long values with the given name and type.

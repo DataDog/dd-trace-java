@@ -117,9 +117,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<?> result) {
-      result =
-          new WrapperWithContext.SupplierWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.SupplierWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -128,9 +127,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Callable<?> result) {
-      result =
-          new WrapperWithContext.CallableWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.CallableWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -139,9 +137,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Runnable result) {
-      result =
-          new WrapperWithContext.RunnableWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.RunnableWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -150,9 +147,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Function<?, ?> result) {
-      result =
-          new WrapperWithContext.FunctionWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.FunctionWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -161,9 +157,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedSupplier<?> result) {
-      result =
-          new WrapperWithContext.CheckedSupplierWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.CheckedSupplierWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -172,9 +167,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedFunction<?, ?> result) {
-      result =
-          new WrapperWithContext.CheckedFunctionWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.CheckedFunctionWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -183,9 +177,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedConsumer<?> result) {
-      result =
-          new WrapperWithContext.CheckedConsumerWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.CheckedConsumerWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -194,9 +187,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedRunnable result) {
-      result =
-          new WrapperWithContext.CheckedRunnableWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.CheckedRunnableWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -205,9 +197,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Consumer<?> result) {
-      result =
-          new WrapperWithContext.ConsumerWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.ConsumerWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -216,9 +207,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> result) {
-      result =
-          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -227,9 +217,8 @@ public final class CircuitBreakerInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<Future<?>> result) {
-      result =
-          new WrapperWithContext.SupplierOfFutureWithContext<>(
-              result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      result = new WrapperWithContext.SupplierOfFutureWithContext<>(
+          result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 }

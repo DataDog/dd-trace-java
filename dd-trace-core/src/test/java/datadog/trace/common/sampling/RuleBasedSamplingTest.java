@@ -115,17 +115,16 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
       Sampler sampler = Sampler.Builder.forConfig(properties);
       assertInstanceOf(PrioritySampler.class, sampler);
 
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
       ((PrioritySampler) sampler).setSamplingPriority(span);
 
-      Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
+      Map<String, String> propagationMap =
+          span.spanContext().getPropagationTags().createTagMap();
       String decisionMaker = propagationMap.get("_dd.p.dm");
       String expectedDmStr =
           expectedDecisionMaker == null ? null : "-" + (int) expectedDecisionMaker;
@@ -217,19 +216,18 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
       Sampler sampler = Sampler.Builder.forConfig(properties);
       assertInstanceOf(PrioritySampler.class, sampler);
 
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .withTag("tag", "foo")
-                  .withResourceName("resource")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .withTag("tag", "foo")
+          .withResourceName("resource")
+          .ignoreActiveSpan()
+          .start();
       ((PrioritySampler) sampler).setSamplingPriority(span);
 
-      Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
+      Map<String, String> propagationMap =
+          span.spanContext().getPropagationTags().createTagMap();
       String decisionMaker = propagationMap.get("_dd.p.dm");
       String expectedDmStr =
           expectedDecisionMaker == null ? null : "-" + (int) expectedDecisionMaker;
@@ -258,15 +256,13 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
     try {
       PrioritySampler sampler = (PrioritySampler) Sampler.Builder.forConfig(properties);
 
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withResourceName("resource")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withResourceName("resource")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
       span.setTag("testTag", tagValue);
       sampler.setSamplingPriority(span);
 
@@ -325,22 +321,18 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
       properties.setProperty(TRACE_RATE_LIMIT, "1");
       Sampler sampler = Sampler.Builder.forConfig(properties);
 
-      DDSpan span1 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
-      DDSpan span2 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span1 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
+      DDSpan span2 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
 
       ((PrioritySampler) sampler).setSamplingPriority(span1);
       // Span 2 should be rate limited if there isn't a >1 sec delay between these 2 lines
@@ -369,22 +361,18 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
       properties.setProperty(TRACE_RATE_LIMIT, "1");
       Sampler sampler = Sampler.Builder.forConfig(properties);
 
-      DDSpan span1 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
-      DDSpan span2 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span1 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
+      DDSpan span2 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
 
       ((PrioritySampler) sampler).setSamplingPriority(span1);
       // Span 2 should be rate limited if there isn't a >1 sec delay between these 2 lines
@@ -413,22 +401,18 @@ class RuleBasedSamplingTest extends DDCoreJavaSpecification {
       properties.setProperty(TRACE_RATE_LIMIT, "1");
       Sampler sampler = Sampler.Builder.forConfig(properties);
 
-      DDSpan span1 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("service")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
-      DDSpan span2 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "operation")
-                  .withServiceName("foo")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span1 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("service")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
+      DDSpan span2 = (DDSpan) tracer
+          .buildSpan("datadog", "operation")
+          .withServiceName("foo")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
 
       ((PrioritySampler) sampler).setSamplingPriority(span1);
       // Span 2 should be rate limited if there isn't a >1 sec delay between these 2 lines

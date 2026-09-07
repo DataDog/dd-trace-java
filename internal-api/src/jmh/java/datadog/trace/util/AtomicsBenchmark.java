@@ -101,25 +101,21 @@ public class AtomicsBenchmark {
     }
   }
 
-  static final AtomicHolder[] atomicHolders =
-      init(
-          () -> {
-            AtomicHolder[] holders = new AtomicHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new AtomicHolder(i * 2);
-            }
-            return holders;
-          });
+  static final AtomicHolder[] atomicHolders = init(() -> {
+    AtomicHolder[] holders = new AtomicHolder[SIZE];
+    for (int i = 0; i < holders.length; ++i) {
+      holders[i] = new AtomicHolder(i * 2);
+    }
+    return holders;
+  });
 
-  static final FieldHolder[] fieldHolders =
-      init(
-          () -> {
-            FieldHolder[] holders = new FieldHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new FieldHolder(i * 2);
-            }
-            return holders;
-          });
+  static final FieldHolder[] fieldHolders = init(() -> {
+    FieldHolder[] holders = new FieldHolder[SIZE];
+    for (int i = 0; i < holders.length; ++i) {
+      holders[i] = new FieldHolder(i * 2);
+    }
+    return holders;
+  });
 
   static final <T> T init(Supplier<T> supplier) {
     return supplier.get();

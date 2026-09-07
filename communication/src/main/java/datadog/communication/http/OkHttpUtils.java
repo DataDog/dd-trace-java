@@ -156,12 +156,11 @@ public final class OkHttpUtils {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
-      builder.eventListenerFactory(
-          call -> {
-            Request request = call.request();
-            CustomListener listener = request.tag(CustomListener.class);
-            return listener != null ? listener : EventListener.NONE;
-          });
+      builder.eventListenerFactory(call -> {
+        Request request = call.request();
+        CustomListener listener = request.tag(CustomListener.class);
+        return listener != null ? listener : EventListener.NONE;
+      });
     } catch (NoSuchMethodError e) {
       // A workaround for OKHTTP instrumentation tests
       // where the version of OKHTTP conflicts with the one used in this module.
@@ -178,9 +177,8 @@ public final class OkHttpUtils {
             dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
 
     if (unixDomainSocketPath != null) {
-      builder.socketFactory(
-          new UnixDomainSocketFactory(
-              new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
+      builder.socketFactory(new UnixDomainSocketFactory(
+          new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
       log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
@@ -213,17 +211,16 @@ public final class OkHttpUtils {
     if (proxyHost != null) {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
-        builder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+        builder.proxyAuthenticator((route, response) -> {
+          final String credential =
+              Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
+          return response
+              .request()
+              .newBuilder()
+              .header("Proxy-Authorization", credential)
+              .build();
+        });
       }
     }
 
@@ -240,13 +237,12 @@ public final class OkHttpUtils {
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final Request.Builder builder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+    final Request.Builder builder = new Request.Builder()
+        .url(url)
+        .addHeader(DATADOG_META_LANG, "java")
+        .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+        .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+        .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
     final String entityId = ContainerInfo.getEntityId();

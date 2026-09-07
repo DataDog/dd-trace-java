@@ -22,8 +22,7 @@ public class MavenRunner {
   public static void main(String[] args) throws Exception {
     if (args.length < 2) {
       throw new IllegalArgumentException(
-          "2 arguments are required: project home, command to execute. "
-              + "Got: "
+          "2 arguments are required: project home, command to execute. " + "Got: "
               + Arrays.toString(args));
     }
 

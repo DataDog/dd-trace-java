@@ -33,7 +33,8 @@ public interface RangedDeque<E extends Ranged> {
 
     private final Deque<E> head = new LinkedList<>();
 
-    @Nullable protected E next;
+    @Nullable
+    protected E next;
 
     @Nullable
     @Override

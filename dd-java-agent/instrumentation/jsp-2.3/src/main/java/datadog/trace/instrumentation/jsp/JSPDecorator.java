@@ -40,7 +40,8 @@ public class JSPDecorator extends BaseDecorator {
       }
 
       if (jspCompilationContext.getCompiler() != null) {
-        span.setTag("jsp.compiler", jspCompilationContext.getCompiler().getClass().getName());
+        span.setTag(
+            "jsp.compiler", jspCompilationContext.getCompiler().getClass().getName());
       }
       span.setTag("jsp.classFQCN", jspCompilationContext.getFQCN());
     }
@@ -69,7 +70,8 @@ public class JSPDecorator extends BaseDecorator {
       // and we never know if ever this can happen
       final StringBuffer requestURL = req.getRequestURL();
       if (requestURL != null && requestURL.length() > 0) {
-        span.setTag("jsp.requestURL", (new URI(requestURL.toString())).normalize().toString());
+        span.setTag(
+            "jsp.requestURL", (new URI(requestURL.toString())).normalize().toString());
       }
     } catch (final Throwable ignored) {
       // logging here will be too verbose

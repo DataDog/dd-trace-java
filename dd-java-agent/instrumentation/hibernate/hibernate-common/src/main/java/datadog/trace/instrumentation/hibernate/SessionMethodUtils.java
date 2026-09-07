@@ -41,8 +41,8 @@ public class SessionMethodUtils {
 
     final AgentScope scope;
     if (createSpan) {
-      final AgentSpan span =
-          startSpan("java-hibernate", operationName, sessionState.getSessionSpan().spanContext());
+      final AgentSpan span = startSpan(
+          "java-hibernate", operationName, sessionState.getSessionSpan().spanContext());
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, entity);
       scope = activateSpan(span);

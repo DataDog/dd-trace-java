@@ -17,11 +17,10 @@ public class StringBuilderToStringBenchmark
     final IastRequestContext context = new IastRequestContext();
     final StringBuilder notTaintedBuilder =
         notTainted(new StringBuilder("I am not a tainted string builder"));
-    final StringBuilder taintedBuilder =
-        tainted(
-            context,
-            new StringBuilder("I am a tainted string builder"),
-            new Range(5, 7, source(), NOT_MARKED));
+    final StringBuilder taintedBuilder = tainted(
+        context,
+        new StringBuilder("I am a tainted string builder"),
+        new Range(5, 7, source(), NOT_MARKED));
     return new Context(context, notTaintedBuilder, taintedBuilder);
   }
 

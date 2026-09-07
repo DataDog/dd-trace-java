@@ -19,17 +19,15 @@ public class NettyHttp2Helper {
     Class frameCodecClass;
     MethodHandle isServerField;
     try {
-      codecClass =
-          Class.forName(
-              "io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec",
-              false,
-              NettyHttp2Helper.class.getClassLoader());
+      codecClass = Class.forName(
+          "io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec",
+          false,
+          NettyHttp2Helper.class.getClassLoader());
       Field f = codecClass.getDeclaredField("isServer");
       f.setAccessible(true);
-      isServerField =
-          MethodHandles.lookup()
-              .unreflectGetter(f)
-              .asType(MethodType.methodType(boolean.class, ChannelHandler.class));
+      isServerField = MethodHandles.lookup()
+          .unreflectGetter(f)
+          .asType(MethodType.methodType(boolean.class, ChannelHandler.class));
     } catch (final ClassNotFoundException cnfe) {
       // can be expected
       codecClass = null;
@@ -41,11 +39,10 @@ public class NettyHttp2Helper {
       LOGGER.debug("Unable to setup netty http2 instrumentation", t);
     }
     try {
-      frameCodecClass =
-          Class.forName(
-              "io.netty.handler.codec.http2.Http2FrameCodec",
-              false,
-              NettyHttp2Helper.class.getClassLoader());
+      frameCodecClass = Class.forName(
+          "io.netty.handler.codec.http2.Http2FrameCodec",
+          false,
+          NettyHttp2Helper.class.getClassLoader());
     } catch (final ClassNotFoundException cnfe) {
       // can be expected
       frameCodecClass = null;

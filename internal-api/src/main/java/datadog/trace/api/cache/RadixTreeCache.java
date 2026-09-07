@@ -12,9 +12,8 @@ public final class RadixTreeCache<T> {
   // should cover range [0, 512) to cover all standard HTTP statuses
   // 16 pages of 32 should keep the tree sparse with typical pages
   // covering ranges [192, 224), [288, 320), [384, 416), [480, 512)
-  public static final RadixTreeCache<UTF8BytesString> HTTP_STATUSES =
-      new RadixTreeCache<>(
-          16, 32, TO_STRING, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
+  public static final RadixTreeCache<UTF8BytesString> HTTP_STATUSES = new RadixTreeCache<>(
+      16, 32, TO_STRING, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
 
   private final int level1;
   private final int level2;

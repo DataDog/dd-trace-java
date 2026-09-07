@@ -52,11 +52,8 @@ public final class WithSpanAnnotationInstrumentation extends InstrumenterModule.
   public void methodAdvice(MethodTransformer transformer) {
     ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
         isAnnotatedWith(named(hierarchyMarkerType()));
-    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher =
-        hasParameters(
-            whereAny(
-                isAnnotatedWith(
-                    named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
+    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher = hasParameters(whereAny(
+        isAnnotatedWith(named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
     // Apply transformation without parameter capture
     transformer.applyAdvice(
         annotatedMethodMatcher.and(not(annotatedParametersMatcher)),

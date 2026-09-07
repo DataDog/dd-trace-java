@@ -36,18 +36,15 @@ public class ASMHelperTest {
     assertEquals(
         "Cannot ensure loading class:  safely as current class being transformed is not provided (null)",
         illegalArgumentException.getMessage());
-    illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                ensureSafeClassLoad(
-                    "com.datadog.debugger.MyClass", "com.datadog.debugger.MyClass", null));
+    illegalArgumentException = assertThrows(
+        IllegalArgumentException.class,
+        () -> ensureSafeClassLoad(
+            "com.datadog.debugger.MyClass", "com.datadog.debugger.MyClass", null));
     assertEquals(
         "Cannot load class com.datadog.debugger.MyClass as this is the class being currently transformed",
         illegalArgumentException.getMessage());
-    Class<?> clazz =
-        ensureSafeClassLoad(
-            ASMHelperTest.class.getTypeName(), "", ASMHelperTest.class.getClassLoader());
+    Class<?> clazz = ensureSafeClassLoad(
+        ASMHelperTest.class.getTypeName(), "", ASMHelperTest.class.getClassLoader());
     assertEquals(ASMHelperTest.class, clazz);
   }
 

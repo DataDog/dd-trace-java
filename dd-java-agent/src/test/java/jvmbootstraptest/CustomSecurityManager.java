@@ -712,16 +712,15 @@ public class CustomSecurityManager extends SecurityManager {
       case "resolve":
         return checkSocketResolve(perm, ctx, perm.getName());
 
-      case "connect,resolve":
-        {
-          String name = perm.getName();
-          int colonPos = name.indexOf(':');
+      case "connect,resolve": {
+        String name = perm.getName();
+        int colonPos = name.indexOf(':');
 
-          String host = name.substring(0, colonPos);
-          int port = Integer.parseInt(name.substring(colonPos + 1));
+        String host = name.substring(0, colonPos);
+        int port = Integer.parseInt(name.substring(colonPos + 1));
 
-          return checkSocketResolve(perm, ctx, host) && checkSocketConnect(perm, ctx, host, port);
-        }
+        return checkSocketResolve(perm, ctx, host) && checkSocketConnect(perm, ctx, host, port);
+      }
 
       default:
         return false;

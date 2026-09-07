@@ -86,23 +86,21 @@ public class Controller {
     final Span span = GlobalTracer.get().activeSpan();
     // Thread synchronization relies on waitForTraceCount rather than Thread completion, no race
     // issue.
-    Thread thread =
-        new Thread(
-            () -> {
-              try {
-                // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports
-                // before this late child.
-                Thread.sleep(3000);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-              }
-              try (Scope scope = GlobalTracer.get().activateSpan(span)) {
-                new RestTemplate().getForObject(url, String.class);
-              } catch (Exception e) {
-                log.debug("late outbound call to {} failed", url, e);
-              }
-            });
+    Thread thread = new Thread(() -> {
+      try {
+        // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports
+        // before this late child.
+        Thread.sleep(3000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
+      try (Scope scope = GlobalTracer.get().activateSpan(span)) {
+        new RestTemplate().getForObject(url, String.class);
+      } catch (Exception e) {
+        log.debug("late outbound call to {} failed", url, e);
+      }
+    });
     thread.setDaemon(true);
     thread.start();
     return "late-outbound";

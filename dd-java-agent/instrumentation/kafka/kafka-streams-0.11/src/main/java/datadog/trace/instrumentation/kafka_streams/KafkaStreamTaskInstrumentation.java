@@ -122,25 +122,20 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvices(
         isMethod()
             .and(named("updateProcessorContext"))
-            .and(
-                takesArgument(
-                    0, named("org.apache.kafka.streams.processor.internals.StampedRecord")))
-            .and(
-                takesArgument(
-                    1, named("org.apache.kafka.streams.processor.internals.ProcessorNode"))),
+            .and(takesArgument(
+                0, named("org.apache.kafka.streams.processor.internals.StampedRecord")))
+            .and(takesArgument(
+                1, named("org.apache.kafka.streams.processor.internals.ProcessorNode"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$ContextPropagationAdvice",
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice");
     // After 2.7
     transformer.applyAdvices(
         isMethod()
             .and(named("updateProcessorContext"))
-            .and(
-                takesArgument(
-                    0, named("org.apache.kafka.streams.processor.internals.ProcessorNode")))
-            .and(
-                takesArgument(
-                    2,
-                    named("org.apache.kafka.streams.processor.internals.ProcessorRecordContext"))),
+            .and(takesArgument(
+                0, named("org.apache.kafka.streams.processor.internals.ProcessorNode")))
+            .and(takesArgument(
+                2, named("org.apache.kafka.streams.processor.internals.ProcessorRecordContext"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$ContextPropagationAdvice27",
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice27");
 
@@ -160,8 +155,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context =
-            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context = InstrumentationContext.get(
+                StreamTask.class, StreamTaskContext.class)
+            .get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -178,8 +174,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context =
-            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context = InstrumentationContext.get(
+                StreamTask.class, StreamTaskContext.class)
+            .get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -196,8 +193,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context =
-            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context = InstrumentationContext.get(
+                StreamTask.class, StreamTaskContext.class)
+            .get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -283,9 +281,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
-        queueSpan =
-            startSpan(
-                JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        queueSpan = startSpan(
+            JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());
@@ -349,9 +346,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
       } else {
-        queueSpan =
-            startSpan(
-                JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        queueSpan = startSpan(
+            JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());

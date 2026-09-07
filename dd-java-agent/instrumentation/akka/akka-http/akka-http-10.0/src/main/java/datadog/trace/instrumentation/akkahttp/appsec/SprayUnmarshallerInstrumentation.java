@@ -54,10 +54,9 @@ public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
     transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "sprayJsonUnmarshaller", "spray.json.RootJsonReader")
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .or(
-                isTraitMethod(
-                        TRAIT_NAME, "sprayJsonByteStringUnmarshaller", "spray.json.RootJsonReader")
-                    .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
+            .or(isTraitMethod(
+                    TRAIT_NAME, "sprayJsonByteStringUnmarshaller", "spray.json.RootJsonReader")
+                .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
         SprayUnmarshallerInstrumentation.class.getName() + "$ArbitraryTypeAdvice");
     // support is basic:
     // * Source[T, NotUsed] is not intercepted

@@ -81,9 +81,8 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       return;
     }
 
-    final DataBundle bundle =
-        new SingletonDataBundle<>(
-            KnownAddresses.WAF_CONTEXT_PROCESSOR, Collections.singletonMap("extract-schema", true));
+    final DataBundle bundle = new SingletonDataBundle<>(
+        KnownAddresses.WAF_CONTEXT_PROCESSOR, Collections.singletonMap("extract-schema", true));
     try {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);

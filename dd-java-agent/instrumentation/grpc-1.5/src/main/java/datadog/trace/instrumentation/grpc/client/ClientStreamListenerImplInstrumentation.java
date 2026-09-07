@@ -54,8 +54,8 @@ public class ClientStreamListenerImplInstrumentation
     public static void exceptionThrown(
         @Advice.This ClientStreamListener listener, @Advice.Argument(0) Status status) {
       if (null != status) {
-        AgentSpan span =
-            InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
+        AgentSpan span = InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class)
+            .get(listener);
         if (null != span) {
           DECORATE.onError(span, status.getCause());
           DECORATE.beforeFinish(span);
@@ -71,8 +71,8 @@ public class ClientStreamListenerImplInstrumentation
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done
       // on
-      AgentSpan span =
-          InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
+      AgentSpan span = InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class)
+          .get(listener);
       if (span != null) {
         return activateSpan(span);
       }
@@ -99,8 +99,8 @@ public class ClientStreamListenerImplInstrumentation
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done
       // on
-      AgentSpan span =
-          InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
+      AgentSpan span = InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class)
+          .get(listener);
       if (span != null) {
         return activateSpan(span);
       }

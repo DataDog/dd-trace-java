@@ -130,10 +130,9 @@ class BaggagePropagatorTelemetryTest {
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
 
-    List<CoreMetric> foundMetrics =
-        metrics.stream()
-            .filter(m -> m.metricName.startsWith("context_header_style."))
-            .collect(Collectors.toList());
+    List<CoreMetric> foundMetrics = metrics.stream()
+        .filter(m -> m.metricName.startsWith("context_header_style."))
+        .collect(Collectors.toList());
     assertTrue(foundMetrics.isEmpty());
   }
 

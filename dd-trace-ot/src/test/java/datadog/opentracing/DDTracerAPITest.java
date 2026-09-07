@@ -35,8 +35,11 @@ class DDTracerAPITest extends DDJavaSpecification {
       Object localRootSpanTags = getField(tracer, "localRootSpanTags");
       assertNotNull(localRootSpanTags.toString());
       // Verify runtime-id and language tags are populated
-      assertTrue(
-          ((java.util.Map<?, ?>) localRootSpanTags).get(RUNTIME_ID_TAG).toString().length() > 0);
+      assertTrue(((java.util.Map<?, ?>) localRootSpanTags)
+              .get(RUNTIME_ID_TAG)
+              .toString()
+              .length()
+          > 0);
       assertEquals(
           LANGUAGE_TAG_VALUE, ((java.util.Map<?, ?>) localRootSpanTags).get(LANGUAGE_TAG_KEY));
     } finally {

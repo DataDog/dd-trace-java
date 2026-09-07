@@ -38,9 +38,8 @@ public class StableConfigSourceTest extends DDJavaSpecification {
 
   @Test
   void testFileDoesntExist() {
-    StableConfigSource config =
-        new StableConfigSource(
-            StableConfigSource.LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
+    StableConfigSource config = new StableConfigSource(
+        StableConfigSource.LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
 
     assertEquals(0, config.getKeys().size());
     assertNull(config.getConfigId());
@@ -139,12 +138,9 @@ public class StableConfigSourceTest extends DDJavaSpecification {
 
       assertNull(stableCfg.getConfigId());
       assertEquals(0, stableCfg.getKeys().size());
-      boolean hasExpectedLog =
-          listAppender.list.stream()
-              .anyMatch(
-                  event ->
-                      "WARN".equals(event.getLevel().toString())
-                          && event.getFormattedMessage().contains(expectedLogSubstring));
+      boolean hasExpectedLog = listAppender.list.stream()
+          .anyMatch(event -> "WARN".equals(event.getLevel().toString())
+              && event.getFormattedMessage().contains(expectedLogSubstring));
       assertTrue(hasExpectedLog, "Expected WARN log containing: " + expectedLogSubstring);
     } finally {
       tempFile.delete();
@@ -256,10 +252,9 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     String expectedConfigId = "123";
 
     // Create YAML content with config_id and some configuration
-    String yamlContent =
-        "config_id: "
-            + expectedConfigId
-            + "\napm_configuration_default:\n  DD_SERVICE: test-service\n  DD_ENV: test-env\n";
+    String yamlContent = "config_id: "
+        + expectedConfigId
+        + "\napm_configuration_default:\n  DD_SERVICE: test-service\n  DD_ENV: test-env\n";
     Files.write(filePath, yamlContent.getBytes());
 
     // Clear any existing collected config

@@ -117,16 +117,13 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
     if (startOfArray >= 0) {
       final Type arrayType = parseType(name.substring(0, startOfArray));
       String arrayDeclaration = name.substring(startOfArray);
-      int dimension =
-          (int)
-              arrayDeclaration
-                  .chars()
-                  .filter(it -> it == ARRAY_DESCRIPTOR)
-                  .count(); // assumes array notation is well-formed
-      String elementType =
-          arrayType.getSort() == Type.OBJECT
-              ? classNameToDescriptor(arrayType.getClassName())
-              : arrayType.getInternalName();
+      int dimension = (int) arrayDeclaration
+          .chars()
+          .filter(it -> it == ARRAY_DESCRIPTOR)
+          .count(); // assumes array notation is well-formed
+      String elementType = arrayType.getSort() == Type.OBJECT
+          ? classNameToDescriptor(arrayType.getClassName())
+          : arrayType.getInternalName();
       return Type.getType(repeat(ARRAY_DESCRIPTOR, dimension) + elementType);
     }
     return classNameOrPrimitiveToType(name);

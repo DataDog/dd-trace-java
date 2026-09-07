@@ -264,7 +264,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void updatePreferredServiceName(String serviceName, CharSequence source) {
-    dynamicConfig.current().setPreferredServiceNameAndSource(serviceName, source).apply();
+    dynamicConfig
+        .current()
+        .setPreferredServiceNameAndSource(serviceName, source)
+        .apply();
     ServiceNameCollector.get().addService(serviceName);
   }
 
@@ -511,11 +514,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       sampler(Sampler.Builder.forConfig(config, null));
       singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
-      injector(
-          HttpCodec.createInjector(
-              config,
-              config.getTracePropagationStylesToInject(),
-              invertMap(config.getBaggageMapping())));
+      injector(HttpCodec.createInjector(
+          config,
+          config.getTracePropagationStylesToInject(),
+          invertMap(config.getBaggageMapping())));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
@@ -713,35 +715,32 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.defaultSpanTags = defaultSpanTags;
     this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
 
-    this.dynamicConfig =
-        DynamicConfig.create(ConfigSnapshot::new)
-            .setTracingEnabled(true) // implied by installation of CoreTracer
-            .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
-            .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
-            .setDataStreamsEnabled(config.isDataStreamsEnabled())
-            .setServiceMapping(serviceNameMappings)
-            .setHeaderTags(taggedHeaders)
-            .setBaggageMapping(baggageMapping)
-            .setTraceSampleRate(config.getTraceSampleRate())
-            .setSpanSamplingRules(spanSamplingRules.getRules())
-            .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
-            .setTracingTags(config.getMergedSpanTags())
-            .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
-            .apply();
+    this.dynamicConfig = DynamicConfig.create(ConfigSnapshot::new)
+        .setTracingEnabled(true) // implied by installation of CoreTracer
+        .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
+        .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
+        .setDataStreamsEnabled(config.isDataStreamsEnabled())
+        .setServiceMapping(serviceNameMappings)
+        .setHeaderTags(taggedHeaders)
+        .setBaggageMapping(baggageMapping)
+        .setTraceSampleRate(config.getTraceSampleRate())
+        .setSpanSamplingRules(spanSamplingRules.getRules())
+        .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
+        .setTracingTags(config.getMergedSpanTags())
+        .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
+        .apply();
 
     this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
     this.partialFlushMinSpans = partialFlushMinSpans;
-    this.idGenerationStrategy =
-        null == idGenerationStrategy
-            ? Config.get().getIdGenerationStrategy()
-            : idGenerationStrategy;
+    this.idGenerationStrategy = null == idGenerationStrategy
+        ? Config.get().getIdGenerationStrategy()
+        : idGenerationStrategy;
 
-    this.healthMetrics =
-        healthMetrics != null
-            ? healthMetrics
-            : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(AgentMeter.statsDClient())
-                : HealthMetrics.NO_OP);
+    this.healthMetrics = healthMetrics != null
+        ? healthMetrics
+        : (config.isHealthMetricsEnabled()
+            ? new TracerHealthMetrics(AgentMeter.statsDClient())
+            : HealthMetrics.NO_OP);
     this.healthMetrics.start();
 
     performanceMonitoring =
@@ -749,12 +748,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
 
-    scopeManager =
-        new ContinuableScopeManager(
-            config.getScopeDepthLimit(),
-            config.isScopeStrictMode(),
-            profilingContextIntegration,
-            this.healthMetrics);
+    scopeManager = new ContinuableScopeManager(
+        config.getScopeDepthLimit(),
+        config.isScopeStrictMode(),
+        profilingContextIntegration,
+        this.healthMetrics);
 
     externalAgentLauncher = new ExternalAgentLauncher(config);
 
@@ -772,9 +770,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     if (writer == null) {
-      this.writer =
-          WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
+      this.writer = WriterFactory.createWriter(
+          config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
     } else {
       this.writer = writer;
     }
@@ -796,14 +793,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
     } else {
-      pendingTraceBuffer =
-          strictTraceWrites
-              ? PendingTraceBuffer.discarding()
-              : PendingTraceBuffer.delaying(
-                  this.timeSource, config, sharedCommunicationObjects, this.healthMetrics);
-      traceCollectorFactory =
-          new PendingTrace.Factory(
-              this, pendingTraceBuffer, this.timeSource, strictTraceWrites, this.healthMetrics);
+      pendingTraceBuffer = strictTraceWrites
+          ? PendingTraceBuffer.discarding()
+          : PendingTraceBuffer.delaying(
+              this.timeSource, config, sharedCommunicationObjects, this.healthMetrics);
+      traceCollectorFactory = new PendingTrace.Factory(
+          this, pendingTraceBuffer, this.timeSource, strictTraceWrites, this.healthMetrics);
     }
     pendingTraceBuffer.start();
 
@@ -814,22 +809,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final SharedCommunicationObjects sco = sharedCommunicationObjects;
     // asynchronously create these aggregator/export components to avoid triggering
     // expensive classloading during the tracer initialisation.
-    sharedCommunicationObjects.whenReady(
-        () ->
-            AgentTaskScheduler.get()
-                .execute(
-                    () -> {
-                      startMetricsAggregation(config, sco);
-                      maybeStartLogsExport(config);
-                    }));
+    sharedCommunicationObjects.whenReady(() -> AgentTaskScheduler.get().execute(() -> {
+      startMetricsAggregation(config, sco);
+      maybeStartLogsExport(config);
+    }));
 
     if (dataStreamsMonitoring == null) {
       // Avoid DSM in bazel hermetic mode
-      this.dataStreamsMonitoring =
-          payloadFilesEnabled
-              ? DisabledDataStreamsMonitoring.INSTANCE
-              : new DefaultDataStreamsMonitoring(
-                  config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+      this.dataStreamsMonitoring = payloadFilesEnabled
+          ? DisabledDataStreamsMonitoring.INSTANCE
+          : new DefaultDataStreamsMonitoring(
+              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
@@ -841,12 +831,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // Register context propagators
     HttpCodec.Extractor baseExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    OrgGuard orgGuard =
-        OrgGuard.create(
-            config,
-            featuresDiscovery::getOrgPropagationMarker,
-            propagationTagsFactory,
-            this.healthMetrics);
+    OrgGuard orgGuard = OrgGuard.create(
+        config,
+        featuresDiscovery::getOrgPropagationMarker,
+        propagationTagsFactory,
+        this.healthMetrics);
     HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
     HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
     TracingPropagator tracingPropagator =
@@ -1541,18 +1530,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public void addScopeListener(
       Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
-    addScopeListener(
-        new ScopeListener() {
-          @Override
-          public void afterScopeActivated() {
-            afterScopeActivatedCallback.run();
-          }
+    addScopeListener(new ScopeListener() {
+      @Override
+      public void afterScopeActivated() {
+        afterScopeActivatedCallback.run();
+      }
 
-          @Override
-          public void afterScopeClosed() {
-            afterScopeClosedCallback.run();
-          }
-        });
+      @Override
+      public void afterScopeClosed() {
+        afterScopeClosedCallback.run();
+      }
+    });
   }
 
   @Override
@@ -1603,7 +1591,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
-    TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
+    TracerFlare.addText(
+        zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }
 
   Recording writeTimer() {
@@ -1716,12 +1705,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
       SpanLink link;
       if (parentSpanContext instanceof ExtractedContext) {
-        String headers = ((ExtractedContext) parentSpanContext).getPropagationStyle().toString();
-        SpanAttributes attributes =
-            SpanAttributes.builder()
-                .put("reason", "propagation_behavior_extract")
-                .put("context_headers", headers)
-                .build();
+        String headers =
+            ((ExtractedContext) parentSpanContext).getPropagationStyle().toString();
+        SpanAttributes attributes = SpanAttributes.builder()
+            .put("reason", "propagation_behavior_extract")
+            .put("context_headers", headers)
+            .build();
         link = DDSpanLink.from((ExtractedContext) parentSpanContext, attributes);
       } else {
         link = SpanLink.from(parentSpanContext);
@@ -2093,10 +2082,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           propagationTags = extractedContext.getPropagationTags();
         } else if (resolvedParentSpanContext != null) {
-          traceId =
-              resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
-                  ? tracer.idGenerationStrategy.generateTraceId()
-                  : resolvedParentSpanContext.getTraceId();
+          traceId = resolvedParentSpanContext.getTraceId() == DDTraceId.ZERO
+              ? tracer.idGenerationStrategy.generateTraceId()
+              : resolvedParentSpanContext.getTraceId();
           parentSpanId = resolvedParentSpanContext.getSpanId();
           samplingPriority = resolvedParentSpanContext.getSamplingPriority();
           endToEndStartTime = 0;
@@ -2149,12 +2137,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
 
       // Use parent pathwayContext if present and started
-      pathwayContext =
-          resolvedParentSpanContext != null
-                  && resolvedParentSpanContext.getPathwayContext() != null
-                  && resolvedParentSpanContext.getPathwayContext().isStarted()
-              ? resolvedParentSpanContext.getPathwayContext()
-              : tracer.dataStreamsMonitoring.newPathwayContext();
+      pathwayContext = resolvedParentSpanContext != null
+              && resolvedParentSpanContext.getPathwayContext() != null
+              && resolvedParentSpanContext.getPathwayContext().isStarted()
+          ? resolvedParentSpanContext.getPathwayContext()
+          : tracer.dataStreamsMonitoring.newPathwayContext();
 
       // when removing fake services the best upward service name to pick is the local root one
       // since a split by tag (i.e. servlet context) might have happened on it.
@@ -2208,12 +2195,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
+      final int tagsSize = mergedTracerTags.size()
+          + (null == tagLedger ? 0 : tagLedger.estimateSize())
+          + (null == coreTags ? 0 : coreTags.size())
+          + (null == rootSpanTags ? 0 : rootSpanTags.size())
+          + (null == contextualTags ? 0 : contextualTags.size());
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -2226,34 +2212,33 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
 
       // some attributes are inherited from the parent
-      context =
-          new DDSpanContext(
-              traceId,
-              spanId,
-              parentSpanId,
-              parentServiceName,
-              serviceNameSource,
-              serviceName,
-              operationName,
-              resourceName,
-              samplingPriority,
-              origin,
-              baggage,
-              w3cBaggage,
-              errorFlag,
-              spanType,
-              tagsSize,
-              parentTraceCollector,
-              requestContextDataAppSec,
-              requestContextDataIast,
-              ciVisibilityContextData,
-              pathwayContext,
-              tracer.disableSamplingMechanismValidation,
-              propagationTags,
-              tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+      context = new DDSpanContext(
+          traceId,
+          spanId,
+          parentSpanId,
+          parentServiceName,
+          serviceNameSource,
+          serviceName,
+          operationName,
+          resourceName,
+          samplingPriority,
+          origin,
+          baggage,
+          w3cBaggage,
+          errorFlag,
+          spanType,
+          tagsSize,
+          parentTraceCollector,
+          requestContextDataAppSec,
+          requestContextDataIast,
+          ciVisibilityContextData,
+          pathwayContext,
+          tracer.disableSamplingMechanismValidation,
+          propagationTags,
+          tracer.profilingContextIntegration,
+          tracer.injectBaggageAsTags,
+          tracer.injectLinksAsTags,
+          mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

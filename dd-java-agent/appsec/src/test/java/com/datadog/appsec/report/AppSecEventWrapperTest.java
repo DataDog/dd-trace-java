@@ -15,19 +15,17 @@ class AppSecEventWrapperTest {
 
   @Test
   void validateJsonSerializationForAppSecEvent() {
-    Parameter parameter =
-        new Parameter(
-            "parameter_address",
-            singletonList("parameter_key_path"),
-            "parameter_value",
-            singletonList("parameter_highlight"));
+    Parameter parameter = new Parameter(
+        "parameter_address",
+        singletonList("parameter_key_path"),
+        "parameter_value",
+        singletonList("parameter_highlight"));
     RuleMatch ruleMatch =
         new RuleMatch("rule_match_operator", "rule_match_operator_value", singletonList(parameter));
-    AppSecEvent event =
-        new AppSecEvent.Builder()
-            .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
-            .withRuleMatches(singletonList(ruleMatch))
-            .build();
+    AppSecEvent event = new AppSecEvent.Builder()
+        .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
+        .withRuleMatches(singletonList(ruleMatch))
+        .build();
 
     String json = new AppSecEventWrapper(singletonList(event)).toString();
 
@@ -46,11 +44,10 @@ class AppSecEventWrapperTest {
     Parameter parameter =
         new Parameter("server.request.body", Arrays.asList("items", 0.0, "name"), "value", null);
     RuleMatch ruleMatch = new RuleMatch("operator", "operator_value", singletonList(parameter));
-    AppSecEvent event =
-        new AppSecEvent.Builder()
-            .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
-            .withRuleMatches(singletonList(ruleMatch))
-            .build();
+    AppSecEvent event = new AppSecEvent.Builder()
+        .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
+        .withRuleMatches(singletonList(ruleMatch))
+        .build();
 
     String json = new AppSecEventWrapper(singletonList(event)).toString();
 
@@ -64,11 +61,10 @@ class AppSecEventWrapperTest {
     Parameter parameter =
         new Parameter("server.request.body", Arrays.asList("items", 1.5, "name"), "value", null);
     RuleMatch ruleMatch = new RuleMatch("operator", "operator_value", singletonList(parameter));
-    AppSecEvent event =
-        new AppSecEvent.Builder()
-            .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
-            .withRuleMatches(singletonList(ruleMatch))
-            .build();
+    AppSecEvent event = new AppSecEvent.Builder()
+        .withRule(new Rule("rule_id", "rule_name", singletonMap("tag", "value")))
+        .withRuleMatches(singletonList(ruleMatch))
+        .build();
 
     String json = new AppSecEventWrapper(singletonList(event)).toString();
 

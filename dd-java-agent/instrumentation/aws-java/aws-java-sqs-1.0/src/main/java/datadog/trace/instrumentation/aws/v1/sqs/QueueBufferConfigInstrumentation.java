@@ -36,9 +36,8 @@ public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .or(
-                isMethod()
-                    .and(namedOneOf("setReceiveAttributeNames", "withReceiveAttributeNames"))),
+            .or(isMethod()
+                .and(namedOneOf("setReceiveAttributeNames", "withReceiveAttributeNames"))),
         getClass().getName() + "$QueueBufferConfigAdvice");
   }
 

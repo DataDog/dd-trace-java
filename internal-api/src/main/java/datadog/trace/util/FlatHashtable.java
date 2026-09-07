@@ -636,12 +636,11 @@ public final class FlatHashtable {
     int min = (int) Math.ceil(cardinalityLimit / (double) loadFactor);
     int capacity = Integer.highestOneBit(min - 1) << 1;
     if (capacity <= 0) {
-      throw new IllegalArgumentException(
-          "cardinalityLimit "
-              + cardinalityLimit
-              + " at loadFactor "
-              + loadFactor
-              + " requires a capacity larger than Integer.MAX_VALUE");
+      throw new IllegalArgumentException("cardinalityLimit "
+          + cardinalityLimit
+          + " at loadFactor "
+          + loadFactor
+          + " requires a capacity larger than Integer.MAX_VALUE");
     }
     return capacity;
   }

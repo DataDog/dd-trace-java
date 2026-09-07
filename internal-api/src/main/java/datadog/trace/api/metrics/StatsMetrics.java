@@ -37,9 +37,8 @@ public final class StatsMetrics {
   // increment is a direct counter hit rather than a map lookup -- this matters precisely when a
   // cardinality explosion pins the table at cap and every arriving span is dropped, turning a cold
   // path hot. Still registered in the map above, so the telemetry drain sees it with the rest.
-  private final TaggedCounter wholeKeyCollapses =
-      this.collapsedByReason.computeIfAbsent(
-          COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(COLLAPSED_SPANS, tag));
+  private final TaggedCounter wholeKeyCollapses = this.collapsedByReason.computeIfAbsent(
+      COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(COLLAPSED_SPANS, tag));
 
   public static StatsMetrics getInstance() {
     return INSTANCE;

@@ -69,7 +69,8 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER";
   private static final String SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL";
 
-  @Nullable private final OtlpSender sender;
+  @Nullable
+  private final OtlpSender sender;
 
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
   private final OtlpMetricsCollector collector;
@@ -107,16 +108,11 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private OtlpStatsMetricWriter(@Nullable OtlpSender sender, OtlpConfig.Protocol protocol) {
     this.sender = sender;
-    this.collector =
-        protocol == OtlpConfig.Protocol.HTTP_JSON
-            ? new OtlpMetricsJsonCollector(
-                SystemTimeSource.INSTANCE,
-                true,
-                OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
-            : new OtlpMetricsProtoCollector(
-                SystemTimeSource.INSTANCE,
-                true,
-                OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
+    this.collector = protocol == OtlpConfig.Protocol.HTTP_JSON
+        ? new OtlpMetricsJsonCollector(
+            SystemTimeSource.INSTANCE, true, OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+        : new OtlpMetricsProtoCollector(
+            SystemTimeSource.INSTANCE, true, OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
   }
 
   @Override
@@ -134,22 +130,20 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
     Histogram okLatencies = entry.getOkLatencies();
     if (!okLatencies.isEmpty()) {
-      pending.add(
-          new PendingPoint(
-              entry,
-              OtlpStatsHistogramBuckets.toHistogramPoint(okLatencies, entry.getOkDuration()),
-              false,
-              allTopLevel));
+      pending.add(new PendingPoint(
+          entry,
+          OtlpStatsHistogramBuckets.toHistogramPoint(okLatencies, entry.getOkDuration()),
+          false,
+          allTopLevel));
     }
 
     Histogram errorLatencies = entry.getErrorLatencies();
     if (errorLatencies != null && !errorLatencies.isEmpty()) {
-      pending.add(
-          new PendingPoint(
-              entry,
-              OtlpStatsHistogramBuckets.toHistogramPoint(errorLatencies, entry.getErrorDuration()),
-              true,
-              allTopLevel));
+      pending.add(new PendingPoint(
+          entry,
+          OtlpStatsHistogramBuckets.toHistogramPoint(errorLatencies, entry.getErrorDuration()),
+          true,
+          allTopLevel));
     }
   }
 

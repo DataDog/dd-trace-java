@@ -49,10 +49,9 @@ public class GenerationalUtf8CacheTest {
 
   @Test
   public void maxCapacity() {
-    GenerationalUtf8Cache cache =
-        new GenerationalUtf8Cache(
-            GenerationalUtf8Cache.MAX_EDEN_CAPACITY + 1,
-            GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 1);
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(
+        GenerationalUtf8Cache.MAX_EDEN_CAPACITY + 1,
+        GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 1);
 
     assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
     assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
@@ -60,11 +59,8 @@ public class GenerationalUtf8CacheTest {
 
   @Test
   public void maxCapacity_combined() {
-    GenerationalUtf8Cache cache =
-        new GenerationalUtf8Cache(
-            GenerationalUtf8Cache.MAX_EDEN_CAPACITY
-                + GenerationalUtf8Cache.MAX_TENURED_CAPACITY
-                + 2);
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(
+        GenerationalUtf8Cache.MAX_EDEN_CAPACITY + GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 2);
 
     assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
     assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
@@ -202,48 +198,43 @@ public class GenerationalUtf8CacheTest {
 
     Thread[] readers = new Thread[threadCount];
     for (int t = 0; t < threadCount; ++t) {
-      readers[t] =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                  ThreadLocalRandom random = ThreadLocalRandom.current();
-                  for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
-                    String value = values[random.nextInt(values.length)];
-                    byte[] result = cache.getUtf8(value);
-                    if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
-                      failure.compareAndSet(
-                          null,
-                          new AssertionError(
-                              "getUtf8(\""
-                                  + value
-                                  + "\") returned bytes for \""
-                                  + new String(result, StandardCharsets.UTF_8)
-                                  + "\""));
-                      return;
-                    }
-                  }
-                } catch (Throwable e) {
-                  failure.compareAndSet(null, e);
-                } finally {
-                  readersRunning.decrementAndGet();
-                }
-              });
+      readers[t] = new Thread(() -> {
+        try {
+          start.await();
+          ThreadLocalRandom random = ThreadLocalRandom.current();
+          for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
+            String value = values[random.nextInt(values.length)];
+            byte[] result = cache.getUtf8(value);
+            if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
+              failure.compareAndSet(
+                  null,
+                  new AssertionError("getUtf8(\""
+                      + value
+                      + "\") returned bytes for \""
+                      + new String(result, StandardCharsets.UTF_8)
+                      + "\""));
+              return;
+            }
+          }
+        } catch (Throwable e) {
+          failure.compareAndSet(null, e);
+        } finally {
+          readersRunning.decrementAndGet();
+        }
+      });
     }
 
     // Recalibrate in a tight loop for the duration, nulling decayed slots concurrently with reads.
-    Thread recalibrator =
-        new Thread(
-            () -> {
-              try {
-                start.await();
-                while (readersRunning.get() > 0 && failure.get() == null) {
-                  cache.recalibrate();
-                }
-              } catch (Throwable e) {
-                failure.compareAndSet(null, e);
-              }
-            });
+    Thread recalibrator = new Thread(() -> {
+      try {
+        start.await();
+        while (readersRunning.get() > 0 && failure.get() == null) {
+          cache.recalibrate();
+        }
+      } catch (Throwable e) {
+        failure.compareAndSet(null, e);
+      }
+    });
 
     for (Thread reader : readers) {
       reader.start();

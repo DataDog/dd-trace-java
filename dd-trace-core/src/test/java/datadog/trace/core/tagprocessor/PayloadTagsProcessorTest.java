@@ -52,10 +52,9 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
 
   private static PayloadTagsProcessor tagsProcessor(
       String tagPrefix, List<String> redactionRules, int maxDepth, int maxTags) {
-    PayloadTagsProcessor.RedactionRules rules =
-        new PayloadTagsProcessor.RedactionRules.Builder()
-            .addRedactionJsonPaths(redactionRules)
-            .build();
+    PayloadTagsProcessor.RedactionRules rules = new PayloadTagsProcessor.RedactionRules.Builder()
+        .addRedactionJsonPaths(redactionRules)
+        .build();
     Map<String, PayloadTagsProcessor.RedactionRules> rulesMap = new HashMap<>();
     rulesMap.put(tagPrefix, rules);
     return new PayloadTagsProcessor(rulesMap, maxDepth, maxTags);
@@ -88,7 +87,8 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
             "aws.response.body",
             pc().push("Endpoints").push("foobar").push("Token")),
         Arguments.arguments("$.foo.bar", "$..bar.*", "aws.request.body", pc().push("phoneNumber")),
-        Arguments.arguments(null, "all", "aws.response.body", pc().push("phoneNumbers").push(5)),
+        Arguments.arguments(
+            null, "all", "aws.response.body", pc().push("phoneNumbers").push(5)),
         Arguments.arguments(
             "all", null, "aws.request.body", pc().push("Attributes").push("KmsMasterKeyId")));
   }
@@ -180,33 +180,31 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void expandPreservingTagTypes() {
     PayloadTagsProcessor ptp = tagsProcessor("payload", Collections.emptyList(), 10, 758);
 
-    Map<String, Object> st =
-        spanTags(
-            "payload",
-            pv(pc().push("tag1"), 11),
-            pv(pc().push("tag2").push("Value"), 2342L),
-            pv(pc().push("tag3").push(0), 3.14d),
-            pv(pc().push("tag4").push("Value").push(0), "string"),
-            pv(pc().push("tag5"), null),
-            pv(pc().push("tag6"), false));
+    Map<String, Object> st = spanTags(
+        "payload",
+        pv(pc().push("tag1"), 11),
+        pv(pc().push("tag2").push("Value"), 2342L),
+        pv(pc().push("tag3").push(0), 3.14d),
+        pv(pc().push("tag4").push("Value").push(0), "string"),
+        pv(pc().push("tag5"), null),
+        pv(pc().push("tag6"), false));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
 
-    Map<String, Object> expected =
-        mapOf(
-            "payload.tag1",
-            11,
-            "payload.tag2.Value",
-            2342L,
-            "payload.tag3.0",
-            3.14d,
-            "payload.tag4.Value.0",
-            "string",
-            "payload.tag5",
-            null,
-            "payload.tag6",
-            false);
+    Map<String, Object> expected = mapOf(
+        "payload.tag1",
+        11,
+        "payload.tag2.Value",
+        2342L,
+        "payload.tag3.0",
+        3.14d,
+        "payload.tag4.Value.0",
+        "string",
+        "payload.tag5",
+        null,
+        "payload.tag6",
+        false);
     assertEquals(expected, unsafeTags);
   }
 
@@ -227,33 +225,31 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void expandStringifiedJsonTags() {
     PayloadTagsProcessor ptp = tagsProcessor("p", Collections.emptyList(), 10, 758);
 
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(pc().push("j1"), "{}"),
-            pv(pc().push("j2"), "[]"),
-            pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
-            pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(pc().push("j1"), "{}"),
+        pv(pc().push("j2"), "[]"),
+        pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
+        pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
 
-    Map<String, Object> expected =
-        mapOf(
-            "p.j3.0",
-            "1",
-            "p.j3.1",
-            2,
-            "p.j3.2",
-            3.14d,
-            "p.j3.3",
-            null,
-            "p.j3.4",
-            true,
-            "p.j4.foo",
-            "bar",
-            "p.j4.baz",
-            42);
+    Map<String, Object> expected = mapOf(
+        "p.j3.0",
+        "1",
+        "p.j3.1",
+        2,
+        "p.j3.2",
+        3.14d,
+        "p.j3.3",
+        null,
+        "p.j3.4",
+        true,
+        "p.j4.foo",
+        "bar",
+        "p.j4.baz",
+        42);
     assertEquals(expected, unsafeTags);
   }
 
@@ -331,12 +327,11 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void expandBinaryIfJson() {
     PayloadTagsProcessor ptp = tagsProcessor("p", Collections.emptyList(), 10, 758);
 
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(pc().push("j0"), new ByteArrayInputStream("{}".getBytes())),
-            pv(pc().push("j1"), new ByteArrayInputStream("{'foo': 'bar'}".getBytes())),
-            pv(pc().push("j2"), new ByteArrayInputStream("[1, true]".getBytes())));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(pc().push("j0"), new ByteArrayInputStream("{}".getBytes())),
+        pv(pc().push("j1"), new ByteArrayInputStream("{'foo': 'bar'}".getBytes())),
+        pv(pc().push("j2"), new ByteArrayInputStream("[1, true]".getBytes())));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
@@ -360,12 +355,11 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
       })
   void expandBinaryEscapedJsonTags(String innerJson) {
     PayloadTagsProcessor ptp = tagsProcessor("p", Collections.emptyList(), 10, 758);
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(
-                pc().push("v"),
-                new ByteArrayInputStream(("{ \"inner\": " + innerJson + "}").getBytes())));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(
+            pc().push("v"),
+            new ByteArrayInputStream(("{ \"inner\": " + innerJson + "}").getBytes())));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
@@ -391,33 +385,31 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void applyRedactionRules() {
     PayloadTagsProcessor ptp = tagsProcessor("p", Arrays.asList("$.j3[0]", "$.j4.baz"), 10, 758);
 
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(pc().push("j1"), "{}"),
-            pv(pc().push("j2"), "[]"),
-            pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
-            pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(pc().push("j1"), "{}"),
+        pv(pc().push("j2"), "[]"),
+        pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
+        pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
 
-    Map<String, Object> expected =
-        mapOf(
-            "p.j3.0",
-            "redacted",
-            "p.j3.1",
-            2,
-            "p.j3.2",
-            3.14d,
-            "p.j3.3",
-            null,
-            "p.j3.4",
-            true,
-            "p.j4.foo",
-            "bar",
-            "p.j4.baz",
-            "redacted");
+    Map<String, Object> expected = mapOf(
+        "p.j3.0",
+        "redacted",
+        "p.j3.1",
+        2,
+        "p.j3.2",
+        3.14d,
+        "p.j3.3",
+        null,
+        "p.j3.4",
+        true,
+        "p.j4.foo",
+        "bar",
+        "p.j4.baz",
+        "redacted");
     assertEquals(expected, unsafeTags);
   }
 
@@ -425,13 +417,12 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void respectMaxTagsLimit() {
     PayloadTagsProcessor ptp = tagsProcessor("p", Arrays.asList("$.j3[0]", "$.j4.baz"), 10, 4);
 
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(pc().push("j1"), "{}"),
-            pv(pc().push("j2"), "[]"),
-            pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
-            pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(pc().push("j1"), "{}"),
+        pv(pc().push("j2"), "[]"),
+        pv(pc().push("j3"), "['1', 2, 3.14, null, true]"),
+        pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42}"));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});
@@ -455,13 +446,10 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   void respectMaxDepthLimit() {
     PayloadTagsProcessor ptp = tagsProcessor("p", Arrays.asList("$.j3[0]", "$.j4.baz"), 3, 800);
 
-    Map<String, Object> st =
-        spanTags(
-            "p",
-            pv(pc().push("j3"), "['1', 2, 3.14, null, true, [ 1, [ 2, 3 ] ]]"),
-            pv(
-                pc().push("j4"),
-                "{'foo': 'bar', 'baz': 42, 'nested': { 'a': 1, 'b': { 'c': 2 } } }"));
+    Map<String, Object> st = spanTags(
+        "p",
+        pv(pc().push("j3"), "['1', 2, 3.14, null, true, [ 1, [ 2, 3 ] ]]"),
+        pv(pc().push("j4"), "{'foo': 'bar', 'baz': 42, 'nested': { 'a': 1, 'b': { 'c': 2 } } }"));
 
     TagMap unsafeTags = TagMap.fromMap(st);
     ptp.processTags(unsafeTags, null, link -> {});

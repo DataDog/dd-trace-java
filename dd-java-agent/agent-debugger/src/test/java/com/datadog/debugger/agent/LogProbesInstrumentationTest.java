@@ -91,9 +91,8 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    TestSnapshotListener listener =
-        installMethodProbe(
-            "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
+    TestSnapshotListener listener = installMethodProbe(
+        "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -118,9 +117,8 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateLargeArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    TestSnapshotListener listener =
-        installMethodProbe(
-            "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
+    TestSnapshotListener listener = installMethodProbe(
+        "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", STR_8K).get();
     Assertions.assertEquals(3, result);
@@ -148,15 +146,14 @@ public class LogProbesInstrumentationTest {
   @Test
   public void methodTemplateArgLogEvaluateAtExit() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    LogProbe probe =
-        createProbeBuilder(
-                LOG_ID,
-                "this is log line with return={@return}",
-                CLASS_NAME,
-                "main",
-                "int (java.lang.String)")
-            .evaluateAt(MethodLocation.EXIT)
-            .build();
+    LogProbe probe = createProbeBuilder(
+            LOG_ID,
+            "this is log line with return={@return}",
+            CLASS_NAME,
+            "main",
+            "int (java.lang.String)")
+        .evaluateAt(MethodLocation.EXIT)
+        .build();
     TestSnapshotListener listener = installProbes(probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -169,20 +166,18 @@ public class LogProbesInstrumentationTest {
   @Test
   public void mergedMethodTemplateArgLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    LogProbe logProbe1 =
-        createMethodProbe(
-            LOG_ID1,
-            "this is log line #1 with arg={arg}",
-            CLASS_NAME,
-            "main",
-            "int (java.lang.String)");
-    LogProbe logProbe2 =
-        createMethodProbe(
-            LOG_ID2,
-            "this is log line #2 with arg={arg}",
-            CLASS_NAME,
-            "main",
-            "int (java.lang.String)");
+    LogProbe logProbe1 = createMethodProbe(
+        LOG_ID1,
+        "this is log line #1 with arg={arg}",
+        CLASS_NAME,
+        "main",
+        "int (java.lang.String)");
+    LogProbe logProbe2 = createMethodProbe(
+        LOG_ID2,
+        "this is log line #2 with arg={arg}",
+        CLASS_NAME,
+        "main",
+        "int (java.lang.String)");
     TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -229,24 +224,22 @@ public class LogProbesInstrumentationTest {
   private List<Snapshot> doMergedMethodTemplateMixCapture(
       boolean mainCapture, boolean additionalCapture) throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    LogProbe logProbe1 =
-        createProbeBuilder(
-                LOG_ID1,
-                "this is log line #1 with arg={arg}",
-                CLASS_NAME,
-                "main",
-                "int (java.lang.String)")
-            .captureSnapshot(mainCapture)
-            .build();
-    LogProbe logProbe2 =
-        createProbeBuilder(
-                LOG_ID2,
-                "this is log line #2 with arg={arg}",
-                CLASS_NAME,
-                "main",
-                "int (java.lang.String)")
-            .captureSnapshot(additionalCapture)
-            .build();
+    LogProbe logProbe1 = createProbeBuilder(
+            LOG_ID1,
+            "this is log line #1 with arg={arg}",
+            CLASS_NAME,
+            "main",
+            "int (java.lang.String)")
+        .captureSnapshot(mainCapture)
+        .build();
+    LogProbe logProbe2 = createProbeBuilder(
+            LOG_ID2,
+            "this is log line #2 with arg={arg}",
+            CLASS_NAME,
+            "main",
+            "int (java.lang.String)")
+        .captureSnapshot(additionalCapture)
+        .build();
     TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -273,9 +266,8 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID2, "this is log line with local var={var1}", CLASS_NAME, line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID2, "this is log line with local var={var1}", CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -288,12 +280,11 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateMultipleVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID1,
-            "nullObject={nullObject} sdata={sdata.strValue} cdata={cdata.s1.intValue}",
-            CLASS_NAME,
-            line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID1,
+        "nullObject={nullObject} sdata={sdata.strValue} cdata={cdata.s1.intValue}",
+        CLASS_NAME,
+        line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(143, result);
@@ -306,12 +297,11 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateEscapeLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID2,
-            "this is log line with {{curly braces}} and with local var={{{var1}}}",
-            CLASS_NAME,
-            line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID2,
+        "this is log line with {{curly braces}} and with local var={{{var1}}}",
+        CLASS_NAME,
+        line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -325,9 +315,8 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateInvalidVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID2, "this is log line with local var={var42}", CLASS_NAME, line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID2, "this is log line with local var={var42}", CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -337,16 +326,16 @@ public class LogProbesInstrumentationTest {
         "this is log line with local var={Cannot find symbol: var42}", snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
-    assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
   public void lineTemplateNullFieldLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID1, "this is log line with field={nullObject.intValue}", CLASS_NAME, line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID1, "this is log line with field={nullObject.intValue}", CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assertions.assertEquals(143, result);
@@ -357,19 +346,16 @@ public class LogProbesInstrumentationTest {
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
-        "Cannot dereference field: intValue", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: intValue",
+        snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
   public void lineTemplateIndexOutOfBoundsLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
-    TestSnapshotListener listener =
-        installLineProbe(
-            LINE_PROBE_ID1,
-            "this is log line with element of list={strList[10]}",
-            CLASS_NAME,
-            line);
+    TestSnapshotListener listener = installLineProbe(
+        LINE_PROBE_ID1, "this is log line with element of list={strList[10]}", CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
@@ -402,14 +388,13 @@ public class LogProbesInstrumentationTest {
   public void conditionWithLogTemplateEvalError() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     final String LOG_TEMPLATE = "log line with arg={typoArg}";
-    LogProbe logProbes =
-        createProbeBuilder(LOG_ID, LOG_TEMPLATE, CLASS_NAME, "doit", "int (java.lang.String)")
-            .when(
-                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
-            .evaluateAt(MethodLocation.ENTRY)
-            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
-            .captureSnapshot(true)
-            .build();
+    LogProbe logProbes = createProbeBuilder(
+            LOG_ID, LOG_TEMPLATE, CLASS_NAME, "doit", "int (java.lang.String)")
+        .when(new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
+        .evaluateAt(MethodLocation.ENTRY)
+        .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+        .captureSnapshot(true)
+        .build();
     TestSnapshotListener listener = installProbes(logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
@@ -420,15 +405,15 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
     Assertions.assertEquals(1, snapshot.getEvaluationErrors().size());
     Assertions.assertEquals(
-        "Cannot dereference field: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: typoArg",
+        snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
   public void mergedMethodTemplateMainNoErrorAdditionalLogError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
-        doMergedMethodTemplateMixLogError(
-            "this is log line #1 with arg={arg}", "this is log line #2 with arg={typoArg}");
+    List<Snapshot> snapshots = doMergedMethodTemplateMixLogError(
+        "this is log line #1 with arg={arg}", "this is log line #2 with arg={typoArg}");
     Snapshot snapshot0 = snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
@@ -449,9 +434,8 @@ public class LogProbesInstrumentationTest {
   @Test
   public void mergedMethodTemplateMainLogErrorAdditionalNoError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
-        doMergedMethodTemplateMixLogError(
-            "this is log line #1 with arg={typoArg}", "this is log line #2 with arg={arg}");
+    List<Snapshot> snapshots = doMergedMethodTemplateMixLogError(
+        "this is log line #1 with arg={typoArg}", "this is log line #2 with arg={arg}");
     Snapshot snapshot0 = snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
@@ -472,9 +456,8 @@ public class LogProbesInstrumentationTest {
   @Test
   public void mergedMethodTemplateMainLogErrorAdditionalLogError()
       throws IOException, URISyntaxException {
-    List<Snapshot> snapshots =
-        doMergedMethodTemplateMixLogError(
-            "this is log line #1 with arg={typoArg1}", "this is log line #2 with arg={typoArg2}");
+    List<Snapshot> snapshots = doMergedMethodTemplateMixLogError(
+        "this is log line #1 with arg={typoArg1}", "this is log line #2 with arg={typoArg2}");
     Snapshot snapshot0 = snapshots.get(0);
     assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
@@ -498,15 +481,14 @@ public class LogProbesInstrumentationTest {
   private List<Snapshot> doMergedMethodTemplateMixLogError(
       String mainTemplate, String additionalTemplate) throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    LogProbe logProbe1 =
-        createProbeBuilder(LOG_ID1, mainTemplate, CLASS_NAME, "main", "int (java.lang.String)")
-            .captureSnapshot(true)
-            .build();
-    LogProbe logProbe2 =
-        createProbeBuilder(
-                LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
-            .captureSnapshot(true)
-            .build();
+    LogProbe logProbe1 = createProbeBuilder(
+            LOG_ID1, mainTemplate, CLASS_NAME, "main", "int (java.lang.String)")
+        .captureSnapshot(true)
+        .build();
+    LogProbe logProbe2 = createProbeBuilder(
+            LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
+        .captureSnapshot(true)
+        .build();
     TestSnapshotListener listener = installProbes(logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -518,17 +500,20 @@ public class LogProbesInstrumentationTest {
   private TestSnapshotListener installMethodProbe(
       String template, String typeName, String methodName, String signature) {
     LogProbe logProbe = createMethodProbe(LOG_ID, template, typeName, methodName, signature);
-    return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
+    return installProbes(
+        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
   }
 
   private TestSnapshotListener installLineProbe(
       ProbeId probeId, String template, String sourceFile, int line) {
     LogProbe logProbe = createLineProbe(probeId, template, sourceFile, line);
-    return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
+    return installProbes(
+        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
   }
 
   private TestSnapshotListener installProbes(LogProbe... logProbes) {
-    return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbes).build());
+    return installProbes(
+        Configuration.builder().setService(SERVICE_NAME).add(logProbes).build());
   }
 
   private static LogProbe.Builder createProbeBuilder(

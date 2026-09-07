@@ -42,10 +42,10 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
     return "org.glassfish.grizzly.http.util.Parameters";
   }
 
-  private static final Reference PARAM_HASH_VALUES_HASH_MAP_REFERENCE =
-      new Reference.Builder("org.glassfish.grizzly.http.util.Parameters")
-          .withField(new String[0], 0, "paramHashValues", "Ljava/util/LinkedHashMap;")
-          .build();
+  private static final Reference PARAM_HASH_VALUES_HASH_MAP_REFERENCE = new Reference.Builder(
+          "org.glassfish.grizzly.http.util.Parameters")
+      .withField(new String[0], 0, "paramHashValues", "Ljava/util/LinkedHashMap;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

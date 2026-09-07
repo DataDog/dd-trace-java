@@ -542,9 +542,8 @@ class FlatHashtableTest {
   @Test
   void caseInsensitiveStrategy_matchesRegardlessOfCase() {
     TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
-    TestEntry stored =
-        FlatHashtable.getOrCreate(
-            table, "Content-Type", TestCaseInsensitiveStrategy.INSTANCE, CREATE);
+    TestEntry stored = FlatHashtable.getOrCreate(
+        table, "Content-Type", TestCaseInsensitiveStrategy.INSTANCE, CREATE);
 
     // Look-ups in any case resolve to the same stored entry, allocation-free.
     assertSame(

@@ -35,16 +35,14 @@ public class CodeSourceExcludes {
         // avoid hashing on the URL because that can be a blocking operation
         URL location = codeSource.getLocation();
         return null != location
-            && excludedCodeSources.computeIfAbsent(
-                location.getPath(),
-                path -> {
-                  for (String name : excludes) {
-                    if (path.contains(name)) {
-                      return true;
-                    }
-                  }
-                  return false;
-                });
+            && excludedCodeSources.computeIfAbsent(location.getPath(), path -> {
+              for (String name : excludes) {
+                if (path.contains(name)) {
+                  return true;
+                }
+              }
+              return false;
+            });
       }
     }
     return false;

@@ -16,26 +16,26 @@ public class AwsNameCache {
   private static final DDCache<String, CharSequence> CACHE =
       DDCaches.newFixedSizeCache(128); // cloud services can have high cardinality
 
-  private static final QualifiedClassNameCache CLASS_NAME_CACHE =
-      new QualifiedClassNameCache(
-          input -> REQUEST_PATTERN.matcher(input.getSimpleName()).replaceAll(""),
-          Functions.SuffixJoin.of(
-              ".",
-              serviceName ->
-                  AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim()));
+  private static final QualifiedClassNameCache CLASS_NAME_CACHE = new QualifiedClassNameCache(
+      input -> REQUEST_PATTERN.matcher(input.getSimpleName()).replaceAll(""),
+      Functions.SuffixJoin.of(
+          ".",
+          serviceName ->
+              AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim()));
 
   public static CharSequence spanName(final Request<?> awsRequest) {
     return CACHE.computeIfAbsent(
         getQualifiedName(awsRequest).toString(),
-        key ->
-            UTF8BytesString.create(
-                SpanNaming.instance()
-                    .namingSchema()
-                    .cloud()
-                    .operationForRequest(
-                        "aws",
-                        AMAZON_PATTERN.matcher(awsRequest.getServiceName()).replaceAll("").trim(),
-                        key)));
+        key -> UTF8BytesString.create(SpanNaming.instance()
+            .namingSchema()
+            .cloud()
+            .operationForRequest(
+                "aws",
+                AMAZON_PATTERN
+                    .matcher(awsRequest.getServiceName())
+                    .replaceAll("")
+                    .trim(),
+                key)));
   }
 
   public static CharSequence getQualifiedName(final Request<?> awsRequest) {

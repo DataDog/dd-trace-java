@@ -31,8 +31,7 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 public final class SessionInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
+    return new String[] {"org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
     };
   }
 
@@ -56,23 +55,22 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
     // Session synchronous methods we want to instrument.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "save",
-                    "replicate",
-                    "saveOrUpdate",
-                    "update",
-                    "merge",
-                    "persist",
-                    "lock",
-                    "refresh",
-                    "insert",
-                    "delete",
-                    // Iterator methods.
-                    "iterate",
-                    // Lazy-load methods.
-                    "immediateLoad",
-                    "internalLoad")),
+            .and(namedOneOf(
+                "save",
+                "replicate",
+                "saveOrUpdate",
+                "update",
+                "merge",
+                "persist",
+                "lock",
+                "refresh",
+                "insert",
+                "delete",
+                // Iterator methods.
+                "iterate",
+                // Lazy-load methods.
+                "immediateLoad",
+                "internalLoad")),
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
 
     // Handle the non-generic 'get' separately.

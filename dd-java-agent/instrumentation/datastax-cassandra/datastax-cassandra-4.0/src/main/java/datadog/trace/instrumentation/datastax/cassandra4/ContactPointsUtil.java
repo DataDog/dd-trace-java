@@ -13,21 +13,18 @@ public class ContactPointsUtil {
   private static final DDCache<Set<EndPoint>, String> CONTACT_POINT_CACHE =
       DDCaches.newFixedSizeCache(8);
 
-  private static final Function<Set<EndPoint>, String> ADDER =
-      endPoints ->
-          endPoints.stream()
-              .map(EndPoint::resolve)
-              .filter(InetSocketAddress.class::isInstance)
-              .map(InetSocketAddress.class::cast)
-              .map(
-                  inetSocketAddress -> {
-                    if (inetSocketAddress.getPort() > 0) {
-                      return inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort();
-                    }
-                    return inetSocketAddress.getHostString();
-                  })
-              .distinct() // avoid duplicates
-              .collect(Collectors.joining(","));
+  private static final Function<Set<EndPoint>, String> ADDER = endPoints -> endPoints.stream()
+      .map(EndPoint::resolve)
+      .filter(InetSocketAddress.class::isInstance)
+      .map(InetSocketAddress.class::cast)
+      .map(inetSocketAddress -> {
+        if (inetSocketAddress.getPort() > 0) {
+          return inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort();
+        }
+        return inetSocketAddress.getHostString();
+      })
+      .distinct() // avoid duplicates
+      .collect(Collectors.joining(","));
 
   public static String fromEndPointSet(@Nullable final Set<EndPoint> contactPoints) {
     if (contactPoints == null) {

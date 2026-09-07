@@ -55,12 +55,19 @@ public abstract class NamedContext {
   }
 
   private static class NamedContextImpl extends NamedContext {
-    @Nonnull private final PropagationModule module;
-    @Nonnull private final Source source;
-    @Nullable private String currentName;
+    @Nonnull
+    private final PropagationModule module;
+
+    @Nonnull
+    private final Source source;
+
+    @Nullable
+    private String currentName;
 
     private boolean fetched;
-    @Nullable private IastContext context;
+
+    @Nullable
+    private IastContext context;
 
     public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
       this.module = module;

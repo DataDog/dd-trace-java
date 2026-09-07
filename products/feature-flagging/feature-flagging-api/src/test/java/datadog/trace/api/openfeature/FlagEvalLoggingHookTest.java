@@ -127,13 +127,12 @@ class FlagEvalLoggingHookTest {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
-    final FlagEvaluationDetails<Object> det =
-        details(
-            "my-flag",
-            "on-value",
-            "on",
-            Reason.TARGETING_MATCH.name(),
-            ImmutableMetadata.builder().addString("allocationKey", "alloc-1").build());
+    final FlagEvaluationDetails<Object> det = details(
+        "my-flag",
+        "on-value",
+        "on",
+        Reason.TARGETING_MATCH.name(),
+        ImmutableMetadata.builder().addString("allocationKey", "alloc-1").build());
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -152,13 +151,12 @@ class FlagEvalLoggingHookTest {
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     // value and variant DIFFER, so a value-vs-variant mistake is detectable.
-    final FlagEvaluationDetails<Object> det =
-        details(
-            "g1-flag",
-            "the-evaluated-value", // value
-            "the-variant-key", // variant
-            Reason.TARGETING_MATCH.name(),
-            null);
+    final FlagEvaluationDetails<Object> det = details(
+        "g1-flag",
+        "the-evaluated-value", // value
+        "the-variant-key", // variant
+        Reason.TARGETING_MATCH.name(),
+        null);
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -177,16 +175,15 @@ class FlagEvalLoggingHookTest {
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final long expectedTimestamp = 1_700_000_000_000L;
-    final FlagEvaluationDetails<Object> det =
-        details(
-            "ts-flag",
-            "v",
-            "v",
-            Reason.SPLIT.name(),
-            ImmutableMetadata.builder()
-                .addString("allocationKey", "a")
-                .addLong("__dd_eval_timestamp_ms", expectedTimestamp)
-                .build());
+    final FlagEvaluationDetails<Object> det = details(
+        "ts-flag",
+        "v",
+        "v",
+        Reason.SPLIT.name(),
+        ImmutableMetadata.builder()
+            .addString("allocationKey", "a")
+            .addLong("__dd_eval_timestamp_ms", expectedTimestamp)
+            .build());
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -244,15 +241,14 @@ class FlagEvalLoggingHookTest {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
-    final FlagEvaluationDetails<Object> det =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("err-flag")
-            .value("default")
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.TYPE_MISMATCH)
-            .errorMessage("value does not match declared type")
-            .flagMetadata(consentOnMetadata())
-            .build();
+    final FlagEvaluationDetails<Object> det = FlagEvaluationDetails.<Object>builder()
+        .flagKey("err-flag")
+        .value("default")
+        .reason(Reason.ERROR.name())
+        .errorCode(ErrorCode.TYPE_MISMATCH)
+        .errorMessage("value does not match declared type")
+        .flagMetadata(consentOnMetadata())
+        .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -272,15 +268,14 @@ class FlagEvalLoggingHookTest {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
-    final FlagEvaluationDetails<Object> det =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("err-flag")
-            .value("default")
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.TYPE_MISMATCH)
-            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
-            .flagMetadata(consentOffMetadata())
-            .build();
+    final FlagEvaluationDetails<Object> det = FlagEvaluationDetails.<Object>builder()
+        .flagKey("err-flag")
+        .value("default")
+        .reason(Reason.ERROR.name())
+        .errorCode(ErrorCode.TYPE_MISMATCH)
+        .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+        .flagMetadata(consentOffMetadata())
+        .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -302,14 +297,13 @@ class FlagEvalLoggingHookTest {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
-    final FlagEvaluationDetails<Object> det =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("err-flag")
-            .value("default")
-            .reason(Reason.ERROR.name())
-            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
-            .flagMetadata(consentOffMetadata())
-            .build();
+    final FlagEvaluationDetails<Object> det = FlagEvaluationDetails.<Object>builder()
+        .flagKey("err-flag")
+        .value("default")
+        .reason(Reason.ERROR.name())
+        .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+        .flagMetadata(consentOffMetadata())
+        .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -324,13 +318,12 @@ class FlagEvalLoggingHookTest {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
-    final FlagEvaluationDetails<Object> det =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("err-flag")
-            .value("default")
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.FLAG_NOT_FOUND)
-            .build();
+    final FlagEvaluationDetails<Object> det = FlagEvaluationDetails.<Object>builder()
+        .flagKey("err-flag")
+        .value("default")
+        .reason(Reason.ERROR.name())
+        .errorCode(ErrorCode.FLAG_NOT_FOUND)
+        .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
@@ -407,20 +400,14 @@ class FlagEvalLoggingHookTest {
     java.util.Arrays.fill(longChars, 'x');
     final MutableContext ctx = new MutableContext("user-1");
     ctx.add("oversized", new String(longChars));
-    final HookContext<Object> hookCtx =
-        HookContext.<Object>builder()
-            .flagKey("flag")
-            .type(dev.openfeature.sdk.FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(ctx)
-            .build();
-    final FlagEvaluationDetails<Object> det =
-        details(
-            "flag",
-            "v",
-            "v",
-            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
-            consentOnMetadata());
+    final HookContext<Object> hookCtx = HookContext.<Object>builder()
+        .flagKey("flag")
+        .type(dev.openfeature.sdk.FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(ctx)
+        .build();
+    final FlagEvaluationDetails<Object> det = details(
+        "flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -436,20 +423,14 @@ class FlagEvalLoggingHookTest {
 
     final MutableContext ctx = new MutableContext("user-1");
     ctx.add("region", "us-east-1");
-    final HookContext<Object> hookCtx =
-        HookContext.<Object>builder()
-            .flagKey("flag")
-            .type(dev.openfeature.sdk.FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(ctx)
-            .build();
-    final FlagEvaluationDetails<Object> det =
-        details(
-            "flag",
-            "v",
-            "v",
-            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
-            consentOnMetadata());
+    final HookContext<Object> hookCtx = HookContext.<Object>builder()
+        .flagKey("flag")
+        .type(dev.openfeature.sdk.FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(ctx)
+        .build();
+    final FlagEvaluationDetails<Object> det = details(
+        "flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -461,12 +442,10 @@ class FlagEvalLoggingHookTest {
   void enqueueDisabledIsNoOpBeforeWriterLookup() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     final AtomicReference<Boolean> writerResolved = new AtomicReference<>(false);
-    final FlagEvalLoggingHook<Object> hook =
-        new FlagEvalLoggingHook<>(
-            () -> {
-              writerResolved.set(true);
-              throw new AssertionError("writer should not be resolved when enqueue is disabled");
-            });
+    final FlagEvalLoggingHook<Object> hook = new FlagEvalLoggingHook<>(() -> {
+      writerResolved.set(true);
+      throw new AssertionError("writer should not be resolved when enqueue is disabled");
+    });
     final FlagEvaluationDetails<Object> det =
         details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
 
@@ -489,11 +468,9 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void writerLookupLinkageErrorIsNoOp() {
-    final FlagEvalLoggingHook<Object> hook =
-        new FlagEvalLoggingHook<>(
-            () -> {
-              throw new NoSuchMethodError("old bootstrap");
-            });
+    final FlagEvalLoggingHook<Object> hook = new FlagEvalLoggingHook<>(() -> {
+      throw new NoSuchMethodError("old bootstrap");
+    });
     final FlagEvaluationDetails<Object> det =
         details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
 
@@ -548,13 +525,12 @@ class FlagEvalLoggingHookTest {
         new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
     context.setTargetingKey("user-42");
 
-    final HookContext<Object> hookCtx =
-        HookContext.<Object>builder()
-            .flagKey("ctx-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(context)
-            .build();
+    final HookContext<Object> hookCtx = HookContext.<Object>builder()
+        .flagKey("ctx-flag")
+        .type(FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(context)
+        .build();
     final FlagEvaluationDetails<Object> det =
         details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
@@ -587,13 +563,12 @@ class FlagEvalLoggingHookTest {
     cohorts.add(Value.objectToValue("beta"));
     context.add("cohorts", cohorts);
 
-    final HookContext<Object> hookCtx =
-        HookContext.<Object>builder()
-            .flagKey("ctx-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(context)
-            .build();
+    final HookContext<Object> hookCtx = HookContext.<Object>builder()
+        .flagKey("ctx-flag")
+        .type(FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(context)
+        .build();
     final FlagEvaluationDetails<Object> det =
         details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
@@ -643,17 +618,15 @@ class FlagEvalLoggingHookTest {
     final MutableContext context = new MutableContext("user-1");
     context.add("region", "us-east-1");
 
-    final HookContext<Object> hookCtx =
-        HookContext.<Object>builder()
-            .flagKey("ctx-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(context)
-            .build();
-    final ImmutableMetadata consentOff =
-        ImmutableMetadata.builder()
-            .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
-            .build();
+    final HookContext<Object> hookCtx = HookContext.<Object>builder()
+        .flagKey("ctx-flag")
+        .type(FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(context)
+        .build();
+    final ImmutableMetadata consentOff = ImmutableMetadata.builder()
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
+        .build();
 
     hook.finallyAfter(
         hookCtx,
@@ -683,12 +656,11 @@ class FlagEvalLoggingHookTest {
   private FlagEvalEvent enqueuedEventWithConsentMetadata(final Boolean consent) {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
-    final ImmutableMetadata metadata =
-        consent == null
-            ? null
-            : ImmutableMetadata.builder()
-                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, consent)
-                .build();
+    final ImmutableMetadata metadata = consent == null
+        ? null
+        : ImmutableMetadata.builder()
+            .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, consent)
+            .build();
     hook.finallyAfter(
         hookCtxWithTargetingKey("obs-flag", "user-1"),
         details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), metadata),
