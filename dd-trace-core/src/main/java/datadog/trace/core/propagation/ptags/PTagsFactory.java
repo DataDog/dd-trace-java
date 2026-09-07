@@ -542,9 +542,23 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateW3CTracestate(String tracestate) {
+      setW3CTracestate(tracestate, W3CPTagsCodec.extractOtelTraceState(tracestate));
+    }
+
+    @Override
+    public void updateW3CTracestateFrom(PropagationTags source) {
+      if (!(source instanceof PTags)) {
+        super.updateW3CTracestateFrom(source);
+        return;
+      }
+      PTags sourcePTags = (PTags) source;
+      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
+    }
+
+    private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
       clearCachedHeader(W3C);
       this.tracestate = tracestate;
-      setOtelTraceState(W3CPTagsCodec.extractOtelTraceState(tracestate));
+      this.otelTraceState = otelTraceState;
     }
 
     OtelTraceState getOtelTraceState() {

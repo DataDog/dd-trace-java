@@ -57,19 +57,19 @@ public class W3CPTagsCodec extends PTagsCodec {
     int otelMemberPosition = 0;
     int otherMemberPosition = 0;
     while (memberStart < len) {
+      int currentMemberStart = memberStart;
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
       }
-      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, memberStart);
-      boolean otelMember = value.startsWith(OTEL_MEMBER_KEY, memberStart);
+      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, currentMemberStart);
       if (ddMemberIndex == -1 && datadogMember) {
-        ddMemberStart = memberStart;
+        ddMemberStart = currentMemberStart;
         ddMemberIndex = memberIndex;
       }
       // Validate the member key
-      int pos = validateMemberKey(value, memberStart);
+      int pos = validateMemberKey(value, currentMemberStart);
       if (pos < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
@@ -86,23 +86,28 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (ddMemberValueEnd == -1 && ddMemberIndex != -1) {
         ddMemberValueEnd = pos;
       }
-      if (otelMemberValueStart == -1) {
-        if (otelMember) {
-          otelMemberStart = memberStart;
-          otelMemberValueStart = memberValueStart;
-          otelMemberValueEnd = stripTrailingOWC(value, memberValueStart, pos);
-          otelMemberEnd = pos;
-          otelMemberPosition = otherMemberPosition;
-        } else if (!datadogMember) {
-          otherMemberPosition++;
-        }
-      }
       memberStart = findNextMember(value, pos);
       if (memberStart < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
       memberIndex++;
+      if (otelMemberValueStart != -1) {
+        continue;
+      }
+      if (datadogMember) {
+        continue;
+      }
+      boolean otelMember = value.startsWith(OTEL_MEMBER_KEY, currentMemberStart);
+      if (otelMember) {
+        otelMemberStart = currentMemberStart;
+        otelMemberValueStart = memberValueStart;
+        otelMemberValueEnd = stripTrailingOWC(value, memberValueStart, pos);
+        otelMemberEnd = pos;
+        otelMemberPosition = otherMemberPosition;
+      } else {
+        otherMemberPosition++;
+      }
     }
 
     OtelTraceState otelTraceState =
