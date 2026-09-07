@@ -2332,6 +2332,14 @@
         "aliases": []
       }
     ],
+    "DD_LLMOBS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": []
+      }
+    ],
     "DD_LOGS_INJECTION": [
       {
         "version": "B",
@@ -9781,6 +9789,14 @@
       }
     ],
     "DD_TRACE_RUNTIME_CONTEXT_FIELD_INJECTION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE": [
       {
         "version": "A",
         "type": "boolean",
