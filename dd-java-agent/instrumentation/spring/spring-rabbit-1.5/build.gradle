@@ -8,6 +8,7 @@ muzzle {
     module = 'spring-boot-starter-amqp'
     versions = '[1.5.0.RELEASE,3)'
     extraDependency 'com.rabbitmq:amqp-client:2.7.0'
+    excludeDependency 'org.apache.logging.log4j:log4j-to-slf4j'
   }
 }
 

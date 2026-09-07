@@ -2,7 +2,8 @@ package com.datadog.debugger.sink;
 
 import static com.datadog.debugger.sink.SymbolSink.MAX_SYMDB_UPLOAD_SIZE;
 import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

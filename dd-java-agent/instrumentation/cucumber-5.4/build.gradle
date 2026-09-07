@@ -8,6 +8,7 @@ muzzle {
     group = 'io.cucumber'
     module = 'cucumber-core'
     versions = '[5.4.0,)'
+    excludeDependency 'io.cucumber:query'
   }
 }
 

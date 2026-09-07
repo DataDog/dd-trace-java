@@ -52,7 +52,6 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
-  testImplementation("org.awaitility:awaitility:4.3.0")
 
   // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
   // needs them on its own compile and runtime classpath to drive the hook end to end.

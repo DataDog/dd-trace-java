@@ -99,6 +99,7 @@ public final class TraceInstrumentationConfig {
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
+  public static final String RUNTIME_CONTEXT_MAP_PER_STORE = "trace.runtime.context.map-per-store";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
   public static final String LOGS_INJECTION = "logs.injection";

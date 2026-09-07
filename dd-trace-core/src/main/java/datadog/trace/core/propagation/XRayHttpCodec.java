@@ -18,7 +18,6 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,7 +183,7 @@ class XRayHttpCodec {
         if (!baggageMapping.isEmpty()) {
           String mappedKey = baggageMapping.get(toLowerCase(key));
           if (null != mappedKey) {
-            addBaggageItem(this, mappedKey, HttpCodec.decode(value));
+            addBaggageItem(mappedKey, value);
           }
         }
         return true;
@@ -235,7 +234,7 @@ class XRayHttpCodec {
           } else {
             int eqIndex = part.indexOf('=');
             if (eqIndex > 0) {
-              addBaggageItem(interpreter, part.substring(0, eqIndex), part.substring(eqIndex + 1));
+              interpreter.addBaggageItem(part.substring(0, eqIndex), part.substring(eqIndex + 1));
             }
           }
           startPart = endPart + 1;
@@ -254,13 +253,6 @@ class XRayHttpCodec {
 
     private static int convertSamplingPriority(char samplingPriority) {
       return '1' == samplingPriority ? SAMPLER_KEEP : SAMPLER_DROP;
-    }
-
-    private static void addBaggageItem(ContextInterpreter interpreter, String key, String value) {
-      if (interpreter.baggage.isEmpty()) {
-        interpreter.baggage = new TreeMap<>();
-      }
-      interpreter.baggage.put(key, HttpCodec.decode(value));
     }
   }
 }

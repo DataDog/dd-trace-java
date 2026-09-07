@@ -26,6 +26,7 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: libs.versions.testcontainers.get()
 }
 
 tasks.withType(Test).configureEach {

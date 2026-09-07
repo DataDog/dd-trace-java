@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,13 +187,7 @@ class DatadogHttpCodec {
                 propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
                 break;
               case OT_BAGGAGE:
-                {
-                  if (baggage.isEmpty()) {
-                    baggage = new TreeMap<>();
-                  }
-                  baggage.put(
-                      lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
-                }
+                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
                 break;
               default:
             }

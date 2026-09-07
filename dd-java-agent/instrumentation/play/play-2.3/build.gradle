@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.scala'
 }
 
 muzzle {
@@ -35,8 +36,6 @@ repositories {
     url = 'https://repo.typesafe.com/typesafe/maven-releases/'
   }
 }
-
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

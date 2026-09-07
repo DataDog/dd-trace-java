@@ -127,4 +127,4 @@ org.spockframework:spock-core:2.4-groovy-3.0=jmhRuntimeClasspath,testCompileClas
 org.tabletest:tabletest-junit:1.2.2=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,jmhAnnotationProcessor,main_java17AnnotationProcessor,main_java17CompileClasspath,main_java17RuntimeClasspath,spotbugsPlugins,testAnnotationProcessor

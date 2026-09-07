@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -18,6 +19,8 @@ public class LLMObs {
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
+  private static final Object SPAN_PROCESSOR_LOCK = new Object();
+  @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
   protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
       NoOpLLMObsFeedbackProcessor.INSTANCE;
 
@@ -35,6 +38,28 @@ public class LLMObs {
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
     return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId);
+  }
+
+  /**
+   * Starts an agent span, optionally tagging it with a version.
+   *
+   * <p>The version is set as an {@code agent_version} tag on this span and propagated to every
+   * descendant LLMObs span started under it.
+   *
+   * <p>Propagation only happens via this {@code version} parameter, evaluated once when this span
+   * is created. Calling {@link LLMObsSpan#setTag} with {@code agent_version} afterwards — including
+   * on the span returned here — only sets that span's own tag and does not propagate to
+   * descendants.
+   *
+   * @param version the version of this agent, or {@code null}/empty to leave it untagged
+   */
+  public static LLMObsSpan startAgentSpan(
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId,
+      @Nullable String version) {
+
+    return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId, version);
   }
 
   public static LLMObsSpan startToolSpan(
@@ -67,6 +92,35 @@ public class LLMObs {
   public static LLMObsSpan startRetrievalSpan(
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
+  }
+
+  /**
+   * Registers a processor to be called for each LLM Observability span before it is sent.
+   *
+   * <p>The processor can modify the span input and output, or return {@code null} to omit the span
+   * from LLM Observability. Only one processor can be registered at a time.
+   *
+   * @param processor the processor to register
+   * @throws NullPointerException if {@code processor} is {@code null}
+   * @throws IllegalStateException if a processor is already registered
+   */
+  public static void registerProcessor(LLMObsSpanProcessor processor) {
+    Objects.requireNonNull(processor, "processor");
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      if (SPAN_PROCESSOR != null) {
+        throw new IllegalStateException(
+            "An LLM Observability span processor is already registered. "
+                + "Deregister it before registering another.");
+      }
+      SPAN_PROCESSOR = processor;
+    }
+  }
+
+  /** Deregisters the current LLM Observability span processor, if one is registered. */
+  public static void deregisterProcessor() {
+    synchronized (SPAN_PROCESSOR_LOCK) {
+      SPAN_PROCESSOR = null;
+    }
   }
 
   public static void SubmitEvaluation(
@@ -137,6 +191,14 @@ public class LLMObs {
         @Nullable String sessionId);
 
     LLMObsSpan startAgentSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
+
+    default LLMObsSpan startAgentSpan(
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId,
+        @Nullable String version) {
+      return startAgentSpan(spanName, mlApp, sessionId);
+    }
 
     LLMObsSpan startToolSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
@@ -1075,6 +1137,150 @@ public class LLMObs {
 
     public Double getScore() {
       return score;
+    }
+  }
+
+  /** A tool declared in an agent manifest. */
+  public static final class AgentTool {
+    private final String name;
+    private final String description;
+    private final Map<String, Object> parameters;
+
+    public static AgentTool from(String name) {
+      return new AgentTool(name, null, null);
+    }
+
+    /**
+     * Creates an agent tool with a name, description, and parameter schema.
+     *
+     * @param name the tool name
+     * @param description an optional description of what the tool does
+     * @param parameters optional parameter schema; the map is shallow-copied — callers must not
+     *     mutate nested values after construction
+     */
+    public static AgentTool from(
+        String name, @Nullable String description, @Nullable Map<String, Object> parameters) {
+      return new AgentTool(name, description, parameters);
+    }
+
+    private AgentTool(String name, String description, Map<String, Object> parameters) {
+      this.name = name;
+      this.description = description;
+      this.parameters =
+          parameters == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
+    }
+
+    @Nullable
+    public String getName() {
+      return name;
+    }
+
+    @Nullable
+    public String getDescription() {
+      return description;
+    }
+
+    @Nullable
+    public Map<String, Object> getParameters() {
+      return parameters;
+    }
+  }
+
+  /**
+   * Declares the configuration of an agent span: what model it calls, what instructions it runs
+   * with, and which tools it has available.
+   *
+   * <p>Build via {@link AgentManifest#builder()} and pass to {@link
+   * LLMObsSpan#annotateAgentManifest(AgentManifest)}. Only applied on agent spans; ignored on other
+   * span kinds. A subsequent call on the same span merges with the previous manifest.
+   */
+  public static final class AgentManifest {
+    private final String name;
+    private final String instructions;
+    private final String model;
+    private final Map<String, Object> modelSettings;
+    private final List<AgentTool> tools;
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    private AgentManifest(Builder builder) {
+      this.name = builder.name;
+      this.instructions = builder.instructions;
+      this.model = builder.model;
+      this.modelSettings =
+          builder.modelSettings == null
+              ? null
+              : Collections.unmodifiableMap(new LinkedHashMap<>(builder.modelSettings));
+      this.tools =
+          builder.tools == null
+              ? null
+              : Collections.unmodifiableList(new ArrayList<>(builder.tools));
+    }
+
+    @Nullable
+    public String getName() {
+      return name;
+    }
+
+    @Nullable
+    public String getInstructions() {
+      return instructions;
+    }
+
+    @Nullable
+    public String getModel() {
+      return model;
+    }
+
+    @Nullable
+    public Map<String, Object> getModelSettings() {
+      return modelSettings;
+    }
+
+    @Nullable
+    public List<AgentTool> getTools() {
+      return tools;
+    }
+
+    public static final class Builder {
+      private String name;
+      private String instructions;
+      private String model;
+      private Map<String, Object> modelSettings;
+      private List<AgentTool> tools;
+
+      private Builder() {}
+
+      public Builder name(String name) {
+        this.name = name;
+        return this;
+      }
+
+      public Builder instructions(String instructions) {
+        this.instructions = instructions;
+        return this;
+      }
+
+      public Builder model(String model) {
+        this.model = model;
+        return this;
+      }
+
+      public Builder modelSettings(Map<String, Object> modelSettings) {
+        this.modelSettings = modelSettings;
+        return this;
+      }
+
+      public Builder tools(List<AgentTool> tools) {
+        this.tools = tools;
+        return this;
+      }
+
+      public AgentManifest build() {
+        return new AgentManifest(this);
+      }
     }
   }
 }

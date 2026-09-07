@@ -1079,8 +1079,10 @@ public class GatewayBridge {
     if (url != null) {
       ctx.setHttpUrl(url.toString());
     }
+    final Object component = tags.get(Tags.COMPONENT);
+    final String framework = component != null ? component.toString() : null;
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
-    return requestSampler.preSampleRequest(ctx);
+    return requestSampler.preSampleRequest(ctx, framework);
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {

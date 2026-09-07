@@ -83,6 +83,29 @@ class StackTracesTest {
     assertNull(StackTraces.safeGetMessage(null));
   }
 
+  @Test
+  void getStackTraceFallsBackWhenPrintStackTraceThrowsStackOverflowError() {
+    String trace =
+        StackTraces.getStackTrace(TestThrowables.throwingStackOverflowOnPrintStackTrace(), 1000);
+    assertTrue(trace.contains("TestThrowables"), "must fall back to a locatable trace");
+  }
+
+  @Test
+  void getStackTraceFallsBackToClassNameAndMessageWhenEverythingElseThrows() {
+    String trace =
+        StackTraces.getStackTrace(
+            TestThrowables.throwingStackOverflowEverywhereExceptGetMessage(), 1000);
+    assertTrue(trace.contains("TestThrowables"), "must include the throwable's class name");
+    assertTrue(trace.contains("still readable"), "must include the throwable's message");
+  }
+
+  @Test
+  void getStackTraceFallsBackToClassNameWhenGetMessageAlsoThrows() {
+    String trace =
+        StackTraces.getStackTrace(TestThrowables.throwingStackOverflowEverywhere(), 1000);
+    assertEquals(trace, TestThrowables.throwingStackOverflowEverywhere().getClass().getName());
+  }
+
   // --- getStackTrace with broken getMessage ---
 
   @ParameterizedTest(name = "truncation limit {0}")

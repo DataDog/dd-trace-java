@@ -102,6 +102,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       LOGGER.debug("Cannot get inner most throwable (cycle?)");
       return;
     }
+    if (innerMostThrowable.getStackTrace().length == 0) {
+      LOGGER.debug("Exception with no stacktrace, FastThrow?");
+      return;
+    }
     String fingerprint =
         Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
     if (fingerprint == null) {

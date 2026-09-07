@@ -1,6 +1,9 @@
 package datadog.trace.util.stacktrace;
 
-import static datadog.trace.util.stacktrace.StackWalkerTestUtil.*;
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.DD_CLASS_NAME;
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.DD_IAST_CLASS_NAME;
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.NOT_DD_CLASS_NAME;
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.getStackWalkFrom;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

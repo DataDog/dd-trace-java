@@ -11,7 +11,9 @@ dependencies {
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   implementation libs.slf4j
 
+  testImplementation project(':components:environment')
   testImplementation project(':dd-smoke-tests')
+  testImplementation project(':remote-config:remote-config-api')
   testImplementation project(':utils:test-utils')
 }
 
