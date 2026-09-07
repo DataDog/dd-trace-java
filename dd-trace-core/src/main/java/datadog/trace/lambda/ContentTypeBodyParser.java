@@ -139,7 +139,7 @@ final class ContentTypeBodyParser {
     }
     if ("application".equals(mediaType.getType())
         && "x-www-form-urlencoded".equals(mediaType.getSubtype())) {
-      final Object parsed = parseUrlEncoded(body, charsetName(mediaType), context);
+      final Object parsed = parseUrlEncoded(body, charsetName(contentType), context);
       return parsed != null ? parsed : body;
     }
     if ("multipart".equals(mediaType.getType())) {
@@ -285,19 +285,9 @@ final class ContentTypeBodyParser {
    *
    * @return the declared charset, or UTF-8 when none is declared or it is not one this JVM has
    */
-  private static String charsetName(final MediaType mediaType) {
-    String declared = mediaType.getCharset();
-    if (declared == null) {
-      return DEFAULT_CHARSET;
-    }
-    // MediaType keeps everything past "charset=", so a parameter after it, or quotes around the
-    // value, come along with it
-    final int nextParameter = declared.indexOf(';');
-    declared = (nextParameter == -1 ? declared : declared.substring(0, nextParameter)).trim();
-    if (declared.length() > 1 && declared.charAt(0) == '"' && declared.endsWith("\"")) {
-      declared = declared.substring(1, declared.length() - 1);
-    }
-    if (declared.isEmpty()) {
+  private static String charsetName(final String contentType) {
+    final String declared = MultipartSplitter.parameter(contentType, "charset");
+    if (declared == null || declared.isEmpty()) {
       return DEFAULT_CHARSET;
     }
     try {

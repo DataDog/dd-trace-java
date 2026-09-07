@@ -138,11 +138,17 @@ class ContentTypeBodyParserTest {
         "application/x-www-form-urlencoded; charset=\"iso-8859-1\" | café",
         // a parameter after the charset must not be read as part of its name
         "application/x-www-form-urlencoded; charset=iso-8859-1; q=1 | café",
+        // RFC 7230 optional whitespace around the "="
+        "application/x-www-form-urlencoded; charset =iso-8859-1  | café",
         // absent, empty, or not a charset this JVM has: UTF-8, which cannot decode %E9
         "application/x-www-form-urlencoded                       | caf�",
         "application/x-www-form-urlencoded; charset=              | caf�",
         "application/x-www-form-urlencoded; charset=utf-42        | caf�",
         "application/x-www-form-urlencoded; charset=not a charset | caf�",
+        // a parameter that merely ends in "charset" is not one
+        "application/x-www-form-urlencoded; xcharset=iso-8859-1   | caf�",
+        // nor is a "charset=" that only occurs inside another parameter's quoted value
+        "application/x-www-form-urlencoded; q=\"; charset=iso-8859-1\" | caf�",
       })
   void decodesFormValuesWithTheDeclaredCharset(String contentType, String expected) {
     Map<?, ?> parsed = asMap(parseBody("q=caf%E9", contentType));
