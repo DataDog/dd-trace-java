@@ -41,7 +41,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
     forbidWildcardImports()
 
-    palantirJavaFormat(libs.versions.palantir.java.format.get())
+    palantirJavaFormat(libs.versions.palantir.java.format.get()).style("GOOGLE")
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {

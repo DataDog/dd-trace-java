@@ -37,7 +37,7 @@ allprojects {
         target("src/**/*.java")
         removeUnusedImports()
         forbidWildcardImports()
-        palantirJavaFormat(libs.versions.palantir.java.format.get())
+        palantirJavaFormat(libs.versions.palantir.java.format.get()).style("GOOGLE")
       }
     }
   }

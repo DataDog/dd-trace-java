@@ -51,13 +51,13 @@ docs/                     Developer documentation (see below)
 ./gradlew :dd-java-agent:shadowJar        # Build agent jar only (dd-java-agent/build/libs/)
 ./gradlew :path:to:module:test            # Run tests for a specific module
 ./gradlew :path:to:module:test -PtestJvm=11  # Test on a specific JVM version
-./gradlew spotlessApply                   # Auto-format code (Palantir Java Format)
+./gradlew spotlessApply                   # Auto-format code (Palantir Java Format, GOOGLE style)
 ./gradlew spotlessCheck                   # Verify formatting
 ```
 
 ## Code conventions
 
-- **Formatting**: Palantir Java Format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
+- **Formatting**: Palantir Java Format with `GOOGLE` style enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
 - **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
