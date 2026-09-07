@@ -50,8 +50,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
+    int otelMemberStart = -1;
     int otelMemberValueStart = -1;
     int otelMemberValueEnd = -1;
+    int otelMemberEnd = -1;
     int otelMemberPosition = 0;
     int otherMemberPosition = 0;
     while (memberStart < len) {
@@ -86,8 +88,10 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       if (otelMemberValueStart == -1) {
         if (otelMember) {
+          otelMemberStart = memberStart;
           otelMemberValueStart = memberValueStart;
           otelMemberValueEnd = stripTrailingOWC(value, memberValueStart, pos);
+          otelMemberEnd = pos;
           otelMemberPosition = otherMemberPosition;
         } else if (!datadogMember) {
           otherMemberPosition++;
@@ -105,7 +109,9 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberValueStart < 0
             ? null
             : OtelTraceState.parse(
-                value.substring(otelMemberValueStart, otelMemberValueEnd), otelMemberPosition);
+                value.substring(otelMemberValueStart, otelMemberValueEnd),
+                otelMemberPosition,
+                memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberEnd));
 
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
@@ -245,19 +251,23 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
       size += 5; // 's:-?[0-9]' + delimiter
     }
+    boolean includesOriginalTracestate = false;
     if (pTags instanceof W3CPTags) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
         size +=
             (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
+        includesOriginalTracestate = true;
       }
     } else if (pTags.tracestate != null) {
       // We assume there is no Datadog list-member
       size += pTags.tracestate.length();
+      includesOriginalTracestate = true;
     }
     OtelTraceState otelTraceState = pTags.getOtelTraceState();
     if (otelTraceState != null) {
+      size -= includesOriginalTracestate ? otelTraceState.getOriginalMemberContributionSize() : 0;
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
     return size;
@@ -799,7 +809,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       return null;
     }
     int otherMemberPosition = 0;
-    int memberStart = findNextMember(tracestate, 0);
+    int firstMemberStart = findNextMember(tracestate, 0);
+    int memberStart = firstMemberStart;
     while (memberStart < tracestate.length()) {
       int memberValueStart = validateMemberKey(tracestate, memberStart);
       if (memberValueStart < 0) {
@@ -812,7 +823,9 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tracestate.startsWith(OTEL_MEMBER_KEY, memberStart)) {
         int end = stripTrailingOWC(tracestate, memberValueStart, memberValueEnd);
         return OtelTraceState.parse(
-            tracestate.substring(memberValueStart, end), otherMemberPosition);
+            tracestate.substring(memberValueStart, end),
+            otherMemberPosition,
+            memberContributionSize(tracestate, firstMemberStart, memberStart, memberValueEnd));
       }
       if (!tracestate.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
         otherMemberPosition++;
@@ -820,6 +833,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       memberStart = findNextMember(tracestate, memberValueEnd);
     }
     return null;
+  }
+
+  private static int memberContributionSize(
+      String tracestate, int firstMemberStart, int memberStart, int memberEnd) {
+    int memberSize = memberEnd - memberStart;
+    boolean isOnlyMember = memberStart == firstMemberStart && memberEnd == tracestate.length();
+    return isOnlyMember ? memberSize : memberSize + 1;
   }
 
   static W3CPTags empty(PTagsFactory factory, String original) {

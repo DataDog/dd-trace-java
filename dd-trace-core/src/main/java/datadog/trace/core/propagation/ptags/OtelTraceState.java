@@ -3,17 +3,20 @@ package datadog.trace.core.propagation.ptags;
 final class OtelTraceState {
   private final String value;
   private final int inheritedPosition;
+  private final int originalMemberContributionSize;
 
-  private OtelTraceState(String value, int inheritedPosition) {
+  private OtelTraceState(String value, int inheritedPosition, int originalMemberContributionSize) {
     this.value = value;
     this.inheritedPosition = inheritedPosition;
+    this.originalMemberContributionSize = originalMemberContributionSize;
   }
 
-  static OtelTraceState parse(String raw, int inheritedPosition) {
+  static OtelTraceState parse(
+      String raw, int inheritedPosition, int originalMemberContributionSize) {
     if (raw == null || raw.isEmpty()) {
       return null;
     }
-    return new OtelTraceState(raw, inheritedPosition);
+    return new OtelTraceState(raw, inheritedPosition, originalMemberContributionSize);
   }
 
   String getValue() {
@@ -26,5 +29,9 @@ final class OtelTraceState {
 
   int getInheritedPosition() {
     return inheritedPosition;
+  }
+
+  int getOriginalMemberContributionSize() {
+    return originalMemberContributionSize;
   }
 }
