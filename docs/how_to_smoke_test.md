@@ -316,6 +316,32 @@ Build spans with `span()`, then chain any of:
 | `tag(name, String \| Matcher<String>)`                       | A `meta` tag                                            |
 | `metric(name, Matcher<Number>)`                              | A `metrics` entry                                       |
 | `metaStruct(name, Matcher<?>)`                               | A meta-struct entry                                     |
+| `links(SpanLinkMatcher...)`                                  | Span links, positional and count-exact                  |
+
+### Span link matchers
+
+Build link matchers with `SpanLinkMatcher`, one per expected link.
+Calling `links()` with no argument asserts the span carries no link; not calling it asserts nothing about links.
+
+| Method                                           | Matches                                                   |
+|--------------------------------------------------|-----------------------------------------------------------|
+| `to(DDTraceId traceId, long spanId)`             | A link to those identifiers, for a span outside the trace |
+| `toIndex(int spanIndex)`                         | A link to the span at that position in the same trace     |
+| `any()`                                          | Any link, e.g. to assert a count                          |
+| `traceFlags(byte \| Matcher<Byte>)`              | W3C trace flags, `0` by default                           |
+| `traceState(String \| Matcher<String>)`          | W3C trace state, empty by default                         |
+| `attributes(Map \| Matcher<Map<String,String>>)` | Link attributes, empty by default                         |
+
+```java
+app.traces()
+    .waitForTraces(
+        trace(
+            SORT_BY_RESOURCE_NAME,
+            span().root().resourceName("batch-job"),
+            span().resourceName("batch-merge").childOfIndex(0).links(toIndex(2), toIndex(3)),
+            span().resourceName("shard-0").childOfIndex(0),
+            span().resourceName("shard-1").childOfIndex(0)));
+```
 
 ### Matching options
 

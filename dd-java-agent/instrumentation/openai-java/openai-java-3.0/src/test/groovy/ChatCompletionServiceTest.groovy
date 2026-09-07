@@ -398,6 +398,8 @@ class ChatCompletionServiceTest extends OpenAiTest {
               "_ml_obs_metric.cache_read_input_tokens" Long
             }
             "_ml_obs_tag.parent_id" "undefined"
+            "_ml_obs_tag.sampling_decision" "1"
+            "_ml_obs_tag.sample_rate" "1"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String
