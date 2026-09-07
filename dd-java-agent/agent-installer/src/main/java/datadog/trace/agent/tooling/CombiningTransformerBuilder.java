@@ -63,6 +63,7 @@ public final class CombiningTransformerBuilder
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
   private final Set<InstrumenterModule.TargetSystem> enabledSystems;
+  private final boolean debugEnabled;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -81,6 +82,7 @@ public final class CombiningTransformerBuilder
   private HelperTransformer helperTransformer;
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
+  private String instrumentationClass;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
@@ -88,7 +90,8 @@ public final class CombiningTransformerBuilder
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder,
       InstrumenterIndex instrumenterIndex,
-      Set<InstrumenterModule.TargetSystem> enabledSystems) {
+      Set<InstrumenterModule.TargetSystem> enabledSystems,
+      boolean debugEnabled) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -98,6 +101,7 @@ public final class CombiningTransformerBuilder
     this.nextRuntimeInstrumentationId = knownInstrumentationCount;
     this.nextRuntimeTransformationId = knownTransformationCount;
     this.enabledSystems = enabledSystems;
+    this.debugEnabled = debugEnabled;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -118,6 +122,7 @@ public final class CombiningTransformerBuilder
 
   /** Prepares shared matchers and transformers defined by an instrumentation module. */
   private void prepareInstrumentation(InstrumenterModule module, int instrumentationId) {
+    instrumentationClass = debugEnabled ? module.getClass().getName() : null;
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
@@ -273,7 +278,11 @@ public final class CombiningTransformerBuilder
       customMapping = customMapping.with(postProcessor);
     }
     AgentBuilder.Transformer.ForAdvice forAdvice =
-        new AgentBuilder.Transformer.ForAdvice(customMapping)
+        debugEnabled
+            ? new DebuggingAdviceTransformer(customMapping, instrumentationClass, adviceClass)
+            : new AgentBuilder.Transformer.ForAdvice(customMapping);
+    forAdvice =
+        forAdvice
             .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))
             .include(Utils.getBootstrapProxy());
     ClassLoader adviceLoader = Utils.getExtendedClassLoader();

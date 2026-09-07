@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
 import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
@@ -216,7 +217,7 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems);
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems, DEBUG);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
@@ -405,7 +406,12 @@ public class AgentInstaller {
         final Throwable throwable,
         final List<Class<?>> types) {
       if (DEBUG) {
-        log.debug("Exception while retransforming {} classes: {}", batch.size(), batch, throwable);
+        log.debug(
+            EXCLUDE_TELEMETRY,
+            "Exception while retransforming {} classes: {}",
+            batch.size(),
+            batch,
+            throwable);
       }
       return Collections.emptyList();
     }
@@ -429,11 +435,28 @@ public class AgentInstaller {
         final boolean loaded,
         final Throwable throwable) {
       if (DEBUG) {
-        log.debug(
-            "Transformation failed - instrumentation.target.class={} instrumentation.target.classloader={}",
-            typeName,
-            classLoader,
-            throwable);
+        if (throwable instanceof DebuggingAdviceTransformer.AdviceTransformationException) {
+          DebuggingAdviceTransformer.AdviceTransformationException failure =
+              (DebuggingAdviceTransformer.AdviceTransformationException) throwable;
+          log.debug(
+              EXCLUDE_TELEMETRY,
+              "Advice transformation failed - instrumentation.class={} advice.class={} instrumentation.target.class={} instrumentation.target.method={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
+              failure.getInstrumentationClass(),
+              failure.getAdviceClass(),
+              failure.getTargetClass(),
+              failure.getTargetMethod(),
+              loaded,
+              classLoader,
+              failure.getCause());
+        } else {
+          log.debug(
+              EXCLUDE_TELEMETRY,
+              "Transformation failed - instrumentation.target.class={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
+              typeName,
+              loaded,
+              classLoader,
+              throwable);
+        }
       }
     }
 
