@@ -79,6 +79,7 @@ class DebuggingAdviceTransformerTest {
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
     appender.start();
     logger.addAppender(appender);
+    InstrumenterFlare.resetTransformationErrors();
     try {
       debugControl.setLevel(Level.DEBUG);
       logger.setLevel(Level.DEBUG);
@@ -105,7 +106,12 @@ class DebuggingAdviceTransformerTest {
           event.getFormattedMessage().contains("greet(Ljava/lang/String;)Ljava/lang/String;"));
       assertTrue(event.getFormattedMessage().contains("instrumentation.target.loaded=false"));
       assertEquals(failure.getCause().getMessage(), event.getThrowableProxy().getMessage());
+      String flareErrors = InstrumenterFlare.transformationErrors();
+      assertTrue(flareErrors.contains(InvalidArgumentAdvice.class.getName()));
+      assertTrue(flareErrors.contains("greet(Ljava/lang/String;)Ljava/lang/String;"));
+      assertTrue(flareErrors.contains("does not define an index 1"));
     } finally {
+      InstrumenterFlare.resetTransformationErrors();
       logger.detachAppender(appender);
       appender.stop();
       logger.setLevel(previousLoggerLevel);

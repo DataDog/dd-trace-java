@@ -438,6 +438,25 @@ public class AgentInstaller {
         if (throwable instanceof DebuggingAdviceTransformer.AdviceTransformationException) {
           DebuggingAdviceTransformer.AdviceTransformationException failure =
               (DebuggingAdviceTransformer.AdviceTransformationException) throwable;
+          try {
+            InstrumenterFlare.recordTransformationError(
+                "instrumentation.class="
+                    + failure.getInstrumentationClass()
+                    + " advice.class="
+                    + failure.getAdviceClass()
+                    + " instrumentation.target.class="
+                    + failure.getTargetClass()
+                    + " instrumentation.target.method="
+                    + failure.getTargetMethod()
+                    + " instrumentation.target.loaded="
+                    + loaded
+                    + " instrumentation.target.classloader="
+                    + classLoader
+                    + " error="
+                    + failure.getCause());
+          } catch (RuntimeException ignored) {
+            // Flare collection must not interfere with transformation failure reporting.
+          }
           log.debug(
               EXCLUDE_TELEMETRY,
               "Advice transformation failed - instrumentation.class={} advice.class={} instrumentation.target.class={} instrumentation.target.method={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
