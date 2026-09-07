@@ -1,5 +1,7 @@
 package datadog.trace.lambda;
 
+import static java.util.stream.Collectors.joining;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
@@ -17,7 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -509,9 +510,10 @@ final class LambdaEventParser {
 
   /**
    * Merges a {@code multiValueHeaders} map over headers already extracted from the single-value
-   * map, joining a header's values with {@code ", "} as the HTTP grammar allows. API Gateway v1 and
-   * ALB send both maps, and the single-value one keeps only one value of a repeated header, so
-   * reading it alone would hide the others from the WAF.
+   * map, joining a header's values the way its own grammar rejoins them: {@code "; "} for {@code
+   * Cookie} per RFC 6265, {@code ", "} for every other header. API Gateway v1 and ALB send both
+   * maps, and the single-value one keeps only one value of a repeated header, so reading it alone
+   * would hide the others from the WAF.
    *
    * @param headers mutated in place and returned; a value it already holds is overwritten by the
    *     multi-value reading of the same header
@@ -530,7 +532,10 @@ final class LambdaEventParser {
       String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
       if (entry.getValue() instanceof List) {
         List<?> values = (List<?>) entry.getValue();
-        headers.put(key, values.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+        // A cookie value may itself hold a comma, so joining cookies with ", " would let the second
+        // cookie's name be read as part of the first one's value and hide it from the cookie rules
+        String separator = "cookie".equals(key) ? "; " : ", ";
+        headers.put(key, values.stream().map(String::valueOf).collect(joining(separator)));
       } else {
         // Not a shape AWS sends, but reported rather than dropped: the runtime would still deliver
         // the header
@@ -663,8 +668,7 @@ final class LambdaEventParser {
       List<?> cookiesList = (List<?>) cookiesObj;
       if (!cookiesList.isEmpty()) {
         // Join cookies with "; " separator per RFC 6265
-        String cookieValue =
-            cookiesList.stream().map(String::valueOf).collect(Collectors.joining("; "));
+        String cookieValue = cookiesList.stream().map(String::valueOf).collect(joining("; "));
 
         // Merge with existing cookie header if present
         String existingCookie = headers.get("cookie");

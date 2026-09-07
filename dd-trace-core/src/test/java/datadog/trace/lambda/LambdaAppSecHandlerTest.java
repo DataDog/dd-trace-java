@@ -510,6 +510,31 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void joinsRepeatedCookieHeadersWithASemicolon() {
+    // HTTP/2 lets a client split Cookie across field lines, so a REST event may hold several. A
+    // cookie value may itself hold a comma, so joining with ", " would swallow the second cookie's
+    // name into the first one's value and hide it from the cookie rules.
+    String eventJson =
+        "{"
+            + "\"path\": \"/test\","
+            + "\"httpMethod\": \"GET\","
+            + "\"headers\": {\"Cookie\": \"sess=xyz\"},"
+            + "\"multiValueHeaders\": {\"Cookie\": [\"sess=xyz\", \"tracking=' OR 1=1 --\"]},"
+            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r1\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Map<String, String> capturedHeaders = new HashMap<>();
+
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals("sess=xyz; tracking=' OR 1=1 --", capturedHeaders.get("cookie"));
+  }
+
+  @Test
   void keepsApiGatewayV1SingleValueHeadersWhenThereAreNoMultiValueOnes() {
     String eventJson =
         "{"
