@@ -8,8 +8,8 @@ final class OtelTraceState {
   private static final long MAX_THRESHOLD = (1L << 56) - 1;
   private static final double THRESHOLD_RANGE = 1L << 56;
   private static final long NO_VALUE = -1;
-  private static final int HAS_MULTIPLE_RANDOM_VALUES = 1;
-  private static final int HAS_LOCALLY_GENERATED_RANDOM_VALUE = 1 << 1;
+  private static final int FLAGS_HAS_MULTIPLE_RANDOM_VALUES = 1;
+  private static final int FLAGS_HAS_LOCALLY_GENERATED_RANDOM_VALUE = 1 << 1;
   private static final String RANDOM_VALUE_KEY = "rv:";
   private static final String THRESHOLD_KEY = "th:";
   private static final int DEFAULT_VALUE_CAPACITY =
@@ -20,6 +20,7 @@ final class OtelTraceState {
   private final long threshold;
   private final int originalPosition;
   private final int originalSize;
+  // Combination of FLAGS_HAS_MULTIPLE_RANDOM_VALUES and FLAGS_HAS_LOCALLY_GENERATED_RANDOM_VALUE.
   private final int flags;
 
   private OtelTraceState(
@@ -46,6 +47,7 @@ final class OtelTraceState {
     int flags = 0;
     StringBuilder normalized = null;
     int start = 0;
+    // Iterate over semicolon-delimited OTel tracestate key-value pairs.
     while (start < raw.length()) {
       int end = raw.indexOf(';', start);
       if (end < 0) {
@@ -57,15 +59,14 @@ final class OtelTraceState {
       }
       int fieldValueStart = separator < 0 ? end : separator + 1;
       if (hasKey(raw, start, end, separator, 'r', 'v')) {
+        boolean validRandomValueLength = end - fieldValueStart == HEX_DIGITS;
         long parsedRandomValue =
-            end - fieldValueStart == HEX_DIGITS
-                ? parseLowercaseHex(raw, fieldValueStart, end)
-                : NO_VALUE;
+            validRandomValueLength ? parseLowercaseHex(raw, fieldValueStart, end) : NO_VALUE;
         if (parsedRandomValue != NO_VALUE) {
           if (randomValue == NO_VALUE) {
             randomValue = parsedRandomValue;
           } else {
-            flags |= HAS_MULTIPLE_RANDOM_VALUES;
+            flags |= FLAGS_HAS_MULTIPLE_RANDOM_VALUES;
           }
           if (normalized != null) {
             appendField(normalized, raw, start, end);
@@ -74,10 +75,9 @@ final class OtelTraceState {
           normalized = startNormalizing(raw, normalized, start);
         }
       } else if (hasKey(raw, start, end, separator, 't', 'h')) {
+        boolean validThresholdLength = fieldValueStart < end && end - fieldValueStart <= HEX_DIGITS;
         long parsedThreshold =
-            fieldValueStart < end && end - fieldValueStart <= HEX_DIGITS
-                ? parseLowercaseHex(raw, fieldValueStart, end)
-                : NO_VALUE;
+            validThresholdLength ? parseLowercaseHex(raw, fieldValueStart, end) : NO_VALUE;
         if (parsedThreshold != NO_VALUE) {
           if (threshold == NO_VALUE) {
             threshold = parsedThreshold;
@@ -161,7 +161,11 @@ final class OtelTraceState {
       return this;
     }
     return create(
-        randomValue, NO_VALUE, value, originalSize, hasLocallyGeneratedRandomValue());
+        randomValue,
+        NO_VALUE,
+        value,
+        originalSize,
+        hasLocallyGeneratedRandomValue());
   }
 
   String getValue() {
@@ -205,7 +209,7 @@ final class OtelTraceState {
         threshold,
         0,
         originalSize,
-        locallyGeneratedRandomValue ? HAS_LOCALLY_GENERATED_RANDOM_VALUE : 0);
+        locallyGeneratedRandomValue ? FLAGS_HAS_LOCALLY_GENERATED_RANDOM_VALUE : 0);
   }
 
   private static StringBuilder startNormalizing(String raw, StringBuilder normalized, int start) {
@@ -297,11 +301,11 @@ final class OtelTraceState {
   }
 
   private boolean hasMultipleRandomValues() {
-    return (flags & HAS_MULTIPLE_RANDOM_VALUES) != 0;
+    return (flags & FLAGS_HAS_MULTIPLE_RANDOM_VALUES) != 0;
   }
 
   private boolean hasLocallyGeneratedRandomValue() {
-    return (flags & HAS_LOCALLY_GENERATED_RANDOM_VALUE) != 0;
+    return (flags & FLAGS_HAS_LOCALLY_GENERATED_RANDOM_VALUE) != 0;
   }
 
   private static void appendHex(StringBuilder value, long number, int digits) {
