@@ -38,7 +38,12 @@ class OtelTraceStateTest {
   private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
   private static final String UNKNOWN_FIELD = "foo:bar";
   private static final int INHERITED_POSITION = 2;
+  private static final int OTEL_MEMBER_OVERHEAD = 4;
   private static final String TINY_POSITIVE_THRESHOLD = "ffffffffffffff";
+  private static final String INHERITED_TRACE_STATE =
+      traceState(INHERITED_RANDOM_VALUE, THRESHOLD_0_5) + ";" + UNKNOWN_FIELD;
+  private static final String INHERITED_TRACE_STATE_WITH_RANDOMNESS_LAST =
+      "th:" + THRESHOLD_0_1 + ";" + UNKNOWN_FIELD + ";rv:" + INHERITED_RANDOM_VALUE;
 
   @ParameterizedTest
   @MethodSource("goldenSamplingVectors")
@@ -108,7 +113,8 @@ class OtelTraceStateTest {
   void limiterRejectionRetainsLocallyGeneratedRandomness() {
     OtelTraceState state =
         OtelTraceState.updateProbability(
-            OtelTraceState.parse(UNKNOWN_FIELD, INHERITED_POSITION),
+            OtelTraceState.parse(
+                UNKNOWN_FIELD, INHERITED_POSITION, UNKNOWN_FIELD.length() + OTEL_MEMBER_OVERHEAD),
             TRACE_ID,
             SAMPLE_RATE_0_5,
             true,
@@ -124,8 +130,9 @@ class OtelTraceStateTest {
   void limiterRejectionRetainsInheritedRandomness() {
     OtelTraceState state =
         OtelTraceState.parse(
-            traceState(INHERITED_RANDOM_VALUE, THRESHOLD_0_5) + ";" + UNKNOWN_FIELD,
-            INHERITED_POSITION);
+            INHERITED_TRACE_STATE,
+            INHERITED_POSITION,
+            INHERITED_TRACE_STATE.length() + OTEL_MEMBER_OVERHEAD);
 
     state = OtelTraceState.updateProbability(state, TRACE_ID, SAMPLE_RATE_0_5, true, SAMPLER_DROP);
 
@@ -137,8 +144,9 @@ class OtelTraceStateTest {
   void nonProbabilityDecisionRetainsOnlyInheritedRandomnessAndUnknownFields() {
     OtelTraceState state =
         OtelTraceState.parse(
-            "th:" + THRESHOLD_0_1 + ";" + UNKNOWN_FIELD + ";rv:" + INHERITED_RANDOM_VALUE,
-            INHERITED_POSITION);
+            INHERITED_TRACE_STATE_WITH_RANDOMNESS_LAST,
+            INHERITED_POSITION,
+            INHERITED_TRACE_STATE_WITH_RANDOMNESS_LAST.length() + OTEL_MEMBER_OVERHEAD);
 
     state = state.removeForNonProbabilityDecision();
 
