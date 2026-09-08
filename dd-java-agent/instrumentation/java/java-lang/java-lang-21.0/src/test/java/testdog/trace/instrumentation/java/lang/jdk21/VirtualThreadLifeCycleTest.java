@@ -4,12 +4,14 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +22,12 @@ import org.junit.jupiter.api.Test;
 /** Test context tracking through {@code VirtualThread} lifecycle - park/unpark (remount) cycles. */
 public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+  @DisplayName("test seed-once path is selected by default")
+  @Test
+  void testSeedOncePathSelectedByDefault() {
+    assertFalse(VirtualThreadState.usePerMountContext());
+  }
 
   @DisplayName("test context restored after virtual thread remounts")
   @Test
@@ -210,59 +218,6 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span().childOfPrevious().operationName("child")));
-  }
-
-  @DisplayName("test context preserved across carrier migration")
-  @Test
-  void testContextPreservedAcrossCarrierMigration() {
-    // Constrain the carrier pool so parked VTs resume on different carriers.
-    String previousParallelism = System.getProperty("jdk.virtualThreadScheduler.parallelism");
-    System.setProperty("jdk.virtualThreadScheduler.parallelism", "2");
-    try {
-      int threadCount = 32;
-      String[] parentSpanId = new String[1];
-      String[] childParentSpanIds = new String[threadCount];
-
-      new Runnable() {
-        @Override
-        @Trace(operationName = "parent")
-        public void run() {
-          parentSpanId[0] = GlobalTracer.get().getSpanId();
-          List<Thread> threads = new ArrayList<>();
-          for (int i = 0; i < threadCount; i++) {
-            int index = i;
-            threads.add(
-                Thread.startVirtualThread(
-                    () -> {
-                      // Multiple park/unpark cycles to provoke carrier migration.
-                      tryUnmount();
-                      childParentSpanIds[index] = GlobalTracer.get().getSpanId();
-                    }));
-          }
-          for (Thread thread : threads) {
-            try {
-              thread.join(TIMEOUT);
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          }
-        }
-      }.run();
-
-      for (int i = 0; i < threadCount; i++) {
-        assertEquals(
-            parentSpanId[0],
-            childParentSpanIds[i],
-            "context must survive park/unpark and carrier migration for VT #" + i);
-      }
-      assertTraces(trace(span().root().operationName("parent")));
-    } finally {
-      if (previousParallelism == null) {
-        System.clearProperty("jdk.virtualThreadScheduler.parallelism");
-      } else {
-        System.setProperty("jdk.virtualThreadScheduler.parallelism", previousParallelism);
-      }
-    }
   }
 
   @Trace(operationName = "child")

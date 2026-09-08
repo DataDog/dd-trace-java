@@ -9,6 +9,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 /**
  * Holds the context and continuation for a virtual thread.
  *
+ * <p>This state belongs to the Java 21 virtual-thread instrumentation and is kept in a context
+ * store because {@code java.lang.VirtualThread} is loaded before the agent can inject fields.
+ *
  * <p>The legacy context manager's {@code swap()} wraps the current scope stack together with the
  * context so the original stack can be restored when the context is swapped back; doing that on
  * every mount/unmount is costly on the virtual-thread park/unpark hot path. So instead the context
@@ -68,18 +71,16 @@ public final class VirtualThreadState {
     AgentTracer.get().getProfilingContext().setContext(Context.root());
   }
 
+  /** Activates the virtual thread's context for the state-backed per-mount path. */
   public void onMount() {
-    if (USE_PER_MOUNT_CONTEXT) {
-      previousContext = context.swap();
-    }
+    previousContext = context.swap();
   }
 
+  /** Restores the context that preceded the state-backed mount. */
   public void onUnmount() {
     if (previousContext != null) {
-      if (USE_PER_MOUNT_CONTEXT) {
-        context = previousContext.swap();
-        previousContext = null;
-      }
+      context = previousContext.swap();
+      previousContext = null;
     }
   }
 
