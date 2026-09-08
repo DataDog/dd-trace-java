@@ -8,6 +8,7 @@ import static testdog.trace.instrumentation.lambda.TestRunnableLambdaInstrumenta
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,10 @@ public class LambdaMetafactoryIntegrationTest extends AbstractInstrumentationTes
     assertTrue(
         hasAdviceMarker(lambda),
         "test instrumentation should apply its own type advice to Runnable lambdas");
+    assertEquals(
+        1,
+        contextFieldCount(lambda),
+        "lambda should only receive context fields for keys it implements");
   }
 
   @Test
@@ -66,5 +71,15 @@ public class LambdaMetafactoryIntegrationTest extends AbstractInstrumentationTes
     } catch (NoSuchFieldException ignored) {
       return false;
     }
+  }
+
+  private static long contextFieldCount(Object lambda) {
+    long count = 0;
+    for (Field field : lambda.getClass().getDeclaredFields()) {
+      if (field.getName().startsWith("__datadogContext$")) {
+        count++;
+      }
+    }
+    return count;
   }
 }

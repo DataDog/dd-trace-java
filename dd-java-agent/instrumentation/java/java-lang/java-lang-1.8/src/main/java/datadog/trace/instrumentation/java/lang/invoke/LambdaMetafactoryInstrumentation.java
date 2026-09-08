@@ -169,8 +169,9 @@ public final class LambdaMetafactoryInstrumentation extends InstrumenterModule.C
     public void visitEnd() {
       super.visitEnd();
       if (!injected) {
-        log.debug(
-            "No injection site found in {}; lambda transformation is inactive.", slashClassName);
+        log.warn(
+            "No supported byte-generation site found in {}; lambda transformation is inactive",
+            slashClassName);
       }
     }
   }

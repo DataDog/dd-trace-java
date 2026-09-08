@@ -67,6 +67,7 @@ public final class CombiningTransformerBuilder
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
   private final Set<InstrumenterModule.TargetSystem> enabledSystems;
+  private final boolean lambdaTransformationEnabled;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -92,7 +93,8 @@ public final class CombiningTransformerBuilder
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder,
       InstrumenterIndex instrumenterIndex,
-      Set<InstrumenterModule.TargetSystem> enabledSystems) {
+      Set<InstrumenterModule.TargetSystem> enabledSystems,
+      boolean lambdaTransformationEnabled) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -102,6 +104,7 @@ public final class CombiningTransformerBuilder
     this.nextRuntimeInstrumentationId = knownInstrumentationCount;
     this.nextRuntimeTransformationId = knownTransformationCount;
     this.enabledSystems = enabledSystems;
+    this.lambdaTransformationEnabled = lambdaTransformationEnabled;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -171,7 +174,7 @@ public final class CombiningTransformerBuilder
   }
 
   private void buildLambdaMatcher(Instrumenter member, int transformationId) {
-    if (!(member instanceof Instrumenter.ForLambda)) {
+    if (!lambdaTransformationEnabled || !(member instanceof Instrumenter.ForLambda)) {
       return;
     }
 
@@ -400,9 +403,13 @@ public final class CombiningTransformerBuilder
     List<LambdaMatchRecorder> lambdaRecorders = lambdaContextStoreInjection.get(contextStore);
     if (null != lambdaRecorders) {
       // Lambda transformation happens before definition, so its field injector can be selected
-      // directly along with the instrumentation that requested this context store.
+      // along with the instrumentation that requested this context store. Keep the normal
+      // assignability check because a module may declare stores for unrelated context keys.
       for (LambdaMatchRecorder recorder : lambdaRecorders) {
-        recorder.addTransformation(transformationId);
+        recorder.addTransformation(
+            transformationId,
+            target -> contextMatcher.matches(target, null),
+            contextMatcher.describe());
       }
     }
   }
