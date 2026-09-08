@@ -1,10 +1,10 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-  @DisplayName("test seed-once path is selected by default")
+  @DisplayName("test context path selected for runtime")
   @Test
-  void testSeedOncePathSelectedByDefault() {
-    assertFalse(VirtualThreadState.usePerMountContext());
+  void testContextPathSelectedForRuntime() {
+    assertEquals(isJavaVersion(21), VirtualThreadState.usePerMountContext());
   }
 
   @DisplayName("test context restored after virtual thread remounts")

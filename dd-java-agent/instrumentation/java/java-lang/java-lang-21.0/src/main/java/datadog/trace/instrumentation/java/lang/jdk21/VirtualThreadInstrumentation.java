@@ -41,18 +41,21 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  * <ol>
  *   <li>{@code init()}: captures the current {@link Context} and an {@link ContextContinuation} to
  *       prevent the enclosing context scope from completing early.
- *   <li>{@code run(Runnable)}: seeds the virtual thread's saved context once and retains its state
- *       in the continuation frame across park/unpark cycles.
+ *   <li>On JDK 22 and later, {@code run(Runnable)} seeds the virtual thread's saved context once
+ *       and retains its state in the continuation frame across park/unpark cycles.
  *   <li>{@code mount()} / {@code unmount()}: rebind and clear carrier-local profiler context. The
- *       state-backed swap path is retained when context listeners require per-mount notification.
+ *       state-backed swap path is retained on JDK 21 and when context listeners require per-mount
+ *       notification.
  *   <li>{@code afterDone()} / {@code afterTerminate()} for early VirtualThread support: cancels the
  *       help continuation, releasing the context scope to be closed.
  * </ol>
  *
- * <p>{@code run(Runnable)} is the one-shot continuation body and executes after the first mount,
- * when the current thread is the virtual thread. Its advice local is preserved with the
- * continuation across yields. {@code runContinuation()} cannot serve this purpose because it
- * executes once per mount and starts while the carrier is still the current thread.
+ * <p>On JDK 22 and later, {@code run(Runnable)} is the one-shot continuation body and executes
+ * after the first mount, when the current thread is the virtual thread. Its advice local is
+ * preserved with the continuation across yields. {@code runContinuation()} cannot serve this
+ * purpose because it executes once per mount and starts while the carrier is still the current
+ * thread. JDK 21 retains the per-mount path because this internal ordering differs across its
+ * update releases.
  *
  * @see VirtualThreadState
  */
@@ -104,9 +107,11 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(
-        isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),
-        getClass().getName() + "$Run");
+    if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
+      transformer.applyAdvice(
+          isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),
+          getClass().getName() + "$Run");
+    }
     transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
     transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
     transformer.applyAdvice(
