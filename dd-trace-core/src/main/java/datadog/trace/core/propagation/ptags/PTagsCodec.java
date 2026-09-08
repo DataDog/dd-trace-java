@@ -160,22 +160,33 @@ abstract class PTagsCodec {
               .toString());
     }
     LLMObsTagValues llmObsTags = propagationTags.getLLMObsTagValues();
-    putLLMObsTag(tagMap, LLMOBS_ML_APP_TAG, llmObsTags.mlApp);
-    putLLMObsTag(tagMap, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId);
-    putLLMObsTag(tagMap, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
-    putLLMObsTag(tagMap, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
-    putLLMObsTag(tagMap, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
+    if (llmObsTags.mlApp != null) {
+      tagMap.put(
+          LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.mlApp.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.sessionId != null) {
+      tagMap.put(
+          LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.sessionId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentSpanId != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentSpanId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentName != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentName.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentId != null) {
+      tagMap.put(
+          LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentId.forType(Encoding.DATADOG).toString());
+    }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
-    }
-  }
-
-  /** Adds one LLM Observability tag to the span's tag map, skipping it when unset. */
-  private static void putLLMObsTag(Map<String, String> tagMap, TagKey tagKey, TagValue tagValue) {
-    if (tagValue != null) {
-      tagMap.put(
-          tagKey.forType(Encoding.DATADOG).toString(),
-          tagValue.forType(Encoding.DATADOG).toString());
     }
   }
 
