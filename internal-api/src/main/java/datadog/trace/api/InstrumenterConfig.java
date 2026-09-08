@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
@@ -35,6 +36,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -161,6 +163,7 @@ public class InstrumenterConfig {
   private final boolean appSecRaspEnabled;
   private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
+  private final boolean dataStreamsEnabled;
   private final boolean telemetryEnabled;
   private final boolean llmObsEnabled;
 
@@ -287,6 +290,8 @@ public class InstrumenterConfig {
       final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
       iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
+      dataStreamsEnabled =
+          configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
       llmObsEnabled = configProvider.getBoolean(LLMOBS_ENABLED, DEFAULT_LLM_OBS_ENABLED);
     } else {
@@ -297,6 +302,7 @@ public class InstrumenterConfig {
       iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
+      dataStreamsEnabled = false;
       llmObsEnabled = false;
     }
 
@@ -503,6 +509,10 @@ public class InstrumenterConfig {
 
   public boolean isUsmEnabled() {
     return usmEnabled;
+  }
+
+  public boolean isDataStreamsEnabled() {
+    return dataStreamsEnabled;
   }
 
   public boolean isTelemetryEnabled() {

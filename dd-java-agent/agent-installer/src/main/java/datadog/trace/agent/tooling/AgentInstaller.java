@@ -331,6 +331,9 @@ public class AgentInstaller {
     if (cfg.isUsmEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.USM);
     }
+    if (cfg.isDataStreamsEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.DATA_STREAMS);
+    }
     if (cfg.isLlmObsEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.LLMOBS);
     }

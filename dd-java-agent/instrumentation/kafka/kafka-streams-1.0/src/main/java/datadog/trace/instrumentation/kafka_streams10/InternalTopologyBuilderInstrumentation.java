@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
 @AutoService(InstrumenterModule.class)
-public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.Tracing
+public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public InternalTopologyBuilderInstrumentation() {
