@@ -4,8 +4,6 @@ plugins {
   id 'idea'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 
 def grpcVersion = '1.42.2'
