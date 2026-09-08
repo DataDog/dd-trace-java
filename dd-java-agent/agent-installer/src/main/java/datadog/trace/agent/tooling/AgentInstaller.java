@@ -246,7 +246,8 @@ public class AgentInstaller {
             agentBuilder,
             instrumenterIndex,
             enabledSystems,
-            adviceTransformationDiagnosticsEnabled);
+            adviceTransformationDiagnosticsEnabled,
+            lambdaTransformationEnabled);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
@@ -296,9 +297,8 @@ public class AgentInstaller {
     InstrumenterState.resetDefaultState();
     try {
       ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
-      if (lambdaTransformationEnabled) {
-        registerLambdaTransformer(classFileTransformer, transformerBuilder.lambdaInterfaces());
-      }
+      registerLambdaTransformer(
+          lambdaTransformationEnabled, classFileTransformer, transformerBuilder.lambdaInterfaces());
       return classFileTransformer;
     } finally {
       SharedTypePools.endInstall();
@@ -306,8 +306,15 @@ public class AgentInstaller {
   }
 
   /** Registers the installed class-file transformer for generated lambdas. */
-  private static void registerLambdaTransformer(
-      final ClassFileTransformer classFileTransformer, final String[] lambdaInterfaces) {
+  static void registerLambdaTransformer(
+      final boolean enabled,
+      final ClassFileTransformer classFileTransformer,
+      final String[] lambdaInterfaces) {
+    if (!enabled) {
+      // Agent installation can be repeated in tests and embedded environments.
+      LambdaTransformerHolder.set(null);
+      return;
+    }
     LambdaTransformer transformer =
         lambdaInterfaces.length == 0 ? null : newLambdaTransformer(classFileTransformer);
     LambdaTransformerHolder.set(filterLambdaTransformer(transformer, lambdaInterfaces));
