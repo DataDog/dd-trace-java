@@ -1,5 +1,7 @@
 plugins {
   id 'com.google.protobuf' version '0.10.0'
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
