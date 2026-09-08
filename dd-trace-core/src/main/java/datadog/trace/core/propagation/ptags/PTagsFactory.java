@@ -440,12 +440,36 @@ public class PTagsFactory implements PropagationTags.Factory {
       return llmObsTags;
     }
 
-    /** Wraps a non-empty value as a {@link TagValue}, or {@code null} if empty. */
+    /**
+     * Wraps a non-empty value as a {@link TagValue}, or {@code null} if it is empty or cannot be
+     * represented in {@code x-datadog-tags}.
+     *
+     * <p>Unlike every other {@code _dd.p.*} tag, these values come from the application rather than
+     * the tracer, so they have to be checked before they reach the wire. A value the receiving
+     * codec rejects doesn't just lose itself: it fails the whole tagset with {@code decoding_error}
+     * and takes {@code _dd.p.tid} with it, leaving the two services disagreeing about the upper 64
+     * bits of the trace id. Dropping the one tag is the cheaper loss. Matches dd-trace-py, whose
+     * {@code encode_tagset_values} likewise rejects rather than substitutes.
+     */
     private static TagValue toTagValue(CharSequence value) {
-      if (value == null || value.length() == 0) {
+      if (value == null || value.length() == 0 || !isRepresentable(value)) {
         return null;
       }
       return TagValue.from(value);
+    }
+
+    /**
+     * Whether every character survives the {@code x-datadog-tags} grammar, which allows printable
+     * ASCII except the {@code ,} that separates tags.
+     */
+    private static boolean isRepresentable(CharSequence value) {
+      for (int i = 0; i < value.length(); i++) {
+        char c = value.charAt(i);
+        if (c == ',' || c < ' ' || c > '~') {
+          return false;
+        }
+      }
+      return true;
     }
 
     @Override

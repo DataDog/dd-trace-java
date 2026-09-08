@@ -15,61 +15,65 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class DatadogPropagationTagsTest extends DDJavaSpecification {
   @TableTest({
-    "scenario                          | headerValue                                                                                                                  | expectedHeaderValue                        | tags                                                      ",
-    "null input                        |                                                                                                                              |                                            | [:]                                                       ",
-    "empty input                       | ''                                                                                                                           |                                            | [:]                                                       ",
-    "valid dm tag short                | '_dd.p.dm=934086a686-4'                                                                                                      | '_dd.p.dm=934086a686-4'                    | [_dd.p.dm: '934086a686-4']                                ",
-    "valid dm tag 2-digit              | '_dd.p.dm=934086a686-10'                                                                                                     | '_dd.p.dm=934086a686-10'                   | [_dd.p.dm: '934086a686-10']                               ",
-    "valid dm tag 3-digit              | '_dd.p.dm=934086a686-102'                                                                                                    | '_dd.p.dm=934086a686-102'                  | [_dd.p.dm: '934086a686-102']                              ",
-    "dm tag minus only                 | '_dd.p.dm=-1'                                                                                                                | '_dd.p.dm=-1'                              | [_dd.p.dm: '-1']                                          ",
-    "dm tag with trailing separator    | '_dd.p.dm=-4,'                                                                                                               | '_dd.p.dm=-4'                              | [_dd.p.dm: '-4']                                          ",
-    "any p tag                         | '_dd.p.anytag=value'                                                                                                         | '_dd.p.anytag=value'                       | [_dd.p.anytag: 'value']                                   ",
-    "non p tag dropped                 | '_dd.b.somekey=value'                                                                                                        |                                            | [:]                                                       ",
-    "upstream services alone dropped   | '_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1'                                                                            |                                            | [:]                                                       ",
-    "dm and anytag                     | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                                                                                   | '_dd.p.dm=934086a686-4,_dd.p.anytag=value' | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']         ",
-    "dm with upstream and anytag       | '_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                   | '_dd.p.dm=934086a686-4,_dd.p.anytag=value' | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']         ",
-    "ddb keyonly with dm upstream      | '_dd.b.keyonly=value,_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'               | '_dd.p.dm=934086a686-4,_dd.p.anytag=value' | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']         ",
-    "valid p tag with spaces           | '_dd.p.ab=1 2 3'                                                                                                             | '_dd.p.ab=1 2 3'                           | [_dd.p.ab: '1 2 3']                                       ",
-    "valid p tag leading trail spc     | '_dd.p.ab= 123 '                                                                                                             | '_dd.p.ab= 123 '                           | [_dd.p.ab: ' 123 ']                                       ",
-    "key only error                    | '_dd.p.keyonly'                                                                                                              |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "leading comma error               | ',_dd.p.dm=Value'                                                                                                            |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "comma only error                  | ','                                                                                                                          |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "ddb keyonly with embedded keyonly | '_dd.b.somekey=value,_dd.p.dm=934086a686-4,_dd.p.keyonly,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value' |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "embedded keyonly with dm upstream | '_dd.p.keyonly,_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                     |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "leading comma with dm upstream    | ',_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                  |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "double comma in tagset            | '_dd.p.dm=934086a686-4,,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                  |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "space tag in tagset               | '_dd.p.dm=934086a686-4, ,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                 |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "upstream variant dropped alone    | '_dd.p.upstream_services=bmV1dHJvbg==|0|1|0.2253'                                                                            |                                            | [:]                                                       ",
-    "leading space error               | ' _dd.p.ab=123'                                                                                                              |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "key with space error              | '_dd.p.a b=123'                                                                                                              |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "trailing key space error          | '_dd.p.ab =123'                                                                                                              |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "space inside key error            | '_dd.p. ab=123'                                                                                                              |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "tag with eq value                 | '_dd.p.a=b=1=2'                                                                                                              | '_dd.p.a=b=1=2'                            | [_dd.p.a: 'b=1=2']                                        ",
-    "invalid key non-ascii             | '_dd.p.1ö2=value'                                                                                                            |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "value with equals                 | '_dd.p.ab=1=2'                                                                                                               | '_dd.p.ab=1=2'                             | [_dd.p.ab: '1=2']                                         ",
-    "invalid value non-ascii           | '_dd.p.ab=1ô2'                                                                                                               |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag upper case                 | '_dd.p.dm=934086A686-4'                                                                                                      |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag too short                  | '_dd.p.dm=934086a66-4'                                                                                                       |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag too long                   | '_dd.p.dm=934086a6653-4'                                                                                                     |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag missing separator          | '_dd.p.dm=934086a66534'                                                                                                      |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag missing mechanism          | '_dd.p.dm=934086a665-'                                                                                                       |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag invalid mechanism char     | '_dd.p.dm=934086a665-a'                                                                                                      |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "dm tag mechanism with letter      | '_dd.p.dm=934086a665-12b'                                                                                                    |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "tid empty                         | '_dd.p.tid='                                                                                                                 |                                            | [_dd.propagation_error: 'decoding_error']                 ",
-    "tid length 1                      | '_dd.p.tid=1'                                                                                                                |                                            | [_dd.propagation_error: 'malformed_tid 1']                ",
-    "tid length 15                     | '_dd.p.tid=111111111111111'                                                                                                  |                                            | [_dd.propagation_error: 'malformed_tid 111111111111111']  ",
-    "tid length 17                     | '_dd.p.tid=11111111111111111'                                                                                                |                                            | [_dd.propagation_error: 'malformed_tid 11111111111111111']",
-    "tid invalid uppercase             | '_dd.p.tid=123456789ABCDEF0'                                                                                                 |                                            | [_dd.propagation_error: 'malformed_tid 123456789ABCDEF0'] ",
-    "tid invalid non-hex               | '_dd.p.tid=123456789abcdefg'                                                                                                 |                                            | [_dd.propagation_error: 'malformed_tid 123456789abcdefg'] ",
-    "tid invalid negative              | '_dd.p.tid=-123456789abcdef'                                                                                                 |                                            | [_dd.propagation_error: 'malformed_tid -123456789abcdef'] ",
-    "ts valid 02                       | '_dd.p.ts=02'                                                                                                                | '_dd.p.ts=02'                              | [_dd.p.ts: '02']                                          ",
-    "ts zero dropped                   | '_dd.p.ts=00'                                                                                                                |                                            | [:]                                                       ",
-    "ts invalid foo                    | '_dd.p.ts=foo'                                                                                                               |                                            | [_dd.propagation_error: 'decoding_error']                 "
+    "scenario                          | headerValue                                                                                                                  | expectedHeaderValue                                                        | tags                                                                             ",
+    "null input                        |                                                                                                                              |                                                                            | [:]                                                                              ",
+    "empty input                       | ''                                                                                                                           |                                                                            | [:]                                                                              ",
+    "valid dm tag short                | '_dd.p.dm=934086a686-4'                                                                                                      | '_dd.p.dm=934086a686-4'                                                    | [_dd.p.dm: '934086a686-4']                                                       ",
+    "valid dm tag 2-digit              | '_dd.p.dm=934086a686-10'                                                                                                     | '_dd.p.dm=934086a686-10'                                                   | [_dd.p.dm: '934086a686-10']                                                      ",
+    "valid dm tag 3-digit              | '_dd.p.dm=934086a686-102'                                                                                                    | '_dd.p.dm=934086a686-102'                                                  | [_dd.p.dm: '934086a686-102']                                                     ",
+    "dm tag minus only                 | '_dd.p.dm=-1'                                                                                                                | '_dd.p.dm=-1'                                                              | [_dd.p.dm: '-1']                                                                 ",
+    "dm tag with trailing separator    | '_dd.p.dm=-4,'                                                                                                               | '_dd.p.dm=-4'                                                              | [_dd.p.dm: '-4']                                                                 ",
+    "any p tag                         | '_dd.p.anytag=value'                                                                                                         | '_dd.p.anytag=value'                                                       | [_dd.p.anytag: 'value']                                                          ",
+    "non p tag dropped                 | '_dd.b.somekey=value'                                                                                                        |                                                                            | [:]                                                                              ",
+    "upstream services alone dropped   | '_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1'                                                                            |                                                                            | [:]                                                                              ",
+    "dm and anytag                     | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                                                                                   | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                                 | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']                                ",
+    "dm with upstream and anytag       | '_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                   | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                                 | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']                                ",
+    "ddb keyonly with dm upstream      | '_dd.b.keyonly=value,_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'               | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                                 | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']                                ",
+    "valid p tag with spaces           | '_dd.p.ab=1 2 3'                                                                                                             | '_dd.p.ab=1 2 3'                                                           | [_dd.p.ab: '1 2 3']                                                              ",
+    "valid p tag leading trail spc     | '_dd.p.ab= 123 '                                                                                                             | '_dd.p.ab= 123 '                                                           | [_dd.p.ab: ' 123 ']                                                              ",
+    "key only error                    | '_dd.p.keyonly'                                                                                                              |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "leading comma error               | ',_dd.p.dm=Value'                                                                                                            |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "comma only error                  | ','                                                                                                                          |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "ddb keyonly with embedded keyonly | '_dd.b.somekey=value,_dd.p.dm=934086a686-4,_dd.p.keyonly,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value' |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "embedded keyonly with dm upstream | '_dd.p.keyonly,_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                     |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "leading comma with dm upstream    | ',_dd.p.dm=934086a686-4,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                  |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "double comma in tagset            | '_dd.p.dm=934086a686-4,,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                  |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "space tag in tagset               | '_dd.p.dm=934086a686-4, ,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.anytag=value'                                 |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "upstream variant dropped alone    | '_dd.p.upstream_services=bmV1dHJvbg==|0|1|0.2253'                                                                            |                                                                            | [:]                                                                              ",
+    "leading space error               | ' _dd.p.ab=123'                                                                                                              |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "key with space error              | '_dd.p.a b=123'                                                                                                              |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "trailing key space error          | '_dd.p.ab =123'                                                                                                              |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "space inside key error            | '_dd.p. ab=123'                                                                                                              |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "tag with eq value                 | '_dd.p.a=b=1=2'                                                                                                              | '_dd.p.a=b=1=2'                                                            | [_dd.p.a: 'b=1=2']                                                               ",
+    "invalid key non-ascii             | '_dd.p.1ö2=value'                                                                                                            |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "value with equals                 | '_dd.p.ab=1=2'                                                                                                               | '_dd.p.ab=1=2'                                                             | [_dd.p.ab: '1=2']                                                                ",
+    "invalid value non-ascii           | '_dd.p.ab=1ô2'                                                                                                               |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag upper case                 | '_dd.p.dm=934086A686-4'                                                                                                      |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag too short                  | '_dd.p.dm=934086a66-4'                                                                                                       |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag too long                   | '_dd.p.dm=934086a6653-4'                                                                                                     |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag missing separator          | '_dd.p.dm=934086a66534'                                                                                                      |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag missing mechanism          | '_dd.p.dm=934086a665-'                                                                                                       |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag invalid mechanism char     | '_dd.p.dm=934086a665-a'                                                                                                      |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "dm tag mechanism with letter      | '_dd.p.dm=934086a665-12b'                                                                                                    |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "tid empty                         | '_dd.p.tid='                                                                                                                 |                                                                            | [_dd.propagation_error: 'decoding_error']                                        ",
+    "tid length 1                      | '_dd.p.tid=1'                                                                                                                |                                                                            | [_dd.propagation_error: 'malformed_tid 1']                                       ",
+    "tid length 15                     | '_dd.p.tid=111111111111111'                                                                                                  |                                                                            | [_dd.propagation_error: 'malformed_tid 111111111111111']                         ",
+    "tid length 17                     | '_dd.p.tid=11111111111111111'                                                                                                |                                                                            | [_dd.propagation_error: 'malformed_tid 11111111111111111']                       ",
+    "tid invalid uppercase             | '_dd.p.tid=123456789ABCDEF0'                                                                                                 |                                                                            | [_dd.propagation_error: 'malformed_tid 123456789ABCDEF0']                        ",
+    "tid invalid non-hex               | '_dd.p.tid=123456789abcdefg'                                                                                                 |                                                                            | [_dd.propagation_error: 'malformed_tid 123456789abcdefg']                        ",
+    "tid invalid negative              | '_dd.p.tid=-123456789abcdef'                                                                                                 |                                                                            | [_dd.propagation_error: 'malformed_tid -123456789abcdef']                        ",
+    "llmobs ml_app and sid             | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1'                                                                      | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1'                    | [_dd.p.llmobs_ml_app: 'my-ml-app', _dd.p.llmobs_sid: 'sess-1']                   ",
+    "llmobs parent ids                 | '_dd.p.llmobs_pagent_span_id=9876543210,_dd.p.llmobs_parent_id=1122334455'                                                   | '_dd.p.llmobs_pagent_span_id=9876543210,_dd.p.llmobs_parent_id=1122334455' | [_dd.p.llmobs_pagent_span_id: '9876543210', _dd.p.llmobs_parent_id: '1122334455']",
+    "ts valid 02                       | '_dd.p.ts=02'                                                                                                                | '_dd.p.ts=02'                                                              | [_dd.p.ts: '02']                                                                 ",
+    "ts zero dropped                   | '_dd.p.ts=00'                                                                                                                |                                                                            | [:]                                                                              ",
+    "ts invalid foo                    | '_dd.p.ts=foo'                                                                                                               |                                                                            | [_dd.propagation_error: 'decoding_error']                                        "
   })
   void createPropagationTagsFromHeaderValue(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
@@ -80,10 +84,11 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | headerValue                            | expectedHeaderValue               | tags                                         ",
-    "single dm tag     | '_dd.p.dm=934086a686-4'                | 'dd=t.dm:934086a686-4'            | [_dd.p.dm: '934086a686-4']                   ",
-    "dm and f tag      | '_dd.p.dm=934086a686-4,_dd.p.f=w00t==' | 'dd=t.dm:934086a686-4;t.f:w00t~~' | [_dd.p.dm: '934086a686-4', _dd.p.f: 'w00t==']",
-    "dm and appsec tag | '_dd.p.dm=934086a686-4,_dd.p.appsec=1' | 'dd=t.dm:934086a686-4;t.appsec:1' | [_dd.p.dm: '934086a686-4', _dd.p.appsec: '1']"
+    "scenario          | headerValue                                             | expectedHeaderValue                                | tags                                                          ",
+    "single dm tag     | '_dd.p.dm=934086a686-4'                                 | 'dd=t.dm:934086a686-4'                             | [_dd.p.dm: '934086a686-4']                                    ",
+    "dm and f tag      | '_dd.p.dm=934086a686-4,_dd.p.f=w00t=='                  | 'dd=t.dm:934086a686-4;t.f:w00t~~'                  | [_dd.p.dm: '934086a686-4', _dd.p.f: 'w00t==']                 ",
+    "dm and appsec tag | '_dd.p.dm=934086a686-4,_dd.p.appsec=1'                  | 'dd=t.dm:934086a686-4;t.appsec:1'                  | [_dd.p.dm: '934086a686-4', _dd.p.appsec: '1']                 ",
+    "llmobs tags       | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1' | 'dd=t.llmobs_ml_app:my-ml-app;t.llmobs_sid:sess-1' | [_dd.p.llmobs_ml_app: 'my-ml-app', _dd.p.llmobs_sid: 'sess-1']"
   })
   void datadogPropagationTagsShouldTranslateToW3cTags(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
@@ -153,6 +158,63 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
     assertEquals(tags, propagationTags.createTagMap());
+  }
+
+  @TableTest({
+    "scenario                    | mlApp           | sessionId | pagentSpanId | pagentName  | parentId     | expectedHeaderValue                                                                                                                                               | tags                                                                                                                                                                                ",
+    "all five propagate          | 'my-ml-app'     | 'sess-1'  | '9876543210' | 'planner'   | '1122334455' | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1,_dd.p.llmobs_pagent_span_id=9876543210,_dd.p.llmobs_pagent_name=planner,_dd.p.llmobs_parent_id=1122334455' | [_dd.p.llmobs_ml_app: 'my-ml-app', _dd.p.llmobs_sid: 'sess-1', _dd.p.llmobs_pagent_span_id: '9876543210', _dd.p.llmobs_pagent_name: 'planner', _dd.p.llmobs_parent_id: '1122334455']",
+    "comma in ml_app dropped     | 'planner,west'  | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                         | [_dd.p.llmobs_sid: 'sess-1']                                                                                                                                                        ",
+    "comma in agent name dropped | 'my-ml-app'     |           |              | 'east,west' |              | '_dd.p.llmobs_ml_app=my-ml-app'                                                                                                                                   | [_dd.p.llmobs_ml_app: 'my-ml-app']                                                                                                                                                  ",
+    "non-ascii ml_app dropped    | 'プランナー'    | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                         | [_dd.p.llmobs_sid: 'sess-1']                                                                                                                                                        ",
+    "w3c-reserved chars kept     | 'app=v1;beta~2' | 'sess 1'  |              |             |              | '_dd.p.llmobs_ml_app=app=v1;beta~2,_dd.p.llmobs_sid=sess 1'                                                                                                       | [_dd.p.llmobs_ml_app: 'app=v1;beta~2', _dd.p.llmobs_sid: 'sess 1']                                                                                                                  ",
+    "empty and null ignored      | ''              |           | '9876543210' | ''          |              | '_dd.p.llmobs_pagent_span_id=9876543210'                                                                                                                          | [_dd.p.llmobs_pagent_span_id: '9876543210']                                                                                                                                         "
+  })
+  void updatePropagationTagsLLMObsContext(
+      String mlApp,
+      String sessionId,
+      String pagentSpanId,
+      String pagentName,
+      String parentId,
+      String expectedHeaderValue,
+      Map<String, String> tags) {
+    PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(mlApp, sessionId, pagentSpanId, pagentName, parentId);
+
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
+    assertEquals(tags, propagationTags.createTagMap());
+  }
+
+  /**
+   * These values are unrepresentable for the same reason as the table's comma and non-ASCII cases,
+   * but a literal control character can't be written into a TableTest row.
+   */
+  @ParameterizedTest
+  @ValueSource(strings = {"planner\nwest", "planner\twest", "planner\u007fwest"})
+  void updatePropagationTagsLLMObsContextRejectsControlCharacters(String mlApp) {
+    PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(mlApp, "sess-1", null, null, null);
+
+    assertEquals("_dd.p.llmobs_sid=sess-1", propagationTags.headerValue(DATADOG));
+  }
+
+  @Test
+  void llmObsValueRejectionPreservesTraceIdHighOrderBits() {
+    // An unchecked ',' fails the whole tagset with decoding_error at the next hop, taking
+    // _dd.p.tid with it and leaving the two services disagreeing about the trace id.
+    PropagationTags propagationTags =
+        factory().fromHeaderValue(DATADOG, "_dd.p.tid=1234567890abcdef");
+
+    propagationTags.updateLLMObsContext("planner,west", "sess-1", null, null, null);
+    PropagationTags reparsed =
+        factory().fromHeaderValue(DATADOG, propagationTags.headerValue(DATADOG));
+
+    assertEquals(0x1234567890abcdefL, reparsed.getTraceIdHighOrderBits());
+    Map<String, String> expected = new HashMap<>();
+    expected.put("_dd.p.tid", "1234567890abcdef");
+    expected.put("_dd.p.llmobs_sid", "sess-1");
+    assertEquals(expected, reparsed.createTagMap());
   }
 
   @Test
