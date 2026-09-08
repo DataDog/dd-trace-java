@@ -8,10 +8,16 @@ plugins {
 // we put the test classes in the baseTest test set so that the scala
 // version is not inherited
 addTestSuite('baseTest')
+addForkedTestTask('baseTest')
+
 addTestSuite('latestDepTest')
+addForkedTestTask('latestDepTest')
+
 addTestSuiteForDir('latestPekko10Test', 'latestDepTest')
+addForkedTestTask('latestPekko10Test')
+
 addTestSuite('iastTest')
-addTestSuiteForDir 'latestDepIastTest', 'iastTest'
+addTestSuiteForDir('latestDepIastTest', 'iastTest')
 
 muzzle {
   pass {
@@ -43,10 +49,6 @@ sourceSets {
   latestDepTest.scala.srcDir sourceSets.baseTest.scala
   latestPekko10Test.groovy.srcDir sourceSets.baseTest.groovy
   latestPekko10Test.scala.srcDir sourceSets.baseTest.scala
-}
-
-['baseTest', 'latestPekko10Test', 'latestDepTest'].each {
-  addForkedTestTask(it)
 }
 
 dependencies {
