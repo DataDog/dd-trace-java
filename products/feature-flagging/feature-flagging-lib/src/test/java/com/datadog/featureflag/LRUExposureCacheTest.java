@@ -60,6 +60,52 @@ class LRUExposureCacheTest {
   }
 
   @Test
+  void testSerialIdAppearingEmitsANewExposure() {
+    assertEquals(2, emissions(null, 7));
+  }
+
+  @Test
+  void testSerialIdDisappearingEmitsANewExposure() {
+    assertEquals(2, emissions(7, null));
+  }
+
+  @Test
+  void testSerialIdChangingEmitsANewExposure() {
+    assertEquals(2, emissions(7, 8));
+  }
+
+  @Test
+  void testSerialIdCycleEmitsAnExposurePerTransition() {
+    assertEquals(3, emissions(7, 8, 7));
+  }
+
+  @Test
+  void testUnchangedSerialIdIsDeduplicated() {
+    assertEquals(1, emissions(7, 7));
+  }
+
+  @Test
+  void testUnchangedAbsentSerialIdIsDeduplicated() {
+    assertEquals(1, emissions(null, null));
+  }
+
+  @Test
+  void testSerialIdZeroIsDistinguishedFromAbsent() {
+    assertEquals(2, emissions(null, 0));
+    assertEquals(2, emissions(0, null));
+  }
+
+  @Test
+  void testSerialIdIsRetainedOnTheCachedValue() {
+    LRUExposureCache cache = new LRUExposureCache(5);
+    ExposureEvent event = createEvent("flag", "subject", "variant", "allocation", 0);
+
+    cache.add(event);
+
+    assertEquals(Integer.valueOf(0), cache.get(new ExposureCache.Key(event)).serialId);
+  }
+
+  @Test
   void testLruEvictionWhenCapacityExceeded() {
     LRUExposureCache cache = new LRUExposureCache(2);
     ExposureEvent event1 = createEvent("flag1", "subject1", "variant1", "allocation1");
@@ -148,14 +194,16 @@ class LRUExposureCacheTest {
             new Allocation("allocation"),
             new Flag(null),
             new Variant("variant"),
-            new Subject(null, emptyMap()));
+            new Subject(null, emptyMap()),
+            null);
     ExposureEvent event2 =
         new ExposureEvent(
             System.currentTimeMillis(),
             new Allocation("allocation"),
             new Flag(null),
             new Variant("variant"),
-            new Subject(null, emptyMap()));
+            new Subject(null, emptyMap()),
+            null);
 
     cache.add(event1);
     boolean duplicateAdded = cache.add(event2);
@@ -234,11 +282,32 @@ class LRUExposureCacheTest {
 
   private static ExposureEvent createEvent(
       String flag, String subject, String variant, String allocation) {
+    return createEvent(flag, subject, variant, allocation, null);
+  }
+
+  private static ExposureEvent createEvent(
+      String flag, String subject, String variant, String allocation, Integer serialId) {
     return new ExposureEvent(
         System.currentTimeMillis(),
         new Allocation(allocation),
         new Flag(flag),
         new Variant(variant),
-        new Subject(subject, emptyMap()));
+        new Subject(subject, emptyMap()),
+        serialId);
+  }
+
+  /**
+   * Number of exposures a run of same-flag, same-subject evaluations emits: the cache reports true
+   * only for the ones it does not suppress as duplicates.
+   */
+  private static int emissions(final Integer... serialIds) {
+    LRUExposureCache cache = new LRUExposureCache(5);
+    int emitted = 0;
+    for (Integer serialId : serialIds) {
+      if (cache.add(createEvent("flag", "subject", "variant", "allocation", serialId))) {
+        emitted++;
+      }
+    }
+    return emitted;
   }
 }

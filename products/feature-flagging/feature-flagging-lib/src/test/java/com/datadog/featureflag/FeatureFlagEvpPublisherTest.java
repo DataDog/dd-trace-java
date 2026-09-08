@@ -1,7 +1,10 @@
 package com.datadog.featureflag;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -12,7 +15,14 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.trace.api.featureflag.exposure.Allocation;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.exposure.ExposuresRequest;
+import datadog.trace.api.featureflag.exposure.Flag;
+import datadog.trace.api.featureflag.exposure.Subject;
+import datadog.trace.api.featureflag.exposure.Variant;
 import datadog.trace.api.intake.Intake;
+import java.nio.charset.StandardCharsets;
 import okhttp3.RequestBody;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +69,37 @@ class FeatureFlagEvpPublisherTest {
     assertThrows(
         IllegalStateException.class,
         () -> publisher.post("flagevaluation", FeatureFlagEvpPublisher.utf8Bytes("{}")));
+  }
+
+  @Test
+  void serializesSerialIdUnderTheIntakeWireKey() {
+    assertTrue(exposureJson(340132).contains("\"serial_id\":340132"));
+  }
+
+  @Test
+  void serializesSerialIdZeroRatherThanOmittingIt() {
+    assertTrue(exposureJson(0).contains("\"serial_id\":0"));
+  }
+
+  @Test
+  void omitsSerialIdKeyWhenAbsent() {
+    assertFalse(exposureJson(null).contains("serial_id"));
+  }
+
+  private static String exposureJson(final Integer serialId) {
+    final ExposureEvent event =
+        new ExposureEvent(
+            1234L,
+            new Allocation("allocation"),
+            new Flag("flag"),
+            new Variant("variant"),
+            new Subject("subject", emptyMap()),
+            serialId);
+    final FeatureFlagEvpPublisher<ExposuresRequest> publisher =
+        new FeatureFlagEvpPublisher<>(mock(BackendApiFactory.class), ExposuresRequest.class);
+    return new String(
+        publisher.serialize(new ExposuresRequest(emptyMap(), singletonList(event))),
+        StandardCharsets.UTF_8);
   }
 
   static class TestRequest {

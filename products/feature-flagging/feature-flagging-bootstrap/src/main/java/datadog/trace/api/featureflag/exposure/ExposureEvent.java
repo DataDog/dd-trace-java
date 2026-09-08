@@ -8,16 +8,25 @@ public class ExposureEvent {
   public final Variant variant;
   public final Subject subject;
 
+  /**
+   * Serial id of the UFC split this exposure resolved to, or null when the split carries none. The
+   * field name is the intake's wire key: Moshi serializes these events reflectively, so renaming it
+   * to serialId would silently change the payload and the intake would drop the whole event.
+   */
+  public final Integer serial_id;
+
   public ExposureEvent(
       final long timestamp,
       final Allocation allocation,
       final Flag flag,
       final Variant variant,
-      final Subject subject) {
+      final Subject subject,
+      final Integer serialId) {
     this.timestamp = timestamp;
     this.allocation = allocation;
     this.flag = flag;
     this.variant = variant;
     this.subject = subject;
+    this.serial_id = serialId;
   }
 }

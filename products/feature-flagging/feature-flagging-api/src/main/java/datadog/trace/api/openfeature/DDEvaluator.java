@@ -576,7 +576,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
-      dispatchExposure(key, result, context);
+      // Read from the split rather than from evaluation metadata: METADATA_SPLIT_SERIAL_ID is only
+      // attached when span enrichment is enabled, and exposures need the serial id either way.
+      dispatchExposure(key, result, context, split.serialId);
     }
     return result;
   }
@@ -649,7 +651,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static <T> void dispatchExposure(
-      final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
+      final String flag,
+      final ProviderEvaluation<T> evaluation,
+      final EvaluationContext context,
+      final Integer serialId) {
     final String allocationKey = allocationKey(evaluation);
     final String variantKey = evaluation.getVariant();
     if (allocationKey == null || variantKey == null) {
@@ -661,7 +666,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
             new datadog.trace.api.featureflag.exposure.Flag(flag),
             new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
+            new Subject(context.getTargetingKey(), flattenContext(context)),
+            serialId);
 
     FeatureFlaggingGateway.dispatch(event);
   }
