@@ -59,12 +59,11 @@ public class EvpProxyApi implements BackendApi {
       throws IOException {
     final HttpUrl url = evpProxyUrl.resolve(uri);
 
-    Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
-            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
-            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+    Request.Builder requestBuilder = new Request.Builder()
+        .url(url)
+        .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
+        .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+        .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);

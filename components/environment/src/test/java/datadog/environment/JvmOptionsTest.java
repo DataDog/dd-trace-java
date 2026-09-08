@@ -174,9 +174,8 @@ class JvmOptionsTest {
   }
 
   private void skipJdkJavaOptionsOnJava8(Map<String, String> environmentVariables) {
-    assumeTrue(
-        JavaVirtualMachine.isJavaVersionAtLeast(9)
-            || !environmentVariables.containsKey("JDK_JAVA_OPTIONS"));
+    assumeTrue(JavaVirtualMachine.isJavaVersionAtLeast(9)
+        || !environmentVariables.containsKey("JDK_JAVA_OPTIONS"));
   }
 
   private static Map<String, String> env(String... keysAndValues) {
@@ -196,9 +195,8 @@ class JvmOptionsTest {
 
   private static List<String> expectedArsFromArgFile(String name) {
     List<String> arguments = new ArrayList<>();
-    try (InputStream stream =
-            requireNonNull(
-                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+    try (InputStream stream = requireNonNull(
+            CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
       String line;
       while ((line = reader.readLine()) != null) {

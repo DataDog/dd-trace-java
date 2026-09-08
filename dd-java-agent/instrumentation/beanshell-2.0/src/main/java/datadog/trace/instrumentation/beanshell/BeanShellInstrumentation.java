@@ -73,10 +73,9 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("eval")
             .and(isMethod())
-            .and(
-                takesArguments(2)
-                    .and(takesArgument(0, String.class))
-                    .and(takesArgument(1, named("bsh.NameSpace")))),
+            .and(takesArguments(2)
+                .and(takesArgument(0, String.class))
+                .and(takesArgument(1, named("bsh.NameSpace")))),
         BeanShellInstrumentation.class.getName() + "$StringEvalAdvice");
     // bsh.Interpreter.eval(Reader, NameSpace, String): shared core reached by public eval(Reader).
     // Only reports when the caller supplied a tainted Reader; the Reader built internally by
@@ -86,11 +85,10 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("eval")
             .and(isMethod())
-            .and(
-                takesArguments(3)
-                    .and(takesArgument(0, Reader.class))
-                    .and(takesArgument(1, named("bsh.NameSpace")))
-                    .and(takesArgument(2, String.class))),
+            .and(takesArguments(3)
+                .and(takesArgument(0, Reader.class))
+                .and(takesArgument(1, named("bsh.NameSpace")))
+                .and(takesArgument(2, String.class))),
         BeanShellInstrumentation.class.getName() + "$EvalAdvice");
     // bsh.Remote.eval(String url, String text)
     transformer.applyAdvice(

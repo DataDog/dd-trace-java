@@ -29,12 +29,10 @@ public class Decoder {
   public static List<DecodedSpan> sortByStart(Collection<DecodedSpan> spans) {
     DecodedSpan[] spanArray = new DecodedSpan[spans.size()];
     spanArray = spans.toArray(spanArray);
-    Arrays.sort(
-        spanArray,
-        (o1, o2) -> {
-          long res = o1.getStart() - o2.getStart();
-          return res == 0 ? 0 : res > 0 ? 1 : -1;
-        });
+    Arrays.sort(spanArray, (o1, o2) -> {
+      long res = o1.getStart() - o2.getStart();
+      return res == 0 ? 0 : res > 0 ? 1 : -1;
+    });
     return Arrays.asList(spanArray);
   }
 }

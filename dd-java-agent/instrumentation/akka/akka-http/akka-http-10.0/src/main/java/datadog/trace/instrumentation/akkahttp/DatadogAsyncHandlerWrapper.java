@@ -52,35 +52,33 @@ public class DatadogAsyncHandlerWrapper
       throw t;
     }
 
-    final Future<HttpResponse> wrapped =
-        futureResponse
-            .recoverWith(
-                RecoverFromBlockedExceptionPF.INSTANCE_FUTURE, materializer.executionContext())
-            .transform(
-                new AbstractFunction1<HttpResponse, HttpResponse>() {
-                  @Override
-                  public HttpResponse apply(HttpResponse response) {
-                    // handle blocking at the middle/end of the request
-                    HttpResponse newResponse =
-                        BlockingResponseHelper.handleFinishForWaf(span, response);
-                    if (newResponse != response) {
-                      span.getRequestContext().getTraceSegment().effectivelyBlocked();
-                      response.entity().discardBytes(materializer);
-                      response = newResponse;
-                    }
+    final Future<HttpResponse> wrapped = futureResponse
+        .recoverWith(RecoverFromBlockedExceptionPF.INSTANCE_FUTURE, materializer.executionContext())
+        .transform(
+            new AbstractFunction1<HttpResponse, HttpResponse>() {
+              @Override
+              public HttpResponse apply(HttpResponse response) {
+                // handle blocking at the middle/end of the request
+                HttpResponse newResponse =
+                    BlockingResponseHelper.handleFinishForWaf(span, response);
+                if (newResponse != response) {
+                  span.getRequestContext().getTraceSegment().effectivelyBlocked();
+                  response.entity().discardBytes(materializer);
+                  response = newResponse;
+                }
 
-                    DatadogWrapperHelper.finishSpan(context, response);
-                    return response;
-                  }
-                },
-                new AbstractFunction1<Throwable, Throwable>() {
-                  @Override
-                  public Throwable apply(final Throwable t) {
-                    DatadogWrapperHelper.finishSpan(context, t);
-                    return t;
-                  }
-                },
-                materializer.executionContext());
+                DatadogWrapperHelper.finishSpan(context, response);
+                return response;
+              }
+            },
+            new AbstractFunction1<Throwable, Throwable>() {
+              @Override
+              public Throwable apply(final Throwable t) {
+                DatadogWrapperHelper.finishSpan(context, t);
+                return t;
+              }
+            },
+            materializer.executionContext());
     scope.close();
     return wrapped;
   }

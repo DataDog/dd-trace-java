@@ -84,9 +84,8 @@ public class AppSecEvent {
     result = ((result * 31) + ((this.ruleMatches == null) ? 0 : this.ruleMatches.hashCode()));
     result = ((result * 31) + ((this.spanId == null) ? 0 : this.spanId.hashCode()));
     result = ((result * 31) + ((this.stackId == null) ? 0 : this.stackId.hashCode()));
-    result =
-        ((result * 31)
-            + ((this.securityResponseId == null) ? 0 : this.securityResponseId.hashCode()));
+    result = ((result * 31)
+        + ((this.securityResponseId == null) ? 0 : this.securityResponseId.hashCode()));
     return result;
   }
 

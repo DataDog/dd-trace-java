@@ -91,7 +91,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     // even though wall-clock time has moved on by hours. Without a resync, span timestamps
     // computed from that near-frozen nanoTicks stay anchored to construction time.
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
 
@@ -112,7 +113,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void
       maybeResyncClockForLambdaInvocation_whenEnabledAndCalledAfterSimulatedRestore_thenTimestampReflectsPostRestoreTime() {
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       // The restore happens: wall-clock jumps forward by 2 hours, nanoTicks barely moves.
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
@@ -137,7 +139,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     // created - the actual trigger point for the resync in production, not just the extracted
     // maybeResyncClockForLambdaInvocation() logic exercised directly above.
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
       long postRestoreNanos = timeSource.getCurrentTimeNanos();
@@ -156,7 +159,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void
       notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
     SnapStartTimeSource timeSource = new SnapStartTimeSource(SNAPSTART_CONSTRUCTION_TIME_NANOS);
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();
     try {
       long constructionTimeNanoTicks = timeSource.getNanoTicks();
       timeSource.simulateSnapStartRestore(TimeUnit.HOURS.toNanos(2));
@@ -333,7 +337,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     localRootSpanTags.put("only_root", "value");
     CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
     AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
-    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
+    AgentSpan child =
+        tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
     try {
       assertTrue(root.getTags().containsKey("only_root"));
       assertFalse(child.getTags().containsKey("only_root"));
@@ -364,8 +369,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
       DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
-      DDSpan child =
-          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
+      DDSpan child = (DDSpan)
+          tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
       root.finish();
 
       assertNull(root.getSamplingPriority());
@@ -387,16 +392,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -407,40 +413,39 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
       assertNull(tracer.captureTraceConfig().getTraceSampleRate());
 
-      String json =
-          "{\n"
-              + "  \"lib_config\":\n"
-              + "  {\n"
-              + "    \"tracing_service_mapping\":\n"
-              + "    [{\n"
-              + "       \"from_key\": \"foobar\",\n"
-              + "       \"to_name\": \"bar\"\n"
-              + "    }, {\n"
-              + "       \"from_key\": \"snafu\",\n"
-              + "       \"to_name\": \"foo\"\n"
-              + "    }]\n"
-              + "    ,\n"
-              + "    \"tracing_header_tags\":\n"
-              + "    [{\n"
-              + "       \"header\": \"Cookie\",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"Referer\",\n"
-              + "       \"tag_name\": \"http.referer\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"  Some.Header  \",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"C!!!ont_____ent----tYp!/!e\",\n"
-              + "       \"tag_name\": \"\"\n"
-              + "    }, {\n"
-              + "       \"header\": \"this.header\",\n"
-              + "       \"tag_name\": \"whatever.the.user.wants.this.header\"\n"
-              + "    }]\n"
-              + "    ,\n"
-              + "    \"tracing_sampling_rate\": 0.5\n"
-              + "  }\n"
-              + "}";
+      String json = "{\n"
+          + "  \"lib_config\":\n"
+          + "  {\n"
+          + "    \"tracing_service_mapping\":\n"
+          + "    [{\n"
+          + "       \"from_key\": \"foobar\",\n"
+          + "       \"to_name\": \"bar\"\n"
+          + "    }, {\n"
+          + "       \"from_key\": \"snafu\",\n"
+          + "       \"to_name\": \"foo\"\n"
+          + "    }]\n"
+          + "    ,\n"
+          + "    \"tracing_header_tags\":\n"
+          + "    [{\n"
+          + "       \"header\": \"Cookie\",\n"
+          + "       \"tag_name\": \"\"\n"
+          + "    }, {\n"
+          + "       \"header\": \"Referer\",\n"
+          + "       \"tag_name\": \"http.referer\"\n"
+          + "    }, {\n"
+          + "       \"header\": \"  Some.Header  \",\n"
+          + "       \"tag_name\": \"\"\n"
+          + "    }, {\n"
+          + "       \"header\": \"C!!!ont_____ent----tYp!/!e\",\n"
+          + "       \"tag_name\": \"\"\n"
+          + "    }, {\n"
+          + "       \"header\": \"this.header\",\n"
+          + "       \"tag_name\": \"whatever.the.user.wants.this.header\"\n"
+          + "    }]\n"
+          + "    ,\n"
+          + "    \"tracing_sampling_rate\": 0.5\n"
+          + "  }\n"
+          + "}";
 
       capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
       capturedUpdater[0].commit(null);
@@ -448,22 +453,20 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       Map<String, String> expectedServiceMapping = buildStringMap("foobar", "bar", "snafu", "foo");
       assertEquals(expectedServiceMapping, tracer.captureTraceConfig().getServiceMapping());
 
-      Map<String, String> expectedRequestHeaderTags =
-          buildStringMap(
-              "cookie", "http.request.headers.cookie",
-              "referer", "http.referer",
-              "some.header", "http.request.headers.some_header",
-              "c!!!ont_____ent----typ!/!e", "http.request.headers.c___ont_____ent----typ_/_e",
-              "this.header", "whatever.the.user.wants.this.header");
+      Map<String, String> expectedRequestHeaderTags = buildStringMap(
+          "cookie", "http.request.headers.cookie",
+          "referer", "http.referer",
+          "some.header", "http.request.headers.some_header",
+          "c!!!ont_____ent----typ!/!e", "http.request.headers.c___ont_____ent----typ_/_e",
+          "this.header", "whatever.the.user.wants.this.header");
       assertEquals(expectedRequestHeaderTags, tracer.captureTraceConfig().getRequestHeaderTags());
 
-      Map<String, String> expectedResponseHeaderTags =
-          buildStringMap(
-              "cookie", "http.response.headers.cookie",
-              "referer", "http.referer",
-              "some.header", "http.response.headers.some_header",
-              "c!!!ont_____ent----typ!/!e", "http.response.headers.c___ont_____ent----typ_/_e",
-              "this.header", "whatever.the.user.wants.this.header");
+      Map<String, String> expectedResponseHeaderTags = buildStringMap(
+          "cookie", "http.response.headers.cookie",
+          "referer", "http.referer",
+          "some.header", "http.response.headers.some_header",
+          "c!!!ont_____ent----typ!/!e", "http.response.headers.c___ont_____ent----typ_/_e",
+          "this.header", "whatever.the.user.wants.this.header");
       assertEquals(expectedResponseHeaderTags, tracer.captureTraceConfig().getResponseHeaderTags());
 
       assertEquals(0.5, tracer.captureTraceConfig().getTraceSampleRate(), 0.0001);
@@ -496,16 +499,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -529,18 +533,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
-  static final String ACTION_JSON =
-      "'{\"action\": \"enable\", \"lib_config\":"
-          + "{\"tracing_sampling_rate\": null,"
-          + " \"log_injection_enabled\": null, "
-          + "\"tracing_header_tags\": null,"
-          + " \"runtime_metrics_enabled\": null,"
-          + "\"tracing_debug\": null,"
-          + " \"tracing_service_mapping\": null,"
-          + "\"tracing_sampling_rules\": null,"
-          + " \"span_sampling_rules\": null,"
-          + "\"data_streams_enabled\": null,"
-          + " \"tracing_enabled\": false}}'";
+  static final String ACTION_JSON = "'{\"action\": \"enable\", \"lib_config\":"
+      + "{\"tracing_sampling_rate\": null,"
+      + " \"log_injection_enabled\": null, "
+      + "\"tracing_header_tags\": null,"
+      + " \"runtime_metrics_enabled\": null,"
+      + "\"tracing_debug\": null,"
+      + " \"tracing_service_mapping\": null,"
+      + "\"tracing_sampling_rules\": null,"
+      + " \"span_sampling_rules\": null,"
+      + "\"data_streams_enabled\": null,"
+      + " \"tracing_enabled\": false}}'";
 
   @TableTest({
     "scenario         | json                                            | expectedValue",
@@ -556,16 +559,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -588,7 +592,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     "with pref | some      | some    "
   })
   void testLocalRootServiceNameOverride(String preferred, String expected) {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new ListWriter()).serviceName("test").build();
     tracer.updatePreferredServiceName(preferred, preferred);
     try {
       DDSpan span = (DDSpan) tracer.startSpan("", "test");
@@ -609,9 +614,10 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     TagsPostProcessorFactory.withAddInternalTags(true);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      DDSpan span =
-          (DDSpan)
-              tracer.buildSpan("datadog", "def").withTag(GeneralConfig.SERVICE_NAME, "foo").start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "def")
+          .withTag(GeneralConfig.SERVICE_NAME, "foo")
+          .start();
       span.finish();
       assertEquals("foo", span.getServiceName());
       assertFalse(span.getTags().containsKey("version"));
@@ -650,16 +656,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
+    doAnswer(inv -> {
+          capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+          return null;
+        })
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    CoreTracer tracer = CoreTracer.builder()
+        .sharedCommunicationObjects(sco)
+        .pollForTracingConfiguration()
+        .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -667,12 +674,11 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       assertNotNull(capturedUpdater[0]);
       assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
 
-      String json =
-          String.format(
-              "{\"service_target\":{\"service\":\"%s\",\"env\":\"%s\"},"
-                  + "\"lib_config\":{\"tracing_service_mapping\":"
-                  + "[{\"from_key\":\"foobar\",\"to_name\":\"bar\"}]}}",
-              targetService, targetEnv);
+      String json = String.format(
+          "{\"service_target\":{\"service\":\"%s\",\"env\":\"%s\"},"
+              + "\"lib_config\":{\"tracing_service_mapping\":"
+              + "[{\"from_key\":\"foobar\",\"to_name\":\"bar\"}]}}",
+          targetService, targetEnv);
 
       capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
       capturedUpdater[0].commit(null);

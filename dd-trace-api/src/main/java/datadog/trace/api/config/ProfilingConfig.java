@@ -12,16 +12,22 @@ public final class ProfilingConfig {
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
+
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
+
   @Deprecated // Use dd.api-key instead
   public static final String PROFILING_API_KEY_OLD = "profiling.api-key";
+
   @Deprecated // Use dd.api-key-file instead
   public static final String PROFILING_API_KEY_FILE_OLD = "profiling.api-key-file";
+
   @Deprecated // Use dd.api-key instead
   public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
+
   @Deprecated // Use dd.api-key-file instead
   public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
+
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
   public static final int PROFILING_START_DELAY_DEFAULT = 10;

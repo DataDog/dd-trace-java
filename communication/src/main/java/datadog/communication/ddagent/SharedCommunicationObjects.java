@@ -72,10 +72,9 @@ public class SharedCommunicationObjects {
       monitoring = Monitoring.DISABLED;
     }
 
-    httpClientTimeout =
-        config.isCiVisibilityEnabled()
-            ? config.getCiVisibilityBackendApiTimeoutMillis()
-            : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+    httpClientTimeout = config.isCiVisibilityEnabled()
+        ? config.getCiVisibilityBackendApiTimeoutMillis()
+        : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
 
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
 
@@ -89,9 +88,8 @@ public class SharedCommunicationObjects {
     if (agentHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
-      agentHttpClient =
-          OkHttpUtils.buildHttpClient(
-              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+      agentHttpClient = OkHttpUtils.buildHttpClient(
+          OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
       String testSessionToken = config.getTestAgentSessionToken();
       if (testSessionToken != null) {
         agentHttpClient = injectTestAgentSessionHeaderInterceptor(testSessionToken);
@@ -102,14 +100,11 @@ public class SharedCommunicationObjects {
   private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
     return agentHttpClient
         .newBuilder()
-        .addInterceptor(
-            chain ->
-                chain.proceed(
-                    chain
-                        .request()
-                        .newBuilder()
-                        .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
-                        .build()))
+        .addInterceptor(chain -> chain.proceed(chain
+            .request()
+            .newBuilder()
+            .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
+            .build()))
         .build();
   }
 
@@ -193,14 +188,13 @@ public class SharedCommunicationObjects {
             ret = NoopFeaturesDiscovery.INSTANCE;
           } else {
             createRemaining(config);
-            ret =
-                new DDAgentFeaturesDiscovery(
-                    agentHttpClient,
-                    monitoring,
-                    agentUrl,
-                    config.getProtocolVersion(),
-                    config.isTracerMetricsEnabled(),
-                    config.isTracerMetricsIgnoreAgentVersion());
+            ret = new DDAgentFeaturesDiscovery(
+                agentHttpClient,
+                monitoring,
+                agentUrl,
+                config.getProtocolVersion(),
+                config.isTracerMetricsEnabled(),
+                config.isTracerMetricsIgnoreAgentVersion());
 
             if (paused) {
               // defer remote discovery until remote I/O is allowed
@@ -269,9 +263,8 @@ public class SharedCommunicationObjects {
 
     synchronized (this) {
       if (this.intakeHttpClient == null) {
-        this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(
-                forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
+        this.intakeHttpClient = OkHttpUtils.buildHttpClient(
+            forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
       }
       return this.intakeHttpClient;
     }

@@ -30,11 +30,9 @@ public class StackWalkerTestUtil {
   public static List<StackTraceElement> getStackWalkFrom(
       final StackWalker walker, final String clazz) {
     final AtomicReference<List<StackTraceElement>> result = new AtomicReference<>();
-    AnyStackRunner.callWithinStack(
-        clazz,
-        () -> {
-          result.set(walker.walk(s -> s.collect(Collectors.toList())));
-        });
+    AnyStackRunner.callWithinStack(clazz, () -> {
+      result.set(walker.walk(s -> s.collect(Collectors.toList())));
+    });
     return result.get();
   }
 }

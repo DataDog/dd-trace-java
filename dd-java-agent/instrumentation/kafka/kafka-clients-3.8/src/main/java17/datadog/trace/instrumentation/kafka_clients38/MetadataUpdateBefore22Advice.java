@@ -14,9 +14,8 @@ public class MetadataUpdateBefore22Advice {
       @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
     if (newCluster != null && !newCluster.isBootstrapConfigured()) {
       String clusterId = newCluster.clusterResource().clusterId();
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+          .getOrCreate(metadata, MetadataState::new);
       state.clusterId = clusterId;
       KafkaConfigHelper.reportPendingConfig(state, clusterId);
     }

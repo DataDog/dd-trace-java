@@ -62,11 +62,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+          "org.eclipse.jetty.server.Request")
+      .withMethod(new String[0], 0, "extractContentParameters", MULTI_MAP_INTERNAL_NAME)
+      .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

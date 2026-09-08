@@ -67,8 +67,9 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpanContext context =
-          InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class).get(event);
+      AgentSpanContext context = InstrumentationContext.get(
+              ILoggingEvent.class, AgentSpanContext.class)
+          .get(event);
 
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {

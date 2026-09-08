@@ -162,9 +162,8 @@ class OrgGuardEndToEndTest {
     when(config.getTraceOrgGuardTrustedOpms()).thenReturn(trusted);
 
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, traceConfigSupplier);
-    HttpCodec.Injector injector =
-        HttpCodec.createInjector(
-            config, config.getTracePropagationStylesToInject(), Collections.emptyMap());
+    HttpCodec.Injector injector = HttpCodec.createInjector(
+        config, config.getTracePropagationStylesToInject(), Collections.emptyMap());
     OrgGuard orgGuard = OrgGuard.create(config, localOpmSupplier, factory, healthMetrics);
     return new TracingPropagator(
         true, orgGuard.decorateInjector(injector), orgGuard.decorateExtractor(extractor));

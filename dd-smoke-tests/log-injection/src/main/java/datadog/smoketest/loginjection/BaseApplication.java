@@ -56,41 +56,29 @@ public abstract class BaseApplication {
   @Trace
   public void firstTracedMethod() {
     doLog("INSIDE FIRST SPAN");
-    System.out.println(
-        "FIRSTTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+    System.out.println("FIRSTTRACEID " + CorrelationIdentifier.getTraceId() + " "
+        + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void secondTracedMethod() {
     doLog("INSIDE SECOND SPAN");
-    System.out.println(
-        "SECONDTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+    System.out.println("SECONDTRACEID " + CorrelationIdentifier.getTraceId() + " "
+        + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void thirdTracedMethod() {
     doLog("INSIDE THIRD SPAN");
-    System.out.println(
-        "THIRDTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+    System.out.println("THIRDTRACEID " + CorrelationIdentifier.getTraceId() + " "
+        + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void forthTracedMethod() {
     doLog("INSIDE FORTH SPAN");
-    System.out.println(
-        "FORTHTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+    System.out.println("FORTHTRACEID " + CorrelationIdentifier.getTraceId() + " "
+        + CorrelationIdentifier.getSpanId());
   }
 
   private static boolean waitForCondition(Supplier<Boolean> condition) throws InterruptedException {

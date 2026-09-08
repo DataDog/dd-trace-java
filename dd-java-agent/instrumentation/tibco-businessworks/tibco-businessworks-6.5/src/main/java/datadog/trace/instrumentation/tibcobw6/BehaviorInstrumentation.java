@@ -44,19 +44,15 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("enter")
-                    .and(
-                        isDeclaredBy(
-                            hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
+            .and(named("enter")
+                .and(isDeclaredBy(
+                    hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
         getClass().getName() + "$ProcessStartAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("exit")
-                    .and(
-                        isDeclaredBy(
-                            hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
+            .and(named("exit")
+                .and(isDeclaredBy(
+                    hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
         getClass().getName() + "$ProcessEndAdvice");
     transformer.applyAdvice(
         isMethod()
@@ -89,11 +85,10 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
         contextStore.put(pmTask, parentSpan);
         return null;
       }
-      AgentSpan span =
-          startSpan(
-              "tibco_bw",
-              TibcoDecorator.TIBCO_ACTIVITY_OPERATION,
-              parentSpan != null ? parentSpan.spanContext() : null);
+      AgentSpan span = startSpan(
+          "tibco_bw",
+          TibcoDecorator.TIBCO_ACTIVITY_OPERATION,
+          parentSpan != null ? parentSpan.spanContext() : null);
       TibcoDecorator.DECORATE.afterStart(span);
       TibcoDecorator.DECORATE.onActivityStart(span, pmTask.getName(pmContext));
       return activateSpan(span);
@@ -144,11 +139,10 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
           parent = pmProcessInstance.getParentProcess(pmContext);
           parentSpan = parent != null ? contextStore.get(parent) : null;
         }
-        AgentSpan span =
-            startSpan(
-                "tibco_bw",
-                TibcoDecorator.TIBCO_PROCESS_OPERATION,
-                parent != null ? parentSpan.spanContext() : null);
+        AgentSpan span = startSpan(
+            "tibco_bw",
+            TibcoDecorator.TIBCO_PROCESS_OPERATION,
+            parent != null ? parentSpan.spanContext() : null);
         TibcoDecorator.DECORATE.afterStart(span);
         TibcoDecorator.DECORATE.onProcessStart(span, pmProcessInstance.getName(pmContext));
         contextStore.put(pmProcessInstance, span);

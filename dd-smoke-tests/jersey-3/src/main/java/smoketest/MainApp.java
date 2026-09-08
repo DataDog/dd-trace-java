@@ -43,9 +43,8 @@ public class MainApp {
 
   public static void main(String[] args) {
     String httpPort = "8034";
-    ParamConverter paramConverter =
-        new StringConstructor()
-            .getConverter(String.class, new GenericClass(String.class).getMyType(), null);
+    ParamConverter paramConverter = new StringConstructor()
+        .getConverter(String.class, new GenericClass(String.class).getMyType(), null);
     Object pepe = paramConverter.fromString("Pepe");
 
     if (args.length == 1) {
@@ -56,20 +55,17 @@ public class MainApp {
       final HttpServer httpServer = startServer(httpPort);
 
       // add jvm shutdown hook
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    try {
-                      System.out.println("Shutting down the application...");
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try {
+          System.out.println("Shutting down the application...");
 
-                      httpServer.shutdownNow();
+          httpServer.shutdownNow();
 
-                      System.out.println("Done, exit.");
-                    } catch (Exception e) {
-                      Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, e);
-                    }
-                  }));
+          System.out.println("Done, exit.");
+        } catch (Exception e) {
+          Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, e);
+        }
+      }));
 
       System.out.println("Application started.");
       System.out.println("Stop the application using CTRL+C");

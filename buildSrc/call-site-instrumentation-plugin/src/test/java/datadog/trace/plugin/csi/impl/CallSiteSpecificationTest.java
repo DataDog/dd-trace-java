@@ -25,9 +25,8 @@ class CallSiteSpecificationTest extends BaseCsiPluginTest {
     Set<Type> spiTypes = Collections.singleton(Type.getType(String.class));
     List<String> helperClassNames = Collections.emptyList();
     Set<Type> constants = Collections.emptySet();
-    CallSiteSpecification spec =
-        new CallSiteSpecification(
-            Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
+    CallSiteSpecification spec = new CallSiteSpecification(
+        Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
 
     spec.validate(context);
 
@@ -42,9 +41,8 @@ class CallSiteSpecificationTest extends BaseCsiPluginTest {
     Set<Type> spiTypes = Collections.singleton(Type.getType(Comparable.class));
     List<String> helperClassNames = Collections.emptyList();
     Set<Type> constants = Collections.emptySet();
-    CallSiteSpecification spec =
-        new CallSiteSpecification(
-            Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
+    CallSiteSpecification spec = new CallSiteSpecification(
+        Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
 
     spec.validate(context);
 
@@ -58,9 +56,8 @@ class CallSiteSpecificationTest extends BaseCsiPluginTest {
     Set<Type> spiTypes = Collections.singleton(Type.getType(CallSiteAdvice.class));
     List<String> helperClassNames = Collections.emptyList();
     Set<Type> constants = Collections.emptySet();
-    CallSiteSpecification spec =
-        new CallSiteSpecification(
-            Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
+    CallSiteSpecification spec = new CallSiteSpecification(
+        Type.getType(String.class), advices, spiTypes, helperClassNames, constants);
 
     spec.validate(context);
 

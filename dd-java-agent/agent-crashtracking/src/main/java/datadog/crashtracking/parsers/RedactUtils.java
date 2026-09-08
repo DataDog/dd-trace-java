@@ -61,9 +61,8 @@ public final class RedactUtils {
 
   // Dotted class name followed by an OOP reference: "com.company.Type"{0x...}
   // This specifically identifies the inline string value of a java.lang.Class 'name' field
-  private static final Pattern DOTTED_CLASS_OOP_REF =
-      Pattern.compile(
-          "\"([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)\"(\\{0x[0-9a-fA-F]+\\})");
+  private static final Pattern DOTTED_CLASS_OOP_REF = Pattern.compile(
+      "\"([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)\"(\\{0x[0-9a-fA-F]+\\})");
 
   // is an oop: com.company.Class
   private static final Pattern IS_AN_OOP =
@@ -74,9 +73,8 @@ public final class RedactUtils {
   //   "memory: 0x<addr> | ff ff ff ff ..."  (Linux/macOS amd64 — address + pipe + bytes)
   //   "memory: ff ff ff ff ..."              (Linux aarch64    — bytes only)
   // The address (when present) is kept; only the raw bytes are redacted.
-  private static final Pattern READABLE_MEMORY_HEX_DUMP =
-      Pattern.compile(
-          "(points into unknown readable memory: (?:0x[0-9a-fA-F]+ \\| )?)([0-9a-fA-F]{2}(?: [0-9a-fA-F]{2})*)");
+  private static final Pattern READABLE_MEMORY_HEX_DUMP = Pattern.compile(
+      "(points into unknown readable memory: (?:0x[0-9a-fA-F]+ \\| )?)([0-9a-fA-F]{2}(?: [0-9a-fA-F]{2})*)");
 
   private RedactUtils() {}
 
@@ -136,10 +134,9 @@ public final class RedactUtils {
     return replaceAll(
         DOTTED_CLASS_OOP_REF,
         line,
-        m ->
-            isClassOop
-                ? "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2)
-                : "\"" + REDACTED_STRING + "\"" + m.group(2));
+        m -> isClassOop
+            ? "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2)
+            : "\"" + REDACTED_STRING + "\"" + m.group(2));
   }
 
   /**
@@ -198,15 +195,12 @@ public final class RedactUtils {
    * dot-separated (PRODUCT build) and slash-separated (debug build) class names.
    */
   static String redactNmethodClass(String line) {
-    return replaceAll(
-        NMETHOD_CLASS,
-        line,
-        m -> {
-          String cls = m.group(1);
-          String redacted =
-              cls.indexOf('/') >= 0 ? redactJvmClassName(cls) : redactDottedClassName(cls);
-          return redacted + "::";
-        });
+    return replaceAll(NMETHOD_CLASS, line, m -> {
+      String cls = m.group(1);
+      String redacted =
+          cls.indexOf('/') >= 0 ? redactJvmClassName(cls) : redactDottedClassName(cls);
+      return redacted + "::";
+    });
   }
 
   /**

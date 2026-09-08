@@ -25,28 +25,26 @@ class SpanSamplingRulesTest {
 
   @Test
   void deserializeSpanSamplingRulesFromJson() {
-    SpanSamplingRules result =
-        deserializeRules(
-            "[\n"
-                + "  {\"service\": \"service-name\", \"name\": \"operation-name\", \"resource\": \"resource-name\", \"tags\":\n"
-                + "    {\"tag-name1\": \"tag-pattern1\",\n"
-                + "     \"tag-name2\": \"tag-pattern2\"},\n"
-                + "    \"sample_rate\": 0.0, \"max_per_second\": 10.0},\n"
-                + "  {},\n"
-                + "  {\"service\": \"\", \"name\": \"\", \"resource\": \"\", \"tags\": {}},\n"
-                + "  {\"service\": null, \"name\": null, \"resource\": null, \"tags\": null, \"sample_rate\": null, \"max_per_second\": null},\n"
-                + "\n"
-                + "  {\"sample_rate\": 0.25},\n"
-                + "  {\"sample_rate\": 0.5},\n"
-                + "  {\"sample_rate\": 0.75},\n"
-                + "  {\"sample_rate\": 1},\n"
-                + "\n"
-                + "  {\"max_per_second\": 0.2},\n"
-                + "  {\"max_per_second\": 1.0},\n"
-                + "  {\"max_per_second\": 10},\n"
-                + "  {\"max_per_second\": 10.123},\n"
-                + "  {\"max_per_second\": 10000}\n"
-                + "]");
+    SpanSamplingRules result = deserializeRules("[\n"
+        + "  {\"service\": \"service-name\", \"name\": \"operation-name\", \"resource\": \"resource-name\", \"tags\":\n"
+        + "    {\"tag-name1\": \"tag-pattern1\",\n"
+        + "     \"tag-name2\": \"tag-pattern2\"},\n"
+        + "    \"sample_rate\": 0.0, \"max_per_second\": 10.0},\n"
+        + "  {},\n"
+        + "  {\"service\": \"\", \"name\": \"\", \"resource\": \"\", \"tags\": {}},\n"
+        + "  {\"service\": null, \"name\": null, \"resource\": null, \"tags\": null, \"sample_rate\": null, \"max_per_second\": null},\n"
+        + "\n"
+        + "  {\"sample_rate\": 0.25},\n"
+        + "  {\"sample_rate\": 0.5},\n"
+        + "  {\"sample_rate\": 0.75},\n"
+        + "  {\"sample_rate\": 1},\n"
+        + "\n"
+        + "  {\"max_per_second\": 0.2},\n"
+        + "  {\"max_per_second\": 1.0},\n"
+        + "  {\"max_per_second\": 10},\n"
+        + "  {\"max_per_second\": 10.123},\n"
+        + "  {\"max_per_second\": 10000}\n"
+        + "]");
     List<SpanSamplingRules.Rule> rules = result.getRules();
     int ruleIndex = 0;
 
@@ -126,10 +124,8 @@ class SpanSamplingRulesTest {
     "\"\"     | '\"\"'    "
   })
   void skipSpanSamplingRulesWithInvalidMaxPerSecondValues(String limit) {
-    String json =
-        "[{\"service\": \"usersvc\", \"name\": \"healthcheck\", \"max_per_second\": "
-            + limit
-            + "}]";
+    String json = "[{\"service\": \"usersvc\", \"name\": \"healthcheck\", \"max_per_second\": "
+        + limit + "}]";
     SpanSamplingRules result = deserializeRules(json);
 
     assertTrue(result.isEmpty());
@@ -161,12 +157,10 @@ class SpanSamplingRulesTest {
 
   @Test
   void keepOnlyValidRulesWhenInvalidRulesArePresent() {
-    SpanSamplingRules rules =
-        SpanSamplingRules.deserialize(
-            "[\n"
-                + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 0.5},\n"
-                + "  {\"service\": \"usersvc\", \"name\": \"healthcheck2\", \"sample_rate\": 200}\n"
-                + "]");
+    SpanSamplingRules rules = SpanSamplingRules.deserialize("[\n"
+        + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 0.5},\n"
+        + "  {\"service\": \"usersvc\", \"name\": \"healthcheck2\", \"sample_rate\": 200}\n"
+        + "]");
 
     assertEquals(1, rules.getRules().size());
   }

@@ -28,12 +28,11 @@ public final class OtlpProtoBuffer {
   public OtlpProtoBuffer(int requiredCapacity) {
     this.initialCapacity = nextPowerOfTwo(requiredCapacity);
     if (this.initialCapacity > MAX_CAPACITY_BYTES) {
-      throw new IllegalArgumentException(
-          "OTLP payload initial capacity of "
-              + this.initialCapacity
-              + " bytes exceeds maximum buffer size of "
-              + MAX_CAPACITY_BYTES
-              + " bytes");
+      throw new IllegalArgumentException("OTLP payload initial capacity of "
+          + this.initialCapacity
+          + " bytes exceeds maximum buffer size of "
+          + MAX_CAPACITY_BYTES
+          + " bytes");
     }
     this.buffer = ByteBuffer.allocate(initialCapacity);
     this.remaining = initialCapacity;
@@ -142,14 +141,13 @@ public final class OtlpProtoBuffer {
       // (uses long arithmetic so overflow can be detected before allocating)
       long newSize = ((long) oldSize + required + initialCapacity - 1) & -initialCapacity;
       if (newSize > MAX_CAPACITY_BYTES) {
-        throw new IllegalStateException(
-            "OTLP payload exceeds maximum buffer size of "
-                + MAX_CAPACITY_BYTES
-                + " bytes: "
-                + oldSize
-                + " bytes buffered, "
-                + required
-                + " more requested");
+        throw new IllegalStateException("OTLP payload exceeds maximum buffer size of "
+            + MAX_CAPACITY_BYTES
+            + " bytes: "
+            + oldSize
+            + " bytes buffered, "
+            + required
+            + " more requested");
       }
       ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
       // copy over old content so it stays at the far end

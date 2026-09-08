@@ -23,14 +23,13 @@ public class MicronautCodeOriginInstrumentation extends CodeOriginInstrumentatio
 
   @Override
   protected Set<String> getAnnotations() {
-    return new HashSet<>(
-        Arrays.asList(
-            IO_MICRONAUT_HTTP_ANNOTATION + "Get",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Post",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Put",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Delete",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Patch",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Head",
-            IO_MICRONAUT_HTTP_ANNOTATION + "Options"));
+    return new HashSet<>(Arrays.asList(
+        IO_MICRONAUT_HTTP_ANNOTATION + "Get",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Post",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Put",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Delete",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Patch",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Head",
+        IO_MICRONAUT_HTTP_ANNOTATION + "Options"));
   }
 }

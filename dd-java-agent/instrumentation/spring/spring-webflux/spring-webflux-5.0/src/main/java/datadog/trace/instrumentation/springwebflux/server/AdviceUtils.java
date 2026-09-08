@@ -14,18 +14,16 @@ public final class AdviceUtils {
   public static final String PARENT_SPAN_ATTRIBUTE =
       "datadog.trace.instrumentation.springwebflux.ParentSpan";
 
-  private static final ClassValue<CharSequence> NAMES =
-      GenericClassValue.of(
-          type -> {
-            String name = type.getName();
-            int lambdaIdx = name.lastIndexOf("$$Lambda");
-            if (lambdaIdx > -1) {
-              return UTF8BytesString.create(
-                  name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
-            } else {
-              return DECORATE.spanNameForMethod(type, "handle");
-            }
-          });
+  private static final ClassValue<CharSequence> NAMES = GenericClassValue.of(type -> {
+    String name = type.getName();
+    int lambdaIdx = name.lastIndexOf("$$Lambda");
+    if (lambdaIdx > -1) {
+      return UTF8BytesString.create(
+          name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
+    } else {
+      return DECORATE.spanNameForMethod(type, "handle");
+    }
+  });
 
   public static CharSequence constructOperationName(Object handler) {
     return NAMES.get(handler.getClass());

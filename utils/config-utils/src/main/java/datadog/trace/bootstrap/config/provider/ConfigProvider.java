@@ -145,9 +145,8 @@ public final class ConfigProvider {
         }
         // Create resolver only if candidate is not empty or blank
         if (!candidateValue.trim().isEmpty()) {
-          resolver =
-              ConfigValueResolver.of(
-                  candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+          resolver = ConfigValueResolver.of(
+              candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
         }
       }
 
@@ -505,31 +504,28 @@ public final class ConfigProvider {
   }
 
   public static ConfigProvider createDefault() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    Properties configProperties = loadConfigurationFile(
+        new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
     ConfigProvider.Source propertiesSource =
         !configProperties.isEmpty() ? new PropertiesConfigSource(configProperties, true) : null;
 
     Map<String, String> ciEnvironmentVariables = CiEnvironmentVariables.getAll();
-    ConfigProvider.Source ciEnvironmentSource =
-        ciEnvironmentVariables != null
-            ? new MapConfigSource(
-                ciEnvironmentVariables,
-                ConfigStrings::propertyNameToEnvironmentVariableName,
-                ConfigOrigin.ENV)
-            : null;
+    ConfigProvider.Source ciEnvironmentSource = ciEnvironmentVariables != null
+        ? new MapConfigSource(
+            ciEnvironmentVariables,
+            ConfigStrings::propertyNameToEnvironmentVariableName,
+            ConfigOrigin.ENV)
+        : null;
 
-    return new ConfigProvider(
-        filterNonNull(
-            new SystemPropertiesConfigSource(),
-            StableConfigSource.FLEET,
-            ciEnvironmentSource,
-            new EnvironmentConfigSource(),
-            propertiesSource,
-            new OtelEnvironmentConfigSource(),
-            StableConfigSource.LOCAL,
-            new CapturedEnvironmentConfigSource()));
+    return new ConfigProvider(filterNonNull(
+        new SystemPropertiesConfigSource(),
+        StableConfigSource.FLEET,
+        ciEnvironmentSource,
+        new EnvironmentConfigSource(),
+        propertiesSource,
+        new OtelEnvironmentConfigSource(),
+        StableConfigSource.LOCAL,
+        new CapturedEnvironmentConfigSource()));
   }
 
   private static ConfigProvider.Source[] filterNonNull(ConfigProvider.Source... values) {
@@ -537,10 +533,8 @@ public final class ConfigProvider {
   }
 
   public static ConfigProvider withoutCollector() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    Properties configProperties = loadConfigurationFile(new ConfigProvider(
+        false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           false,
@@ -565,12 +559,8 @@ public final class ConfigProvider {
 
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                new SystemPropertiesConfigSource(),
-                new EnvironmentConfigSource(),
-                providedConfigSource));
+    Properties configProperties = loadConfigurationFile(new ConfigProvider(
+        new SystemPropertiesConfigSource(), new EnvironmentConfigSource(), providedConfigSource));
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),

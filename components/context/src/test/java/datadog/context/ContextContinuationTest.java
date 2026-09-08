@@ -151,15 +151,13 @@ class ContextContinuationTest extends ContextTestBase {
     // original scope is closed; resume the context on another thread
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
-      Future<?> future =
-          executor.submit(
-              () -> {
-                assertEquals(root(), current()); // thread starts with root context
-                try (ContextScope scope = continuation.resume()) {
-                  assertEquals(context, current());
-                }
-                assertEquals(root(), current()); // restored after scope close
-              });
+      Future<?> future = executor.submit(() -> {
+        assertEquals(root(), current()); // thread starts with root context
+        try (ContextScope scope = continuation.resume()) {
+          assertEquals(context, current());
+        }
+        assertEquals(root(), current()); // restored after scope close
+      });
       assertDoesNotThrow(() -> future.get());
     } finally {
       executor.shutdown();
@@ -169,13 +167,12 @@ class ContextContinuationTest extends ContextTestBase {
   @Test
   void testMultipleResumesReleaseAfterLastScopeCloses() throws InterruptedException {
     List<String> events = synchronizedList(new ArrayList<>());
-    ContextManager.register(
-        new ContextListener() {
-          @Override
-          public void onRelease(Context c) {
-            events.add("release");
-          }
-        });
+    ContextManager.register(new ContextListener() {
+      @Override
+      public void onRelease(Context c) {
+        events.add("release");
+      }
+    });
     Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
@@ -187,28 +184,24 @@ class ContextContinuationTest extends ContextTestBase {
     CountDownLatch closeSecond = new CountDownLatch(1);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
-      Future<?> f1 =
-          executor.submit(
-              () -> {
-                try (ContextScope scope = continuation.resume()) {
-                  bothResumed.countDown();
-                  closeFirst.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } finally {
-                  firstClosed.countDown();
-                }
-              });
-      Future<?> f2 =
-          executor.submit(
-              () -> {
-                try (ContextScope scope = continuation.resume()) {
-                  bothResumed.countDown();
-                  closeSecond.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-              });
+      Future<?> f1 = executor.submit(() -> {
+        try (ContextScope scope = continuation.resume()) {
+          bothResumed.countDown();
+          closeFirst.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } finally {
+          firstClosed.countDown();
+        }
+      });
+      Future<?> f2 = executor.submit(() -> {
+        try (ContextScope scope = continuation.resume()) {
+          bothResumed.countDown();
+          closeSecond.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      });
       bothResumed.await();
       assertTrue(events.isEmpty(), "release should not fire while scopes are open");
       closeFirst.countDown();

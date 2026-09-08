@@ -90,10 +90,9 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
       Collection<String> testTags = MUnitUtils.getCategories(description);
 
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.MUNIT)
-              .executionPolicy(testIdentifier, testSourceData, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .executionPolicy(testIdentifier, testSourceData, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

@@ -27,9 +27,8 @@ public class FallbackCallableInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.FieldValue(value = "callable", readOnly = false) Callable<?> callable) {
-      callable =
-          new WrapperWithContext.CallableWithContext<>(
-              callable, Resilience4jSpanDecorator.DECORATE, null);
+      callable = new WrapperWithContext.CallableWithContext<>(
+          callable, Resilience4jSpanDecorator.DECORATE, null);
     }
 
     // 2.0.0+

@@ -14,14 +14,13 @@ public class Main {
     ServerBuilder sb = Server.builder();
     sb.http(port);
 
-    GrpcService grpcService =
-        GrpcService.builder()
-            .addService(new HelloServiceImpl())
-            .addService(new IastServiceImpl())
-            .addService(ProtoReflectionService.newInstance())
-            .supportedSerializationFormats(GrpcSerializationFormats.values())
-            .enableUnframedRequests(true)
-            .build();
+    GrpcService grpcService = GrpcService.builder()
+        .addService(new HelloServiceImpl())
+        .addService(new IastServiceImpl())
+        .addService(ProtoReflectionService.newInstance())
+        .supportedSerializationFormats(GrpcSerializationFormats.values())
+        .enableUnframedRequests(true)
+        .build();
     sb.service(grpcService);
 
     Server server = sb.build();

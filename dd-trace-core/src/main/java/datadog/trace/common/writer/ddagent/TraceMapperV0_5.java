@@ -222,19 +222,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
       TagMap tags = metadata.getTags();
 
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
-              + (null == metadata.getOrigin() ? 0 : 1)
-              + (null == processTags ? 0 : 1)
-              + 1;
-      int metricsSize =
-          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
-              + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningVersion() != 0 ? 1 : 0)
-              + 1;
+      int metaSize = metadata.getBaggage().size()
+          + tags.size()
+          + (null == metadata.getHttpStatusCode() ? 0 : 1)
+          + (null == metadata.getOrigin() ? 0 : 1)
+          + (null == processTags ? 0 : 1)
+          + 1;
+      int metricsSize = (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
+          + (metadata.measured() ? 1 : 0)
+          + (metadata.topLevel() ? 1 : 0)
+          + (metadata.longRunningVersion() != 0 ? 1 : 0)
+          + 1;
 
       for (TagMap.EntryReader entry : tags) {
         if (entry.isNumber()) {

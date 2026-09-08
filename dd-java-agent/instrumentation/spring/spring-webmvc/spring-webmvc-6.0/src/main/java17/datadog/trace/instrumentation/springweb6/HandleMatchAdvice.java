@@ -100,9 +100,8 @@ public class HandleMatchAdvice {
               if (brf != null) {
                 brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
               }
-              t =
-                  new BlockingException(
-                      "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+              t = new BlockingException(
+                  "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
             }
           }
         }

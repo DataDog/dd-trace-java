@@ -77,18 +77,17 @@ public class BasicRemoteEndpointInstrumentation
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) String text,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+      handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+          .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
       return activateSpan(wsSpan);
     }
 
@@ -118,18 +117,17 @@ public class BasicRemoteEndpointInstrumentation
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) ByteBuffer buffer,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+      handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+          .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
-              BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
+          BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
       return activateSpan(wsSpan);
     }
 
@@ -157,8 +155,8 @@ public class BasicRemoteEndpointInstrumentation
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+      handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+          .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
@@ -195,8 +193,9 @@ public class BasicRemoteEndpointInstrumentation
       if (writer instanceof TracingWriter) {
         return;
       }
-      final HandlerContext.Sender handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+      final HandlerContext.Sender handlerContext = InstrumentationContext.get(
+              RemoteEndpoint.class, HandlerContext.Sender.class)
+          .get(self);
       if (handlerContext != null) {
         writer = new TracingWriter(writer, handlerContext);
       }
@@ -211,8 +210,9 @@ public class BasicRemoteEndpointInstrumentation
       if (outputStream instanceof TracingOutputStream) {
         return;
       }
-      final HandlerContext.Sender handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+      final HandlerContext.Sender handlerContext = InstrumentationContext.get(
+              RemoteEndpoint.class, HandlerContext.Sender.class)
+          .get(self);
       if (handlerContext != null) {
         outputStream = new TracingOutputStream(outputStream, handlerContext);
       }

@@ -66,25 +66,22 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
   // TracingServerInterceptor at build time.
   @BeforeEach
   void setupServer() {
-    tripleProviderConfig =
-        new ProviderConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setRef(new TripleGreeterServiceImpl())
-            .setServer(
-                new ServerConfig().setProtocol("tri").setHost("127.0.0.1").setPort(TRIPLE_PORT))
-            .setRegister(false);
+    tripleProviderConfig = new ProviderConfig<TripleGreeterService>()
+        .setApplication(new ApplicationConfig().setAppName("test-server"))
+        .setInterfaceId(TripleGreeterService.class.getName())
+        .setRef(new TripleGreeterServiceImpl())
+        .setServer(new ServerConfig().setProtocol("tri").setHost("127.0.0.1").setPort(TRIPLE_PORT))
+        .setRegister(false);
     tripleProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
-            .setProtocol("tri")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<TripleGreeterService>()
+        .setApplication(new ApplicationConfig().setAppName("test-client"))
+        .setInterfaceId(TripleGreeterService.class.getName())
+        .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
+        .setProtocol("tri")
+        .setRegister(false)
+        .setSubscribe(false)
+        .refer();
   }
 
   @AfterEach

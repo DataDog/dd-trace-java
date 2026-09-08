@@ -67,9 +67,8 @@ public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
       return;
     }
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().getCode(), ResponseExtractAdapter.GETTER);
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span, origResponse, origResponse.getStatus().getCode(), ResponseExtractAdapter.GETTER);
     channelTraceContext.setAnalyzedResponse(true);
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
@@ -105,16 +104,15 @@ public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
     }
 
     ChannelFuture future = Channels.future(ctx.getChannel());
-    future.addListener(
-        fut -> {
-          if (!fut.isSuccess()) {
-            log.warn("Write of blocking response failed", fut.getCause());
-          }
-          // close the connection because it can be in an invalid state at this point
-          // For instance, in a POST request we will still be receiving data from the
-          // client
-          fut.getChannel().close();
-        });
+    future.addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.getCause());
+      }
+      // close the connection because it can be in an invalid state at this point
+      // For instance, in a POST request we will still be receiving data from the
+      // client
+      fut.getChannel().close();
+    });
 
     requestContext.getTraceSegment().effectivelyBlocked();
 

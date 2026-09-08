@@ -33,14 +33,12 @@ public class Json2FactoryInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("createParser")
             .and(isMethod())
-            .and(
-                isPublic()
-                    .and(
-                        takesArguments(String.class)
-                            .or(takesArguments(InputStream.class))
-                            .or(takesArguments(Reader.class))
-                            .or(takesArguments(URL.class))
-                            .or(takesArguments(byte[].class)))),
+            .and(isPublic()
+                .and(takesArguments(String.class)
+                    .or(takesArguments(InputStream.class))
+                    .or(takesArguments(Reader.class))
+                    .or(takesArguments(URL.class))
+                    .or(takesArguments(byte[].class)))),
         Json2FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
     transformer.applyAdvice(
         named("createParser")

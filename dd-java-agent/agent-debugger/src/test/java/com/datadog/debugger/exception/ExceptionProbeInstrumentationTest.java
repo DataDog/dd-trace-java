@@ -70,19 +70,17 @@ public class ExceptionProbeInstrumentationTest {
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
   private ClassFileTransformer currentTransformer;
-  private final ClassNameFilter classNameFiltering =
-      new ClassNameFiltering(
-          Stream.of(
-                  "java.",
-                  "jdk.",
-                  "com.sun.",
-                  "sun.",
-                  "org.gradle.",
-                  "worker.org.gradle.",
-                  "org.junit.",
-                  "org.joor.",
-                  "com.datadog.debugger.exception.")
-              .collect(Collectors.toSet()));
+  private final ClassNameFilter classNameFiltering = new ClassNameFiltering(Stream.of(
+          "java.",
+          "jdk.",
+          "com.sun.",
+          "sun.",
+          "org.gradle.",
+          "worker.org.gradle.",
+          "org.junit.",
+          "org.joor.",
+          "com.datadog.debugger.exception.")
+      .collect(Collectors.toSet()));
   private MockSampler probeSampler;
   private MockSampler globalSampler;
 
@@ -155,11 +153,14 @@ public class ExceptionProbeInstrumentationTest {
         extractProbeIdsByMethodName(exceptionProbeManager);
     assertEquals(1, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
-    assertProbeId(probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
-    assertEquals("oops", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
+    assertProbeId(
+        probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
+    assertEquals(
+        "oops", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
     ProbeLocation location = snapshot0.getProbe().getLocation();
     assertEquals(
-        location.getType() + "." + location.getMethod(), snapshot0.getStack().get(0).getFunction());
+        location.getType() + "." + location.getMethod(),
+        snapshot0.getStack().get(0).getFunction());
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
@@ -199,10 +200,12 @@ public class ExceptionProbeInstrumentationTest {
     callMethodThrowingIllegalArgException(testClass);
     assertEquals(2, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
-    assertProbeId(probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
+    assertProbeId(
+        probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
     assertExceptionMsg("oops", snapshot0);
     Snapshot snapshot1 = listener.snapshots.get(1);
-    assertProbeId(probeIdsByMethodName, "processWithException", snapshot1.getProbe().getId());
+    assertProbeId(
+        probeIdsByMethodName, "processWithException", snapshot1.getProbe().getId());
     assertExceptionMsg("illegal argument", snapshot1);
     MutableSpan span0 = traceInterceptor.getAllTraces().get(0).get(0);
     assertEquals(snapshot0.getExceptionId(), span0.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
@@ -240,11 +243,14 @@ public class ExceptionProbeInstrumentationTest {
     assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
     assertEquals(
         "oops fibo", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
-    assertEquals("1", getValue(snapshot0.getCaptures().getReturn().getArguments().get("n")));
+    assertEquals(
+        "1", getValue(snapshot0.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot1 = listener.snapshots.get(1);
-    assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
+    assertEquals(
+        "2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot2 = listener.snapshots.get(2);
-    assertEquals("3", getValue(snapshot2.getCaptures().getReturn().getArguments().get("n")));
+    assertEquals(
+        "3", getValue(snapshot2.getCaptures().getReturn().getArguments().get("n")));
     // sampling happens only once ont he first snapshot then forced for coordinated sampling
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
@@ -284,8 +290,10 @@ public class ExceptionProbeInstrumentationTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
-    LogProbe logProbe =
-        LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "processWithException").build();
+    LogProbe logProbe = LogProbe.builder()
+        .probeId(PROBE_ID)
+        .where(CLASS_NAME, "processWithException")
+        .build();
     Collection<ProbeDefinition> definitions = Arrays.asList(logProbe);
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering, definitions);
@@ -304,7 +312,8 @@ public class ExceptionProbeInstrumentationTest {
     Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals(PROBE_ID.getId(), snapshot1.getProbe().getId());
     Snapshot snapshot2 = listener.snapshots.get(2);
-    assertProbeId(probeIdsByMethodName, "processWithException", snapshot2.getProbe().getId());
+    assertProbeId(
+        probeIdsByMethodName, "processWithException", snapshot2.getProbe().getId());
   }
 
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
@@ -359,10 +368,9 @@ public class ExceptionProbeInstrumentationTest {
   private static Map<String, Set<String>> extractProbeIdsByMethodName(
       ExceptionProbeManager exceptionProbeManager) {
     return exceptionProbeManager.getProbes().stream()
-        .collect(
-            Collectors.groupingBy(
-                exceptionProbe -> exceptionProbe.getWhere().getMethodName(),
-                Collectors.mapping(ExceptionProbe::getId, Collectors.toSet())));
+        .collect(Collectors.groupingBy(
+            exceptionProbe -> exceptionProbe.getWhere().getMethodName(),
+            Collectors.mapping(ExceptionProbe::getId, Collectors.toSet())));
   }
 
   private TestSnapshotListener setupExceptionDebugging(
@@ -378,20 +386,18 @@ public class ExceptionProbeInstrumentationTest {
       ClassNameFilter classNameFiltering,
       Collection<ProbeDefinition> definitions) {
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            this::createTransformer,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
+    ConfigurationUpdater configurationUpdater = new ConfigurationUpdater(
+        instr,
+        this::createTransformer,
+        config,
+        new DebuggerSink(config, probeStatusSink),
+        new ClassesToRetransformFinder());
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(configurationUpdater);
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
-    DefaultExceptionDebugger exceptionDebugger =
-        new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true);
+    DefaultExceptionDebugger exceptionDebugger = new DefaultExceptionDebugger(
+        exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;

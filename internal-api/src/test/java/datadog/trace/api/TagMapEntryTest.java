@@ -60,13 +60,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", map),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(map, entry),
-                checkTrue(entry::isObject),
-                checkFalse(entry::isNumber),
-                checkType(TagMap.Entry.OBJECT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(map, entry),
+            checkTrue(entry::isObject),
+            checkFalse(entry::isNumber),
+            checkType(TagMap.Entry.OBJECT, entry)));
   }
 
   @Test
@@ -81,14 +80,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", "bar"),
         TagMap.Entry.OBJECT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue("bar", entry),
-                checkEquals("bar", entry::stringValue),
-                checkFalse(entry::isNumber),
-                checkTrue(entry::isObject),
-                checkType(TagMap.Entry.OBJECT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue("bar", entry),
+            checkEquals("bar", entry::stringValue),
+            checkFalse(entry::isNumber),
+            checkTrue(entry::isObject),
+            checkType(TagMap.Entry.OBJECT, entry)));
   }
 
   @Test
@@ -108,14 +106,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newObjectEntry("foo", "bar"),
         TagMap.Entry.OBJECT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue("bar", entry),
-                checkEquals("bar", entry::stringValue),
-                checkFalse(entry::isNumber),
-                checkTrue(entry::isObject),
-                checkType(TagMap.Entry.OBJECT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue("bar", entry),
+            checkEquals("bar", entry::stringValue),
+            checkFalse(entry::isNumber),
+            checkTrue(entry::isObject),
+            checkType(TagMap.Entry.OBJECT, entry)));
   }
 
   @Test
@@ -124,13 +121,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", "bar"),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue("bar", entry),
-                checkTrue(entry::isObject),
-                checkFalse(entry::isNumber),
-                checkType(TagMap.EntryReader.OBJECT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue("bar", entry),
+            checkTrue(entry::isObject),
+            checkFalse(entry::isNumber),
+            checkType(TagMap.EntryReader.OBJECT, entry)));
   }
 
   @ParameterizedTest
@@ -140,14 +136,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkFalse(entry::isNumericPrimitive),
-                checkFalse(entry::isNumber),
-                checkFalse(entry::isObject),
-                checkType(TagMap.Entry.BOOLEAN, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkFalse(entry::isNumericPrimitive),
+            checkFalse(entry::isNumber),
+            checkFalse(entry::isObject),
+            checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
@@ -157,14 +152,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkFalse(entry::isNumericPrimitive),
-                checkFalse(entry::isNumber),
-                checkFalse(entry::isObject),
-                checkType(TagMap.Entry.BOOLEAN, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkFalse(entry::isNumericPrimitive),
+            checkFalse(entry::isNumber),
+            checkFalse(entry::isObject),
+            checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
@@ -174,14 +168,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkFalse(entry::isNumericPrimitive),
-                checkFalse(entry::isNumber),
-                checkFalse(entry::isObject),
-                checkType(TagMap.Entry.BOOLEAN, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkFalse(entry::isNumericPrimitive),
+            checkFalse(entry::isNumber),
+            checkFalse(entry::isObject),
+            checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
@@ -191,15 +184,14 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkFalse(entry::isNumericPrimitive),
-                checkFalse(entry::isNumber),
-                checkFalse(entry::isObject),
-                checkType(TagMap.Entry.BOOLEAN, entry),
-                checkValue(value, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkFalse(entry::isNumericPrimitive),
+            checkFalse(entry::isNumber),
+            checkFalse(entry::isObject),
+            checkType(TagMap.Entry.BOOLEAN, entry),
+            checkValue(value, entry)));
   }
 
   @ParameterizedTest
@@ -209,13 +201,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.INT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -225,13 +216,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", value),
         TagMap.Entry.INT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -241,13 +231,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -257,13 +246,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Short.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -273,13 +261,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Byte.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -289,14 +276,13 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkInstanceOf(Number.class, entry),
-                checkType(TagMap.Entry.INT, entry),
-                checkValue(value, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkInstanceOf(Number.class, entry),
+            checkType(TagMap.Entry.INT, entry),
+            checkValue(value, entry)));
   }
 
   @ParameterizedTest
@@ -321,12 +307,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.LONG,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.LONG, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.LONG, entry)));
   }
 
   @ParameterizedTest
@@ -351,12 +336,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newLongEntry("foo", value),
         TagMap.Entry.LONG,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.LONG, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.LONG, entry)));
   }
 
   @ParameterizedTest
@@ -381,12 +365,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newLongEntry("foo", Long.valueOf(value)),
         TagMap.Entry.LONG,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkType(TagMap.Entry.LONG, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkType(TagMap.Entry.LONG, entry)));
   }
 
   @ParameterizedTest
@@ -411,13 +394,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Long.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkTrue(() -> entry.is(TagMap.Entry.LONG)),
-                checkValue(value, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkTrue(() -> entry.is(TagMap.Entry.LONG)),
+            checkValue(value, entry)));
   }
 
   @ParameterizedTest
@@ -427,12 +409,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.FLOAT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.FLOAT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.FLOAT, entry)));
   }
 
   @ParameterizedTest
@@ -442,12 +423,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", value),
         TagMap.Entry.FLOAT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.FLOAT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.FLOAT, entry)));
   }
 
   @ParameterizedTest
@@ -457,12 +437,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", Float.valueOf(value)),
         TagMap.Entry.FLOAT,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkType(TagMap.Entry.FLOAT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkType(TagMap.Entry.FLOAT, entry)));
   }
 
   @ParameterizedTest
@@ -472,12 +451,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Float.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.FLOAT, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.FLOAT, entry)));
   }
 
   @ParameterizedTest
@@ -488,12 +466,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.DOUBLE,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkType(TagMap.Entry.DOUBLE, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkType(TagMap.Entry.DOUBLE, entry)));
   }
 
   @ParameterizedTest
@@ -503,12 +480,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", value),
         TagMap.Entry.DOUBLE,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkType(TagMap.Entry.DOUBLE, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkIsNumericPrimitive(entry),
+            checkType(TagMap.Entry.DOUBLE, entry)));
   }
 
   @ParameterizedTest
@@ -519,12 +495,11 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", Double.valueOf(value)),
         TagMap.Entry.DOUBLE,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.DOUBLE, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.DOUBLE, entry)));
   }
 
   @ParameterizedTest
@@ -535,13 +510,12 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Double.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
-                checkType(TagMap.Entry.DOUBLE, entry),
-                checkValue(value, entry)));
+        (entry) -> multiCheck(
+            checkKey("foo", entry),
+            checkValue(value, entry),
+            checkTrue(entry::isNumericPrimitive),
+            checkType(TagMap.Entry.DOUBLE, entry),
+            checkValue(value, entry)));
   }
 
   @Test
@@ -552,27 +526,24 @@ public class TagMapEntryTest {
 
   static final int NUM_THREADS = 4;
   static final ExecutorService EXECUTOR =
-      Executors.newFixedThreadPool(
-          NUM_THREADS,
-          new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-              Thread thread = new Thread(r, "multithreaded-test-runner");
-              thread.setDaemon(true);
-              return thread;
-            }
-          });
+      Executors.newFixedThreadPool(NUM_THREADS, new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+          Thread thread = new Thread(r, "multithreaded-test-runner");
+          thread.setDaemon(true);
+          return thread;
+        }
+      });
 
   static final void test(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
 
-    Function<Entry, Check> combinedCheckSupplier =
-        (entry) -> {
-          return multiCheck(
-              checkSupplier.apply(entry),
-              checkSame(entry, entry.entry()),
-              checkSame(entry, entry.mapEntry()));
-        };
+    Function<Entry, Check> combinedCheckSupplier = (entry) -> {
+      return multiCheck(
+          checkSupplier.apply(entry),
+          checkSame(entry, entry.entry()),
+          checkSame(entry, entry.mapEntry()));
+    };
 
     // repeat the test several times to exercise different orderings in this thread
     for (int i = 0; i < 10; ++i) {
@@ -606,12 +577,11 @@ public class TagMapEntryTest {
       // Different shuffle for each thread
       Check shuffledChecks = checks.shuffle();
 
-      callables.add(
-          () -> {
-            shuffledChecks.check();
+      callables.add(() -> {
+        shuffledChecks.check();
 
-            return null;
-          });
+        return null;
+      });
     }
 
     List<Future<Void>> futures;

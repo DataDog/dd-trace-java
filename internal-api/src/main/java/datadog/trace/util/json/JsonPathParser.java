@@ -62,10 +62,9 @@ public class JsonPathParser {
 
     while (cur.isWithinLimits()) {
       if (cur.is(OPEN_BRACKET)) {
-        boolean ok =
-            tryToParsePropertyInBrackets(cur, builder)
-                || tryToParseIndex(cur, builder)
-                || tryToParseWildcard(cur, builder);
+        boolean ok = tryToParsePropertyInBrackets(cur, builder)
+            || tryToParseIndex(cur, builder)
+            || tryToParseWildcard(cur, builder);
         if (!ok) {
           cur.fail("Expecting in brackets a property, an array index, or a wildcard.");
         }
@@ -189,10 +188,9 @@ public class JsonPathParser {
       if (ESC == c) {
         cur.failAt(readPosition, "Escape character is not supported in property name.");
       } else if (c == COMMA) {
-        String message =
-            inProperty
-                ? "Comma is not allowed in property name."
-                : "Multiple properties are not supported.";
+        String message = inProperty
+            ? "Comma is not allowed in property name."
+            : "Multiple properties are not supported.";
         cur.failAt(readPosition, message);
       } else if (c == CLOSE_BRACKET && !inProperty) {
         break;

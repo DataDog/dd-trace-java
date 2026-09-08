@@ -148,9 +148,8 @@ public class ProxyTestModule implements TestFrameworkModule {
     long parentProcessModuleId = parentProcessModuleContext.getSpanId();
 
     try (SignalClient signalClient = signalClientFactory.create()) {
-      ModuleSignal coverageSignal =
-          childProcessCoverageReporter.createCoverageSignal(
-              parentProcessSessionId, parentProcessModuleId);
+      ModuleSignal coverageSignal = childProcessCoverageReporter.createCoverageSignal(
+          parentProcessSessionId, parentProcessModuleId);
       if (coverageSignal != null) {
         signalClient.send(coverageSignal);
       }
@@ -169,18 +168,17 @@ public class ProxyTestModule implements TestFrameworkModule {
       boolean hasFailedTestReplayTests = executionResults.hasFailedTestReplayTests();
       long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
-      signalClient.send(
-          new ModuleExecutionResult(
-              parentProcessSessionId,
-              parentProcessModuleId,
-              coverageEnabled,
-              testSkippingEnabled,
-              earlyFlakeDetectionEnabled,
-              earlyFlakeDetectionFaulty,
-              testManagementEnabled,
-              hasFailedTestReplayTests,
-              testsSkippedTotal,
-              new TreeSet<>(testFrameworks)));
+      signalClient.send(new ModuleExecutionResult(
+          parentProcessSessionId,
+          parentProcessModuleId,
+          coverageEnabled,
+          testSkippingEnabled,
+          earlyFlakeDetectionEnabled,
+          earlyFlakeDetectionFaulty,
+          testManagementEnabled,
+          hasFailedTestReplayTests,
+          testsSkippedTotal,
+          new TreeSet<>(testFrameworks)));
 
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);
@@ -219,9 +217,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   private void propagateTestFrameworkData(AgentSpan childSpan) {
-    testFrameworks.add(
-        new TestFramework(
-            (String) childSpan.getTag(Tags.TEST_FRAMEWORK),
-            (String) childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION)));
+    testFrameworks.add(new TestFramework((String) childSpan.getTag(Tags.TEST_FRAMEWORK), (String)
+        childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION)));
   }
 }

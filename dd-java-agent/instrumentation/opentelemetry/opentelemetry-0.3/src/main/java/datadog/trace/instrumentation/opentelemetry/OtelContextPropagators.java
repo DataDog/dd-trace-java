@@ -72,18 +72,17 @@ public class OtelContextPropagators implements ContextPropagators {
     private static final String HAYSTACK_SPAN_ID_KEY = "Span-ID";
     private static final String HAYSTACK_PARENT_ID_KEY = "Parent_ID";
 
-    private static final List<String> KEYS =
-        Arrays.asList(
-            DD_TRACE_ID_KEY,
-            DD_SPAN_ID_KEY,
-            DD_SAMPLING_PRIORITY_KEY,
-            DD_ORIGIN_KEY,
-            B3_TRACE_ID_KEY,
-            B3_SPAN_ID_KEY,
-            B3_SAMPLING_PRIORITY_KEY,
-            HAYSTACK_TRACE_ID_KEY,
-            HAYSTACK_SPAN_ID_KEY,
-            HAYSTACK_PARENT_ID_KEY);
+    private static final List<String> KEYS = Arrays.asList(
+        DD_TRACE_ID_KEY,
+        DD_SPAN_ID_KEY,
+        DD_SAMPLING_PRIORITY_KEY,
+        DD_ORIGIN_KEY,
+        B3_TRACE_ID_KEY,
+        B3_SPAN_ID_KEY,
+        B3_SAMPLING_PRIORITY_KEY,
+        HAYSTACK_TRACE_ID_KEY,
+        HAYSTACK_SPAN_ID_KEY,
+        HAYSTACK_PARENT_ID_KEY);
 
     private final HttpTextFormat.Getter<C> getter;
 

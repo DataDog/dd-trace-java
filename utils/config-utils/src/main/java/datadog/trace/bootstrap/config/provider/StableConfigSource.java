@@ -21,9 +21,8 @@ public final class StableConfigSource extends ConfigProvider.Source {
       "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml";
   public static final StableConfigSource LOCAL =
       new StableConfigSource(LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
-  public static final StableConfigSource FLEET =
-      new StableConfigSource(
-          StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
+  public static final StableConfigSource FLEET = new StableConfigSource(
+      StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
 
   private final ConfigOrigin fileOrigin;
   private final StableConfig config;

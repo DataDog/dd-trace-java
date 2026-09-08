@@ -48,14 +48,13 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
     baggage.put("some-baggage-key", "some-value");
-    DDSpanContext spanContext =
-        mockSpanContext(
-            DDTraceId.from(traceId),
-            DDSpanId.from(spanId),
-            samplingPriority,
-            origin,
-            baggage,
-            PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.usr=123"));
+    DDSpanContext spanContext = mockSpanContext(
+        DDTraceId.from(traceId),
+        DDSpanId.from(spanId),
+        samplingPriority,
+        origin,
+        baggage,
+        PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.usr=123"));
     Map<String, String> carrier = new HashMap<>();
 
     this.injector.inject(spanContext, carrier, Map::put);
@@ -74,14 +73,13 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    DDSpanContext mockedContext =
-        mockSpanContext(
-            DDTraceId.from("1"),
-            DDSpanId.from("2"),
-            UNSET,
-            "fakeOrigin",
-            baggage,
-            PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"));
+    DDSpanContext mockedContext = mockSpanContext(
+        DDTraceId.from("1"),
+        DDSpanId.from("2"),
+        UNSET,
+        "fakeOrigin",
+        baggage,
+        PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"));
     mockedContext.beginEndToEnd();
     Map<String, String> carrier = new HashMap<>();
 
@@ -102,14 +100,13 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    DDSpanContext mockedContext =
-        mockSpanContext(
-            DDTraceId.from("1"),
-            DDSpanId.from("2"),
-            UNSET,
-            "fakeOrigin",
-            baggage,
-            PropagationTags.factory().empty());
+    DDSpanContext mockedContext = mockSpanContext(
+        DDTraceId.from("1"),
+        DDSpanId.from("2"),
+        UNSET,
+        "fakeOrigin",
+        baggage,
+        PropagationTags.factory().empty());
     mockedContext.setSamplingPriority(USER_KEEP, MANUAL);
     Map<String, String> carrier = new HashMap<>();
 

@@ -16,18 +16,17 @@ public abstract class JFRAccess implements Timestamper {
   private static final Logger log = LoggerFactory.getLogger(JFRAccess.class);
 
   /** No-op JFR access implementation. */
-  public static final JFRAccess NOOP =
-      new JFRAccess() {
-        @Override
-        public boolean setStackDepth(int depth) {
-          return false;
-        }
+  public static final JFRAccess NOOP = new JFRAccess() {
+    @Override
+    public boolean setStackDepth(int depth) {
+      return false;
+    }
 
-        @Override
-        public boolean setBaseLocation(String location) {
-          return false;
-        }
-      };
+    @Override
+    public boolean setBaseLocation(String location) {
+      return false;
+    }
+  };
 
   /**
    * Factory for JFR access.<br>

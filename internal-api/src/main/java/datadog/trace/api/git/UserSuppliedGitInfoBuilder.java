@@ -63,17 +63,15 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
     final String gitCommitCommitterEmail = configProvider.getString(DD_GIT_COMMIT_COMMITTER_EMAIL);
     final String gitCommitCommitterDate = configProvider.getString(DD_GIT_COMMIT_COMMITTER_DATE);
 
-    GitInfo gitInfo =
-        new GitInfo(
-            gitRepositoryUrl,
-            gitBranch,
-            gitTag,
-            new CommitInfo(
-                gitCommitSha,
-                new PersonInfo(gitCommitAuthorName, gitCommitAuthorEmail, gitCommitAuthorDate),
-                new PersonInfo(
-                    gitCommitCommitterName, gitCommitCommitterEmail, gitCommitCommitterDate),
-                gitCommitMessage));
+    GitInfo gitInfo = new GitInfo(
+        gitRepositoryUrl,
+        gitBranch,
+        gitTag,
+        new CommitInfo(
+            gitCommitSha,
+            new PersonInfo(gitCommitAuthorName, gitCommitAuthorEmail, gitCommitAuthorDate),
+            new PersonInfo(gitCommitCommitterName, gitCommitCommitterEmail, gitCommitCommitterDate),
+            gitCommitMessage));
 
     if (!gitInfo.isEmpty()) {
       // if there is any git metadata supplied by the user, we want to check that repo URL and

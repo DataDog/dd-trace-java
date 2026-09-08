@@ -52,28 +52,26 @@ class DatadogClassLoaderTest {
     Phaser acquireLockFromMainThreadPhase = new Phaser(2);
 
     // when
-    Thread thread1 =
-        new Thread() {
-          @Override
-          public void run() {
-            synchronized (lock1) {
-              threadHoldLockPhase.arrive();
-              acquireLockFromMainThreadPhase.arriveAndAwaitAdvance();
-            }
-          }
-        };
+    Thread thread1 = new Thread() {
+      @Override
+      public void run() {
+        synchronized (lock1) {
+          threadHoldLockPhase.arrive();
+          acquireLockFromMainThreadPhase.arriveAndAwaitAdvance();
+        }
+      }
+    };
     thread1.start();
 
-    Thread thread2 =
-        new Thread() {
-          @Override
-          public void run() {
-            threadHoldLockPhase.arriveAndAwaitAdvance();
-            synchronized (lock2) {
-              acquireLockFromMainThreadPhase.arrive();
-            }
-          }
-        };
+    Thread thread2 = new Thread() {
+      @Override
+      public void run() {
+        threadHoldLockPhase.arriveAndAwaitAdvance();
+        synchronized (lock2) {
+          acquireLockFromMainThreadPhase.arrive();
+        }
+      }
+    };
     thread2.start();
     thread1.join();
     thread2.join();
@@ -90,12 +88,10 @@ class DatadogClassLoaderTest {
     ExecutorService executorService = Executors.newCachedThreadPool();
     List<Future<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      futures.add(
-          executorService.submit(
-              () -> {
-                ddLoader.loadClass("a.A");
-                return null;
-              }));
+      futures.add(executorService.submit(() -> {
+        ddLoader.loadClass("a.A");
+        return null;
+      }));
     }
     for (Future<Void> future : futures) {
       try {
@@ -160,12 +156,11 @@ class DatadogClassLoaderTest {
     String expectedPrefix = "jar:" + spacedJarUrl + "!/";
     assertTrue(
         resource.toString().startsWith(expectedPrefix),
-        () ->
-            "resource URL ("
-                + resource
-                + ") should start with the agent jar URL prefix ("
-                + expectedPrefix
-                + ") — pre-fix code derives the prefix from JarFile.getName(),"
-                + " which leaves the space unencoded and on Windows produces a malformed URL.");
+        () -> "resource URL ("
+            + resource
+            + ") should start with the agent jar URL prefix ("
+            + expectedPrefix
+            + ") — pre-fix code derives the prefix from JarFile.getName(),"
+            + " which leaves the space unencoded and on Windows produces a malformed URL.");
   }
 }

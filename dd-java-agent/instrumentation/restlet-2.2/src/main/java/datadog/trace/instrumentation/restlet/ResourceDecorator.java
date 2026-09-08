@@ -40,9 +40,8 @@ public class ResourceDecorator extends BaseDecorator {
       final AgentSpan parent,
       final ServerResource serverResource,
       final Method method) {
-    Series<Header> headers =
-        (Series<Header>)
-            serverResource.getRequest().getAttributes().get("org.restlet.http.headers");
+    Series<Header> headers = (Series<Header>)
+        serverResource.getRequest().getAttributes().get("org.restlet.http.headers");
     String route = headers.getFirstValue(RESTLET_ROUTE);
 
     span.setSpanType(InternalSpanTypes.HTTP_SERVER);

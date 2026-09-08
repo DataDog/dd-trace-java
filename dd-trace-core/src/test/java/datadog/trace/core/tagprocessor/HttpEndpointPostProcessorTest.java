@@ -22,8 +22,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class HttpEndpointPostProcessorTest {
 
-  @Mock DDSpanContext mockContext;
-  @Mock AppendableSpanLinks mockSpanLinks;
+  @Mock
+  DDSpanContext mockContext;
+
+  @Mock
+  AppendableSpanLinks mockSpanLinks;
 
   @Test
   void shouldNotOverwriteResourceNameWhenHttpRouteIsAvailableAndEligible() {

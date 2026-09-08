@@ -92,10 +92,9 @@ public class ProductState {
     // Step 3: Remove obsolete configurations (for all products)
     // For ASM_DD, this is critical: removes MUST happen before applies to prevent
     // duplicate rule warnings from the ddwaf rule parser and causing memory spikes.
-    List<ParsedConfigKey> keysToRemove =
-        cachedTargetFiles.keySet().stream()
-            .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
-            .collect(Collectors.toList());
+    List<ParsedConfigKey> keysToRemove = cachedTargetFiles.keySet().stream()
+        .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
+        .collect(Collectors.toList());
 
     for (ParsedConfigKey configKey : keysToRemove) {
       changesDetected = true;
@@ -193,10 +192,9 @@ public class ProductState {
     RemoteConfigResponse.Targets.ConfigTarget target =
         fleetResponse.getTarget(configKey.toString());
     if (target == null) {
-      throw new ReportableException(
-          "Told to apply config for "
-              + configKey
-              + " but no corresponding entry exists in targets.targets_signed.targets");
+      throw new ReportableException("Told to apply config for "
+          + configKey
+          + " but no corresponding entry exists in targets.targets_signed.targets");
     }
     return target;
   }
@@ -218,10 +216,9 @@ public class ProductState {
       maybeFileContent = fleetResponse.getFileContents(configKey.toString());
     } catch (MissingContentException e) {
       if (cachedTargetFiles.containsKey(configKey)) {
-        throw new ReportableException(
-            "Told to apply config "
-                + configKey
-                + " but content not present even though hash differs from that of 'cached file'");
+        throw new ReportableException("Told to apply config "
+            + configKey
+            + " but content not present even though hash differs from that of 'cached file'");
       }
       throw new ReportableException(e.getMessage());
     } catch (Exception e) {

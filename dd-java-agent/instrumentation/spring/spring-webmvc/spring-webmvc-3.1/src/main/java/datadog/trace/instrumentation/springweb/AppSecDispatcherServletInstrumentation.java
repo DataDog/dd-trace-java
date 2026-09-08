@@ -37,9 +37,8 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return not(
-        hasClassNamed(
-            "org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition"));
+    return not(hasClassNamed(
+        "org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition"));
   }
 
   @Override

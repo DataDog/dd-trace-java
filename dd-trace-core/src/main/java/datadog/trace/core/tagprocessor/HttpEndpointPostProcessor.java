@@ -37,10 +37,9 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
 
   /** Creates a new HttpEndpointPostProcessor using the global config. */
   public HttpEndpointPostProcessor() {
-    this(
-        new EndpointResolver(
-            datadog.trace.api.Config.get().isTraceResourceRenamingEnabled(),
-            datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()));
+    this(new EndpointResolver(
+        datadog.trace.api.Config.get().isTraceResourceRenamingEnabled(),
+        datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()));
   }
 
   /**

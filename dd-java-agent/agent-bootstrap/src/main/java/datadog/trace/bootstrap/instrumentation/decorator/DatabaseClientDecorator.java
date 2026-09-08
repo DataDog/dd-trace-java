@@ -29,7 +29,8 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     private final String dbType;
 
     private NamingEntry(String rawDbType) {
-      final NamingSchema.ForDatabase schema = SpanNaming.instance().namingSchema().database();
+      final NamingSchema.ForDatabase schema =
+          SpanNaming.instance().namingSchema().database();
       this.dbType = schema.normalizedName(rawDbType);
       this.service = schema.service(dbType);
       this.operation = UTF8BytesString.create(schema.operation(dbType));
@@ -103,10 +104,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   public String dbClientService(final String instanceName) {
     String service = null;
     if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
-      service =
-          Config.get().isDbClientSplitByInstanceTypeSuffix()
-              ? instanceName + "-" + dbType()
-              : instanceName;
+      service = Config.get().isDbClientSplitByInstanceTypeSuffix()
+          ? instanceName + "-" + dbType()
+          : instanceName;
     }
     return service;
   }
@@ -121,10 +121,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   public void onRawStatement(AgentSpan span, String sql) {
     if (Config.get().isAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
-      BiFunction<RequestContext, String, Flow<Void>> sqlQueryCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.databaseSqlQuery());
+      BiFunction<RequestContext, String, Flow<Void>> sqlQueryCallback = AgentTracer.get()
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.databaseSqlQuery());
       if (sqlQueryCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
@@ -149,10 +148,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled() && dbType != null) {
-      BiConsumer<RequestContext, String> connectDbCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.databaseConnection());
+      BiConsumer<RequestContext, String> connectDbCallback = AgentTracer.get()
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.databaseConnection());
       if (connectDbCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {

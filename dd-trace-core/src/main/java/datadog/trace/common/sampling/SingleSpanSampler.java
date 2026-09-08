@@ -62,13 +62,11 @@ public interface SingleSpanSampler {
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
         RateSampler sampler = new DeterministicSampler.SpanSampler(rule.getSampleRate());
-        SimpleRateLimiter simpleRateLimiter =
-            rule.getMaxPerSecond() == Integer.MAX_VALUE
-                ? null
-                : new SimpleRateLimiter(rule.getMaxPerSecond());
-        RateSamplingRule.SpanSamplingRule spanSamplingRule =
-            new RateSamplingRule.SpanSamplingRule(
-                rule.getService(), rule.getName(), sampler, simpleRateLimiter);
+        SimpleRateLimiter simpleRateLimiter = rule.getMaxPerSecond() == Integer.MAX_VALUE
+            ? null
+            : new SimpleRateLimiter(rule.getMaxPerSecond());
+        RateSamplingRule.SpanSamplingRule spanSamplingRule = new RateSamplingRule.SpanSamplingRule(
+            rule.getService(), rule.getName(), sampler, simpleRateLimiter);
         spanSamplingRules.add(spanSamplingRule);
       }
     }

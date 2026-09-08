@@ -73,9 +73,8 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_PARENT_KEY.toUpperCase(), "00-" + traceId + "-" + spanId + "-" + traceFlags);
     headers.put(TRACE_STATE_KEY.toUpperCase(), traceState);
-    HttpCodec.Extractor extractor =
-        newW3cHttpCodecExtractor(
-            Config.get(), () -> DynamicConfig.create().apply().captureTraceConfig());
+    HttpCodec.Extractor extractor = newW3cHttpCodecExtractor(
+        Config.get(), () -> DynamicConfig.create().apply().captureTraceConfig());
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
     SpanLink link = DDSpanLink.from(context);
@@ -90,11 +89,10 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
   void testSpanLinkEncodingTagMaxSize() throws Exception {
     int tooManyLinkCount = 300;
     SpanBuilder builder = tracer.buildSpan("test", "operation");
-    List<SpanLink> links =
-        IntStream.range(0, tooManyLinkCount)
-            .mapToObj(this::createLink)
-            .peek(builder::withLink)
-            .collect(toList());
+    List<SpanLink> links = IntStream.range(0, tooManyLinkCount)
+        .mapToObj(this::createLink)
+        .peek(builder::withLink)
+        .collect(toList());
     AgentSpan span = builder.start();
     span.finish();
     this.writer.waitForTraces(1);
@@ -119,9 +117,8 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     // 15-character id, which consumers expecting fixed-width hex reject.
     String traceId = "11223344556677889900aabbccddeeff";
     String spanId = "0a2b3c4d5e6f7a8b";
-    SpanLink link =
-        new DDSpanLink(
-            DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId), DEFAULT_FLAGS, "", EMPTY);
+    SpanLink link = new DDSpanLink(
+        DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId), DEFAULT_FLAGS, "", EMPTY);
     this.tracer.buildSpan("test", "operation").withLink(link).start().finish();
     this.writer.waitForTraces(1);
 
@@ -133,13 +130,12 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
 
   @Test
   void testSpanLinksEncodingOmittedEmptyKeys() throws Exception {
-    SpanLink link =
-        new DDSpanLink(
-            DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
-            DDSpanId.fromHex("123456789abcdef0"),
-            DEFAULT_FLAGS,
-            "",
-            EMPTY);
+    SpanLink link = new DDSpanLink(
+        DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+        DDSpanId.fromHex("123456789abcdef0"),
+        DEFAULT_FLAGS,
+        "",
+        EMPTY);
     this.tracer.buildSpan("test", "operation").withLink(link).start().finish();
     this.writer.waitForTraces(1);
 

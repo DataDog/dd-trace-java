@@ -17,14 +17,13 @@ public class DebuggerMetrics implements StatsDClient {
   private DebuggerMetrics(Config config) {
     if (config.isDynamicInstrumentationMetricsEnabled()) {
 
-      statsd =
-          DDAgentStatsDClientManager.statsDClientManager()
-              .statsDClient(
-                  config.getJmxFetchStatsdHost(),
-                  config.getJmxFetchStatsdPort(),
-                  config.getDogStatsDNamedPipe(),
-                  STATSD_NAMESPACE_PREFIX,
-                  new String[0]);
+      statsd = DDAgentStatsDClientManager.statsDClientManager()
+          .statsDClient(
+              config.getJmxFetchStatsdHost(),
+              config.getJmxFetchStatsdPort(),
+              config.getDogStatsDNamedPipe(),
+              STATSD_NAMESPACE_PREFIX,
+              new String[0]);
     } else {
       statsd = StatsDClient.NO_OP;
     }

@@ -72,7 +72,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class OtlpLogsProtoTest {
 
-  static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  static final CoreTracer TRACER =
+      CoreTracer.builder().writer(new LoggingWriter()).build();
 
   // ── well-known scopes ──────────────────────────────────────────────────────
 
@@ -99,10 +100,12 @@ class OtlpLogsProtoTest {
     int severityNumber;
 
     /** severity_text (proto field 3); {@code null} → field absent. */
-    @Nullable String severityText;
+    @Nullable
+    String severityText;
 
     /** body.string_value (proto field 5 → AnyValue field 1); {@code null} → field absent. */
-    @Nullable final String body;
+    @Nullable
+    final String body;
 
     /** Extra attributes written via {@code visitAttribute} before the log record. */
     Map<String, Object> attrs;
@@ -114,7 +117,8 @@ class OtlpLogsProtoTest {
     int spanContextIndex;
 
     /** event_name (proto field 12); {@code null} → field absent. */
-    @Nullable String eventName;
+    @Nullable
+    String eventName;
 
     /**
      * If true, the span at {@code spanContextIndex} is started under a known 128-bit trace ID so
@@ -291,18 +295,17 @@ class OtlpLogsProtoTest {
             "log with double attribute", asList(taggedLog("tagged", attrs("latency.ms", 3.14)))),
         Arguments.of(
             "log with multiple mixed attributes",
-            asList(
-                taggedLog(
-                    "multi-tagged",
-                    attrs(
-                        "service.name",
-                        "svc",
-                        "http.status_code",
-                        500L,
-                        "error",
-                        Boolean.TRUE,
-                        "latency.ms",
-                        1.5)))),
+            asList(taggedLog(
+                "multi-tagged",
+                attrs(
+                    "service.name",
+                    "svc",
+                    "http.status_code",
+                    500L,
+                    "error",
+                    Boolean.TRUE,
+                    "latency.ms",
+                    1.5)))),
 
         // ── instrumentation scope ─────────────────────────────────────────────
         Arguments.of(
@@ -332,31 +335,28 @@ class OtlpLogsProtoTest {
   void testCollectLogs(String caseName, List<LogSpec> specs) throws IOException {
     List<DDSpan> spans = buildSpans(specs);
 
-    OtlpPayload payload =
-        OtlpLogsProtoCollector.INSTANCE.collectLogs(
-            (visitor, interval) -> {
-              for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
-                OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
-                for (LogSpec spec : scopeGroup) {
-                  for (Map.Entry<String, Object> attr : spec.attrs.entrySet()) {
-                    scoped.visitAttribute(
-                        attrType(attr.getValue()), attr.getKey(), attr.getValue());
-                  }
-                  scoped.visitLogRecord(
-                      new OtlpLogRecord(
-                          spec.scope,
-                          spec.timestampNanos,
-                          spec.observedNanos,
-                          spec.severityNumber,
-                          spec.severityText,
-                          spec.body,
-                          emptyMap(),
-                          resolveContext(spans, spec),
-                          spec.eventName));
-                }
+    OtlpPayload payload = OtlpLogsProtoCollector.INSTANCE.collectLogs(
+        (visitor, interval) -> {
+          for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
+            OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
+            for (LogSpec spec : scopeGroup) {
+              for (Map.Entry<String, Object> attr : spec.attrs.entrySet()) {
+                scoped.visitAttribute(attrType(attr.getValue()), attr.getKey(), attr.getValue());
               }
-            },
-            0);
+              scoped.visitLogRecord(new OtlpLogRecord(
+                  spec.scope,
+                  spec.timestampNanos,
+                  spec.observedNanos,
+                  spec.severityNumber,
+                  spec.severityText,
+                  spec.body,
+                  emptyMap(),
+                  resolveContext(spans, spec),
+                  spec.eventName));
+            }
+          }
+        },
+        0);
 
     if (specs.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty specs must produce empty payload");
@@ -444,14 +444,13 @@ class OtlpLogsProtoTest {
       }
       AgentSpan span;
       if (refSpec != null && refSpec.use128BitTraceId) {
-        ExtractedContext parent128 =
-            new ExtractedContext(
-                TRACE_ID_128BIT,
-                0L,
-                PrioritySampling.UNSET,
-                null,
-                PropagationTags.factory().empty(),
-                TracePropagationStyle.DATADOG);
+        ExtractedContext parent128 = new ExtractedContext(
+            TRACE_ID_128BIT,
+            0L,
+            PrioritySampling.UNSET,
+            null,
+            PropagationTags.factory().empty(),
+            TracePropagationStyle.DATADOG);
         span = TRACER.startSpan("test", "test.op.128", parent128, 0L);
       } else {
         span = TRACER.startSpan("test", "test.op", 0L);
@@ -481,7 +480,9 @@ class OtlpLogsProtoTest {
   private static Map<String, List<LogSpec>> groupByScope(List<LogSpec> specs) {
     Map<String, List<LogSpec>> groups = new LinkedHashMap<>();
     for (LogSpec spec : specs) {
-      groups.computeIfAbsent(spec.scope.getName().toString(), k -> new ArrayList<>()).add(spec);
+      groups
+          .computeIfAbsent(spec.scope.getName().toString(), k -> new ArrayList<>())
+          .add(spec);
     }
     return groups;
   }

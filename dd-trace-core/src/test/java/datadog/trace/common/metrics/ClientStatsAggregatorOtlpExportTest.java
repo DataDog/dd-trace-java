@@ -33,18 +33,17 @@ class ClientStatsAggregatorOtlpExportTest {
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
     Sink sink = mock(Sink.class);
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 16,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 16,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
     try {
       // A span typed "grpc" (not "rpc") carrying grpc.status.code -- a key + type combo the native

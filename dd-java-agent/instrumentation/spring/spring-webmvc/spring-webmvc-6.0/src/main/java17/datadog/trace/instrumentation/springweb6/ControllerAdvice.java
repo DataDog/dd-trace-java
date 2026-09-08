@@ -76,9 +76,8 @@ public class ControllerAdvice {
     if (scope == null) {
       return;
     }
-    boolean finish =
-        !Boolean.TRUE.equals(
-            request.getAttribute(handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX));
+    boolean finish = !Boolean.TRUE.equals(
+        request.getAttribute(handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX));
     final AgentSpan span = spanFromContext(scope.context());
     scope.close();
     if (throwable != null) {

@@ -17,11 +17,10 @@ public class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connec
       return;
     }
     ContextContinuation newContinuation = context.capture();
-    ContextContinuation oldContinuation =
-        connection
-            .channel()
-            .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
-            .getAndSet(newContinuation);
+    ContextContinuation oldContinuation = connection
+        .channel()
+        .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
+        .getAndSet(newContinuation);
     if (null != oldContinuation) {
       oldContinuation.release();
     }

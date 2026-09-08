@@ -147,7 +147,8 @@ public final class ClientCallImplInstrumentation
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         return activateSpan(span);
       }
@@ -166,7 +167,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
       // could create a message span here for the request
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
         return activateSpan(span);
       }
@@ -185,7 +187,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodEnter
     public static void before(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         if (cause instanceof StatusRuntimeException) {
           DECORATE.onClose(span, ((StatusRuntimeException) cause).getStatus());
@@ -200,7 +203,8 @@ public final class ClientCallImplInstrumentation
   public static final class CloseObserver {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (span != null) {
         return activateSpan(span);
       }
@@ -226,7 +230,8 @@ public final class ClientCallImplInstrumentation
   public static final class CloseObserverWithCause {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span =
+          InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
         return activateSpan(span);
       }
@@ -260,9 +265,8 @@ public final class ClientCallImplInstrumentation
     public static AgentScope before() {
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
-        AgentSpan messageSpan =
-            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
-                .setTag("message.type", clientSpan.getTag("response.type"));
+        AgentSpan messageSpan = startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
+            .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
       }

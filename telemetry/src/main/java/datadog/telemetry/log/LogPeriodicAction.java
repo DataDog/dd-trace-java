@@ -32,12 +32,11 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
   public void doIteration(TelemetryService service) {
     for (LogCollector.RawLogMessage rawLogMsg : LogCollector.get().drain()) {
 
-      LogMessage logMessage =
-          new LogMessage()
-              .message(rawLogMsg.message)
-              .tracerTime(rawLogMsg.timestamp)
-              .tags(rawLogMsg.tags)
-              .count(rawLogMsg.count);
+      LogMessage logMessage = new LogMessage()
+          .message(rawLogMsg.message)
+          .tracerTime(rawLogMsg.timestamp)
+          .tags(rawLogMsg.tags)
+          .count(rawLogMsg.count);
 
       if (rawLogMsg.logLevel != null) {
         logMessage.level(LogMessageLevel.fromString(rawLogMsg.logLevel));

@@ -83,9 +83,8 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
         @ActiveRequestContext RequestContext reqCtx) {
       try {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        retval = retval.tmap(
+            new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }
@@ -102,9 +101,8 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
         @ActiveRequestContext RequestContext reqCtx) {
       try {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        retval = retval.tmap(
+            new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }

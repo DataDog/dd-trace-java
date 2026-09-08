@@ -51,8 +51,10 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   public void setup() {
     final InstrumentationGateway gateway = new InstrumentationGateway();
     IastSystem.start(gateway.getSubscriptionService(RequestContextSlot.IAST));
-    final CoreTracer tracer =
-        CoreTracer.builder().instrumentationGateway(gateway).writer(new NoOpWriter()).build();
+    final CoreTracer tracer = CoreTracer.builder()
+        .instrumentationGateway(gateway)
+        .writer(new NoOpWriter())
+        .build();
     AgentTracer.forceRegister(tracer);
   }
 

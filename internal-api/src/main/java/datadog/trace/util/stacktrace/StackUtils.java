@@ -45,19 +45,17 @@ public abstract class StackUtils {
 
   public static <E extends Throwable> E filterUntil(
       final E exception, final Predicate<StackTraceElement> trace) {
-    return update(
-        exception,
-        stack -> {
-          final StackTraceElement[] source = exception.getStackTrace();
-          for (int i = 0; i < source.length; i++) {
-            if (trace.test(source[i])) {
-              final StackTraceElement[] result = new StackTraceElement[source.length - i - 1];
-              System.arraycopy(source, i + 1, result, 0, result.length);
-              return result;
-            }
-          }
-          return source;
-        });
+    return update(exception, stack -> {
+      final StackTraceElement[] source = exception.getStackTrace();
+      for (int i = 0; i < source.length; i++) {
+        if (trace.test(source[i])) {
+          final StackTraceElement[] result = new StackTraceElement[source.length - i - 1];
+          System.arraycopy(source, i + 1, result, 0, result.length);
+          return result;
+        }
+      }
+      return source;
+    });
   }
 
   public static List<StackTraceFrame> generateUserCodeStackTrace() {
@@ -68,10 +66,8 @@ public abstract class StackUtils {
   public static List<StackTraceFrame> generateUserCodeStackTrace(
       final Predicate<StackTraceElement> filterPredicate) {
     int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
-    List<StackTraceElement> elements =
-        StackWalkerFactory.INSTANCE.walk(
-            stream ->
-                stream.filter(filterPredicate).limit(stackCapacity).collect(Collectors.toList()));
+    List<StackTraceElement> elements = StackWalkerFactory.INSTANCE.walk(
+        stream -> stream.filter(filterPredicate).limit(stackCapacity).collect(Collectors.toList()));
     return IntStream.range(0, elements.size())
         .mapToObj(idx -> new StackTraceFrame(idx, elements.get(idx)))
         .collect(Collectors.toList());
@@ -81,9 +77,8 @@ public abstract class StackUtils {
       final RequestContext reqCtx, final String productKey, final List<StackTraceEvent> events) {
     final Map<String, List<StackTraceEvent>> stackTraceBatch =
         reqCtx.getOrCreateMetaStructTop(META_STRUCT_KEY, k -> new ConcurrentHashMap<>());
-    final List<StackTraceEvent> list =
-        stackTraceBatch.computeIfAbsent(
-            productKey, k -> Collections.synchronizedList(new ArrayList<>()));
+    final List<StackTraceEvent> list = stackTraceBatch.computeIfAbsent(
+        productKey, k -> Collections.synchronizedList(new ArrayList<>()));
     list.addAll(events);
   }
 

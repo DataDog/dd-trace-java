@@ -18,17 +18,16 @@ public class PayloadSizeAdvice {
     StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
     if (saved != null) {
       // create new stats including the payload size
-      StatsPoint updated =
-          new StatsPoint(
-              saved.getTags(),
-              saved.getHash(),
-              saved.getParentHash(),
-              saved.getAggregationHash(),
-              saved.getTimestampNanos(),
-              saved.getPathwayLatencyNano(),
-              saved.getEdgeLatencyNano(),
-              estimatedPayloadSize,
-              saved.getServiceNameOverride());
+      StatsPoint updated = new StatsPoint(
+          saved.getTags(),
+          saved.getHash(),
+          saved.getParentHash(),
+          saved.getAggregationHash(),
+          saved.getTimestampNanos(),
+          saved.getPathwayLatencyNano(),
+          saved.getEdgeLatencyNano(),
+          estimatedPayloadSize,
+          saved.getServiceNameOverride());
       // then send the point
       AgentTracer.get().getDataStreamsMonitoring().add(updated);
     }

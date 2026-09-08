@@ -61,14 +61,13 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       }
       // Ignore serviceRules & operationRules if traceSamplingRules are defined
       for (SamplingRule.TraceSamplingRule rule : traceSamplingRules) {
-        RateSamplingRule.TraceSamplingRule samplingRule =
-            new RateSamplingRule.TraceSamplingRule(
-                rule.getService(),
-                rule.getName(),
-                rule.getResource(),
-                rule.getTags(),
-                new DeterministicSampler.TraceSampler(rule.getSampleRate()),
-                samplingMechanism(rule.getProvenance()));
+        RateSamplingRule.TraceSamplingRule samplingRule = new RateSamplingRule.TraceSamplingRule(
+            rule.getService(),
+            rule.getName(),
+            rule.getResource(),
+            rule.getTags(),
+            new DeterministicSampler.TraceSampler(rule.getSampleRate()),
+            samplingMechanism(rule.getProvenance()));
         samplingRules.add(samplingRule);
       }
     } else {
@@ -77,9 +76,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         for (final Entry<String, String> entry : serviceRules.entrySet()) {
           try {
             final double rateForEntry = Double.parseDouble(entry.getValue());
-            final RateSamplingRule samplingRule =
-                new RateSamplingRule.ServiceSamplingRule(
-                    entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
+            final RateSamplingRule samplingRule = new RateSamplingRule.ServiceSamplingRule(
+                entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
             log.error("Unable to parse rate for service: {}", entry, e);
@@ -91,9 +89,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         for (final Entry<String, String> entry : operationRules.entrySet()) {
           try {
             final double rateForEntry = Double.parseDouble(entry.getValue());
-            final RateSamplingRule samplingRule =
-                new RateSamplingRule.OperationSamplingRule(
-                    entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
+            final RateSamplingRule samplingRule = new RateSamplingRule.OperationSamplingRule(
+                entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
             log.error("Unable to parse rate for operation: {}", entry, e);
@@ -106,10 +103,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
     // remote rule,
     // but that's not currenlty part of the spec.
     if (defaultRate != null) {
-      final RateSamplingRule samplingRule =
-          new RateSamplingRule.AlwaysMatchesSamplingRule(
-              new DeterministicSampler.TraceSampler(defaultRate),
-              SamplingMechanism.LOCAL_USER_RULE);
+      final RateSamplingRule samplingRule = new RateSamplingRule.AlwaysMatchesSamplingRule(
+          new DeterministicSampler.TraceSampler(defaultRate), SamplingMechanism.LOCAL_USER_RULE);
       samplingRules.add(samplingRule);
     }
 

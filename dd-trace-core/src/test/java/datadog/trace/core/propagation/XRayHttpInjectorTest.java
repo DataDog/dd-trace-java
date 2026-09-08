@@ -90,8 +90,10 @@ class XRayHttpInjectorTest extends AbstractHttpInjectorTest {
         X_AMZN_TRACE_ID,  "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId)
     );
     // spotless:on
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(emptyMap())
+        .setBaggageMapping(emptyMap())
+        .apply();
     HttpCodec.Extractor extractor =
         XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
     TagContext context = extractor.extract(headers, stringValuesMap());

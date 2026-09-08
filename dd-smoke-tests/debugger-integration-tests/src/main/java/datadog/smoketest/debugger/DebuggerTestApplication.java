@@ -93,14 +93,7 @@ class Main {
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
       System.out.println("fullMethod");
-      return argInt
-          + ", "
-          + argStr
-          + ", "
-          + argDouble
-          + ", "
-          + argMap
-          + ", "
+      return argInt + ", " + argStr + ", " + argDouble + ", " + argMap + ", "
           + String.join(",", argVar);
     } catch (Exception ex) {
       ex.printStackTrace();

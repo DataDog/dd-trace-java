@@ -88,20 +88,12 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
     // We want the advice applied in a specific order.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                not(
-                    isGetter()
-                        .or(isSetter())
-                        .or(nameEndsWith("Listener"))
-                        .or(nameEndsWith("Listeners"))
-                        .or(
-                            namedOneOf(
-                                "processAsync",
-                                "open",
-                                "close",
-                                "abort",
-                                "basicGet",
-                                "basicPublish"))))
+            .and(not(isGetter()
+                .or(isSetter())
+                .or(nameEndsWith("Listener"))
+                .or(nameEndsWith("Listeners"))
+                .or(namedOneOf(
+                    "processAsync", "open", "close", "abort", "basicGet", "basicPublish"))))
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
@@ -231,22 +223,21 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
-      props =
-          new AMQP.BasicProperties(
-              props.getContentType(),
-              props.getContentEncoding(),
-              headers,
-              props.getDeliveryMode(),
-              props.getPriority(),
-              props.getCorrelationId(),
-              props.getReplyTo(),
-              props.getExpiration(),
-              props.getMessageId(),
-              props.getTimestamp(),
-              props.getType(),
-              props.getUserId(),
-              props.getAppId(),
-              props.getClusterId());
+      props = new AMQP.BasicProperties(
+          props.getContentType(),
+          props.getContentEncoding(),
+          headers,
+          props.getDeliveryMode(),
+          props.getPriority(),
+          props.getCorrelationId(),
+          props.getReplyTo(),
+          props.getExpiration(),
+          props.getMessageId(),
+          props.getTimestamp(),
+          props.getType(),
+          props.getUserId(),
+          props.getAppId(),
+          props.getClusterId());
     }
   }
 
@@ -277,16 +268,14 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       }
       final Connection connection = channel.getConnection();
       final Config config = Config.get();
-      final boolean propagate =
-          config.isRabbitPropagationEnabled()
-              && !config.isRabbitPropagationDisabledForDestination(queue);
-      final AgentScope scope =
-          RabbitDecorator.startReceivingSpan(
-              propagate,
-              spanStartMillis,
-              null != response ? response.getProps() : null,
-              null != response ? response.getBody() : null,
-              queue);
+      final boolean propagate = config.isRabbitPropagationEnabled()
+          && !config.isRabbitPropagationDisabledForDestination(queue);
+      final AgentScope scope = RabbitDecorator.startReceivingSpan(
+          propagate,
+          spanStartMillis,
+          null != response ? response.getProps() : null,
+          null != response ? response.getBody() : null,
+          queue);
       final AgentSpan span = scope.span();
       CONSUMER_DECORATE.setPeerPort(span, connection.getPort());
       CONSUMER_DECORATE.onGet(span, queue);

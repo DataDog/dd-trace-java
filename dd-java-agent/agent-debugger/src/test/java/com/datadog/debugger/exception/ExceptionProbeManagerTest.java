@@ -34,17 +34,9 @@ class ExceptionProbeManagerTest {
 
   @Test
   void instrumentSingleFrame() {
-    ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(
-            Stream.of(
-                    "java.",
-                    "jdk.",
-                    "sun.",
-                    "com.sun.",
-                    "org.gradle.",
-                    "worker.org.gradle.",
-                    "org.junit.")
-                .collect(Collectors.toSet()));
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(Stream.of(
+            "java.", "jdk.", "sun.", "com.sun.", "org.gradle.", "worker.org.gradle.", "org.junit.")
+        .collect(Collectors.toSet()));
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
@@ -62,13 +54,12 @@ class ExceptionProbeManagerTest {
     Config config = mock(Config.class);
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes())
-        .thenReturn(
-            Stream.of(
-                    "org.gradle.",
-                    "worker.org.gradle.",
-                    "org.junit.",
-                    "com.datadog.debugger.exception.ExceptionProbeManagerTest")
-                .collect(Collectors.toSet()));
+        .thenReturn(Stream.of(
+                "org.gradle.",
+                "worker.org.gradle.",
+                "org.junit.",
+                "com.datadog.debugger.exception.ExceptionProbeManagerTest")
+            .collect(Collectors.toSet()));
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
@@ -87,25 +78,17 @@ class ExceptionProbeManagerTest {
     assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint));
     exceptionProbeManager.updateLastCapture(fingerprint);
     assertFalse(exceptionProbeManager.shouldCaptureException(fingerprint));
-    Clock clock =
-        Clock.fixed(Instant.now().plus(Duration.ofMinutes(61)), Clock.systemUTC().getZone());
+    Clock clock = Clock.fixed(
+        Instant.now().plus(Duration.ofMinutes(61)), Clock.systemUTC().getZone());
     assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint, clock));
   }
 
   @Test
   void maxFrames() {
     RuntimeException deepException = level1();
-    ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(
-            Stream.of(
-                    "java.",
-                    "jdk.",
-                    "sun.",
-                    "com.sun.",
-                    "org.gradle.",
-                    "worker.org.gradle.",
-                    "org.junit.")
-                .collect(Collectors.toSet()));
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(Stream.of(
+            "java.", "jdk.", "sun.", "com.sun.", "org.gradle.", "worker.org.gradle.", "org.junit.")
+        .collect(Collectors.toSet()));
     ExceptionProbeManager exceptionProbeManager =
         new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), Clock.systemUTC(), 3);
     exceptionProbeManager.createProbesForException(deepException.getStackTrace(), 0);

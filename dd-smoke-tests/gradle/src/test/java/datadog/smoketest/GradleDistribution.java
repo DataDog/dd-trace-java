@@ -60,10 +60,7 @@ final class GradleDistribution {
 
   private static URI massUriFor(String massReadUrl, String gradleVersion) {
     String baseUrl = massReadUrl.endsWith("/") ? massReadUrl : massReadUrl + "/";
-    return URI.create(
-        baseUrl
-            + "internal/artifact/services.gradle.org/distributions/gradle-"
-            + gradleVersion
-            + "-bin.zip");
+    return URI.create(baseUrl + "internal/artifact/services.gradle.org/distributions/gradle-"
+        + gradleVersion + "-bin.zip");
   }
 }

@@ -55,21 +55,20 @@ public class ReactiveStreamsTracedMethods {
         throw new RuntimeException(e);
       }
 
-      s.onSubscribe(
-          new Subscription() {
-            @Override
-            public void request(long n) {
-              if (error != null) {
-                s.onError(error);
-              } else {
-                s.onNext(element);
-                s.onComplete();
-              }
-            }
+      s.onSubscribe(new Subscription() {
+        @Override
+        public void request(long n) {
+          if (error != null) {
+            s.onError(error);
+          } else {
+            s.onNext(element);
+            s.onComplete();
+          }
+        }
 
-            @Override
-            public void cancel() {}
-          });
+        @Override
+        public void cancel() {}
+      });
     }
   }
 

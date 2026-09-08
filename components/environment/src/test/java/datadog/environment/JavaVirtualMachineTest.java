@@ -170,9 +170,8 @@ class JavaVirtualMachineTest {
       String expectedPatches,
       String expectedName,
       String expectedVendor) {
-    JavaVirtualMachine.Runtime runtime =
-        new JavaVirtualMachine.Runtime(
-            javaVersion, javaRuntimeVersion, javaRuntimeName, javaVmVendor, null);
+    JavaVirtualMachine.Runtime runtime = new JavaVirtualMachine.Runtime(
+        javaVersion, javaRuntimeVersion, javaRuntimeName, javaVmVendor, null);
     assertEquals(expectedVersion, runtime.version);
     assertEquals(expectedPatches, runtime.patches);
     assertEquals(expectedName, runtime.name);

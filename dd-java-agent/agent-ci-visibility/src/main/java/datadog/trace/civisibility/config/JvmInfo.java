@@ -13,11 +13,10 @@ public class JvmInfo {
   static {
     Config config = Config.get();
     CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
-    CURRENT_JVM =
-        new JvmInfo(
-            wellKnownTags.getRuntimeName().toString(),
-            wellKnownTags.getRuntimeVersion().toString(),
-            wellKnownTags.getRuntimeVendor().toString());
+    CURRENT_JVM = new JvmInfo(
+        wellKnownTags.getRuntimeName().toString(),
+        wellKnownTags.getRuntimeVersion().toString(),
+        wellKnownTags.getRuntimeVendor().toString());
   }
 
   private final String name;

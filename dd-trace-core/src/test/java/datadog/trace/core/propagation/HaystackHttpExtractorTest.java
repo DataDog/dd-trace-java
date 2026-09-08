@@ -82,14 +82,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
     String traceUuid = "44617461-646f-6721-0000-000000000001";
     String spanUuid = "44617461-646f-6721-0000-000000000002";
     String parentUuid = "44617461-646f-6721-0000-000000000005";
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            traceUuid + ",44617461-646f-6721-0000-000000000003",
-            SPAN_ID_KEY,
-            spanUuid + ",44617461-646f-6721-0000-000000000004",
-            PARENT_ID_KEY,
-            parentUuid + ",44617461-646f-6721-0000-000000000006");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        traceUuid + ",44617461-646f-6721-0000-000000000003",
+        SPAN_ID_KEY,
+        spanUuid + ",44617461-646f-6721-0000-000000000004",
+        PARENT_ID_KEY,
+        parentUuid + ",44617461-646f-6721-0000-000000000006");
 
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
@@ -105,14 +104,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractRetainsParentIdAsBaggage() {
     // Parent-ID is not read back when injecting, so it is kept as ordinary caller baggage and
     // still propagated downstream as Baggage-Haystack-Parent-ID
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            "44617461-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002",
-            PARENT_ID_KEY,
-            "44617461-646f-6721-0000-000000000003");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        "44617461-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002",
+        PARENT_ID_KEY,
+        "44617461-646f-6721-0000-000000000003");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -124,14 +122,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void extractDropsOversizedParentId() {
     // unlike the reserved trace and span ids, Parent-ID is subject to the baggage limits
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            "44617461-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002",
-            PARENT_ID_KEY,
-            repeat('x', 10_000));
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        "44617461-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002",
+        PARENT_ID_KEY,
+        repeat('x', 10_000));
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -141,12 +138,11 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void extractDoesNotReserveOversizedTraceId() {
     // reserved values skip the baggage budget, so they are capped to keep the overshoot fixed
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            repeat('a', 10_000) + "-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        repeat('a', 10_000) + "-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 

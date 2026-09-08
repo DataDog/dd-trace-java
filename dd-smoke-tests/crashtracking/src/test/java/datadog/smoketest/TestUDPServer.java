@@ -49,38 +49,36 @@ public class TestUDPServer implements Closeable {
 
     socket = new DatagramSocket(port);
     socket.setSoTimeout(timeout);
-    readerThread =
-        new Thread(
-            () -> {
-              while (!closed && !closing) {
-                byte[] data = new byte[packetSize];
-                try {
-                  DatagramPacket packet = new DatagramPacket(data, packetSize);
-                  socket.receive(packet);
+    readerThread = new Thread(
+        () -> {
+          while (!closed && !closing) {
+            byte[] data = new byte[packetSize];
+            try {
+              DatagramPacket packet = new DatagramPacket(data, packetSize);
+              socket.receive(packet);
 
-                  byte[] trimmedData = new byte[packet.getLength()];
-                  System.arraycopy(
-                      packet.getData(), packet.getOffset(), trimmedData, 0, packet.getLength());
+              byte[] trimmedData = new byte[packet.getLength()];
+              System.arraycopy(
+                  packet.getData(), packet.getOffset(), trimmedData, 0, packet.getLength());
 
-                  if (Arrays.equals(trimmedData, END_MESSAGE)) {
-                    System.err.println("[TestUDPServer] Received message to close");
-                    break;
-                  }
-                  System.err.println(
-                      "[TestUDPServer] Received message: " + new String(trimmedData));
-                  dataPackets.add(new String(trimmedData));
-                } catch (SocketTimeoutException e) {
-                  System.err.println("[TestUDPServer] Timeout waiting for message");
-                  // ignore no data sent
-                } catch (IOException e) {
-                  System.err.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
-                  e.printStackTrace();
-                  break;
-                }
+              if (Arrays.equals(trimmedData, END_MESSAGE)) {
+                System.err.println("[TestUDPServer] Received message to close");
+                break;
               }
-              closed = true;
-            },
-            "Test UDP Server Receiver");
+              System.err.println("[TestUDPServer] Received message: " + new String(trimmedData));
+              dataPackets.add(new String(trimmedData));
+            } catch (SocketTimeoutException e) {
+              System.err.println("[TestUDPServer] Timeout waiting for message");
+              // ignore no data sent
+            } catch (IOException e) {
+              System.err.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
+              e.printStackTrace();
+              break;
+            }
+          }
+          closed = true;
+        },
+        "Test UDP Server Receiver");
 
     readerThread.setDaemon(true);
     readerThread.start();
@@ -99,9 +97,8 @@ public class TestUDPServer implements Closeable {
     closing = true;
 
     try (DatagramSocket clientSocket = new DatagramSocket()) {
-      clientSocket.send(
-          new DatagramPacket(
-              END_MESSAGE, END_MESSAGE.length, InetAddress.getByName("localhost"), getPort()));
+      clientSocket.send(new DatagramPacket(
+          END_MESSAGE, END_MESSAGE.length, InetAddress.getByName("localhost"), getPort()));
     } catch (IOException e) {
       System.err.println(
           "[TestUDPServer] Exception sending close message. Will rely on socket timeout");

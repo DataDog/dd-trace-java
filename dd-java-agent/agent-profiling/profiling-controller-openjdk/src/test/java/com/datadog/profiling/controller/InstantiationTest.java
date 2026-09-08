@@ -27,7 +27,9 @@ public class InstantiationTest {
       assertEquals(
           1,
           ((CompositeController) controller)
-              .getControllers().stream().filter(c -> c instanceof OpenJdkController).count());
+              .getControllers().stream()
+                  .filter(c -> c instanceof OpenJdkController)
+                  .count());
     } else {
       assertInstanceOf(OpenJdkController.class, controller);
     }

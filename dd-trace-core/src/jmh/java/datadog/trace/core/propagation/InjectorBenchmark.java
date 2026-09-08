@@ -74,18 +74,14 @@ public class InjectorBenchmark {
         String feature = propagationAndFeatures[i];
         switch (feature) {
           case "x-dth":
-            propagationTags =
-                PropagationTags.factory()
-                    .fromHeaderValue(
-                        PropagationTags.HeaderType.DATADOG,
-                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            propagationTags = PropagationTags.factory()
+                .fromHeaderValue(
+                    PropagationTags.HeaderType.DATADOG, "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             break;
           case "x-dth-mod":
-            propagationTags =
-                PropagationTags.factory()
-                    .fromHeaderValue(
-                        PropagationTags.HeaderType.DATADOG,
-                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            propagationTags = PropagationTags.factory()
+                .fromHeaderValue(
+                    PropagationTags.HeaderType.DATADOG, "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             modifyPropagationTags = true;
             break;
           default:
@@ -95,40 +91,37 @@ public class InjectorBenchmark {
     }
 
     System.setProperty("dd.propagation.style.extract", propagations.toString());
-    injector =
-        HttpCodec.createInjector(
-            Config.get(), Config.get().getTracePropagationStylesToInject(), Collections.emptyMap());
+    injector = HttpCodec.createInjector(
+        Config.get(), Config.get().getTracePropagationStylesToInject(), Collections.emptyMap());
 
     traceId = DDTraceId.from("12345");
     spanId = DDSpanId.from("23456");
 
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
+    tracer = CoreTracer.builder()
+        .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+        .strictTraceWrites(false)
+        .build();
 
-    spanContext =
-        new DDSpanContext(
-            traceId,
-            spanId,
-            DDSpanId.ZERO,
-            "",
-            "service",
-            "operation",
-            "resource",
-            0,
-            "origin",
-            Collections.<String, String>emptyMap(),
-            false,
-            "type",
-            0,
-            tracer.createTraceCollector(traceId),
-            null,
-            null,
-            null,
-            false,
-            propagationTags);
+    spanContext = new DDSpanContext(
+        traceId,
+        spanId,
+        DDSpanId.ZERO,
+        "",
+        "service",
+        "operation",
+        "resource",
+        0,
+        "origin",
+        Collections.<String, String>emptyMap(),
+        false,
+        "type",
+        0,
+        tracer.createTraceCollector(traceId),
+        null,
+        null,
+        null,
+        false,
+        propagationTags);
   }
 
   int mechanism = 0;

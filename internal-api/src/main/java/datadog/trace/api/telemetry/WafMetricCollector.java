@@ -148,16 +148,15 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       final boolean rateLimited,
       final boolean inputTruncated,
       final boolean requestExcluded) {
-    int index =
-        computeWafRequestIndex(
-            ruleTriggered,
-            requestBlocked,
-            wafError,
-            wafTimeout,
-            blockFailure,
-            rateLimited,
-            inputTruncated,
-            requestExcluded);
+    int index = computeWafRequestIndex(
+        ruleTriggered,
+        requestBlocked,
+        wafError,
+        wafTimeout,
+        blockFailure,
+        rateLimited,
+        inputTruncated,
+        requestExcluded);
     wafRequestCounter.incrementAndGet(index);
   }
 
@@ -360,19 +359,18 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         boolean inputTruncated = (i & (1 << 6)) != 0;
         boolean requestExcluded = (i & (1 << 7)) != 0;
 
-        if (!rawMetricsQueue.offer(
-            new WafRequestsRawMetric(
-                counter,
-                WafMetricCollector.wafVersion,
-                WafMetricCollector.rulesVersion,
-                ruleTriggered,
-                requestBlocked,
-                wafError,
-                wafTimeout,
-                blockFailure,
-                rateLimited,
-                inputTruncated,
-                requestExcluded))) {
+        if (!rawMetricsQueue.offer(new WafRequestsRawMetric(
+            counter,
+            WafMetricCollector.wafVersion,
+            WafMetricCollector.rulesVersion,
+            ruleTriggered,
+            requestBlocked,
+            wafError,
+            wafTimeout,
+            blockFailure,
+            rateLimited,
+            inputTruncated,
+            requestExcluded))) {
           return;
         }
       }
@@ -505,9 +503,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     // WAF config errors
     int configErrors = wafConfigErrorCounter.getAndSet(0);
     if (configErrors > 0) {
-      if (!rawMetricsQueue.offer(
-          new WafConfigError(
-              configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {
+      if (!rawMetricsQueue.offer(new WafConfigError(
+          configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {
         return;
       }
     }

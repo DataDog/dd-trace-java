@@ -163,9 +163,8 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
           CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       if (ActiveSubsystems.APPSEC_ACTIVE) {
-        ContextStore store =
-            InstrumentationContext.get(
-                REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+        ContextStore store = InstrumentationContext.get(
+            REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
         // Provide the span to lower layers
         // The span is associated with the c.i.w.http.channel.internal.HttpRequestMessageImpl object
         store.put(RequestMessageFromServletRequestHelper.getHttpRequestMessage(request), span);

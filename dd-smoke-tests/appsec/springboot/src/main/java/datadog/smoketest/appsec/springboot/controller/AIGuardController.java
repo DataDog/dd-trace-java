@@ -42,23 +42,20 @@ public class AIGuardController {
         rootSpan.setTag("usr.session_id", sessionId);
       }
     }
-    final Evaluation result =
-        AIGuard.evaluate(
-            asList(
-                Message.message("system", "You are a beautiful AI"),
-                Message.message("user", "I am harmless")));
+    final Evaluation result = AIGuard.evaluate(asList(
+        Message.message("system", "You are a beautiful AI"),
+        Message.message("user", "I am harmless")));
     return ResponseEntity.ok(result);
   }
 
   @GetMapping(value = "/deny")
   public ResponseEntity<?> deny(final @RequestHeader("X-Blocking-Enabled") boolean block) {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "You should not trust me" + (block ? " [block]" : ""))),
-              new Options().block(block));
+      final Evaluation result = AIGuard.evaluate(
+          asList(
+              Message.message("system", "You are a beautiful AI"),
+              Message.message("user", "You should not trust me" + (block ? " [block]" : ""))),
+          new Options().block(block));
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -68,12 +65,11 @@ public class AIGuardController {
   @GetMapping(value = "/abort")
   public ResponseEntity<?> abort(final @RequestHeader("X-Blocking-Enabled") boolean block) {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "Nuke yourself" + (block ? " [block]" : ""))),
-              new Options().block(block));
+      final Evaluation result = AIGuard.evaluate(
+          asList(
+              Message.message("system", "You are a beautiful AI"),
+              Message.message("user", "Nuke yourself" + (block ? " [block]" : ""))),
+          new Options().block(block));
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -83,11 +79,9 @@ public class AIGuardController {
   @GetMapping(value = "/deny-default-options")
   public ResponseEntity<?> denyDefaultOptions() {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "You should not trust me [block]")));
+      final Evaluation result = AIGuard.evaluate(asList(
+          Message.message("system", "You are a beautiful AI"),
+          Message.message("user", "You should not trust me [block]")));
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -96,16 +90,14 @@ public class AIGuardController {
 
   @GetMapping(value = "/multimodal")
   public ResponseEntity<?> multimodal() {
-    final Evaluation result =
-        AIGuard.evaluate(
+    final Evaluation result = AIGuard.evaluate(asList(
+        Message.message("system", "You are a beautiful AI"),
+        Message.message(
+            "user",
             asList(
-                Message.message("system", "You are a beautiful AI"),
-                Message.message(
-                    "user",
-                    asList(
-                        AIGuard.ContentPart.text("Describe this image:"),
-                        AIGuard.ContentPart.imageUrl("https://example.com/image.jpg"),
-                        AIGuard.ContentPart.text("What do you see?")))));
+                AIGuard.ContentPart.text("Describe this image:"),
+                AIGuard.ContentPart.imageUrl("https://example.com/image.jpg"),
+                AIGuard.ContentPart.text("What do you see?")))));
     return ResponseEntity.ok(result);
   }
 

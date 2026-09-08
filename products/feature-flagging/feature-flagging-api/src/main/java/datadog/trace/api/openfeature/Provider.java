@@ -79,10 +79,9 @@ public class Provider extends EventProvider implements Metadata {
 
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        spanEnrichmentEnabledOverride != null
-            ? spanEnrichmentEnabledOverride
-            : SpanEnrichmentGate.isEnabled();
+    final boolean spanEnrichmentEnabled = spanEnrichmentEnabledOverride != null
+        ? spanEnrichmentEnabledOverride
+        : SpanEnrichmentGate.isEnabled();
     this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)

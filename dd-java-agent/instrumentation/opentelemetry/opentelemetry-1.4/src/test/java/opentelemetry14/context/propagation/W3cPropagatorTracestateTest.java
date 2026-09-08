@@ -28,10 +28,9 @@ class W3cPropagatorTracestateTest extends AbstractOpenTelemetry14Test {
     headers.put("traceparent", "00-11111111111111111111111111111111-2222222222222222-00");
     headers.put("tracestate", tracestate);
 
-    String[] members =
-        Arrays.stream(tracestate.split(","))
-            .filter(member -> !member.startsWith("dd="))
-            .toArray(String[]::new);
+    String[] members = Arrays.stream(tracestate.split(","))
+        .filter(member -> !member.startsWith("dd="))
+        .toArray(String[]::new);
 
     Context context = propagator.extract(Context.root(), headers, TextMap.INSTANCE);
     assertNotEquals(Context.root(), context);

@@ -46,12 +46,11 @@ public class RumPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
   private DistributionSeries convertToDistributionSeries(
       MetricCollector.DistributionSeriesPoint point) {
-    DistributionSeries distribution =
-        new DistributionSeries()
-            .namespace(point.namespace)
-            .metric(point.metricName)
-            .common(point.common)
-            .tags(point.tags);
+    DistributionSeries distribution = new DistributionSeries()
+        .namespace(point.namespace)
+        .metric(point.metricName)
+        .common(point.common)
+        .tags(point.tags);
     distribution.addPoint(point.value);
     return distribution;
   }

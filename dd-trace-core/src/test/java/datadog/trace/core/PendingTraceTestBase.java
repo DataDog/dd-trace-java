@@ -59,8 +59,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
 
   @Test
   void childFinishesBeforeParent() throws InterruptedException, TimeoutException {
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
+    DDSpan child = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
 
     assertEquals(2, traceCollector.getPendingReferenceCount());
 
@@ -81,8 +81,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
 
   @Test
   void parentFinishesBeforeChild() throws InterruptedException, TimeoutException {
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
+    DDSpan child = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
 
     assertEquals(2, traceCollector.getPendingReferenceCount());
 
@@ -108,8 +108,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     // this shouldn't happen, but it's possible users of the api
     // may incorrectly add spans after the trace is reported.
     // in those cases we should still decrement the pending trace count
-    DDSpan childSpan =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
+    DDSpan childSpan = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
     childSpan.finish();
     writer.waitForTraces(2);
 
@@ -121,10 +121,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
 
   @Test
   void testGetCurrentTimeNano() {
-    long diffSeconds =
-        Math.abs(
-            TimeUnit.NANOSECONDS.toSeconds(traceCollector.getCurrentTimeNano())
-                - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
+    long diffSeconds = Math.abs(TimeUnit.NANOSECONDS.toSeconds(traceCollector.getCurrentTimeNano())
+        - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
     // Generous 5 seconds to execute this test
     assertTrue(diffSeconds < 5, "Expected time difference < 5 seconds, got: " + diffSeconds);
   }
@@ -136,12 +134,14 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
       PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
-      DDSpan child1 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
-      DDSpan child2 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
+      DDSpan child1 = (DDSpan) quickTracer
+          .buildSpan("datadog", "child1")
+          .asChildOf(localRoot.spanContext())
+          .start();
+      DDSpan child2 = (DDSpan) quickTracer
+          .buildSpan("datadog", "child2")
+          .asChildOf(localRoot.spanContext())
+          .start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -181,12 +181,14 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
       PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
-      DDSpan child1 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
-      DDSpan child2 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
+      DDSpan child1 = (DDSpan) quickTracer
+          .buildSpan("datadog", "child1")
+          .asChildOf(localRoot.spanContext())
+          .start();
+      DDSpan child2 = (DDSpan) quickTracer
+          .buildSpan("datadog", "child2")
+          .asChildOf(localRoot.spanContext())
+          .start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -245,23 +247,20 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
 
       List<Thread> threads = new ArrayList<>(threadCount);
       for (int t = 0; t < threadCount; t++) {
-        Thread thread =
-            new Thread(
-                () -> {
-                  try {
-                    latch.await();
-                    List<DDSpan> spans = new ArrayList<>(spanCount);
-                    for (int s = 0; s < spanCount; s++) {
-                      spans.add(
-                          (DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
-                    }
-                    for (DDSpan span : spans) {
-                      span.finish();
-                    }
-                  } catch (Throwable ex) {
-                    exceptions.add(ex);
-                  }
-                });
+        Thread thread = new Thread(() -> {
+          try {
+            latch.await();
+            List<DDSpan> spans = new ArrayList<>(spanCount);
+            for (int s = 0; s < spanCount; s++) {
+              spans.add((DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
+            }
+            for (DDSpan span : spans) {
+              span.finish();
+            }
+          } catch (Throwable ex) {
+            exceptions.add(ex);
+          }
+        });
         thread.start();
         threads.add(thread);
       }

@@ -26,9 +26,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 public abstract class CiVisibilitySmokeTest {
 
-  public static final List<String> SMOKE_IGNORED_TAGS =
-      Collections.unmodifiableList(
-          Arrays.asList("content.meta.['_dd.integration']", "content.meta.['_dd.svc_src']"));
+  public static final List<String> SMOKE_IGNORED_TAGS = Collections.unmodifiableList(
+      Arrays.asList("content.meta.['_dd.integration']", "content.meta.['_dd.svc_src']"));
 
   protected static final String AGENT_JAR =
       System.getProperty("datadog.smoketest.agent.shadowJar.path");
@@ -40,7 +39,8 @@ public abstract class CiVisibilitySmokeTest {
 
   private static final Map<String, String> DEFAULT_TRACER_CONFIG = defaultJvmArguments();
 
-  @TempDir protected Path prefsDir;
+  @TempDir
+  protected Path prefsDir;
 
   protected static String buildJavaHome() {
     String javaHome = System.getProperty("java.home");
@@ -124,10 +124,9 @@ public abstract class CiVisibilitySmokeTest {
       argMap.put(GeneralConfig.TRACE_DEBUG, "true");
     }
 
-    String agentArgs =
-        argMap.entrySet().stream()
-            .map(e -> propertyNameToSystemPropertyName(e.getKey()) + "=" + e.getValue())
-            .collect(Collectors.joining(","));
+    String agentArgs = argMap.entrySet().stream()
+        .map(e -> propertyNameToSystemPropertyName(e.getKey()) + "=" + e.getValue())
+        .collect(Collectors.joining(","));
     arguments.add("-javaagent:" + AGENT_JAR + "=" + agentArgs);
 
     return arguments;
@@ -150,8 +149,8 @@ public abstract class CiVisibilitySmokeTest {
   }
 
   private static Path tempUserPrefsPath() {
-    String uniqueId =
-        System.currentTimeMillis() + "_" + System.nanoTime() + "_" + Thread.currentThread().getId();
+    String uniqueId = System.currentTimeMillis() + "_" + System.nanoTime() + "_"
+        + Thread.currentThread().getId();
     return Paths.get(System.getProperty("java.io.tmpdir"), "gradle-test-userPrefs", uniqueId);
   }
 
@@ -179,13 +178,12 @@ public abstract class CiVisibilitySmokeTest {
     if (System.getenv("GENERATE_TEST_FIXTURES") != null) {
       String baseTemplatesPath;
       try {
-        baseTemplatesPath =
-            CiVisibilitySmokeTest.class
-                .getClassLoader()
-                .getResource(projectName)
-                .toURI()
-                .getSchemeSpecificPart()
-                .replace("build/resources/test", "src/test/resources");
+        baseTemplatesPath = CiVisibilitySmokeTest.class
+            .getClassLoader()
+            .getResource(projectName)
+            .toURI()
+            .getSchemeSpecificPart()
+            .replace("build/resources/test", "src/test/resources");
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -272,16 +270,15 @@ public abstract class CiVisibilitySmokeTest {
   }
 
   private static void verifyProbeStatuses(List<Map<String, Object>> logs, int expectedCount) {
-    long received =
-        logs.stream()
-            .filter(log -> ((String) log.get("message")).startsWith("Received probe"))
-            .count();
-    long installed =
-        logs.stream()
-            .filter(log -> ((String) log.get("message")).startsWith("Installed probe"))
-            .count();
-    long emitting =
-        logs.stream().filter(log -> ((String) log.get("message")).endsWith("is emitting.")).count();
+    long received = logs.stream()
+        .filter(log -> ((String) log.get("message")).startsWith("Received probe"))
+        .count();
+    long installed = logs.stream()
+        .filter(log -> ((String) log.get("message")).startsWith("Installed probe"))
+        .count();
+    long emitting = logs.stream()
+        .filter(log -> ((String) log.get("message")).endsWith("is emitting."))
+        .count();
     assertEquals(expectedCount, received);
     assertEquals(expectedCount, installed);
     assertEquals(expectedCount, emitting);
@@ -305,10 +302,8 @@ public abstract class CiVisibilitySmokeTest {
       Map<String, Object> snapshotContent = (Map<String, Object>) debuggerMap.get("snapshot");
 
       assertNotNull(snapshotContent, "snapshot must not be null");
-      requiredSnapshotFields.forEach(
-          field ->
-              assertTrue(
-                  snapshotContent.containsKey(field), "snapshot must contain field: " + field));
+      requiredSnapshotFields.forEach(field ->
+          assertTrue(snapshotContent.containsKey(field), "snapshot must contain field: " + field));
     }
   }
 }

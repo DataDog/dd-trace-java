@@ -68,13 +68,11 @@ public final class ClassloadingInstrumentation extends InstrumenterModule
     transformer.applyAdvice(
         isMethod()
             .and(named("loadClass"))
-            .and(
-                takesArguments(1)
+            .and(takesArguments(1)
+                .and(takesArgument(0, named("java.lang.String")))
+                .or(takesArguments(2)
                     .and(takesArgument(0, named("java.lang.String")))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, named("java.lang.String")))
-                            .and(takesArgument(1, named("boolean")))))
+                    .and(takesArgument(1, named("boolean")))))
             .and(isPublic().or(isProtected()))
             .and(not(isStatic())),
         ClassloadingInstrumentation.class.getName() + "$LoadClassAdvice");

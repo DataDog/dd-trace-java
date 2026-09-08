@@ -36,18 +36,17 @@ class ClientStatsAggregatorInboxFullTest {
     // never drains -- snapshots accumulate in the inbox until capacity, then the next publish hits
     // the size-vs-capacity fast path.
     int queueSize = 8;
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            queueSize,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        queueSize,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
 
     // Publish well past capacity. The first `queueSize` calls land in the inbox; subsequent calls
     // see size >= capacity and hit the fast path.

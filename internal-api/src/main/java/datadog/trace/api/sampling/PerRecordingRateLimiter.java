@@ -29,10 +29,8 @@ public class PerRecordingRateLimiter {
      * None of these durations should be big enough to warrant dealing with bigints.
      * We also do not care about nanoseconds here.
      */
-    return (int)
-        Math.min(
-            Duration.of(uploadPeriodSeconds, ChronoUnit.SECONDS).toMillis()
-                / samplingWindow.toMillis(),
-            Integer.MAX_VALUE);
+    return (int) Math.min(
+        Duration.of(uploadPeriodSeconds, ChronoUnit.SECONDS).toMillis() / samplingWindow.toMillis(),
+        Integer.MAX_VALUE);
   }
 }

@@ -45,15 +45,11 @@ public class ScriptInitializerSecurityTest {
       return;
     }
     try (Stream<Path> stream = Files.walk(tempDir)) {
-      stream
-          .sorted(Comparator.reverseOrder())
-          .map(Path::toFile)
-          .forEach(
-              f -> {
-                // Restore write permission before delete to handle read-only test artefacts
-                f.setWritable(true, false);
-                f.delete();
-              });
+      stream.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(f -> {
+        // Restore write permission before delete to handle read-only test artefacts
+        f.setWritable(true, false);
+        f.delete();
+      });
     }
   }
 
@@ -179,8 +175,7 @@ public class ScriptInitializerSecurityTest {
   private static void assertNoGroupWorldWriteBit(Path path) throws IOException {
     Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
     for (PosixFilePermission bit :
-        new PosixFilePermission[] {
-          PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE
+        new PosixFilePermission[] {PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE
         }) {
       assertFalse(
           perms.contains(bit),

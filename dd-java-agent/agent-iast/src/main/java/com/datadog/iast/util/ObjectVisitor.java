@@ -23,7 +23,9 @@ public class ObjectVisitor {
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
-  @Nullable private static final Method TRY_SET_ACCESSIBLE;
+
+  @Nullable
+  private static final Method TRY_SET_ACCESSIBLE;
 
   static {
     TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();

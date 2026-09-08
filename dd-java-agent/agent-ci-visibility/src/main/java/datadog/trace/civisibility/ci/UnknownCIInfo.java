@@ -58,7 +58,9 @@ class UnknownCIInfo implements CIProviderInfo {
       LOGGER.debug("Could not get real path for workspace folder {}", workspace, e);
     }
 
-    return CIInfo.builder(environment).ciWorkspace(workspace.toAbsolutePath().toString()).build();
+    return CIInfo.builder(environment)
+        .ciWorkspace(workspace.toAbsolutePath().toString())
+        .build();
   }
 
   @Nonnull

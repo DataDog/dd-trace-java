@@ -61,7 +61,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * artifact (e.g. embedded Tomcat) cannot re-queue itself forever and cause unbounded {@link
    * Instrumentation#retransformClasses} calls. See APPSEC-69734.
    */
-  @VisibleForTesting static final int MAX_UNRESOLVED_RETRIES = 5;
+  @VisibleForTesting
+  static final int MAX_UNRESOLVED_RETRIES = 5;
 
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
@@ -102,7 +103,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   final ConcurrentLinkedQueue<List<Class<?>>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
-  @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+  @VisibleForTesting
+  final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   /**
    * Class name (internal format) → number of retransform attempts already spent on a class whose
@@ -131,7 +133,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * concurrently with itself, and {@code processClass()} is invoked synchronously from within its
    * {@code retransformClasses()} calls.
    */
-  @VisibleForTesting final Set<String> countedThisHeartbeat = new HashSet<>();
+  @VisibleForTesting
+  final Set<String> countedThisHeartbeat = new HashSet<>();
 
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
@@ -250,9 +253,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         }
         methodCallbacks
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
-            .add(
-                new MethodCallbackSpec(
-                    entry.vulnId(), depName, version, dotClassName, symbol.method()));
+            .add(new MethodCallbackSpec(
+                entry.vulnId(), depName, version, dotClassName, symbol.method()));
       }
     }
 

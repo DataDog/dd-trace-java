@@ -47,10 +47,9 @@ public class SetContextPathAdvice {
       // the following can be cached however than can be issues for application having
       // dynamically generated URL
       // since a bounded cache might collide
-      String relativePath =
-          pathInContext.startsWith(servletContext)
-              ? pathInContext.substring(servletContext.length())
-              : pathInContext;
+      String relativePath = pathInContext.startsWith(servletContext)
+          ? pathInContext.substring(servletContext.length())
+          : pathInContext;
       if (relativePath.isEmpty() || relativePath.charAt(0) != '/') {
         relativePath = "/" + relativePath;
       }

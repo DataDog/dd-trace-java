@@ -109,21 +109,19 @@ public class ShellCommandExecutor {
       p = processBuilder.start();
 
       StreamConsumer inputStreamConsumer = new StreamConsumer(p.getInputStream());
-      Thread inputStreamThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThread.CI_SHELL_COMMAND,
-              "-input-stream-consumer-" + command[0],
-              inputStreamConsumer,
-              true);
+      Thread inputStreamThread = AgentThreadFactory.newAgentThread(
+          AgentThread.CI_SHELL_COMMAND,
+          "-input-stream-consumer-" + command[0],
+          inputStreamConsumer,
+          true);
       inputStreamThread.start();
 
       StreamConsumer errorStreamConsumer = new StreamConsumer(p.getErrorStream());
-      Thread errorStreamThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThread.CI_SHELL_COMMAND,
-              "-error-stream-consumer-" + command[0],
-              errorStreamConsumer,
-              true);
+      Thread errorStreamThread = AgentThreadFactory.newAgentThread(
+          AgentThread.CI_SHELL_COMMAND,
+          "-error-stream-consumer-" + command[0],
+          errorStreamConsumer,
+          true);
       errorStreamThread.start();
 
       if (input != null) {
@@ -158,15 +156,14 @@ public class ShellCommandExecutor {
 
       } else {
         terminate(p);
-        throw new TimeoutException(
-            "Timeout while waiting for '"
-                + String.join(" ", command)
-                + "'; in "
-                + executionFolder
-                + "\n StdOut: \n"
-                + IOUtils.readFully(inputStreamConsumer.read(), Charset.defaultCharset())
-                + "\n StdErr: \n "
-                + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
+        throw new TimeoutException("Timeout while waiting for '"
+            + String.join(" ", command)
+            + "'; in "
+            + executionFolder
+            + "\n StdOut: \n"
+            + IOUtils.readFully(inputStreamConsumer.read(), Charset.defaultCharset())
+            + "\n StdErr: \n "
+            + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
       }
     } catch (InterruptedException e) {
       terminate(p);

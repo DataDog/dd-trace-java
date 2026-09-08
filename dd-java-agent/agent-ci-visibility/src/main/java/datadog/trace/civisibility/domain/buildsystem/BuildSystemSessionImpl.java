@@ -89,11 +89,10 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
 
     ExecutionSettings executionSettings =
         executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-    this.settings =
-        new BuildSessionSettings(
-            executionSettings.isCodeCoverageReportUploadEnabled(),
-            getCoverageIncludedPackages(config, repoIndexProvider),
-            config.getCiVisibilityCodeCoverageExcludes());
+    this.settings = new BuildSessionSettings(
+        executionSettings.isCodeCoverageReportUploadEnabled(),
+        getCoverageIncludedPackages(config, repoIndexProvider),
+        config.getCiVisibilityCodeCoverageExcludes());
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);

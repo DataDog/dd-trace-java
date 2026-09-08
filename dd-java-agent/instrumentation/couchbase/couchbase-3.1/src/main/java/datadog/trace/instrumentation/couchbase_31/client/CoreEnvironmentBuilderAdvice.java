@@ -9,8 +9,7 @@ import net.bytebuddy.asm.Advice;
 public class CoreEnvironmentBuilderAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This CoreEnvironment.Builder<?> builder) {
-    builder.requestTracer(
-        new DatadogRequestTracer(
-            AgentTracer.get(), InstrumentationContext.get(Core.class, String.class)));
+    builder.requestTracer(new DatadogRequestTracer(
+        AgentTracer.get(), InstrumentationContext.get(Core.class, String.class)));
   }
 }

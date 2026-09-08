@@ -28,15 +28,13 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
       return; // execute test only if classpath is provided for the latest jdk
     }
     List<String> commandParams = getDebuggerCommandParams();
-    targetProcess =
-        ProcessBuilderHelper.createProcessBuilder(
-                classpath, commandParams, logFilePath, "App", EXPECTED_UPLOADS)
-            .start();
+    targetProcess = ProcessBuilderHelper.createProcessBuilder(
+            classpath, commandParams, logFilePath, "App", EXPECTED_UPLOADS)
+        .start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -51,12 +49,12 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
     LogProbe probe =
         LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -74,16 +72,15 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
     LogProbe probe =
         LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
-    datadogAgentServer.enqueue(
-        new MockResponse()
-            .setHeadersDelay(REQUEST_WAIT_TIMEOUT * 2, TimeUnit.SECONDS)
-            .setResponseCode(200));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    datadogAgentServer.enqueue(new MockResponse()
+        .setHeadersDelay(REQUEST_WAIT_TIMEOUT * 2, TimeUnit.SECONDS)
+        .setResponseCode(200));
+    targetProcess =
+        createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean(false);
-    registerSnapshotListener(
-        snapshot -> {
-          snapshotReceived.set(true);
-        });
+    registerSnapshotListener(snapshot -> {
+      snapshotReceived.set(true);
+    });
     processRequests(
         snapshotReceived::get,
         () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
@@ -102,27 +99,24 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         logFilePath.toString(),
         "INFO com.datadog.debugger.agent.DebuggerAgent - Started Dynamic Instrumentation",
         null);
-    Assertions.assertFalse(
-        logHasErrors(
-            logFilePath,
-            line -> {
-              if (line.contains("Started BatchUploader[Diagnostics]")) {
-                return !line.matches(
-                    ".* Started BatchUploader\\[Diagnostics] with target url http://localhost:\\d+/debugger/v1/diagnostics");
-              }
-              if (line.contains("Started BatchUploader[Snapshots]")) {
-                return !line.matches(
-                    ".* Started BatchUploader\\[Snapshots] with target url http://localhost:\\d+/debugger/v1/diagnostics");
-              }
-              if (line.contains("Started BatchUploader[Logs]")) {
-                return !line.matches(
-                    ".* Started BatchUploader\\[Logs] with target url http://localhost:\\d+/debugger/v1/diagnostics");
-              }
-              if (line.contains("Started BatchUploader[SymDB]")) {
-                return !line.matches(
-                    ".* Started BatchUploader\\[SymDB] with target url http://localhost:\\d+/symdb/v1/input");
-              }
-              return false;
-            }));
+    Assertions.assertFalse(logHasErrors(logFilePath, line -> {
+      if (line.contains("Started BatchUploader[Diagnostics]")) {
+        return !line.matches(
+            ".* Started BatchUploader\\[Diagnostics] with target url http://localhost:\\d+/debugger/v1/diagnostics");
+      }
+      if (line.contains("Started BatchUploader[Snapshots]")) {
+        return !line.matches(
+            ".* Started BatchUploader\\[Snapshots] with target url http://localhost:\\d+/debugger/v1/diagnostics");
+      }
+      if (line.contains("Started BatchUploader[Logs]")) {
+        return !line.matches(
+            ".* Started BatchUploader\\[Logs] with target url http://localhost:\\d+/debugger/v1/diagnostics");
+      }
+      if (line.contains("Started BatchUploader[SymDB]")) {
+        return !line.matches(
+            ".* Started BatchUploader\\[SymDB] with target url http://localhost:\\d+/symdb/v1/input");
+      }
+      return false;
+    }));
   }
 }

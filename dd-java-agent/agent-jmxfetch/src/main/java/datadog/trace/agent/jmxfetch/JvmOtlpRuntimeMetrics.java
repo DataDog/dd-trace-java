@@ -151,9 +151,8 @@ public final class JvmOtlpRuntimeMetrics {
       // does not depend on the shim — so we register one here for our Attributes class-loader.
       OtelMetricStorage.registerAttributeReader(
           Attributes.class.getClassLoader(),
-          (attributes, visitor) ->
-              ((Attributes) attributes)
-                  .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
+          (attributes, visitor) -> ((Attributes) attributes)
+              .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
 
       // Stable metrics — always registered.
       registerMemoryMetrics();
@@ -186,11 +185,7 @@ public final class JvmOtlpRuntimeMetrics {
     List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
 
     registerLongObservable(
-        "jvm.memory.used",
-        "Measure of memory used.",
-        "By",
-        UP_DOWN_COUNTER,
-        storage -> {
+        "jvm.memory.used", "Measure of memory used.", "By", UP_DOWN_COUNTER, storage -> {
           storage.recordLong(memoryBean.getHeapMemoryUsage().getUsed(), HEAP_ATTRS);
           storage.recordLong(memoryBean.getNonHeapMemoryUsage().getUsed(), NON_HEAP_ATTRS);
           for (MemoryPoolMXBean pool : pools) {
@@ -199,11 +194,7 @@ public final class JvmOtlpRuntimeMetrics {
         });
 
     registerLongObservable(
-        "jvm.memory.committed",
-        "Measure of memory committed.",
-        "By",
-        UP_DOWN_COUNTER,
-        storage -> {
+        "jvm.memory.committed", "Measure of memory committed.", "By", UP_DOWN_COUNTER, storage -> {
           storage.recordLong(memoryBean.getHeapMemoryUsage().getCommitted(), HEAP_ATTRS);
           storage.recordLong(memoryBean.getNonHeapMemoryUsage().getCommitted(), NON_HEAP_ATTRS);
           for (MemoryPoolMXBean pool : pools) {
@@ -212,11 +203,7 @@ public final class JvmOtlpRuntimeMetrics {
         });
 
     registerLongObservable(
-        "jvm.memory.limit",
-        "Measure of max obtainable memory.",
-        "By",
-        UP_DOWN_COUNTER,
-        storage -> {
+        "jvm.memory.limit", "Measure of max obtainable memory.", "By", UP_DOWN_COUNTER, storage -> {
           long heapMax = memoryBean.getHeapMemoryUsage().getMax();
           if (heapMax != -1) {
             storage.recordLong(heapMax, HEAP_ATTRS);
@@ -475,12 +462,8 @@ public final class JvmOtlpRuntimeMetrics {
           "com.sun.management.GarbageCollectionNotificationInfo not available; skipping jvm.gc.duration");
       return;
     }
-    OtelMetricStorage storage =
-        registerDoubleHistogramStorage(
-            "jvm.gc.duration",
-            "Duration of JVM garbage collection actions.",
-            "s",
-            GC_DURATION_BUCKETS);
+    OtelMetricStorage storage = registerDoubleHistogramStorage(
+        "jvm.gc.duration", "Duration of JVM garbage collection actions.", "s", GC_DURATION_BUCKETS);
     NotificationFilter filter = n -> GC_NOTIFICATION_TYPE.equals(n.getType());
     GcNotificationListener listener = new GcNotificationListener(storage, captureGcCause);
     for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -505,15 +488,14 @@ public final class JvmOtlpRuntimeMetrics {
   private static void recordGcDuration(
       OtelMetricStorage storage, GarbageCollectionNotificationInfo info, boolean captureGcCause) {
     double durationSeconds = info.getGcInfo().getDuration() / 1000d;
-    Attributes attrs =
-        captureGcCause
-            ? Attributes.of(
-                GC_NAME, info.getGcName(),
-                GC_ACTION, info.getGcAction(),
-                GC_CAUSE, info.getGcCause())
-            : Attributes.of(
-                GC_NAME, info.getGcName(),
-                GC_ACTION, info.getGcAction());
+    Attributes attrs = captureGcCause
+        ? Attributes.of(
+            GC_NAME, info.getGcName(),
+            GC_ACTION, info.getGcAction(),
+            GC_CAUSE, info.getGcCause())
+        : Attributes.of(
+            GC_NAME, info.getGcName(),
+            GC_ACTION, info.getGcAction());
     storage.recordDouble(durationSeconds, attrs);
   }
 
@@ -627,19 +609,14 @@ public final class JvmOtlpRuntimeMetrics {
       String unit,
       List<BufferPoolMXBean> bufferPools,
       ToLongFunction<BufferPoolMXBean> getter) {
-    registerLongObservable(
-        name,
-        description,
-        unit,
-        UP_DOWN_COUNTER,
-        storage -> {
-          for (BufferPoolMXBean pool : bufferPools) {
-            long value = getter.applyAsLong(pool);
-            if (value >= 0) {
-              storage.recordLong(value, Attributes.of(BUFFER_POOL, pool.getName()));
-            }
-          }
-        });
+    registerLongObservable(name, description, unit, UP_DOWN_COUNTER, storage -> {
+      for (BufferPoolMXBean pool : bufferPools) {
+        long value = getter.applyAsLong(pool);
+        if (value >= 0) {
+          storage.recordLong(value, Attributes.of(BUFFER_POOL, pool.getName()));
+        }
+      }
+    });
   }
 
   /** Registers a long observable instrument and its callback against the bootstrap registry. */
@@ -696,18 +673,16 @@ public final class JvmOtlpRuntimeMetrics {
     switch (descriptor.getType()) {
       case OBSERVABLE_GAUGE:
         // observable gauges always use last-value
-        storageFactory =
-            descriptor.hasLongValues()
-                ? OtelMetricStorage::newLongValueStorage
-                : OtelMetricStorage::newDoubleValueStorage;
+        storageFactory = descriptor.hasLongValues()
+            ? OtelMetricStorage::newLongValueStorage
+            : OtelMetricStorage::newDoubleValueStorage;
         break;
       case OBSERVABLE_COUNTER:
       case OBSERVABLE_UP_DOWN_COUNTER:
         // observable counters use delta value since last reset
-        storageFactory =
-            descriptor.hasLongValues()
-                ? OtelMetricStorage::newLongDeltaStorage
-                : OtelMetricStorage::newDoubleDeltaStorage;
+        storageFactory = descriptor.hasLongValues()
+            ? OtelMetricStorage::newLongDeltaStorage
+            : OtelMetricStorage::newDoubleDeltaStorage;
         break;
       default:
         throw new IllegalStateException("Unexpected value: " + descriptor.getType());

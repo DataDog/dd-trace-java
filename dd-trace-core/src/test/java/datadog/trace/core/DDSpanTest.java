@@ -58,19 +58,18 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @BeforeEach
   void setup() {
     writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).sampler(new RateByServiceTraceSampler()).build();
+    tracer =
+        tracerBuilder().writer(writer).sampler(new RateByServiceTraceSampler()).build();
   }
 
   @Test
   void gettersAndSetters() {
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "fakeOperation")
-                .withServiceName("fakeService")
-                .withResourceName("fakeResource")
-                .withSpanType("fakeType")
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("fakeService")
+        .withResourceName("fakeResource")
+        .withSpanType("fakeType")
+        .start();
 
     span.setServiceName("service");
     assertEquals("service", span.getServiceName());
@@ -104,13 +103,11 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
     String resourceName = "fake";
     String serviceName = "myService";
-    span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", opName)
-                .withResourceName(resourceName)
-                .withServiceName(serviceName)
-                .start();
+    span = (DDSpan) tracer
+        .buildSpan("datadog", opName)
+        .withResourceName(resourceName)
+        .withServiceName(serviceName)
+        .start();
     assertEquals(resourceName, span.getResourceName().toString());
     assertEquals(serviceName, span.getServiceName());
   }
@@ -126,11 +123,9 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     long total = System.nanoTime() - start;
 
     // Generous 5 seconds to execute this test
-    assertTrue(
-        Math.abs(
-                TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
-                    - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
-            < 5);
+    assertTrue(Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
+            - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
+        < 5);
     assertTrue(span.getDurationNano() > betweenDur);
     assertTrue(span.getDurationNano() < total);
     assertTrue(span.getDurationNano() % mod > 0);
@@ -161,11 +156,9 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertTrue(span.getDurationNano() < 0);
     long actualDurationNano = span.getDurationNano() & Long.MAX_VALUE;
     // Generous 5 seconds to execute this test
-    assertTrue(
-        Math.abs(
-                TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
-                    - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
-            < 5);
+    assertTrue(Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
+            - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
+        < 5);
     assertTrue(actualDurationNano > betweenDur);
     assertTrue(actualDurationNano < total);
     assertTrue(actualDurationNano % mod > 0); // Very slim chance of a false negative.
@@ -195,23 +188,19 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void startingWithTimestampDisablesNanotime() {
     long mod = TimeUnit.MILLISECONDS.toNanos(1);
     long start = System.currentTimeMillis();
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", "test")
-                .withStartTimestamp(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()))
-                .start();
+    DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "test")
+        .withStartTimestamp(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()))
+        .start();
     long between = System.currentTimeMillis();
     long betweenDur = System.currentTimeMillis() - between;
     span.finish();
     long total = Math.max(1, System.currentTimeMillis() - start);
 
     // Generous 5 seconds to execute this test
-    assertTrue(
-        Math.abs(
-                TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
-                    - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
-            < 5);
+    assertTrue(Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
+            - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
+        < 5);
     assertTrue(span.getDurationNano() >= TimeUnit.MILLISECONDS.toNanos(betweenDur));
     assertTrue(span.getDurationNano() <= TimeUnit.MILLISECONDS.toNanos(total));
     assertTrue(span.getDurationNano() % mod == 0 || span.getDurationNano() == 1);
@@ -228,11 +217,9 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     long total = System.currentTimeMillis() - start + 1;
 
     // Generous 5 seconds to execute this test
-    assertTrue(
-        Math.abs(
-                TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
-                    - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
-            < 5);
+    assertTrue(Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
+            - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()))
+        < 5);
     assertTrue(span.getDurationNano() >= TimeUnit.MILLISECONDS.toNanos(betweenDur));
     assertTrue(span.getDurationNano() <= TimeUnit.MILLISECONDS.toNanos(total));
     // true span duration can be <1ms if clock was about to tick over, so allow for that
@@ -252,15 +239,19 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @Test
   void prioritySamplingMetricSetOnlyOnRootSpan() {
     DDSpan parent = (DDSpan) tracer.buildSpan("datadog", "testParent").start();
-    DDSpan child1 =
-        (DDSpan) tracer.buildSpan("datadog", "testChild1").asChildOf(parent.spanContext()).start();
+    DDSpan child1 = (DDSpan) tracer
+        .buildSpan("datadog", "testChild1")
+        .asChildOf(parent.spanContext())
+        .start();
 
     child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     child1.spanContext().lockSamplingPriority();
     parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
     child1.finish();
-    DDSpan child2 =
-        (DDSpan) tracer.buildSpan("datadog", "testChild2").asChildOf(parent.spanContext()).start();
+    DDSpan child2 = (DDSpan) tracer
+        .buildSpan("datadog", "testChild2")
+        .asChildOf(parent.spanContext())
+        .start();
     child2.finish();
     parent.finish();
 
@@ -291,16 +282,13 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("originSetOnlyOnRootSpanArguments")
   void originSetOnlyOnRootSpan(String scenario, AgentSpanContext extractedContext)
       throws Exception {
-    DDSpanContext parent =
-        (DDSpanContext)
-            tracer
-                .buildSpan("datadog", "testParent")
-                .asChildOf(extractedContext)
-                .start()
-                .spanContext();
-    DDSpanContext child =
-        (DDSpanContext)
-            tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().spanContext();
+    DDSpanContext parent = (DDSpanContext) tracer
+        .buildSpan("datadog", "testParent")
+        .asChildOf(extractedContext)
+        .start()
+        .spanContext();
+    DDSpanContext child = (DDSpanContext)
+        tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().spanContext();
 
     assertEquals("some-origin", parent.getOrigin().toString());
     // Access field directly instead of getter.
@@ -331,9 +319,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("isRootSpanArguments")
   void isRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext, boolean isTraceRootSpan) {
-    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
+    DDSpan root =
+        (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
+    DDSpan child = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(isTraceRootSpan, root.isRootSpan());
     assertFalse(child.isRootSpan());
@@ -360,9 +349,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("getApplicationRootSpanArguments")
   void getApplicationRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext) {
-    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
+    DDSpan root =
+        (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
+    DDSpan child = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(root, root.getLocalRootSpan());
     assertEquals(root, child.getLocalRootSpan());
@@ -378,9 +368,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void publishingOfRootSpanClosesRequestContextData() throws Exception {
     Closeable reqContextData = mock(Closeable.class);
     TagContext context = new TagContext().withRequestContextDataAppSec(reqContextData);
-    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(context).start();
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
+    DDSpan root =
+        (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(context).start();
+    DDSpan child = (DDSpan)
+        tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(reqContextData, root.getRequestContext().getData(RequestContextSlot.APPSEC));
     assertEquals(reqContextData, child.getRequestContext().getData(RequestContextSlot.APPSEC));
@@ -406,27 +397,26 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("inferTopLevelFromParentServiceNameArguments")
   void inferTopLevelFromParentServiceName(
       String scenario, CharSequence parentServiceName, boolean expectTopLevel) {
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            parentServiceName,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            Collections.emptyMap(),
-            false,
-            "fakeType",
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        parentServiceName,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        Collections.emptyMap(),
+        false,
+        "fakeType",
+        0,
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty());
     assertEquals(expectTopLevel, context.isTopLevel());
   }
 

@@ -102,10 +102,9 @@ public abstract class CiVisibilityService
       String startCommand,
       String gradleVersion,
       boolean nestedBuild) {
-    Map<String, Object> additionalTags =
-        nestedBuild
-            ? Collections.singletonMap(Tags.TEST_GRADLE_NESTED_BUILD, true)
-            : Collections.emptyMap();
+    Map<String, Object> additionalTags = nestedBuild
+        ? Collections.singletonMap(Tags.TEST_GRADLE_NESTED_BUILD, true)
+        : Collections.emptyMap();
     buildEventsHandler.onTestSessionStart(
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }

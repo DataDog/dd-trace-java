@@ -53,7 +53,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 public class WebController {
 
-  @Autowired private AsyncService myAsyncService;
+  @Autowired
+  private AsyncService myAsyncService;
 
   @RequestMapping("/greeting")
   public String greeting() {
@@ -160,7 +161,8 @@ public class WebController {
   @GetMapping("/ssrf/okHttp3")
   public String okHttp3(@RequestParam("domain") final String domain) {
     final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
-    final okhttp3.Request request = new okhttp3.Request.Builder().url("http://" + domain).build();
+    final okhttp3.Request request =
+        new okhttp3.Request.Builder().url("http://" + domain).build();
     try {
       client.newCall(request).execute();
     } catch (final BlockingException e) {
@@ -332,11 +334,10 @@ public class WebController {
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
-      clientRequest =
-          clientRequest.method(
-              request.getMethod(),
-              com.squareup.okhttp.RequestBody.create(
-                  com.squareup.okhttp.MediaType.parse(contentType), data));
+      clientRequest = clientRequest.method(
+          request.getMethod(),
+          com.squareup.okhttp.RequestBody.create(
+              com.squareup.okhttp.MediaType.parse(contentType), data));
     } else {
       clientRequest.method(request.getMethod(), null);
     }
@@ -352,7 +353,8 @@ public class WebController {
     if (echoHeaders != null) {
       clientRequest = clientRequest.header("echo-headers", echoHeaders);
     }
-    final Response clientResponse = new OkHttpClient().newCall(clientRequest.build()).execute();
+    final Response clientResponse =
+        new OkHttpClient().newCall(clientRequest.build()).execute();
     return ResponseEntity.status(200).body(clientResponse.body().string());
   }
 
@@ -362,7 +364,8 @@ public class WebController {
   public ResponseEntity<String> apiSecurityHttpClientOkHttp3(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
-    final okhttp3.HttpUrl.Builder url = okhttp3.HttpUrl.parse(getEchoUrl(request)).newBuilder();
+    final okhttp3.HttpUrl.Builder url =
+        okhttp3.HttpUrl.parse(getEchoUrl(request)).newBuilder();
     final String redirect = request.getParameter("redirect");
     if (redirect != null) {
       url.addQueryParameter("redirect", "true");
@@ -371,10 +374,9 @@ public class WebController {
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
-      clientRequest =
-          clientRequest.method(
-              request.getMethod(),
-              okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
+      clientRequest = clientRequest.method(
+          request.getMethod(),
+          okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
     } else {
       clientRequest.method(request.getMethod(), null);
     }

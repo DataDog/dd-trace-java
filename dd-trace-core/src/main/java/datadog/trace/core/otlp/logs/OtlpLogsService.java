@@ -30,33 +30,30 @@ public final class OtlpLogsService {
     switch (config.getOtlpLogsProtocol()) {
       case GRPC:
         this.collector = OtlpLogsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpGrpcSender(
-                config.getOtlpLogsEndpoint(),
-                "/opentelemetry.proto.collector.logs.v1.LogsService/Export",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
+        this.sender = new OtlpGrpcSender(
+            config.getOtlpLogsEndpoint(),
+            "/opentelemetry.proto.collector.logs.v1.LogsService/Export",
+            config.getOtlpLogsHeaders(),
+            config.getOtlpLogsTimeout(),
+            config.getOtlpLogsCompression());
         break;
       case HTTP_PROTOBUF:
         this.collector = OtlpLogsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpHttpSender(
-                config.getOtlpLogsEndpoint(),
-                "/v1/logs",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
+        this.sender = new OtlpHttpSender(
+            config.getOtlpLogsEndpoint(),
+            "/v1/logs",
+            config.getOtlpLogsHeaders(),
+            config.getOtlpLogsTimeout(),
+            config.getOtlpLogsCompression());
         break;
       case HTTP_JSON:
         this.collector = OtlpLogsJsonCollector.INSTANCE;
-        this.sender =
-            new OtlpHttpSender(
-                config.getOtlpLogsEndpoint(),
-                "/v1/logs",
-                config.getOtlpLogsHeaders(),
-                config.getOtlpLogsTimeout(),
-                config.getOtlpLogsCompression());
+        this.sender = new OtlpHttpSender(
+            config.getOtlpLogsEndpoint(),
+            "/v1/logs",
+            config.getOtlpLogsHeaders(),
+            config.getOtlpLogsTimeout(),
+            config.getOtlpLogsCompression());
         break;
       default:
         LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());

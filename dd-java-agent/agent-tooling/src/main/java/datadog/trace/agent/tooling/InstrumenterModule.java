@@ -105,7 +105,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     try {
       // Muzzle class contains static references captured at build-time
       // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
-      return (ReferenceMatcher) classLoader.loadClass(muzzleClass).getMethod("create").invoke(null);
+      return (ReferenceMatcher)
+          classLoader.loadClass(muzzleClass).getMethod("create").invoke(null);
     } catch (Throwable e) {
       log.warn("Failed to load - muzzle.class={}", muzzleClass, e);
       return ReferenceMatcher.NO_REFERENCES;

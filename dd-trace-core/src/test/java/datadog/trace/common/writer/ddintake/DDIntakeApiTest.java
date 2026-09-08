@@ -44,18 +44,17 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 @Timeout(20)
 class DDIntakeApiTest extends DDCoreJavaSpecification {
 
-  static final CiVisibilityWellKnownTags WELL_KNOWN_TAGS =
-      new CiVisibilityWellKnownTags(
-          "my-runtime-id",
-          "my-env",
-          "my-language",
-          "my-runtime-name",
-          "my-runtime-version",
-          "my-runtime-vendor",
-          "my-os-arch",
-          "my-os-platform",
-          "my-os-version",
-          "false");
+  static final CiVisibilityWellKnownTags WELL_KNOWN_TAGS = new CiVisibilityWellKnownTags(
+      "my-runtime-id",
+      "my-env",
+      "my-language",
+      "my-runtime-name",
+      "my-runtime-version",
+      "my-runtime-vendor",
+      "my-os-arch",
+      "my-os-platform",
+      "my-os-version",
+      "false");
 
   static final String API_KEY = "my-secret-apikey";
   static final ObjectMapper MSG_PACK_MAPPER = new ObjectMapper(new MessagePackFactory());
@@ -66,22 +65,13 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String apiVersion = "v2";
     String path = buildIntakePath(trackType, apiVersion);
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (!"application/msgpack"
-                                  .equals(api.getRequest().getContentType())) {
-                                api.getResponse()
-                                    .status(400)
-                                    .send("wrong type: " + api.getRequest().getContentType());
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(path, api -> {
+          if (!"application/msgpack".equals(api.getRequest().getContentType())) {
+            api.getResponse().status(400).send("wrong type: " + api.getRequest().getContentType());
+          } else {
+            api.getResponse().status(200).send();
+          }
+        })));
     DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
     Payload payload = prepareTraces(trackType, Collections.emptyList());
 
@@ -103,20 +93,14 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
     int[] retry = {1};
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 5) {
-                                api.getResponse().status(503).send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(path, api -> {
+          if (retry[0] < 5) {
+            api.getResponse().status(503).send();
+            retry[0]++;
+          } else {
+            api.getResponse().status(200).send();
+          }
+        })));
     DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
     Payload payload = prepareTraces(trackType, Collections.emptyList());
 
@@ -138,23 +122,14 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
     int[] retry = {0};
     try (JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 1) {
-                                api.getResponse()
-                                    .status(429)
-                                    .addHeader("x-ratelimit-reset", "0")
-                                    .send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })))) {
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(path, api -> {
+          if (retry[0] < 1) {
+            api.getResponse().status(429).addHeader("x-ratelimit-reset", "0").send();
+            retry[0]++;
+          } else {
+            api.getResponse().status(200).send();
+          }
+        })))) {
 
       DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
       Payload payload = prepareTraces(trackType, Collections.emptyList());
@@ -278,11 +253,8 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
 
   @Test
   void testContentIsSentAsMsgpackTestModuleEndSpan() throws IOException {
-    DDSpan span =
-        buildSpan(
-            1L,
-            InternalSpanTypes.TEST_MODULE_END,
-            Collections.singletonMap("test_module_id", 456L));
+    DDSpan span = buildSpan(
+        1L, InternalSpanTypes.TEST_MODULE_END, Collections.singletonMap("test_module_id", 456L));
     span.finish();
     setDurationNano(span, 10L);
     List<List<DDSpan>> traces = Collections.singletonList(Collections.singletonList(span));
@@ -319,9 +291,8 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
       Map<String, Object> expectedRequestBody)
       throws IOException {
     String path = buildIntakePath(trackType, apiVersion);
-    JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.post(path, api -> api.getResponse().send())));
+    JavaTestHttpServer intake = JavaTestHttpServer.httpServer(
+        s -> s.handlers(h -> h.post(path, api -> api.getResponse().send())));
     DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
     Payload payload = prepareTraces(trackType, traces);
 
@@ -383,7 +354,11 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
 
   private DDIntakeApi createIntakeApi(String url, TrackType trackType) {
     HttpUrl hostUrl = HttpUrl.get(url);
-    return DDIntakeApi.builder().hostUrl(hostUrl).trackType(trackType).apiKey(API_KEY).build();
+    return DDIntakeApi.builder()
+        .hostUrl(hostUrl)
+        .trackType(trackType)
+        .apiKey(API_KEY)
+        .build();
   }
 
   private RemoteMapper discoverMapper(TrackType trackType) {

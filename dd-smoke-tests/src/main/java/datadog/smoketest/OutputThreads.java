@@ -97,7 +97,10 @@ public class OutputThreads implements Closeable {
           consumed += subBuff.position();
           String line = null;
           try {
-            line = decoder.decode((ByteBuffer) subBuff.duplicate().flip()).toString().trim();
+            line = decoder
+                .decode((ByteBuffer) subBuff.duplicate().flip())
+                .toString()
+                .trim();
           } catch (CharacterCodingException e) {
             throw new RuntimeException(e);
           }

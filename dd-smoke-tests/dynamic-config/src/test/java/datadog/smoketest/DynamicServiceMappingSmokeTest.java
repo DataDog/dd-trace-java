@@ -29,13 +29,12 @@ class DynamicServiceMappingSmokeTest {
   private static final TestAgentBackend agent = AgentBackend.testAgentBuilder().build();
 
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("dynamic-service-mapping")
-          .mainClass(ServiceMappingApplication.class, APPLICATION_JAR)
-          .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
-          .backend(agent)
-          .skipTelemetryCheck()
-          .build();
+  static final SmokeCliApp app = SmokeCliApp.named("dynamic-service-mapping")
+      .mainClass(ServiceMappingApplication.class, APPLICATION_JAR)
+      .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
+      .backend(agent)
+      .skipTelemetryCheck()
+      .build();
 
   @Test
   void updatedServiceMappingObserved() {

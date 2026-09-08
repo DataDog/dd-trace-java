@@ -33,12 +33,10 @@ public final class JMSDecorator extends MessagingClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
-  public static final CharSequence JMS_CONSUME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
-  public static final CharSequence JMS_PRODUCE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
+  public static final CharSequence JMS_CONSUME = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
+  public static final CharSequence JMS_PRODUCE = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   public static final boolean JMS_LEGACY_TRACING = Config.get().isJmsLegacyTracingEnabled();
@@ -66,32 +64,23 @@ public final class JMSDecorator extends MessagingClientDecorator {
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
 
-  public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator(
-          "Produced for ",
-          Tags.SPAN_KIND_PRODUCER,
-          InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .outboundService("jms", JMS_LEGACY_TRACING));
+  public static final JMSDecorator PRODUCER_DECORATE = new JMSDecorator(
+      "Produced for ",
+      Tags.SPAN_KIND_PRODUCER,
+      InternalSpanTypes.MESSAGE_PRODUCER,
+      SpanNaming.instance().namingSchema().messaging().outboundService("jms", JMS_LEGACY_TRACING));
 
-  public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator(
-          "Consumed from ",
-          Tags.SPAN_KIND_CONSUMER,
-          InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService("jms", JMS_LEGACY_TRACING));
+  public static final JMSDecorator CONSUMER_DECORATE = new JMSDecorator(
+      "Consumed from ",
+      Tags.SPAN_KIND_CONSUMER,
+      InternalSpanTypes.MESSAGE_CONSUMER,
+      SpanNaming.instance().namingSchema().messaging().inboundService("jms", JMS_LEGACY_TRACING));
 
-  public static final JMSDecorator BROKER_DECORATE =
-      new JMSDecorator(
-          "",
-          Tags.SPAN_KIND_BROKER,
-          InternalSpanTypes.MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
+  public static final JMSDecorator BROKER_DECORATE = new JMSDecorator(
+      "",
+      Tags.SPAN_KIND_BROKER,
+      InternalSpanTypes.MESSAGE_BROKER,
+      SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
   public JMSDecorator(
       String resourcePrefix,

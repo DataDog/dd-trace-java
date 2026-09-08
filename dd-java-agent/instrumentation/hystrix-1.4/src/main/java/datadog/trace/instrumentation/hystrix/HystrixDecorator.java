@@ -97,11 +97,10 @@ public class HystrixDecorator extends BaseDecorator {
       if (measured) {
         span.setMeasured(true);
       }
-      span.setResourceName(
-          RESOURCE_NAME_CACHE.computeIfAbsent(
-              new ResourceNameCacheKey(
-                  command.getCommandGroup().name(), command.getCommandKey().name(), methodName),
-              TO_STRING));
+      span.setResourceName(RESOURCE_NAME_CACHE.computeIfAbsent(
+          new ResourceNameCacheKey(
+              command.getCommandGroup().name(), command.getCommandKey().name(), methodName),
+          TO_STRING));
     }
   }
 }

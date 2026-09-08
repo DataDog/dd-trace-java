@@ -50,49 +50,45 @@ public abstract class JUnitPlatformUtils {
 
   public static final ComparableVersion junitV58 = new ComparableVersion("5.8");
 
-  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
-  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX,
-          LibraryCapability.FAIL_FAST);
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX,
+      LibraryCapability.FAIL_FAST);
 
-  public static final List<LibraryCapability> SPOCK_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> SPOCK_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
-  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
   private JUnitPlatformUtils() {}
 

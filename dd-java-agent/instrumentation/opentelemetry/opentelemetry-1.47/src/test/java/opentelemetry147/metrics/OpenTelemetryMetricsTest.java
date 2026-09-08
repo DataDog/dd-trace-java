@@ -61,7 +61,8 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testLongCounter() {
-    io.opentelemetry.api.metrics.LongCounter counter = meter.counterBuilder("long-counter").build();
+    io.opentelemetry.api.metrics.LongCounter counter =
+        meter.counterBuilder("long-counter").build();
     counter.add(1);
     counter.add(2, SOME_ATTRIBUTES);
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -120,7 +121,8 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testDoubleGauge() {
-    io.opentelemetry.api.metrics.DoubleGauge gauge = meter.gaugeBuilder("double-gauge").build();
+    io.opentelemetry.api.metrics.DoubleGauge gauge =
+        meter.gaugeBuilder("double-gauge").build();
     gauge.set(1.2);
     gauge.set(3.4, SOME_ATTRIBUTES);
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -199,14 +201,12 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableLongCounter() {
-    AutoCloseable observable =
-        meter
-            .counterBuilder("observable-long-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .counterBuilder("observable-long-counter")
+        .buildWithCallback(m -> {
+          m.record(1);
+          m.record(2, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-counter"));
@@ -224,15 +224,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableDoubleCounter() {
-    AutoCloseable observable =
-        meter
-            .counterBuilder("observable-double-counter")
-            .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .counterBuilder("observable-double-counter")
+        .ofDoubles()
+        .buildWithCallback(m -> {
+          m.record(1.2);
+          m.record(3.4, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-counter"));
@@ -250,14 +248,12 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableLongUpDownCounter() {
-    AutoCloseable observable =
-        meter
-            .upDownCounterBuilder("observable-long-up-down-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .upDownCounterBuilder("observable-long-up-down-counter")
+        .buildWithCallback(m -> {
+          m.record(1);
+          m.record(2, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-up-down-counter"));
@@ -275,15 +271,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableDoubleUpDownCounter() {
-    AutoCloseable observable =
-        meter
-            .upDownCounterBuilder("observable-double-up-down-counter")
-            .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .upDownCounterBuilder("observable-double-up-down-counter")
+        .ofDoubles()
+        .buildWithCallback(m -> {
+          m.record(1.2);
+          m.record(3.4, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-up-down-counter"));
@@ -301,15 +295,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableLongGauge() {
-    AutoCloseable observable =
-        meter
-            .gaugeBuilder("observable-long-gauge")
-            .ofLongs()
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .gaugeBuilder("observable-long-gauge")
+        .ofLongs()
+        .buildWithCallback(m -> {
+          m.record(1);
+          m.record(2, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-gauge"));
@@ -320,14 +312,12 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
   @Test
   void testObservableDoubleGauge() {
-    AutoCloseable observable =
-        meter
-            .gaugeBuilder("observable-double-gauge")
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+    AutoCloseable observable = meter
+        .gaugeBuilder("observable-double-gauge")
+        .buildWithCallback(m -> {
+          m.record(1.2);
+          m.record(3.4, SOME_ATTRIBUTES);
+        });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-gauge"));
@@ -339,10 +329,9 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   @Test
   void testObservableLongCounterDeltaWithChangingValues() {
     long[] absoluteValue = {0L};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("observable-long-counter-delta-changing")
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .counterBuilder("observable-long-counter-delta-changing")
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 5L;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -365,11 +354,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   @Test
   void testObservableDoubleCounterDeltaWithChangingValues() {
     double[] absoluteValue = {0.0};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("observable-double-counter-delta-changing")
-            .ofDoubles()
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .counterBuilder("observable-double-counter-delta-changing")
+        .ofDoubles()
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 2.5;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -392,10 +380,9 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   @Test
   void testObservableLongUpDownCounterReportsAbsoluteValue() {
     long[] absoluteValue = {0L};
-    AutoCloseable observable =
-        meter
-            .upDownCounterBuilder("observable-long-up-down-counter-absolute")
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .upDownCounterBuilder("observable-long-up-down-counter-absolute")
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 10L;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -419,11 +406,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   @Test
   void testObservableDoubleUpDownCounterReportsAbsoluteValue() {
     double[] absoluteValue = {0.0};
-    AutoCloseable observable =
-        meter
-            .upDownCounterBuilder("observable-double-up-down-counter-absolute")
-            .ofDoubles()
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .upDownCounterBuilder("observable-double-up-down-counter-absolute")
+        .ofDoubles()
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 8.0;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -446,54 +432,54 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter.counterBuilder("double-counter-observer").ofDoubles().buildObserver();
     ObservableLongMeasurement longUpDownCounterObserver =
         meter.upDownCounterBuilder("long-up-down-counter-observer").buildObserver();
-    ObservableDoubleMeasurement doubleUpDownCounterObserver =
-        meter.upDownCounterBuilder("double-up-down-counter-observer").ofDoubles().buildObserver();
+    ObservableDoubleMeasurement doubleUpDownCounterObserver = meter
+        .upDownCounterBuilder("double-up-down-counter-observer")
+        .ofDoubles()
+        .buildObserver();
     ObservableLongMeasurement longGaugeObserver =
         meter.gaugeBuilder("long-gauge-observer").ofLongs().buildObserver();
     ObservableDoubleMeasurement doubleGaugeObserver =
         meter.gaugeBuilder("double-gauge-observer").buildObserver();
 
-    BatchCallback batchCallback =
-        meter.batchCallback(
-            () -> {
-              longCounterObserver.record(1);
-              longCounterObserver.record(10, SOME_ATTRIBUTES);
-              doubleCounterObserver.record(2.3);
-              doubleCounterObserver.record(20.3, SOME_ATTRIBUTES);
-              longUpDownCounterObserver.record(4);
-              longUpDownCounterObserver.record(40, SOME_ATTRIBUTES);
-              doubleUpDownCounterObserver.record(5.6);
-              doubleUpDownCounterObserver.record(50.6, SOME_ATTRIBUTES);
-              longGaugeObserver.record(7);
-              longGaugeObserver.record(70, SOME_ATTRIBUTES);
-              doubleGaugeObserver.record(8.9);
-              doubleGaugeObserver.record(80.9, SOME_ATTRIBUTES);
-            },
-            longCounterObserver,
-            doubleCounterObserver,
-            longUpDownCounterObserver,
-            doubleUpDownCounterObserver,
-            longGaugeObserver,
-            doubleGaugeObserver);
+    BatchCallback batchCallback = meter.batchCallback(
+        () -> {
+          longCounterObserver.record(1);
+          longCounterObserver.record(10, SOME_ATTRIBUTES);
+          doubleCounterObserver.record(2.3);
+          doubleCounterObserver.record(20.3, SOME_ATTRIBUTES);
+          longUpDownCounterObserver.record(4);
+          longUpDownCounterObserver.record(40, SOME_ATTRIBUTES);
+          doubleUpDownCounterObserver.record(5.6);
+          doubleUpDownCounterObserver.record(50.6, SOME_ATTRIBUTES);
+          longGaugeObserver.record(7);
+          longGaugeObserver.record(70, SOME_ATTRIBUTES);
+          doubleGaugeObserver.record(8.9);
+          doubleGaugeObserver.record(80.9, SOME_ATTRIBUTES);
+        },
+        longCounterObserver,
+        doubleCounterObserver,
+        longUpDownCounterObserver,
+        doubleUpDownCounterObserver,
+        longGaugeObserver,
+        doubleGaugeObserver);
 
     // this callback will have no effect because it doesn't declare any measurements
-    BatchCallback noopCallback =
-        meter.batchCallback(
-            () -> {
-              longCounterObserver.record(1000);
-              longCounterObserver.record(1000, SOME_ATTRIBUTES);
-              doubleCounterObserver.record(1000);
-              doubleCounterObserver.record(1000, SOME_ATTRIBUTES);
-              longUpDownCounterObserver.record(1000);
-              longUpDownCounterObserver.record(1000, SOME_ATTRIBUTES);
-              doubleUpDownCounterObserver.record(1000);
-              doubleUpDownCounterObserver.record(1000, SOME_ATTRIBUTES);
-              longGaugeObserver.record(1000);
-              longGaugeObserver.record(1000, SOME_ATTRIBUTES);
-              doubleGaugeObserver.record(1000);
-              doubleGaugeObserver.record(1000, SOME_ATTRIBUTES);
-            },
-            (ObservableMeasurement) null);
+    BatchCallback noopCallback = meter.batchCallback(
+        () -> {
+          longCounterObserver.record(1000);
+          longCounterObserver.record(1000, SOME_ATTRIBUTES);
+          doubleCounterObserver.record(1000);
+          doubleCounterObserver.record(1000, SOME_ATTRIBUTES);
+          longUpDownCounterObserver.record(1000);
+          longUpDownCounterObserver.record(1000, SOME_ATTRIBUTES);
+          doubleUpDownCounterObserver.record(1000);
+          doubleUpDownCounterObserver.record(1000, SOME_ATTRIBUTES);
+          longGaugeObserver.record(1000);
+          longGaugeObserver.record(1000, SOME_ATTRIBUTES);
+          doubleGaugeObserver.record(1000);
+          doubleGaugeObserver.record(1000, SOME_ATTRIBUTES);
+        },
+        (ObservableMeasurement) null);
 
     // first collect
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);

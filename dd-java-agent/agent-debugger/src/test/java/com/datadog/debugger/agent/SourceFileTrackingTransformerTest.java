@@ -44,9 +44,8 @@ class SourceFileTrackingTransformerTest {
           null,
           getClassFileBytes(MyTopLevelClass.class));
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
       assertEquals(2, changedClasses.size());
       assertEquals(TopLevelHelper.class, changedClasses.get(0));
       assertEquals(MyTopLevelClass.class, changedClasses.get(1));
@@ -91,12 +90,10 @@ class SourceFileTrackingTransformerTest {
           null,
           getClassFileBytes(InnerHelper.MySecondInner.class));
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {
-                InnerHelper.class, InnerHelper.MyInner.class, InnerHelper.MySecondInner.class
-              },
-              comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {InnerHelper.class, InnerHelper.MyInner.class, InnerHelper.MySecondInner.class
+          },
+          comparer);
       assertEquals(3, changedClasses.size());
       assertEquals(InnerHelper.class, changedClasses.get(0));
       assertEquals(InnerHelper.MyInner.class, changedClasses.get(1));
@@ -172,12 +169,12 @@ class SourceFileTrackingTransformerTest {
   }
 
   private ConfigurationComparer createComparer(String sourceFile) {
-    Configuration emptyConfig = Configuration.builder().setService("service-name").build();
-    Configuration newConfig =
-        Configuration.builder()
-            .setService("service-name")
-            .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
-            .build();
+    Configuration emptyConfig =
+        Configuration.builder().setService("service-name").build();
+    Configuration newConfig = Configuration.builder()
+        .setService("service-name")
+        .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
+        .build();
     return new ConfigurationComparer(emptyConfig, newConfig, new HashMap<>());
   }
 

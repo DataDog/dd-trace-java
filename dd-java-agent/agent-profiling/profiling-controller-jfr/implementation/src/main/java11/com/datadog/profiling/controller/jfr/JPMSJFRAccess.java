@@ -143,10 +143,9 @@ public class JPMSJFRAccess extends JFRAccess {
   @Override
   public boolean setBaseLocation(String location) {
     try {
-      Object safePath =
-          Path.class.isAssignableFrom(safePathClass)
-              ? Paths.get(location)
-              : safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
+      Object safePath = Path.class.isAssignableFrom(safePathClass)
+          ? Paths.get(location)
+          : safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
       setRepositoryBaseMH.invoke(safePath);
       return true;
     } catch (Throwable throwable) {

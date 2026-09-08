@@ -82,13 +82,11 @@ final class PeerTagSchema {
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
-      this.handlers[i] =
-          new TagCardinalityHandler(
-              names[i],
-              Config.get()
-                  .getTraceStatsCardinalityLimit(
-                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE),
-              MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
+      this.handlers[i] = new TagCardinalityHandler(
+          names[i],
+          Config.get()
+              .getTraceStatsCardinalityLimit("peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE),
+          MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
     }
   }
 

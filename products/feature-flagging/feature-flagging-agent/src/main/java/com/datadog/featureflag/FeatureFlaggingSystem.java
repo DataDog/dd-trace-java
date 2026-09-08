@@ -97,10 +97,9 @@ public class FeatureFlaggingSystem {
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
-    final boolean evalCountsEnabled =
-        config
-            .configProvider()
-            .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+    final boolean evalCountsEnabled = config
+        .configProvider()
+        .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
       final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);

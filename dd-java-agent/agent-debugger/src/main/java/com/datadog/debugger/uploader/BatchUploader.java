@@ -144,30 +144,28 @@ public class BatchUploader {
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
-        new ThreadPoolExecutor(
-            0,
-            Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
+    okHttpExecutorService = new ThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
-    client =
-        OkHttpUtils.buildHttpClient(
-            config,
-            new Dispatcher(okHttpExecutorService),
-            urlBase,
-            true, /* retry */
-            MAX_RUNNING_REQUESTS,
-            null, /* proxyHost */
-            null, /* proxyPort */
-            null, /* proxyUsername */
-            null, /* proxyPassword */
-            requestTimeout.toMillis());
+    client = OkHttpUtils.buildHttpClient(
+        config,
+        new Dispatcher(okHttpExecutorService),
+        urlBase,
+        true, /* retry */
+        MAX_RUNNING_REQUESTS,
+        null, /* proxyHost */
+        null, /* proxyPort */
+        null, /* proxyUsername */
+        null, /* proxyPassword */
+        requestTimeout.toMillis());
     responseCallback =
         new ResponseCallback(name, ratelimitedLogger, inflightRequests, client, retryPolicy);
     debuggerMetrics = DebuggerMetrics.getInstance(config);
@@ -273,7 +271,8 @@ public class BatchUploader {
       requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
     }
     Request request = requestBuilder.build();
-    LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
+    LOGGER.debug(
+        "[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
     enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);
   }
 

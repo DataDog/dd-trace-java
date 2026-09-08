@@ -82,7 +82,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     }
 
     HttpRequest request = (HttpRequest) msg;
-    if (!commitBlockingResponse(ctx, request.protocolVersion(), request.headers().get("accept"))) {
+    if (!commitBlockingResponse(
+        ctx, request.protocolVersion(), request.headers().get("accept"))) {
       // Do not let a failed block intercept later requests on this keep-alive connection.
       if (ctx.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME) != null) {
         ctx.pipeline().remove(BEFORE_BLOCKING_HANDLER_NAME);
@@ -111,15 +112,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     this.hasBlockedAlready = true;
     ServerRequestContext.markRequestBlocked(ctx.channel());
 
-    PendingBlockResponse pendingBlockResponse =
-        new PendingBlockResponse(
-            segment,
-            statusCode,
-            bct,
-            extraHeaders,
-            securityResponseId,
-            protocolVersion,
-            acceptHeader);
+    PendingBlockResponse pendingBlockResponse = new PendingBlockResponse(
+        segment, statusCode, bct, extraHeaders, securityResponseId, protocolVersion, acceptHeader);
 
     if (serverContext != null
         && ServerRequestContext.nextResponse(ctx.channel()) != serverContext) {
@@ -171,15 +165,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     ChannelHandlerContext writeContext =
         ctxForDownstream.pipeline().context(IGNORE_ALL_WRITES_HANDLER);
 
-    writeContext
-        .writeAndFlush(pendingBlockResponse.toResponse())
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              writeContext.channel().close();
-            });
+    writeContext.writeAndFlush(pendingBlockResponse.toResponse()).addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.cause());
+      }
+      writeContext.channel().close();
+    });
   }
 
   private static class PendingBlockResponse {

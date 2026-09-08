@@ -51,23 +51,22 @@ class ScaReachabilityDependencyRegistryTest {
 
     for (int i = 0; i < threadCount; i++) {
       final int idx = i;
-      pool.submit(
-          () -> {
-            try {
-              startLatch.await(); // wait until all threads are ready
-              ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                  "com.example:lib",
-                  "1.0.0",
-                  "GHSA-test",
-                  "com.myapp.Controller" + idx,
-                  "method" + idx,
-                  idx);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            } finally {
-              doneLatch.countDown();
-            }
-          });
+      pool.submit(() -> {
+        try {
+          startLatch.await(); // wait until all threads are ready
+          ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+              "com.example:lib",
+              "1.0.0",
+              "GHSA-test",
+              "com.myapp.Controller" + idx,
+              "method" + idx,
+              idx);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } finally {
+          doneLatch.countDown();
+        }
+      });
     }
 
     startLatch.countDown(); // release all threads simultaneously

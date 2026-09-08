@@ -80,9 +80,9 @@ public final class JMSMessageProducerInstrumentation
         return null;
       }
 
-      MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
+      MessageProducerState producerState = InstrumentationContext.get(
+              MessageProducer.class, MessageProducerState.class)
+          .get(producer);
 
       CharSequence resourceName;
       String destinationName;
@@ -147,9 +147,9 @@ public final class JMSMessageProducerInstrumentation
       AgentSpan span = activeSpan();
       if (span == null) return;
       if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
+        MessageProducerState producerState = InstrumentationContext.get(
+                MessageProducer.class, MessageProducerState.class)
+            .get(producer);
         if (null == producerState || !producerState.isPropagationDisabled()) {
           defaultPropagator().inject(span, message, SETTER);
         }
@@ -189,9 +189,9 @@ public final class JMSMessageProducerInstrumentation
       }
 
       if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
+        MessageProducerState producerState = InstrumentationContext.get(
+                MessageProducer.class, MessageProducerState.class)
+            .get(producer);
         if (null != producerState) {
           SETTER.injectTimeInQueue(message, producerState);
         }

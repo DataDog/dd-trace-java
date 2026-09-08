@@ -72,15 +72,13 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
           HttpUrl.get("https://" + INTAKE_API_DOMAIN + "." + config.getSite() + "/" + apiPath);
       headers = Headers.of(DD_API_KEY_HEADER_NAME, config.getApiKey());
     } else {
-      submissionUrl =
-          HttpUrl.get(
-              sco.agentUrl.toString() + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT + apiPath);
+      submissionUrl = HttpUrl.get(
+          sco.agentUrl.toString() + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT + apiPath);
       headers = Headers.of(EVP_SUBDOMAIN_HEADER_NAME, INTAKE_API_DOMAIN);
     }
 
-    SerializingHandler<T> serializingHandler =
-        new SerializingHandler<>(
-            payloadDescription, queue, flushInterval, timeUnit, submissionUrl, headers, serializer);
+    SerializingHandler<T> serializingHandler = new SerializingHandler<>(
+        payloadDescription, queue, flushInterval, timeUnit, submissionUrl, headers, serializer);
     this.serializerThread = newAgentThread(agentThread, serializingHandler);
   }
 
@@ -192,8 +190,11 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
 
         RequestBody requestBody =
             RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
-        Request request =
-            new Request.Builder().headers(headers).url(submissionUrl).post(requestBody).build();
+        Request request = new Request.Builder()
+            .headers(headers)
+            .url(submissionUrl)
+            .post(requestBody)
+            .build();
 
         try (okhttp3.Response response =
             OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {

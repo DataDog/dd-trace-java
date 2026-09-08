@@ -195,7 +195,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(Tags.PEER_SERVICE, hostname);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     } else {
-      if (bestPrecursor != null && SpanNaming.instance().namingSchema().peerService().supports()) {
+      if (bestPrecursor != null
+          && SpanNaming.instance().namingSchema().peerService().supports()) {
         span.setTag(Tags.PEER_SERVICE, bestPeerService);
         span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
       }

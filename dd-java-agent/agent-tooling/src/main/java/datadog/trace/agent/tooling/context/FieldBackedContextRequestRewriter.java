@@ -39,12 +39,10 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
       getInternalName(FieldBackedContextStores.class.getName());
 
   static final String GET_METHOD = "get";
-  static final String GET_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.getType(ContextStore.class), Type.getType(Class.class), Type.getType(Class.class));
-  static final String GET_METHOD_DESCRIPTOR_2 =
-      Type.getMethodDescriptor(
-          Type.getType(ContextStore.class), Type.getType(String.class), Type.getType(String.class));
+  static final String GET_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.getType(ContextStore.class), Type.getType(Class.class), Type.getType(Class.class));
+  static final String GET_METHOD_DESCRIPTOR_2 = Type.getMethodDescriptor(
+      Type.getType(ContextStore.class), Type.getType(String.class), Type.getType(String.class));
 
   static final String GET_CONTENT_STORE_METHOD = "getContextStore";
   static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
@@ -141,10 +139,9 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
                       contextClassName);
                 }
                 if (!contextClassName.equals(contextStore.get(keyClassName))) {
-                  throw new IllegalStateException(
-                      String.format(
-                          "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for instrumentation %s",
-                          contextClassName, contextStore.get(keyClassName), instrumenterClassName));
+                  throw new IllegalStateException(String.format(
+                      "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for instrumentation %s",
+                      contextClassName, contextStore.get(keyClassName), instrumenterClassName));
                 }
                 // discard original parameters so we can use numeric id instead
                 mv.visitInsn(Opcodes.POP2);

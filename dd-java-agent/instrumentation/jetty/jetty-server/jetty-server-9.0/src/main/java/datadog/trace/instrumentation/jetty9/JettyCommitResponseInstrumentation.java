@@ -114,9 +114,8 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
 
       Response resp = connection.getResponse();
 
-      Flow<Void> flow =
-          DECORATE.callIGCallbackResponseAndHeaders(
-              span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
+      Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+          span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

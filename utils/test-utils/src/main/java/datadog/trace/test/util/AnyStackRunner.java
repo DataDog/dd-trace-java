@@ -17,13 +17,12 @@ public class AnyStackRunner {
    */
   public static void callWithinStack(final String parentClass, final Runnable runnable) {
     // Create a copy of the RunnerRunner template class with the given name.
-    final Class<?> dynamicType =
-        new ByteBuddy()
-            .redefine(RunnerRunner.class)
-            .name(parentClass)
-            .make()
-            .load(AnyStackRunner.class.getClassLoader())
-            .getLoaded();
+    final Class<?> dynamicType = new ByteBuddy()
+        .redefine(RunnerRunner.class)
+        .name(parentClass)
+        .make()
+        .load(AnyStackRunner.class.getClassLoader())
+        .getLoaded();
     try {
       Consumer<Runnable> obj =
           (Consumer<Runnable>) dynamicType.getDeclaredConstructor().newInstance();

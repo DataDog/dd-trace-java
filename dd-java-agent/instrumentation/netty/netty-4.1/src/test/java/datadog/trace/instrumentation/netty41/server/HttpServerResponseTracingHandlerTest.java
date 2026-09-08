@@ -158,10 +158,9 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
     ReferenceCountUtil.release(channel.readOutbound());
 
-    EncoderException exception =
-        assertThrows(
-            EncoderException.class,
-            () -> channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+    EncoderException exception = assertThrows(
+        EncoderException.class,
+        () -> channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
 
     assertTrue(exception.getCause() instanceof IllegalStateException);
 

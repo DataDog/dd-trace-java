@@ -50,16 +50,14 @@ public class EvalContextHelper {
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       Object value = entry.getValue();
       if (Redaction.isRedactedKeyword(entry.getKey())) {
-        fieldValues[index++] =
-            CapturedContext.CapturedValue.redacted(
-                entry.getKey(),
-                value != null ? value.getClass().getTypeName() : Object.class.getTypeName());
+        fieldValues[index++] = CapturedContext.CapturedValue.redacted(
+            entry.getKey(),
+            value != null ? value.getClass().getTypeName() : Object.class.getTypeName());
       } else {
-        fieldValues[index++] =
-            CapturedContext.CapturedValue.of(
-                entry.getKey(),
-                value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
-                value);
+        fieldValues[index++] = CapturedContext.CapturedValue.of(
+            entry.getKey(),
+            value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+            value);
       }
     }
   }

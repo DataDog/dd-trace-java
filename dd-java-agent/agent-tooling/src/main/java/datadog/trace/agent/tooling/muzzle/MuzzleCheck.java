@@ -54,10 +54,9 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
 
   private ReferenceMatcher muzzle() {
     if (null == muzzle) {
-      muzzle =
-          InstrumenterModule.loadStaticMuzzleReferences(
-                  Utils.getExtendedClassLoader(), instrumentationClass)
-              .withReferenceProvider(runtimeMuzzleReferences);
+      muzzle = InstrumenterModule.loadStaticMuzzleReferences(
+              Utils.getExtendedClassLoader(), instrumentationClass)
+          .withReferenceProvider(runtimeMuzzleReferences);
     }
     return muzzle;
   }

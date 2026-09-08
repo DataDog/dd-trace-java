@@ -79,15 +79,14 @@ public class SayTracedHello {
   @Trace
   public static CompletableFuture<String> sayHelloFuture(CountDownLatch latch) {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test");
-    return CompletableFuture.supplyAsync(
-        () -> {
-          try {
-            latch.await();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-          return "hello!";
-        });
+    return CompletableFuture.supplyAsync(() -> {
+      try {
+        latch.await();
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      return "hello!";
+    });
   }
 
   public static String fromCallable() throws Exception {

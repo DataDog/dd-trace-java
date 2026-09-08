@@ -249,15 +249,13 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
       List<LLMObs.Document> documents = new ArrayList<>(messages.size());
       for (int i = 0; i < messages.size(); i++) {
         LLMObs.LLMMessage message = messages.get(i);
-        Object originalDocument =
-            originalDocuments != null && i < originalDocuments.size()
-                ? originalDocuments.get(i)
-                : null;
+        Object originalDocument = originalDocuments != null && i < originalDocuments.size()
+            ? originalDocuments.get(i)
+            : null;
         if (originalDocument instanceof LLMObs.Document) {
           LLMObs.Document document = (LLMObs.Document) originalDocument;
-          documents.add(
-              LLMObs.Document.from(
-                  message.getContent(), document.getName(), document.getId(), document.getScore()));
+          documents.add(LLMObs.Document.from(
+              message.getContent(), document.getName(), document.getId(), document.getScore()));
         } else {
           documents.add(LLMObs.Document.from(message.getContent()));
         }

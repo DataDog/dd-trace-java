@@ -216,10 +216,9 @@ public class CapturedContextInstrumenter extends Instrumenter {
       return -1;
     }
     int exceptionLocalIdx = ((VarInsnNode) current).var;
-    Set<String> localNames =
-        methodNode.localVariables.stream()
-            .map(localVariableNode -> localVariableNode.name)
-            .collect(Collectors.toSet());
+    Set<String> localNames = methodNode.localVariables.stream()
+        .map(localVariableNode -> localVariableNode.name)
+        .collect(Collectors.toSet());
     // find next label assume this is the end of the handler
     while (current != null && current.getType() != AbstractInsnNode.LABEL) {
       current = current.getNext();
@@ -232,14 +231,13 @@ public class CapturedContextInstrumenter extends Instrumenter {
     for (int i = 0; i < 100; i++) {
       String exceptionLocalName = "ex" + i;
       if (!localNames.contains(exceptionLocalName)) {
-        methodNode.localVariables.add(
-            new LocalVariableNode(
-                exceptionLocalName,
-                "L" + catchHandler.type + ";",
-                null,
-                catchHandler.handler,
-                end,
-                exceptionLocalIdx));
+        methodNode.localVariables.add(new LocalVariableNode(
+            exceptionLocalName,
+            "L" + catchHandler.type + ";",
+            null,
+            catchHandler.handler,
+            end,
+            exceptionLocalIdx));
         return exceptionLocalIdx;
       }
     }

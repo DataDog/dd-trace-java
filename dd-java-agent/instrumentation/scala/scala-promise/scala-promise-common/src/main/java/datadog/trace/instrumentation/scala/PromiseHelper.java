@@ -13,10 +13,8 @@ import scala.util.Success;
 import scala.util.Try;
 
 public class PromiseHelper {
-  public static final boolean completionPriority =
-      InstrumenterConfig.get()
-          .isIntegrationEnabled(
-              Collections.singletonList("scala_promise_completion_priority"), false);
+  public static final boolean completionPriority = InstrumenterConfig.get()
+      .isIntegrationEnabled(Collections.singletonList("scala_promise_completion_priority"), false);
 
   /**
    * Get the {@code Try} that should be associated with the {@code Context}. Will create a new copy

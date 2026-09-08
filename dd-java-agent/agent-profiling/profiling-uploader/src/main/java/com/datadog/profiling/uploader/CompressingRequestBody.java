@@ -229,29 +229,26 @@ final class CompressingRequestBody extends RequestBody {
 
   private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull OutputStream outputStream)
       throws IOException {
-    try (OutputStream sinkStream =
-        isCompressed(inputStream)
-            ? new BufferedOutputStream(outputStream) {
-              @Override
-              public void close() throws IOException {
-                // Do not propagate close; call 'flush()' instead.
-                // Compression streams must be 'closed' because they finalize the
-                // compression
-                // in that method.
-                flush();
-              }
-            }
-            : new BufferedOutputStream(
-                outputStreamMapper.apply(
-                    new BufferedOutputStream(outputStream) {
-                      @Override
-                      public void close() throws IOException {
-                        // Do not propagate close; call 'flush()' instead.
-                        // Compression streams must be 'closed' because they finalize the
-                        // compression in that method.
-                        flush();
-                      }
-                    }))) {
+    try (OutputStream sinkStream = isCompressed(inputStream)
+        ? new BufferedOutputStream(outputStream) {
+          @Override
+          public void close() throws IOException {
+            // Do not propagate close; call 'flush()' instead.
+            // Compression streams must be 'closed' because they finalize the
+            // compression
+            // in that method.
+            flush();
+          }
+        }
+        : new BufferedOutputStream(outputStreamMapper.apply(new BufferedOutputStream(outputStream) {
+          @Override
+          public void close() throws IOException {
+            // Do not propagate close; call 'flush()' instead.
+            // Compression streams must be 'closed' because they finalize the
+            // compression in that method.
+            flush();
+          }
+        }))) {
       BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
       try (Source source = Okio.buffer(Okio.source(inputStream))) {
         sink.writeAll(source);
@@ -356,24 +353,20 @@ final class CompressingRequestBody extends RequestBody {
     }
 
     switch (compressionType) {
-      case GZIP:
-        {
-          return GZIPOutputStream::new;
-        }
-      case OFF:
-        {
-          return out -> out;
-        }
-      case LZ4:
-        {
-          return CompressingRequestBody::toLz4Stream;
-        }
+      case GZIP: {
+        return GZIPOutputStream::new;
+      }
+      case OFF: {
+        return out -> out;
+      }
+      case LZ4: {
+        return CompressingRequestBody::toLz4Stream;
+      }
       case ON:
       case ZSTD:
-      default:
-        {
-          return CompressingRequestBody::toZstdStream;
-        }
+      default: {
+        return CompressingRequestBody::toZstdStream;
+      }
     }
   }
 

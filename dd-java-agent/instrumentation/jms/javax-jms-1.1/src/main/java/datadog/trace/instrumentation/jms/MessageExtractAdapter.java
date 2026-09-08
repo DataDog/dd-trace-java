@@ -17,14 +17,13 @@ import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
-  private static final Function<String, String> KEY_MAPPER =
-      new Function<String, String>() {
-        @SuppressForbidden
-        @Override
-        public String apply(String key) {
-          return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
-        }
-      };
+  private static final Function<String, String> KEY_MAPPER = new Function<String, String>() {
+    @SuppressForbidden
+    @Override
+    public String apply(String key) {
+      return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
+    }
+  };
 
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(32);
 

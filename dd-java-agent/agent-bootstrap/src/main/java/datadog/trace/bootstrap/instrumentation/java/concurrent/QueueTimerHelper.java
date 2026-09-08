@@ -18,15 +18,13 @@ public class QueueTimerHelper {
   private static final class RateLimiterHolder {
     // indirection to prevent needing to instantiate the class and its transitive dependencies
     // in graal native image
-    private static final PerRecordingRateLimiter RATE_LIMITER =
-        new PerRecordingRateLimiter(
-            Duration.of(500, ChronoUnit.MILLIS),
-            10_000, // hard limit on queue events
-            Duration.ofSeconds(
-                ConfigProvider.getInstance()
-                    .getInteger(
-                        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-                        ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
+    private static final PerRecordingRateLimiter RATE_LIMITER = new PerRecordingRateLimiter(
+        Duration.of(500, ChronoUnit.MILLIS),
+        10_000, // hard limit on queue events
+        Duration.ofSeconds(ConfigProvider.getInstance()
+            .getInteger(
+                ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+                ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
   }
 
   public static <T> void startQueuingTimer(

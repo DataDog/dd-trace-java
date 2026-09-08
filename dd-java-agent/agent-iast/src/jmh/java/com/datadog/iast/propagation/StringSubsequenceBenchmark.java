@@ -24,22 +24,14 @@ public class StringSubsequenceBenchmark
     final String notTainted = new String(DEFAULT_STRING);
 
     final String taintedLoseRange = new String(DEFAULT_STRING);
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedLoseRange,
-            new Range[] {
-              new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"), NOT_MARKED)
-            });
+    iastRequestContext.getTaintedObjects().taint(taintedLoseRange, new Range[] {
+      new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"), NOT_MARKED)
+    });
 
     final String taintedModifyRange = new String(DEFAULT_STRING);
-    iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedModifyRange,
-            new Range[] {
-              new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"), NOT_MARKED)
-            });
+    iastRequestContext.getTaintedObjects().taint(taintedModifyRange, new Range[] {
+      new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"), NOT_MARKED)
+    });
 
     return new StringSubsequenceBenchmark.Context(
         iastRequestContext, notTainted, taintedLoseRange, taintedModifyRange);

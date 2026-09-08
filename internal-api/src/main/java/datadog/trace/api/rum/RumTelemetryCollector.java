@@ -10,42 +10,41 @@ import java.util.Collections;
  */
 public interface RumTelemetryCollector {
 
-  RumTelemetryCollector NO_OP =
-      new RumTelemetryCollector() {
-        @Override
-        public void onInjectionSucceed(String integrationVersion) {}
+  RumTelemetryCollector NO_OP = new RumTelemetryCollector() {
+    @Override
+    public void onInjectionSucceed(String integrationVersion) {}
 
-        @Override
-        public void onInjectionFailed(String integrationVersion, String contentEncoding) {}
+    @Override
+    public void onInjectionFailed(String integrationVersion, String contentEncoding) {}
 
-        @Override
-        public void onInjectionSkipped(String integrationVersion) {}
+    @Override
+    public void onInjectionSkipped(String integrationVersion) {}
 
-        @Override
-        public void onInitializationSucceed() {}
+    @Override
+    public void onInitializationSucceed() {}
 
-        @Override
-        public void onContentSecurityPolicyDetected(String integrationVersion) {}
+    @Override
+    public void onContentSecurityPolicyDetected(String integrationVersion) {}
 
-        @Override
-        public void onInjectionResponseSize(String integrationVersion, long bytes) {}
+    @Override
+    public void onInjectionResponseSize(String integrationVersion, long bytes) {}
 
-        @Override
-        public void onInjectionTime(String integrationVersion, long milliseconds) {}
+    @Override
+    public void onInjectionTime(String integrationVersion, long milliseconds) {}
 
-        @Override
-        public void close() {}
+    @Override
+    public void close() {}
 
-        @Override
-        public Collection<MetricCollector.Metric> drain() {
-          return Collections.emptyList();
-        }
+    @Override
+    public Collection<MetricCollector.Metric> drain() {
+      return Collections.emptyList();
+    }
 
-        @Override
-        public Collection<MetricCollector.DistributionSeriesPoint> drainDistributionSeries() {
-          return Collections.emptyList();
-        }
-      };
+    @Override
+    public Collection<MetricCollector.DistributionSeriesPoint> drainDistributionSeries() {
+      return Collections.emptyList();
+    }
+  };
 
   /**
    * Reports successful RUM injection.

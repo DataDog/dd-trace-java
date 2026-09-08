@@ -36,7 +36,10 @@ public class DDEvpProxyApi extends RemoteApi {
 
   public static class DDEvpProxyApiBuilder {
     private String apiVersion = DEFAULT_INTAKE_VERSION;
-    @Nonnull private TrackType trackType = TrackType.NOOP;
+
+    @Nonnull
+    private TrackType trackType = TrackType.NOOP;
+
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl agentUrl = null;
@@ -87,10 +90,9 @@ public class DDEvpProxyApi extends RemoteApi {
       final HttpUrl proxiedApiUrl =
           evpProxyUrl.resolve(String.format("api/%s/%s", apiVersion, trackName));
 
-      final OkHttpClient client =
-          (httpClient != null)
-              ? httpClient
-              : OkHttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
+      final OkHttpClient client = (httpClient != null)
+          ? httpClient
+          : OkHttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
 
       final HttpRetryPolicy.Factory retryPolicyFactory =
           new HttpRetryPolicy.Factory(5, 100, 2.0, true);
@@ -128,11 +130,10 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    Request.Builder builder =
-        new Request.Builder()
-            .url(proxiedApiUrl)
-            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener);
+    Request.Builder builder = new Request.Builder()
+        .url(proxiedApiUrl)
+        .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
+        .tag(OkHttpUtils.CustomListener.class, telemetryListener);
 
     if (isCompressionEnabled()) {
       builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);

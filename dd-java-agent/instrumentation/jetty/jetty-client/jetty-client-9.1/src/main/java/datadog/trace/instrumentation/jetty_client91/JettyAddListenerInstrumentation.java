@@ -79,11 +79,10 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.RequestListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
@@ -98,11 +97,10 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.FailureListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
@@ -117,11 +115,10 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.SuccessListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
@@ -136,11 +133,10 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Response.CompleteListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 

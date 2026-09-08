@@ -24,7 +24,12 @@ public final class OtlpLogsJson {
     }
 
     if (logRecord.body != null) {
-      writer.name("body").beginObject().name("stringValue").value(logRecord.body).endObject();
+      writer
+          .name("body")
+          .beginObject()
+          .name("stringValue")
+          .value(logRecord.body)
+          .endObject();
     }
 
     if (logRecord.spanContext != null) {

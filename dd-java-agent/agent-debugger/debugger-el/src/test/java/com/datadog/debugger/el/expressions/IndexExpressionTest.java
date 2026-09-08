@@ -98,9 +98,8 @@ class IndexExpressionTest {
 
   @Test
   void testUnsupportedList() {
-    IndexExpression expr =
-        new IndexExpression(
-            new ListValue(new ArrayList<String>() {}), new NumericValue(0, ValueType.INT));
+    IndexExpression expr = new IndexExpression(
+        new ListValue(new ArrayList<String>() {}), new NumericValue(0, ValueType.INT));
     EvaluationException evaluationException =
         assertThrows(EvaluationException.class, () -> expr.evaluate(evalContext));
     assertEquals(
@@ -110,9 +109,8 @@ class IndexExpressionTest {
 
   @Test
   void testOutOfBoundsList() {
-    IndexExpression expr =
-        new IndexExpression(
-            new ListValue(new ArrayList<String>()), new NumericValue(42, ValueType.INT));
+    IndexExpression expr = new IndexExpression(
+        new ListValue(new ArrayList<String>()), new NumericValue(42, ValueType.INT));
     EvaluationException evaluationException =
         assertThrows(EvaluationException.class, () -> expr.evaluate(evalContext));
     assertEquals("index[42] out of bounds: [0-0]", evaluationException.getMessage());
@@ -165,26 +163,24 @@ class IndexExpressionTest {
         "com.datadog.debugger.el.expressions.IndexExpressionTest*");
     try {
       Redaction.addUserDefinedTypes(Config.get());
-      IndexExpression exprArray =
-          new IndexExpression(
-              new ValueRefExpression("secretArray"), new NumericValue(0, ValueType.INT));
-      RedactedException redactedException =
-          assertThrows(RedactedException.class, () -> exprArray.evaluate(evalContext).getValue());
+      IndexExpression exprArray = new IndexExpression(
+          new ValueRefExpression("secretArray"), new NumericValue(0, ValueType.INT));
+      RedactedException redactedException = assertThrows(
+          RedactedException.class, () -> exprArray.evaluate(evalContext).getValue());
       assertEquals(
           "Could not evaluate the expression because 'secretArray[0]' was redacted",
           redactedException.getMessage());
-      IndexExpression exprList =
-          new IndexExpression(
-              new ValueRefExpression("secretList"), new NumericValue(0, ValueType.INT));
-      redactedException =
-          assertThrows(RedactedException.class, () -> exprList.evaluate(evalContext).getValue());
+      IndexExpression exprList = new IndexExpression(
+          new ValueRefExpression("secretList"), new NumericValue(0, ValueType.INT));
+      redactedException = assertThrows(
+          RedactedException.class, () -> exprList.evaluate(evalContext).getValue());
       assertEquals(
           "Could not evaluate the expression because 'secretList[0]' was redacted",
           redactedException.getMessage());
       IndexExpression exprMap =
           new IndexExpression(new ValueRefExpression("secretMap"), new StringValue("foo"));
-      redactedException =
-          assertThrows(RedactedException.class, () -> exprMap.evaluate(evalContext).getValue());
+      redactedException = assertThrows(
+          RedactedException.class, () -> exprMap.evaluate(evalContext).getValue());
       assertEquals(
           "Could not evaluate the expression because 'secretMap[\"foo\"]' was redacted",
           redactedException.getMessage());
@@ -195,9 +191,8 @@ class IndexExpressionTest {
 
   @Test
   void stringPrimitives() {
-    IndexExpression expr =
-        new IndexExpression(
-            new ValueRefExpression("uuidArray"), new NumericValue(1, ValueType.INT));
+    IndexExpression expr = new IndexExpression(
+        new ValueRefExpression("uuidArray"), new NumericValue(1, ValueType.INT));
     assertEquals(UUID_2, expr.evaluate(evalContext).getValue());
     expr =
         new IndexExpression(new ValueRefExpression("uuidList"), new NumericValue(1, ValueType.INT));

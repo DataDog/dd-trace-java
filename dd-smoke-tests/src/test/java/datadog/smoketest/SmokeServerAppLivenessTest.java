@@ -16,13 +16,12 @@ class SmokeServerAppLivenessTest {
 
   @Test
   void failsWhenTheServerDiesDuringATest() throws Exception {
-    SmokeServerApp app =
-        SmokeServerApp.named("dying-server")
-            .mainClass("datadog.smoketest.TestServerApp")
-            .args("--server.port=${app.httpPort}")
-            .backend(AgentBackend.mockAgent())
-            .noAgent()
-            .build();
+    SmokeServerApp app = SmokeServerApp.named("dying-server")
+        .mainClass("datadog.smoketest.TestServerApp")
+        .args("--server.port=${app.httpPort}")
+        .backend(AgentBackend.mockAgent())
+        .noAgent()
+        .build();
 
     app.beforeAll(null);
     try {

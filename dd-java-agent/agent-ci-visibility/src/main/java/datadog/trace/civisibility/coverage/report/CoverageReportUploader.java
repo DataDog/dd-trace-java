@@ -62,20 +62,18 @@ public class CoverageReportUploader {
 
     RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
 
-    MultipartBody multipartBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("coverage", "coverage.gz", coverageBody)
-            .addFormDataPart("event", "event.json", eventBody)
-            .build();
+    MultipartBody multipartBody = new MultipartBody.Builder()
+        .setType(MultipartBody.FORM)
+        .addFormDataPart("coverage", "coverage.gz", coverageBody)
+        .addFormDataPart("event", "event.json", eventBody)
+        .build();
 
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
-            .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
-            .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
-            .build();
+    OkHttpUtils.CustomListener telemetryListener = new TelemetryListener.Builder(metricCollector)
+        .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
+        .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
+        .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
+        .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
+        .build();
 
     backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);
   }

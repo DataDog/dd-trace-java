@@ -31,9 +31,8 @@ public class MultiWriter implements Writer {
     int i = 0;
 
     for (String writerConfig : writerConfigs) {
-      writers[i] =
-          WriterFactory.createWriter(
-              config, commObjects, sampler, singleSpanSampler, healthMetrics, writerConfig);
+      writers[i] = WriterFactory.createWriter(
+          config, commObjects, sampler, singleSpanSampler, healthMetrics, writerConfig);
       i++;
     }
   }

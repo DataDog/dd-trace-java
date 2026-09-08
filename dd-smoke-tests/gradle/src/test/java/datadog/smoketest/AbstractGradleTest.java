@@ -44,7 +44,8 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
   private static final int TEMP_DIR_CLEANUP_RETRIES = 10;
   private static final long TEMP_DIR_CLEANUP_RETRY_DELAY_MILLIS = 200;
 
-  @TempDir protected Path projectFolder;
+  @TempDir
+  protected Path projectFolder;
 
   protected final MockBackend mockBackend = new MockBackend();
 
@@ -84,11 +85,10 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
       }
     }
     if (Files.exists(directory)) {
-      System.err.println(
-          "WARNING: could not fully delete temp directory "
-              + directory
-              + " after stopping Gradle daemons; leaving it for the OS to reap. "
-              + "A Gradle daemon likely still holds a file handle on it.");
+      System.err.println("WARNING: could not fully delete temp directory "
+          + directory
+          + " after stopping Gradle daemons; leaving it for the OS to reap. "
+          + "A Gradle daemon likely still holds a file handle on it.");
     }
   }
 
@@ -99,32 +99,27 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     }
     boolean windows = OperatingSystem.isWindows();
     try (Stream<Path> files = Files.walk(testKitDir)) {
-      files
-          .filter(Files::isRegularFile)
-          .forEach(
-              file -> {
-                String name = file.getFileName().toString();
-                if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
-                  return;
-                }
-                String pid =
-                    name.substring("daemon-".length(), name.length() - ".out.log".length());
-                if (!pid.matches("\\d+")) {
-                  // skip the UUID fallback Gradle uses when the PID is unavailable
-                  return;
-                }
-                ProcessBuilder kill =
-                    windows
-                        ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
-                        : new ProcessBuilder("kill", pid);
-                try {
-                  kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                  // best effort — the daemon may already be stopped
-                }
-              });
+      files.filter(Files::isRegularFile).forEach(file -> {
+        String name = file.getFileName().toString();
+        if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
+          return;
+        }
+        String pid = name.substring("daemon-".length(), name.length() - ".out.log".length());
+        if (!pid.matches("\\d+")) {
+          // skip the UUID fallback Gradle uses when the PID is unavailable
+          return;
+        }
+        ProcessBuilder kill = windows
+            ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
+            : new ProcessBuilder("kill", pid);
+        try {
+          kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } catch (Exception e) {
+          // best effort — the daemon may already be stopped
+        }
+      });
     } catch (Exception e) {
       // best effort — failing to enumerate daemon logs must not fail the test run
     }
@@ -141,47 +136,42 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
       throws IOException {
     Path projectResourcesPath;
     try {
-      projectResourcesPath =
-          Paths.get(this.getClass().getClassLoader().getResource(projectFilesSources).toURI());
+      projectResourcesPath = Paths.get(
+          this.getClass().getClassLoader().getResource(projectFilesSources).toURI());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
     FileUtils.copyDirectory(projectResourcesPath.toFile(), projectFolder.toFile());
 
-    Files.walkFileTree(
-        projectFolder,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Map<String, String> replacements =
-                replacementsByFileName.get(file.getFileName().toString());
-            if (replacements != null) {
-              String fileContents = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
-              Matcher matcher = PLACEHOLDER_PATTERN.matcher(fileContents);
+    Files.walkFileTree(projectFolder, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Map<String, String> replacements =
+            replacementsByFileName.get(file.getFileName().toString());
+        if (replacements != null) {
+          String fileContents = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+          Matcher matcher = PLACEHOLDER_PATTERN.matcher(fileContents);
 
-              StringBuffer result = new StringBuffer();
-              while (matcher.find()) {
-                String propertyName = matcher.group(1);
-                String replacement = replacements.getOrDefault(propertyName, matcher.group(0));
-                matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
-              }
-              matcher.appendTail(result);
-
-              Files.write(file, result.toString().getBytes(StandardCharsets.UTF_8));
-            }
-
-            if (file.toString().endsWith(GRADLE_TEST_RESOURCE_EXTENSION)) {
-              Path fileWithFixedExtension =
-                  Paths.get(
-                      file.toString()
-                          .replace(GRADLE_TEST_RESOURCE_EXTENSION, GRADLE_REGULAR_EXTENSION));
-              Files.move(file, fileWithFixedExtension);
-            }
-
-            return FileVisitResult.CONTINUE;
+          StringBuffer result = new StringBuffer();
+          while (matcher.find()) {
+            String propertyName = matcher.group(1);
+            String replacement = replacements.getOrDefault(propertyName, matcher.group(0));
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
           }
-        });
+          matcher.appendTail(result);
+
+          Files.write(file, result.toString().getBytes(StandardCharsets.UTF_8));
+        }
+
+        if (file.toString().endsWith(GRADLE_TEST_RESOURCE_EXTENSION)) {
+          Path fileWithFixedExtension = Paths.get(
+              file.toString().replace(GRADLE_TEST_RESOURCE_EXTENSION, GRADLE_REGULAR_EXTENSION));
+          Files.move(file, fileWithFixedExtension);
+        }
+
+        return FileVisitResult.CONTINUE;
+      }
+    });
 
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectFolder.resolve(".git"));
@@ -253,10 +243,9 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   private static Properties loadToolVersions() {
     Properties properties = new Properties();
-    try (InputStream stream =
-        AbstractGradleTest.class
-            .getClassLoader()
-            .getResourceAsStream("latest-tool-versions.properties")) {
+    try (InputStream stream = AbstractGradleTest.class
+        .getClassLoader()
+        .getResourceAsStream("latest-tool-versions.properties")) {
       if (stream == null) {
         throw new IllegalStateException(
             "Could not find latest-tool-versions.properties on classpath");
@@ -271,11 +260,10 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
   protected static String toolVersion(String key) {
     String value = TOOL_VERSIONS.getProperty(key);
     if (value == null) {
-      throw new IllegalStateException(
-          "Missing '"
-              + key
-              + "' in latest-tool-versions.properties; re-run the "
-              + "update-smoke-test-latest-versions workflow.");
+      throw new IllegalStateException("Missing '"
+          + key
+          + "' in latest-tool-versions.properties; re-run the "
+          + "update-smoke-test-latest-versions workflow.");
     }
     return value;
   }

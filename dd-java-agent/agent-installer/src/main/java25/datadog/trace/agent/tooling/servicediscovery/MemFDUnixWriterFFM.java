@@ -36,40 +36,37 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
         final SymbolLookup lookup = linker.defaultLookup();
         // long syscall(long number, ...)
         // Note: variadic functions require special handling, we'll use a fixed signature
-        syscall =
-            linker.downcallHandle(
-                lookup.find("syscall").orElseThrow(),
-                FunctionDescriptor.of(
-                    ValueLayout.JAVA_LONG, // return type: long
-                    ValueLayout.JAVA_LONG, // syscall number
-                    ValueLayout.ADDRESS, // const char* name
-                    ValueLayout.JAVA_INT // int flags
-                    ),
-                Linker.Option.captureCallState("errno"));
+        syscall = linker.downcallHandle(
+            lookup.find("syscall").orElseThrow(),
+            FunctionDescriptor.of(
+                ValueLayout.JAVA_LONG, // return type: long
+                ValueLayout.JAVA_LONG, // syscall number
+                ValueLayout.ADDRESS, // const char* name
+                ValueLayout.JAVA_INT // int flags
+                ),
+            Linker.Option.captureCallState("errno"));
 
         // ssize_t write(int fd, const void *buf, size_t count)
-        write =
-            linker.downcallHandle(
-                lookup.find("write").orElseThrow(),
-                FunctionDescriptor.of(
-                    ValueLayout.JAVA_LONG, // return type: ssize_t
-                    ValueLayout.JAVA_INT, // int fd
-                    ValueLayout.ADDRESS, // const void* buf
-                    ValueLayout.JAVA_LONG // size_t count
-                    ),
-                Linker.Option.captureCallState("errno"));
+        write = linker.downcallHandle(
+            lookup.find("write").orElseThrow(),
+            FunctionDescriptor.of(
+                ValueLayout.JAVA_LONG, // return type: ssize_t
+                ValueLayout.JAVA_INT, // int fd
+                ValueLayout.ADDRESS, // const void* buf
+                ValueLayout.JAVA_LONG // size_t count
+                ),
+            Linker.Option.captureCallState("errno"));
 
         // int fcntl(int fd, int cmd, ... /* arg */)
-        fcntl =
-            linker.downcallHandle(
-                lookup.find("fcntl").orElseThrow(),
-                FunctionDescriptor.of(
-                    ValueLayout.JAVA_INT, // return type: int
-                    ValueLayout.JAVA_INT, // int fd
-                    ValueLayout.JAVA_INT, // int cmd
-                    ValueLayout.JAVA_INT // int arg
-                    ),
-                Linker.Option.captureCallState("errno"));
+        fcntl = linker.downcallHandle(
+            lookup.find("fcntl").orElseThrow(),
+            FunctionDescriptor.of(
+                ValueLayout.JAVA_INT, // return type: int
+                ValueLayout.JAVA_INT, // int fd
+                ValueLayout.JAVA_INT, // int cmd
+                ValueLayout.JAVA_INT // int arg
+                ),
+            Linker.Option.captureCallState("errno"));
       } catch (final Throwable ex) {
         log.error("Failed to initialize MemFDUnixWriterFFM", ex);
       } finally {

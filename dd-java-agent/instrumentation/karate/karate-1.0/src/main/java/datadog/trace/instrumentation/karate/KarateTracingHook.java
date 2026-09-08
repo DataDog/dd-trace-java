@@ -120,9 +120,8 @@ public class KarateTracingHook implements RuntimeHook {
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
               && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
-        TestExecutionTracker executionTracker =
-            (TestExecutionTracker)
-                sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
+        TestExecutionTracker executionTracker = (TestExecutionTracker)
+            sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,

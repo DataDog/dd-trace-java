@@ -18,7 +18,8 @@ public class FFMApiModule extends InstrumenterModule.Tracing {
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && !InstrumenterConfig.get().getTraceNativeMethods().isEmpty();
+    return super.isEnabled()
+        && !InstrumenterConfig.get().getTraceNativeMethods().isEmpty();
   }
 
   @Override

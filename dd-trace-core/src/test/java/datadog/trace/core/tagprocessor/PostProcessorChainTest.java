@@ -17,23 +17,21 @@ class PostProcessorChainTest extends DDJavaSpecification {
 
   @Test
   void chainWorks() {
-    TagsPostProcessor processor1 =
-        new TagsPostProcessor() {
-          @Override
-          public void processTags(
-              TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-            unsafeTags.put("key1", "processor1");
-            unsafeTags.put("key2", "processor1");
-          }
-        };
-    TagsPostProcessor processor2 =
-        new TagsPostProcessor() {
-          @Override
-          public void processTags(
-              TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-            unsafeTags.put("key1", "processor2");
-          }
-        };
+    TagsPostProcessor processor1 = new TagsPostProcessor() {
+      @Override
+      public void processTags(
+          TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        unsafeTags.put("key1", "processor1");
+        unsafeTags.put("key2", "processor1");
+      }
+    };
+    TagsPostProcessor processor2 = new TagsPostProcessor() {
+      @Override
+      public void processTags(
+          TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        unsafeTags.put("key1", "processor2");
+      }
+    };
 
     PostProcessorChain chain = new PostProcessorChain(processor1, processor2);
 
@@ -50,25 +48,23 @@ class PostProcessorChainTest extends DDJavaSpecification {
 
   @Test
   void processorCanHideTagsToNextOne() {
-    TagsPostProcessor processor1 =
-        new TagsPostProcessor() {
-          @Override
-          public void processTags(
-              TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-            unsafeTags.clear();
-            unsafeTags.put("my", "tag");
-          }
-        };
-    TagsPostProcessor processor2 =
-        new TagsPostProcessor() {
-          @Override
-          public void processTags(
-              TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-            if (unsafeTags.containsKey("test")) {
-              unsafeTags.put("found", "true");
-            }
-          }
-        };
+    TagsPostProcessor processor1 = new TagsPostProcessor() {
+      @Override
+      public void processTags(
+          TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        unsafeTags.clear();
+        unsafeTags.put("my", "tag");
+      }
+    };
+    TagsPostProcessor processor2 = new TagsPostProcessor() {
+      @Override
+      public void processTags(
+          TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        if (unsafeTags.containsKey("test")) {
+          unsafeTags.put("found", "true");
+        }
+      }
+    };
 
     PostProcessorChain chain = new PostProcessorChain(processor1, processor2);
 

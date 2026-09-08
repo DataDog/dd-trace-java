@@ -63,9 +63,8 @@ public class DefaultExceptionDebuggerTest {
   @BeforeEach
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering =
-        new ClassNameFiltering(
-            new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+    classNameFiltering = new ClassNameFiltering(
+        new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     Config config = createConfig();
     exceptionDebugger =
         new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, config);
@@ -122,29 +121,24 @@ public class DefaultExceptionDebuggerTest {
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
-    int expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createNestException");
+    int expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createNestException");
     assertSnapshot(
         spanTags,
         snapshotMap,
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createNestException");
-    expectedFrameIndex =
-        findFrameIndex(
-            lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.nestedException");
+    expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.nestedException");
     assertSnapshot(
         spanTags,
         snapshotMap,
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "nestedException");
-    expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest1Exception");
+    expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest1Exception");
     assertSnapshot(
         spanTags,
         snapshotMap,
@@ -202,30 +196,24 @@ public class DefaultExceptionDebuggerTest {
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(nestedException);
-    int expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createNestException");
+    int expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createNestException");
     assertSnapshot(
         spanTags,
         snapshotMap,
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createNestException");
-    expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.doubleNestedException");
+    expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.doubleNestedException");
     assertSnapshot(
         spanTags,
         snapshotMap,
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "doubleNestedException");
-    expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest1Exception");
+    expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest1Exception");
     assertSnapshot(
         spanTags,
         snapshotMap,
@@ -272,10 +260,8 @@ public class DefaultExceptionDebuggerTest {
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
-    int expectedFrameIndex =
-        findFrameIndex(
-            lines,
-            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest2Exception");
+    int expectedFrameIndex = findFrameIndex(
+        lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest2Exception");
     assertSnapshot(
         spanTags,
         snapshotMap,
@@ -295,22 +281,18 @@ public class DefaultExceptionDebuggerTest {
 
   @Test
   public void lambdaTruncatedInnerTraceFallback() {
-    RuntimeException exception =
-        new RuntimeException("lambda") {
-          // mock the stacktrace to simulate a truncated one
-          @Override
-          public StackTraceElement[] getStackTrace() {
-            return new StackTraceElement[] {
-              new StackTraceElement("Main", "handleRequest", "Main.java", 11),
-              new StackTraceElement(
-                  "jdk.internal.reflect.DirectMethodHandleAccessor",
-                  "invoke",
-                  "Unknown Source",
-                  -1),
-              new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
-            };
-          }
+    RuntimeException exception = new RuntimeException("lambda") {
+      // mock the stacktrace to simulate a truncated one
+      @Override
+      public StackTraceElement[] getStackTrace() {
+        return new StackTraceElement[] {
+          new StackTraceElement("Main", "handleRequest", "Main.java", 11),
+          new StackTraceElement(
+              "jdk.internal.reflect.DirectMethodHandleAccessor", "invoke", "Unknown Source", -1),
+          new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
         };
+      }
+    };
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
@@ -425,19 +407,17 @@ public class DefaultExceptionDebuggerTest {
 
   private void rewriteSnapshotStacktrace(
       RuntimeException exception, Throwable throwable, int framesToRemove) {
-    ExceptionProbeManager.ThrowableState state =
-        exceptionDebugger
-            .getExceptionProbeManager()
-            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+    ExceptionProbeManager.ThrowableState state = exceptionDebugger
+        .getExceptionProbeManager()
+        .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
     Snapshot lastSnapshot = state.getSnapshots().get(state.getSnapshots().size() - 1);
     lastSnapshot.getStack().clear();
     lastSnapshot
         .getStack()
-        .addAll(
-            Arrays.stream(throwable.getStackTrace())
-                .skip(framesToRemove)
-                .map(CapturedStackFrame::from)
-                .collect(toList()));
+        .addAll(Arrays.stream(throwable.getStackTrace())
+            .skip(framesToRemove)
+            .map(CapturedStackFrame::from)
+            .collect(toList()));
   }
 
   private void evalAndCommitProbe(RuntimeException exception, ExceptionProbe exceptionProbe) {
@@ -452,16 +432,14 @@ public class DefaultExceptionDebuggerTest {
   private Map<String, ExceptionProbe> buildProbesByLocation() {
     BinaryOperator<ExceptionProbe> dropMerger = (oldValue, newValue) -> oldValue;
     return exceptionDebugger.getExceptionProbeManager().getProbes().stream()
-        .collect(
-            toMap(
-                probe ->
-                    probe.getWhere().getTypeName()
-                        + "::"
-                        + probe.getWhere().getMethodName()
-                        + ":"
-                        + probe.getWhere().getLines()[0],
-                Function.identity(),
-                dropMerger));
+        .collect(toMap(
+            probe -> probe.getWhere().getTypeName()
+                + "::"
+                + probe.getWhere().getMethodName()
+                + ":"
+                + probe.getWhere().getLines()[0],
+            Function.identity(),
+            dropMerger));
   }
 
   private RuntimeException createNestException() {

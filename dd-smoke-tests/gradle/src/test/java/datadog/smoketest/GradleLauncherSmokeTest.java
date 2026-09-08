@@ -30,7 +30,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private static final String JAVA_HOME = buildJavaHome();
 
-  @TempDir static Path gradleUserHome;
+  @TempDir
+  static Path gradleUserHome;
 
   @TableTest({
     "scenario                 | gradleVersion | gradleDaemonCmdLineParams         ",

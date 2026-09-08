@@ -12,9 +12,8 @@ public class CaptureSymbolAddressAdvice {
       @Advice.This final Object self,
       @Advice.Return final long address) {
     final String libraryName =
-        (String)
-            InstrumentationContext.get("jdk.internal.loader.NativeLibrary", "java.lang.String")
-                .get(self);
+        (String) InstrumentationContext.get("jdk.internal.loader.NativeLibrary", "java.lang.String")
+            .get(self);
     onSymbolLookup(libraryName, symbol, address);
   }
 }

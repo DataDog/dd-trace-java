@@ -79,9 +79,8 @@ public class DistributedObjectDecorator extends ClientDecorator {
   public void onServiceExecution(
       final AgentSpan span, final DistributedObject object, final String methodName) {
 
-    final String objectName =
-        QUALIFIED_NAME_CACHE.computeIfAbsent(
-            Pair.of(object.getServiceName(), object.getName()), COMPUTE_QUALIFIED_NAME);
+    final String objectName = QUALIFIED_NAME_CACHE.computeIfAbsent(
+        Pair.of(object.getServiceName(), object.getName()), COMPUTE_QUALIFIED_NAME);
 
     span.setResourceName(UTF8BytesString.create(String.join(".", objectName, methodName)));
 

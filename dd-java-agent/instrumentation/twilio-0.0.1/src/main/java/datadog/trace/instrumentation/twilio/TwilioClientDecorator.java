@@ -30,16 +30,15 @@ public class TwilioClientDecorator extends ClientDecorator {
           ? COMPONENT_NAME.toString()
           : null;
 
-  private static final QualifiedClassNameCache NAMES =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            // Drop common package prefix (com.twilio.rest)
-            public String apply(Class<?> input) {
-              return input.getCanonicalName().substring("com.twilio.rest.".length());
-            }
-          },
-          Functions.PrefixJoin.of("."));
+  private static final QualifiedClassNameCache NAMES = new QualifiedClassNameCache(
+      new Function<Class<?>, CharSequence>() {
+        @Override
+        // Drop common package prefix (com.twilio.rest)
+        public String apply(Class<?> input) {
+          return input.getCanonicalName().substring("com.twilio.rest.".length());
+        }
+      },
+      Functions.PrefixJoin.of("."));
 
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 

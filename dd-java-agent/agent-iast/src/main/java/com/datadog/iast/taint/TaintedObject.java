@@ -18,7 +18,10 @@ public class TaintedObject extends WeakReference<Object> {
   public static final int MAX_RANGE_COUNT = Config.get().getIastMaxRangeCount();
 
   final int positiveHashCode;
-  @Nullable TaintedObject next;
+
+  @Nullable
+  TaintedObject next;
+
   private Range[] ranges;
 
   /** generation of the tainted for max age purging purposes */

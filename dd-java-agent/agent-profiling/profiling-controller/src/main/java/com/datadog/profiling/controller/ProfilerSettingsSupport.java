@@ -57,12 +57,8 @@ public abstract class ProfilerSettingsSupport {
 
     @Override
     public String toString() {
-      return "ProfilerActivationSetting{"
-          + "enablement="
-          + enablement
-          + ", ssiMechanism="
-          + ssiMechanism
-          + '}';
+      return "ProfilerActivationSetting{" + "enablement=" + enablement + ", ssiMechanism="
+          + ssiMechanism + '}';
     }
   }
 
@@ -120,64 +116,48 @@ public abstract class ProfilerSettingsSupport {
       ConfigProvider configProvider,
       String ddprofUnavailableReason,
       boolean hasJfrStackDepthApplied) {
-    uploadPeriod =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
-    uploadTimeout =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_UPLOAD_TIMEOUT,
-            ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT);
+    uploadPeriod = configProvider.getInteger(
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD, ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
+    uploadTimeout = configProvider.getInteger(
+        ProfilingConfig.PROFILING_UPLOAD_TIMEOUT, ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     // First try the new debug upload compression property, and fall back to the deprecated one
-    uploadCompression =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
-            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
-            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
-    allocationProfilingEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ALLOCATION_ENABLED,
-            ProfilingSupport.isObjectAllocationSampleAvailable());
-    heapProfilingEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingSupport.isLiveHeapProfilingSafe());
-    startForceFirst =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_START_FORCE_FIRST,
-            ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT);
+    uploadCompression = configProvider.getString(
+        ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
+        ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+        ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
+    allocationProfilingEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ALLOCATION_ENABLED,
+        ProfilingSupport.isObjectAllocationSampleAvailable());
+    heapProfilingEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingSupport.isLiveHeapProfilingSafe());
+    startForceFirst = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_START_FORCE_FIRST,
+        ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT);
     templateOverride = configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE);
-    exceptionSampleLimit =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT,
-            ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
-    exceptionHistogramTopItems =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
-    exceptionHistogramMaxSize =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
+    exceptionSampleLimit = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT,
+        ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
+    exceptionHistogramTopItems = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
+    exceptionHistogramMaxSize = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
     hotspotsEnabled = configProvider.getBoolean(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, false);
-    endpointsEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
-            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
-    auxiliaryProfiler =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE, getDefaultAuxiliaryProfiler());
+    endpointsEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+    auxiliaryProfiler = configProvider.getString(
+        ProfilingConfig.PROFILING_AUXILIARY_TYPE, getDefaultAuxiliaryProfiler());
     perfEventsParanoid = readPerfEventsParanoidSetting();
-    hasNativeStacks =
-        !"no"
-            .equalsIgnoreCase(
-                configProvider.getString(
-                    ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK,
-                    configProvider.getString(
-                        "profiling.async.cstack",
-                        ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
-    requestedStackDepth =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
+    hasNativeStacks = !"no"
+        .equalsIgnoreCase(configProvider.getString(
+            ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK,
+            configProvider.getString(
+                "profiling.async.cstack",
+                ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
+    requestedStackDepth = configProvider.getInteger(
+        ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
     jfrStackDepth = getStackDepth();
 
     seLinuxStatus = getSELinuxStatus();
@@ -192,11 +172,10 @@ public abstract class ProfilerSettingsSupport {
   }
 
   private static int getStackDepth() {
-    String value =
-        JavaVirtualMachine.getVmOptions().stream()
-            .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
-            .findFirst()
-            .orElse(null);
+    String value = JavaVirtualMachine.getVmOptions().stream()
+        .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
+        .findFirst()
+        .orElse(null);
     if (value != null) {
       int start = value.indexOf(STACKDEPTH_KEY);
       if (start != -1) {

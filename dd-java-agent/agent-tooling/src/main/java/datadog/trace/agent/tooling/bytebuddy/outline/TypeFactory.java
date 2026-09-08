@@ -51,18 +51,17 @@ final class TypeFactory {
   private static final Map<String, TypeDescription> primitiveTypes = new HashMap<>();
 
   static {
-    for (Class<?> primitive :
-        new Class<?>[] {
-          boolean.class,
-          byte.class,
-          short.class,
-          char.class,
-          int.class,
-          long.class,
-          float.class,
-          double.class,
-          void.class
-        }) {
+    for (Class<?> primitive : new Class<?>[] {
+      boolean.class,
+      byte.class,
+      short.class,
+      char.class,
+      int.class,
+      long.class,
+      float.class,
+      double.class,
+      void.class
+    }) {
       TypeDescription primitiveType = TypeDescription.ForLoadedType.of(primitive);
       primitiveDescriptorTypes.put(primitiveType.getDescriptor().charAt(0), primitiveType);
       primitiveTypes.put(primitive.getName(), primitiveType);

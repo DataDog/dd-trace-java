@@ -36,10 +36,9 @@ public final class OtlpMetricsService {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
       this.collector = null;
     } else {
-      this.collector =
-          config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
-              : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+      this.collector = config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
+          ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
+          : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();
@@ -60,18 +59,13 @@ public final class OtlpMetricsService {
 
     // add random jitter of up to 5 seconds to initial delay; avoids a fleet
     // of apps starting at the same time from exporting OTLP metrics in sync
-    long initialMillis =
-        intervalMillis
-            + Math.min(
-                (long)
-                    (500d
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                5_000);
+    long initialMillis = intervalMillis
+        + Math.min(
+            (long) (500d * Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)),
+            5_000);
 
-    scheduledTask =
-        scheduler.scheduleAtFixedRate(
-            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+    scheduledTask = scheduler.scheduleAtFixedRate(
+        this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
   }
 
   public void flush() {

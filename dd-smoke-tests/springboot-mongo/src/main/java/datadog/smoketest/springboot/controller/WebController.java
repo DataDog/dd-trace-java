@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class WebController {
 
-  @Autowired DocRepository docRepository;
+  @Autowired
+  DocRepository docRepository;
 
   @RequestMapping("/docs")
   public List<Doc> getDocs() {

@@ -229,9 +229,7 @@ public class IastWebController {
 
   @PostMapping("/request_body/test")
   public String jsonRequestBody(@RequestBody TestBean testBean) {
-    return "@RequestBody to Test bean -> name: "
-        + testBean.getName()
-        + ", value: "
+    return "@RequestBody to Test bean -> name: " + testBean.getName() + ", value: "
         + testBean.getValue();
   }
 
@@ -337,17 +335,15 @@ public class IastWebController {
   public String jakartaMailHtmlVulnerability(HttpServletRequest request)
       throws jakarta.mail.MessagingException {
     jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
-    jakarta.mail.Provider provider =
-        new jakarta.mail.Provider(
-            jakarta.mail.Provider.Type.TRANSPORT,
-            "smtp",
-            JakartaMockTransport.class.getName(),
-            "MockTransport",
-            "1.0");
+    jakarta.mail.Provider provider = new jakarta.mail.Provider(
+        jakarta.mail.Provider.Type.TRANSPORT,
+        "smtp",
+        JakartaMockTransport.class.getName(),
+        "MockTransport",
+        "1.0");
     session.setProvider(provider);
-    boolean sanitize =
-        StringUtils.isNotEmpty(request.getParameter("sanitize"))
-            && request.getParameter("sanitize").equalsIgnoreCase("true");
+    boolean sanitize = StringUtils.isNotEmpty(request.getParameter("sanitize"))
+        && request.getParameter("sanitize").equalsIgnoreCase("true");
     jakarta.mail.internet.MimeMessage message = new jakarta.mail.internet.MimeMessage(session);
     if (request.getParameter("messageText") != null) {
       message.setText(
@@ -480,11 +476,10 @@ public class IastWebController {
   public static class CustomStringReader extends StringReader {
 
     public CustomStringReader(String s) {
-      super(
-          "Super "
-              + s
-              + (new StringReader(
-                  "New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
+      super("Super "
+          + s
+          + (new StringReader(
+              "New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
     }
   }
 }

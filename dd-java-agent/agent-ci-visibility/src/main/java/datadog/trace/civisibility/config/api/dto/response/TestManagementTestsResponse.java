@@ -12,7 +12,8 @@ import javax.annotation.Nullable;
 
 public final class TestManagementTestsResponse {
 
-  @Nullable public Map<String, Suites> modules;
+  @Nullable
+  public Map<String, Suites> modules;
 
   public Map<String, Suites> getModules() {
     return modules != null ? modules : Collections.emptyMap();
@@ -31,7 +32,8 @@ public final class TestManagementTestsResponse {
 
     for (Map.Entry<String, Suites> moduleEntry : getModules().entrySet()) {
       String moduleName = moduleEntry.getKey();
-      for (Map.Entry<String, Tests> suiteEntry : moduleEntry.getValue().getSuites().entrySet()) {
+      for (Map.Entry<String, Tests> suiteEntry :
+          moduleEntry.getValue().getSuites().entrySet()) {
         String suiteName = suiteEntry.getKey();
         for (Map.Entry<String, Properties> testEntry :
             suiteEntry.getValue().getTests().entrySet()) {
@@ -74,7 +76,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Properties {
-    @Nullable public Map<String, Boolean> properties;
+    @Nullable
+    public Map<String, Boolean> properties;
 
     public boolean isQuarantined() {
       return properties != null
@@ -92,7 +95,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Tests {
-    @Nullable public Map<String, Properties> tests;
+    @Nullable
+    public Map<String, Properties> tests;
 
     public Map<String, Properties> getTests() {
       return tests != null ? tests : Collections.emptyMap();
@@ -100,7 +104,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Suites {
-    @Nullable public Map<String, Tests> suites;
+    @Nullable
+    public Map<String, Tests> suites;
 
     public Map<String, Tests> getSuites() {
       return suites != null ? suites : Collections.emptyMap();

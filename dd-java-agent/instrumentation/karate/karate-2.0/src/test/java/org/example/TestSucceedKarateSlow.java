@@ -10,7 +10,8 @@ public class TestSucceedKarateSlow {
 
   @Test
   public void test() {
-    Results results = Runner.path("classpath:org/example/test_succeed_slow.feature").parallel(1);
+    Results results =
+        Runner.path("classpath:org/example/test_succeed_slow.feature").parallel(1);
     assertEquals(0, results.getFailCount(), results.getErrorMessages());
   }
 }

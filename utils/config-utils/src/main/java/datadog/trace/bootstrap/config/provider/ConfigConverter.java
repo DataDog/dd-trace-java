@@ -248,12 +248,10 @@ final class ConfigConverter {
       }
     }
     while (start < str.length()) {
-      int nextSplitter =
-          argSeparatorInd == -1
-              ? -1
-              : str.indexOf(
-                  keyValueSeparator,
-                  argSeparatorInd + 1); // next splitter after the next argSeparator
+      int nextSplitter = argSeparatorInd == -1
+          ? -1
+          : str.indexOf(
+              keyValueSeparator, argSeparatorInd + 1); // next splitter after the next argSeparator
       int nextArgSeparator =
           argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
       int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;

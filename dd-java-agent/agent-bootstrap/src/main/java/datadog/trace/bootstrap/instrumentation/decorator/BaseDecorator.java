@@ -32,21 +32,20 @@ public abstract class BaseDecorator {
 
   protected static final int UNSET_PORT = 0;
 
-  private static final QualifiedClassNameCache CLASS_NAMES =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            public String apply(Class<?> clazz) {
-              String simpleName = clazz.getSimpleName();
-              if (simpleName.isEmpty()) {
-                String name = clazz.getName();
-                int start = name.lastIndexOf('.');
-                return name.substring(start + 1);
-              }
-              return simpleName;
-            }
-          },
-          Functions.PrefixJoin.of("."));
+  private static final QualifiedClassNameCache CLASS_NAMES = new QualifiedClassNameCache(
+      new Function<Class<?>, CharSequence>() {
+        @Override
+        public String apply(Class<?> clazz) {
+          String simpleName = clazz.getSimpleName();
+          if (simpleName.isEmpty()) {
+            String name = clazz.getName();
+            int start = name.lastIndexOf('.');
+            return name.substring(start + 1);
+          }
+          return simpleName;
+        }
+      },
+      Functions.PrefixJoin.of("."));
 
   protected final boolean traceAnalyticsEnabled;
   protected final double traceAnalyticsSampleRate;
@@ -60,18 +59,15 @@ public abstract class BaseDecorator {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
 
-    this.traceAnalyticsEnabled =
-        instrumentationNames.length > 0
-            && config.isTraceAnalyticsIntegrationEnabled(
-                traceAnalyticsDefault(), instrumentationNames);
+    this.traceAnalyticsEnabled = instrumentationNames.length > 0
+        && config.isTraceAnalyticsIntegrationEnabled(traceAnalyticsDefault(), instrumentationNames);
 
     this.traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
 
-    this.traceAnalyticsEntry =
-        this.traceAnalyticsEnabled
-            ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
-            : null;
+    this.traceAnalyticsEntry = this.traceAnalyticsEnabled
+        ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
+        : null;
   }
 
   protected abstract String[] instrumentationNames();

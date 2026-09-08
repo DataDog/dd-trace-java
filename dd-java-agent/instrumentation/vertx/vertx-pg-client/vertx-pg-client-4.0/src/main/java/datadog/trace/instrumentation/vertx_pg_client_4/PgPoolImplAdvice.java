@@ -14,14 +14,13 @@ public class PgPoolImplAdvice {
   public static void afterCreate(
       @Advice.Return final SqlClient zis, @Advice.Argument(2) PgConnectOptions options) {
     DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-    DBInfo info =
-        builder
-            .host(options.getHost())
-            .port(options.getPort())
-            .db(options.getDatabase())
-            .user(options.getUser())
-            .type("postgresql")
-            .build();
+    DBInfo info = builder
+        .host(options.getHost())
+        .port(options.getPort())
+        .db(options.getDatabase())
+        .user(options.getUser())
+        .type("postgresql")
+        .build();
     InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
   }
 

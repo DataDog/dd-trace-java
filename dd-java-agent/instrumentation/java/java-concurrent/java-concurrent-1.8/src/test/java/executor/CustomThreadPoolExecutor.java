@@ -13,22 +13,21 @@ public class CustomThreadPoolExecutor extends AbstractExecutorService {
 
   private volatile Boolean running = true;
   private LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(10);
-  private Runnable worker =
-      new Runnable() {
-        public void run() {
-          try {
-            while (getRunning()) {
-              Runnable runnable = ((LinkedBlockingQueue<Runnable>) getWorkQueue()).take();
-              runnable.run();
-            }
-
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
+  private Runnable worker = new Runnable() {
+    public void run() {
+      try {
+        while (getRunning()) {
+          Runnable runnable = ((LinkedBlockingQueue<Runnable>) getWorkQueue()).take();
+          runnable.run();
         }
-      };
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+  };
   private Thread workerThread = new Thread(worker, "ExecutorTestThread");
 
   public CustomThreadPoolExecutor() {

@@ -32,13 +32,11 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
     return httpSecurity
-        .authorizeHttpRequests(
-            authorize ->
-                authorize
-                    .mvcMatchers("/read/**")
-                    .hasAuthority("SCOPE_read")
-                    .anyRequest()
-                    .authenticated())
+        .authorizeHttpRequests(authorize -> authorize
+            .mvcMatchers("/read/**")
+            .hasAuthority("SCOPE_read")
+            .anyRequest()
+            .authenticated())
         .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
         .build();
   }

@@ -76,10 +76,9 @@ class DDLLMObsSpanDocumentIOTest {
   @Test
   void acceptsEmbeddingDocumentInputs() throws IllegalAccessException {
     DDLLMObsSpan llmObsSpan = newSpan(Tags.LLMOBS_EMBEDDING_SPAN_KIND);
-    List<LLMObs.Document> documents =
-        Arrays.asList(
-            LLMObs.Document.from("first input", "first.txt", "input-1", 0.5),
-            LLMObs.Document.from("second input"));
+    List<LLMObs.Document> documents = Arrays.asList(
+        LLMObs.Document.from("first input", "first.txt", "input-1", 0.5),
+        LLMObs.Document.from("second input"));
     try {
       llmObsSpan.annotateEmbeddingIO(documents, "embedding output");
 
@@ -95,10 +94,9 @@ class DDLLMObsSpanDocumentIOTest {
   @Test
   void acceptsRetrievalDocumentOutputs() throws IllegalAccessException {
     DDLLMObsSpan llmObsSpan = newSpan(Tags.LLMOBS_RETRIEVAL_SPAN_KIND);
-    List<LLMObs.Document> documents =
-        Arrays.asList(
-            LLMObs.Document.from("first output", "result.txt", "output-1", 0.95),
-            LLMObs.Document.from("second output"));
+    List<LLMObs.Document> documents = Arrays.asList(
+        LLMObs.Document.from("first output", "result.txt", "output-1", 0.95),
+        LLMObs.Document.from("second output"));
     try {
       llmObsSpan.annotateRetrievalIO("retrieval input", documents);
 

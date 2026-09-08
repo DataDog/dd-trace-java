@@ -101,11 +101,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
   public void onBuildTaskFail(SessionKey sessionKey, String taskName, Throwable throwable) {
     AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
     if (buildTask == null) {
-      throw new IllegalStateException(
-          "Could not find build task span for session key "
-              + sessionKey
-              + " and task name "
-              + taskName);
+      throw new IllegalStateException("Could not find build task span for session key " + sessionKey
+          + " and task name " + taskName);
     }
     buildTask.setError(true);
     buildTask.addThrowable(throwable);
@@ -115,11 +112,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
   public void onBuildTaskFinish(SessionKey sessionKey, String taskName) {
     AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
     if (buildTask == null) {
-      throw new IllegalStateException(
-          "Could not find build task span for session key "
-              + sessionKey
-              + " and task name "
-              + taskName);
+      throw new IllegalStateException("Could not find build task span for session key " + sessionKey
+          + " and task name " + taskName);
     }
     buildTask.finish();
   }
@@ -136,9 +130,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
 
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutable);
-    BuildSystemModule testModule =
-        testSession.testModuleStart(
-            moduleName, null, moduleLayout, jvmInfo, classpath, jacocoAgent);
+    BuildSystemModule testModule = testSession.testModuleStart(
+        moduleName, null, moduleLayout, jvmInfo, classpath, jacocoAgent);
     testModule.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (additionalTags != null) {
@@ -187,11 +180,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
         new BuildTaskDescriptor<>(sessionKey, moduleName);
     BuildSystemModule testModule = inProgressTestModules.remove(testModuleDescriptor);
     if (testModule == null) {
-      throw new IllegalStateException(
-          "Could not find module span for session key "
-              + sessionKey
-              + " and module name "
-              + moduleName);
+      throw new IllegalStateException("Could not find module span for session key " + sessionKey
+          + " and module name " + moduleName);
     }
     testModule.end(null);
   }

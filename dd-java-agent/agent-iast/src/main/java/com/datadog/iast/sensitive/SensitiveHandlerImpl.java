@@ -48,11 +48,8 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
   SensitiveHandlerImpl(final String configuredNamePattern, final String configuredValuePattern) {
     namePattern =
         safeCompile(configuredNamePattern, DEFAULT_IAST_REDACTION_NAME_PATTERN, CASE_INSENSITIVE);
-    valuePattern =
-        safeCompile(
-            configuredValuePattern,
-            DEFAULT_IAST_REDACTION_VALUE_PATTERN,
-            CASE_INSENSITIVE | MULTILINE);
+    valuePattern = safeCompile(
+        configuredValuePattern, DEFAULT_IAST_REDACTION_VALUE_PATTERN, CASE_INSENSITIVE | MULTILINE);
     tokenizers = new HashMap<>();
     tokenizers.put(VulnerabilityType.SQL_INJECTION, SqlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.LDAP_INJECTION, LdapRegexTokenizer::new);

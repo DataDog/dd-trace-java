@@ -46,13 +46,12 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.nameStartsWith("redis.")
-        .and(
-            implementsInterface(
-                namedOneOf( // traits
-                    "redis.Request",
-                    "redis.ActorRequest",
-                    "redis.BufferedRequest",
-                    "redis.RoundRobinPoolRequest")));
+        .and(implementsInterface(
+            namedOneOf( // traits
+                "redis.Request",
+                "redis.ActorRequest",
+                "redis.BufferedRequest",
+                "redis.RoundRobinPoolRequest")));
   }
 
   @Override

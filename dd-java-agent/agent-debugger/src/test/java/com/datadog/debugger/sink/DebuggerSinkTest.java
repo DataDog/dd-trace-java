@@ -64,10 +64,17 @@ public class DebuggerSinkTest {
       new ProbeLocation("java.lang.String", "indexOf", null, null);
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
-  @Mock private Config config;
-  @Mock private BatchUploader snapshotUploader;
-  @Mock private BatchUploader logUploader;
-  @Captor private ArgumentCaptor<byte[]> payloadCaptor;
+  @Mock
+  private Config config;
+
+  @Mock
+  private BatchUploader snapshotUploader;
+
+  @Mock
+  private BatchUploader logUploader;
+
+  @Captor
+  private ArgumentCaptor<byte[]> payloadCaptor;
 
   private String EXPECTED_SNAPSHOT_TAGS;
   private ProbeStatusSink probeStatusSink;
@@ -111,14 +118,14 @@ public class DebuggerSinkTest {
     assertEquals("service-name", intakeRequest.getService());
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());
-    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(
+        PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
     assertEquals(
         PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
-    assertTrue(
-        intakeRequest
-            .getDebugger()
-            .getRuntimeId()
-            .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+    assertTrue(intakeRequest
+        .getDebugger()
+        .getRuntimeId()
+        .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
     if (processTagsEnabled) {
       assertNotNull(ProcessTags.getTagsForSerialization());
       assertEquals(
@@ -208,22 +215,20 @@ public class DebuggerSinkTest {
     String strPayLoad = new String(chars);
     List<Node> children = createChildren(3, strPayLoad);
     Node root = new Node("ROOT", children);
-    CapturedValue rootLocal =
-        CapturedValue.of(
-            "root",
-            Node.class.getTypeName(),
-            root,
-            5,
-            Limits.DEFAULT_COLLECTION_SIZE,
-            Limits.DEFAULT_LENGTH,
-            Limits.DEFAULT_FIELD_COUNT);
+    CapturedValue rootLocal = CapturedValue.of(
+        "root",
+        Node.class.getTypeName(),
+        root,
+        5,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     CapturedContext context = new CapturedContext();
     context.addLocals(new CapturedValue[] {rootLocal});
-    Snapshot largeSnapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
-            5);
+    Snapshot largeSnapshot = new Snapshot(
+        Thread.currentThread(),
+        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
+        5);
     largeSnapshot.setEntry(context);
     sink.addSnapshot(largeSnapshot);
     sink.lowRateFlush(sink);
@@ -260,7 +265,8 @@ public class DebuggerSinkTest {
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    JsonAdapter<List<ProbeStatus>> adapter =
+        MoshiHelper.createMoshiProbeStatus().adapter(type);
     List<ProbeStatus> statuses = adapter.fromJson(strPayload);
     assertEquals(1, statuses.size());
     ProbeStatus status = statuses.get(0);
@@ -284,7 +290,8 @@ public class DebuggerSinkTest {
         new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    JsonAdapter<List<ProbeStatus>> adapter =
+        MoshiHelper.createMoshiProbeStatus().adapter(type);
     List<ProbeStatus> statuses = adapter.fromJson(strPayload);
     assertEquals(1, statuses.size());
     ProbeStatus status = statuses.get(0);
@@ -308,7 +315,8 @@ public class DebuggerSinkTest {
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    JsonAdapter<List<ProbeStatus>> adapter =
+        MoshiHelper.createMoshiProbeStatus().adapter(type);
     List<ProbeStatus> statuses = adapter.fromJson(strPayload);
     assertEquals(2, statuses.size());
   }
@@ -329,7 +337,8 @@ public class DebuggerSinkTest {
         new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
+    JsonAdapter<List<ProbeStatus>> adapter =
+        MoshiHelper.createMoshiProbeStatus().adapter(type);
     List<ProbeStatus> statuses = adapter.fromJson(strPayload);
     assertEquals(2, statuses.size());
   }
@@ -500,17 +509,13 @@ public class DebuggerSinkTest {
   @Test
   public void skipSnapshot() {
     DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    SnapshotSink snapshotSink =
-        new SnapshotSink(
-            config,
-            "",
-            new BatchUploader(
-                "Snapshots",
-                config,
-                config.getFinalDebuggerSnapshotUrl(),
-                SnapshotSink.RETRY_POLICY),
-            new BatchUploader(
-                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
+    SnapshotSink snapshotSink = new SnapshotSink(
+        config,
+        "",
+        new BatchUploader(
+            "Snapshots", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY),
+        new BatchUploader(
+            "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
         new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, symbolSink);
@@ -522,14 +527,13 @@ public class DebuggerSinkTest {
   @Test
   public void skipSnapshotEvaluationTimeOut() {
     DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    DebuggerSink sink =
-        new DebuggerSink(
-            config,
-            "",
-            metricCollector,
-            probeStatusSink,
-            new SnapshotSink(config, "", snapshotUploader, logUploader),
-            new SymbolSink(config));
+    DebuggerSink sink = new DebuggerSink(
+        config,
+        "",
+        metricCollector,
+        probeStatusSink,
+        new SnapshotSink(config, "", snapshotUploader, logUploader),
+        new SymbolSink(config));
     Snapshot snapshot = createSnapshot();
     sink.skipSnapshot(snapshot.getProbe().getId(), EVALUATION_TIME_OUT);
     verify(metricCollector).recordEventSkipped(eq(EVALUATION_TIME_OUT));
@@ -539,9 +543,8 @@ public class DebuggerSinkTest {
   public void addSnapshotQueueFullRecordsDropped() {
     DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
     SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
-    DebuggerSink sink =
-        new DebuggerSink(
-            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+    DebuggerSink sink = new DebuggerSink(
+        config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
     Snapshot snapshot = createSnapshot();
     for (int i = 0; i < SnapshotSink.LOW_RATE_CAPACITY; i++) {
       sink.addSnapshot(snapshot);
@@ -555,9 +558,8 @@ public class DebuggerSinkTest {
   public void addHighRateSnapshotRecordsEveryDrop() {
     DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
     SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
-    DebuggerSink sink =
-        new DebuggerSink(
-            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+    DebuggerSink sink = new DebuggerSink(
+        config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
     Snapshot snapshot = createSnapshot();
     // fill the high rate queue to capacity
     for (int i = 0; i < SnapshotSink.HIGH_RATE_CAPACITY; i++) {

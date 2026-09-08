@@ -159,7 +159,8 @@ public class GrizzlyCharBodyInstrumentation
         @Advice.This final NIOReader thiz,
         @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
         @Advice.Argument(0) CharBuffer charBuffer) {
-      storedCharBody = InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      storedCharBody =
+          InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return 0;
       }

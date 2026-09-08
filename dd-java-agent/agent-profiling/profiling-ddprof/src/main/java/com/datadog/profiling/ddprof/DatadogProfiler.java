@@ -220,9 +220,8 @@ public final class DatadogProfiler {
   private DatadogProfiler(ConfigProvider configProvider) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
-    this.detailedDebugLogging =
-        configProvider.getBoolean(
-            PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
+    this.detailedDebugLogging = configProvider.getBoolean(
+        PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
     Throwable reasonNotLoaded = DdprofLibraryLoader.javaProfiler().getReasonNotLoaded();
     if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
@@ -266,10 +265,8 @@ public final class DatadogProfiler {
     }
     this.isAppOffset = appOffsets;
     this.hasAppContext = anyApp;
-    this.queueTimeThresholdMillis =
-        configProvider.getLong(
-            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
-            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+    this.queueTimeThresholdMillis = configProvider.getLong(
+        PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS, PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
 
     this.recordingsPath = TempLocationManager.getInstance().getTempDir().resolve("recordings");
     if (!Files.exists(recordingsPath)) {
@@ -433,10 +430,9 @@ public final class DatadogProfiler {
         // using cpu time schedule
         int interval = getCpuInterval();
         if (JavaVirtualMachine.isJ9())
-          interval =
-              interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
-                  ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
-                  : interval;
+          interval = interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
+              ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
+              : interval;
         cmd.append(",cpu=").append(interval).append('m');
       }
     }

@@ -17,7 +17,9 @@ public class KafkaProducerCallback implements Callback {
   private final Callback callback;
   private final AgentSpan parent;
   private final AgentSpan span;
-  @Nullable private final String clusterId;
+
+  @Nullable
+  private final String clusterId;
 
   public KafkaProducerCallback(
       final Callback callback,
@@ -52,13 +54,8 @@ public class KafkaProducerCallback implements Callback {
       return;
     }
 
-    DataStreamsTags tags =
-        DataStreamsTags.createWithPartition(
-            "kafka_produce",
-            metadata.topic(),
-            String.valueOf(metadata.partition()),
-            clusterId,
-            null);
+    DataStreamsTags tags = DataStreamsTags.createWithPartition(
+        "kafka_produce", metadata.topic(), String.valueOf(metadata.partition()), clusterId, null);
     AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
   }
 }

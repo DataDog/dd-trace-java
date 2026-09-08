@@ -169,16 +169,15 @@ class LLMObsTest {
     List<String> contextVariables = Arrays.asList("forecast", "history");
     List<String> queryVariables = Collections.singletonList("city");
 
-    LLMObs.Prompt prompt =
-        LLMObs.Prompt.builder()
-            .id("weather-prompt")
-            .version("1.0.0")
-            .template("What is the weather in {{city}}?")
-            .variables(variables)
-            .tags(tags)
-            .contextVariables(contextVariables)
-            .queryVariables(queryVariables)
-            .build();
+    LLMObs.Prompt prompt = LLMObs.Prompt.builder()
+        .id("weather-prompt")
+        .version("1.0.0")
+        .template("What is the weather in {{city}}?")
+        .variables(variables)
+        .tags(tags)
+        .contextVariables(contextVariables)
+        .queryVariables(queryVariables)
+        .build();
 
     assertEquals("weather-prompt", prompt.getId());
     assertEquals("1.0.0", prompt.getVersion());
@@ -196,10 +195,9 @@ class LLMObsTest {
 
   @Test
   void testPromptBuilderWithChatTemplate() {
-    List<LLMObs.LLMMessage> chatTemplate =
-        Arrays.asList(
-            LLMObs.LLMMessage.from("system", "You are a weather assistant."),
-            LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
+    List<LLMObs.LLMMessage> chatTemplate = Arrays.asList(
+        LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+        LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
 
     LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
 
@@ -210,10 +208,9 @@ class LLMObsTest {
 
   @Test
   void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
-    assertTrue(
-        LLMObsSpan.class
-            .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
-            .isDefault());
+    assertTrue(LLMObsSpan.class
+        .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
+        .isDefault());
   }
 
   @Test
@@ -222,21 +219,18 @@ class LLMObsTest {
     modelSettings.put("temperature", 0.7);
     modelSettings.put("max_tokens", 1024);
 
-    List<LLMObs.AgentTool> tools =
-        Arrays.asList(
-            LLMObs.AgentTool.from(
-                "get_weather",
-                "Look up the weather",
-                Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
+    List<LLMObs.AgentTool> tools = Arrays.asList(LLMObs.AgentTool.from(
+        "get_weather",
+        "Look up the weather",
+        Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
 
-    LLMObs.AgentManifest manifest =
-        LLMObs.AgentManifest.builder()
-            .name("travel_desk")
-            .instructions("Book travel for the user.")
-            .model("gpt-4o")
-            .modelSettings(modelSettings)
-            .tools(tools)
-            .build();
+    LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder()
+        .name("travel_desk")
+        .instructions("Book travel for the user.")
+        .model("gpt-4o")
+        .modelSettings(modelSettings)
+        .tools(tools)
+        .build();
 
     assertEquals("travel_desk", manifest.getName());
     assertEquals("Book travel for the user.", manifest.getInstructions());
@@ -370,14 +364,13 @@ class LLMObsTest {
 
   @Test
   void testDefaultNoOpEvaluationProcessorBehavior() {
-    assertDoesNotThrow(
-        () -> {
-          Map<String, Object> emptyTags = new HashMap<>();
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      Map<String, Object> emptyTags = new HashMap<>();
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
+    });
   }
 
   @Test
@@ -387,13 +380,12 @@ class LLMObsTest {
     tags.put("category", "test");
     tags.put("version", "1.0");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
-          LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
-          LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
-          LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
+      LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
+      LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
+      LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
+    });
   }
 
   @Test
@@ -403,12 +395,11 @@ class LLMObsTest {
     tags.put("evaluator", "human");
     tags.put("context", "production");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
-          LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
-          LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
+      LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
+      LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
+    });
   }
 
   @Test
@@ -416,11 +407,10 @@ class LLMObsTest {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
     Map<String, Object> emptyTags = new HashMap<>();
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
-          LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
+      LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
+    });
   }
 
   @Test
@@ -458,9 +448,8 @@ class LLMObsTest {
     LLMObsSpan toolSpan = LLMObs.startToolSpan("weather-tool", "my-app", "session-1");
     LLMObsSpan taskSpan = LLMObs.startTaskSpan("summarize-task", "my-app", "session-1");
     LLMObsSpan workflowSpan = LLMObs.startWorkflowSpan("data-workflow", "my-app", "session-1");
-    LLMObsSpan embeddingSpan =
-        LLMObs.startEmbeddingSpan(
-            "text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1");
+    LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan(
+        "text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1");
     LLMObsSpan retrievalSpan =
         LLMObs.startRetrievalSpan("document-retrieval", "my-app", "session-1");
 

@@ -230,14 +230,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         }
       } catch (final IllegalStateException e) {
         // headers must be read-only from reused record. try again with new one.
-        record =
-            new ProducerRecord<>(
-                record.topic(),
-                record.partition(),
-                record.timestamp(),
-                record.key(),
-                record.value(),
-                record.headers());
+        record = new ProducerRecord<>(
+            record.topic(),
+            record.partition(),
+            record.timestamp(),
+            record.key(),
+            record.value(),
+            record.headers());
 
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
@@ -265,9 +264,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     public static void captureConfiguration(
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(0) ProducerConfig producerConfig) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+          .getOrCreate(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));
@@ -287,17 +285,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
       if (saved != null) {
         // create new stats including the payload size
-        StatsPoint updated =
-            new StatsPoint(
-                saved.getTags(),
-                saved.getHash(),
-                saved.getParentHash(),
-                saved.getAggregationHash(),
-                saved.getTimestampNanos(),
-                saved.getPathwayLatencyNano(),
-                saved.getEdgeLatencyNano(),
-                estimatedPayloadSize,
-                saved.getServiceNameOverride());
+        StatsPoint updated = new StatsPoint(
+            saved.getTags(),
+            saved.getHash(),
+            saved.getParentHash(),
+            saved.getAggregationHash(),
+            saved.getTimestampNanos(),
+            saved.getPathwayLatencyNano(),
+            saved.getEdgeLatencyNano(),
+            estimatedPayloadSize,
+            saved.getServiceNameOverride());
         // then send the point
         AgentTracer.get().getDataStreamsMonitoring().add(updated);
       }

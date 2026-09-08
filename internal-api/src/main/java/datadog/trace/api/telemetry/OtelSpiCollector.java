@@ -29,15 +29,14 @@ public class OtelSpiCollector implements MetricCollector<OtelSpiCollector.OtelSp
   }
 
   public void recordSpiDetected(String spiFqn, String source) {
-    if (!metricsQueue.offer(
-        new OtelSpiMetric(
-            NAMESPACE,
-            true,
-            OTEL_SPI_DETECTED_METRIC_NAME,
-            "count",
-            1,
-            SPI_CLASS_TAG + spiFqn,
-            SOURCE_TAG + source))) {
+    if (!metricsQueue.offer(new OtelSpiMetric(
+        NAMESPACE,
+        true,
+        OTEL_SPI_DETECTED_METRIC_NAME,
+        "count",
+        1,
+        SPI_CLASS_TAG + spiFqn,
+        SOURCE_TAG + source))) {
       log.debug(
           "Unable to add telemetry metric {} for spi_class={} source={}",
           OTEL_SPI_DETECTED_METRIC_NAME,

@@ -119,11 +119,9 @@ public class ConstantPool {
         charBuffer[strLength++] =
             (char) (((currentByte & 0x1F) << 6) + (classBuffer[currentOffset++] & 0x3F));
       } else {
-        charBuffer[strLength++] =
-            (char)
-                (((currentByte & 0xF) << 12)
-                    + ((classBuffer[currentOffset++] & 0x3F) << 6)
-                    + (classBuffer[currentOffset++] & 0x3F));
+        charBuffer[strLength++] = (char) (((currentByte & 0xF) << 12)
+            + ((classBuffer[currentOffset++] & 0x3F) << 6)
+            + (classBuffer[currentOffset++] & 0x3F));
       }
     }
     return new String(charBuffer, 0, strLength);

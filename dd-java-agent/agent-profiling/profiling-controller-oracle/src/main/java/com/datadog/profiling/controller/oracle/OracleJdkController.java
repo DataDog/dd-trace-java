@@ -41,11 +41,9 @@ public final class OracleJdkController implements Controller {
     try {
       log.debug("Initializing Oracle JFR controller");
       helper = new JfrMBeanHelper();
-      eventSettings =
-          Collections.unmodifiableMap(
-              JfpUtils.readJfpResources(
-                  JfpUtils.DEFAULT_JFP,
-                  configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
+      eventSettings = Collections.unmodifiableMap(JfpUtils.readJfpResources(
+          JfpUtils.DEFAULT_JFP,
+          configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }

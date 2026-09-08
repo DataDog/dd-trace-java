@@ -248,33 +248,32 @@ public class ClientIpAddressResolver {
               state = ForwardedParseState.VALUE_TOKEN;
             }
             break;
-          case VALUE_TOKEN:
-            {
-              int tokenEnd;
-              if (c == ' ' || c == ';' || c == ',') {
-                tokenEnd = pos;
-              } else if (pos + 1 == end) {
-                tokenEnd = end;
-              } else {
-                break;
-              }
-
-              if (considerValue) {
-                InetAddress ipAddr =
-                    parseIpAddressAndMaybePort(headerValue.substring(start, tokenEnd));
-                if (ipAddr != null) {
-                  if (isIpAddrPrivate(ipAddr)) {
-                    if (resultPrivate == null) {
-                      resultPrivate = ipAddr;
-                    }
-                  } else {
-                    return ipAddr;
-                  }
-                }
-              }
-              state = ForwardedParseState.BETWEEN;
+          case VALUE_TOKEN: {
+            int tokenEnd;
+            if (c == ' ' || c == ';' || c == ',') {
+              tokenEnd = pos;
+            } else if (pos + 1 == end) {
+              tokenEnd = end;
+            } else {
               break;
             }
+
+            if (considerValue) {
+              InetAddress ipAddr =
+                  parseIpAddressAndMaybePort(headerValue.substring(start, tokenEnd));
+              if (ipAddr != null) {
+                if (isIpAddrPrivate(ipAddr)) {
+                  if (resultPrivate == null) {
+                    resultPrivate = ipAddr;
+                  }
+                } else {
+                  return ipAddr;
+                }
+              }
+            }
+            state = ForwardedParseState.BETWEEN;
+            break;
+          }
           case VALUE_QUOTED:
             if (c == '"') {
               if (considerValue) {

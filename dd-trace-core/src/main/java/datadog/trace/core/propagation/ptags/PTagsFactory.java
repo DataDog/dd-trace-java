@@ -193,26 +193,24 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
-        this.traceIdHighOrderBits =
-            LongStringUtils.parseUnsignedLongHex(
-                traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
+        this.traceIdHighOrderBits = LongStringUtils.parseUnsignedLongHex(
+            traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
       }
       this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
       this.error = null;
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags =
-          new PTags(
-              factory,
-              null,
-              null,
-              null,
-              ProductTraceSource.UNSET,
-              PrioritySampling.UNSET,
-              null,
-              null,
-              null);
+      PTags pTags = new PTags(
+          factory,
+          null,
+          null,
+          null,
+          ProductTraceSource.UNSET,
+          PrioritySampling.UNSET,
+          null,
+          null,
+          null);
       pTags.error = error;
       return pTags;
     }
@@ -266,21 +264,19 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void addTraceSource(final int product) {
-      TRACE_SOURCE_UPDATER.updateAndGet(
-          this,
-          currentValue -> {
-            // If the product is already marked, return the same value (no change)
-            if (ProductTraceSource.isProductMarked(currentValue, product)) {
-              return currentValue;
-            }
+      TRACE_SOURCE_UPDATER.updateAndGet(this, currentValue -> {
+        // If the product is already marked, return the same value (no change)
+        if (ProductTraceSource.isProductMarked(currentValue, product)) {
+          return currentValue;
+        }
 
-            // Invalidate cached headers (atomic context ensures correctness)
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
+        // Invalidate cached headers (atomic context ensures correctness)
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
 
-            // Set the bit for the given product
-            return ProductTraceSource.updateProduct(currentValue, product);
-          });
+        // Set the bit for the given product
+        return ProductTraceSource.updateProduct(currentValue, product);
+      });
     }
 
     @Override
@@ -407,10 +403,9 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateTraceIdHighOrderBits(long highOrderBits) {
       if (traceIdHighOrderBits != highOrderBits) {
         traceIdHighOrderBits = highOrderBits;
-        traceIdHighOrderBitsHexTagValue =
-            highOrderBits == 0
-                ? null
-                : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
+        traceIdHighOrderBitsHexTagValue = highOrderBits == 0
+            ? null
+            : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
       }
     }
@@ -506,19 +501,16 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
+        size = PTagsCodec.calcXDatadogTagsSize(
+            size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
+        size = PTagsCodec.calcXDatadogTagsSize(
+            size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
-          size =
-              PTagsCodec.calcXDatadogTagsSize(
-                  size,
-                  TRACE_SOURCE_TAG,
-                  TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource)));
+          size = PTagsCodec.calcXDatadogTagsSize(
+              size,
+              TRACE_SOURCE_TAG,
+              TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource)));
         }
         xDatadogTagsSize = size;
       }

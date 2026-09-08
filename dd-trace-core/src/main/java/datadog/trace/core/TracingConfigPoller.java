@@ -67,19 +67,18 @@ final class TracingConfigPoller {
     ConfigurationPoller configPoller = sco.configurationPoller(config);
 
     if (configPoller != null) {
-      configPoller.addCapabilities(
-          CAPABILITY_APM_TRACING_TRACING_ENABLED
-              | CAPABILITY_APM_TRACING_SAMPLE_RATE
-              | CAPABILITY_APM_LOGS_INJECTION
-              | CAPABILITY_APM_HTTP_HEADER_TAGS
-              | CAPABILITY_APM_CUSTOM_TAGS
-              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
-              | CAPABILITY_APM_TRACING_SAMPLE_RULES
-              | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
-              | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
-              | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
-              | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
-              | CAPABILITY_APM_TRACING_MULTICONFIG);
+      configPoller.addCapabilities(CAPABILITY_APM_TRACING_TRACING_ENABLED
+          | CAPABILITY_APM_TRACING_SAMPLE_RATE
+          | CAPABILITY_APM_LOGS_INJECTION
+          | CAPABILITY_APM_HTTP_HEADER_TAGS
+          | CAPABILITY_APM_CUSTOM_TAGS
+          | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
+          | CAPABILITY_APM_TRACING_SAMPLE_RULES
+          | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
+          | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
+          | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
+          | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
+          | CAPABILITY_APM_TRACING_MULTICONFIG);
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -96,12 +95,11 @@ final class TracingConfigPoller {
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
-      Moshi MOSHI =
-          new Moshi.Builder()
-              .add(new TracingSamplingRulesAdapter())
-              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorsAdapter())
-              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
-              .build();
+      Moshi MOSHI = new Moshi.Builder()
+          .add(new TracingSamplingRulesAdapter())
+          .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorsAdapter())
+          .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
+          .build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
       LIB_CONFIG_ADAPTER = MOSHI.adapter(LibConfig.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
@@ -123,9 +121,8 @@ final class TracingConfigPoller {
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
 
-      ConfigOverrides overrides =
-          CONFIG_OVERRIDES_ADAPTER.fromJson(
-              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      ConfigOverrides overrides = CONFIG_OVERRIDES_ADAPTER.fromJson(
+          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
       if (null != overrides && null != overrides.libConfig) {
         configs.put(configKey.getConfigId(), overrides);
@@ -148,11 +145,10 @@ final class TracingConfigPoller {
     @Override
     public void commit(PollingRateHinter hinter) {
       // sort configs by override priority
-      List<LibConfig> sortedConfigs =
-          configs.values().stream()
-              .sorted(Comparator.comparingInt(ConfigOverrides::getOverridePriority).reversed())
-              .map(config -> config.libConfig)
-              .collect(Collectors.toList());
+      List<LibConfig> sortedConfigs = configs.values().stream()
+          .sorted(Comparator.comparingInt(ConfigOverrides::getOverridePriority).reversed())
+          .map(config -> config.libConfig)
+          .collect(Collectors.toList());
 
       LibConfig mergedConfig = LibConfig.mergeLibConfigs(sortedConfigs);
 
@@ -256,12 +252,11 @@ final class TracingConfigPoller {
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
-    DebuggerConfigBridge.updateConfig(
-        new DebuggerConfigUpdate(
-            libConfig.dynamicInstrumentationEnabled,
-            libConfig.exceptionReplayEnabled,
-            libConfig.codeOriginEnabled,
-            libConfig.liveDebuggingEnabled));
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(
+        libConfig.dynamicInstrumentationEnabled,
+        libConfig.exceptionReplayEnabled,
+        libConfig.codeOriginEnabled,
+        libConfig.liveDebuggingEnabled));
     builder.apply();
   }
 
@@ -605,13 +600,11 @@ final class TracingConfigPoller {
     @Override
     public Map<String, String> getTags() {
       if (null == tagMap) {
-        tagMap =
-            null == tags
-                ? Collections.emptyMap()
-                : tags.stream()
-                    .collect(
-                        Collectors.toMap(
-                            SamplingRuleTagEntry::getKey, e -> normalizeGlob(e.getValue())));
+        tagMap = null == tags
+            ? Collections.emptyMap()
+            : tags.stream()
+                .collect(Collectors.toMap(
+                    SamplingRuleTagEntry::getKey, e -> normalizeGlob(e.getValue())));
       }
       return tagMap;
     }

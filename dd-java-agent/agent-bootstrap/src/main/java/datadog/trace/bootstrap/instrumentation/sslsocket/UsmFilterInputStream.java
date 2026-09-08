@@ -28,13 +28,12 @@ public class UsmFilterInputStream extends FilterInputStream {
   public int read(@Nonnull byte[] b, int off, int len) throws IOException {
     int bytesRead = super.read(b, off, len);
     boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-    UsmConnection connection =
-        new UsmConnection(
-            socket.getLocalAddress(),
-            socket.getLocalPort(),
-            socket.getInetAddress(),
-            socket.getPort(),
-            isIPv6);
+    UsmConnection connection = new UsmConnection(
+        socket.getLocalAddress(),
+        socket.getLocalPort(),
+        socket.getInetAddress(),
+        socket.getPort(),
+        isIPv6);
     UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
     UsmExtractor.Supplier.send(message);
     return bytesRead;

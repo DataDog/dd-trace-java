@@ -56,14 +56,7 @@ public class StatsGroup {
 
   @Override
   public String toString() {
-    return "StatsGroup{"
-        + "tags='"
-        + tags
-        + '\''
-        + ", hash="
-        + hash
-        + ", parentHash="
-        + parentHash
+    return "StatsGroup{" + "tags='" + tags + '\'' + ", hash=" + hash + ", parentHash=" + parentHash
         + '}';
   }
 }

@@ -236,25 +236,23 @@ public class TunnelingJdkSocketTest {
   }
 
   private static void startServer(UnixDomainSocketAddress socketAddress) {
-    Thread serverThread =
-        new Thread(
-            () -> {
-              try (ServerSocketChannel serverChannel =
-                  ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
-                serverChannel.bind(socketAddress);
-                isServerRunning.set(true);
+    Thread serverThread = new Thread(() -> {
+      try (ServerSocketChannel serverChannel =
+          ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+        serverChannel.bind(socketAddress);
+        isServerRunning.set(true);
 
-                synchronized (isServerRunning) {
-                  isServerRunning.notifyAll();
-                }
+        synchronized (isServerRunning) {
+          isServerRunning.notifyAll();
+        }
 
-                while (isServerRunning.get()) {
-                  SocketChannel clientChannel = serverChannel.accept();
-                }
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+        while (isServerRunning.get()) {
+          SocketChannel clientChannel = serverChannel.accept();
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
     serverThread.start();
 
     synchronized (isServerRunning) {

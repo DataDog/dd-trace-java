@@ -10,12 +10,10 @@ public class ConnectionStringHelper {
   private static final DDCache<ConnectionString, String> CONNECTION_STRING_STRING_CACHE =
       DDCaches.newFixedSizeCache(8);
 
-  private static final Function<ConnectionString, String> ADDER =
-      cs ->
-          cs.hosts().stream()
-              .map(ConnectionString.UnresolvedSocket::hostname)
-              .distinct()
-              .collect(Collectors.joining(","));
+  private static final Function<ConnectionString, String> ADDER = cs -> cs.hosts().stream()
+      .map(ConnectionString.UnresolvedSocket::hostname)
+      .distinct()
+      .collect(Collectors.joining(","));
 
   public static String toHostPortList(final ConnectionString connectionString) {
     if (connectionString == null) {

@@ -15,9 +15,8 @@ import net.bytebuddy.asm.Advice;
 public class ConnectionFutureAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {
-    final AgentSpan span =
-        startSpan(
-            LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan(
+        LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     span.setResourceName(DECORATE.resourceNameForConnection(redisUri));
     DECORATE.onConnection(span, redisUri);
@@ -39,11 +38,9 @@ public class ConnectionFutureAdvice {
       span.finish();
       return;
     }
-    connectionFuture =
-        connectionFuture.whenComplete(
-            new ConnectionContextBiConsumer(
-                    redisUri, InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
-                .andThen(new LettuceAsyncBiConsumer<>(span)));
+    connectionFuture = connectionFuture.whenComplete(new ConnectionContextBiConsumer(
+            redisUri, InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
+        .andThen(new LettuceAsyncBiConsumer<>(span)));
     scope.close();
     // span finished by LettuceAsyncBiConsumer
   }

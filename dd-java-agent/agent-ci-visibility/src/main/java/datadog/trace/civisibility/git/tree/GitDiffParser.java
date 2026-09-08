@@ -45,10 +45,9 @@ public class GitDiffParser {
           String stringCount = changedLinesMatcher.group("count");
           int count = stringCount != null ? Integer.parseInt(stringCount) : 1;
           if (changedLines == null) {
-            throw new IllegalStateException(
-                "Line "
-                    + line
-                    + " contains changed lines information, but no changed file info is available");
+            throw new IllegalStateException("Line "
+                + line
+                + " contains changed lines information, but no changed file info is available");
           }
           changedLines.set(startLine, startLine + count);
         }

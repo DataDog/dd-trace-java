@@ -120,26 +120,20 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     // We do not want to start from the end of the
     // pipeline because there is an increased risk of hitting duplex handlers that
     // expect to have seen a request before processing the response
-    ctxForDownstream =
-        ctxForDownstream
-            .pipeline()
-            .addAfter(
-                ctxForDownstream.name(),
-                "ignore_all_writes_handler",
-                IgnoreAllWritesHandler.INSTANCE)
-            .context("ignore_all_writes_handler");
+    ctxForDownstream = ctxForDownstream
+        .pipeline()
+        .addAfter(
+            ctxForDownstream.name(), "ignore_all_writes_handler", IgnoreAllWritesHandler.INSTANCE)
+        .context("ignore_all_writes_handler");
 
     segment.effectivelyBlocked();
 
-    ctxForDownstream
-        .writeAndFlush(response)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              ctx.channel().close();
-            });
+    ctxForDownstream.writeAndFlush(response).addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.cause());
+      }
+      ctx.channel().close();
+    });
   }
 
   @ChannelHandler.Sharable

@@ -17,9 +17,8 @@ public class AzureFunctionsDecorator
   public static final CharSequence AZURE_FUNCTIONS = UTF8BytesString.create("azure-functions");
 
   public static final AzureFunctionsDecorator DECORATE = new AzureFunctionsDecorator();
-  public static final CharSequence AZURE_FUNCTIONS_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().cloud().operationForFaas("azure"));
+  public static final CharSequence AZURE_FUNCTIONS_REQUEST = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().cloud().operationForFaas("azure"));
 
   @Override
   protected String[] instrumentationNames() {

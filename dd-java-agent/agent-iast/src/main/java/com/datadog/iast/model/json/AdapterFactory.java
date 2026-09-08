@@ -37,7 +37,9 @@ class AdapterFactory implements JsonAdapter.Factory {
     final List<Source> sources;
     final Map<Source, Integer> sourceIndexMap;
     final Map<Source, RedactionContext> sourceContext;
-    @Nullable Vulnerability vulnerability;
+
+    @Nullable
+    Vulnerability vulnerability;
 
     public Context() {
       sources = new ArrayList<>();
@@ -183,8 +185,12 @@ class AdapterFactory implements JsonAdapter.Factory {
     private final Source source;
     private final boolean sensitive;
     private boolean sensitiveRanges;
-    @Nullable private String redactedValue;
-    @Nullable private Set<VulnerabilityType> markedTypes;
+
+    @Nullable
+    private String redactedValue;
+
+    @Nullable
+    private Set<VulnerabilityType> markedTypes;
 
     public RedactionContext(final Source source) {
       this.source = source;

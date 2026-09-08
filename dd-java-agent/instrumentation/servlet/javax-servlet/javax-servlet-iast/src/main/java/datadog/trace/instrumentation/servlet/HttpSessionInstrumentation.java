@@ -38,11 +38,9 @@ public class HttpSessionInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            not(
-                namedOneOf(
-                    "com.ibm.ws.session.HttpSessionFacade",
-                    "org.apache.catalina.session.StandardSessionFacade")));
+        .and(not(namedOneOf(
+            "com.ibm.ws.session.HttpSessionFacade",
+            "org.apache.catalina.session.StandardSessionFacade")));
   }
 
   @Override

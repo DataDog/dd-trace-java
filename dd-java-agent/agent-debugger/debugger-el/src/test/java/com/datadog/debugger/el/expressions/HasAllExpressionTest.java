@@ -120,10 +120,9 @@ class HasAllExpressionTest {
     GetMemberExpression fldRef = getMember(ref(ValueReferences.ITERATOR_REF), "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class,
-            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
+    RuntimeException runtimeException = assertThrows(
+        RuntimeException.class,
+        () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
     assertEquals("Cannot dereference field: testField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
@@ -150,10 +149,9 @@ class HasAllExpressionTest {
     ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class,
-            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
+    RuntimeException runtimeException = assertThrows(
+        RuntimeException.class,
+        () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
     assertEquals("Cannot find synthetic var: ittestField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
@@ -202,10 +200,8 @@ class HasAllExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("all(Map, {@it.key == \"a\"})", print(expression));
 
-    expression =
-        all(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    expression = all(
+        targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("all(Map, {@it.value == \"a\"})", print(expression));
   }
@@ -246,12 +242,11 @@ class HasAllExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("all(Set, {@it == \"key\"})", print(expression));
 
-    expression =
-        all(
-            targetExpression,
-            or(
-                eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
-                eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
+    expression = all(
+        targetExpression,
+        or(
+            eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
+            eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("all(Set, {@it == \"foo\" || @it == \"bar\"})", print(expression));
   }

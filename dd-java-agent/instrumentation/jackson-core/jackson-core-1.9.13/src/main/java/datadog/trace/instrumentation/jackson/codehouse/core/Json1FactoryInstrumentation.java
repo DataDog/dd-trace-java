@@ -33,12 +33,11 @@ public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("createJsonParser")
             .and(isMethod())
-            .and(
-                takesArguments(String.class)
-                    .or(takesArguments(InputStream.class))
-                    .or(takesArguments(Reader.class))
-                    .or(takesArguments(URL.class))
-                    .or(takesArguments(byte[].class))),
+            .and(takesArguments(String.class)
+                .or(takesArguments(InputStream.class))
+                .or(takesArguments(Reader.class))
+                .or(takesArguments(URL.class))
+                .or(takesArguments(byte[].class))),
         Json1FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
     transformer.applyAdvice(
         named("createJsonParser")

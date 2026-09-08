@@ -15,16 +15,15 @@ class AgentFeatureFlaggingLifecycleTest {
 
   @Test
   void shutdownInvokesFeatureFlaggingSystemStopThroughAgentClassLoader() {
-    final ClassLoader classLoader =
-        new ClassLoader(null) {
-          @Override
-          public Class<?> loadClass(final String name) throws ClassNotFoundException {
-            if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
-              return FakeFeatureFlaggingSystem.class;
-            }
-            return super.loadClass(name);
-          }
-        };
+    final ClassLoader classLoader = new ClassLoader(null) {
+      @Override
+      public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
+          return FakeFeatureFlaggingSystem.class;
+        }
+        return super.loadClass(name);
+      }
+    };
 
     Agent.shutdownFeatureFlagging(classLoader);
 

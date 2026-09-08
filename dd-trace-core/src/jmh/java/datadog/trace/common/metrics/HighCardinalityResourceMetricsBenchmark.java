@@ -57,18 +57,17 @@ public class HighCardinalityResourceMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"), Collections.emptySet()),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false);
     this.aggregator.start();
   }
 

@@ -27,13 +27,12 @@ class OpenTelemetrySmokeTest {
       System.getProperty("datadog.smoketest.shadowJar.path");
 
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("opentelemetry")
-          .jar(APPLICATION_JAR)
-          .jvmArgs("-Ddd.trace.otel.enabled=true")
-          .workingDirectory(WORKING_DIRECTORY)
-          .backend(testAgent())
-          .build();
+  static final SmokeCliApp app = SmokeCliApp.named("opentelemetry")
+      .jar(APPLICATION_JAR)
+      .jvmArgs("-Ddd.trace.otel.enabled=true")
+      .workingDirectory(WORKING_DIRECTORY)
+      .backend(testAgent())
+      .build();
 
   @Test
   void receivesTraces() {
@@ -42,11 +41,10 @@ class OpenTelemetrySmokeTest {
             TIMEOUT_SECONDS,
             UNORDERED,
             // The standalone annotated span from the app set-up.
-            trace(
-                span()
-                    .root()
-                    .operationName("Application.loadConfiguration")
-                    .tag("events", validates(events -> events.contains("configuration-loaded")))),
+            trace(span()
+                .root()
+                .operationName("Application.loadConfiguration")
+                .tag("events", validates(events -> events.contains("configuration-loaded")))),
             // The batch trace:
             //   batch-job                        (tracer, server, root)
             //   ├─ Application.splitBatch        (annotated, main thread)

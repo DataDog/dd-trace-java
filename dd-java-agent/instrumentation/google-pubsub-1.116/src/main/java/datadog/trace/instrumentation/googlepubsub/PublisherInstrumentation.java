@@ -70,11 +70,10 @@ public final class PublisherInstrumentation
         @Advice.This Publisher publisher) {
       AgentSpan span = activeSpan();
       if (span == null) return;
-      DataStreamsTags tags =
-          create(
-              "google-pubsub",
-              OUTBOUND,
-              PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString()).toString());
+      DataStreamsTags tags = create(
+          "google-pubsub",
+          OUTBOUND,
+          PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString()).toString());
       PubsubMessage.Builder builder = msg.toBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), builder, SETTER);

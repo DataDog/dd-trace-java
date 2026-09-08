@@ -53,23 +53,22 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
     // Session synchronous methods we want to instrument.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "save",
-                    "replicate",
-                    "saveOrUpdate",
-                    "update",
-                    "merge",
-                    "persist",
-                    "lock",
-                    "refresh",
-                    "insert",
-                    "delete",
-                    // Iterator methods.
-                    "iterate",
-                    // Lazy-load methods.
-                    "immediateLoad",
-                    "internalLoad")),
+            .and(namedOneOf(
+                "save",
+                "replicate",
+                "saveOrUpdate",
+                "update",
+                "merge",
+                "persist",
+                "lock",
+                "refresh",
+                "insert",
+                "delete",
+                // Iterator methods.
+                "iterate",
+                // Lazy-load methods.
+                "immediateLoad",
+                "internalLoad")),
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
     // Handle the non-generic 'get' separately.
     transformer.applyAdvice(

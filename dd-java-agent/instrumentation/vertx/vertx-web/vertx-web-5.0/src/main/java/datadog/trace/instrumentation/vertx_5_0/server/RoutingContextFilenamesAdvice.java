@@ -69,9 +69,8 @@ class RoutingContextFilenamesAdvice {
     }
 
     if (filenamesCb != null && filenames != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
+      throwable = FileUploadHelper.commitBlockingResponse(
+          filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
     }
 
     if (throwable != null) {
@@ -79,9 +78,8 @@ class RoutingContextFilenamesAdvice {
     }
 
     if (contentCb != null && filesContent != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              contentCb, reqCtx, filesContent, "Blocked request (file content)");
+      throwable = FileUploadHelper.commitBlockingResponse(
+          contentCb, reqCtx, filesContent, "Blocked request (file content)");
     }
   }
 }

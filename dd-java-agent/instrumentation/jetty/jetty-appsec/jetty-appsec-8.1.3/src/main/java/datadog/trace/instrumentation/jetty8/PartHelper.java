@@ -54,11 +54,10 @@ public class PartHelper {
     static {
       MethodHandle h = null;
       try {
-        Class<?> cls =
-            Class.forName(
-                "org.eclipse.jetty.util.MultiPartInputStream",
-                false,
-                MpiGetPartsHolder.class.getClassLoader());
+        Class<?> cls = Class.forName(
+            "org.eclipse.jetty.util.MultiPartInputStream",
+            false,
+            MpiGetPartsHolder.class.getClassLoader());
         h = MethodHandles.lookup().unreflect(cls.getMethod("getParts"));
       } catch (Exception ignored) {
         // class or method not available — getAllParts() falls back to singleton
@@ -175,7 +174,8 @@ public class PartHelper {
       while (i < len && cd.charAt(i) != '=' && cd.charAt(i) != ';') {
         i++;
       }
-      boolean isFilename = "filename".equalsIgnoreCase(cd.substring(nameStart, i).trim());
+      boolean isFilename =
+          "filename".equalsIgnoreCase(cd.substring(nameStart, i).trim());
       if (i >= len || cd.charAt(i) == ';') {
         // Value-less token (e.g. "form-data") — skip
         continue;

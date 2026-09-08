@@ -129,10 +129,8 @@ public final class DdprofLibraryLoader {
     try {
       ConfigProvider configProvider = ConfigProvider.getInstance();
       String scratch = getScratchDir(configProvider);
-      profiler =
-          JavaProfiler.getInstance(
-              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
-              scratch);
+      profiler = JavaProfiler.getInstance(
+          configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH), scratch);
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
     } catch (Throwable t) {

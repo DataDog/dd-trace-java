@@ -25,17 +25,16 @@ class ServiceDiscoveryTest {
     String containerID = "containerID";
     boolean appLogsCollectionEnabled = true;
 
-    byte[] out =
-        ServiceDiscovery.encodePayload(
-            tracerVersion,
-            hostname,
-            appLogsCollectionEnabled,
-            runtimeID,
-            service,
-            env,
-            serviceVersion,
-            processTags,
-            containerID);
+    byte[] out = ServiceDiscovery.encodePayload(
+        tracerVersion,
+        hostname,
+        appLogsCollectionEnabled,
+        runtimeID,
+        service,
+        env,
+        serviceVersion,
+        processTags,
+        containerID);
     MapValue map = MessagePack.newDefaultUnpacker(out).unpackValue().asMapValue();
 
     assertEquals(11, map.size());
@@ -49,9 +48,8 @@ class ServiceDiscoveryTest {
     String tracerVersion = "1.2.3";
     String hostname = "my_host";
 
-    byte[] out =
-        ServiceDiscovery.encodePayload(
-            tracerVersion, hostname, false, null, null, null, null, null, null);
+    byte[] out = ServiceDiscovery.encodePayload(
+        tracerVersion, hostname, false, null, null, null, null, null, null);
     MapValue map = MessagePack.newDefaultUnpacker(out).unpackValue().asMapValue();
 
     assertEquals(5, map.size());

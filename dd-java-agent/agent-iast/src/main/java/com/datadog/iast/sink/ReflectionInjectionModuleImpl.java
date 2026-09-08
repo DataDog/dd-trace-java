@@ -49,7 +49,9 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   private static class MethodEvidenceBuilder implements EvidenceBuilder {
 
     private final Class<?> clazz;
-    @Nullable private final Class<?>[] parameterTypes;
+
+    @Nullable
+    private final Class<?>[] parameterTypes;
 
     private MethodEvidenceBuilder(final Class<?> clazz, @Nullable final Class<?>[] parameterTypes) {
       this.clazz = clazz;

@@ -25,12 +25,11 @@ class LambdaEventParserTest {
 
   @Test
   void restApiPrefersDomainNameOverHostHeader() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
-                + " \"headers\": {\"Host\": \"header.example.com\"},"
-                + " \"requestContext\": {\"httpMethod\": \"GET\", \"domainName\":"
-                + " \"context.example.com\"}}");
+    LambdaRequestData data = parseEvent(
+        "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
+            + " \"headers\": {\"Host\": \"header.example.com\"},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\", \"domainName\":"
+            + " \"context.example.com\"}}");
 
     assertEquals(LambdaTriggerType.API_GATEWAY_V1_REST, data.triggerType);
     assertEquals("context.example.com", data.host);
@@ -39,20 +38,18 @@ class LambdaEventParserTest {
   @Test
   void restApiFallsBackToCapitalisedHostHeader() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"headers\": {\"Host\":"
-                + " \"abc123.execute-api.eu-west-1.amazonaws.com\"}, \"requestContext\":"
-                + " {\"httpMethod\": \"GET\"}}");
+        parseEvent("{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"headers\": {\"Host\":"
+            + " \"abc123.execute-api.eu-west-1.amazonaws.com\"}, \"requestContext\":"
+            + " {\"httpMethod\": \"GET\"}}");
 
     assertEquals("abc123.execute-api.eu-west-1.amazonaws.com", data.host);
   }
 
   @Test
   void restApiRouteIsTheResource() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
-                + " \"requestContext\": {\"httpMethod\": \"GET\"}}");
+    LambdaRequestData data = parseEvent(
+        "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
+            + " \"requestContext\": {\"httpMethod\": \"GET\"}}");
 
     assertEquals("/users/{id}", data.route);
   }
@@ -60,9 +57,8 @@ class LambdaEventParserTest {
   @Test
   void restApiHasNoRouteWhenResourceIsMissing() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"requestContext\":"
-                + " {\"httpMethod\": \"GET\"}}");
+        parseEvent("{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"requestContext\":"
+            + " {\"httpMethod\": \"GET\"}}");
 
     assertNull(data.route);
   }
@@ -73,11 +69,10 @@ class LambdaEventParserTest {
 
   @Test
   void httpApiStripsTheMethodFromTheRouteKey() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"headers\": {\"host\": \"api.example.com\"}, \"requestContext\": {\"domainName\":"
-                + " \"api.example.com\", \"routeKey\": \"GET /users/{id}\", \"http\": {\"method\":"
-                + " \"GET\", \"path\": \"/users/42\"}}}");
+    LambdaRequestData data = parseEvent(
+        "{\"headers\": {\"host\": \"api.example.com\"}, \"requestContext\": {\"domainName\":"
+            + " \"api.example.com\", \"routeKey\": \"GET /users/{id}\", \"http\": {\"method\":"
+            + " \"GET\", \"path\": \"/users/42\"}}}");
 
     assertEquals(LambdaTriggerType.API_GATEWAY_V2_HTTP, data.triggerType);
     assertEquals("api.example.com", data.host);
@@ -87,20 +82,17 @@ class LambdaEventParserTest {
   @Test
   void httpApiDropsTheDefaultRouteKey() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"requestContext\": {\"domainName\": \"api.example.com\", \"routeKey\":"
-                + " \"$default\", \"http\": {\"method\": \"GET\", \"path\": \"/\"}}}");
+        parseEvent("{\"requestContext\": {\"domainName\": \"api.example.com\", \"routeKey\":"
+            + " \"$default\", \"http\": {\"method\": \"GET\", \"path\": \"/\"}}}");
 
     assertNull(data.route);
   }
 
   @Test
   void functionUrlHasNoRouteAndTakesHostFromDomainName() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"requestContext\": {\"domainName\":"
-                + " \"abc.lambda-url.eu-west-1.on.aws\", \"routeKey\": \"$default\", \"http\":"
-                + " {\"method\": \"POST\", \"path\": \"/\"}}}");
+    LambdaRequestData data = parseEvent("{\"requestContext\": {\"domainName\":"
+        + " \"abc.lambda-url.eu-west-1.on.aws\", \"routeKey\": \"$default\", \"http\":"
+        + " {\"method\": \"POST\", \"path\": \"/\"}}}");
 
     assertEquals(LambdaTriggerType.LAMBDA_URL, data.triggerType);
     assertEquals("abc.lambda-url.eu-west-1.on.aws", data.host);
@@ -109,11 +101,10 @@ class LambdaEventParserTest {
 
   @Test
   void httpApiExposesTheRawRequestLine() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"rawPath\": \"/users/42\", \"rawQueryString\": \"a=1&a=2\", \"requestContext\":"
-                + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
-                + " \"path\": \"/users/42\"}}}");
+    LambdaRequestData data = parseEvent(
+        "{\"rawPath\": \"/users/42\", \"rawQueryString\": \"a=1&a=2\", \"requestContext\":"
+            + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+            + " \"path\": \"/users/42\"}}}");
 
     assertEquals("/users/42?a=1&a=2", data.rawUri);
   }
@@ -121,10 +112,9 @@ class LambdaEventParserTest {
   @Test
   void restApiPrefersTheMultiValueQueryParameters() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
-                + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
-                + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
+        parseEvent("{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
+            + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
 
     assertEquals(singletonMap("a", asList("1", "2")), data.queryParameters);
   }
@@ -132,9 +122,8 @@ class LambdaEventParserTest {
   @Test
   void restApiFallsBackToTheSingleValueQueryParameters() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
-                + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
+        parseEvent("{\"path\": \"/users\", \"queryStringParameters\": {\"a\": \"2\"},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\"}}");
 
     assertEquals(singletonMap("a", singletonList("2")), data.queryParameters);
   }
@@ -143,9 +132,8 @@ class LambdaEventParserTest {
   void restApiExposesNoRawRequestLine() {
     // Only v2 payloads carry rawPath/rawQueryString; v1 has to be rebuilt from its parameter map
     LambdaRequestData data =
-        parseEvent(
-            "{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"requestContext\":"
-                + " {\"httpMethod\": \"GET\"}}");
+        parseEvent("{\"path\": \"/users/42\", \"httpMethod\": \"GET\", \"requestContext\":"
+            + " {\"httpMethod\": \"GET\"}}");
 
     assertNull(data.rawUri);
   }
@@ -157,9 +145,8 @@ class LambdaEventParserTest {
   @Test
   void webSocketRouteIsTheRawRouteKey() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"requestContext\": {\"connectionId\": \"c1\", \"eventType\": \"CONNECT\","
-                + " \"routeKey\": \"$connect\", \"domainName\": \"ws.example.com\"}}");
+        parseEvent("{\"requestContext\": {\"connectionId\": \"c1\", \"eventType\": \"CONNECT\","
+            + " \"routeKey\": \"$connect\", \"domainName\": \"ws.example.com\"}}");
 
     assertEquals(LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, data.triggerType);
     assertEquals("ws.example.com", data.host);
@@ -173,10 +160,9 @@ class LambdaEventParserTest {
   @Test
   void albTakesHostFromHeaderAndHasNoRoute() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                + " \"lb-123.eu-west-1.elb.amazonaws.com\"}, \"requestContext\": {\"elb\":"
-                + " {\"targetGroupArn\": \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb-123.eu-west-1.elb.amazonaws.com\"}, \"requestContext\": {\"elb\":"
+            + " {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals(LambdaTriggerType.ALB, data.triggerType);
     assertEquals("lb-123.eu-west-1.elb.amazonaws.com", data.host);
@@ -186,10 +172,9 @@ class LambdaEventParserTest {
   @Test
   void albStripsThePortFromTheHostHeader() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                + " \"lb.example.com:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
-                + " \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
+            + " \"arn\"}}}");
 
     // The port is carried separately, by x-forwarded-port
     assertEquals("lb.example.com", data.host);
@@ -197,10 +182,9 @@ class LambdaEventParserTest {
 
   @Test
   void albKeepsAnIpv6HostIntact() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\": \"[::1]\"},"
-                + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
+    LambdaRequestData data = parseEvent(
+        "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\": \"[::1]\"},"
+            + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals("[::1]", data.host);
   }
@@ -208,10 +192,9 @@ class LambdaEventParserTest {
   @Test
   void albStripsThePortFromABracketedIpv6Host() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                + " \"[2001:db8::1]:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
-                + " \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"[2001:db8::1]:8080\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\":"
+            + " \"arn\"}}}");
 
     assertEquals("[2001:db8::1]", data.host);
   }
@@ -219,10 +202,9 @@ class LambdaEventParserTest {
   @Test
   void albMultiValueTakesHostFromMultiValueHeaders() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"host\":"
-                + " [\"lb-123.eu-west-1.elb.amazonaws.com\"]}, \"requestContext\": {\"elb\":"
-                + " {\"targetGroupArn\": \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"host\":"
+            + " [\"lb-123.eu-west-1.elb.amazonaws.com\"]}, \"requestContext\": {\"elb\":"
+            + " {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals(LambdaTriggerType.ALB_MULTI_VALUE, data.triggerType);
     assertEquals("lb-123.eu-west-1.elb.amazonaws.com", data.host);
@@ -231,10 +213,9 @@ class LambdaEventParserTest {
   @Test
   void albMultiValueFallsBackToSingleValueHeaders() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\":"
-                + " \"not-a-map\", \"headers\": {\"host\": \"fallback.example.com\"},"
-                + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\":"
+            + " \"not-a-map\", \"headers\": {\"host\": \"fallback.example.com\"},"
+            + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals(LambdaTriggerType.ALB_MULTI_VALUE, data.triggerType);
     assertEquals("fallback.example.com", data.host);
@@ -243,10 +224,9 @@ class LambdaEventParserTest {
   @Test
   void albMultiValueFallsBackToSingleValueQueryParameters() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"host\":"
-                + " [\"lb.example.com\"]}, \"queryStringParameters\": {\"q\": \"hello\"},"
-                + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"host\":"
+            + " [\"lb.example.com\"]}, \"queryStringParameters\": {\"q\": \"hello\"},"
+            + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals(LambdaTriggerType.ALB_MULTI_VALUE, data.triggerType);
     assertEquals(singletonList("hello"), data.queryParameters.get("q"));
@@ -254,11 +234,10 @@ class LambdaEventParserTest {
 
   @Test
   void queryParametersKeepEventOrder() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"resource\": \"/items\", \"path\": \"/items\", \"queryStringParameters\": {\"z\":"
-                + " \"1\", \"a\": \"2\", \"m\": \"3\"}, \"requestContext\": {\"httpMethod\":"
-                + " \"GET\", \"domainName\": \"api.example.com\"}}");
+    LambdaRequestData data = parseEvent(
+        "{\"resource\": \"/items\", \"path\": \"/items\", \"queryStringParameters\": {\"z\":"
+            + " \"1\", \"a\": \"2\", \"m\": \"3\"}, \"requestContext\": {\"httpMethod\":"
+            + " \"GET\", \"domainName\": \"api.example.com\"}}");
 
     // Order drives the rebuilt query string, so it must follow the event, not a hash order
     assertEquals(asList("z", "a", "m"), new ArrayList<>(data.queryParameters.keySet()));
@@ -288,11 +267,10 @@ class LambdaEventParserTest {
 
   @Test
   void headerKeysAreLowercasedAtExtraction() {
-    LambdaRequestData data =
-        parseEvent(
-            "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
-                + " \"headers\": {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.1\"},"
-                + " \"requestContext\": {\"httpMethod\": \"GET\"}}");
+    LambdaRequestData data = parseEvent(
+        "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
+            + " \"headers\": {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.1\"},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\"}}");
 
     // findHeader is an exact lookup, so a match proves the keys were lowercased on the way in
     assertEquals("api.example.com", findHeader(data.headers, "host"));
@@ -303,10 +281,9 @@ class LambdaEventParserTest {
   @Test
   void albMultiValueHeaderKeysAreLowercasedAtExtraction() {
     LambdaRequestData data =
-        parseEvent(
-            "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"Host\":"
-                + " [\"lb.example.com\"], \"User-Agent\": [\"curl/8.1\"]}, \"requestContext\":"
-                + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
+        parseEvent("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"multiValueHeaders\": {\"Host\":"
+            + " [\"lb.example.com\"], \"User-Agent\": [\"curl/8.1\"]}, \"requestContext\":"
+            + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}");
 
     assertEquals("lb.example.com", findHeader(data.headers, "host"));
     assertEquals("curl/8.1", findHeader(data.headers, "user-agent"));
@@ -316,11 +293,10 @@ class LambdaEventParserTest {
   void capitalisedCookieHeaderIsMergedWithTheV2CookiesArray() {
     // The merge in extractHeadersWithCookies looks up "cookie", which only matches once keys are
     // lowercased at extraction — an API Gateway v1 style "Cookie" used to be left as a second entry
-    LambdaRequestData data =
-        parseEvent(
-            "{\"headers\": {\"Cookie\": \"a=1\"}, \"cookies\": [\"b=2\"], \"requestContext\":"
-                + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
-                + " \"path\": \"/\"}}}");
+    LambdaRequestData data = parseEvent(
+        "{\"headers\": {\"Cookie\": \"a=1\"}, \"cookies\": [\"b=2\"], \"requestContext\":"
+            + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+            + " \"path\": \"/\"}}}");
 
     assertEquals("a=1; b=2", findHeader(data.headers, "cookie"));
     assertEquals(1, data.headers.size());

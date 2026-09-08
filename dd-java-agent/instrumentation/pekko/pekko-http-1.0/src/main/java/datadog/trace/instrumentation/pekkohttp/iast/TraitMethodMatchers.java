@@ -15,10 +15,9 @@ public class TraitMethodMatchers {
   public static ElementMatcher.Junction<MethodDescription> isTraitDirectiveMethod(
       String traitName, String name, String... argumentTypes) {
 
-    ElementMatcher.Junction<MethodDescription> scalaOldArgs =
-        isStatic()
-            .and(takesArguments(argumentTypes.length + 1))
-            .and(takesArgument(0, named(traitName)));
+    ElementMatcher.Junction<MethodDescription> scalaOldArgs = isStatic()
+        .and(takesArguments(argumentTypes.length + 1))
+        .and(takesArgument(0, named(traitName)));
     ElementMatcher.Junction<MethodDescription> scalaNewArgs =
         not(isStatic()).and(takesArguments(argumentTypes.length));
 

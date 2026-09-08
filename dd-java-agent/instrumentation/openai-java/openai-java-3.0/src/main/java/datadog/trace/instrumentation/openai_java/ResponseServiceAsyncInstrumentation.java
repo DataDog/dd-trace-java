@@ -100,9 +100,8 @@ public class ResponseServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpStreamResponseWrapper.wrapFuture(
-                future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
+        future = HttpStreamResponseWrapper.wrapFuture(
+            future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
       }
       scope.close();
     }

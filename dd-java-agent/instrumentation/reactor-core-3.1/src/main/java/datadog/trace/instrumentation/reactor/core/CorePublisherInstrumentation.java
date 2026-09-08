@@ -32,10 +32,8 @@ public class CorePublisherInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("reactor.core.CorePublisher")) // from 3.1.7
-        .or(
-            hasSuperType(
-                namedOneOf(
-                    "reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
+        .or(hasSuperType(
+            namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
   }
 
   @Override

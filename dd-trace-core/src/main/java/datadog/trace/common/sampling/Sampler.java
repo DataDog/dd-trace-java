@@ -69,13 +69,12 @@ public interface Sampler {
             || traceSamplingRulesDefined
             || traceSampleRate != null) {
           try {
-            sampler =
-                RuleBasedTraceSampler.build(
-                    serviceRules,
-                    operationRules,
-                    traceSamplingRules,
-                    traceSampleRate,
-                    config.getTraceRateLimit());
+            sampler = RuleBasedTraceSampler.build(
+                serviceRules,
+                operationRules,
+                traceSamplingRules,
+                traceSampleRate,
+                config.getTraceRateLimit());
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();

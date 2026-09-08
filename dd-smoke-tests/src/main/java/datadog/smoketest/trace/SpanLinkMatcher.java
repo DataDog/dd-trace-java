@@ -182,12 +182,11 @@ public final class SpanLinkMatcher {
 
   private DecodedSpan targetSpan(List<DecodedSpan> trace) {
     if (this.targetSpanIndex >= trace.size()) {
-      throw new IllegalStateException(
-          "Cannot link to span #"
-              + this.targetSpanIndex
-              + ": the trace holds only "
-              + trace.size()
-              + " span(s)");
+      throw new IllegalStateException("Cannot link to span #"
+          + this.targetSpanIndex
+          + ": the trace holds only "
+          + trace.size()
+          + " span(s)");
     }
     return trace.get(this.targetSpanIndex);
   }

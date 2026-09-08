@@ -13,7 +13,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class FileBasedConfigurationApiTest extends AbstractConfigurationApiContractTest {
 
-  @TempDir Path tmp;
+  @TempDir
+  Path tmp;
 
   @Override
   protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody)

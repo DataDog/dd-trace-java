@@ -52,9 +52,8 @@ public class OtelEnvMetricCollectorImpl
   }
 
   private void setMetricOtelEnvVarMetric(String metricName, final String... tags) {
-    if (!metricsQueue.offer(
-        new OtelEnvMetricCollectorImpl.OtelEnvMetric(
-            NAMESPACE, true, metricName, "count", 1, tags))) {
+    if (!metricsQueue.offer(new OtelEnvMetricCollectorImpl.OtelEnvMetric(
+        NAMESPACE, true, metricName, "count", 1, tags))) {
       log.debug("Unable to add telemetry metric {} for {}", metricName, tags[0]);
     }
   }

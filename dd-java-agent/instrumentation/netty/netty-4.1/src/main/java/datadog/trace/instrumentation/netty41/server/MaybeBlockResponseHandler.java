@@ -48,10 +48,9 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
 
     ServerRequestContext serverContext = ServerRequestContext.nextResponse(channel);
-    Context storedContext =
-        serverContext == null
-            ? channel.attr(CONTEXT_ATTRIBUTE_KEY).get()
-            : serverContext.tracingContext();
+    Context storedContext = serverContext == null
+        ? channel.attr(CONTEXT_ATTRIBUTE_KEY).get()
+        : serverContext.tracingContext();
     AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null || (requestContext = span.getRequestContext()) == null) {
@@ -81,9 +80,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
     if (serverContext != null) {
       serverContext.markResponseAnalyzed();
     }
@@ -110,9 +108,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct != BlockingContentType.NONE) {
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(
-              bct, serverContext == null ? null : serverContext.acceptHeader());
+      BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(
+          bct, serverContext == null ? null : serverContext.acceptHeader());
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);
@@ -121,15 +118,13 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              } else {
-                log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
+    ctx.writeAndFlush(response, prm).addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.cause());
+      } else {
+        log.debug("Write of blocking response succeeded");
+      }
+      channel.close();
+    });
   }
 }

@@ -33,19 +33,16 @@ public class RedisSubscriptionSubscribeAdvice {
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
     AgentScope parentScope = null;
-    RedisSubscriptionState state =
-        (RedisSubscriptionState)
-            InstrumentationContext.get(
-                    "io.lettuce.core.RedisPublisher$RedisSubscription",
-                    "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
-                .get(subscription);
+    RedisSubscriptionState state = (RedisSubscriptionState) InstrumentationContext.get(
+            "io.lettuce.core.RedisPublisher$RedisSubscription",
+            "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
+        .get(subscription);
     AgentSpan parentSpan = state != null ? state.parentSpan : null;
     if (parentSpan != null) {
       parentScope = activateSpan(parentSpan);
     }
-    AgentSpan span =
-        startSpan(
-            LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+    AgentSpan span = startSpan(
+        LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
     InstrumentationContext.get(RedisCommand.class, AgentSpan.class).put(subscriptionCommand, span);
     DECORATE.afterStart(span);
     if (state != null && state.connection != null) {

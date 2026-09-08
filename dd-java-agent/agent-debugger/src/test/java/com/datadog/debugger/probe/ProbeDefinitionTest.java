@@ -10,7 +10,8 @@ public class ProbeDefinitionTest {
   @Test
   public void tags() {
     String[] tags = new String[] {"tag1:foo1", "tag2:foo2", "tag3"};
-    ProbeDefinition snapshotProbe = LogProbe.builder().probeId(PROBE_ID).tags(tags).build();
+    ProbeDefinition snapshotProbe =
+        LogProbe.builder().probeId(PROBE_ID).tags(tags).build();
     Assertions.assertEquals("foo1", snapshotProbe.getTagMap().get("tag1"));
     Assertions.assertEquals("foo2", snapshotProbe.getTagMap().get("tag2"));
     Assertions.assertNull(snapshotProbe.getTagMap().get("tag3"));

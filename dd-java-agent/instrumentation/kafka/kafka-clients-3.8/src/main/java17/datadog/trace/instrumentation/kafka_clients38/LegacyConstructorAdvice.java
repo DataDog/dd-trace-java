@@ -50,9 +50,8 @@ public class LegacyConstructorAdvice {
     }
 
     if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext.get(Metadata.class, MetadataState.class)
+          .getOrCreate(metadata, MetadataState::new);
       KafkaConfigHelper.storePendingConsumerConfig(
           state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }

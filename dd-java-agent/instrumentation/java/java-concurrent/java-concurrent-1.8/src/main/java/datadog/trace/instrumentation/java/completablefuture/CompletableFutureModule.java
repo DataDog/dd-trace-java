@@ -48,39 +48,38 @@ public class CompletableFutureModule extends InstrumenterModule.ContextTracking
     excludedRunnableClasses.addAll(asList(CLASS_NAMES));
     if (isEnabled()) {
       // CompletableFutureUniCompletionInstrumentation
-      final List<String> unicompletionClasses =
-          asList(
-              // This is not a subclass of UniCompletion and doesn't have a dependent
-              // CompletableFuture
-              "java.util.concurrent.CompletableFuture$Completion",
-              "java.util.concurrent.CompletableFuture$UniCompletion",
-              "java.util.concurrent.CompletableFuture$UniApply",
-              "java.util.concurrent.CompletableFuture$UniAccept",
-              "java.util.concurrent.CompletableFuture$UniRun",
-              "java.util.concurrent.CompletableFuture$UniWhenComplete",
-              "java.util.concurrent.CompletableFuture$UniHandle",
-              "java.util.concurrent.CompletableFuture$UniExceptionally",
-              "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
-              "java.util.concurrent.CompletableFuture$UniRelay",
-              "java.util.concurrent.CompletableFuture$UniCompose",
-              "java.util.concurrent.CompletableFuture$BiCompletion",
-              // This is not a subclass of UniCompletion and doesn't have a dependent
-              // CompletableFuture
-              // "java.util.concurrent.CompletableFuture$CoCompletion",
-              "java.util.concurrent.CompletableFuture$BiApply",
-              "java.util.concurrent.CompletableFuture$BiAccept",
-              "java.util.concurrent.CompletableFuture$BiRun",
-              "java.util.concurrent.CompletableFuture$BiRelay",
-              "java.util.concurrent.CompletableFuture$OrApply",
-              "java.util.concurrent.CompletableFuture$OrAccept",
-              "java.util.concurrent.CompletableFuture$OrRun"
-              // This is not a subclass of UniCompletion and doesn't have a dependent
-              // CompletableFuture
-              // "java.util.concurrent.CompletableFuture$AnyOf",
-              // This is not a subclass of UniCompletion and doesn't have a dependent
-              // CompletableFuture
-              // "java.util.concurrent.CompletableFuture$Signaller",
-              );
+      final List<String> unicompletionClasses = asList(
+          // This is not a subclass of UniCompletion and doesn't have a dependent
+          // CompletableFuture
+          "java.util.concurrent.CompletableFuture$Completion",
+          "java.util.concurrent.CompletableFuture$UniCompletion",
+          "java.util.concurrent.CompletableFuture$UniApply",
+          "java.util.concurrent.CompletableFuture$UniAccept",
+          "java.util.concurrent.CompletableFuture$UniRun",
+          "java.util.concurrent.CompletableFuture$UniWhenComplete",
+          "java.util.concurrent.CompletableFuture$UniHandle",
+          "java.util.concurrent.CompletableFuture$UniExceptionally",
+          "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
+          "java.util.concurrent.CompletableFuture$UniRelay",
+          "java.util.concurrent.CompletableFuture$UniCompose",
+          "java.util.concurrent.CompletableFuture$BiCompletion",
+          // This is not a subclass of UniCompletion and doesn't have a dependent
+          // CompletableFuture
+          // "java.util.concurrent.CompletableFuture$CoCompletion",
+          "java.util.concurrent.CompletableFuture$BiApply",
+          "java.util.concurrent.CompletableFuture$BiAccept",
+          "java.util.concurrent.CompletableFuture$BiRun",
+          "java.util.concurrent.CompletableFuture$BiRelay",
+          "java.util.concurrent.CompletableFuture$OrApply",
+          "java.util.concurrent.CompletableFuture$OrAccept",
+          "java.util.concurrent.CompletableFuture$OrRun"
+          // This is not a subclass of UniCompletion and doesn't have a dependent
+          // CompletableFuture
+          // "java.util.concurrent.CompletableFuture$AnyOf",
+          // This is not a subclass of UniCompletion and doesn't have a dependent
+          // CompletableFuture
+          // "java.util.concurrent.CompletableFuture$Signaller",
+          );
       excludedRunnableClasses.addAll(unicompletionClasses);
       excludedExecutorClasses.addAll(unicompletionClasses);
       excludedForkJoinClass.addAll(unicompletionClasses);

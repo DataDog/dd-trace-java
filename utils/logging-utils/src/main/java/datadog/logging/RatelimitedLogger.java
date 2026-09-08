@@ -65,10 +65,9 @@ public class RatelimitedLogger {
     noLogStringBuilder.append(delay);
     noLogStringBuilder.append(' ');
     String unit = timeUnit.name().toLowerCase(Locale.ROOT);
-    unit =
-        delay == 1
-            ? unit.substring(0, unit.length() - 1)
-            : unit; // should we drop the plural s or not?
+    unit = delay == 1
+        ? unit.substring(0, unit.length() - 1)
+        : unit; // should we drop the plural s or not?
     noLogStringBuilder.append(unit);
     noLogStringBuilder.append(postfix);
     return noLogStringBuilder.toString();

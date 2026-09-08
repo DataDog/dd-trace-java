@@ -44,7 +44,10 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
             existing.substring(0, closingBrace) + String.format(", \"%s\": \"%s\"}", key, value);
         carrier.put(
             DATADOG_KEY,
-            MessageAttributeValue.builder().dataType("String").stringValue(updated).build());
+            MessageAttributeValue.builder()
+                .dataType("String")
+                .stringValue(updated)
+                .build());
       }
     }
   }

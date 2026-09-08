@@ -10,8 +10,12 @@ final class OtelTracerBuilder implements TracerBuilder {
   private final OtelTracerProvider tracerProvider;
 
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+
+  @Nullable
+  private String instrumentationScopeVersion;
+
+  @Nullable
+  private String schemaUrl;
 
   OtelTracerBuilder(OtelTracerProvider tracerProvider, String instrumentationScopeName) {
     this.tracerProvider = tracerProvider;

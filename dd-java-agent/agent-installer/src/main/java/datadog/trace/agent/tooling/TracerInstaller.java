@@ -29,14 +29,13 @@ public class TracerInstaller {
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        CoreTracer tracer =
-            CoreTracer.builder()
-                .sharedCommunicationObjects(sharedCommunicationObjects)
-                .profilingContextIntegration(profilingContextIntegration)
-                .reportInTracerFlare()
-                .pollForTracingConfiguration()
-                .serviceDiscoveryFactory(serviceDiscoveryFactory())
-                .build();
+        CoreTracer tracer = CoreTracer.builder()
+            .sharedCommunicationObjects(sharedCommunicationObjects)
+            .profilingContextIntegration(profilingContextIntegration)
+            .reportInTracerFlare()
+            .pollForTracingConfiguration()
+            .serviceDiscoveryFactory(serviceDiscoveryFactory())
+            .build();
         installGlobalTracer(tracer);
       } else {
         log.debug("GlobalTracer already registered.");

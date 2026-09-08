@@ -529,7 +529,8 @@ final class LambdaEventParser {
     Map<String, String> headers = extractHeaderMap(headersObj);
     log.debug("Extracted {} headers", headers.size());
     if (headers.containsKey("cookie")) {
-      log.debug("Cookie header found with value length: {}", headers.get("cookie").length());
+      log.debug(
+          "Cookie header found with value length: {}", headers.get("cookie").length());
     }
     return headers;
   }
@@ -772,17 +773,16 @@ final class LambdaEventParser {
      */
     final String rawUri;
 
-    static final LambdaRequestData EMPTY =
-        new LambdaRequestData(
-            Collections.emptyMap(),
-            null,
-            null,
-            null,
-            null,
-            LambdaTriggerType.UNKNOWN,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            null);
+    static final LambdaRequestData EMPTY = new LambdaRequestData(
+        Collections.emptyMap(),
+        null,
+        null,
+        null,
+        null,
+        LambdaTriggerType.UNKNOWN,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        null);
 
     LambdaRequestData(
         Map<String, String> headers,

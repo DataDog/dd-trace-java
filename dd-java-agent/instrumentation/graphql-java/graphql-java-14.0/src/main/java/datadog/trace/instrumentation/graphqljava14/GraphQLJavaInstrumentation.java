@@ -53,13 +53,12 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "checkInstrumentationDefaultState" // 9.7+
-                    // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
-                    //                    "checkInstrumentation" // <9.7
-                    // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
-                    ))
+            .and(namedOneOf(
+                "checkInstrumentationDefaultState" // 9.7+
+                // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
+                //                    "checkInstrumentation" // <9.7
+                // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
+                ))
             .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),
         this.getClass().getName() + "$AddInstrumentationAdvice");
   }

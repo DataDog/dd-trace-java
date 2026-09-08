@@ -124,10 +124,9 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
     @Advice.OnMethodExit
     public static void methodExit(
         @Advice.This final Object thiz, @Advice.Return(readOnly = false) int contextCount) {
-      final ContextStore<Object, Context> contextStore =
-          InstrumentationContext.get(
-              "context.FieldInjectionTestInstrumentation$KeyClass",
-              "context.FieldInjectionTestInstrumentation$Context");
+      final ContextStore<Object, Context> contextStore = InstrumentationContext.get(
+          "context.FieldInjectionTestInstrumentation$KeyClass",
+          "context.FieldInjectionTestInstrumentation$Context");
       contextCount = contextStore.get(thiz).count;
     }
   }
@@ -136,10 +135,9 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
     @Advice.OnMethodExit
     public static void methodExit(
         @Advice.This final Object thiz, @Advice.Argument(0) final int value) {
-      final ContextStore<Object, Context> contextStore =
-          InstrumentationContext.get(
-              "context.FieldInjectionTestInstrumentation$KeyClass",
-              "context.FieldInjectionTestInstrumentation$Context");
+      final ContextStore<Object, Context> contextStore = InstrumentationContext.get(
+          "context.FieldInjectionTestInstrumentation$KeyClass",
+          "context.FieldInjectionTestInstrumentation$Context");
       final Context context = new Context();
       context.count = value;
       contextStore.put(thiz, context);

@@ -36,18 +36,16 @@ public class ChatCompletionServiceAsyncInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(named("create"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(takesArgument(
+                0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createStreaming"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(takesArgument(
+                0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
@@ -76,9 +74,8 @@ public class ChatCompletionServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpResponseWrapper.wrapFuture(
-                future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
+        future = HttpResponseWrapper.wrapFuture(
+            future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
       }
       scope.close();
     }
@@ -104,9 +101,8 @@ public class ChatCompletionServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpStreamResponseWrapper.wrapFuture(
-                future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
+        future = HttpStreamResponseWrapper.wrapFuture(
+            future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
       }
       scope.close();
     }

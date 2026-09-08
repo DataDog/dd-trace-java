@@ -160,7 +160,8 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
    */
   private static boolean isDeferred(ClassLoader classLoader) {
     return null != classLoader
-        && (DEFER_ALL || DEFERRED_CLASSLOADER_NAMES.contains(classLoader.getClass().getName()));
+        && (DEFER_ALL
+            || DEFERRED_CLASSLOADER_NAMES.contains(classLoader.getClass().getName()));
   }
 
   /** Tests whether this class would be ignored on retransformation. */

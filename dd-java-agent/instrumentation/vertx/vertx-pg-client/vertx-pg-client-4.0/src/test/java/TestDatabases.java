@@ -14,20 +14,18 @@ public class TestDatabases implements Closeable {
 
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
-    pgsql =
-        new PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName(dbName)
-            .withUsername("postgres")
-            .withPassword("postgres");
+    pgsql = new PostgreSQLContainer("postgres:16-alpine")
+        .withDatabaseName(dbName)
+        .withUsername("postgres")
+        .withPassword("postgres");
     pgsql.start();
-    TestDBInfo info =
-        new TestDBInfo(
-            pgsql.getUsername(),
-            pgsql.getPassword(),
-            pgsql.getHost(),
-            pgsql.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT),
-            "postgresql",
-            dbName);
+    TestDBInfo info = new TestDBInfo(
+        pgsql.getUsername(),
+        pgsql.getPassword(),
+        pgsql.getHost(),
+        pgsql.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT),
+        "postgresql",
+        dbName);
     PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
     infos.put("postgresql", info);
     dbInfos = Collections.unmodifiableMap(infos);

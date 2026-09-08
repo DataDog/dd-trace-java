@@ -139,9 +139,8 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
     PropagationTags tags =
         factory.fromHeaderValue(W3C, "dd=s:1;o:foo;t.opm:upstream-X,vendor1=abc,vendor2=def");
-    ExtractedContext ctx =
-        new ExtractedContext(
-            DDTraceId.from(123L), 456L, 2, "origin", tags, TracePropagationStyle.TRACECONTEXT);
+    ExtractedContext ctx = new ExtractedContext(
+        DDTraceId.from(123L), 456L, 2, "origin", tags, TracePropagationStyle.TRACECONTEXT);
     TagContext result = enforcer.enforce(ctx);
     assertNotSame(ctx, result);
     ExtractedContext stripped = (ExtractedContext) result;

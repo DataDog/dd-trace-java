@@ -35,9 +35,8 @@ public class BlockingResponseHelper {
         return altResponse;
       }
     }
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
@@ -68,17 +67,15 @@ public class BlockingResponseHelper {
     int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
     ResponseEntity entity;
     if (bct != BlockingContentType.NONE) {
-      BlockingActionHelper.TemplateType tt =
-          BlockingActionHelper.determineTemplateType(bct, accept.map(h -> h.value()).orElse(null));
+      BlockingActionHelper.TemplateType tt = BlockingActionHelper.determineTemplateType(
+          bct, accept.map(h -> h.value()).orElse(null));
       byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
       if (tt == BlockingActionHelper.TemplateType.HTML) {
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.text$divhtml$u0028UTF$minus8$u0029(), ByteString.fromArray(template));
+        entity = HttpEntity$.MODULE$.apply(
+            ContentTypes.text$divhtml$u0028UTF$minus8$u0029(), ByteString.fromArray(template));
       } else { // json
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.application$divjson(), ByteString.fromArray(template));
+        entity = HttpEntity$.MODULE$.apply(
+            ContentTypes.application$divjson(), ByteString.fromArray(template));
       }
     } else {
       entity = HttpEntity$.MODULE$.Empty();
@@ -86,10 +83,8 @@ public class BlockingResponseHelper {
 
     List<akka.http.scaladsl.model.HttpHeader> headersList =
         rba.getExtraHeaders().entrySet().stream()
-            .map(
-                e ->
-                    (akka.http.scaladsl.model.HttpHeader)
-                        RawHeader.create(e.getKey(), e.getValue()))
+            .map(e ->
+                (akka.http.scaladsl.model.HttpHeader) RawHeader.create(e.getKey(), e.getValue()))
             .collect(ScalaListCollector.toScalaList());
 
     StatusCode code;

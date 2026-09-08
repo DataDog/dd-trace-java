@@ -400,10 +400,9 @@ public class LambdaAppSecHandler {
       // Call requestMethodUriRaw
       if (eventData.method != null && eventData.path != null) {
         datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>
-            methodUriCallback =
-                tracer
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.requestMethodUriRaw());
+            methodUriCallback = tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
@@ -413,10 +412,9 @@ public class LambdaAppSecHandler {
 
       // Call requestHeader for each header
       if (eventData.headers != null && !eventData.headers.isEmpty()) {
-        TriConsumer<RequestContext, String, String> headerCallback =
-            tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestHeader());
+        TriConsumer<RequestContext, String, String> headerCallback = tracer
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.requestHeader());
         if (headerCallback != null) {
           for (Map.Entry<String, String> header : eventData.headers.entrySet()) {
             headerCallback.accept(requestContext, header.getKey(), header.getValue());
@@ -429,10 +427,9 @@ public class LambdaAppSecHandler {
       // Call requestClientSocketAddress
       if (eventData.sourceIp != null) {
         datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
-            socketAddrCallback =
-                tracer
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.requestClientSocketAddress());
+            socketAddrCallback = tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestClientSocketAddress());
         if (socketAddrCallback != null) {
           Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
           socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
@@ -442,10 +439,9 @@ public class LambdaAppSecHandler {
       }
 
       // Call requestHeaderDone
-      Function<RequestContext, Flow<Void>> headerDoneCallback =
-          tracer
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.requestHeaderDone());
+      Function<RequestContext, Flow<Void>> headerDoneCallback = tracer
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestHeaderDone());
       if (headerDoneCallback != null) {
         headerDoneCallback.apply(requestContext);
       } else {
@@ -454,10 +450,9 @@ public class LambdaAppSecHandler {
 
       // Call requestPathParams
       if (eventData.pathParameters != null && !eventData.pathParameters.isEmpty()) {
-        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback =
-            tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestPathParams());
+        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback = tracer
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.requestPathParams());
         if (pathParamsCallback != null) {
           pathParamsCallback.apply(requestContext, eventData.pathParameters);
         } else {
@@ -467,10 +462,9 @@ public class LambdaAppSecHandler {
 
       // Call requestBodyProcessed
       if (eventData.body != null) {
-        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
-            tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestBodyProcessed());
+        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback = tracer
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.requestBodyProcessed());
         if (bodyCallback != null) {
           bodyCallback.apply(requestContext, eventData.body);
         } else {

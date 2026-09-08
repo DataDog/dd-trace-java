@@ -5,13 +5,12 @@ import java.util.function.Supplier;
 public class EnclosedClasses {
 
   static {
-    String id =
-        new Supplier<String>() {
-          @Override
-          public String get() {
-            return Long.toString(System.currentTimeMillis());
-          }
-        }.get();
+    String id = new Supplier<String>() {
+      @Override
+      public String get() {
+        return Long.toString(System.currentTimeMillis());
+      }
+    }.get();
     assert id != null;
   }
 

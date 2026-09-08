@@ -30,10 +30,8 @@ public class ContextMapInstrumentation extends ServiceTalkInstrumentation
         isConstructor()
             .and(isPrivate())
             .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named("io.servicetalk.concurrent.api.CopyOnWriteContextMap$CopyContextMap"))),
+            .and(takesArgument(
+                0, named("io.servicetalk.concurrent.api.CopyOnWriteContextMap$CopyContextMap"))),
         getClass().getName() + "$Construct");
   }
 

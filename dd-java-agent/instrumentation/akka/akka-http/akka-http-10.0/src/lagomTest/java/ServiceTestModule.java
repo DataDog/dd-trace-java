@@ -56,12 +56,11 @@ public class ServiceTestModule extends AbstractModule implements ServiceGuiceSup
     // Bind the service info for the first one passed in
     binder
         .bind(ServiceInfo.class)
-        .toProvider(
-            new ServiceInfoProvider(
-                primaryServiceBinding.serviceInterface(),
-                Arrays.stream(serviceBindings)
-                    .map(ServiceBinding::serviceInterface)
-                    .toArray(Class[]::new)));
+        .toProvider(new ServiceInfoProvider(
+            primaryServiceBinding.serviceInterface(),
+            Arrays.stream(serviceBindings)
+                .map(ServiceBinding::serviceInterface)
+                .toArray(Class[]::new)));
 
     // Bind the metrics
     ServiceBinding<MetricsService> metricsServiceBinding =

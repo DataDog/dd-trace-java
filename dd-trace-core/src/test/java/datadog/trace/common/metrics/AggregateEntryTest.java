@@ -98,21 +98,20 @@ class AggregateEntryTest {
 
   @Test
   void presentOptionalFieldsCarryTheirValue() {
-    AggregateEntry entry =
-        AggregateEntryTestUtils.of(
-            "resource",
-            "svc",
-            "op",
-            "src",
-            "type",
-            200,
-            false,
-            true,
-            "client",
-            null,
-            "GET",
-            "/api/v1/foo",
-            "0");
+    AggregateEntry entry = AggregateEntryTestUtils.of(
+        "resource",
+        "svc",
+        "op",
+        "src",
+        "type",
+        200,
+        false,
+        true,
+        "client",
+        null,
+        "GET",
+        "/api/v1/foo",
+        "0");
     assertNotSame(EMPTY, entry.getServiceSource());
     assertNotSame(EMPTY, entry.getHttpMethod());
     assertNotSame(EMPTY, entry.getHttpEndpoint());

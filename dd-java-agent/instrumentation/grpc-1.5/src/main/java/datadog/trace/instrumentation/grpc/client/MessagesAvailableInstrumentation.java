@@ -55,9 +55,8 @@ public final class MessagesAvailableInstrumentation
     public static AgentScope before() {
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
-        AgentSpan messageSpan =
-            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
-                .setTag("message.type", clientSpan.getTag("response.type"));
+        AgentSpan messageSpan = startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
+            .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
       }

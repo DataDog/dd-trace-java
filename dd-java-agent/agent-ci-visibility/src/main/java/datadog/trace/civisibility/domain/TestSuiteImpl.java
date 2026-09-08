@@ -101,11 +101,9 @@ public class TestSuiteImpl implements DDTestSuite {
     this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_suite")
-            .asChildOf(moduleSpanContext);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer.get()
+        .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_suite")
+        .asChildOf(moduleSpanContext);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -214,15 +212,14 @@ public class TestSuiteImpl implements DDTestSuite {
       }
 
       if (activeSpan != this.span) {
-        throw new IllegalStateException(
-            "Active span does not correspond to the finished suite, "
-                + "it is possible that end() was called multiple times "
-                + "or an operation that was started by the suite is still in progress; "
-                + "active span is: "
-                + activeSpan
-                + "; "
-                + "expected span is: "
-                + this.span);
+        throw new IllegalStateException("Active span does not correspond to the finished suite, "
+            + "it is possible that end() was called multiple times "
+            + "or an operation that was started by the suite is still in progress; "
+            + "active span is: "
+            + activeSpan
+            + "; "
+            + "expected span is: "
+            + this.span);
       }
 
       AgentTracer.closeActive();

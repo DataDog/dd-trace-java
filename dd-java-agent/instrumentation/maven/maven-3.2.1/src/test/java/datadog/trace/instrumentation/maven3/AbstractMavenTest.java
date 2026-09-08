@@ -16,7 +16,8 @@ import org.codehaus.plexus.PlexusContainer;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractMavenTest {
-  @TempDir static Path WORKING_DIRECTORY;
+  @TempDir
+  static Path WORKING_DIRECTORY;
 
   protected AbstractMavenTest() {
     System.setProperty(
@@ -41,13 +42,12 @@ public abstract class AbstractMavenTest {
       String... additionalArgs)
       throws Exception {
     MojoStartedSpy spy = new MojoStartedSpy(mojoStartedHandler);
-    MavenCli mavenCli =
-        new MavenCli() {
-          @Override
-          protected void customizeContainer(PlexusContainer container) {
-            container.addComponent(spy, EventSpy.class, null);
-          }
-        };
+    MavenCli mavenCli = new MavenCli() {
+      @Override
+      protected void customizeContainer(PlexusContainer container) {
+        container.addComponent(spy, EventSpy.class, null);
+      }
+    };
 
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 

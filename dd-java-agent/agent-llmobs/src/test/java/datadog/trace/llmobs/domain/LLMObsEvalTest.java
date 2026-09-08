@@ -26,10 +26,9 @@ import org.junit.jupiter.api.Test;
  */
 class LLMObsEvalTest {
 
-  private static final JsonAdapter<Map<String, Object>> JSON_READER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> JSON_READER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   private static List<?> serialize(LLMObsEval... evals) throws IOException {
     String body = LLMObsEval.batchSerializer().toJson(Arrays.asList(evals));
@@ -46,16 +45,14 @@ class LLMObsEvalTest {
 
   @Test
   void testScoreEvalCarriesTheV1KeySetAndNothingElse() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Score(
-                "abc123",
-                42L,
-                1700000000000L,
-                "my-app",
-                "sentiment",
-                Collections.singletonMap("source", "web-ui"),
-                0.75));
+    List<?> metrics = serialize(new LLMObsEval.Score(
+        "abc123",
+        42L,
+        1700000000000L,
+        "my-app",
+        "sentiment",
+        Collections.singletonMap("source", "web-ui"),
+        0.75));
 
     assertEquals(1, metrics.size());
     Map<String, Object> metric = asMap(metrics.get(0));
@@ -82,10 +79,8 @@ class LLMObsEvalTest {
 
   @Test
   void testCategoricalEvalCarriesTheV1KeySet() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Categorical(
-                "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
+    List<?> metrics = serialize(new LLMObsEval.Categorical(
+        "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
 
     Map<String, Object> metric = asMap(metrics.get(0));
 
@@ -99,11 +94,10 @@ class LLMObsEvalTest {
 
   @Test
   void testABatchMixesScoreAndCategoricalInOneEnvelope() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Score("abc123", 42L, 1700000000000L, "my-app", "sentiment", null, 0.75),
-            new LLMObsEval.Categorical(
-                "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
+    List<?> metrics = serialize(
+        new LLMObsEval.Score("abc123", 42L, 1700000000000L, "my-app", "sentiment", null, 0.75),
+        new LLMObsEval.Categorical(
+            "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
 
     assertEquals(2, metrics.size());
     assertEquals(0.75, asMap(metrics.get(0)).get("score_value"));

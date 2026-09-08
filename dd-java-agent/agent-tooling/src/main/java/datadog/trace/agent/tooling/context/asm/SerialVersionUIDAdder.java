@@ -211,17 +211,16 @@ public class SerialVersionUIDAdder extends ClassVisitor {
       // Collect the non private constructors and methods. Only the ACC_PUBLIC, ACC_PRIVATE,
       // ACC_PROTECTED, ACC_STATIC, ACC_FINAL, ACC_SYNCHRONIZED, ACC_NATIVE, ACC_ABSTRACT and
       // ACC_STRICT flags are used.
-      int mods =
-          access
-              & (Opcodes.ACC_PUBLIC
-                  | Opcodes.ACC_PRIVATE
-                  | Opcodes.ACC_PROTECTED
-                  | Opcodes.ACC_STATIC
-                  | Opcodes.ACC_FINAL
-                  | Opcodes.ACC_SYNCHRONIZED
-                  | Opcodes.ACC_NATIVE
-                  | Opcodes.ACC_ABSTRACT
-                  | Opcodes.ACC_STRICT);
+      int mods = access
+          & (Opcodes.ACC_PUBLIC
+              | Opcodes.ACC_PRIVATE
+              | Opcodes.ACC_PROTECTED
+              | Opcodes.ACC_STATIC
+              | Opcodes.ACC_FINAL
+              | Opcodes.ACC_SYNCHRONIZED
+              | Opcodes.ACC_NATIVE
+              | Opcodes.ACC_ABSTRACT
+              | Opcodes.ACC_STRICT);
 
       if ((access & Opcodes.ACC_PRIVATE) == 0) {
         if ("<init>".equals(name)) {
@@ -255,15 +254,14 @@ public class SerialVersionUIDAdder extends ClassVisitor {
       // serialVersionUID values.
       if ((access & Opcodes.ACC_PRIVATE) == 0
           || (access & (Opcodes.ACC_STATIC | Opcodes.ACC_TRANSIENT)) == 0) {
-        int mods =
-            access
-                & (Opcodes.ACC_PUBLIC
-                    | Opcodes.ACC_PRIVATE
-                    | Opcodes.ACC_PROTECTED
-                    | Opcodes.ACC_STATIC
-                    | Opcodes.ACC_FINAL
-                    | Opcodes.ACC_VOLATILE
-                    | Opcodes.ACC_TRANSIENT);
+        int mods = access
+            & (Opcodes.ACC_PUBLIC
+                | Opcodes.ACC_PRIVATE
+                | Opcodes.ACC_PROTECTED
+                | Opcodes.ACC_STATIC
+                | Opcodes.ACC_FINAL
+                | Opcodes.ACC_VOLATILE
+                | Opcodes.ACC_TRANSIENT);
         svuidFields.add(new Item(name, mods, desc));
       }
     }
@@ -323,9 +321,8 @@ public class SerialVersionUIDAdder extends ClassVisitor {
    */
   // DontCheck(AbbreviationAsWordInName): can't be renamed (for backward binary compatibility).
   protected void addSVUID(final long svuid) {
-    FieldVisitor fieldVisitor =
-        super.visitField(
-            Opcodes.ACC_FINAL + Opcodes.ACC_STATIC, "serialVersionUID", "J", null, svuid);
+    FieldVisitor fieldVisitor = super.visitField(
+        Opcodes.ACC_FINAL + Opcodes.ACC_STATIC, "serialVersionUID", "J", null, svuid);
     if (fieldVisitor != null) {
       fieldVisitor.visitEnd();
     }
@@ -353,12 +350,11 @@ public class SerialVersionUIDAdder extends ClassVisitor {
         mods =
             svuidMethods.isEmpty() ? (mods & ~Opcodes.ACC_ABSTRACT) : (mods | Opcodes.ACC_ABSTRACT);
       }
-      dataOutputStream.writeInt(
-          mods
-              & (Opcodes.ACC_PUBLIC
-                  | Opcodes.ACC_FINAL
-                  | Opcodes.ACC_INTERFACE
-                  | Opcodes.ACC_ABSTRACT));
+      dataOutputStream.writeInt(mods
+          & (Opcodes.ACC_PUBLIC
+              | Opcodes.ACC_FINAL
+              | Opcodes.ACC_INTERFACE
+              | Opcodes.ACC_ABSTRACT));
 
       // 3. The name of each interface sorted by name written using UTF encoding.
       Arrays.sort(interfaces);

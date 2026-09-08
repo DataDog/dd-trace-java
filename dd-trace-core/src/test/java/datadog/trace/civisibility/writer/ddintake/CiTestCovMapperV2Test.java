@@ -38,14 +38,11 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
 
   @Test
   void testWritesMessage() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8})))));
+    List<DDSpan> trace = givenTrace(new TestReport(
+        DDTraceId.from(1),
+        2L,
+        3L,
+        Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -63,15 +60,13 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
 
   @Test
   void testWritesMessageWithMultipleFilesAndMultipleLines() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {3, 5, 8})),
-                    new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {1, 255, 7})))));
+    List<DDSpan> trace = givenTrace(new TestReport(
+        DDTraceId.from(1),
+        2L,
+        3L,
+        Arrays.asList(
+            new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {3, 5, 8})),
+            new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {1, 255, 7})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -91,20 +86,19 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
 
   @Test
   void testWritesMessageWithMultipleReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {2, 17, 41})))),
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                4L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {11, 13, 55})))));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {2, 17, 41})))),
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            4L,
+            Arrays.asList(
+                new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {11, 13, 55})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -123,23 +117,21 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files1 = (List<Map<String, Object>>) coverage1.get("files");
     assertEquals(1, files1.size());
     assertFile(
-        files1.get(0),
-        "sourceB",
-        new byte[] {11, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 55});
+        files1.get(0), "sourceB", new byte[] {11, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 55
+        });
   }
 
   @Test
   void skipsSpansThatHaveNoReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            null,
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {83, 25, 48})))),
-            null);
+    List<DDSpan> trace = givenTrace(
+        null,
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("source", BitSet.valueOf(new long[] {83, 25, 48})))),
+        null);
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -157,15 +149,14 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
 
   @Test
   void skipsEmptyReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {33, 53, 87})))),
-            new TestReport(DDTraceId.from(1), 2L, 4L, Collections.emptyList()));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("source", BitSet.valueOf(new long[] {33, 53, 87})))),
+        new TestReport(DDTraceId.from(1), 2L, 4L, Collections.emptyList()));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -184,29 +175,26 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
   @Test
   void skipsDuplicateReports() throws Exception {
     List<DDSpan> trace = new ArrayList<>();
-    TestReport report =
-        new TestReport(
-            DDTraceId.from(1),
-            2L,
-            3L,
-            Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8}))));
+    TestReport report = new TestReport(
+        DDTraceId.from(1),
+        2L,
+        3L,
+        Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8}))));
 
-    trace.add(
-        buildSpan(
-            0,
-            InternalSpanTypes.TEST,
-            PropagationTags.factory().empty(),
-            Collections.emptyMap(),
-            PrioritySampling.SAMPLER_KEEP,
-            new DummyTestContext(new DummyReportHolder(report))));
-    trace.add(
-        buildSpan(
-            0,
-            "testChild",
-            PropagationTags.factory().empty(),
-            Collections.emptyMap(),
-            PrioritySampling.SAMPLER_KEEP,
-            new DummyTestContext(new DummyReportHolder(report))));
+    trace.add(buildSpan(
+        0,
+        InternalSpanTypes.TEST,
+        PropagationTags.factory().empty(),
+        Collections.emptyMap(),
+        PrioritySampling.SAMPLER_KEEP,
+        new DummyTestContext(new DummyReportHolder(report))));
+    trace.add(buildSpan(
+        0,
+        "testChild",
+        PropagationTags.factory().empty(),
+        Collections.emptyMap(),
+        PrioritySampling.SAMPLER_KEEP,
+        new DummyTestContext(new DummyReportHolder(report))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -226,14 +214,13 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<DDSpan> trace = new ArrayList<>();
     for (TestReport testReport : testReports) {
       DummyReportHolder testReportHolder = new DummyReportHolder(testReport);
-      trace.add(
-          buildSpan(
-              0,
-              InternalSpanTypes.TEST,
-              PropagationTags.factory().empty(),
-              Collections.emptyMap(),
-              PrioritySampling.SAMPLER_KEEP,
-              new DummyTestContext(testReportHolder)));
+      trace.add(buildSpan(
+          0,
+          InternalSpanTypes.TEST,
+          PropagationTags.factory().empty(),
+          Collections.emptyMap(),
+          PrioritySampling.SAMPLER_KEEP,
+          new DummyTestContext(testReportHolder)));
     }
     return trace;
   }

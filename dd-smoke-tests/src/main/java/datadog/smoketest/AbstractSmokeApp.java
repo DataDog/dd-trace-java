@@ -123,10 +123,9 @@ public abstract class AbstractSmokeApp
     this.checkTelemetry = builder.checkTelemetry;
     this.applyMemoryTuning = builder.applyMemoryTuning;
     this.debugLogs = builder.debugLogs;
-    this.errorLogFilter =
-        builder.errorLogFilter != null
-            ? builder.errorLogFilter
-            : defaultErrorLogFilter(builder.allowedErrorLogs);
+    this.errorLogFilter = builder.errorLogFilter != null
+        ? builder.errorLogFilter
+        : defaultErrorLogFilter(builder.allowedErrorLogs);
   }
 
   // --- Handle API (field access) ---
@@ -392,11 +391,10 @@ public abstract class AbstractSmokeApp
       if (!this.process.waitFor(5, SECONDS)) {
         this.process.destroyForcibly();
         if (!this.process.waitFor(10, SECONDS)) {
-          throw new IllegalStateException(
-              "App '"
-                  + name()
-                  + "' did not terminate after destroy. A lingering process may retain"
-                  + " its port and files and interfere with later tests.");
+          throw new IllegalStateException("App '"
+              + name()
+              + "' did not terminate after destroy. A lingering process may retain"
+              + " its port and files and interfere with later tests.");
         }
       }
     } catch (InterruptedException e) {
@@ -418,10 +416,9 @@ public abstract class AbstractSmokeApp
 
   private File resolveLogFile() {
     String buildDir = System.getProperty(BUILD_DIR_PROPERTY);
-    File dir =
-        buildDir != null
-            ? new File(buildDir, "reports")
-            : new File(System.getProperty("java.io.tmpdir"));
+    File dir = buildDir != null
+        ? new File(buildDir, "reports")
+        : new File(System.getProperty("java.io.tmpdir"));
     dir.mkdirs();
     return new File(dir, logFileName(this.name, Instant.now()));
   }
@@ -812,11 +809,10 @@ public abstract class AbstractSmokeApp
         throw new IllegalStateException("Exactly one of jar(...) or mainClass(...) must be set");
       }
       if (!this.noAgent && resolveAgentJar() == null) {
-        throw new IllegalStateException(
-            "Agent jar not found: system property '"
-                + AGENT_JAR_PROPERTY
-                + "' is not set. Gradle sets it automatically; on other runners call javaAgent(path)"
-                + " to point at an agent jar, or noAgent() to run without the tracer.");
+        throw new IllegalStateException("Agent jar not found: system property '"
+            + AGENT_JAR_PROPERTY
+            + "' is not set. Gradle sets it automatically; on other runners call javaAgent(path)"
+            + " to point at an agent jar, or noAgent() to run without the tracer.");
       }
     }
   }

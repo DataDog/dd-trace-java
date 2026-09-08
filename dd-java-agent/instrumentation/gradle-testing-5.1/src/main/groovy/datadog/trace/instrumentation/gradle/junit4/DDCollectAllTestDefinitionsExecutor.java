@@ -40,9 +40,8 @@ public class DDCollectAllTestDefinitionsExecutor
   }
 
   public void processAllTestClasses() {
-    testClasses.sort(
-        new JUnit4FailFastClassOrderer(
-            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+    testClasses.sort(new JUnit4FailFastClassOrderer(
+        TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
 
     for (Class<?> clazz : testClasses) {
       delegate.accept(testDefinitions.get(clazz.getName()));

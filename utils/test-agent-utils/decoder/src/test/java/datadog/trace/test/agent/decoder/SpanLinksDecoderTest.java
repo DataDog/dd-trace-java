@@ -43,13 +43,11 @@ class SpanLinksDecoderTest {
 
   @Test
   void decodesFullLink() {
-    List<DecodedSpanLink> links =
-        fromTag(
-            "[{\"trace_id\":\""
-                + TRACE_ID_128
-                + "\",\"span_id\":\"a\",\"flags\":1,"
-                + "\"tracestate\":\"dd=s:1\","
-                + "\"attributes\":{\"link.kind\":\"span-pointer\",\"ptr.dir\":\"d\"}}]");
+    List<DecodedSpanLink> links = fromTag("[{\"trace_id\":\""
+        + TRACE_ID_128
+        + "\",\"span_id\":\"a\",\"flags\":1,"
+        + "\"tracestate\":\"dd=s:1\","
+        + "\"attributes\":{\"link.kind\":\"span-pointer\",\"ptr.dir\":\"d\"}}]");
 
     DecodedSpanLink link = links.get(0);
     assertEquals(0xaL, link.getSpanId(), "an unpadded span id decodes");
@@ -63,11 +61,9 @@ class SpanLinksDecoderTest {
 
   @Test
   void preservesLinkOrderAndDecodesUnsignedSpanIds() {
-    List<DecodedSpanLink> links =
-        fromTag(
-            "[{\"trace_id\":\"0\",\"span_id\":\"1\"},"
-                + "{\"trace_id\":\"0\",\"span_id\":\"ffffffffffffffff\"},"
-                + "{\"trace_id\":\"0\",\"span_id\":\"2\"}]");
+    List<DecodedSpanLink> links = fromTag("[{\"trace_id\":\"0\",\"span_id\":\"1\"},"
+        + "{\"trace_id\":\"0\",\"span_id\":\"ffffffffffffffff\"},"
+        + "{\"trace_id\":\"0\",\"span_id\":\"2\"}]");
 
     assertEquals(3, links.size());
     assertEquals(1L, links.get(0).getSpanId());
@@ -77,15 +73,17 @@ class SpanLinksDecoderTest {
 
   @Test
   void decodesAShortTraceId() {
-    DecodedSpanLink link = fromTag("[{\"trace_id\":\"abcd\",\"span_id\":\"1\"}]").get(0);
+    DecodedSpanLink link =
+        fromTag("[{\"trace_id\":\"abcd\",\"span_id\":\"1\"}]").get(0);
 
     assertEquals(0xabcdL, link.getTraceId());
   }
 
   @Test
   void unknownKeysAreIgnored() {
-    DecodedSpanLink link =
-        fromTag("[{\"trace_id\":\"1\",\"span_id\":\"1\",\"something_new\":\"whatever\"}]").get(0);
+    DecodedSpanLink link = fromTag(
+            "[{\"trace_id\":\"1\",\"span_id\":\"1\",\"something_new\":\"whatever\"}]")
+        .get(0);
 
     assertEquals(1L, link.getTraceId());
   }
@@ -122,7 +120,8 @@ class SpanLinksDecoderTest {
 
   @Test
   void rendersIdentifiersAsHexadecimal() {
-    String rendered = DecodedSpanLinks.link(TRACE_ID_LOW, 0xaL, (byte) 0, "", null).toString();
+    String rendered =
+        DecodedSpanLinks.link(TRACE_ID_LOW, 0xaL, (byte) 0, "", null).toString();
 
     assertTrue(rendered.contains("traceId=9900aabbccddeeff"), "renders the trace id: " + rendered);
     assertTrue(rendered.contains("spanId=a"), "renders the span id: " + rendered);
@@ -143,14 +142,13 @@ class SpanLinksDecoderTest {
   @Test
   void decodedSpanExposesLinksAndKeepsTheTagVisible() {
     String tag = "[{\\\"trace_id\\\":\\\"" + TRACE_ID_128 + "\\\",\\\"span_id\\\":\\\"a\\\"}]";
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\""
-            + tag
-            + "\"}}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\""
+        + tag
+        + "\"}}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -164,13 +162,12 @@ class SpanLinksDecoderTest {
   void decodesStructuredSpanLinksFieldFromAV1Payload() {
     // The agent converts a v1.0 payload's structured links into a top-level span_links field,
     // with decimal identifiers, rather than into the meta tag.
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{},"
-            + "\"span_links\":[{\"trace_id\":11068046444225730559,\"trace_id_high\":1234,"
-            + "\"span_id\":10,\"flags\":1,\"tracestate\":\"dd=s:1\","
-            + "\"attributes\":{\"link.kind\":\"span-pointer\"}}]}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{},"
+        + "\"span_links\":[{\"trace_id\":11068046444225730559,\"trace_id_high\":1234,"
+        + "\"span_id\":10,\"flags\":1,\"tracestate\":\"dd=s:1\","
+        + "\"attributes\":{\"link.kind\":\"span-pointer\"}}]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -188,13 +185,12 @@ class SpanLinksDecoderTest {
 
   @Test
   void structuredSpanLinksFieldWinsOverTheMetaTag() {
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
-            + "\"span_links\":[{\"trace_id\":1,\"span_id\":7}]}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
+        + "\"span_links\":[{\"trace_id\":1,\"span_id\":7}]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -206,13 +202,12 @@ class SpanLinksDecoderTest {
   void anEmptyStructuredSpanLinksFieldWinsOverTheMetaTag() {
     // A v1.0 payload always carries the span_links field, so an empty one means the span has no
     // link, whichever legacy meta tag the payload also holds.
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
-            + "\"span_links\":[]}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
+        + "\"span_links\":[]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -221,10 +216,9 @@ class SpanLinksDecoderTest {
 
   @Test
   void decodedSpanWithoutTheTagExposesNoLink() {
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{}}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{}}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 

@@ -30,14 +30,13 @@ public class DependencyService implements Runnable {
   private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
 
   public void schedulePeriodicResolution() {
-    scheduledTask =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                AgentTaskScheduler.RunnableTask.INSTANCE,
-                this,
-                0,
-                Config.get().getDependecyResolutionPeriodMillis(),
-                TimeUnit.MILLISECONDS);
+    scheduledTask = AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            AgentTaskScheduler.RunnableTask.INSTANCE,
+            this,
+            0,
+            Config.get().getDependecyResolutionPeriodMillis(),
+            TimeUnit.MILLISECONDS);
   }
 
   public void resolveOneDependency() {

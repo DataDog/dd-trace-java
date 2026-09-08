@@ -13,9 +13,9 @@ import software.amazon.awssdk.services.sfn.model.StartSyncExecutionRequest;
 
 public class SfnInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   public SfnInterceptor() {}
 

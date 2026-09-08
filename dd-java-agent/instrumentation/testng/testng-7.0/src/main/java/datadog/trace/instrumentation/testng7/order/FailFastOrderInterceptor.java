@@ -22,7 +22,8 @@ public class FailFastOrderInterceptor implements IMethodInterceptor {
   public FailFastOrderInterceptor(
       TestEventsHandler<TestSuiteDescriptor, ITestResult> testEventsHandler) {
     this.testEventsHandler = testEventsHandler;
-    this.executionOrderComparator = Comparator.comparing(this::executionPriority).reversed();
+    this.executionOrderComparator =
+        Comparator.comparing(this::executionPriority).reversed();
   }
 
   private int executionPriority(IMethodInstance methodInstance) {

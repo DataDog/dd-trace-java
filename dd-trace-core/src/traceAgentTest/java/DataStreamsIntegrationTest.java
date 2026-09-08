@@ -31,14 +31,13 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.createRemaining(Config.get());
 
-    OkHttpSink sink =
-        new OkHttpSink(
-            OkHttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
-            Config.get().getAgentUrl(),
-            DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
-            false,
-            true,
-            Collections.emptyMap());
+    OkHttpSink sink = new OkHttpSink(
+        OkHttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
+        Config.get().getAgentUrl(),
+        DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
+        false,
+        true,
+        Collections.emptyMap());
 
     BlockingListener listener = new BlockingListener();
     sink.register(listener);
@@ -50,9 +49,8 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
 
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
         sharedCommunicationObjects.featuresDiscovery(Config.get());
-    try (DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink, ddAgentFeaturesDiscovery, timeSource, () -> traceConfig, Config.get())) {
+    try (DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink, ddAgentFeaturesDiscovery, timeSource, () -> traceConfig, Config.get())) {
 
       dataStreams.start();
       DataStreamsTags tags =

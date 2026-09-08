@@ -19,8 +19,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CompositePayloadDispatcherTest {
 
-  @Mock PayloadDispatcher dispatcherA;
-  @Mock PayloadDispatcher dispatcherB;
+  @Mock
+  PayloadDispatcher dispatcherA;
+
+  @Mock
+  PayloadDispatcher dispatcherB;
 
   @Test
   void testOnDroppedTrace() {

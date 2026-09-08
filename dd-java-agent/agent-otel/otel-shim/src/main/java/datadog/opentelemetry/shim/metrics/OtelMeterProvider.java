@@ -28,9 +28,8 @@ public final class OtelMeterProvider implements MeterProvider {
     // register attribute reader for class-loader where this provider is being used/injected
     OtelMetricStorage.registerAttributeReader(
         Attributes.class.getClassLoader(),
-        (attributes, visitor) ->
-            ((Attributes) attributes)
-                .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
+        (attributes, visitor) -> ((Attributes) attributes)
+            .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
   }
 
   @Override

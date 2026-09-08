@@ -59,18 +59,12 @@ class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
         .handler(ctx -> ctx.response().sendFile(payload.toAbsolutePath().toString()));
 
     CountDownLatch ready = new CountDownLatch(1);
-    server =
-        vertx
-            .createHttpServer()
-            .requestHandler(router::accept)
-            .listen(
-                port,
-                result -> {
-                  if (result.failed()) {
-                    throw new RuntimeException("Failed to start Vert.x server", result.cause());
-                  }
-                  ready.countDown();
-                });
+    server = vertx.createHttpServer().requestHandler(router::accept).listen(port, result -> {
+      if (result.failed()) {
+        throw new RuntimeException("Failed to start Vert.x server", result.cause());
+      }
+      ready.countDown();
+    });
     if (!ready.await(10, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Vert.x server did not start in time");
     }
@@ -108,15 +102,14 @@ class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
 
     // Pre-fix: the route-handler span never finishes on the sendFile path, so the trace
     // is never published and assertTraces times out waiting for the trace to flush.
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span()
-                .operationName(Pattern.compile(Pattern.quote("netty.request")))
-                .type(DDSpanTypes.HTTP_SERVER),
-            span()
-                .childOfPrevious()
-                .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
-                .type(DDSpanTypes.HTTP_SERVER)));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span()
+            .operationName(Pattern.compile(Pattern.quote("netty.request")))
+            .type(DDSpanTypes.HTTP_SERVER),
+        span()
+            .childOfPrevious()
+            .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
+            .type(DDSpanTypes.HTTP_SERVER)));
   }
 }

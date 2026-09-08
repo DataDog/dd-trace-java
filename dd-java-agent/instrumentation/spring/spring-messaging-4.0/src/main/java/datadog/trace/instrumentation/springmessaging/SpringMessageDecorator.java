@@ -10,9 +10,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorato
 public final class SpringMessageDecorator extends MessagingClientDecorator {
   public static final SpringMessageDecorator DECORATE = new SpringMessageDecorator();
 
-  public static final CharSequence SPRING_INBOUND =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation("spring"));
+  public static final CharSequence SPRING_INBOUND = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().messaging().inboundOperation("spring"));
 
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("spring-messaging");
 

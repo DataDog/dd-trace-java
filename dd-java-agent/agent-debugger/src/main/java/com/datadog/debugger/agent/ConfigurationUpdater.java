@@ -170,9 +170,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     configurationLock.lock();
     try {
       Configuration originalConfiguration = currentConfiguration;
-      ConfigurationComparer changes =
-          new ConfigurationComparer(
-              originalConfiguration, newConfiguration, instrumentationResults);
+      ConfigurationComparer changes = new ConfigurationComparer(
+          originalConfiguration, newConfiguration, instrumentationResults);
       if (changes.hasRateLimitRelatedChanged()) {
         // apply rate limit config first to avoid racing with execution/instrumentation
         // of probes requiring samplers
@@ -216,12 +215,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
-    changedClasses =
-        JDKVersionSpecificHelper.detectMethodParameters(
-            errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
-    changedClasses =
-        JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
-            errorMsg -> reportError(changes, errorMsg), changedClasses);
+    changedClasses = JDKVersionSpecificHelper.detectMethodParameters(
+        errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
+    changedClasses = JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
+        errorMsg -> reportError(changes, errorMsg), changedClasses);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
@@ -258,9 +255,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       return;
     }
     // install new probe definitions
-    DebuggerTransformer newTransformer =
-        transformerSupplier.supply(
-            config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
+    DebuggerTransformer newTransformer = transformerSupplier.supply(
+        config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
@@ -342,10 +338,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       return Collections.emptyMap();
     }
     return currentConfiguration.getDefinitions().stream()
-        .collect(
-            Collectors.toMap(
-                probeDefinition -> probeDefinition.getProbeId().getEncodedId(),
-                Function.identity()));
+        .collect(Collectors.toMap(
+            probeDefinition -> probeDefinition.getProbeId().getEncodedId(), Function.identity()));
   }
 
   Map<String, InstrumentationResult> getInstrumentationResults() {
@@ -453,9 +447,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
                   method.getName(),
                   parameters[0].getName());
               // skip the class: compiled with -parameters
-              reportError.accept(
-                  "Method Parameters detected, instrumentation not supported for "
-                      + changedClass.getTypeName());
+              reportError.accept("Method Parameters detected, instrumentation not supported for "
+                  + changedClass.getTypeName());
               addClass = false;
             }
             // we found at leat a method with one parameter if name is not present we can stop there

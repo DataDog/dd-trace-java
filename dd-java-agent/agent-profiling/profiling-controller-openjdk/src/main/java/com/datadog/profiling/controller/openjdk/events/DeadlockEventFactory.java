@@ -85,16 +85,15 @@ public class DeadlockEventFactory {
       Set<StackTraceElement> waitingFramesSet = waitingFrames.get(li);
       if (waitingFramesSet != null) {
         for (StackTraceElement waitingFrame : waitingFramesSet) {
-          events.add(
-              new DeadlockedThreadEvent(
-                  id,
-                  ti.getThreadId(),
-                  ti.getThreadName(),
-                  ti.getLockOwnerId(),
-                  ti.getLockOwnerName(),
-                  ti.getLockName(),
-                  null,
-                  frameAsString(waitingFrame)));
+          events.add(new DeadlockedThreadEvent(
+              id,
+              ti.getThreadId(),
+              ti.getThreadName(),
+              ti.getLockOwnerId(),
+              ti.getLockOwnerName(),
+              ti.getLockName(),
+              null,
+              frameAsString(waitingFrame)));
         }
       }
     }
@@ -109,16 +108,15 @@ public class DeadlockEventFactory {
       Set<StackTraceElement> waitingFramesSet = waitingFrames.get(mi);
       if (waitingFramesSet != null) {
         for (StackTraceElement waitingFrame : waitingFramesSet) {
-          events.add(
-              new DeadlockedThreadEvent(
-                  id,
-                  ti.getThreadId(),
-                  ti.getThreadName(),
-                  ti.getLockOwnerId(),
-                  ti.getLockOwnerName(),
-                  ti.getLockName(),
-                  frameAsString(mi.getLockedStackFrame()),
-                  frameAsString(waitingFrame)));
+          events.add(new DeadlockedThreadEvent(
+              id,
+              ti.getThreadId(),
+              ti.getThreadName(),
+              ti.getLockOwnerId(),
+              ti.getLockOwnerName(),
+              ti.getLockName(),
+              frameAsString(mi.getLockedStackFrame()),
+              frameAsString(waitingFrame)));
         }
       }
     }

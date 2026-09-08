@@ -30,16 +30,15 @@ public class MethodVisitorWrapper {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
     Class<?> shadedMethodVisitorClass =
         getJacocoClass(jacocoClassLoader, jacocoPackageName, ".asm.MethodVisitor");
-    visitMethodInsnHandle =
-        accessMethod(
-            lookup,
-            shadedMethodVisitorClass,
-            "visitMethodInsn",
-            int.class,
-            String.class,
-            String.class,
-            String.class,
-            boolean.class);
+    visitMethodInsnHandle = accessMethod(
+        lookup,
+        shadedMethodVisitorClass,
+        "visitMethodInsn",
+        int.class,
+        String.class,
+        String.class,
+        String.class,
+        boolean.class);
     visitInsnHandle = accessMethod(lookup, shadedMethodVisitorClass, "visitInsn", int.class);
     visitIntInsnHandle =
         accessMethod(lookup, shadedMethodVisitorClass, "visitIntInsn", int.class, int.class);

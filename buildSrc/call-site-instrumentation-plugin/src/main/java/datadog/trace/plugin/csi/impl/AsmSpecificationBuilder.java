@@ -246,10 +246,9 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
         if (parameterCtor != null) {
           ParameterSpecification parameterSpec = parameterCtor.build();
           if (parameterSpec instanceof ArgumentSpecification) {
-            final long index =
-                parameters.values().stream()
-                    .filter(it -> it instanceof ArgumentSpecification)
-                    .count();
+            final long index = parameters.values().stream()
+                .filter(it -> it instanceof ArgumentSpecification)
+                .count();
             ((ArgumentSpecification) parameterSpec)
                 .setIndex((int) index); // can change in annotation visitor
           }
@@ -273,13 +272,9 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public void visitEnd() {
-      adviceData.forEach(
-          (adviceCtor, list) ->
-              list.stream()
-                  .map(
-                      data ->
-                          adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
-                  .forEach(spec.advices::add));
+      adviceData.forEach((adviceCtor, list) -> list.stream()
+          .map(data -> adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
+          .forEach(spec.advices::add));
     }
   }
 

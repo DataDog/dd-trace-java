@@ -1000,7 +1000,10 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated private final List<String> jmxFetchMetricsConfigs;
+
+  @Deprecated
+  private final List<String> jmxFetchMetricsConfigs;
+
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -1078,7 +1081,10 @@ public class Config {
   private final ProfilingEnablement profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
-  @Deprecated private final String profilingUrl;
+
+  @Deprecated
+  private final String profilingUrl;
+
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
@@ -1284,7 +1290,10 @@ public class Config {
   private final boolean symbolDatabaseCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
-  @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
+
+  @Deprecated
+  private final boolean debuggerExceptionOnlyLocalRoot;
+
   private final boolean debuggerExceptionCaptureIntermediateSpansEnabled;
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
@@ -1437,8 +1446,13 @@ public class Config {
   private final String agentlessLogSubmissionProduct;
 
   private final Set<String> cloudPayloadTaggingServices;
-  @Nullable private final List<JsonPath> cloudRequestPayloadTagging;
-  @Nullable private final List<JsonPath> cloudResponsePayloadTagging;
+
+  @Nullable
+  private final List<JsonPath> cloudRequestPayloadTagging;
+
+  @Nullable
+  private final List<JsonPath> cloudResponsePayloadTagging;
+
   private final int cloudPayloadTaggingMaxDepth;
   private final int cloudPayloadTaggingMaxTags;
 
@@ -1508,24 +1522,22 @@ public class Config {
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
 
-    String tmpApplicationKey =
-        configProvider.getStringExcludingSource(
-            APPLICATION_KEY, null, SystemPropertiesConfigSource.class, APP_KEY);
+    String tmpApplicationKey = configProvider.getStringExcludingSource(
+        APPLICATION_KEY, null, SystemPropertiesConfigSource.class, APP_KEY);
     String applicationKeyFile = configProvider.getString(APPLICATION_KEY_FILE);
     if (applicationKeyFile != null) {
       try {
-        tmpApplicationKey =
-            new String(Files.readAllBytes(Paths.get(applicationKeyFile)), StandardCharsets.UTF_8)
-                .trim();
+        tmpApplicationKey = new String(
+                Files.readAllBytes(Paths.get(applicationKeyFile)), StandardCharsets.UTF_8)
+            .trim();
       } catch (final IOException e) {
         log.error("Cannot read API key from file {}, skipping", applicationKeyFile, e);
       }
     }
     applicationKey = tmpApplicationKey;
 
-    String userProvidedServiceName =
-        configProvider.getStringExcludingSource(
-            SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
+    String userProvidedServiceName = configProvider.getStringExcludingSource(
+        SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
 
     if (userProvidedServiceName == null) {
       serviceNameSetByUser = false;
@@ -1536,9 +1548,8 @@ public class Config {
       serviceName = userProvidedServiceName;
     }
 
-    rootContextServiceName =
-        configProvider.getString(
-            SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+    rootContextServiceName = configProvider.getString(
+        SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
     experimentalFeaturesEnabled =
         configProvider.getString(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "").equals("all")
@@ -1549,9 +1560,8 @@ public class Config {
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
     boolean otlpTracesExporter = isTraceOtlpExporterEnabled();
-    writerType =
-        configProvider.getString(
-            WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
+    writerType = configProvider.getString(
+        WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
     boolean isDatadogTraceWriter = !otlpTracesExporter;
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
@@ -1564,34 +1574,26 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
-    lambdaSnapStartClockResyncEnabled =
-        configProvider.getBoolean(
-            TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
-            DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
-    cassandraKeyspaceStatementExtractionEnabled =
-        configProvider.getBoolean(
-            CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
-            DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED);
-    couchbaseInternalSpansEnabled =
-        configProvider.getBoolean(
-            COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
+    lambdaSnapStartClockResyncEnabled = configProvider.getBoolean(
+        TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
+        DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
+    cassandraKeyspaceStatementExtractionEnabled = configProvider.getBoolean(
+        CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
+        DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED);
+    couchbaseInternalSpansEnabled = configProvider.getBoolean(
+        COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
     elasticsearchBodyEnabled =
         configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
-    elasticsearchParamsEnabled =
-        configProvider.getBoolean(
-            ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
-    elasticsearchBodyAndParamsEnabled =
-        configProvider.getBoolean(
-            ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
+    elasticsearchParamsEnabled = configProvider.getBoolean(
+        ELASTICSEARCH_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_PARAMS_ENABLED);
+    elasticsearchBodyAndParamsEnabled = configProvider.getBoolean(
+        ELASTICSEARCH_BODY_AND_PARAMS_ENABLED, DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED);
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
-    trace128bitTraceIdGenerationEnabled =
-        configProvider.getBoolean(
-            TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
-            DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+    trace128bitTraceIdGenerationEnabled = configProvider.getBoolean(
+        TRACE_128_BIT_TRACEID_GENERATION_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
 
-    logs128bitTraceIdEnabled =
-        configProvider.getBoolean(
-            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+    logs128bitTraceIdEnabled = configProvider.getBoolean(
+        TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
 
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
@@ -1684,11 +1686,10 @@ public class Config {
 
     agentNamedPipe = configProvider.getString(AGENT_NAMED_PIPE);
 
-    agentConfiguredUsingDefault =
-        agentHostFromEnvironment == null
-            && agentPortFromEnvironment < 0
-            && unixSocketFromEnvironment == null
-            && agentNamedPipe == null;
+    agentConfiguredUsingDefault = agentHostFromEnvironment == null
+        && agentPortFromEnvironment < 0
+        && unixSocketFromEnvironment == null
+        && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -1735,12 +1736,10 @@ public class Config {
         logIgnoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
     } else {
-      requestHeaderTags =
-          configProvider.getMergedMapWithOptionalMappings(
-              "http.request.headers.", true, HEADER_TAGS, REQUEST_HEADER_TAGS);
-      responseHeaderTags =
-          configProvider.getMergedMapWithOptionalMappings(
-              "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
+      requestHeaderTags = configProvider.getMergedMapWithOptionalMappings(
+          "http.request.headers.", true, HEADER_TAGS, REQUEST_HEADER_TAGS);
+      responseHeaderTags = configProvider.getMergedMapWithOptionalMappings(
+          "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
     requestHeaderTagsCommaAllowed =
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
@@ -1750,8 +1749,8 @@ public class Config {
     azureFunctions =
         getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
 
-    awsServerless =
-        getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
+    awsServerless = getEnv("AWS_LAMBDA_FUNCTION_NAME") != null
+        && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
 
     sfnInjectDatadogAttributeEnabled =
         isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sfn");
@@ -1787,26 +1786,22 @@ public class Config {
     httpClientPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING);
 
-    httpResourceRemoveTrailingSlash =
-        configProvider.getBoolean(
-            TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH,
-            DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH);
+    httpResourceRemoveTrailingSlash = configProvider.getBoolean(
+        TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH,
+        DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH);
 
-    httpServerErrorStatuses =
-        configProvider.getIntegerRange(
-            TRACE_HTTP_SERVER_ERROR_STATUSES,
-            DEFAULT_HTTP_SERVER_ERROR_STATUSES,
-            HTTP_SERVER_ERROR_STATUSES);
+    httpServerErrorStatuses = configProvider.getIntegerRange(
+        TRACE_HTTP_SERVER_ERROR_STATUSES,
+        DEFAULT_HTTP_SERVER_ERROR_STATUSES,
+        HTTP_SERVER_ERROR_STATUSES);
 
-    httpClientErrorStatuses =
-        configProvider.getIntegerRange(
-            TRACE_HTTP_CLIENT_ERROR_STATUSES,
-            DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
-            HTTP_CLIENT_ERROR_STATUSES);
+    httpClientErrorStatuses = configProvider.getIntegerRange(
+        TRACE_HTTP_CLIENT_ERROR_STATUSES,
+        DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
+        HTTP_CLIENT_ERROR_STATUSES);
 
-    httpServerTagQueryString =
-        configProvider.getBoolean(
-            HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
+    httpServerTagQueryString = configProvider.getBoolean(
+        HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
 
     httpServerRawQueryString = configProvider.getBoolean(HTTP_SERVER_RAW_QUERY_STRING, true);
 
@@ -1815,65 +1810,53 @@ public class Config {
     httpServerDecodedResourcePreserveSpaces =
         configProvider.getBoolean(HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES, true);
 
-    httpServerRouteBasedNaming =
-        configProvider.getBoolean(
-            HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
+    httpServerRouteBasedNaming = configProvider.getBoolean(
+        HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
 
-    httpClientTagQueryString =
-        configProvider.getBoolean(
-            TRACE_HTTP_CLIENT_TAG_QUERY_STRING,
-            DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING,
-            HTTP_CLIENT_TAG_QUERY_STRING);
+    httpClientTagQueryString = configProvider.getBoolean(
+        TRACE_HTTP_CLIENT_TAG_QUERY_STRING,
+        DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING,
+        HTTP_CLIENT_TAG_QUERY_STRING);
 
     httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
 
-    httpClientSplitByDomain =
-        configProvider.getBoolean(
-            HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
+    httpClientSplitByDomain = configProvider.getBoolean(
+        HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
 
-    dbClientSplitByInstance =
-        configProvider.getBoolean(
-            DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
+    dbClientSplitByInstance = configProvider.getBoolean(
+        DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
-    dbClientSplitByInstanceTypeSuffix =
-        configProvider.getBoolean(
-            DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
-            DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
+    dbClientSplitByInstanceTypeSuffix = configProvider.getBoolean(
+        DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
+        DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
 
     dbMetadataFetchingOnQuery = configProvider.getBoolean(DB_METADATA_FETCHING_ON_QUERY, true);
     dbMetadataFetchingOnConnect = configProvider.getBoolean(DB_METADATA_FETCHING_ON_CONNECT, true);
 
-    dbClientSplitByHost =
-        configProvider.getBoolean(
-            DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
+    dbClientSplitByHost = configProvider.getBoolean(
+        DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
 
-    dbmPropagationMode =
-        configProvider.getString(
-            DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
+    dbmPropagationMode = configProvider.getString(
+        DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
-    dbmTracePreparedStatements =
-        configProvider.getBoolean(
-            DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+    dbmTracePreparedStatements = configProvider.getBoolean(
+        DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
 
-    dbmAlwaysAppendSqlComment =
-        configProvider.getBoolean(
-            DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
+    dbmAlwaysAppendSqlComment = configProvider.getBoolean(
+        DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
-    dbmInjectSqlBaseHash =
-        configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
-            || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
+    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
+        || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
-    traceStatsAdditionalTags =
-        experimentalFeaturesEnabled.contains(
-                propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
-            ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
-            : Collections.emptySet();
+    traceStatsAdditionalTags = experimentalFeaturesEnabled.contains(
+            propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
+        ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
+        : Collections.emptySet();
 
-    jeeSplitByDeployment =
-        configProvider.getBoolean(
-            EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
+    jeeSplitByDeployment = configProvider.getBoolean(
+        EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
 
     springDataRepositoryInterfaceResourceName =
         configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
@@ -1886,37 +1869,31 @@ public class Config {
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
 
     boolean partialFlushEnabled = configProvider.getBoolean(PARTIAL_FLUSH_ENABLED, true);
-    partialFlushMinSpans =
-        !partialFlushEnabled
-            ? 0
-            : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+    partialFlushMinSpans = !partialFlushEnabled
+        ? 0
+        : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
-    traceKeepLatencyThreshold =
-        configProvider.getInteger(
-            TRACE_KEEP_LATENCY_THRESHOLD_MS, DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS);
+    traceKeepLatencyThreshold = configProvider.getInteger(
+        TRACE_KEEP_LATENCY_THRESHOLD_MS, DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS);
 
     traceKeepLatencyThresholdEnabled = !partialFlushEnabled && (traceKeepLatencyThreshold > 0);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
-    logExtractHeaderNames =
-        configProvider.getBoolean(
-            PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
-            DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
+    logExtractHeaderNames = configProvider.getBoolean(
+        PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
+        DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
-    tracePropagationStyleB3PaddingEnabled =
-        isEnabled(
-            DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+    tracePropagationStyleB3PaddingEnabled = isEnabled(
+        DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
     try {
-      tmpTracePropagationBehaviorExtract =
-          TracePropagationBehaviorExtract.valueOf(
-              configProvider
-                  .getString(
-                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
-                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
-                  .toUpperCase(Locale.ROOT));
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.valueOf(configProvider
+          .getString(
+              TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+              DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+          .toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException e) {
       tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
       log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
@@ -1931,21 +1908,16 @@ public class Config {
       // * dd.trace.propagation.style.(extract|inject)
       // * dd.trace.propagation.style
       // * dd.propagation.style.(extract|inject)
-      Set<PropagationStyle> deprecatedExtract =
-          getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName, true);
-      Set<PropagationStyle> deprecatedInject =
-          getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName, true);
-      Set<TracePropagationStyle> common =
-          getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
-      Set<TracePropagationStyle> extract =
-          getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
-      Set<TracePropagationStyle> inject =
-          getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName, false);
+      Set<PropagationStyle> deprecatedExtract = getSettingsSetFromEnvironment(
+          PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName, true);
+      Set<PropagationStyle> deprecatedInject = getSettingsSetFromEnvironment(
+          PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName, true);
+      Set<TracePropagationStyle> common = getSettingsSetFromEnvironment(
+          TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
+      Set<TracePropagationStyle> extract = getSettingsSetFromEnvironment(
+          TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
+      Set<TracePropagationStyle> inject = getSettingsSetFromEnvironment(
+          TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName, false);
       String extractOrigin = TRACE_PROPAGATION_STYLE_EXTRACT;
       String injectOrigin = TRACE_PROPAGATION_STYLE_INJECT;
       // Check if we should use the common setting for extraction
@@ -2005,14 +1977,12 @@ public class Config {
 
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
-      traceBaggageMaxItems =
-          nonNegativeBaggageLimit(
-              TRACE_BAGGAGE_MAX_ITEMS,
-              configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS));
-      traceBaggageMaxBytes =
-          nonNegativeBaggageLimit(
-              TRACE_BAGGAGE_MAX_BYTES,
-              configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES));
+      traceBaggageMaxItems = nonNegativeBaggageLimit(
+          TRACE_BAGGAGE_MAX_ITEMS,
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS));
+      traceBaggageMaxBytes = nonNegativeBaggageLimit(
+          TRACE_BAGGAGE_MAX_BYTES,
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES));
 
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
@@ -2022,9 +1992,8 @@ public class Config {
           deprecatedInject.isEmpty() ? DEFAULT_PROPAGATION_STYLE : deprecatedInject;
     }
 
-    tracePropagationExtractFirst =
-        configProvider.getBoolean(
-            TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    tracePropagationExtractFirst = configProvider.getBoolean(
+        TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
     traceOrgGuardEnabled = configProvider.getBoolean(TRACE_ORG_GUARD_ENABLED, false);
     traceOrgGuardStrict = configProvider.getBoolean(TRACE_ORG_GUARD_STRICT, false);
     traceOrgGuardTrustedOpms =
@@ -2039,18 +2008,16 @@ public class Config {
       logsInjectionEnabled =
           configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
     } else {
-      logsInjectionEnabled =
-          configProvider.getBoolean(
-              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+      logsInjectionEnabled = configProvider.getBoolean(
+          LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
     }
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
-    dogStatsDStartDelay =
-        configProvider.getInteger(
-            DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+    dogStatsDStartDelay = configProvider.getInteger(
+        DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
     dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
 
@@ -2100,34 +2067,26 @@ public class Config {
     otlpLogsTimeout = otlpTimeout;
 
     otlpLogsHeaders = configProvider.getMergedMap(OTLP_LOGS_HEADERS, '=');
-    otlpLogsProtocol =
-        configProvider.getEnum(
-            OTLP_LOGS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
-    otlpLogsCompression =
-        configProvider.getEnum(
-            OTLP_LOGS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+    otlpLogsProtocol = configProvider.getEnum(
+        OTLP_LOGS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpLogsCompression = configProvider.getEnum(
+        OTLP_LOGS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
 
     String otlpLogsEndpointFromEnvironment = configProvider.getString(OTLP_LOGS_ENDPOINT);
     if (otlpLogsEndpointFromEnvironment == null) {
       if (otlpLogsProtocol == OtlpConfig.Protocol.GRPC) {
         otlpLogsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
-        otlpLogsEndpointFromEnvironment =
-            "http://"
-                + agentHost
-                + ':'
-                + DEFAULT_OTLP_HTTP_PORT
-                + '/'
-                + DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
+        otlpLogsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_HTTP_PORT + '/'
+            + DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
       }
     }
     otlpLogsEndpoint = otlpLogsEndpointFromEnvironment;
 
     metricsOtelExporter = configProvider.getString(METRICS_OTEL_EXPORTER);
 
-    int cardinalityLimit =
-        configProvider.getInteger(
-            METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
+    int cardinalityLimit = configProvider.getInteger(
+        METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
     if (cardinalityLimit < 0) {
       log.warn(
           "Invalid OTel metrics cardinality limit: {}. The value must be positive",
@@ -2150,9 +2109,8 @@ public class Config {
     }
     metricsOtelTimeout = otelTimeout;
 
-    metricsOtelExperimentalEnabled =
-        configProvider.getBoolean(
-            METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
+    metricsOtelExperimentalEnabled = configProvider.getBoolean(
+        METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
 
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
@@ -2164,44 +2122,33 @@ public class Config {
     otlpMetricsTimeout = otlpTimeout;
 
     otlpMetricsHeaders = configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
-    otlpMetricsProtocol =
-        configProvider.getEnum(
-            OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
-    otlpMetricsCompression =
-        configProvider.getEnum(
-            OTLP_METRICS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+    otlpMetricsProtocol = configProvider.getEnum(
+        OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpMetricsCompression = configProvider.getEnum(
+        OTLP_METRICS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
 
     String otlpMetricsEndpointFromEnvironment = configProvider.getString(OTLP_METRICS_ENDPOINT);
     if (otlpMetricsEndpointFromEnvironment == null) {
       if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
         otlpMetricsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
-        otlpMetricsEndpointFromEnvironment =
-            "http://"
-                + agentHost
-                + ':'
-                + DEFAULT_OTLP_HTTP_PORT
-                + '/'
-                + DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
+        otlpMetricsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_HTTP_PORT
+            + '/' + DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
       }
     }
     otlpMetricsEndpoint = otlpMetricsEndpointFromEnvironment;
 
-    otlpMetricsTemporalityPreference =
-        configProvider.getEnum(
-            OTLP_METRICS_TEMPORALITY_PREFERENCE,
-            OtlpConfig.Temporality.class,
-            OtlpConfig.Temporality.DELTA);
+    otlpMetricsTemporalityPreference = configProvider.getEnum(
+        OTLP_METRICS_TEMPORALITY_PREFERENCE,
+        OtlpConfig.Temporality.class,
+        OtlpConfig.Temporality.DELTA);
 
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
-    otelTracesSpanMetricsEnabled =
-        configProvider.getBoolean(
-            OTEL_TRACES_SPAN_METRICS_ENABLED,
-            isTraceOtlpExporterEnabled()
-                && isMetricsOtelEnabled()
-                && isMetricsOtlpExporterEnabled());
+    otelTracesSpanMetricsEnabled = configProvider.getBoolean(
+        OTEL_TRACES_SPAN_METRICS_ENABLED,
+        isTraceOtlpExporterEnabled() && isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled());
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
@@ -2211,25 +2158,18 @@ public class Config {
     otlpTracesTimeout = otlpTimeout;
 
     otlpTracesHeaders = configProvider.getMergedMap(OTLP_TRACES_HEADERS, '=');
-    otlpTracesProtocol =
-        configProvider.getEnum(
-            OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
-    otlpTracesCompression =
-        configProvider.getEnum(
-            OTLP_TRACES_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+    otlpTracesProtocol = configProvider.getEnum(
+        OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpTracesCompression = configProvider.getEnum(
+        OTLP_TRACES_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
 
     String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
     if (otlpTracesEndpointFromEnvironment == null) {
       if (otlpTracesProtocol == OtlpConfig.Protocol.GRPC) {
         otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
-        otlpTracesEndpointFromEnvironment =
-            "http://"
-                + agentHost
-                + ':'
-                + DEFAULT_OTLP_HTTP_PORT
-                + '/'
-                + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+        otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_HTTP_PORT
+            + '/' + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
       }
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
@@ -2237,9 +2177,8 @@ public class Config {
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
-    jmxFetchEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
+    jmxFetchEnabled = runtimeMetricsEnabled
+        && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
     jmxFetchConfigs = tryMakeImmutableList(configProvider.getList(JMX_FETCH_CONFIG));
     jmxFetchMetricsConfigs =
@@ -2250,31 +2189,26 @@ public class Config {
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
 
     jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
-    jmxFetchStatsdHost =
-        configProvider.getString(
-            JMX_FETCH_STATSD_HOST,
-            // default to agent host if an explicit port has been set
-            null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
-            DOGSTATSD_HOST);
+    jmxFetchStatsdHost = configProvider.getString(
+        JMX_FETCH_STATSD_HOST,
+        // default to agent host if an explicit port has been set
+        null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
+        DOGSTATSD_HOST);
 
-    jmxFetchMultipleRuntimeServicesEnabled =
-        configProvider.getBoolean(
-            JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED,
-            DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED);
-    jmxFetchMultipleRuntimeServicesLimit =
-        configProvider.getInteger(
-            JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT,
-            DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT);
+    jmxFetchMultipleRuntimeServicesEnabled = configProvider.getBoolean(
+        JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED,
+        DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED);
+    jmxFetchMultipleRuntimeServicesLimit = configProvider.getInteger(
+        JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT,
+        DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
-    healthMetricsEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_HEALTH_METRICS_ENABLED);
+    healthMetricsEnabled = runtimeMetricsEnabled
+        && configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_HEALTH_METRICS_ENABLED);
     healthMetricsStatsdHost = configProvider.getString(HEALTH_METRICS_STATSD_HOST);
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
-    perfMetricsEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
+    perfMetricsEnabled = runtimeMetricsEnabled
+        && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     tracerMetricsEnabled =
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_ENABLED, true, TRACER_METRICS_ENABLED);
@@ -2314,9 +2248,8 @@ public class Config {
     final int defaultMaxAggregates = tightHeap ? 256 : 2048;
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
-    tracerMetricsMaxAggregates =
-        configProvider.getInteger(
-            TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
+    tracerMetricsMaxAggregates = configProvider.getInteger(
+        TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2336,10 +2269,8 @@ public class Config {
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
-    ProtocolVersion protocol =
-        ProtocolVersion.fromConfigValue(
-            configProvider.getString(
-                TRACE_AGENT_PROTOCOL_VERSION, DEFAULT_TRACE_AGENT_PROTOCOL_VERSION));
+    ProtocolVersion protocol = ProtocolVersion.fromConfigValue(configProvider.getString(
+        TRACE_AGENT_PROTOCOL_VERSION, DEFAULT_TRACE_AGENT_PROTOCOL_VERSION));
 
     // Check if we need to fall back to legacy flag of `0.5` protocol.
     if (protocol != ProtocolVersion.V1_0
@@ -2379,21 +2310,18 @@ public class Config {
     // the profiler was enabled at build time or not.
     // Otherwise just do the standard config lookup by key.
     // An extra step is needed to properly handle the 'auto' value for profiling enablement via SSI.
-    String value =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_ENABLED,
-            String.valueOf(instrumenterConfig.isProfilingEnabled()));
+    String value = configProvider.getString(
+        ProfilingConfig.PROFILING_ENABLED, String.valueOf(instrumenterConfig.isProfilingEnabled()));
     // Run a validator that will emit a warning if the value is not a valid ProfilingEnablement
     // We don't want it to run in each call to ProfilingEnablement.of(value) not to flood the logs
     ProfilingEnablement.validate(value);
     profilingEnabled = ProfilingEnablement.of(value);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    isDatadogProfilerEnabled =
-        !isDatadogProfilerEnablementOverridden()
-            && configProvider.getBoolean(
-                PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
-            && !(Platform.isNativeImageBuilder() || Platform.isNativeImage());
+    isDatadogProfilerEnabled = !isDatadogProfilerEnablementOverridden()
+        && configProvider.getBoolean(
+            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
+        && !(Platform.isNativeImageBuilder() || Platform.isNativeImage());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -2401,10 +2329,9 @@ public class Config {
       tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
-          tmpApiKey =
-              new String(
-                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
-                  .trim();
+          tmpApiKey = new String(
+                  Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+              .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
         }
@@ -2416,11 +2343,9 @@ public class Config {
       tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
-          tmpApiKey =
-              new String(
-                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                      StandardCharsets.UTF_8)
-                  .trim();
+          tmpApiKey = new String(
+                  Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+              .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
         }
@@ -2455,59 +2380,45 @@ public class Config {
     profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
-    profilingUploadCompression =
-        configProvider.getString(
-            PROFILING_DEBUG_UPLOAD_COMPRESSION,
-            PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
-            PROFILING_UPLOAD_COMPRESSION);
+    profilingUploadCompression = configProvider.getString(
+        PROFILING_DEBUG_UPLOAD_COMPRESSION,
+        PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+        PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
     profilingProxyUsername = configProvider.getString(PROFILING_PROXY_USERNAME);
     profilingProxyPassword = configProvider.getString(PROFILING_PROXY_PASSWORD);
 
-    profilingExceptionSampleLimit =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
-    profilingBackPressureSampleLimit =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT);
-    profilingBackPressureEnabled =
-        configProvider.getBoolean(
-            PROFILING_BACKPRESSURE_SAMPLING_ENABLED,
-            PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT);
-    profilingDirectAllocationSampleLimit =
-        configProvider.getInteger(
-            PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT,
-            PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT);
-    profilingExceptionHistogramTopItems =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
-            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
-    profilingExceptionHistogramMaxCollectionSize =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
-            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
+    profilingExceptionSampleLimit = configProvider.getInteger(
+        PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
+    profilingBackPressureSampleLimit = configProvider.getInteger(
+        PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT);
+    profilingBackPressureEnabled = configProvider.getBoolean(
+        PROFILING_BACKPRESSURE_SAMPLING_ENABLED, PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT);
+    profilingDirectAllocationSampleLimit = configProvider.getInteger(
+        PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT, PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT);
+    profilingExceptionHistogramTopItems = configProvider.getInteger(
+        PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
+    profilingExceptionHistogramMaxCollectionSize = configProvider.getInteger(
+        PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+        PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
 
-    profilingRecordExceptionMessage =
-        configProvider.getBoolean(
-            PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
+    profilingRecordExceptionMessage = configProvider.getBoolean(
+        PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
 
-    profilingUploadSummaryOn413Enabled =
-        configProvider.getBoolean(
-            PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
+    profilingUploadSummaryOn413Enabled = configProvider.getBoolean(
+        PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
 
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
-    crashTrackingErrorsIntakeEnabled =
-        configProvider.getBoolean(
-            CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
-    crashTrackingExtendedInfoEnabled =
-        configProvider.getBoolean(
-            CRASH_TRACKING_EXTENDED_INFO_ENABLED, CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT);
+    crashTrackingErrorsIntakeEnabled = configProvider.getBoolean(
+        CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
+    crashTrackingExtendedInfoEnabled = configProvider.getBoolean(
+        CRASH_TRACKING_EXTENDED_INFO_ENABLED, CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT);
 
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -2519,9 +2430,8 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    telemetryExtendedHeartbeatInterval =
-        configProvider.getLong(
-            TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL);
+    telemetryExtendedHeartbeatInterval = configProvider.getLong(
+        TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL);
 
     telemetryInterval =
         configProvider.getFloat(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
@@ -2535,19 +2445,15 @@ public class Config {
 
     telemetryMetricsEnabled = configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
-    isTelemetryLogCollectionEnabled =
-        instrumenterConfig.isTelemetryEnabled()
-            && configProvider.getBoolean(
-                TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+    isTelemetryLogCollectionEnabled = instrumenterConfig.isTelemetryEnabled()
+        && configProvider.getBoolean(
+            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
 
-    isTelemetryDependencyServiceEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
-            DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
-    telemetryDependencyResolutionQueueSize =
-        configProvider.getInteger(
-            TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
-            DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
+    isTelemetryDependencyServiceEnabled = configProvider.getBoolean(
+        TELEMETRY_DEPENDENCY_COLLECTION_ENABLED, DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+    telemetryDependencyResolutionQueueSize = configProvider.getInteger(
+        TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
+        DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
@@ -2572,67 +2478,54 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
-    appSecUserIdCollectionMode =
-        UserIdCollectionMode.fromString(
-            configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
-            configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
+    appSecUserIdCollectionMode = UserIdCollectionMode.fromString(
+        configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
+        configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecScaMaxTrackedDependencies =
-        configProvider.getInteger(
-            APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
-    appSecStackTraceEnabled =
-        configProvider.getBoolean(
-            APPSEC_STACK_TRACE_ENABLED,
-            DEFAULT_APPSEC_STACK_TRACE_ENABLED,
-            APPSEC_STACKTRACE_ENABLED_DEPRECATED);
-    appSecMaxStackTraces =
-        configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACES,
-            DEFAULT_APPSEC_MAX_STACK_TRACES,
-            APPSEC_MAX_STACKTRACES_DEPRECATED);
-    appSecMaxStackTraceDepth =
-        configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACE_DEPTH,
-            DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
-            APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
-    appSecBodyParsingSizeLimit =
-        configProvider.getInteger(
-            APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
-    appSecMaxFileContentBytes =
-        configProvider.getInteger(
-            APPSEC_MAX_FILE_CONTENT_BYTES, DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES);
-    appSecMaxFileContentCount =
-        configProvider.getInteger(
-            APPSEC_MAX_FILE_CONTENT_COUNT, DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT);
-    apiSecurityEnabled =
-        configProvider.getBoolean(
-            API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
+    appSecScaMaxTrackedDependencies = configProvider.getInteger(
+        APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
+    appSecStackTraceEnabled = configProvider.getBoolean(
+        APPSEC_STACK_TRACE_ENABLED,
+        DEFAULT_APPSEC_STACK_TRACE_ENABLED,
+        APPSEC_STACKTRACE_ENABLED_DEPRECATED);
+    appSecMaxStackTraces = configProvider.getInteger(
+        APPSEC_MAX_STACK_TRACES,
+        DEFAULT_APPSEC_MAX_STACK_TRACES,
+        APPSEC_MAX_STACKTRACES_DEPRECATED);
+    appSecMaxStackTraceDepth = configProvider.getInteger(
+        APPSEC_MAX_STACK_TRACE_DEPTH,
+        DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
+        APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
+    appSecBodyParsingSizeLimit = configProvider.getInteger(
+        APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
+    appSecMaxFileContentBytes = configProvider.getInteger(
+        APPSEC_MAX_FILE_CONTENT_BYTES, DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES);
+    appSecMaxFileContentCount = configProvider.getInteger(
+        APPSEC_MAX_FILE_CONTENT_COUNT, DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT);
+    apiSecurityEnabled = configProvider.getBoolean(
+        API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
     apiSecuritySampleDelay =
         configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
-    apiSecurityEndpointCollectionMessageLimit =
-        configProvider.getInteger(
-            API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
-            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
-    apiSecurityMaxDownstreamRequestBodyAnalysis =
-        configProvider.getInteger(
-            API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS,
-            DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
-    apiSecurityDownstreamRequestBodyAnalysisSampleRate =
-        configProvider.getDouble(
-            API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
-            DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
-            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
-            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE);
+    apiSecurityEndpointCollectionMessageLimit = configProvider.getInteger(
+        API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
+        DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
+    apiSecurityMaxDownstreamRequestBodyAnalysis = configProvider.getInteger(
+        API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS,
+        DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
+    apiSecurityDownstreamRequestBodyAnalysisSampleRate = configProvider.getDouble(
+        API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
+        DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
+        API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+        API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE);
 
     // Trace Resource Renaming (Endpoint Inference) configuration
     // Default: enabled if AppSec is enabled, otherwise disabled
     // Can be explicitly overridden by setting DD_TRACE_RESOURCE_RENAMING_ENABLED
     Boolean traceResourceRenamingExplicit =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ENABLED);
-    this.traceResourceRenamingEnabled =
-        traceResourceRenamingExplicit != null
-            ? traceResourceRenamingExplicit
-            : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+    this.traceResourceRenamingEnabled = traceResourceRenamingExplicit != null
+        ? traceResourceRenamingExplicit
+        : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
@@ -2641,52 +2534,42 @@ public class Config {
 
     iastContextMode =
         configProvider.getEnum(IAST_CONTEXT_MODE, IastContext.Mode.class, IastContext.Mode.REQUEST);
-    iastDetectionMode =
-        configProvider.getEnum(
-            IAST_DETECTION_MODE, IastDetectionMode.class, IastDetectionMode.DEFAULT);
+    iastDetectionMode = configProvider.getEnum(
+        IAST_DETECTION_MODE, IastDetectionMode.class, IastDetectionMode.DEFAULT);
     iastMaxConcurrentRequests = iastDetectionMode.getIastMaxConcurrentRequests(configProvider);
     iastVulnerabilitiesPerRequest =
         iastDetectionMode.getIastVulnerabilitiesPerRequest(configProvider);
     iastRequestSampling = iastDetectionMode.getIastRequestSampling(configProvider);
     iastDeduplicationEnabled = iastDetectionMode.isIastDeduplicationEnabled(configProvider);
-    iastWeakHashAlgorithms =
-        tryMakeImmutableSet(
-            configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
-    iastWeakCipherAlgorithms =
-        getPattern(
-            DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS,
-            configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
+    iastWeakHashAlgorithms = tryMakeImmutableSet(
+        configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
+    iastWeakCipherAlgorithms = getPattern(
+        DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS, configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
     iastTelemetryVerbosity =
         configProvider.getEnum(IAST_TELEMETRY_VERBOSITY, Verbosity.class, Verbosity.INFORMATION);
     iastRedactionEnabled =
         configProvider.getBoolean(IAST_REDACTION_ENABLED, DEFAULT_IAST_REDACTION_ENABLED);
     iastRedactionNamePattern =
         configProvider.getString(IAST_REDACTION_NAME_PATTERN, DEFAULT_IAST_REDACTION_NAME_PATTERN);
-    iastRedactionValuePattern =
-        configProvider.getString(
-            IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
-    iastTruncationMaxValueLength =
-        configProvider.getInteger(
-            IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
+    iastRedactionValuePattern = configProvider.getString(
+        IAST_REDACTION_VALUE_PATTERN, DEFAULT_IAST_REDACTION_VALUE_PATTERN);
+    iastTruncationMaxValueLength = configProvider.getInteger(
+        IAST_TRUNCATION_MAX_VALUE_LENGTH, DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH);
     iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
-    iastStacktraceLeakSuppress =
-        configProvider.getBoolean(
-            IAST_STACK_TRACE_LEAK_SUPPRESS,
-            DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
-            IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
-    iastHardcodedSecretEnabled =
-        configProvider.getBoolean(
-            IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
-    iastAnonymousClassesEnabled =
-        configProvider.getBoolean(
-            IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
+    iastStacktraceLeakSuppress = configProvider.getBoolean(
+        IAST_STACK_TRACE_LEAK_SUPPRESS,
+        DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
+        IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
+    iastHardcodedSecretEnabled = configProvider.getBoolean(
+        IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
+    iastAnonymousClassesEnabled = configProvider.getBoolean(
+        IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
-    iastStackTraceEnabled =
-        configProvider.getBoolean(
-            IAST_STACK_TRACE_ENABLED,
-            DEFAULT_IAST_STACK_TRACE_ENABLED,
-            IAST_STACKTRACE_ENABLED_DEPRECATED);
+    iastStackTraceEnabled = configProvider.getBoolean(
+        IAST_STACK_TRACE_ENABLED,
+        DEFAULT_IAST_STACK_TRACE_ENABLED,
+        IAST_STACKTRACE_ENABLED_DEPRECATED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
     iastSecurityControlsConfiguration =
@@ -2731,18 +2614,15 @@ public class Config {
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
 
-    ciVisibilityAgentlessEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
+    ciVisibilityAgentlessEnabled = configProvider.getBoolean(
+        CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
 
-    ciVisibilitySourceDataEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
+    ciVisibilitySourceDataEnabled = configProvider.getBoolean(
+        CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
 
-    ciVisibilityBuildInstrumentationEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
-            DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
+    ciVisibilityBuildInstrumentationEnabled = configProvider.getBoolean(
+        CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
+        DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
 
     final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
     ciVisibilityAgentlessUrl =
@@ -2754,20 +2634,16 @@ public class Config {
         isValidUrl(ciVisibilityIntakeAgentlessUrlStr) ? ciVisibilityIntakeAgentlessUrlStr : null;
 
     ciVisibilityAgentJarUri = configProvider.getString(CIVISIBILITY_AGENT_JAR_URI);
-    ciVisibilityAutoConfigurationEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_AUTO_CONFIGURATION_ENABLED,
-            DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityAutoConfigurationEnabled = configProvider.getBoolean(
+        CIVISIBILITY_AUTO_CONFIGURATION_ENABLED, DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED);
     ciVisibilityAdditionalChildProcessJvmArgs =
         configProvider.getString(CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS);
-    ciVisibilityCompilerPluginAutoConfigurationEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
-            DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
-    ciVisibilityGradleDependencyVerificationEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED,
-            DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED);
+    ciVisibilityCompilerPluginAutoConfigurationEnabled = configProvider.getBoolean(
+        CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
+        DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityGradleDependencyVerificationEnabled = configProvider.getBoolean(
+        CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED,
+        DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
     ciVisibilityCoverageLinesEnabled =
@@ -2775,23 +2651,16 @@ public class Config {
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
-    ciVisibilityCompilerPluginVersion =
-        configProvider.getString(
-            CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
-    ciVisibilityJacocoPluginVersion =
-        configProvider.getString(
-            CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
+    ciVisibilityCompilerPluginVersion = configProvider.getString(
+        CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
+    ciVisibilityJacocoPluginVersion = configProvider.getString(
+        CIVISIBILITY_JACOCO_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION);
     ciVisibilityJacocoPluginVersionProvided =
         configProvider.getString(CIVISIBILITY_JACOCO_PLUGIN_VERSION) != null;
-    ciVisibilityCodeCoverageIncludes =
-        Arrays.asList(
-            COLON.split(configProvider.getString(CIVISIBILITY_CODE_COVERAGE_INCLUDES, ":")));
-    ciVisibilityCodeCoverageExcludes =
-        Arrays.asList(
-            COLON.split(
-                configProvider.getString(
-                    CIVISIBILITY_CODE_COVERAGE_EXCLUDES,
-                    DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
+    ciVisibilityCodeCoverageIncludes = Arrays.asList(
+        COLON.split(configProvider.getString(CIVISIBILITY_CODE_COVERAGE_INCLUDES, ":")));
+    ciVisibilityCodeCoverageExcludes = Arrays.asList(COLON.split(configProvider.getString(
+        CIVISIBILITY_CODE_COVERAGE_EXCLUDES, DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
     ciVisibilityCodeCoverageIncludedPackages =
         convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageIncludes);
     ciVisibilityCodeCoverageExcludedPackages =
@@ -2802,34 +2671,24 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED, true);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
-    ciVisibilityGitUploadEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
-    ciVisibilityGitUnshallowEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_GIT_UNSHALLOW_ENABLED, DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED);
+    ciVisibilityGitUploadEnabled = configProvider.getBoolean(
+        CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
+    ciVisibilityGitUnshallowEnabled = configProvider.getBoolean(
+        CIVISIBILITY_GIT_UNSHALLOW_ENABLED, DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED);
     ciVisibilityGitUnshallowDefer =
         configProvider.getBoolean(CIVISIBILITY_GIT_UNSHALLOW_DEFER, true);
-    ciVisibilityGitCommandTimeoutMillis =
-        configProvider.getLong(
-            CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
-            DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS);
-    ciVisibilityBackendApiTimeoutMillis =
-        configProvider.getLong(
-            CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS,
-            DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS);
-    ciVisibilityGitUploadTimeoutMillis =
-        configProvider.getLong(
-            CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS, DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS);
-    ciVisibilityGitRemoteName =
-        configProvider.getString(
-            CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
-    ciVisibilitySignalServerHost =
-        configProvider.getString(
-            CIVISIBILITY_SIGNAL_SERVER_HOST, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST);
-    ciVisibilitySignalServerPort =
-        configProvider.getInteger(
-            CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
+    ciVisibilityGitCommandTimeoutMillis = configProvider.getLong(
+        CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS, DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS);
+    ciVisibilityBackendApiTimeoutMillis = configProvider.getLong(
+        CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS, DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS);
+    ciVisibilityGitUploadTimeoutMillis = configProvider.getLong(
+        CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS, DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS);
+    ciVisibilityGitRemoteName = configProvider.getString(
+        CIVISIBILITY_GIT_REMOTE_NAME, DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME);
+    ciVisibilitySignalServerHost = configProvider.getString(
+        CIVISIBILITY_SIGNAL_SERVER_HOST, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST);
+    ciVisibilitySignalServerPort = configProvider.getInteger(
+        CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
     ciVisibilitySignalClientTimeoutMillis =
         configProvider.getInteger(CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS, 10_000);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
@@ -2848,9 +2707,8 @@ public class Config {
         configProvider.getInteger(CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT, 50);
     ciVisibilityInjectedTracerVersion =
         configProvider.getString(CIVISIBILITY_INJECTED_TRACER_VERSION);
-    ciVisibilityResourceFolderNames =
-        configProvider.getList(
-            CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
+    ciVisibilityResourceFolderNames = configProvider.getList(
+        CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityImpactedTestsDetectionEnabled =
@@ -2890,29 +2748,23 @@ public class Config {
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
 
-    remoteConfigEnabled =
-        configProvider.getBoolean(
-            REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
-    remoteConfigIntegrityCheckEnabled =
-        configProvider.getBoolean(
-            REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
+    remoteConfigEnabled = configProvider.getBoolean(
+        REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+    remoteConfigIntegrityCheckEnabled = configProvider.getBoolean(
+        REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
-    remoteConfigPollIntervalSeconds =
-        configProvider.getFloat(
-            REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
-    remoteConfigMaxPayloadSize =
-        configProvider.getInteger(
-                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
-            * 1024L;
-    remoteConfigTargetsKeyId =
-        configProvider.getString(
-            REMOTE_CONFIG_TARGETS_KEY_ID, DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID);
+    remoteConfigPollIntervalSeconds = configProvider.getFloat(
+        REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
+    remoteConfigMaxPayloadSize = configProvider.getInteger(
+            REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+        * 1024L;
+    remoteConfigTargetsKeyId = configProvider.getString(
+        REMOTE_CONFIG_TARGETS_KEY_ID, DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID);
     remoteConfigTargetsKey =
         configProvider.getString(REMOTE_CONFIG_TARGETS_KEY, DEFAULT_REMOTE_CONFIG_TARGETS_KEY);
 
-    remoteConfigMaxExtraServices =
-        configProvider.getInteger(
-            REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
+    remoteConfigMaxExtraServices = configProvider.getInteger(
+        REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
     final Boolean configuredFeatureFlaggingProviderEnabled =
         configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
@@ -2941,13 +2793,11 @@ public class Config {
     }
     featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
     featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
-    featureFlaggingConfigurationSourceAgentlessBaseUrl =
-        configProvider.getStringNotEmpty(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
-    int configuredFeatureFlaggingPollIntervalSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
+    featureFlaggingConfigurationSourceAgentlessBaseUrl = configProvider.getStringNotEmpty(
+        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
+    int configuredFeatureFlaggingPollIntervalSeconds = configProvider.getInteger(
+        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
+        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
     if (configuredFeatureFlaggingPollIntervalSeconds <= 0) {
       log.warn(
           "Invalid Feature Flagging agentless poll interval: {}. The value must be positive",
@@ -2957,10 +2807,9 @@ public class Config {
     }
     featureFlaggingConfigurationSourcePollIntervalSeconds =
         configuredFeatureFlaggingPollIntervalSeconds;
-    int configuredFeatureFlaggingRequestTimeoutSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
+    int configuredFeatureFlaggingRequestTimeoutSeconds = configProvider.getInteger(
+        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
+        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
     if (configuredFeatureFlaggingRequestTimeoutSeconds <= 0) {
       log.warn(
           "Invalid Feature Flagging agentless request timeout: {}. The value must be positive",
@@ -2971,140 +2820,105 @@ public class Config {
     featureFlaggingConfigurationSourceRequestTimeoutSeconds =
         configuredFeatureFlaggingRequestTimeoutSeconds;
 
-    dynamicInstrumentationEnabled =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    dynamicInstrumentationEnabled = configProvider.getBoolean(
+        DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
     dynamicInstrumentationSnapshotUrl =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL);
-    distributedDebuggerEnabled =
-        configProvider.getBoolean(
-            DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
-    dynamicInstrumentationUploadTimeout =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
+    distributedDebuggerEnabled = configProvider.getBoolean(
+        DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
+    dynamicInstrumentationUploadTimeout = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
     if (configProvider.isSet(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS)) {
-      dynamicInstrumentationUploadFlushInterval =
-          (int)
-              (configProvider.getFloat(
-                      DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS,
-                      DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL)
-                  * 1000);
+      dynamicInstrumentationUploadFlushInterval = (int) (configProvider.getFloat(
+              DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS,
+              DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL)
+          * 1000);
     } else {
-      dynamicInstrumentationUploadFlushInterval =
-          configProvider.getInteger(
-              DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
-              DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+      dynamicInstrumentationUploadFlushInterval = configProvider.getInteger(
+          DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+          DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
     }
-    dynamicInstrumentationClassFileDumpEnabled =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED);
-    dynamicInstrumentationPollInterval =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
-    dynamicInstrumentationDiagnosticsInterval =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
-    dynamicInstrumentationMetricEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(
-                DYNAMIC_INSTRUMENTATION_METRICS_ENABLED,
-                DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED);
+    dynamicInstrumentationClassFileDumpEnabled = configProvider.getBoolean(
+        DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED);
+    dynamicInstrumentationPollInterval = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
+    dynamicInstrumentationDiagnosticsInterval = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
+    dynamicInstrumentationMetricEnabled = runtimeMetricsEnabled
+        && configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_METRICS_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED);
     dynamicInstrumentationProbeFile = configProvider.getString(DYNAMIC_INSTRUMENTATION_PROBE_FILE);
-    dynamicInstrumentationUploadBatchSize =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE);
-    dynamicInstrumentationMaxPayloadSize =
-        configProvider.getInteger(
-                DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
-                DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
-            * 1024L;
-    dynamicInstrumentationVerifyByteCode =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
+    dynamicInstrumentationUploadBatchSize = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE);
+    dynamicInstrumentationMaxPayloadSize = configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
+        * 1024L;
+    dynamicInstrumentationVerifyByteCode = configProvider.getBoolean(
+        DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
     dynamicInstrumentationInstrumentTheWorld =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
     dynamicInstrumentationExcludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
-    dynamicInstrumentationTimeoutCheckerMode =
-        configProvider.getString(
-            DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
-    dynamicInstrumentationCaptureTimeout =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
-            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS);
-    dynamicInstrumentationEvaluationTimeout =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
+    dynamicInstrumentationTimeoutCheckerMode = configProvider.getString(
+        DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
+    dynamicInstrumentationCaptureTimeout = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+        DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS);
+    dynamicInstrumentationEvaluationTimeout = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
     dynamicInstrumentationRedactedIdentifiers =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
-    dynamicInstrumentationRedactionExcludedIdentifiers =
-        tryMakeImmutableSet(
-            configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
+    dynamicInstrumentationRedactionExcludedIdentifiers = tryMakeImmutableSet(
+        configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
     dynamicInstrumentationRedactedTypes =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
-    dynamicInstrumentationLocalVarHoistingLevel =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL);
+    dynamicInstrumentationLocalVarHoistingLevel = configProvider.getInteger(
+        DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL,
+        DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL);
     symbolDatabaseEnabled =
         configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
-    symbolDatabaseForceUpload =
-        configProvider.getBoolean(
-            SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
-    symbolDatabaseFlushThreshold =
-        configProvider.getInteger(
-            SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
+    symbolDatabaseForceUpload = configProvider.getBoolean(
+        SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
+    symbolDatabaseFlushThreshold = configProvider.getInteger(
+        SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
     symbolDatabaseCompressed =
         configProvider.getBoolean(SYMBOL_DATABASE_COMPRESSED, DEFAULT_SYMBOL_DATABASE_COMPRESSED);
-    debuggerExceptionEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_EXCEPTION_ENABLED,
-            DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
-            EXCEPTION_REPLAY_ENABLED);
-    debuggerCodeOriginEnabled =
-        configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, InstrumenterConfig.getDefaultCodeOriginForSpanEnabled());
+    debuggerExceptionEnabled = configProvider.getBoolean(
+        DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED, EXCEPTION_REPLAY_ENABLED);
+    debuggerCodeOriginEnabled = configProvider.getBoolean(
+        CODE_ORIGIN_FOR_SPANS_ENABLED, InstrumenterConfig.getDefaultCodeOriginForSpanEnabled());
     debuggerCodeOriginMaxUserFrames =
         configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
-    debuggerMaxExceptionPerSecond =
-        configProvider.getInteger(
-            DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
-    debuggerExceptionOnlyLocalRoot =
-        configProvider.getBoolean(
-            DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
-    debuggerExceptionCaptureIntermediateSpansEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED,
-            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED);
-    debuggerExceptionMaxCapturedFrames =
-        configProvider.getInteger(
-            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
-            DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
-            DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES);
-    debuggerExceptionCaptureInterval =
-        configProvider.getInteger(
-            DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
-            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
-    debuggerSourceFileTrackingEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
+    debuggerMaxExceptionPerSecond = configProvider.getInteger(
+        DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
+    debuggerExceptionOnlyLocalRoot = configProvider.getBoolean(
+        DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
+    debuggerExceptionCaptureIntermediateSpansEnabled = configProvider.getBoolean(
+        DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED,
+        DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED);
+    debuggerExceptionMaxCapturedFrames = configProvider.getInteger(
+        DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+        DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+        DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES);
+    debuggerExceptionCaptureInterval = configProvider.getInteger(
+        DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
+        DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
+    debuggerSourceFileTrackingEnabled = configProvider.getBoolean(
+        DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
 
-    debuggerThirdPartyIncludes =
-        tryMakeImmutableSet(
-            configProvider.getList(
-                THIRD_PARTY_INCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_INCLUDES));
-    debuggerThirdPartyExcludes =
-        tryMakeImmutableSet(
-            configProvider.getList(
-                THIRD_PARTY_EXCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_EXCLUDES));
+    debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(
+        THIRD_PARTY_INCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_INCLUDES));
+    debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(
+        THIRD_PARTY_EXCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_EXCLUDES));
     debuggerShadingIdentifiers =
         tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
@@ -3143,25 +2957,22 @@ public class Config {
     // starting from interception points
     if (InstrumenterConfig.get()
         .isIntegrationEnabled(Collections.singleton("google-pubsub"), true)) {
-      tmpGrpcIgnoredOutboundMethods.addAll(
-          configProvider.getList(
-              GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
-              Arrays.asList(
-                  "google.pubsub.v1.Subscriber/ModifyAckDeadline",
-                  "google.pubsub.v1.Subscriber/Acknowledge",
-                  "google.pubsub.v1.Subscriber/Pull",
-                  "google.pubsub.v1.Subscriber/StreamingPull",
-                  "google.pubsub.v1.Publisher/Publish")));
+      tmpGrpcIgnoredOutboundMethods.addAll(configProvider.getList(
+          GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
+          Arrays.asList(
+              "google.pubsub.v1.Subscriber/ModifyAckDeadline",
+              "google.pubsub.v1.Subscriber/Acknowledge",
+              "google.pubsub.v1.Subscriber/Pull",
+              "google.pubsub.v1.Subscriber/StreamingPull",
+              "google.pubsub.v1.Publisher/Publish")));
     }
     grpcIgnoredOutboundMethods = tryMakeImmutableSet(tmpGrpcIgnoredOutboundMethods);
     grpcServerTrimPackageResource =
         configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
-    grpcServerErrorStatuses =
-        configProvider.getIntegerRange(
-            GRPC_SERVER_ERROR_STATUSES, DEFAULT_GRPC_SERVER_ERROR_STATUSES);
-    grpcClientErrorStatuses =
-        configProvider.getIntegerRange(
-            GRPC_CLIENT_ERROR_STATUSES, DEFAULT_GRPC_CLIENT_ERROR_STATUSES);
+    grpcServerErrorStatuses = configProvider.getIntegerRange(
+        GRPC_SERVER_ERROR_STATUSES, DEFAULT_GRPC_SERVER_ERROR_STATUSES);
+    grpcClientErrorStatuses = configProvider.getIntegerRange(
+        GRPC_CLIENT_ERROR_STATUSES, DEFAULT_GRPC_CLIENT_ERROR_STATUSES);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -3175,17 +2986,15 @@ public class Config {
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
-    obfuscationQueryRegexp =
-        configProvider.getString(
-            OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
+    obfuscationQueryRegexp = configProvider.getString(
+        OBFUSCATION_QUERY_STRING_REGEXP, null, "obfuscation.query.string.regexp");
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
     servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
-    xDatadogTagsMaxLength =
-        configProvider.getInteger(
-            TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
+    xDatadogTagsMaxLength = configProvider.getInteger(
+        TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
@@ -3205,25 +3014,19 @@ public class Config {
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
-    dataJobsOpenLineageEnabled =
-        configProvider.getBoolean(
-            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
-    dataJobsOpenLineageTimeoutEnabled =
-        configProvider.getBoolean(
-            DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED);
-    dataJobsParseSparkPlanEnabled =
-        configProvider.getBoolean(
-            DATA_JOBS_PARSE_SPARK_PLAN_ENABLED, DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED);
-    dataJobsExperimentalFeaturesEnabled =
-        configProvider.getBoolean(
-            DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
-            DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
+    dataJobsOpenLineageEnabled = configProvider.getBoolean(
+        DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
+    dataJobsOpenLineageTimeoutEnabled = configProvider.getBoolean(
+        DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED);
+    dataJobsParseSparkPlanEnabled = configProvider.getBoolean(
+        DATA_JOBS_PARSE_SPARK_PLAN_ENABLED, DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED);
+    dataJobsExperimentalFeaturesEnabled = configProvider.getBoolean(
+        DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED, DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
-    dataStreamsBucketDurationSeconds =
-        configProvider.getFloat(
-            DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
+    dataStreamsBucketDurationSeconds = configProvider.getFloat(
+        DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
     dataStreamsTransactionExtractors =
         configProvider.getString(DATA_STREAMS_TRANSACTION_EXTRACTORS);
 
@@ -3234,9 +3037,8 @@ public class Config {
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
     } else {
-      traceAgentArgs =
-          Collections.unmodifiableList(
-              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(traceAgentArgsString)));
+      traceAgentArgs = Collections.unmodifiableList(
+          new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(traceAgentArgsString)));
     }
 
     dogStatsDPath = configProvider.getString(DOGSTATSD_PATH);
@@ -3244,9 +3046,8 @@ public class Config {
     if (dogStatsDArgsString == null) {
       dogStatsDArgs = Collections.emptyList();
     } else {
-      dogStatsDArgs =
-          Collections.unmodifiableList(
-              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
+      dogStatsDArgs = Collections.unmodifiableList(
+          new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
     }
 
     // Setting this last because we have a few places where this can come from
@@ -3254,16 +3055,13 @@ public class Config {
 
     boolean longRunningEnabled =
         configProvider.getBoolean(TRACE_LONG_RUNNING_ENABLED, DEFAULT_TRACE_LONG_RUNNING_ENABLED);
-    long longRunningTraceInitialFlushInterval =
-        configProvider.getLong(
-            TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
-            DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
-    long longRunningTraceFlushInterval =
-        configProvider.getLong(
-            TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
-    serviceDiscoveryEnabled =
-        configProvider.getBoolean(
-            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
+    long longRunningTraceInitialFlushInterval = configProvider.getLong(
+        TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+        DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
+    long longRunningTraceFlushInterval = configProvider.getLong(
+        TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+    serviceDiscoveryEnabled = configProvider.getBoolean(
+        TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -3288,35 +3086,29 @@ public class Config {
     this.longRunningTraceInitialFlushInterval = longRunningTraceInitialFlushInterval;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 
-    this.sparkTaskHistogramEnabled =
-        configProvider.getBoolean(
-            SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+    this.sparkTaskHistogramEnabled = configProvider.getBoolean(
+        SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
         configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
-    this.jaxRsExceptionAsErrorsEnabled =
-        configProvider.getBoolean(
-            JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+    this.jaxRsExceptionAsErrorsEnabled = configProvider.getBoolean(
+        JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
-    websocketMessagesInheritSampling =
-        configProvider.getBoolean(
-            TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING);
-    websocketMessagesSeparateTraces =
-        configProvider.getBoolean(
-            TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES);
+    websocketMessagesInheritSampling = configProvider.getBoolean(
+        TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING);
+    websocketMessagesSeparateTraces = configProvider.getBoolean(
+        TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES);
     websocketTagSessionId =
         configProvider.getBoolean(TRACE_WEBSOCKET_TAG_SESSION_ID, DEFAULT_WEBSOCKET_TAG_SESSION_ID);
 
-    this.traceFlushIntervalSeconds =
-        configProvider.getFloat(
-            TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
+    this.traceFlushIntervalSeconds = configProvider.getFloat(
+        TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
 
-    this.tracePostProcessingTimeout =
-        configProvider.getLong(
-            TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+    this.tracePostProcessingTimeout = configProvider.getLong(
+        TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
       log.debug(
@@ -3351,9 +3143,8 @@ public class Config {
       }
     }
 
-    this.telemetryDebugRequestsEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+    this.telemetryDebugRequestsEnabled = configProvider.getBoolean(
+        TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionQueueSize =
         configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
@@ -3362,9 +3153,8 @@ public class Config {
     this.agentlessLogSubmissionUrl = configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
-    this.cloudPayloadTaggingServices =
-        configProvider.getSet(
-            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+    this.cloudPayloadTaggingServices = configProvider.getSet(
+        TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
 
     List<String> cloudReqPayloadTaggingConf =
         configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
@@ -3403,14 +3193,11 @@ public class Config {
     this.cloudPayloadTaggingMaxTags =
         configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
-    this.dependecyResolutionPeriodMillis =
-        configProvider.getLong(
-            GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS,
-            1000); // 1 second by default
+    this.dependecyResolutionPeriodMillis = configProvider.getLong(
+        GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS, 1000); // 1 second by default
 
-    timelineEventsEnabled =
-        configProvider.getBoolean(
-            PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+    timelineEventsEnabled = configProvider.getBoolean(
+        PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
@@ -3438,10 +3225,9 @@ public class Config {
     this.tagValueUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_VALUE_UTF8_CACHE_SIZE, 384), 0);
 
-    int defaultStackTraceLengthLimit =
-        instrumenterConfig.isCiVisibilityEnabled()
-            ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
-            : Integer.MAX_VALUE; // no effective limit (old behavior)
+    int defaultStackTraceLengthLimit = instrumenterConfig.isCiVisibilityEnabled()
+        ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
+        : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
@@ -3452,9 +3238,8 @@ public class Config {
     this.aiGuardTimeout = configProvider.getInteger(AI_GUARD_TIMEOUT, DEFAULT_AI_GUARD_TIMEOUT);
     this.aiGuardMaxContentSize =
         configProvider.getInteger(AI_GUARD_MAX_CONTENT_SIZE, DEFAULT_AI_GUARD_MAX_CONTENT_SIZE);
-    this.aiGuardMaxMessagesLength =
-        configProvider.getInteger(
-            AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
+    this.aiGuardMaxMessagesLength = configProvider.getInteger(
+        AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
   }
@@ -4135,10 +3920,9 @@ public class Config {
   public boolean isProfilingEnabled() {
     if (Platform.isNativeImage()) {
       if (!instrumenterConfig.isProfilingEnabled() && profilingEnabled.isActive()) {
-        log.warn(
-            "Profiling was not enabled during the native image build. "
-                + "Please set DD_PROFILING_ENABLED=true in your native image build configuration if you want"
-                + "to use profiling.");
+        log.warn("Profiling was not enabled during the native image build. "
+            + "Please set DD_PROFILING_ENABLED=true in your native image build configuration if you want"
+            + "to use profiling.");
       }
     }
     return profilingEnabled.isActive() && instrumenterConfig.isProfilingEnabled();
@@ -4266,10 +4050,9 @@ public class Config {
     } else {
       // JDK 18 is missing ASGCT fixes, so we can't use it
       if (!isJavaVersion(18)) {
-        result =
-            isJavaVersionAtLeast(17, 0, 5)
-                || (isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 17))
-                || (isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 352));
+        result = isJavaVersionAtLeast(17, 0, 5)
+            || (isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 17))
+            || (isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 352));
       }
     }
     return result;
@@ -5504,9 +5287,8 @@ public class Config {
 
   public Map<String, String> getMergedJmxTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, String> result =
-        newHashMap(
-            getGlobalTags().size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
+    final Map<String, String> result = newHashMap(
+        getGlobalTags().size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
     result.putAll(getGlobalTags());
     result.putAll(jmxTags);
     result.putAll(runtimeTags);
@@ -5520,12 +5302,10 @@ public class Config {
   public Map<String, String> getMergedProfilingTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final String host = getHostName();
-    final Map<String, String> result =
-        newHashMap(
-            getGlobalTags().size()
-                + profilingTags.size()
-                + runtimeTags.size()
-                + 4 /* for serviceName and host and language and runtime_version */);
+    final Map<String, String> result = newHashMap(getGlobalTags().size()
+        + profilingTags.size()
+        + runtimeTags.size()
+        + 4 /* for serviceName and host and language and runtime_version */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(profilingTags);
@@ -5544,13 +5324,11 @@ public class Config {
   public Map<String, String> getMergedCrashTrackingTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final String host = getHostName();
-    final Map<String, String> result =
-        newHashMap(
-            getGlobalTags().size()
-                + crashTrackingTags.size()
-                + jmxTags.size()
-                + runtimeTags.size()
-                + 5 /* for serviceName and host and language and env and version */);
+    final Map<String, String> result = newHashMap(getGlobalTags().size()
+        + crashTrackingTags.size()
+        + jmxTags.size()
+        + runtimeTags.size()
+        + 5 /* for serviceName and host and language and env and version */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(jmxTags);
@@ -5665,13 +5443,12 @@ public class Config {
 
     if (subscriptionId != null && siteName != null && resourceGroup != null) {
       // The resource ID of the site instance in Azure App Services
-      String resourceId =
-          "/subscriptions/"
-              + subscriptionId
-              + "/resourcegroups/"
-              + resourceGroup
-              + "/providers/microsoft.web/sites/"
-              + siteName;
+      String resourceId = "/subscriptions/"
+          + subscriptionId
+          + "/resourcegroups/"
+          + resourceGroup
+          + "/providers/microsoft.web/sites/"
+          + siteName;
       resourceId = resourceId.toLowerCase(Locale.ROOT);
       aasTags.put("aas.resource.id", resourceId);
     } else {
@@ -5945,9 +5722,8 @@ public class Config {
 
   public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
     boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
-    boolean lowerEnabled =
-        configProvider.getBoolean(
-            "trace." + name.toLowerCase(Locale.ROOT) + ".enabled", defaultEnabled);
+    boolean lowerEnabled = configProvider.getBoolean(
+        "trace." + name.toLowerCase(Locale.ROOT) + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
@@ -6418,9 +6194,8 @@ public class Config {
 
     // Try hostname command
     try (final TraceScope scope = AgentTracer.get().muteTracing();
-        final BufferedReader reader =
-            new BufferedReader(
-                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+        final BufferedReader reader = new BufferedReader(
+            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -6479,12 +6254,11 @@ public class Config {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  private static final Config INSTANCE =
-      new Config(
-          Platform.isNativeImageBuilder()
-              ? ConfigProvider.withoutCollector()
-              : ConfigProvider.getInstance(),
-          InstrumenterConfig.get());
+  private static final Config INSTANCE = new Config(
+      Platform.isNativeImageBuilder()
+          ? ConfigProvider.withoutCollector()
+          : ConfigProvider.getInstance(),
+      InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;

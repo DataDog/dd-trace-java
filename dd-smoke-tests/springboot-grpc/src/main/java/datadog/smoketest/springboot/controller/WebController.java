@@ -42,9 +42,8 @@ public class WebController {
     final String decodedMsg = decodeBase64(message);
     CompletableFuture<String>[] cfs = new CompletableFuture[20];
     for (int i = 0; i < cfs.length; ++i) {
-      cfs[i] =
-          CompletableFuture.supplyAsync(() -> "something", pool)
-              .thenApplyAsync(x -> asyncGreeter.greet(decodedMsg), pool);
+      cfs[i] = CompletableFuture.supplyAsync(() -> "something", pool)
+          .thenApplyAsync(x -> asyncGreeter.greet(decodedMsg), pool);
     }
     return CompletableFuture.allOf(cfs).thenApply(x -> "bye").join();
   }

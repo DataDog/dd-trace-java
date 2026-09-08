@@ -48,33 +48,24 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
 
     vertx = Vertx.vertx();
     Router router = Router.router(vertx);
-    router
-        .route("/fail")
-        .handler(
-            ctx -> {
-              ResponseExceptionFiringHelper.fireException(
-                  ctx.response(), new IOException("simulated response I/O failure"));
-              try {
-                ctx.response().setStatusCode(500).end("error");
-              } catch (IllegalStateException ignore) {
-                // handleException may have left the response in a state where end() is rejected;
-                // the span is already finished by our addEndHandler callback.
-              }
-            });
+    router.route("/fail").handler(ctx -> {
+      ResponseExceptionFiringHelper.fireException(
+          ctx.response(), new IOException("simulated response I/O failure"));
+      try {
+        ctx.response().setStatusCode(500).end("error");
+      } catch (IllegalStateException ignore) {
+        // handleException may have left the response in a state where end() is rejected;
+        // the span is already finished by our addEndHandler callback.
+      }
+    });
 
     CountDownLatch ready = new CountDownLatch(1);
-    server =
-        vertx
-            .createHttpServer()
-            .requestHandler(router)
-            .listen(
-                port,
-                result -> {
-                  if (result.failed()) {
-                    throw new RuntimeException("Failed to start Vert.x server", result.cause());
-                  }
-                  ready.countDown();
-                });
+    server = vertx.createHttpServer().requestHandler(router).listen(port, result -> {
+      if (result.failed()) {
+        throw new RuntimeException("Failed to start Vert.x server", result.cause());
+      }
+      ready.countDown();
+    });
     if (!ready.await(10, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Vert.x server did not start in time");
     }
@@ -115,16 +106,15 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
     // The netty.request span is marked as errored because the route handler ends with
     // HTTP 500; the route-handler span is finished by our addEndHandler callback before
     // setStatusCode(500), so it sees status=200 (default) and is not errored.
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span()
-                .operationName(Pattern.compile(Pattern.quote("netty.request")))
-                .type(DDSpanTypes.HTTP_SERVER)
-                .error(),
-            span()
-                .childOfPrevious()
-                .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
-                .type(DDSpanTypes.HTTP_SERVER)));
+    assertTraces(trace(
+        SORT_BY_START_TIME,
+        span()
+            .operationName(Pattern.compile(Pattern.quote("netty.request")))
+            .type(DDSpanTypes.HTTP_SERVER)
+            .error(),
+        span()
+            .childOfPrevious()
+            .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
+            .type(DDSpanTypes.HTTP_SERVER)));
   }
 }

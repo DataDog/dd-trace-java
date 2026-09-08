@@ -109,12 +109,11 @@ public class TestImpl implements DDTest {
     this.context = new TestContextImpl(coverageStore);
 
     AgentSpanContext traceContext = new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
-            .ignoreActiveSpan()
-            .asChildOf(traceContext)
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer.get()
+        .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
+        .ignoreActiveSpan()
+        .asChildOf(traceContext)
+        .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {
       startMicros = startTime;
@@ -264,15 +263,14 @@ public class TestImpl implements DDTest {
     }
 
     if (activeSpan != this.span) {
-      throw new IllegalStateException(
-          "Active span does not correspond to the finished test, "
-              + "it is possible that end() was called multiple times "
-              + "or an operation that was started by the test is still in progress; "
-              + "active span is: "
-              + activeSpan
-              + "; "
-              + "expected span is: "
-              + this.span);
+      throw new IllegalStateException("Active span does not correspond to the finished test, "
+          + "it is possible that end() was called multiple times "
+          + "or an operation that was started by the test is still in progress; "
+          + "active span is: "
+          + activeSpan
+          + "; "
+          + "expected span is: "
+          + this.span);
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);

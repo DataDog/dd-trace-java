@@ -102,12 +102,11 @@ public enum CiVisibilityDistributionMetric {
         return;
       }
     }
-    throw new IllegalArgumentException(
-        "Metric "
-            + name()
-            + " cannot be tagged with "
-            + tag.getSimpleName()
-            + ", allowed tags are "
-            + Arrays.toString(tags));
+    throw new IllegalArgumentException("Metric "
+        + name()
+        + " cannot be tagged with "
+        + tag.getSimpleName()
+        + ", allowed tags are "
+        + Arrays.toString(tags));
   }
 }

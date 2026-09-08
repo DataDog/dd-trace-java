@@ -45,11 +45,10 @@ public final class ProfilerFlareLogger implements TracerFlare.Reporter {
     log.warn(msgFormat, args);
 
     FormattingTuple ft = MessageFormatter.arrayFormat(msgFormat, args);
-    StringBuilder sb =
-        new StringBuilder(Instant.now().atZone(ZoneOffset.UTC).toString())
-            .append('\t')
-            .append(ft.getMessage())
-            .append('\n');
+    StringBuilder sb = new StringBuilder(Instant.now().atZone(ZoneOffset.UTC).toString())
+        .append('\t')
+        .append(ft.getMessage())
+        .append('\n');
     if (ft.getThrowable() != null) {
       sb.append(ft.getThrowable());
     }

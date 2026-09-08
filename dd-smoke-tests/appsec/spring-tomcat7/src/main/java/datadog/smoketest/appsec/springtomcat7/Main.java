@@ -23,11 +23,10 @@ public class Main {
             try {
               port = Integer.parseInt(kv[1]);
             } catch (NumberFormatException e) {
-              System.out.println(
-                  "--server.port '"
-                      + kv[1]
-                      + "' is not valid port. Will be used default port "
-                      + port);
+              System.out.println("--server.port '"
+                  + kv[1]
+                  + "' is not valid port. Will be used default port "
+                  + port);
             }
           }
         }
@@ -40,14 +39,11 @@ public class Main {
     Context context = tomcat.addContext(ROOT, new File(".").getAbsolutePath());
 
     Tomcat.addServlet(
-        context,
-        SERVLET,
-        new DispatcherServlet(
-            new AnnotationConfigWebApplicationContext() {
-              {
-                register(AppConfigurer.class);
-              }
-            }));
+        context, SERVLET, new DispatcherServlet(new AnnotationConfigWebApplicationContext() {
+          {
+            register(AppConfigurer.class);
+          }
+        }));
     context.addServletMapping(ROOT, SERVLET);
 
     tomcat.start();

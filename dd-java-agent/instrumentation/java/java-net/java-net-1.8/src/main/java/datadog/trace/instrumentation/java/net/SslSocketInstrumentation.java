@@ -60,13 +60,12 @@ public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This final SSLSocket socket) {
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection =
-          new UsmConnection(
-              socket.getLocalAddress(),
-              socket.getLocalPort(),
-              socket.getInetAddress(),
-              socket.getPort(),
-              isIPv6);
+      UsmConnection connection = new UsmConnection(
+          socket.getLocalAddress(),
+          socket.getLocalPort(),
+          socket.getInetAddress(),
+          socket.getPort(),
+          isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
     }

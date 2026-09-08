@@ -117,26 +117,24 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     long newHash = generatePathwayHash(nodeHash, hash);
-    long aggregationHash =
-        FNV64Hash.continueHash(
-            context.tags().getAggregationHash(),
-            DataStreamsTags.longToBytes(newHash),
-            FNV64Hash.Version.v1);
+    long aggregationHash = FNV64Hash.continueHash(
+        context.tags().getAggregationHash(),
+        DataStreamsTags.longToBytes(newHash),
+        FNV64Hash.Version.v1);
 
     long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
     long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
 
-    StatsPoint point =
-        new StatsPoint(
-            context.tags(),
-            newHash,
-            hash,
-            aggregationHash,
-            startNanos,
-            pathwayLatencyNano,
-            edgeLatencyNano,
-            context.payloadSizeBytes(),
-            serviceNameOverride);
+    StatsPoint point = new StatsPoint(
+        context.tags(),
+        newHash,
+        hash,
+        aggregationHash,
+        startNanos,
+        pathwayLatencyNano,
+        edgeLatencyNano,
+        context.payloadSizeBytes(),
+        serviceNameOverride);
     edgeStartNanoTicks = nanoTicks;
     hash = newHash;
 
@@ -169,9 +167,8 @@ public class DefaultPathwayContext implements PathwayContext {
     long pathwayStartMillis = TimeUnit.NANOSECONDS.toMillis(pathwayStartNanos);
     VarEncodingHelper.encodeSignedVarLong(outputBuffer, pathwayStartMillis);
 
-    long edgeStartMillis =
-        pathwayStartMillis
-            + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
+    long edgeStartMillis = pathwayStartMillis
+        + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
     VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
     byte[] base64 = Base64.getEncoder().encode(outputBuffer.trimmedCopy());

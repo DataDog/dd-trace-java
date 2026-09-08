@@ -13,15 +13,12 @@ public class ContactPointsUtil {
       DDCaches.newFixedSizeCache(8);
 
   private static final Function<List<InetSocketAddress>, String> ADDER =
-      inetSocketAddresses ->
-          inetSocketAddresses.stream()
-              .map(
-                  inetSocketAddress ->
-                      inetSocketAddress.getPort() > 0
-                          ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
-                          : inetSocketAddress.getHostString())
-              .distinct()
-              .collect(Collectors.joining(","));
+      inetSocketAddresses -> inetSocketAddresses.stream()
+          .map(inetSocketAddress -> inetSocketAddress.getPort() > 0
+              ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
+              : inetSocketAddress.getHostString())
+          .distinct()
+          .collect(Collectors.joining(","));
 
   public static String fromInetSocketList(@Nullable final List<InetSocketAddress> contactPoints) {
     if (contactPoints == null) {

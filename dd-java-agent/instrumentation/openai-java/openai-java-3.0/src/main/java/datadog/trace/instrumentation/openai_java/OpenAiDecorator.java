@@ -161,10 +161,9 @@ public class OpenAiDecorator extends ClientDecorator {
       // there is nothing to inherit: an unstamped span is retained at any configured rate.
       if (samplingDecision == null || sampleRate == null) {
         sampleRate = sampler.formattedRate();
-        samplingDecision =
-            sampler.sample(span.getTraceId().toLong())
-                ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-                : LLMObsContext.SAMPLING_DECISION_DROPPED;
+        samplingDecision = sampler.sample(span.getTraceId().toLong())
+            ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+            : LLMObsContext.SAMPLING_DECISION_DROPPED;
       }
       span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
       span.setTag(CommonTags.SAMPLE_RATE, sampleRate);

@@ -49,18 +49,17 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
 
-  private static final CiVisibilityWellKnownTags wellKnownTags =
-      new CiVisibilityWellKnownTags(
-          "my-runtime-id",
-          "my-env",
-          "my-language",
-          "my-runtime-name",
-          "my-runtime-version",
-          "my-runtime-vendor",
-          "my-os-arch",
-          "my-os-platform",
-          "my-os-version",
-          "false");
+  private static final CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+      "my-runtime-id",
+      "my-env",
+      "my-language",
+      "my-runtime-name",
+      "my-runtime-version",
+      "my-runtime-vendor",
+      "my-os-arch",
+      "my-os-platform",
+      "my-os-version",
+      "false");
 
   MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
   Phaser phaser = new Phaser();
@@ -92,14 +91,13 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
   @Test
   void noInteractionsBecauseOfInitialFlush() {
     DDIntakeApi api = mock(DDIntakeApi.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(TrackType.NOOP, api)
-            .traceBufferSize(8)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(TrackType.NOOP, api)
+        .traceBufferSize(8)
+        .monitoring(monitoring)
+        .flushIntervalMilliseconds(-1)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build())
     clearInvocations(api);
@@ -116,14 +114,13 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
   void testHappyPath() {
     TrackType trackType = TrackType.CITESTCYCLE;
     DDIntakeApi api = mock(DDIntakeApi.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .traceBufferSize(1024)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .traceBufferSize(1024)
+        .monitoring(monitoring)
+        .flushIntervalMilliseconds(-1)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build())
     clearInvocations(api);
@@ -151,14 +148,13 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     int traceCount = 100;
     TrackType trackType = TrackType.CITESTCYCLE;
     DDIntakeApi api = mock(DDIntakeApi.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .traceBufferSize(1024)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .traceBufferSize(1024)
+        .monitoring(monitoring)
+        .flushIntervalMilliseconds(-1)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build())
     clearInvocations(api);
@@ -186,14 +182,13 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     TrackType trackType = TrackType.CITESTCYCLE;
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     DDIntakeApi api = mock(DDIntakeApi.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .healthMetrics(healthMetrics)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(1000)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .healthMetrics(healthMetrics)
+        .monitoring(monitoring)
+        .flushIntervalMilliseconds(1000)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build(), onStart
     // from start())
@@ -206,11 +201,10 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
         .sendSerializedTraces(argThat(payload -> payload.traceCount() == 5));
 
     // stub onSend to arrive at phaser
-    doAnswer(
-            invocation -> {
-              phaser.arrive();
-              return null;
-            })
+    doAnswer(invocation -> {
+          phaser.arrive();
+          return null;
+        })
         .when(healthMetrics)
         .onSend(anyInt(), anyInt(), any());
 
@@ -234,16 +228,15 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     TrackType trackType = TrackType.CITESTCYCLE;
     List<DDSpan> minimalTrace = createMinimalTrace();
     DDIntakeApi api = mock(DDIntakeApi.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .wellKnownTags(wellKnownTags)
-            .traceBufferSize(1024)
-            .prioritization(ENSURE_TRACE)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .wellKnownTags(wellKnownTags)
+        .traceBufferSize(1024)
+        .prioritization(ENSURE_TRACE)
+        .monitoring(monitoring)
+        .flushIntervalMilliseconds(-1)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build())
     clearInvocations(api);
@@ -283,13 +276,12 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     TrackType trackType = TrackType.CITESTCYCLE;
     DDIntakeApi api = mock(DDIntakeApi.class);
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .healthMetrics(healthMetrics)
-            .monitoring(monitoring)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .healthMetrics(healthMetrics)
+        .monitoring(monitoring)
+        .alwaysFlush(false)
+        .build();
     writer.start();
     // Clear setup-time interactions (e.g. isCompressionEnabled() called during build(), onStart
     // from start())
@@ -317,27 +309,23 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
     String path = buildIntakePath(trackType, apiVersion);
 
-    JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer intake = JavaTestHttpServer.httpServer(server ->
+        server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
-      DDIntakeApi api =
-          DDIntakeApi.builder()
-              .hostUrl(hostUrl)
-              .httpClient(httpClient)
-              .apiKey("my-api-key")
-              .trackType(trackType)
-              .build();
-      DDIntakeWriter writer =
-          DDIntakeWriter.builder()
-              .addTrack(trackType, api)
-              .healthMetrics(healthMetrics)
-              .monitoring(monitoring)
-              .alwaysFlush(false)
-              .build();
+      DDIntakeApi api = DDIntakeApi.builder()
+          .hostUrl(hostUrl)
+          .httpClient(httpClient)
+          .apiKey("my-api-key")
+          .trackType(trackType)
+          .build();
+      DDIntakeWriter writer = DDIntakeWriter.builder()
+          .addTrack(trackType, api)
+          .healthMetrics(healthMetrics)
+          .monitoring(monitoring)
+          .alwaysFlush(false)
+          .build();
 
       // start
       writer.start();
@@ -355,11 +343,9 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 200));
+              argThat(response -> response.success()
+                  && response.status().isPresent()
+                  && response.status().getAsInt() == 200));
 
       writer.close();
 
@@ -377,27 +363,23 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
     String path = buildIntakePath(trackType, apiVersion);
 
-    JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
+    JavaTestHttpServer intake = JavaTestHttpServer.httpServer(server ->
+        server.handlers(h -> h.post(path, api -> api.getResponse().status(500).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
       okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
-      DDIntakeApi api =
-          DDIntakeApi.builder()
-              .hostUrl(hostUrl)
-              .httpClient(httpClient)
-              .apiKey("my-api-key")
-              .trackType(trackType)
-              .build();
-      DDIntakeWriter writer =
-          DDIntakeWriter.builder()
-              .addTrack(trackType, api)
-              .healthMetrics(healthMetrics)
-              .monitoring(monitoring)
-              .alwaysFlush(false)
-              .build();
+      DDIntakeApi api = DDIntakeApi.builder()
+          .hostUrl(hostUrl)
+          .httpClient(httpClient)
+          .apiKey("my-api-key")
+          .trackType(trackType)
+          .build();
+      DDIntakeWriter writer = DDIntakeWriter.builder()
+          .addTrack(trackType, api)
+          .healthMetrics(healthMetrics)
+          .monitoring(monitoring)
+          .alwaysFlush(false)
+          .build();
 
       // start
       writer.start();
@@ -415,11 +397,9 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
           .onFailedSend(
               anyInt(),
               anyInt(),
-              argThat(
-                  response ->
-                      !response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 500));
+              argThat(response -> !response.success()
+                  && response.status().isPresent()
+                  && response.status().getAsInt() == 500));
 
       writer.close();
 
@@ -440,13 +420,12 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
         .when(api)
         .sendSerializedTraces(any());
 
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .alwaysFlush(false)
+        .build();
 
     // start
     writer.start();
@@ -486,75 +465,62 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
 
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              responseSemaphore.acquire();
-                              try {
-                                api.getResponse().status(200).send();
-                              } finally {
-                                responseSemaphore.release();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.post(path, api -> {
+          responseSemaphore.acquire();
+          try {
+            api.getResponse().status(200).send();
+          } finally {
+            responseSemaphore.release();
+          }
+        })));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numPublished.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numPublished.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFailedPublish.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numFailedPublish.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onFailedPublish(anyInt(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFlushes.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numFlushes.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onFlush(any(Boolean.class));
-    doAnswer(
-            invocation -> {
-              numRequests.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numRequests.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onSend(anyInt(), anyInt(), any());
-    doAnswer(
-            invocation -> {
-              numFailedRequests.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numFailedRequests.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onFailedSend(anyInt(), anyInt(), any());
 
     HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
     okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
-    DDIntakeApi api =
-        DDIntakeApi.builder()
-            .hostUrl(hostUrl)
-            .httpClient(httpClient)
-            .apiKey("my-api-key")
-            .trackType(trackType)
-            .build();
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .healthMetrics(healthMetrics)
-            .traceBufferSize(bufferSize)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeApi api = DDIntakeApi.builder()
+        .hostUrl(hostUrl)
+        .httpClient(httpClient)
+        .apiKey("my-api-key")
+        .trackType(trackType)
+        .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .healthMetrics(healthMetrics)
+        .traceBufferSize(bufferSize)
+        .alwaysFlush(false)
+        .build();
     writer.start();
 
     // gate responses
@@ -616,61 +582,53 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
     String path = buildIntakePath(trackType, apiVersion);
 
-    JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer intake = JavaTestHttpServer.httpServer(server ->
+        server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numPublished.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numPublished.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFailedPublish.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numFailedPublish.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onFailedPublish(anyInt(), anyInt());
-    doAnswer(
-            invocation -> {
-              int repCount = invocation.getArgument(0);
-              numRepSent.addAndGet(repCount);
-              return null;
-            })
+    doAnswer(invocation -> {
+          int repCount = invocation.getArgument(0);
+          numRepSent.addAndGet(repCount);
+          return null;
+        })
         .when(healthMetrics)
         .onSend(anyInt(), anyInt(), any());
 
     HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
     okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
-    DDIntakeApi api =
-        DDIntakeApi.builder()
-            .hostUrl(hostUrl)
-            .httpClient(httpClient)
-            .apiKey("my-api-key")
-            .trackType(trackType)
-            .build();
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeApi api = DDIntakeApi.builder()
+        .hostUrl(hostUrl)
+        .httpClient(httpClient)
+        .apiKey("my-api-key")
+        .trackType(trackType)
+        .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .alwaysFlush(false)
+        .build();
     writer.start();
 
     try {
-      Runnable producer =
-          () -> {
-            for (int i = 1; i <= 100; i++) {
-              writer.write(minimalTrace);
-            }
-          };
+      Runnable producer = () -> {
+        for (int i = 1; i <= 100; i++) {
+          writer.write(minimalTrace);
+        }
+      };
 
       Thread t1 = new Thread(producer);
       t1.start();
@@ -711,44 +669,38 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
     String path = buildIntakePath(trackType, apiVersion);
 
-    JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer intake = JavaTestHttpServer.httpServer(server ->
+        server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
 
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numTracesAccepted.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numTracesAccepted.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numRequests.incrementAndGet();
-              numResponses.incrementAndGet();
-              return null;
-            })
+    doAnswer(invocation -> {
+          numRequests.incrementAndGet();
+          numResponses.incrementAndGet();
+          return null;
+        })
         .when(healthMetrics)
         .onSend(anyInt(), anyInt(), any());
 
     HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
     okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
-    DDIntakeApi api =
-        DDIntakeApi.builder()
-            .hostUrl(hostUrl)
-            .httpClient(httpClient)
-            .apiKey("my-api-key")
-            .trackType(trackType)
-            .build();
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeApi api = DDIntakeApi.builder()
+        .hostUrl(hostUrl)
+        .httpClient(httpClient)
+        .apiKey("my-api-key")
+        .trackType(trackType)
+        .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .alwaysFlush(false)
+        .build();
     writer.start();
 
     try {
@@ -777,22 +729,20 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
     CountDownLatch latch = new CountDownLatch(2);
     StatsDClient statsd = mock(StatsDClient.class);
     TracerHealthMetrics healthMetrics = new TracerHealthMetrics(statsd, 100, TimeUnit.MILLISECONDS);
-    DDIntakeWriter writer =
-        DDIntakeWriter.builder()
-            .addTrack(trackType, api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .alwaysFlush(false)
-            .build();
+    DDIntakeWriter writer = DDIntakeWriter.builder()
+        .addTrack(trackType, api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .alwaysFlush(false)
+        .build();
     healthMetrics.start();
     writer.start();
 
     // Set up stubs with countDown BEFORE the action
-    doAnswer(
-            invocation -> {
-              latch.countDown();
-              return null;
-            })
+    doAnswer(invocation -> {
+          latch.countDown();
+          return null;
+        })
         .when(statsd)
         .count(anyString(), anyLong());
 
@@ -814,11 +764,9 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
 
   static int calculateSize(List<DDSpan> trace, RemoteMapper mapper) {
     AtomicInteger size = new AtomicInteger();
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                mapper.messageBufferSize(),
-                (messageCount, buffer) -> size.set(buffer.limit() - buffer.position())));
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(
+        mapper.messageBufferSize(),
+        (messageCount, buffer) -> size.set(buffer.limit() - buffer.position())));
     packer.format(trace, mapper);
     packer.flush();
     return size.get();

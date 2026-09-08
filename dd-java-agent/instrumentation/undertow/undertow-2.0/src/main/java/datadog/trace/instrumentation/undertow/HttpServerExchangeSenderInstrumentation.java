@@ -73,9 +73,8 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
       AgentSpan span = spanFromContext(continuation.context());
-      Flow<Void> flow =
-          UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
-              span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);
+      Flow<Void> flow = UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
+          span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);
       Flow.Action action = flow.getAction();
       if (!(action instanceof Flow.Action.RequestBlockingAction)) {
         return false;

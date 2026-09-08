@@ -103,9 +103,8 @@ class DatadogProfilerTest {
 
   private static Stream<Arguments> profilingModes() {
     return IntStream.range(0, 1 << 4)
-        .mapToObj(
-            x ->
-                Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
+        .mapToObj(x ->
+            Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
   }
 
   @Test

@@ -14,21 +14,19 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class SmokeAppLogLevelTest {
 
   @RegisterExtension
-  static final SmokeCliApp defaultLevel =
-      SmokeCliApp.named("log-level-default")
-          .mainClass("datadog.smoketest.TestCliApp")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+  static final SmokeCliApp defaultLevel = SmokeCliApp.named("log-level-default")
+      .mainClass("datadog.smoketest.TestCliApp")
+      .backend(AgentBackend.mockAgent())
+      .noAgent()
+      .build();
 
   @RegisterExtension
-  static final SmokeCliApp debugLevel =
-      SmokeCliApp.named("log-level-debug")
-          .mainClass("datadog.smoketest.TestCliApp")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .debugLogs()
-          .build();
+  static final SmokeCliApp debugLevel = SmokeCliApp.named("log-level-debug")
+      .mainClass("datadog.smoketest.TestCliApp")
+      .backend(AgentBackend.mockAgent())
+      .noAgent()
+      .debugLogs()
+      .build();
 
   @Test
   void launchesWithInfoLevelByDefault() {

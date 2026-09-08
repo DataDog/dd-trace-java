@@ -99,19 +99,14 @@ public final class ProfileUploader {
 
   private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
-  private static final Headers EVENT_HEADER =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
+  private static final Headers EVENT_HEADER = Headers.of(
+      "Content-Disposition",
+      "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
 
-  private static final Headers V4_DATA_HEADERS =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\""
-              + V4_ATTACHMENT_NAME
-              + "\"; filename=\""
-              + V4_ATTACHMENT_FILENAME
-              + "\"");
+  private static final Headers V4_DATA_HEADERS = Headers.of(
+      "Content-Disposition",
+      "form-data; name=\"" + V4_ATTACHMENT_NAME + "\"; filename=\"" + V4_ATTACHMENT_FILENAME
+          + "\"");
 
   static final String SERVELESS_TAG = "functionname";
 
@@ -181,33 +176,30 @@ public final class ProfileUploader {
 
     // Comma separated tags string for V2.4 format
     Pattern quotes = Pattern.compile("\"");
-    jsonAdapter =
-        new RecordingDataAdapter(
-            quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
+    jsonAdapter = new RecordingDataAdapter(
+        quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
     uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
-        new ThreadPoolExecutor(
-            0,
-            Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
+    okHttpExecutorService = new ThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
-    client =
-        OkHttpUtils.buildHttpClient(
-            config,
-            new Dispatcher(okHttpExecutorService),
-            url,
-            true,
-            MAX_RUNNING_REQUESTS,
-            config.getProfilingProxyHost(),
-            config.getProfilingProxyPort(),
-            config.getProfilingProxyUsername(),
-            config.getProfilingProxyPassword(),
-            uploadTimeout.toMillis());
+    client = OkHttpUtils.buildHttpClient(
+        config,
+        new Dispatcher(okHttpExecutorService),
+        url,
+        true,
+        MAX_RUNNING_REQUESTS,
+        config.getProfilingProxyHost(),
+        config.getProfilingProxyPort(),
+        config.getProfilingProxyUsername(),
+        config.getProfilingProxyPassword(),
+        uploadTimeout.toMillis());
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
@@ -273,24 +265,23 @@ public final class ProfileUploader {
     CountDownLatch latch = new CountDownLatch(sync ? 1 : 0);
     AtomicBoolean handled = new AtomicBoolean(false);
 
-    call.enqueue(
-        new Callback() {
-          @Override
-          public void onResponse(final Call call, final Response response) throws IOException {
-            if (handled.compareAndSet(false, true)) {
-              handleResponse(call, response, data, onCompletion);
-              latch.countDown();
-            }
-          }
+    call.enqueue(new Callback() {
+      @Override
+      public void onResponse(final Call call, final Response response) throws IOException {
+        if (handled.compareAndSet(false, true)) {
+          handleResponse(call, response, data, onCompletion);
+          latch.countDown();
+        }
+      }
 
-          @Override
-          public void onFailure(final Call call, final IOException e) {
-            if (handled.compareAndSet(false, true)) {
-              handleFailure(call, e, data, onCompletion);
-              latch.countDown();
-            }
-          }
-        });
+      @Override
+      public void onFailure(final Call call, final IOException e) {
+        if (handled.compareAndSet(false, true)) {
+          handleFailure(call, e, data, onCompletion);
+          latch.countDown();
+        }
+      }
+    });
     if (sync) {
       try {
         log.debug("Waiting at most {} seconds for upload to finish", uploadTimeout.plusSeconds(1));
@@ -318,10 +309,9 @@ public final class ProfileUploader {
       final RecordingData data,
       @Nonnull final Runnable onCompletion) {
     if (isEmptyReplyFromServer(e)) {
-      ioLogger.error(
-          "Failed to upload profile, received empty reply from "
-              + call.request().url()
-              + " after uploading profile");
+      ioLogger.error("Failed to upload profile, received empty reply from "
+          + call.request().url()
+          + " after uploading profile");
     } else {
       ioLogger.error("Failed to upload profile to " + call.request().url(), e);
     }
@@ -367,7 +357,9 @@ public final class ProfileUploader {
       try {
         final ResponseBody body = response.body();
         return new IOLogger.Response(
-            response.code(), response.message(), body == null ? "<null>" : body.string().trim());
+            response.code(),
+            response.message(),
+            body == null ? "<null>" : body.string().trim());
       } catch (final NullPointerException | IOException ignored) {
       }
     }
@@ -426,8 +418,9 @@ public final class ProfileUploader {
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
-    return client.newCall(
-        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+    return client.newCall(OkHttpUtils.prepareRequest(url, headers, config, agentless)
+        .post(requestBody)
+        .build());
   }
 
   private boolean canEnqueueMoreRequests() {

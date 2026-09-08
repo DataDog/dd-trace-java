@@ -60,11 +60,8 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         .and(not(extendsClass(nameStartsWith("munit"))))
         // PowerMock runner is being instrumented,
         // so do not instrument its internal delegates
-        .and(
-            not(
-                implementsInterface(
-                    named(
-                        "org.powermock.modules.junit4.common.internal.PowerMockJUnitRunnerDelegate"))));
+        .and(not(implementsInterface(
+            named("org.powermock.modules.junit4.common.internal.PowerMockJUnitRunnerDelegate"))));
   }
 
   @Override
@@ -134,9 +131,8 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         }
       }
 
-      final TracingListener tracingListener =
-          new JUnit4TracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionTracker.class));
+      final TracingListener tracingListener = new JUnit4TracingListener(
+          InstrumentationContext.get(Description.class, TestExecutionTracker.class));
       runNotifier.addListener(tracingListener);
     }
 

@@ -161,11 +161,10 @@ public class DD128bTraceId extends DDTraceId {
 
   @Override
   public int hashCode() {
-    return (int)
-        (this.highOrderBits
-            ^ (this.highOrderBits >>> 32)
-            ^ this.lowOrderBits
-            ^ (this.lowOrderBits >>> 32));
+    return (int) (this.highOrderBits
+        ^ (this.highOrderBits >>> 32)
+        ^ this.lowOrderBits
+        ^ (this.lowOrderBits >>> 32));
   }
 
   @Override

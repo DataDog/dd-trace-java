@@ -35,31 +35,24 @@ public class CompletionDecorator {
     }
 
     // Keep model_name and output shape stable on error paths where no response is available.
-    modelName.ifPresent(
-        str -> {
-          span.setTag(CommonTags.MODEL_NAME, str);
-          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
-        });
+    modelName.ifPresent(str -> {
+      span.setTag(CommonTags.MODEL_NAME, str);
+      span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+    });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     extractPromptText(params)
-        .ifPresent(
-            input ->
-                span.setTag(
-                    CommonTags.INPUT,
-                    Collections.singletonList(LLMObs.LLMMessage.from("", input))));
+        .ifPresent(input -> span.setTag(
+            CommonTags.INPUT, Collections.singletonList(LLMObs.LLMMessage.from("", input))));
 
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
-    params
-        .streamOptions()
-        .ifPresent(
-            v -> {
-              if (v.includeUsage().orElse(false)) {
-                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
-              }
-            });
+    params.streamOptions().ifPresent(v -> {
+      if (v.includeUsage().orElse(false)) {
+        metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+      }
+    });
     span.setTag(CommonTags.METADATA, metadata);
   }
 
@@ -78,24 +71,11 @@ public class CompletionDecorator {
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
-    completion
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._completionTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+    completion._usage().asKnown().ifPresent(usage -> {
+      usage._promptTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+      usage._completionTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
+      usage._totalTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
+    });
   }
 
   public void withCompletions(AgentSpan span, List<Completion> completions) {
@@ -114,45 +94,26 @@ public class CompletionDecorator {
 
     Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
     for (Completion completion : completions) {
-      completion
-          ._choices()
-          .asKnown()
-          .orElse(Collections.emptyList())
-          .forEach(
-              choice -> {
-                long index = choice._index().asKnown().orElse(0L);
-                textByChoiceIndex
-                    .computeIfAbsent(index, k -> new StringBuilder())
-                    .append(choice._text().asString().orElse(""));
-              });
+      completion._choices().asKnown().orElse(Collections.emptyList()).forEach(choice -> {
+        long index = choice._index().asKnown().orElse(0L);
+        textByChoiceIndex
+            .computeIfAbsent(index, k -> new StringBuilder())
+            .append(choice._text().asString().orElse(""));
+      });
     }
 
-    List<LLMObs.LLMMessage> output =
-        textByChoiceIndex.entrySet().stream()
-            .sorted(Map.Entry.comparingByKey())
-            .map(entry -> LLMObs.LLMMessage.from("", entry.getValue().toString()))
-            .collect(Collectors.toList());
+    List<LLMObs.LLMMessage> output = textByChoiceIndex.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .map(entry -> LLMObs.LLMMessage.from("", entry.getValue().toString()))
+        .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
     Completion lastCompletion = completions.get(completions.size() - 1);
-    lastCompletion
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._completionTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+    lastCompletion._usage().asKnown().ifPresent(usage -> {
+      usage._promptTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+      usage._completionTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
+      usage._totalTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
+    });
   }
 
   private Optional<String> extractCompletionModelName(CompletionCreateParams params) {

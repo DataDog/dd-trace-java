@@ -19,12 +19,9 @@ public class SmapEntryFactoryTest {
   @ParameterizedTest
   @ValueSource(ints = {23, 24})
   void testAnnotatedRegionsSanity(int javaVersion) throws Exception {
-    try (BufferedReader br =
-        new BufferedReader(
-            new InputStreamReader(
-                Objects.requireNonNull(
-                    SmapEntryFactory.class.getResourceAsStream(
-                        "/smap/annotated_regions_" + javaVersion + ".txt"))))) {
+    try (BufferedReader br = new BufferedReader(
+        new InputStreamReader(Objects.requireNonNull(SmapEntryFactory.class.getResourceAsStream(
+            "/smap/annotated_regions_" + javaVersion + ".txt"))))) {
 
       long sentinel = 0x1000000420000000L;
       String line = null;
@@ -51,11 +48,8 @@ public class SmapEntryFactoryTest {
 
   @Test
   void testSmapSanity() throws Exception {
-    try (BufferedReader br =
-        new BufferedReader(
-            new InputStreamReader(
-                Objects.requireNonNull(
-                    SmapEntryFactory.class.getResourceAsStream("/smap/smaps.txt"))))) {
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(
+        Objects.requireNonNull(SmapEntryFactory.class.getResourceAsStream("/smap/smaps.txt"))))) {
       List<SmapEntryEvent> events = new ArrayList<>();
       SmapEntryCache.readEvents(br, events);
       assertNotNull(events);

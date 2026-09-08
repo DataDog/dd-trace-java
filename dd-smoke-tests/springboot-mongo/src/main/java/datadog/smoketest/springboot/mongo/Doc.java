@@ -4,7 +4,8 @@ import org.springframework.data.annotation.Id;
 
 public class Doc {
 
-  @Id public String id;
+  @Id
+  public String id;
 
   public String name;
 

@@ -130,12 +130,11 @@ public class ConfigHelper {
         }
         String envFromDeprecated = configSource.primaryEnvFromDeprecated(key);
         if (envFromDeprecated != null) {
-          String warning =
-              "Environment variable "
-                  + key
-                  + " is deprecated. Please use "
-                  + (primaryEnv != null ? primaryEnv : envFromDeprecated)
-                  + " instead.";
+          String warning = "Environment variable "
+              + key
+              + " is deprecated. Please use "
+              + (primaryEnv != null ? primaryEnv : envFromDeprecated)
+              + " instead.";
           log.warn(warning);
         }
       } else {
@@ -159,11 +158,10 @@ public class ConfigHelper {
 
       if (configInversionStrict == StrictnessPolicy.STRICT_TEST) {
         unsupportedConfigs.add(name);
-        throw new IllegalArgumentException(
-            "Unsupported configuration: "
-                + name
-                + " is not in GeneratedSupportedConfigurations. "
-                + "Add it to metadata/supported-configurations.json or remove the usage.");
+        throw new IllegalArgumentException("Unsupported configuration: "
+            + name
+            + " is not in GeneratedSupportedConfigurations. "
+            + "Add it to metadata/supported-configurations.json or remove the usage.");
       }
     }
 

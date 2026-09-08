@@ -22,7 +22,8 @@ public class FailFastMethodOrderer implements MethodOrderer {
       @Nullable MethodOrderer delegate) {
     this.testEventsHandler = testEventsHandler;
     this.delegate = delegate;
-    this.executionOrderComparator = Comparator.comparing(this::executionPriority).reversed();
+    this.executionOrderComparator =
+        Comparator.comparing(this::executionPriority).reversed();
   }
 
   private int executionPriority(MethodDescriptor methodDescriptor) {

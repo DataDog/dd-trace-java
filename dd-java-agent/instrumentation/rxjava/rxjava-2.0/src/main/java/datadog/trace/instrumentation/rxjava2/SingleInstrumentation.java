@@ -51,7 +51,8 @@ public final class SingleInstrumentation
         @Advice.This final Single<?> single,
         @Advice.Argument(value = 0, readOnly = false) SingleObserver<?> observer) {
       if (observer != null) {
-        Context parentContext = InstrumentationContext.get(Single.class, Context.class).get(single);
+        Context parentContext =
+            InstrumentationContext.get(Single.class, Context.class).get(single);
         if (parentContext != null) {
           // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingSingleObserver<>(observer, parentContext);

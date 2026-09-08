@@ -96,24 +96,23 @@ public final class AggregateEntryTestUtils {
     UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
     UTF8BytesString[] additionalTagsArr =
         additionalTags == null ? new UTF8BytesString[0] : additionalTags;
-    long keyHash =
-        AggregateEntry.hashOf(
-            resourceUtf,
-            serviceUtf,
-            operationNameUtf,
-            serviceSourceUtf,
-            typeUtf,
-            spanKindUtf,
-            httpMethodUtf,
-            httpEndpointUtf,
-            grpcUtf,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            peerTagsArr,
-            peerTagsArr.length,
-            additionalTagsArr,
-            additionalTagsArr.length);
+    long keyHash = AggregateEntry.hashOf(
+        resourceUtf,
+        serviceUtf,
+        operationNameUtf,
+        serviceSourceUtf,
+        typeUtf,
+        spanKindUtf,
+        httpMethodUtf,
+        httpEndpointUtf,
+        grpcUtf,
+        (short) httpStatusCode,
+        synthetic,
+        traceRoot,
+        peerTagsArr,
+        peerTagsArr.length,
+        additionalTagsArr,
+        additionalTagsArr.length);
     return new AggregateEntry(
         keyHash,
         resourceUtf,

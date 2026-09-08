@@ -244,13 +244,12 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedSpanLink(
-                  DDSpanLink.from(
-                      (ExtractedContext) extracted,
-                      SpanAttributes.builder()
-                          .put("reason", "terminated_context")
-                          .put("context_headers", extracted.getPropagationStyle().toString())
-                          .build()));
+              context.addTerminatedSpanLink(DDSpanLink.from(
+                  (ExtractedContext) extracted,
+                  SpanAttributes.builder()
+                      .put("reason", "terminated_context")
+                      .put("context_headers", extracted.getPropagationStyle().toString())
+                      .build()));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }

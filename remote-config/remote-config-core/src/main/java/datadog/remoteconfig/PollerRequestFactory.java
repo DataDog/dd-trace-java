@@ -88,11 +88,9 @@ public class PollerRequestFactory {
       long capabilities) {
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
-    RequestBody requestBody =
-        RequestBody.create(
-            applicationJson,
-            buildRemoteConfigRequestJson(
-                productNames, clientState, cachedTargetFiles, capabilities));
+    RequestBody requestBody = RequestBody.create(
+        applicationJson,
+        buildRemoteConfigRequestJson(productNames, clientState, cachedTargetFiles, capabilities));
     requestBuilder.post(requestBody);
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
@@ -111,9 +109,8 @@ public class PollerRequestFactory {
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
-    RemoteConfigRequest rcRequest =
-        buildRemoteConfigRequest(
-            productNames, clientState, cachedTargetFiles, capabilities, ServiceNameCollector.get());
+    RemoteConfigRequest rcRequest = buildRemoteConfigRequest(
+        productNames, clientState, cachedTargetFiles, capabilities, ServiceNameCollector.get());
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }
 
@@ -140,10 +137,9 @@ public class PollerRequestFactory {
   }
 
   private List<String> buildRequestTags() {
-    List<String> tags =
-        Config.get().getGlobalTags().entrySet().stream()
-            .map(entry -> entry.getKey() + ":" + entry.getValue())
-            .collect(Collectors.toList());
+    List<String> tags = Config.get().getGlobalTags().entrySet().stream()
+        .map(entry -> entry.getKey() + ":" + entry.getValue())
+        .collect(Collectors.toList());
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
     String repositoryURL = gitInfo.getRepositoryURL();
     if (repositoryURL != null) {
@@ -153,12 +149,11 @@ public class PollerRequestFactory {
     if (sha != null) {
       tags.add(Tags.GIT_COMMIT_SHA + ":" + sha);
     }
-    tags.addAll(
-        Arrays.asList(
-            "env:" + this.env,
-            "version:" + this.ddVersion,
-            "tracer_version:" + this.tracerVersion,
-            "host_name:" + this.hostName));
+    tags.addAll(Arrays.asList(
+        "env:" + this.env,
+        "version:" + this.ddVersion,
+        "tracer_version:" + this.tracerVersion,
+        "host_name:" + this.hostName));
 
     return tags;
   }

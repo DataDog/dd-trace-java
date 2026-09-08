@@ -23,11 +23,9 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     ret.put("java-kafka", new String[] {InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS});
     // database
     ret.put("hazelcast-sdk", new String[] {"hazelcast.instance", Tags.PEER_HOSTNAME});
-    ret.put(
-        "couchbase-client",
-        new String[] {
-          InstrumentationTags.COUCHBASE_SEED_NODES, "net.peer.name", Tags.PEER_HOSTNAME
-        });
+    ret.put("couchbase-client", new String[] {
+      InstrumentationTags.COUCHBASE_SEED_NODES, "net.peer.name", Tags.PEER_HOSTNAME
+    });
 
     ret.put(
         "java-cassandra",

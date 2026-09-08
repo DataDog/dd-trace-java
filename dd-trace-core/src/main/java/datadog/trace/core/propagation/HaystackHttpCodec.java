@@ -86,7 +86,9 @@ class HaystackHttpCodec {
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(
-            carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
+            carrier,
+            DD_TRACE_ID_BAGGAGE_KEY,
+            HttpCodec.encode(context.getTraceId().toString()));
         setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId()));
         setter.set(
             carrier,
@@ -216,11 +218,10 @@ class HaystackHttpCodec {
               case PARENT_ID:
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, firstValue);
                 break;
-              case BAGGAGE:
-                {
-                  addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
-                  break;
-                }
+              case BAGGAGE: {
+                addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
+                break;
+              }
               default:
             }
           }

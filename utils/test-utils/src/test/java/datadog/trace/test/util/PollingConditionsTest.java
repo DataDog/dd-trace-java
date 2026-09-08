@@ -25,26 +25,21 @@ class PollingConditionsTest {
   @Test
   void succeedsAfterSeveralRetries() {
     AtomicInteger attempts = new AtomicInteger();
-    new PollingConditions(2)
-        .delay(0.01)
-        .eventually(
-            () -> {
-              if (attempts.incrementAndGet() < 5) {
-                fail("not yet");
-              }
-            });
+    new PollingConditions(2).delay(0.01).eventually(() -> {
+      if (attempts.incrementAndGet() < 5) {
+        fail("not yet");
+      }
+    });
     assertEquals(5, attempts.get());
   }
 
   @Test
   void timesOutWithFormattedMessageAndUnderlyingCause() {
-    AssertionError error =
-        assertThrows(
-            AssertionError.class,
-            () ->
-                new PollingConditions(0.1)
-                    .delay(0.01)
-                    .eventually(() -> assertEquals(1, 2, "still wrong")));
+    AssertionError error = assertThrows(
+        AssertionError.class,
+        () -> new PollingConditions(0.1)
+            .delay(0.01)
+            .eventually(() -> assertEquals(1, 2, "still wrong")));
 
     assertTrue(error.getMessage().startsWith("Condition not satisfied after"), error.getMessage());
     assertTrue(error.getMessage().contains("attempts"), error.getMessage());
@@ -69,14 +64,11 @@ class PollingConditionsTest {
   @Test
   void retriesWhenConditionThrowsCheckedException() {
     AtomicInteger attempts = new AtomicInteger();
-    new PollingConditions(2)
-        .delay(0.01)
-        .eventually(
-            () -> {
-              if (attempts.incrementAndGet() < 3) {
-                throw new IOException("not ready");
-              }
-            });
+    new PollingConditions(2).delay(0.01).eventually(() -> {
+      if (attempts.incrementAndGet() < 3) {
+        throw new IOException("not ready");
+      }
+    });
     assertEquals(3, attempts.get());
   }
 
@@ -89,12 +81,11 @@ class PollingConditionsTest {
     conditions.delay(0.02).factor(4); // 20ms base delay, multiplied by 4 after each attempt
 
     AtomicInteger attempts = new AtomicInteger();
-    conditions.eventually(
-        () -> {
-          if (attempts.incrementAndGet() < 4) {
-            fail("not yet");
-          }
-        });
+    conditions.eventually(() -> {
+      if (attempts.incrementAndGet() < 4) {
+        fail("not yet");
+      }
+    });
 
     assertEquals(4, attempts.get());
     // Three failed attempts -> three delays, each 4x the previous.
@@ -121,10 +112,9 @@ class PollingConditionsTest {
     // Pre-interrupt so the first inter-attempt sleep throws InterruptedException immediately.
     Thread.currentThread().interrupt();
     try {
-      AssertionError error =
-          assertThrows(
-              AssertionError.class,
-              () -> new PollingConditions(2).delay(0.05).eventually(() -> fail("retry")));
+      AssertionError error = assertThrows(
+          AssertionError.class,
+          () -> new PollingConditions(2).delay(0.05).eventually(() -> fail("retry")));
       assertEquals("Interrupted while waiting for condition", error.getMessage());
       assertTrue(
           Thread.currentThread().isInterrupted(), "interrupt flag should have been restored");

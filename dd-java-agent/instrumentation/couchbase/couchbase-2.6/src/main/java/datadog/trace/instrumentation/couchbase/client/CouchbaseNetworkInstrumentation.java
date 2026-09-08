@@ -53,9 +53,8 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
         isMethod()
             .and(named("encode"))
             .and(takesArguments(3))
-            .and(
-                takesArgument(
-                    0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
+            .and(takesArgument(
+                0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
             .and(takesArgument(2, named("java.util.List"))),
         CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
   }

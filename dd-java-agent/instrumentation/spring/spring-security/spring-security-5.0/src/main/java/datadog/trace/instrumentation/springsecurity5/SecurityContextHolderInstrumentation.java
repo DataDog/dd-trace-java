@@ -49,9 +49,8 @@ public class SecurityContextHolderInstrumentation extends InstrumenterModule.App
         isMethod()
             .and(named("setContext"))
             .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.security.core.context.SecurityContext")))
+            .and(takesArgument(
+                0, named("org.springframework.security.core.context.SecurityContext")))
             .and(isPublic()),
         getClass().getName() + "$SetSecurityContextAdvice");
     transformer.applyAdvice(

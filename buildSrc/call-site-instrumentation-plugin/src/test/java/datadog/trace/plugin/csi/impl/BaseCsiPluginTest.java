@@ -22,14 +22,12 @@ import java.util.stream.Collectors;
 public abstract class BaseCsiPluginTest {
 
   protected static void assertNoErrors(HasErrors hasErrors) {
-    List<String> errors =
-        hasErrors.getErrors().stream()
-            .map(
-                error -> {
-                  String causeString = error.getCause() == null ? "-" : error.getCauseString();
-                  return error.getMessage() + ": " + causeString;
-                })
-            .collect(Collectors.toList());
+    List<String> errors = hasErrors.getErrors().stream()
+        .map(error -> {
+          String causeString = error.getCause() == null ? "-" : error.getCauseString();
+          return error.getMessage() + ": " + causeString;
+        })
+        .collect(Collectors.toList());
     assertEquals(Collections.emptyList(), errors);
   }
 

@@ -54,10 +54,8 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
     transformer.applyAdvice(
         named("readFrom")
             .and(takesArguments(6))
-            .and(
-                returns(
-                    named(
-                        "org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput"))),
+            .and(returns(
+                named("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput"))),
         MultipartFormDataReaderInstrumentation.class.getName() + "$ReadFromAdvice");
   }
 
@@ -95,9 +93,8 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         }
 
         Flow<Void> flow = callback.apply(reqCtx, m);
-        BlockingException be =
-            MultipartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
+        BlockingException be = MultipartHelper.tryBlock(
+            reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
         if (be != null) {
           t = be;
         }
@@ -108,9 +105,8 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         if (!filenames.isEmpty()) {
           Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
           if (t == null) {
-            BlockingException be =
-                MultipartHelper.tryBlock(
-                    reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+            BlockingException be = MultipartHelper.tryBlock(
+                reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
             if (be != null) {
               t = be;
             }
@@ -122,9 +118,8 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         List<String> filesContent = MultipartHelper.collectFilesContent(ret);
         if (!filesContent.isEmpty()) {
           Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-          BlockingException be =
-              MultipartHelper.tryBlock(
-                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+          BlockingException be = MultipartHelper.tryBlock(
+              reqCtx, contentFlow, "Blocked request (multipart file upload content)");
           if (be != null) {
             t = be;
           }

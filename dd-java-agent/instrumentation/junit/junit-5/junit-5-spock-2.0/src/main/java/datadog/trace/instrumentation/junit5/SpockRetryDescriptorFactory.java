@@ -26,17 +26,15 @@ public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
 
-  private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          SimpleFeatureNode.class,
-          UniqueId.class,
-          RunnerConfiguration.class,
-          FeatureInfo.class,
-          IterationNode.class);
+  private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+      SimpleFeatureNode.class,
+      UniqueId.class,
+      RunnerConfiguration.class,
+      FeatureInfo.class,
+      IterationNode.class);
 
-  private static final MethodHandle ITERATION_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          IterationNode.class, UniqueId.class, RunnerConfiguration.class, IterationInfo.class);
+  private static final MethodHandle ITERATION_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+      IterationNode.class, UniqueId.class, RunnerConfiguration.class, IterationInfo.class);
 
   private static final MethodHandle SIMPLE_FEATURE_NODE_DELEGATE =
       METHOD_HANDLES.privateFieldGetter(SimpleFeatureNode.class, "delegate");
@@ -73,9 +71,8 @@ public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory
     UniqueId.Segment delegateSegment = originalDelegate.getUniqueId().getLastSegment();
     UniqueId newDelegateId = newId.append(delegateSegment.getType(), delegateSegment.getValue());
 
-    IterationNode delegate =
-        METHOD_HANDLES.invoke(
-            ITERATION_NODE_CONSTRUCTOR, newDelegateId, configuration, iterationInfo);
+    IterationNode delegate = METHOD_HANDLES.invoke(
+        ITERATION_NODE_CONSTRUCTOR, newDelegateId, configuration, iterationInfo);
     if (delegate == null) {
       return null;
     }

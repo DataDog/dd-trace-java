@@ -58,9 +58,8 @@ public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("resolveBeanClass"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.beans.factory.support.RootBeanDefinition"))),
+            .and(takesArgument(
+                0, named("org.springframework.beans.factory.support.RootBeanDefinition"))),
         BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice");
   }
 

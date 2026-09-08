@@ -82,13 +82,10 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   })
   void rateSelection(String service, String env, double expectedRate) {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
-    serviceSampler.onResponse(
-        "traces",
-        rateResponse(
-            new String[][] {
-              {"service:foo,env:bar", "0.8"},
-              {"service:,env:", "0.20"}
-            }));
+    serviceSampler.onResponse("traces", rateResponse(new String[][] {
+      {"service:foo,env:bar", "0.8"},
+      {"service:,env:", "0.20"}
+    }));
 
     double sampleRate = serviceSampler.sampleRateFor(env, service);
     assertTrue(sampleRate > expectedRate - 0.01);
@@ -108,15 +105,12 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   })
   void ratePartialAndFullCollisions(String service, String env, double expectedRate) {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
-    serviceSampler.onResponse(
-        "traces",
-        rateResponse(
-            new String[][] {
-              {"service:foo,env:bar", "0.8"},
-              {"service:FOO,env:BAR", "0.2"},
-              {"service:FOO,env:BAZ", "0.3"},
-              {"service:quux,env:BAZ", "0.4"}
-            }));
+    serviceSampler.onResponse("traces", rateResponse(new String[][] {
+      {"service:foo,env:bar", "0.8"},
+      {"service:FOO,env:BAR", "0.2"},
+      {"service:FOO,env:BAZ", "0.3"},
+      {"service:quux,env:BAZ", "0.4"}
+    }));
 
     double sampleRate = serviceSampler.sampleRateFor(env, service);
     assertTrue(sampleRate > expectedRate - 0.01);
@@ -130,35 +124,28 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
       serviceSampler.onResponse("traces", rateResponse("service:spock,env:test", 0.0));
-      DDSpan span1 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("foo")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span1 = (DDSpan) tracer
+          .buildSpan("datadog", "fakeOperation")
+          .withServiceName("foo")
+          .withTag("env", "bar")
+          .ignoreActiveSpan()
+          .start();
       serviceSampler.setSamplingPriority(span1);
 
       assertEquals(SAMPLER_KEEP, span1.getSamplingPriority());
       assertTrue(serviceSampler.sample(span1));
 
       // case-insensitive equivalence - undefined in spec, but implemented as first one wins
-      serviceSampler.onResponse(
-          "traces",
-          rateResponse(
-              new String[][] {
-                {"service:spock,env:test", "1.0"},
-                {"service:SPOCK,env:Test", "0.0"}
-              }));
-      DDSpan span2 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("spock")
-                  .withTag("env", "test")
-                  .ignoreActiveSpan()
-                  .start();
+      serviceSampler.onResponse("traces", rateResponse(new String[][] {
+        {"service:spock,env:test", "1.0"},
+        {"service:SPOCK,env:Test", "0.0"}
+      }));
+      DDSpan span2 = (DDSpan) tracer
+          .buildSpan("datadog", "fakeOperation")
+          .withServiceName("spock")
+          .withTag("env", "test")
+          .ignoreActiveSpan()
+          .start();
       serviceSampler.setSamplingPriority(span2);
 
       assertEquals(SAMPLER_KEEP, span2.getSamplingPriority());
@@ -174,14 +161,12 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       serviceSampler.onResponse("traces", rateResponse("service:spock,env:test", 1.0));
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("SPOCK")
-                  .withTag("env", "Test")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "fakeOperation")
+          .withServiceName("SPOCK")
+          .withTag("env", "Test")
+          .ignoreActiveSpan()
+          .start();
       serviceSampler.setSamplingPriority(span);
 
       assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
@@ -197,14 +182,12 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     serviceSampler.onResponse("traces", rateResponse("service:,env:", 1.0));
     try {
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("spock")
-                  .withTag("env", "test")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+          .buildSpan("datadog", "fakeOperation")
+          .withServiceName("spock")
+          .withTag("env", "test")
+          .ignoreActiveSpan()
+          .start();
       serviceSampler.setSamplingPriority(span);
 
       // sets correctly on root span
@@ -222,13 +205,10 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).sampler(sampler).build();
     try {
-      sampler.onResponse(
-          "test",
-          rateResponse(
-              new String[][] {
-                {"service:,env:", "1.0"},
-                {"service:spock,env:", "0.0"}
-              }));
+      sampler.onResponse("test", rateResponse(new String[][] {
+        {"service:,env:", "1.0"},
+        {"service:spock,env:", "0.0"}
+      }));
 
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
 
@@ -240,9 +220,10 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
       writer.waitForTraces(1);
       assertEquals(SAMPLER_DROP, span.getSamplingPriority());
 
-      span =
-          (DDSpan)
-              tracer.buildSpan("datadog", "test").withTag(DDTags.SERVICE_NAME, "spock").start();
+      span = (DDSpan) tracer
+          .buildSpan("datadog", "test")
+          .withTag(DDTags.SERVICE_NAME, "spock")
+          .start();
       span.finish();
       writer.waitForTraces(2);
 
@@ -262,7 +243,8 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
       boolean tagValue,
       @ConvertWith(PrioritySamplingConverter.class) int expectedPriority) {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
       span.setTag(tagName, tagValue);
@@ -309,9 +291,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     double tolerance = 0.01;
 
     // Set initial rate to 0.1
-    serviceSampler.onResponse(
-        "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.1"}, {"service:,env:", "0.1"}}));
+    serviceSampler.onResponse("traces", rateResponse(new String[][] {
+      {"service:foo,env:bar", "0.1"}, {"service:,env:", "0.1"}
+    }));
 
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.1) < tolerance);
 
@@ -358,14 +340,14 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     double tolerance = 0.01;
 
     // Set initial rate to 0.8
-    serviceSampler.onResponse(
-        "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.8"}, {"service:,env:", "0.8"}}));
+    serviceSampler.onResponse("traces", rateResponse(new String[][] {
+      {"service:foo,env:bar", "0.8"}, {"service:,env:", "0.8"}
+    }));
 
     // rate decreases to 0.2
-    serviceSampler.onResponse(
-        "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.2"}, {"service:,env:", "0.2"}}));
+    serviceSampler.onResponse("traces", rateResponse(new String[][] {
+      {"service:foo,env:bar", "0.2"}, {"service:,env:", "0.2"}
+    }));
 
     // decrease is applied immediately
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.2) < tolerance);
@@ -450,7 +432,8 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   void notSettingForcedTracingViaTagOrSettingItWrongValueNotCausingException(
       String tagName, @ConvertWith(BoxedValueConverter.class) Object tagValue) {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
       if (tagName != null) {

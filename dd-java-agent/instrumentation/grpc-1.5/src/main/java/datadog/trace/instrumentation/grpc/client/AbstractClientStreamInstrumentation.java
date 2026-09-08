@@ -25,19 +25,17 @@ public final class AbstractClientStreamInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("start")
-            .and(
-                isMethod()
-                    .and(
-                        takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
-                            .and(takesArguments(1)))),
+            .and(isMethod()
+                .and(takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
+                    .and(takesArguments(1)))),
         getClass().getName() + "$ActivateSpan");
   }
 
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.Argument(0) ClientStreamListener listener) {
-      AgentSpan span =
-          InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
+      AgentSpan span = InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class)
+          .get(listener);
       if (null != span) {
         return activateSpan(span);
       }

@@ -16,24 +16,23 @@ public interface SymDBReport {
 
   void report();
 
-  SymDBReport NO_OP =
-      new SymDBReport() {
-        @Override
-        public void addMissingJar(String jarPath) {}
+  SymDBReport NO_OP = new SymDBReport() {
+    @Override
+    public void addMissingJar(String jarPath) {}
 
-        @Override
-        public void addIOException(String jarPath, IOException e) {}
+    @Override
+    public void addIOException(String jarPath, IOException e) {}
 
-        @Override
-        public void addLocationError(String locationStr) {}
+    @Override
+    public void addLocationError(String locationStr) {}
 
-        @Override
-        public void incClassCount(String jarPath) {}
+    @Override
+    public void incClassCount(String jarPath) {}
 
-        @Override
-        public void addScannedJar(String jarPath) {}
+    @Override
+    public void addScannedJar(String jarPath) {}
 
-        @Override
-        public void report() {}
-      };
+    @Override
+    public void report() {}
+  };
 }

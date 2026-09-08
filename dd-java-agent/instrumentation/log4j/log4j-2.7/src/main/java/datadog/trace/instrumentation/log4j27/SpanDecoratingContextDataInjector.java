@@ -61,7 +61,8 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
               : traceId.toString();
       newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
       newContextData.putValue(
-          CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(span.spanContext().getSpanId()));
+          CorrelationIdentifier.getSpanIdKey(),
+          DDSpanId.toString(span.spanContext().getSpanId()));
     }
 
     newContextData.putAll(contextData);

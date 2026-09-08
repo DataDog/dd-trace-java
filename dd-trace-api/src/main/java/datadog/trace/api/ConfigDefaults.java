@@ -303,13 +303,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SSI_INJECTION_FORCE = false;
   static final String DEFAULT_INSTRUMENTATION_SOURCE = "manual";
 
-  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
-      new HashSet<>(
-          asList(
-              "DD_TAGS",
-              "DD_LOGS_INJECTION",
-              "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
-              "DD_TRACE_STATS_ADDITIONAL_TAGS"));
+  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED = new HashSet<>(asList(
+      "DD_TAGS",
+      "DD_LOGS_INJECTION",
+      "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
+      "DD_TRACE_STATS_ADDITIONAL_TAGS"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
@@ -342,76 +340,65 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WEBSOCKET_TAG_SESSION_ID = false;
 
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
-      new HashSet<>(
-          Arrays.asList(
-              "ApiGateway",
-              "ApiGatewayV2",
-              "EventBridge",
-              "Sqs",
-              "Sns",
-              "S3",
-              "Kinesis",
-              "DynamoDB"));
+      new HashSet<>(Arrays.asList(
+          "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis", "DynamoDB"));
 
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";
 
-  public static final List<String> DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING =
-      asList(
-          // Sns
-          "$.Attributes.KmsMasterKeyId",
-          "$.Attributes.Token",
-          // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
-          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.HeaderParameters[*].Value",
-          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.QueryStringParameters[*].Value",
-          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.BodyParameters[*].Value",
-          "$.AuthParameters.InvocationHttpParameters.HeaderParameters[*].Value",
-          "$.AuthParameters.InvocationHttpParameters.QueryStringParameters[*].Value",
-          "$.AuthParameters.InvocationHttpParameters.BodyParameters[*].Value",
-          "$.Targets[*].RedshiftDataParameters.Sql",
-          "$.Targets[*].RedshiftDataParameters.Sqls",
-          "$.Targets[*].AppSyncParameters.GraphQLOperation",
-          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
-          "$.SSEKMSKeyId",
-          "$.SSEKMSEncryptionContext",
-          "$.ServerSideEncryptionConfiguration.Rules[*].ApplyServerSideEncryptionByDefault.KMSMasterKeyID",
-          "$.InventoryConfiguration.Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
+  public static final List<String> DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING = asList(
+      // Sns
+      "$.Attributes.KmsMasterKeyId",
+      "$.Attributes.Token",
+      // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
+      "$.AuthParameters.OAuthParameters.OAuthHttpParameters.HeaderParameters[*].Value",
+      "$.AuthParameters.OAuthParameters.OAuthHttpParameters.QueryStringParameters[*].Value",
+      "$.AuthParameters.OAuthParameters.OAuthHttpParameters.BodyParameters[*].Value",
+      "$.AuthParameters.InvocationHttpParameters.HeaderParameters[*].Value",
+      "$.AuthParameters.InvocationHttpParameters.QueryStringParameters[*].Value",
+      "$.AuthParameters.InvocationHttpParameters.BodyParameters[*].Value",
+      "$.Targets[*].RedshiftDataParameters.Sql",
+      "$.Targets[*].RedshiftDataParameters.Sqls",
+      "$.Targets[*].AppSyncParameters.GraphQLOperation",
+      // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+      "$.SSEKMSKeyId",
+      "$.SSEKMSEncryptionContext",
+      "$.ServerSideEncryptionConfiguration.Rules[*].ApplyServerSideEncryptionByDefault.KMSMasterKeyID",
+      "$.InventoryConfiguration.Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
-  public static final List<String> DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING =
-      asList(
-          // Sns
-          "$.Attributes.PlatformCredential",
-          "$.Attributes.PlatformPrincipal",
-          "$.AWSAccountId",
-          "$.Endpoint",
-          "$.Token",
-          "$.OneTimePassword",
-          // Sns (RedactionRulesExtractor.java for sns-2010-03-31)
-          "$.phoneNumber",
-          "$.PhoneNumber",
-          // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
-          "$.AuthParameters.BasicAuthParameters.Password",
-          "$.AuthParameters.OAuthParameters.ClientParameters.ClientSecret",
-          "$.AuthParameters.ApiKeyAuthParameters.ApiKeyValue",
-          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
-          "$.SSECustomerKey",
-          "$.CopySourceSSECustomerKey",
-          "$.RestoreRequest.OutputLocation.S3.Encryption.KMSKeyId");
+  public static final List<String> DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING = asList(
+      // Sns
+      "$.Attributes.PlatformCredential",
+      "$.Attributes.PlatformPrincipal",
+      "$.AWSAccountId",
+      "$.Endpoint",
+      "$.Token",
+      "$.OneTimePassword",
+      // Sns (RedactionRulesExtractor.java for sns-2010-03-31)
+      "$.phoneNumber",
+      "$.PhoneNumber",
+      // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
+      "$.AuthParameters.BasicAuthParameters.Password",
+      "$.AuthParameters.OAuthParameters.ClientParameters.ClientSecret",
+      "$.AuthParameters.ApiKeyAuthParameters.ApiKeyValue",
+      // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+      "$.SSECustomerKey",
+      "$.CopySourceSSECustomerKey",
+      "$.RestoreRequest.OutputLocation.S3.Encryption.KMSKeyId");
 
-  public static final List<String> DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING =
-      asList(
-          // Sns
-          "$.Endpoints.*.Token",
-          "$.PlatformApplication.*.PlatformCredential",
-          "$.PlatformApplication.*.PlatformPrincipal",
-          "$.Subscriptions.*.Endpoint",
-          // Sns (Generated by RedactionRulesExtractor.java for sns-2010-03-31)
-          "$.PhoneNumbers[*].PhoneNumber",
-          "$.phoneNumbers[*]",
-          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
-          "$.Credentials.SecretAccessKey",
-          "$.Credentials.SessionToken",
-          "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
+  public static final List<String> DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING = asList(
+      // Sns
+      "$.Endpoints.*.Token",
+      "$.PlatformApplication.*.PlatformCredential",
+      "$.PlatformApplication.*.PlatformPrincipal",
+      "$.Subscriptions.*.Endpoint",
+      // Sns (Generated by RedactionRulesExtractor.java for sns-2010-03-31)
+      "$.PhoneNumbers[*].PhoneNumber",
+      "$.phoneNumbers[*]",
+      // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+      "$.Credentials.SecretAccessKey",
+      "$.Credentials.SessionToken",
+      "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
   private ConfigDefaults() {}
 }

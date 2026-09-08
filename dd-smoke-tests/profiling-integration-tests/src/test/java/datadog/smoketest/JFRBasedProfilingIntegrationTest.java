@@ -99,11 +99,10 @@ class JFRBasedProfilingIntegrationTest {
   private static final int REQUEST_WAIT_TIMEOUT =
       (PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS) * SAFETY_MARGIN;
 
-  private static final Path LOG_FILE_BASE =
-      Paths.get(
-          buildDirectory(),
-          "reports",
-          "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
+  private static final Path LOG_FILE_BASE = Paths.get(
+      buildDirectory(),
+      "reports",
+      "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
 
   public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
       attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
@@ -130,13 +129,12 @@ class JFRBasedProfilingIntegrationTest {
   void setup(final TestInfo testInfo) throws Exception {
     tracingServer = new MockWebServer();
     profilingServer = new MockWebServer();
-    tracingServer.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
-            return new MockResponse().setResponseCode(200);
-          }
-        });
+    tracingServer.setDispatcher(new Dispatcher() {
+      @Override
+      public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
+        return new MockResponse().setResponseCode(200);
+      }
+    });
     tracingServer.start();
     profilingServer.start();
 
@@ -177,9 +175,8 @@ class JFRBasedProfilingIntegrationTest {
     // Do not test compressions for Oracle JDK 8 - it will always be GZIP
     Assumptions.assumeTrue(!JavaVirtualMachine.isOracleJDK8() || "on".equals(mode));
     testWithRetry(
-        () ->
-            testContinuousRecording(
-                jmxDelay, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(mode), compression),
+        () -> testContinuousRecording(
+            jmxDelay, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(mode), compression),
         testInfo,
         5);
   }
@@ -192,14 +189,13 @@ class JFRBasedProfilingIntegrationTest {
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
-      targetProcess =
-          createDefaultProcessBuilder(
-                  jmxFetchDelay,
-                  endpointCollectionEnabled,
-                  asyncProfilerEnabled,
-                  withCompression,
-                  logFilePath)
-              .start();
+      targetProcess = createDefaultProcessBuilder(
+              jmxFetchDelay,
+              endpointCollectionEnabled,
+              asyncProfilerEnabled,
+              withCompression,
+              logFilePath)
+          .start();
 
       Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
@@ -208,9 +204,8 @@ class JFRBasedProfilingIntegrationTest {
       assertNotNull(firstRequest);
       assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
 
-      final List<FileItem> firstRequestMultiPartItems =
-          FileUpload.parse(
-              firstRequest.getBody().readByteArray(), firstRequest.getHeader("Content-Type"));
+      final List<FileItem> firstRequestMultiPartItems = FileUpload.parse(
+          firstRequest.getBody().readByteArray(), firstRequest.getHeader("Content-Type"));
 
       FileItem rawEvent = firstRequestMultiPartItems.get(0);
       assertEquals("event", rawEvent.getFieldName());
@@ -242,9 +237,8 @@ class JFRBasedProfilingIntegrationTest {
           duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 4),
           delta + "ms outside tolerance of upload period");
 
-      final Map<String, String> requestTags =
-          ProfilingTestUtils.parseTags(
-              Arrays.asList(event.get("tags_profiler").asText().split(",")));
+      final Map<String, String> requestTags = ProfilingTestUtils.parseTags(
+          Arrays.asList(event.get("tags_profiler").asText().split(",")));
       assertEquals("smoke-test-java-app", requestTags.get("service"));
       assertEquals("jvm", requestTags.get("language"));
       assertNotNull(requestTags.get("runtime-id"));
@@ -262,18 +256,14 @@ class JFRBasedProfilingIntegrationTest {
       final Instant firstRangeEnd = rangeStartAndEnd.getRight();
       assertTrue(
           firstStartTime.compareTo(firstRangeStart) <= 0,
-          () ->
-              "First range start "
-                  + firstRangeStart
-                  + " is before first start time "
-                  + firstStartTime);
+          () -> "First range start " + firstRangeStart + " is before first start time "
+              + firstStartTime);
 
       final RecordedRequest nextRequest = retrieveRequest();
       assertNotNull(nextRequest);
 
-      final List<FileItem> secondRequestMultiPartItems =
-          FileUpload.parse(
-              nextRequest.getBody().readByteArray(), nextRequest.getHeader("Content-Type"));
+      final List<FileItem> secondRequestMultiPartItems = FileUpload.parse(
+          nextRequest.getBody().readByteArray(), nextRequest.getHeader("Content-Type"));
 
       rawEvent = secondRequestMultiPartItems.get(0);
       assertEquals("event", rawEvent.getFieldName());
@@ -317,18 +307,16 @@ class JFRBasedProfilingIntegrationTest {
           || !System.getProperty("java.version").contains("1.8")) {
         assertTrue(
             secondStartTime.compareTo(secondRangeStart) <= 0,
-            () ->
-                "Second range start "
-                    + secondRangeStart
-                    + " is before second start time "
-                    + secondStartTime);
+            () -> "Second range start "
+                + secondRangeStart
+                + " is before second start time "
+                + secondStartTime);
         assertTrue(
             firstEndTime.isBefore(secondRangeStart),
-            () ->
-                "Second range start "
-                    + secondRangeStart
-                    + " is before or equal to first end time "
-                    + firstEndTime);
+            () -> "Second range start "
+                + secondRangeStart
+                + " is before or equal to first end time "
+                + firstEndTime);
       }
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
@@ -373,15 +361,14 @@ class JFRBasedProfilingIntegrationTest {
 
   private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
     // if we emit any of these events during the test they mustn't have corrupted context
-    for (String eventName :
-        new String[] {
-          "datadog.ExecutionSample",
-          "datadog.MethodSample",
-          "datadog.ObjectAllocationInNewTLAB",
-          "datadog.ObjectAllocationOutsideTLAB",
-          "datadog.HeapLiveObject",
-          "datadog.JavaMonitorEnter"
-        }) {
+    for (String eventName : new String[] {
+      "datadog.ExecutionSample",
+      "datadog.MethodSample",
+      "datadog.ObjectAllocationInNewTLAB",
+      "datadog.ObjectAllocationOutsideTLAB",
+      "datadog.HeapLiveObject",
+      "datadog.JavaMonitorEnter"
+    }) {
       for (IItemIterable event : events.apply(ItemFilters.type(eventName))) {
         IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
             LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
@@ -411,27 +398,22 @@ class JFRBasedProfilingIntegrationTest {
 
   private Pair<Instant, Instant> getRangeStartAndEnd(final IItemCollection events) {
     return events.getUnfilteredTimeRanges().stream()
-        .map(
-            range -> {
-              final Instant convertedStart = convertFromQuantity(range.getStart());
-              final Instant convertedEnd = convertFromQuantity(range.getEnd());
-              return Pair.of(convertedStart, convertedEnd);
-            })
-        .reduce(
-            Pair.of(null, null),
-            (send, newSend) -> {
-              Instant start = send.getLeft();
-              Instant end = send.getRight();
-              final Instant newStart = newSend.getLeft();
-              final Instant newEnd = newSend.getRight();
-              start =
-                  null == start
-                      ? newStart
-                      : null == newStart ? start : newStart.isBefore(start) ? newStart : start;
-              end =
-                  null == end ? newEnd : null == newEnd ? end : newEnd.isAfter(end) ? newEnd : end;
-              return Pair.of(start, end);
-            });
+        .map(range -> {
+          final Instant convertedStart = convertFromQuantity(range.getStart());
+          final Instant convertedEnd = convertFromQuantity(range.getEnd());
+          return Pair.of(convertedStart, convertedEnd);
+        })
+        .reduce(Pair.of(null, null), (send, newSend) -> {
+          Instant start = send.getLeft();
+          Instant end = send.getRight();
+          final Instant newStart = newSend.getLeft();
+          final Instant newEnd = newSend.getRight();
+          start = null == start
+              ? newStart
+              : null == newStart ? start : newStart.isBefore(start) ? newStart : start;
+          end = null == end ? newEnd : null == newEnd ? end : newEnd.isAfter(end) ? newEnd : end;
+          return Pair.of(start, end);
+        });
   }
 
   @Test
@@ -443,18 +425,17 @@ class JFRBasedProfilingIntegrationTest {
               PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
 
           try {
-            targetProcess =
-                createProcessBuilder(
-                        BOGUS_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "off",
-                        exitDelay,
-                        logFilePath)
-                    .start();
+            targetProcess = createProcessBuilder(
+                    BOGUS_API_KEY,
+                    0,
+                    PROFILING_START_DELAY_SECONDS,
+                    PROFILING_UPLOAD_PERIOD_SECONDS,
+                    ENDPOINT_COLLECTION_ENABLED,
+                    true,
+                    "off",
+                    exitDelay,
+                    logFilePath)
+                .start();
 
             /* API key of an incorrect format will cause profiling to get disabled.
               This means no upload requests will be made. We are going to check the log file for
@@ -476,10 +457,9 @@ class JFRBasedProfilingIntegrationTest {
               following message would be logged.
               The test asserts for the presence of the message.
             */
-            assertTrue(
-                checkLogLines(
-                    logFilePath,
-                    it -> it.contains("Profiling: API key doesn't match expected format")));
+            assertTrue(checkLogLines(
+                logFilePath,
+                it -> it.contains("Profiling: API key doesn't match expected format")));
             assertFalse(logHasErrors(logFilePath));
           } finally {
             if (targetProcess != null) {
@@ -505,30 +485,28 @@ class JFRBasedProfilingIntegrationTest {
     testWithRetry(
         () -> {
           try {
-            targetProcess =
-                createProcessBuilder(
-                        profilingServer.getPort(),
-                        tracingServer.getPort(),
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        false,
-                        true,
-                        "on",
-                        0,
-                        logFilePath,
-                        false)
-                    .start();
+            targetProcess = createProcessBuilder(
+                    profilingServer.getPort(),
+                    tracingServer.getPort(),
+                    VALID_API_KEY,
+                    0,
+                    PROFILING_START_DELAY_SECONDS,
+                    PROFILING_UPLOAD_PERIOD_SECONDS,
+                    false,
+                    true,
+                    "on",
+                    0,
+                    logFilePath,
+                    false)
+                .start();
 
             Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
             final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
 
-            final List<FileItem> items =
-                FileUpload.parse(
-                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+            final List<FileItem> items = FileUpload.parse(
+                request.getBody().readByteArray(), request.getHeader("Content-Type"));
 
             FileItem rawJfr = items.get(1);
             assertEquals("main.jfr", rawJfr.getName());
@@ -581,18 +559,17 @@ class JFRBasedProfilingIntegrationTest {
           final int duration =
               PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
           try {
-            targetProcess =
-                createProcessBuilder(
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "off",
-                        duration,
-                        logFilePath)
-                    .start();
+            targetProcess = createProcessBuilder(
+                    VALID_API_KEY,
+                    0,
+                    PROFILING_START_DELAY_SECONDS,
+                    PROFILING_UPLOAD_PERIOD_SECONDS,
+                    ENDPOINT_COLLECTION_ENABLED,
+                    true,
+                    "off",
+                    duration,
+                    logFilePath)
+                .start();
 
             final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
@@ -601,9 +578,8 @@ class JFRBasedProfilingIntegrationTest {
 
             // Wait for the app exit with some extra time to accommodate profile upload on shutdown.
             // The expectation is that agent doesn't prevent app from exiting.
-            assertTrue(
-                targetProcess.waitFor(
-                    duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS));
+            assertTrue(targetProcess.waitFor(
+                duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS));
           } finally {
             if (targetProcess != null) {
               targetProcess.destroyForcibly();
@@ -739,11 +715,9 @@ class JFRBasedProfilingIntegrationTest {
     assertTrue(availableProcessorsEvents.hasItems());
     final IAttribute<IQuantity> cpuCountAttr =
         attr("availableProcessorCores", "availableProcessorCores", NUMBER);
-    final long val =
-        ((IQuantity)
-                availableProcessorsEvents.getAggregate(
-                    Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
-            .longValue();
+    final long val = ((IQuantity) availableProcessorsEvents.getAggregate(
+            Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
+        .longValue();
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
@@ -753,25 +727,20 @@ class JFRBasedProfilingIntegrationTest {
 
   private static void verifyStackDepthSetting(
       IItemCollection events, boolean asyncProfilerEnabled) {
-    assertTrue(
-        events
-            .apply(
-                ItemFilters.and(
-                    ItemFilters.type("datadog.ProfilerSetting"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_NAME,
-                        (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
-            .hasItems());
+    assertTrue(events
+        .apply(ItemFilters.and(
+            ItemFilters.type("datadog.ProfilerSetting"),
+            ItemFilters.equals(
+                JdkAttributes.REC_SETTING_NAME,
+                (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"),
+            ItemFilters.equals(JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
+        .hasItems());
   }
 
   private static boolean hasAuxiliaryDdprof(IItemCollection events) {
-    events =
-        events.apply(
-            ItemFilters.and(
-                ItemFilters.type("datadog.ProfilerSetting"),
-                ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")));
+    events = events.apply(ItemFilters.and(
+        ItemFilters.type("datadog.ProfilerSetting"),
+        ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")));
     if (!events.hasItems()) {
       return false;
     }
@@ -878,11 +847,10 @@ class JFRBasedProfilingIntegrationTest {
       final Path logFilePath,
       final boolean tracingEnabled,
       final String... extraProperties) {
-    final String templateOverride =
-        JFRBasedProfilingIntegrationTest.class
-            .getClassLoader()
-            .getResource("overrides.jfp")
-            .getFile();
+    final String templateOverride = JFRBasedProfilingIntegrationTest.class
+        .getClassLoader()
+        .getResource("overrides.jfp")
+        .getFile();
 
     final List<String> command = new java.util.ArrayList<>();
     command.add(javaPath());
@@ -942,7 +910,8 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static String javaPath() {
-    return Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java").toString();
+    return Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java")
+        .toString();
   }
 
   private static String buildDirectory() {
@@ -964,14 +933,12 @@ class JFRBasedProfilingIntegrationTest {
 
   private static boolean logHasErrors(final Path logFilePath) throws IOException {
     final boolean[] logHasErrors = new boolean[] {false};
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
-                System.out.println(it);
-                logHasErrors[0] = true;
-              }
-            });
+    Files.lines(logFilePath).forEach(it -> {
+      if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+        System.out.println(it);
+        logHasErrors[0] = true;
+      }
+    });
     if (logHasErrors[0]) {
       System.out.println(
           "Test application log is containing errors. See full run logs in " + logFilePath);
@@ -993,35 +960,32 @@ class JFRBasedProfilingIntegrationTest {
     testWithRetry(
         () -> {
           try {
-            targetProcess =
-                createProcessBuilder(
-                        profilingServer.getPort(),
-                        tracingServer.getPort(),
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "on",
-                        0,
-                        logFilePath,
-                        true,
-                        "-Ddd.profiling.scrub.enabled=true")
-                    .start();
+            targetProcess = createProcessBuilder(
+                    profilingServer.getPort(),
+                    tracingServer.getPort(),
+                    VALID_API_KEY,
+                    0,
+                    PROFILING_START_DELAY_SECONDS,
+                    PROFILING_UPLOAD_PERIOD_SECONDS,
+                    ENDPOINT_COLLECTION_ENABLED,
+                    true,
+                    "on",
+                    0,
+                    logFilePath,
+                    true,
+                    "-Ddd.profiling.scrub.enabled=true")
+                .start();
 
             final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
 
-            final List<FileItem> items =
-                FileUpload.parse(
-                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+            final List<FileItem> items = FileUpload.parse(
+                request.getBody().readByteArray(), request.getHeader("Content-Type"));
 
-            FileItem rawJfr =
-                items.stream()
-                    .filter(i -> "main.jfr".equals(i.getName()))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("main.jfr not found in upload"));
+            FileItem rawJfr = items.stream()
+                .filter(i -> "main.jfr".equals(i.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("main.jfr not found in upload"));
 
             assertFalse(logHasErrors(logFilePath));
             InputStream eventStream = new ByteArrayInputStream(rawJfr.get());

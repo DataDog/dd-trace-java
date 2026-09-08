@@ -29,7 +29,8 @@ import org.tabletest.junit.TableTest;
 @ExtendWith(MockitoExtension.class)
 class HealthMetricsTest {
 
-  @Mock StatsDClient statsD;
+  @Mock
+  StatsDClient statsD;
 
   @Test
   void testOnShutdown() {

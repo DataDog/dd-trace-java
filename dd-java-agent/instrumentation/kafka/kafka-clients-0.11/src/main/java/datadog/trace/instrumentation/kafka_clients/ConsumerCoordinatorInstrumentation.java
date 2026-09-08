@@ -92,9 +92,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (offsets == null) {
         return;
       }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+              ConsumerCoordinator.class, KafkaConsumerInfo.class)
+          .get(coordinator);
 
       if (kafkaConsumerInfo == null) {
         return;
@@ -117,14 +117,15 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
           continue;
         }
 
-        DataStreamsTags tags =
-            DataStreamsTags.createWithPartition(
-                "kafka_commit",
-                entry.getKey().topic(),
-                String.valueOf(entry.getKey().partition()),
-                clusterId,
-                consumerGroup);
-        AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
+        DataStreamsTags tags = DataStreamsTags.createWithPartition(
+            "kafka_commit",
+            entry.getKey().topic(),
+            String.valueOf(entry.getKey().partition()),
+            clusterId,
+            consumerGroup);
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .trackBacklog(tags, entry.getValue().offset());
       }
     }
 
@@ -145,9 +146,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (memberId == null || memberId.isEmpty()) {
         return;
       }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+              ConsumerCoordinator.class, KafkaConsumerInfo.class)
+          .get(coordinator);
       if (kafkaConsumerInfo == null) {
         return;
       }

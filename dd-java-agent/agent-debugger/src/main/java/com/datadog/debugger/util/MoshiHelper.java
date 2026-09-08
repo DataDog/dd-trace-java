@@ -56,6 +56,8 @@ public class MoshiHelper {
   }
 
   public static Moshi createMoshiWatches() {
-    return new Moshi.Builder().add(ValueScript.class, new ValueScript.ValueScriptAdapter()).build();
+    return new Moshi.Builder()
+        .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+        .build();
   }
 }

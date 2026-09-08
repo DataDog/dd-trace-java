@@ -81,8 +81,7 @@ class StringsCaseInsensitiveHashCodeTest {
       if (!Character.isDefined(cp) || Character.isSurrogate((char) cp)) continue;
       String s = new String(Character.toChars(cp));
       for (int variant :
-          new int[] {
-            Character.toUpperCase(cp), Character.toLowerCase(cp), Character.toTitleCase(cp)
+          new int[] {Character.toUpperCase(cp), Character.toLowerCase(cp), Character.toTitleCase(cp)
           }) {
         String t = new String(Character.toChars(variant));
         if (s.equalsIgnoreCase(t)) {
@@ -91,11 +90,10 @@ class StringsCaseInsensitiveHashCodeTest {
           assertEquals(
               caseInsensitiveHashCode(s),
               caseInsensitiveHashCode(t),
-              () ->
-                  "hash mismatch for equalsIgnoreCase pair U+"
-                      + Integer.toHexString(fs.codePointAt(0))
-                      + " / U+"
-                      + Integer.toHexString(ft.codePointAt(0)));
+              () -> "hash mismatch for equalsIgnoreCase pair U+"
+                  + Integer.toHexString(fs.codePointAt(0))
+                  + " / U+"
+                  + Integer.toHexString(ft.codePointAt(0)));
         }
       }
     }

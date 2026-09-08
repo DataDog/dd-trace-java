@@ -15,9 +15,8 @@ public abstract class TestEventsHandlerHolder {
   }
 
   public static void start() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler(
-            "karate", null, null, KarateUtils.capabilities());
+    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler(
+        "karate", null, null, KarateUtils.capabilities());
   }
 
   @VisibleForTesting

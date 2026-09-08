@@ -53,10 +53,9 @@ public class TracingOutputStream extends OutputStream {
   @Override
   public void close() throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    try (final ContextScope ignored =
-        handlerContext.getWebsocketSpan() != null
-            ? activateSpan(handlerContext.getWebsocketSpan())
-            : null) {
+    try (final ContextScope ignored = handlerContext.getWebsocketSpan() != null
+        ? activateSpan(handlerContext.getWebsocketSpan())
+        : null) {
       delegate.close();
     } finally {
       if (doTrace) {

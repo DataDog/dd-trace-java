@@ -66,8 +66,8 @@ public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecificat
       throws InterruptedException, TimeoutException {
     tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
 
-    DDSpan testSpan =
-        (DDSpan) tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start();
+    DDSpan testSpan = (DDSpan)
+        tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start();
     testSpan.setTag(Tags.TEST_SESSION_ID, "session ID");
     testSpan.setTag(Tags.TEST_MODULE_ID, "module ID");
     testSpan.setTag(Tags.TEST_SUITE_ID, "suite ID");

@@ -52,7 +52,8 @@ public class SqsJmsMessageInstrumentation extends InstrumenterModule.Tracing
         Map<String, MessageAttributeValue> messageAttributesCopy = new HashMap<>(messageAttributes);
         // need to copy to remove because the original is an UnmodifiableMap
         messageAttributesCopy.remove("_datadog");
-        sqsMessage = sqsMessage.toBuilder().messageAttributes(messageAttributesCopy).build();
+        sqsMessage =
+            sqsMessage.toBuilder().messageAttributes(messageAttributesCopy).build();
       }
     }
 

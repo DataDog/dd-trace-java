@@ -31,11 +31,8 @@ public final class NewTaskForRewritingVisitor implements AsmVisitorWrapper {
 
   static final String NEW_TASK_FOR_METHOD = "newTaskFor";
 
-  static final String NEW_TASK_FOR_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.getType(RunnableFuture.class),
-          Type.getType(Runnable.class),
-          Type.getType(Object.class));
+  static final String NEW_TASK_FOR_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.getType(RunnableFuture.class), Type.getType(Runnable.class), Type.getType(Object.class));
 
   @Override
   public int mergeWriter(final int flags) {

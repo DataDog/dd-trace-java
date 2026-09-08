@@ -97,21 +97,18 @@ public class IntPackingTest {
   public void packLongs(long[] input) {
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
     MessageFormatter messageFormatter =
-        new MsgPackWriter(
-            newBuffer(
-                input.length * 9 + 10,
-                (messageCount, buffy) -> {
-                  try {
-                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                    assertEquals(1, messageCount);
-                    assertEquals(input.length, unpacker.unpackArrayHeader());
-                    for (long i : input) {
-                      assertEquals(i, unpacker.unpackLong());
-                    }
-                  } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
-                  }
-                }));
+        new MsgPackWriter(newBuffer(input.length * 9 + 10, (messageCount, buffy) -> {
+          try {
+            MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+            assertEquals(1, messageCount);
+            assertEquals(input.length, unpacker.unpackArrayHeader());
+            for (long i : input) {
+              assertEquals(i, unpacker.unpackLong());
+            }
+          } catch (IOException e) {
+            Assertions.fail(e.getMessage());
+          }
+        }));
     messageFormatter.format(input, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();
   }
@@ -124,21 +121,18 @@ public class IntPackingTest {
       asInts[i] = (int) input[i];
     }
     MessageFormatter messageFormatter =
-        new MsgPackWriter(
-            newBuffer(
-                input.length * 5 + 10,
-                (messageCount, buffy) -> {
-                  try {
-                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                    assertEquals(1, messageCount);
-                    assertEquals(asInts.length, unpacker.unpackArrayHeader());
-                    for (int i : asInts) {
-                      assertEquals(i, unpacker.unpackInt());
-                    }
-                  } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
-                  }
-                }));
+        new MsgPackWriter(newBuffer(input.length * 5 + 10, (messageCount, buffy) -> {
+          try {
+            MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+            assertEquals(1, messageCount);
+            assertEquals(asInts.length, unpacker.unpackArrayHeader());
+            for (int i : asInts) {
+              assertEquals(i, unpacker.unpackInt());
+            }
+          } catch (IOException e) {
+            Assertions.fail(e.getMessage());
+          }
+        }));
 
     messageFormatter.format(asInts, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();

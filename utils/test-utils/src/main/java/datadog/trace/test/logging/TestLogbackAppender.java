@@ -27,13 +27,12 @@ public final class TestLogbackAppender extends AppenderBase<ILoggingEvent> {
 
   @Override
   protected void append(final ILoggingEvent event) {
-    final CapturedLog log =
-        new CapturedLog(
-            event.getMarker(),
-            event.getLevel().levelStr,
-            event.getMessage(),
-            event.getArgumentArray(),
-            event.getFormattedMessage());
+    final CapturedLog log = new CapturedLog(
+        event.getMarker(),
+        event.getLevel().levelStr,
+        event.getMessage(),
+        event.getArgumentArray(),
+        event.getFormattedMessage());
     TestLogCollector.INSTANCE.addLog(log);
   }
 }

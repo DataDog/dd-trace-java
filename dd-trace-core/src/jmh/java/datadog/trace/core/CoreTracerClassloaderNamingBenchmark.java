@@ -40,11 +40,10 @@ public class CoreTracerClassloaderNamingBenchmark {
 
   @Setup(Level.Iteration)
   public void init(Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
+    tracer = CoreTracer.builder()
+        .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+        .strictTraceWrites(false)
+        .build();
     weakCache = new WeakHashMap<>();
     weakCache.put(Thread.currentThread().getContextClassLoader(), "test");
   }

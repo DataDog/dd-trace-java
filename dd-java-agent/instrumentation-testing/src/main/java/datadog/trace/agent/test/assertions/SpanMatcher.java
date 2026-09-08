@@ -414,15 +414,14 @@ public final class SpanMatcher {
     }
     // Assert all tags
     List<String> uncheckedTagNames = new ArrayList<>();
-    tags.forEach(
-        (key, value) -> {
-          Matcher<Object> matcher = (Matcher) matchers.remove(key);
-          if (matcher == null) {
-            uncheckedTagNames.add(key);
-          } else {
-            assertValue(matcher, value, "Unexpected " + key + " tag value");
-          }
-        });
+    tags.forEach((key, value) -> {
+      Matcher<Object> matcher = (Matcher) matchers.remove(key);
+      if (matcher == null) {
+        uncheckedTagNames.add(key);
+      } else {
+        assertValue(matcher, value, "Unexpected " + key + " tag value");
+      }
+    });
     // Remove matchers that accept missing tags
     Collection<Matcher<?>> values = matchers.values();
     values.removeIf(matcher -> matcher instanceof Any);

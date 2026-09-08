@@ -41,27 +41,26 @@ abstract class AbstractCrashtrackingSmokeTest {
     tempDir = Files.createTempDirectory("dd-smoketest-");
     crashEvents.clear();
     tracingServer = new MockWebServer();
-    tracingServer.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(RecordedRequest request) {
-            String data = request.getBody().readString(StandardCharsets.UTF_8);
-            System.out.println("URL ====== " + request.getPath());
-            if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
-              try {
-                MinimalTelemetryData minimal =
-                    moshi.adapter(MinimalTelemetryData.class).fromJson(data);
-                if ("logs".equals(minimal.request_type)) {
-                  crashEvents.add(moshi.adapter(CrashTelemetryData.class).fromJson(data));
-                }
-              } catch (IOException e) {
-                System.out.println("Unable to parse: " + e);
-              }
+    tracingServer.setDispatcher(new Dispatcher() {
+      @Override
+      public MockResponse dispatch(RecordedRequest request) {
+        String data = request.getBody().readString(StandardCharsets.UTF_8);
+        System.out.println("URL ====== " + request.getPath());
+        if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
+          try {
+            MinimalTelemetryData minimal =
+                moshi.adapter(MinimalTelemetryData.class).fromJson(data);
+            if ("logs".equals(minimal.request_type)) {
+              crashEvents.add(moshi.adapter(CrashTelemetryData.class).fromJson(data));
             }
-            System.out.println(data);
-            return new MockResponse().setResponseCode(200);
+          } catch (IOException e) {
+            System.out.println("Unable to parse: " + e);
           }
-        });
+        }
+        System.out.println(data);
+        return new MockResponse().setResponseCode(200);
+      }
+    });
     OUTPUT.clearMessages();
   }
 

@@ -32,18 +32,17 @@ public class JDOQueryInstrumentation
     // *Internal() to futureproof the instrumentation
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "execute",
-                    "executeInternal",
-                    "executeList",
-                    "executeResultList",
-                    "executeResultUnique",
-                    "executeUnique",
-                    "executeWithArray",
-                    "executeWithMap",
-                    "deletePersistentAll",
-                    "deletePersistentInternal")),
+            .and(namedOneOf(
+                "execute",
+                "executeInternal",
+                "executeList",
+                "executeResultList",
+                "executeResultUnique",
+                "executeUnique",
+                "executeWithArray",
+                "executeWithMap",
+                "deletePersistentAll",
+                "deletePersistentInternal")),
         JDOQueryInstrumentation.class.getName() + "$QueryAdvice");
   }
 
@@ -55,10 +54,9 @@ public class JDOQueryInstrumentation
         return null;
       }
 
-      final AgentSpan span =
-          methodName.startsWith("execute")
-              ? startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_EXECUTE)
-              : startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_DELETE);
+      final AgentSpan span = methodName.startsWith("execute")
+          ? startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_EXECUTE)
+          : startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_DELETE);
 
       DECORATE.afterStart(span);
 
@@ -80,10 +78,9 @@ public class JDOQueryInstrumentation
       AgentSpan span = scope.span();
 
       // candidateClass is set internally and is not always in sync with candidateClassName
-      String candidateClassName =
-          internalQuery.getCandidateClass() != null
-              ? internalQuery.getCandidateClass().getName()
-              : internalQuery.getCandidateClassName();
+      String candidateClassName = internalQuery.getCandidateClass() != null
+          ? internalQuery.getCandidateClass().getName()
+          : internalQuery.getCandidateClassName();
 
       DECORATE.setResourceFromIdOrClass(span, null, candidateClassName);
       DECORATE.onError(span, throwable);

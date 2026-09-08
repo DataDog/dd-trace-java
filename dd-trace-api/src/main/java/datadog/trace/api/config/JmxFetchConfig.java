@@ -12,7 +12,10 @@ public final class JmxFetchConfig {
   public static final String JMX_FETCH_START_DELAY = "jmxfetch.start-delay";
   public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
   public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
-  @Deprecated public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
+
+  @Deprecated
+  public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
+
   public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
   public static final String JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD =
       "jmxfetch.initial-refresh-beans-period";

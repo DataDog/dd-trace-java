@@ -95,29 +95,24 @@ public class ProfilingTestApplication {
     AtomicInteger it = new AtomicInteger();
     for (int i = 0; i < 100; i++) {
       executorService
-          .submit(
-              () -> {
-                try {
-                  Thread.sleep(10);
-                  it.incrementAndGet();
-                } catch (InterruptedException e) {
-                }
-              })
+          .submit(() -> {
+            try {
+              Thread.sleep(10);
+              it.incrementAndGet();
+            } catch (InterruptedException e) {
+            }
+          })
           .get();
     }
-    List<Callable<Integer>> runnables =
-        IntStream.range(0, 100)
-            .mapToObj(
-                i ->
-                    (Callable<Integer>)
-                        () -> {
-                          try {
-                            Thread.sleep(10);
-                          } catch (InterruptedException e) {
-                          }
-                          return it.getAndIncrement();
-                        })
-            .collect(Collectors.toList());
+    List<Callable<Integer>> runnables = IntStream.range(0, 100)
+        .mapToObj(i -> (Callable<Integer>) () -> {
+          try {
+            Thread.sleep(10);
+          } catch (InterruptedException e) {
+          }
+          return it.getAndIncrement();
+        })
+        .collect(Collectors.toList());
     for (Future f : executorService.invokeAll(runnables)) {
       f.get();
     }
@@ -129,42 +124,39 @@ public class ProfilingTestApplication {
     final Object lockA = new Object();
     final Object lockB = new Object();
 
-    final Thread threadA =
-        new Thread(
-            () -> {
-              synchronized (lockA) {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                synchronized (lockB) {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                }
-              }
-            },
-            "monitor-thread-A");
-    final Thread threadB =
-        new Thread(
-            () -> {
-              synchronized (lockB) {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                synchronized (lockA) {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                }
-              }
-            },
-            "monitor-thread-B");
+    final Thread threadA = new Thread(
+        () -> {
+          synchronized (lockA) {
+            phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+            synchronized (lockB) {
+              phaser.arriveAndDeregister(); // virtually unreachable
+            }
+          }
+        },
+        "monitor-thread-A");
+    final Thread threadB = new Thread(
+        () -> {
+          synchronized (lockB) {
+            phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+            synchronized (lockA) {
+              phaser.arriveAndDeregister(); // virtually unreachable
+            }
+          }
+        },
+        "monitor-thread-B");
     threadA.setDaemon(true);
     threadB.setDaemon(true);
 
     final CountDownLatch latch = new CountDownLatch(1);
-    Thread main =
-        new Thread(
-            () -> {
-              threadA.start();
-              threadB.start();
-              phaser.arriveAndAwaitAdvance(); // enter deadlock
-              phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
-              latch.countDown();
-            },
-            "main-monitor-thread");
+    Thread main = new Thread(
+        () -> {
+          threadA.start();
+          threadB.start();
+          phaser.arriveAndAwaitAdvance(); // enter deadlock
+          phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
+          latch.countDown();
+        },
+        "main-monitor-thread");
     main.setDaemon(true);
 
     main.start();

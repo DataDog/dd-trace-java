@@ -145,10 +145,9 @@ public final class DecodedSpanLinks {
       this.spanId = spanId;
       this.traceFlags = traceFlags;
       this.traceState = traceState == null ? "" : traceState;
-      this.attributes =
-          attributes == null || attributes.isEmpty()
-              ? emptyMap()
-              : unmodifiableMap(new HashMap<>(attributes));
+      this.attributes = attributes == null || attributes.isEmpty()
+          ? emptyMap()
+          : unmodifiableMap(new HashMap<>(attributes));
     }
 
     @Override

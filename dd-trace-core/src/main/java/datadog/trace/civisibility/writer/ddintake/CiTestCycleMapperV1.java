@@ -66,9 +66,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
-  private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS =
-      Arrays.asList(
-          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
+  private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS = Arrays.asList(
+      Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
 
   private final CiVisibilityWellKnownTags wellKnownTags;
   private final int size;
@@ -155,12 +154,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         version = 1;
       }
 
-      int contentChildrenCount =
-          8
-              + (traceId != null ? 1 : 0)
-              + (spanId != null ? 1 : 0)
-              + (parentId != null ? 1 : 0)
-              + topLevelTagsCount;
+      int contentChildrenCount = 8
+          + (traceId != null ? 1 : 0)
+          + (spanId != null ? 1 : 0)
+          + (parentId != null ? 1 : 0)
+          + topLevelTagsCount;
 
       writable.startMap(3);
       /* 1 */
@@ -330,10 +328,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         tags.remove(ignoredTag);
       }
 
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+      int metaSize = metadata.getBaggage().size()
+          + tags.size()
+          + (null == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize = 0;
       for (Map.Entry<String, Object> tag : tags.entrySet()) {
         if (tag.getValue() instanceof Number) {

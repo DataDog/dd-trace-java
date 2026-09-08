@@ -210,56 +210,48 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     AtomicBoolean requestSpanActive = new AtomicBoolean();
 
     Events<Object> events = Events.get();
-    Subscription requestStarted =
-        AgentTracer.get()
-            .getSubscriptionService(RequestContextSlot.IAST)
-            .registerCallback(
-                events.requestStarted(),
-                new Supplier<Flow<Object>>() {
-                  @Override
-                  public Flow<Object> get() {
-                    return new Flow.ResultFlow<>(iastRequestData);
-                  }
-                });
-    Subscription requestHeader =
-        AgentTracer.get()
-            .getSubscriptionService(RequestContextSlot.IAST)
-            .registerCallback(
-                events.requestHeader(),
-                new TriConsumer<RequestContext, String, String>() {
-                  @Override
-                  public void accept(RequestContext context, String key, String value) {
-                    if (iastRequestData == context.getData(RequestContextSlot.IAST)
-                        && "authorization".equalsIgnoreCase(key)) {
-                      authorization.set(value);
-                    }
-                  }
-                });
-    Subscription requestEnd =
-        AgentTracer.get()
-            .getSubscriptionService(RequestContextSlot.IAST)
-            .registerCallback(
-                events.requestEnded(),
-                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-                  @Override
-                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
-                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
-                      requestEnded.set(true);
-                      AgentSpan activeSpan = AgentTracer.activeSpan();
-                      requestSpanActive.set(
-                          activeSpan != null && activeSpan.getRequestContext() == context);
-                    }
-                    return Flow.ResultFlow.empty();
-                  }
-                });
+    Subscription requestStarted = AgentTracer.get()
+        .getSubscriptionService(RequestContextSlot.IAST)
+        .registerCallback(events.requestStarted(), new Supplier<Flow<Object>>() {
+          @Override
+          public Flow<Object> get() {
+            return new Flow.ResultFlow<>(iastRequestData);
+          }
+        });
+    Subscription requestHeader = AgentTracer.get()
+        .getSubscriptionService(RequestContextSlot.IAST)
+        .registerCallback(
+            events.requestHeader(), new TriConsumer<RequestContext, String, String>() {
+              @Override
+              public void accept(RequestContext context, String key, String value) {
+                if (iastRequestData == context.getData(RequestContextSlot.IAST)
+                    && "authorization".equalsIgnoreCase(key)) {
+                  authorization.set(value);
+                }
+              }
+            });
+    Subscription requestEnd = AgentTracer.get()
+        .getSubscriptionService(RequestContextSlot.IAST)
+        .registerCallback(
+            events.requestEnded(), new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                  requestEnded.set(true);
+                  AgentSpan activeSpan = AgentTracer.activeSpan();
+                  requestSpanActive.set(
+                      activeSpan != null && activeSpan.getRequestContext() == context);
+                }
+                return Flow.ResultFlow.empty();
+              }
+            });
 
     try {
       try (Socket socket = connect()) {
         socket
             .getOutputStream()
-            .write(
-                requestWithAuthorization(KNOWN_LENGTH_FULL_RESPONSE_PATH, "Basic dXNlcjpwYXNz")
-                    .getBytes(US_ASCII));
+            .write(requestWithAuthorization(KNOWN_LENGTH_FULL_RESPONSE_PATH, "Basic dXNlcjpwYXNz")
+                .getBytes(US_ASCII));
         socket.getOutputStream().flush();
 
         assertEquals("ok", readHttpResponseBody(socket.getInputStream()));
@@ -282,32 +274,27 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     AtomicBoolean requestSpanActive = new AtomicBoolean();
 
     Events<Object> events = Events.get();
-    Subscription requestEnd =
-        AgentTracer.get()
-            .getSubscriptionService(RequestContextSlot.IAST)
-            .registerCallback(
-                events.requestEnded(),
-                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-                  @Override
-                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
-                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
-                      AgentSpan activeSpan = AgentTracer.activeSpan();
-                      requestSpanActive.set(
-                          activeSpan != null && activeSpan.getRequestContext() == context);
-                    }
-                    return Flow.ResultFlow.empty();
-                  }
-                });
+    Subscription requestEnd = AgentTracer.get()
+        .getSubscriptionService(RequestContextSlot.IAST)
+        .registerCallback(
+            events.requestEnded(), new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                  AgentSpan activeSpan = AgentTracer.activeSpan();
+                  requestSpanActive.set(
+                      activeSpan != null && activeSpan.getRequestContext() == context);
+                }
+                return Flow.ResultFlow.empty();
+              }
+            });
 
     HoldingOutboundHandler holdingHandler = new HoldingOutboundHandler();
     EmbeddedChannel channel =
         new EmbeddedChannel(holdingHandler, HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span =
-        AgentTracer.get()
-            .startSpan(
-                "netty",
-                "netty.request",
-                new TagContext().withRequestContextDataIast(iastRequestData));
+    AgentSpan span = AgentTracer.get()
+        .startSpan(
+            "netty", "netty.request", new TagContext().withRequestContextDataIast(iastRequestData));
     ServerRequestContext.add(channel, span, null);
 
     try {
@@ -334,32 +321,27 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     AtomicBoolean requestSpanActive = new AtomicBoolean();
 
     Events<Object> events = Events.get();
-    Subscription requestEnd =
-        AgentTracer.get()
-            .getSubscriptionService(RequestContextSlot.IAST)
-            .registerCallback(
-                events.requestEnded(),
-                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-                  @Override
-                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
-                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
-                      AgentSpan activeSpan = AgentTracer.activeSpan();
-                      requestSpanActive.set(
-                          activeSpan != null && activeSpan.getRequestContext() == context);
-                    }
-                    return Flow.ResultFlow.empty();
-                  }
-                });
+    Subscription requestEnd = AgentTracer.get()
+        .getSubscriptionService(RequestContextSlot.IAST)
+        .registerCallback(
+            events.requestEnded(), new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                  AgentSpan activeSpan = AgentTracer.activeSpan();
+                  requestSpanActive.set(
+                      activeSpan != null && activeSpan.getRequestContext() == context);
+                }
+                return Flow.ResultFlow.empty();
+              }
+            });
 
     HoldingOutboundHandler holdingHandler = new HoldingOutboundHandler();
     EmbeddedChannel channel =
         new EmbeddedChannel(holdingHandler, HttpServerResponseTracingHandler.INSTANCE);
-    AgentSpan span =
-        AgentTracer.get()
-            .startSpan(
-                "netty",
-                "netty.request",
-                new TagContext().withRequestContextDataIast(iastRequestData));
+    AgentSpan span = AgentTracer.get()
+        .startSpan(
+            "netty", "netty.request", new TagContext().withRequestContextDataIast(iastRequestData));
     ServerRequestContext.add(channel, span, null);
     IOException writeFailure = new IOException("delayed write failure");
 
@@ -599,21 +581,17 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   }
 
   private static String requestWithAuthorization(String path, String authorization) {
-    return "GET "
-        + path
-        + " HTTP/1.1\r\nHost: localhost\r\nAuthorization: "
-        + authorization
+    return "GET " + path + " HTTP/1.1\r\nHost: localhost\r\nAuthorization: " + authorization
         + "\r\n\r\n";
   }
 
   private static String request(String method, String path) {
     String headers = method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n";
     if (isWebSocketPath(path)) {
-      headers +=
-          "Connection: Upgrade\r\n"
-              + "Upgrade: websocket\r\n"
-              + "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
-              + "Sec-WebSocket-Version: 13\r\n";
+      headers += "Connection: Upgrade\r\n"
+          + "Upgrade: websocket\r\n"
+          + "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+          + "Sec-WebSocket-Version: 13\r\n";
     }
     return headers + "\r\n";
   }
@@ -769,13 +747,11 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       response.headers().set(CONNECTION, "close");
       response.headers().set(CONTENT_LENGTH, body.length);
       ctx.write(response);
-      ctx.writeAndFlush(new DefaultFileRegion(fileChannel, 0, body.length))
-          .addListener(
-              future -> {
-                close(fileChannel);
-                delete(path);
-                knownLengthFileRegionWrites.offer(ctx);
-              });
+      ctx.writeAndFlush(new DefaultFileRegion(fileChannel, 0, body.length)).addListener(future -> {
+        close(fileChannel);
+        delete(path);
+        knownLengthFileRegionWrites.offer(ctx);
+      });
     }
 
     private void writeIncompleteKnownLengthResponse(ChannelHandlerContext ctx) {

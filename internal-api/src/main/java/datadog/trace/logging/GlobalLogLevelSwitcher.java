@@ -25,7 +25,8 @@ public class GlobalLogLevelSwitcher implements LogLevelSwitcher {
       delegate = (LogLevelSwitcher) factory;
     } else {
       log.error(
-          "Unable to find global log level switcher, found {}", factory.getClass().getSimpleName());
+          "Unable to find global log level switcher, found {}",
+          factory.getClass().getSimpleName());
       delegate = null;
     }
   }

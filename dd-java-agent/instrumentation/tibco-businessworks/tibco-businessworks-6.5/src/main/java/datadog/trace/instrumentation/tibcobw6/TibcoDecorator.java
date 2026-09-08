@@ -28,11 +28,10 @@ public class TibcoDecorator extends BaseDecorator {
 
   private static CharSequence bwVersion() {
     try {
-      Class cls =
-          Class.forName(
-              "com.tibco.bw.thor.management.common.SetupUtils",
-              false,
-              ClassLoader.getSystemClassLoader());
+      Class cls = Class.forName(
+          "com.tibco.bw.thor.management.common.SetupUtils",
+          false,
+          ClassLoader.getSystemClassLoader());
       Map<String, String> map =
           (Map<String, String>) cls.getMethod("loadProductConfiguration").invoke(null);
       if (map != null) {

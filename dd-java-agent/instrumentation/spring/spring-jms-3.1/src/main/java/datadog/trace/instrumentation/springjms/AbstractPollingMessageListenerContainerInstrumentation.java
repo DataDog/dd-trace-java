@@ -54,9 +54,9 @@ public class AbstractPollingMessageListenerContainerInstrumentation
       // complete the last polled message span now that we know its execution phase is complete
       // this results in more accurate durations than if we relied on the iteration span cleaner
       // (uses same approach as the 'beforeReceive' advice in JMSMessageConsumerInstrumentation)
-      MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
+      MessageConsumerState consumerState = InstrumentationContext.get(
+              MessageConsumer.class, MessageConsumerState.class)
+          .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {

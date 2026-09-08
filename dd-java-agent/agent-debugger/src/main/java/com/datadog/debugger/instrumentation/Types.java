@@ -241,38 +241,30 @@ public final class Types {
       }
       int frameItemKind = (int) frameItem;
       switch (frameItemKind) {
-        case Opcodes.T_BYTE:
-          {
-            return Type.BYTE_TYPE;
-          }
-        case Opcodes.T_BOOLEAN:
-          {
-            return Type.BOOLEAN_TYPE;
-          }
-        case Opcodes.T_CHAR:
-          {
-            return Type.CHAR_TYPE;
-          }
-        case Opcodes.T_DOUBLE:
-          {
-            return Type.DOUBLE_TYPE;
-          }
-        case Opcodes.T_FLOAT:
-          {
-            return Type.FLOAT_TYPE;
-          }
-        case Opcodes.T_INT:
-          {
-            return Type.INT_TYPE;
-          }
-        case Opcodes.T_LONG:
-          {
-            return Type.LONG_TYPE;
-          }
-        case Opcodes.T_SHORT:
-          {
-            return Type.SHORT_TYPE;
-          }
+        case Opcodes.T_BYTE: {
+          return Type.BYTE_TYPE;
+        }
+        case Opcodes.T_BOOLEAN: {
+          return Type.BOOLEAN_TYPE;
+        }
+        case Opcodes.T_CHAR: {
+          return Type.CHAR_TYPE;
+        }
+        case Opcodes.T_DOUBLE: {
+          return Type.DOUBLE_TYPE;
+        }
+        case Opcodes.T_FLOAT: {
+          return Type.FLOAT_TYPE;
+        }
+        case Opcodes.T_INT: {
+          return Type.INT_TYPE;
+        }
+        case Opcodes.T_LONG: {
+          return Type.LONG_TYPE;
+        }
+        case Opcodes.T_SHORT: {
+          return Type.SHORT_TYPE;
+        }
       }
     } else if (frameItem instanceof String) {
       return Type.getType((String) frameItem);
@@ -291,10 +283,9 @@ public final class Types {
     int leftParen = javaSignature.indexOf('(');
     int rightParen = javaSignature.indexOf(')');
     if (leftParen == -1 || rightParen == -1) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature, missing matching parenthesis: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature, missing matching parenthesis: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
 
     StringBuilder buf = new StringBuilder();
@@ -304,18 +295,16 @@ public final class Types {
     String args = javaSignature.substring(leftParen + 1, rightParen).trim();
     StringTokenizer st = new StringTokenizer(args, ",");
     if (!st.hasMoreTokens() && !args.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature, invalid argument format: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature, invalid argument format: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
     while (st.hasMoreTokens()) {
       String arg = st.nextToken().trim();
       if (arg.length() == 0) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Illegal java signature, empty argument: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-                javaSignature));
+        throw new IllegalArgumentException(String.format(
+            "Illegal java signature, empty argument: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+            javaSignature));
       }
       descriptor = PRIMITIVE_TYPES.get(arg);
       if (descriptor == null) {
@@ -327,10 +316,9 @@ public final class Types {
 
     String returnType = javaSignature.substring(0, leftParen).trim();
     if (returnType.length() == 0) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
     descriptor = PRIMITIVE_TYPES.get(returnType);
     if (descriptor == null) {

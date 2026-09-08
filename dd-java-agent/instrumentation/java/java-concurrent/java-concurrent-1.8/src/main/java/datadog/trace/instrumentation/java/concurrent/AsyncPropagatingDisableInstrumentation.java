@@ -33,14 +33,13 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   private static final ElementMatcher.Junction<TypeDescription> RX_WORKERS =
       nameStartsWith("rx.").and(extendsClass(named("rx.Scheduler$Worker")));
-  private static final ElementMatcher<TypeDescription> NETTY_UNSAFE =
-      namedOneOf(
-          "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-          "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-          "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
+  private static final ElementMatcher<TypeDescription> NETTY_UNSAFE = namedOneOf(
+      "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+      "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+      "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
   private static final ElementMatcher<TypeDescription> GRPC_MANAGED_CHANNEL =
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
@@ -55,11 +54,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
 
-  private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
-      namedOneOf(
-          "io.netty.util.concurrent.GlobalEventExecutor",
-          // shaded version
-          "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
+  private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR = namedOneOf(
+      "io.netty.util.concurrent.GlobalEventExecutor",
+      // shaded version
+      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
   private static final String LETTUCE_HANDSHAKE_HANDLER =
@@ -166,10 +164,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(
         named("runOnEventLoop")
-            .and(
-                isDeclaredBy(
-                    named(
-                        "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
+            .and(isDeclaredBy(named(
+                "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
         advice);
     transformer.applyAdvice(
         named("buildAsync")
@@ -187,9 +183,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(
         named("doRescheduleTask")
-            .and(
-                isDeclaredBy(
-                    named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
+            .and(isDeclaredBy(
+                named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
         advice);
     transformer.applyAdvice(
         named("beginTransaction")
@@ -197,10 +192,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(
         named("initUnlessClosed")
-            .and(
-                isDeclaredBy(
-                    named(
-                        "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
+            .and(isDeclaredBy(
+                named("com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);

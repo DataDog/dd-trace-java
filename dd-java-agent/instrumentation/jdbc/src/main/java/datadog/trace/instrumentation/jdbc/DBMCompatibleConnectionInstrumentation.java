@@ -120,9 +120,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       }
       final String inputSql = sql;
       final AgentSpan activeSpan = activeSpan();
-      final DBInfo dbInfo =
-          JDBCDecorator.parseDBInfo(
-              connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+      final DBInfo dbInfo = JDBCDecorator.parseDBInfo(
+          connection, InstrumentationContext.get(Connection.class, DBInfo.class));
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
         dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);
@@ -130,9 +129,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
 
       boolean append =
           DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbInfo.getType());
-      sql =
-          SQLCommenter.inject(
-              sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
+      sql = SQLCommenter.inject(
+          sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
       return inputSql;
     }
 

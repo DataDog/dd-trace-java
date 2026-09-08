@@ -76,25 +76,23 @@ class TraceMapperV05PayloadTest {
     // enough space for two traces with distinct string values, plus the header
     int dictionarySize = dictionarySpacePerTrace * 2 + 5;
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize);
-    List<PojoSpan> repeatedTrace =
-        Collections.singletonList(
-            new PojoSpan(
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                DDTraceId.ZERO,
-                DDSpanId.ZERO,
-                DDSpanId.ZERO,
-                10000,
-                100,
-                0,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                UUID.randomUUID().toString(),
-                false,
-                PrioritySampling.UNSET,
-                0,
-                null));
+    List<PojoSpan> repeatedTrace = Collections.singletonList(new PojoSpan(
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        DDTraceId.ZERO,
+        DDSpanId.ZERO,
+        DDSpanId.ZERO,
+        10000,
+        100,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        UUID.randomUUID().toString(),
+        false,
+        PrioritySampling.UNSET,
+        0,
+        null));
     int traceSize = calculateSize(repeatedTrace);
     // 30KB body
     int bufferSize = 30 << 10;
@@ -174,24 +172,23 @@ class TraceMapperV05PayloadTest {
     assertNotNull(ProcessTags.getTagsForSerialization());
     List<PojoSpan> spans = new ArrayList<>();
     for (long spanId = 1; spanId <= 2; ++spanId) {
-      spans.add(
-          new PojoSpan(
-              "service",
-              "operation",
-              "resource",
-              DDTraceId.ONE,
-              spanId,
-              -1L,
-              123L,
-              456L,
-              0,
-              Collections.emptyMap(),
-              Collections.emptyMap(),
-              "type",
-              false,
-              0,
-              0,
-              "origin"));
+      spans.add(new PojoSpan(
+          "service",
+          "operation",
+          "resource",
+          DDTraceId.ONE,
+          spanId,
+          -1L,
+          123L,
+          456L,
+          0,
+          Collections.emptyMap(),
+          Collections.emptyMap(),
+          "type",
+          false,
+          0,
+          0,
+          "origin"));
     }
 
     List<List<PojoSpan>> traces = Collections.singletonList(spans);
@@ -348,16 +345,12 @@ class TraceMapperV05PayloadTest {
 
   private static int calculateSize(List<PojoSpan> trace) {
     AtomicInteger size = new AtomicInteger();
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                1024,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffer) {
-                    size.set(buffer.limit() - buffer.position());
-                  }
-                }));
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
+      @Override
+      public void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position());
+      }
+    }));
     packer.format(trace, new TraceMapperV0_5(1024));
     packer.flush();
     return size.get();

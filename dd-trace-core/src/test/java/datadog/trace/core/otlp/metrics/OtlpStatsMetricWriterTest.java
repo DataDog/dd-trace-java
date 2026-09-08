@@ -457,26 +457,25 @@ class OtlpStatsMetricWriterTest {
     // Additional tags arrive on the entry pre-packed as "key:value" UTF8 strings in schema order;
     // the writer splits each at the first ':' and emits it as a plain OTLP string attribute keyed
     // by the tag name.
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null,
-            new UTF8BytesString[] {
-              UTF8BytesString.create("region:us-east-1"),
-              UTF8BytesString.create("tenant_id:acme:corp"),
-              UTF8BytesString.create("datadog.custom:visible")
-            });
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null,
+        new UTF8BytesString[] {
+          UTF8BytesString.create("region:us-east-1"),
+          UTF8BytesString.create("tenant_id:acme:corp"),
+          UTF8BytesString.create("datadog.custom:visible")
+        });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -492,27 +491,26 @@ class OtlpStatsMetricWriterTest {
     // malformed -- aggregation treats an explicitly-empty tag as a distinct dimension from an
     // absent
     // one, so it is emitted as key="" to keep the OTLP attributes faithful to the aggregate key.
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null,
-            new UTF8BytesString[] {
-              UTF8BytesString.create("noseparator"),
-              UTF8BytesString.create(":emptykey"),
-              UTF8BytesString.create("emptyvalue:"),
-              UTF8BytesString.create("region:us-east-1")
-            });
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null,
+        new UTF8BytesString[] {
+          UTF8BytesString.create("noseparator"),
+          UTF8BytesString.create(":emptykey"),
+          UTF8BytesString.create("emptyvalue:"),
+          UTF8BytesString.create("region:us-east-1")
+        });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -557,21 +555,20 @@ class OtlpStatsMetricWriterTest {
 
   /** An ok-only entry on the given service and operation name, recording a single 1s hit. */
   private static AggregateEntry serviceEntry(String operationName, String service) {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            service,
-            operationName,
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        service,
+        operationName,
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
     return e;
   }
@@ -623,21 +620,20 @@ class OtlpStatsMetricWriterTest {
   @ParameterizedTest
   @CsvSource({"true", "false"})
   void emitsIsTraceRoot(boolean traceRoot) throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            traceRoot,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        traceRoot,
+        "server",
+        null,
+        null,
+        null,
+        null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -647,21 +643,20 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void serviceSourceEmittedOnlyWhenSet() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            "component",
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        "component",
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -675,23 +670,22 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void emitsPeerTags() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "client",
-            Arrays.asList(
-                UTF8BytesString.create("peer.service:downstream"),
-                UTF8BytesString.create("net.peer.name:downstream.example.com")),
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "client",
+        Arrays.asList(
+            UTF8BytesString.create("peer.service:downstream"),
+            UTF8BytesString.create("net.peer.name:downstream.example.com")),
+        null,
+        null,
+        null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -723,21 +717,20 @@ class OtlpStatsMetricWriterTest {
       nullValues = "NULL")
   void spanKindIsCanonicalizedToUppercaseEnumName(String spanKind, String expected)
       throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            spanKind,
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        spanKind,
+        null,
+        null,
+        null,
+        null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;

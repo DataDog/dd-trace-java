@@ -115,17 +115,16 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final Supplier<BackendApi> backendApiSupplier,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
-    this.serializer =
-        new FlagEvaluationSerializingHandler(
-            backendApiSupplier,
-            queue,
-            flushInterval,
-            timeUnit,
-            FeatureFlagEvpContext.from(config),
-            droppedQueueOverflow,
-            contextTruncatedCounts,
-            this::close,
-            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    this.serializer = new FlagEvaluationSerializingHandler(
+        backendApiSupplier,
+        queue,
+        flushInterval,
+        timeUnit,
+        FeatureFlagEvpContext.from(config),
+        droppedQueueOverflow,
+        contextTruncatedCounts,
+        this::close,
+        FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
   }
 
@@ -316,9 +315,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
-      this.evpPublisher =
-          new FeatureFlagEvpPublisher<>(
-              backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
+      this.evpPublisher = new FeatureFlagEvpPublisher<>(
+          backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
       this.contextTruncatedCounts = contextTruncatedCounts;
@@ -487,14 +485,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
           new ArrayList<>(aggregator.bucketCount());
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, true, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket, true, bucket.observeFullEvaluationData, flushTimeMs));
       }
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, false, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket, false, bucket.observeFullEvaluationData, flushTimeMs));
       }
       return events;
     }

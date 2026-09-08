@@ -36,28 +36,26 @@ public class JsonCanonicalizer {
 
   private static void serialize(ByteArrayOutputStream os, String s) {
     os.write('"');
-    s.codePoints()
-        .forEach(
-            codepoint -> {
-              if (codepoint == '\\' || codepoint == '"') {
-                os.write('\\');
-              }
-              if (codepoint < 0x80) {
-                os.write(codepoint);
-              } else if (codepoint < 0x800) {
-                os.write(0xc0 | (codepoint >> 6));
-                os.write(0x80 | (codepoint & 0x3f));
-              } else if (codepoint < 0x10000) {
-                os.write(0xe0 | ((codepoint >> 12)));
-                os.write(0x80 | ((codepoint >> 6) & 0x3f));
-                os.write(0x80 | (codepoint & 0x3f));
-              } else {
-                os.write(0xf0 | ((codepoint >> 18)));
-                os.write(0x80 | ((codepoint >> 12) & 0x3f));
-                os.write(0x80 | ((codepoint >> 6) & 0x3f));
-                os.write(0x80 | (codepoint & 0x3f));
-              }
-            });
+    s.codePoints().forEach(codepoint -> {
+      if (codepoint == '\\' || codepoint == '"') {
+        os.write('\\');
+      }
+      if (codepoint < 0x80) {
+        os.write(codepoint);
+      } else if (codepoint < 0x800) {
+        os.write(0xc0 | (codepoint >> 6));
+        os.write(0x80 | (codepoint & 0x3f));
+      } else if (codepoint < 0x10000) {
+        os.write(0xe0 | ((codepoint >> 12)));
+        os.write(0x80 | ((codepoint >> 6) & 0x3f));
+        os.write(0x80 | (codepoint & 0x3f));
+      } else {
+        os.write(0xf0 | ((codepoint >> 18)));
+        os.write(0x80 | ((codepoint >> 12) & 0x3f));
+        os.write(0x80 | ((codepoint >> 6) & 0x3f));
+        os.write(0x80 | (codepoint & 0x3f));
+      }
+    });
     os.write('"');
   }
 
@@ -89,18 +87,17 @@ public class JsonCanonicalizer {
     map.entrySet().stream()
         // the canonical json spec only says "keys are lexicographically sorted"
         .sorted((e1, e2) -> String.CASE_INSENSITIVE_ORDER.compare(e1.getKey(), e2.getKey()))
-        .forEach(
-            e -> {
-              if (first[0]) {
-                first[0] = false;
-              } else {
-                os.write(',');
-              }
+        .forEach(e -> {
+          if (first[0]) {
+            first[0] = false;
+          } else {
+            os.write(',');
+          }
 
-              serialize(os, e.getKey());
-              os.write(':');
-              serialize(os, e.getValue());
-            });
+          serialize(os, e.getKey());
+          os.write(':');
+          serialize(os, e.getValue());
+        });
 
     os.write('}');
   }

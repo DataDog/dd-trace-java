@@ -80,19 +80,18 @@ class OkHttpSinkTest {
     sink.register(listener);
     // Single doAnswer handles all three calls using an atomic counter
     AtomicInteger callCount = new AtomicInteger(0);
-    doAnswer(
-            invocation -> {
-              int callNumber = callCount.incrementAndGet();
-              Request request = invocation.getArgument(0);
-              if (callNumber == 1) {
-                // First call: simulate slow agent
-                Thread.sleep(1001);
-              } else if (callNumber == 2) {
-                // Second call: should be in degraded mode
-                assertTrue(sink.isInDegradedMode());
-              }
-              return respond(request, 200);
-            })
+    doAnswer(invocation -> {
+          int callNumber = callCount.incrementAndGet();
+          Request request = invocation.getArgument(0);
+          if (callNumber == 1) {
+            // First call: simulate slow agent
+            Thread.sleep(1001);
+          } else if (callNumber == 2) {
+            // Second call: should be in degraded mode
+            assertTrue(sink.isInDegradedMode());
+          }
+          return respond(request, 200);
+        })
         .when(client)
         .newCall(any());
 
@@ -124,14 +123,13 @@ class OkHttpSinkTest {
     if (code == 0) {
       return error();
     }
-    Response response =
-        new Response.Builder()
-            .code(code)
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .message("message")
-            .body(ResponseBody.create(MediaType.get("text/plain"), "message"))
-            .build();
+    Response response = new Response.Builder()
+        .code(code)
+        .request(request)
+        .protocol(Protocol.HTTP_1_1)
+        .message("message")
+        .body(ResponseBody.create(MediaType.get("text/plain"), "message"))
+        .build();
     Call call = mock(Call.class);
     doReturn(response).when(call).execute();
     return call;

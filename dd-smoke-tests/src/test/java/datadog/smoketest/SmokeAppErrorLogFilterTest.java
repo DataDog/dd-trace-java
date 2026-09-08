@@ -58,9 +58,8 @@ class SmokeAppErrorLogFilterTest {
 
     // A genuine profiling/agent ERROR that is NOT in the exclusion list is still flagged.
     assertTrue(
-        isError.test(
-            "ERROR datadog.trace.agent.jmxfetch.JMXFetch - jmx collector exited with"
-                + " result: 1"),
+        isError.test("ERROR datadog.trace.agent.jmxfetch.JMXFetch - jmx collector exited with"
+            + " result: 1"),
         "a real (non-zero) JMX collector failure is still an error");
   }
 }

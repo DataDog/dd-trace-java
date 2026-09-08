@@ -96,9 +96,8 @@ class JsonValueUtilsTest {
 
   @Test
   void testNestedArray() {
-    Object result =
-        JsonValueUtils.jsonValueToObject(
-            JsonValue.from(Arrays.asList(Arrays.asList(1, 2), Arrays.asList(3, 4))));
+    Object result = JsonValueUtils.jsonValueToObject(
+        JsonValue.from(Arrays.asList(Arrays.asList(1, 2), Arrays.asList(3, 4))));
 
     assertInstanceOf(List.class, result);
     @SuppressWarnings("unchecked")

@@ -96,9 +96,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       return;
     }
 
-    TestSuiteImpl testSuite =
-        testModule.testSuiteStart(
-            testSuiteName, testClass, startTime, parallelized, instrumentation);
+    TestSuiteImpl testSuite = testModule.testSuiteStart(
+        testSuiteName, testClass, startTime, parallelized, instrumentation);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -176,11 +175,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
     if (testSuite == null) {
-      throw new IllegalStateException(
-          "Could not find test suite with descriptor "
-              + suiteDescriptor
-              + "; test descriptor: "
-              + descriptor);
+      throw new IllegalStateException("Could not find test suite with descriptor "
+          + suiteDescriptor
+          + "; test descriptor: "
+          + descriptor);
     }
 
     TestImpl test =

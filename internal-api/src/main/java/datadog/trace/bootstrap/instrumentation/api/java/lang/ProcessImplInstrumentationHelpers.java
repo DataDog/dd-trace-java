@@ -42,9 +42,8 @@ public class ProcessImplInstrumentationHelpers {
   private static final Executor EXECUTOR;
 
   private static final Pattern REDACTED_PARAM_PAT =
-      Pattern.compile(
-          "^(?i)-{0,2}(?:p(?:ass(?:w(?:or)?d)?)?|api_?key|secret|"
-              + "a(?:ccess|uth)_token|mysql_pwd|credentials|(?:stripe)?token)$");
+      Pattern.compile("^(?i)-{0,2}(?:p(?:ass(?:w(?:or)?d)?)?|api_?key|secret|"
+          + "a(?:ccess|uth)_token|mysql_pwd|credentials|(?:stripe)?token)$");
   private static final Set<String> REDACTED_BINARIES = Collections.singleton("md5");
 
   // This check is used to avoid command injection exploit prevention if shell injection exploit
@@ -56,9 +55,8 @@ public class ProcessImplInstrumentationHelpers {
     Executor executor = null;
     try {
       // java 9
-      processOnExit =
-          MethodHandles.publicLookup()
-              .findVirtual(Process.class, "onExit", methodType(CompletableFuture.class));
+      processOnExit = MethodHandles.publicLookup()
+          .findVirtual(Process.class, "onExit", methodType(CompletableFuture.class));
     } catch (Throwable e) {
       try {
         // java 8
@@ -173,28 +171,26 @@ public class ProcessImplInstrumentationHelpers {
       }
 
       final ContextContinuation continuation = captureActiveSpan();
-      future.whenComplete(
-          (process, thr) -> {
-            if (thr != null) {
-              span.addThrowable(thr);
-            } else {
-              span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
-            }
-            finishSpan(continuation, span);
-          });
+      future.whenComplete((process, thr) -> {
+        if (thr != null) {
+          span.addThrowable(thr);
+        } else {
+          span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
+        }
+        finishSpan(continuation, span);
+      });
     } else if (EXECUTOR != null) {
       final ContextContinuation continuation = captureActiveSpan();
-      EXECUTOR.execute(
-          () -> {
-            try {
-              int exitCode = p.waitFor();
-              span.setTag("cmd.exit_code", Integer.toString(exitCode));
-            } catch (InterruptedException e) {
-              span.addThrowable(e);
-            } finally {
-              finishSpan(continuation, span);
-            }
-          });
+      EXECUTOR.execute(() -> {
+        try {
+          int exitCode = p.waitFor();
+          span.setTag("cmd.exit_code", Integer.toString(exitCode));
+        } catch (InterruptedException e) {
+          span.addThrowable(e);
+        } finally {
+          finishSpan(continuation, span);
+        }
+      });
     }
   }
 
@@ -219,10 +215,9 @@ public class ProcessImplInstrumentationHelpers {
       return;
     }
     try {
-      final BiFunction<RequestContext, String[], Flow<Void>> execCmdCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.execCmd());
+      final BiFunction<RequestContext, String[], Flow<Void>> execCmdCallback = AgentTracer.get()
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.execCmd());
 
       if (execCmdCallback == null) {
         return;
@@ -270,10 +265,9 @@ public class ProcessImplInstrumentationHelpers {
     }
     checkShi.set(true);
     try {
-      final BiFunction<RequestContext, String, Flow<Void>> shellCmdCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.shellCmd());
+      final BiFunction<RequestContext, String, Flow<Void>> shellCmdCallback = AgentTracer.get()
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.shellCmd());
 
       if (shellCmdCallback == null) {
         return;

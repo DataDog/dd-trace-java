@@ -50,7 +50,8 @@ public final class MaybeInstrumentation
         @Advice.This final Maybe<?> maybe,
         @Advice.Argument(value = 0, readOnly = false) MaybeObserver<?> observer) {
       if (observer != null) {
-        Context parentContext = InstrumentationContext.get(Maybe.class, Context.class).get(maybe);
+        Context parentContext =
+            InstrumentationContext.get(Maybe.class, Context.class).get(maybe);
         if (parentContext != null) {
           observer = new TracingMaybeObserver<>(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe

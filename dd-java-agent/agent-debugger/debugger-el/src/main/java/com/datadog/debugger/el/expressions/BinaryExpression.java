@@ -26,13 +26,7 @@ public final class BinaryExpression implements BooleanExpression {
 
   @Override
   public String toString() {
-    return "BinaryExpression{"
-        + "left="
-        + left
-        + ", right="
-        + right
-        + ", operator="
-        + operator
+    return "BinaryExpression{" + "left=" + left + ", right=" + right + ", operator=" + operator
         + '}';
   }
 

@@ -127,12 +127,11 @@ public class SymDBEnablement implements ProductListener {
   private void extractSymbolForLoadedClasses(SymDBReport symDBReport) {
     Class<?>[] classesToExtract;
     try {
-      classesToExtract =
-          Arrays.stream(instrumentation.getAllLoadedClasses())
-              // getAllLoadedClasses can return null classes (Class Unloading)
-              .filter(clazz -> clazz != null && !classNameFilter.isExcluded(clazz.getTypeName()))
-              .filter(instrumentation::isModifiableClass)
-              .toArray(Class<?>[]::new);
+      classesToExtract = Arrays.stream(instrumentation.getAllLoadedClasses())
+          // getAllLoadedClasses can return null classes (Class Unloading)
+          .filter(clazz -> clazz != null && !classNameFilter.isExcluded(clazz.getTypeName()))
+          .filter(instrumentation::isModifiableClass)
+          .toArray(Class<?>[]::new);
     } catch (Throwable ex) {
       LOGGER.debug("Failed to get all loaded classes", ex);
       return;

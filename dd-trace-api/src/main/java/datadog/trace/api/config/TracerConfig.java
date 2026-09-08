@@ -35,7 +35,10 @@ public final class TracerConfig {
   public static final String TEST_AGENT_SESSION_TOKEN = "test.agent.session.token";
   public static final String PRIORITY_SAMPLING = "priority.sampling";
   public static final String PRIORITY_SAMPLING_FORCE = "priority.sampling.force";
-  @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
+
+  @Deprecated
+  public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
+
   public static final String SERVICE_MAPPING = "service.mapping";
 
   public static final String TRACE_EXPERIMENTAL_FEATURES_ENABLED =
@@ -74,10 +77,14 @@ public final class TracerConfig {
   public static final String TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.client.path-resource-name-mapping";
   // Use TRACE_HTTP_SERVER_ERROR_STATUSES instead
-  @Deprecated public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
+  @Deprecated
+  public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
+
   public static final String TRACE_HTTP_SERVER_ERROR_STATUSES = "trace.http.server.error.statuses";
   // Use TRACE_HTTP_CLIENT_ERROR_STATUSES instead
-  @Deprecated public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
+  @Deprecated
+  public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
+
   public static final String TRACE_HTTP_CLIENT_ERROR_STATUSES = "trace.http.client.error.statuses";
 
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";

@@ -62,9 +62,8 @@ public class RedisFutureSendAdvice {
 
     parentContinuation = null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
 
-    final AgentSpan clientSpan =
-        DECORATE.startAndDecorateSpan(
-            request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
+    final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(
+        request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
     return activateSpan(clientSpan);
   }
@@ -77,9 +76,9 @@ public class RedisFutureSendAdvice {
       @Advice.This final Object thiz) {
     CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
     if (thiz instanceof RedisConnection) {
-      final SocketAddress socketAddress =
-          InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
-              .get((RedisConnection) thiz);
+      final SocketAddress socketAddress = InstrumentationContext.get(
+              RedisConnection.class, SocketAddress.class)
+          .get((RedisConnection) thiz);
       final AgentSpan span = clientScope != null ? clientScope.span() : activeSpan();
       // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
       if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {

@@ -35,9 +35,8 @@ public class ClientRuntimeInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("submit", "createRunnableForAsyncProcessing"))
-            .and(
-                takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))
-                    .and(takesArgument(1, named("org.glassfish.jersey.client.ResponseCallback")))),
+            .and(takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))
+                .and(takesArgument(1, named("org.glassfish.jersey.client.ResponseCallback")))),
         "org.glassfish.jersey.client.WrappingResponseCallbackAdvice");
     transformer.applyAdvice(
         isMethod()

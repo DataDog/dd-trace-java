@@ -16,9 +16,8 @@ public class CassandraClientAdvice {
 
     // Change CompletingStage<Session> to CompletingStage<TracingSession>
     // The TracingSession wrapper includes span start/stop
-    completionStage =
-        completionStage.thenCombine(
-            CompletableFuture.completedFuture(ContactPointsUtil.fromEndPointSet(contactPoints)),
-            TracingSession::new);
+    completionStage = completionStage.thenCombine(
+        CompletableFuture.completedFuture(ContactPointsUtil.fromEndPointSet(contactPoints)),
+        TracingSession::new);
   }
 }

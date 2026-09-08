@@ -63,10 +63,8 @@ public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Pro
         isMethod()
             .and(named("push"))
             .and(takesArgument(0, named("java.util.concurrent.ForkJoinTask")))
-            .and(
-                isDeclaredBy(
-                    declaresField(fieldType(int.class).and(named("top")))
-                        .and(declaresField(fieldType(int.class).and(named("base")))))),
+            .and(isDeclaredBy(declaresField(fieldType(int.class).and(named("top")))
+                .and(declaresField(fieldType(int.class).and(named("base")))))),
         name + "$PushTask");
   }
 

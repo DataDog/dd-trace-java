@@ -29,14 +29,30 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   private final VulnerabilityBatch vulnerabilityBatch;
   private final OverheadContext overheadContext;
   private TaintedObjects taintedObjects;
-  @Nullable private Consumer<IastContext> release;
-  @Nullable private IastMetricCollector collector;
-  @Nullable private volatile String strictTransportSecurity;
-  @Nullable private volatile String xContentTypeOptions;
-  @Nullable private volatile String xForwardedProto;
-  @Nullable private volatile String contentType;
-  @Nullable private volatile String authorization;
-  @Nullable private volatile String route;
+
+  @Nullable
+  private Consumer<IastContext> release;
+
+  @Nullable
+  private IastMetricCollector collector;
+
+  @Nullable
+  private volatile String strictTransportSecurity;
+
+  @Nullable
+  private volatile String xContentTypeOptions;
+
+  @Nullable
+  private volatile String xForwardedProto;
+
+  @Nullable
+  private volatile String contentType;
+
+  @Nullable
+  private volatile String authorization;
+
+  @Nullable
+  private volatile String route;
 
   /**
    * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
@@ -169,10 +185,8 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     // 16384 buckets: approx 64K
     static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
 
-    private final Queue<TaintedObjects> pool =
-        new ArrayBlockingQueue<>(
-            Math.max(
-                Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
+    private final Queue<TaintedObjects> pool = new ArrayBlockingQueue<>(Math.max(
+        Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
 
     @Nullable
     @Override
@@ -209,10 +223,9 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
       taintedObjects.clear();
 
       // return to pool and update internal ref
-      final TaintedObjects unwrapped =
-          taintedObjects instanceof Wrapper
-              ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
-              : taintedObjects;
+      final TaintedObjects unwrapped = taintedObjects instanceof Wrapper
+          ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
+          : taintedObjects;
       if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
         pool.offer(unwrapped);
         iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);

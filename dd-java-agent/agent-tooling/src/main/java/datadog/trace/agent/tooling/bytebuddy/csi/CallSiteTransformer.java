@@ -52,10 +52,9 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   public CallSiteTransformer(@Nonnull final String name, @Nonnull final Advices advices) {
     this.advices = advices;
     final String[] helpers = advices.getHelpers();
-    this.helperInjector =
-        helpers == null || helpers.length == 0
-            ? NO_OP
-            : new HelperInjector(false, name, advices.getHelpers());
+    this.helperInjector = helpers == null || helpers.length == 0
+        ? NO_OP
+        : new HelperInjector(false, name, advices.getHelpers());
   }
 
   @Override

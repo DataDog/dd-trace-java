@@ -43,9 +43,8 @@ class PeerTagSchemaTest {
 
   @Test
   void hasSameTagsAsReturnsTrueForExactMatch() {
-    PeerTagSchema schema =
-        PeerTagSchema.of(
-            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
+    PeerTagSchema schema = PeerTagSchema.of(
+        new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
 
     // Same content via a different Set reference -- this is the case the reconcile fast-path
     // depends on (Set returned from a fresh discovery cycle is content-equal to the prior one).
@@ -64,9 +63,8 @@ class PeerTagSchemaTest {
 
   @Test
   void hasSameTagsAsReturnsFalseWhenSetShrank() {
-    PeerTagSchema schema =
-        PeerTagSchema.of(
-            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
+    PeerTagSchema schema = PeerTagSchema.of(
+        new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
 
     assertFalse(schema.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
   }
@@ -101,13 +99,12 @@ class PeerTagSchemaTest {
     schema.register(0, "host-c"); // blocked
 
     long[] recorded = {0};
-    HealthMetrics hm =
-        new HealthMetrics() {
-          @Override
-          public void onTagCardinalityBlocked(String[] tag, long count) {
-            recorded[0] += count;
-          }
-        };
+    HealthMetrics hm = new HealthMetrics() {
+      @Override
+      public void onTagCardinalityBlocked(String[] tag, long count) {
+        recorded[0] += count;
+      }
+    };
 
     schema.resetHandlers(hm, new CardinalityLimitReporter());
     assertEquals(2, recorded[0]);
@@ -135,14 +132,13 @@ class PeerTagSchemaTest {
 
     List<String[]> tags = new ArrayList<>();
     long[] total = {0};
-    HealthMetrics hm =
-        new HealthMetrics() {
-          @Override
-          public void onTagCardinalityBlocked(String[] tag, long count) {
-            tags.add(tag);
-            total[0] += count;
-          }
-        };
+    HealthMetrics hm = new HealthMetrics() {
+      @Override
+      public void onTagCardinalityBlocked(String[] tag, long count) {
+        tags.add(tag);
+        total[0] += count;
+      }
+    };
 
     schema.resetHandlers(hm, new CardinalityLimitReporter());
 

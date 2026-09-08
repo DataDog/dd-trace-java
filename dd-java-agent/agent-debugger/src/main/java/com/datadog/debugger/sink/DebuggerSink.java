@@ -73,16 +73,14 @@ public class DebuggerSink {
 
   public void start() {
     if (uploadFlushInterval == 0) {
-      flushIntervalScheduled =
-          lowRateScheduler.scheduleAtFixedRate(
-              this::reconsiderLowRateFlushInterval, this, 0, 200, TimeUnit.MILLISECONDS);
+      flushIntervalScheduled = lowRateScheduler.scheduleAtFixedRate(
+          this::reconsiderLowRateFlushInterval, this, 0, 200, TimeUnit.MILLISECONDS);
     } else {
       currentLowRateFlushInterval = uploadFlushInterval;
     }
     LOGGER.debug("Scheduling low rate debugger sink flush to {}ms", currentLowRateFlushInterval);
-    lowRateScheduled =
-        lowRateScheduler.scheduleAtFixedRate(
-            this::lowRateFlush, this, 0, currentLowRateFlushInterval, TimeUnit.MILLISECONDS);
+    lowRateScheduled = lowRateScheduler.scheduleAtFixedRate(
+        this::lowRateFlush, this, 0, currentLowRateFlushInterval, TimeUnit.MILLISECONDS);
     snapshotSink.start();
   }
 
@@ -142,13 +140,12 @@ public class DebuggerSink {
   private void lowRateReschedule() {
     cancelSchedule(this.lowRateScheduled);
     LOGGER.debug("Rescheduling low rate debugger sink flush to {}ms", currentLowRateFlushInterval);
-    this.lowRateScheduled =
-        lowRateScheduler.scheduleAtFixedRate(
-            this::lowRateFlush,
-            this,
-            currentLowRateFlushInterval,
-            currentLowRateFlushInterval,
-            TimeUnit.MILLISECONDS);
+    this.lowRateScheduled = lowRateScheduler.scheduleAtFixedRate(
+        this::lowRateFlush,
+        this,
+        currentLowRateFlushInterval,
+        currentLowRateFlushInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   @VisibleForTesting

@@ -109,9 +109,8 @@ class CommandLineTest {
 
   private static List<String> expectedArsFromArgFile(String name) {
     List<String> arguments = new ArrayList<>();
-    try (InputStream stream =
-            requireNonNull(
-                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+    try (InputStream stream = requireNonNull(
+            CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
       String line;
       while ((line = reader.readLine()) != null) {

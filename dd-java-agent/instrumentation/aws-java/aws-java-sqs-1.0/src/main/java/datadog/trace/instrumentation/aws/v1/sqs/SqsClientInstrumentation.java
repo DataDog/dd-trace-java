@@ -38,8 +38,7 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector"
+    return new String[] {packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector"
     };
   }
 
@@ -59,10 +58,8 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
             return; // list already has our interceptor, return to builder
           }
         }
-        handlers.add(
-            new SqsInterceptor(
-                InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+        handlers.add(new SqsInterceptor(InstrumentationContext.get(
+            "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
       }
     }
   }

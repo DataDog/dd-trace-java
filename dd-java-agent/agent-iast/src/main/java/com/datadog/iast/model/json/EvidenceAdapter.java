@@ -357,7 +357,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
   static class StringValuePart implements ValuePart {
 
-    @Nullable private final String value;
+    @Nullable
+    private final String value;
 
     private StringValuePart(@Nullable final String value) {
       this.value = value;
@@ -405,7 +406,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     private final List<Ranged> sensitiveRanges;
 
-    @Nullable private final Set<VulnerabilityType> markedTypes;
+    @Nullable
+    private final Set<VulnerabilityType> markedTypes;
 
     private RedactableTaintedValuePart(
         final JsonAdapter<Source> adapter,
@@ -416,11 +418,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       this.source = range.getSource();
       this.value = value;
       // shift ranges to the start of the tainted range and sort them
-      this.sensitiveRanges =
-          sensitive.stream()
-              .map(it -> shift(it, -range.getStart()))
-              .sorted(Comparator.comparing(Ranged::getStart))
-              .collect(Collectors.toList());
+      this.sensitiveRanges = sensitive.stream()
+          .map(it -> shift(it, -range.getStart()))
+          .sorted(Comparator.comparing(Ranged::getStart))
+          .collect(Collectors.toList());
 
       this.markedTypes = range.getMarkedVulnerabilities();
     }
@@ -488,9 +489,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           final int length = chunk.length();
           final String sourceValue = source.getValue();
           final String redactedValue = ctx.getRedactedValue();
-          final int matching =
-              matchingOffsets.computeIfAbsent(
-                  chunk, c -> sourceValue == null ? -1 : sourceValue.indexOf(c));
+          final int matching = matchingOffsets.computeIfAbsent(
+              chunk, c -> sourceValue == null ? -1 : sourceValue.indexOf(c));
           final String pattern;
           if (matching >= 0 && redactedValue != null) {
             // if matches append the matching part from the redacted value
@@ -518,7 +518,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     private final boolean redacted;
 
-    @Nullable private final Set<VulnerabilityType> markedTypes;
+    @Nullable
+    private final Set<VulnerabilityType> markedTypes;
 
     private TaintedValuePart(
         final JsonAdapter<Source> adapter,

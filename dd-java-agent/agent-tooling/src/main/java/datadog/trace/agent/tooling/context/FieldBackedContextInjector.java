@@ -50,19 +50,16 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
 
   static final String WEAK_REDIRECT_CLASS =
-      getInternalName(
-          (InstrumenterConfig.get().isRuntimeContextMapPerStore()
-                  ? WeakMapPerStore.class
-                  : GlobalObjectStore.class)
-              .getName());
+      getInternalName((InstrumenterConfig.get().isRuntimeContextMapPerStore()
+              ? WeakMapPerStore.class
+              : GlobalObjectStore.class)
+          .getName());
 
-  static final String WEAK_GET_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.getType(Object.class), Type.getType(Object.class), Type.INT_TYPE);
+  static final String WEAK_GET_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.getType(Object.class), Type.getType(Object.class), Type.INT_TYPE);
 
-  static final String WEAK_PUT_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.VOID_TYPE, Type.getType(Object.class), Type.INT_TYPE, Type.getType(Object.class));
+  static final String WEAK_PUT_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.VOID_TYPE, Type.getType(Object.class), Type.INT_TYPE, Type.getType(Object.class));
 
   static final String IS_ASSIGNABLE_FROM_METHOD = "isAssignableFrom";
   static final String IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR =
@@ -218,9 +215,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
             if (isMemoizingEnabled) {
               hasSuperStores = MemoizedMatchers.hasSuperStores(instrumentedType, weakStoreIds);
             } else {
-              hasSuperStores =
-                  ShouldInjectFieldsState.hasInjectedField(
-                      instrumentedType.getSuperClass(), weakStoreIds);
+              hasSuperStores = ShouldInjectFieldsState.hasInjectedField(
+                  instrumentedType.getSuperClass(), weakStoreIds);
             }
 
             if (!foundGetter) {

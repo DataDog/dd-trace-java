@@ -112,8 +112,9 @@ class TestAgentBackendContainerTest {
   void externalBackendReadsFromRunningAgent() throws IOException {
     // Point an .external() backend at the same running container: exercises the external code path
     // (no container of its own) and, via its own fresh token, that sessions are isolated.
-    TestAgentBackend external =
-        AgentBackend.testAgentBuilder().external(backend.url().getHost(), backend.port()).build();
+    TestAgentBackend external = AgentBackend.testAgentBuilder()
+        .external(backend.url().getHost(), backend.port())
+        .build();
     external.start();
     try {
       submitAppTraces(external.url(), external.sessionToken(), v04Payload);
@@ -129,20 +130,23 @@ class TestAgentBackendContainerTest {
   void reportsTraceInvariantFailures() throws IOException {
     // Its own session token keeps the failure out of the class backend's session, whose teardown
     // asserts there are none (the agent only drops pooled failures on an explicit clear).
-    TestAgentBackend external =
-        AgentBackend.testAgentBuilder().external(backend.url().getHost(), backend.port()).build();
+    TestAgentBackend external = AgentBackend.testAgentBuilder()
+        .external(backend.url().getHost(), backend.port())
+        .build();
     external.start();
     try {
       // A trace-count header that disagrees with the payload violates trace_count_header.
-      HttpUrl url = HttpUrl.get(external.url()).newBuilder().addPathSegments("v0.4/traces").build();
-      Request request =
-          new Request.Builder()
-              .url(url)
-              .header("X-Datadog-Trace-Count", "5")
-              .header("Datadog-Meta-Tracer-Version", "0.0.0-smoke-test")
-              .header("X-Datadog-Test-Session-Token", external.sessionToken())
-              .put(RequestBody.create(MSGPACK, v04Payload))
-              .build();
+      HttpUrl url = HttpUrl.get(external.url())
+          .newBuilder()
+          .addPathSegments("v0.4/traces")
+          .build();
+      Request request = new Request.Builder()
+          .url(url)
+          .header("X-Datadog-Trace-Count", "5")
+          .header("Datadog-Meta-Tracer-Version", "0.0.0-smoke-test")
+          .header("X-Datadog-Test-Session-Token", external.sessionToken())
+          .put(RequestBody.create(MSGPACK, v04Payload))
+          .build();
       try (Response response = CLIENT.newCall(request).execute()) {
         assertTrue(response.isSuccessful(), "submission still succeeds: HTTP " + response.code());
       }
@@ -158,23 +162,20 @@ class TestAgentBackendContainerTest {
   @Test
   void capturesTelemetry() throws IOException {
     // Post a telemetry app-started message; the backend reads it back from /test/apmtelemetry.
-    HttpUrl url =
-        HttpUrl.get(backend.url())
-            .newBuilder()
-            .addPathSegments("telemetry/proxy/api/v2/apmtelemetry")
-            .build();
-    Request request =
-        new Request.Builder()
-            .url(url)
-            .header("DD-Telemetry-API-Version", "v2")
-            .header("DD-Telemetry-Request-Type", "app-started")
-            .header("X-Datadog-Test-Session-Token", backend.sessionToken())
-            .post(
-                RequestBody.create(
-                    MediaType.parse("application/json"),
-                    "{\"request_type\":\"app-started\",\"api_version\":\"v2\","
-                        + "\"runtime_id\":\"r1\",\"seq_id\":1,\"payload\":{}}"))
-            .build();
+    HttpUrl url = HttpUrl.get(backend.url())
+        .newBuilder()
+        .addPathSegments("telemetry/proxy/api/v2/apmtelemetry")
+        .build();
+    Request request = new Request.Builder()
+        .url(url)
+        .header("DD-Telemetry-API-Version", "v2")
+        .header("DD-Telemetry-Request-Type", "app-started")
+        .header("X-Datadog-Test-Session-Token", backend.sessionToken())
+        .post(RequestBody.create(
+            MediaType.parse("application/json"),
+            "{\"request_type\":\"app-started\",\"api_version\":\"v2\","
+                + "\"runtime_id\":\"r1\",\"seq_id\":1,\"payload\":{}}"))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertTrue(response.isSuccessful(), "telemetry accepted: HTTP " + response.code());
     }
@@ -189,13 +190,13 @@ class TestAgentBackendContainerTest {
 
   private static String pollRemoteConfig(URI agentUrl, String token) throws IOException {
     // Poll /v0.7/config the way a tracer does; the agent returns the session's stored RC response.
-    HttpUrl url = HttpUrl.get(agentUrl).newBuilder().addPathSegments("v0.7/config").build();
-    Request request =
-        new Request.Builder()
-            .url(url)
-            .header("X-Datadog-Test-Session-Token", token)
-            .post(RequestBody.create(JSON, "{}"))
-            .build();
+    HttpUrl url =
+        HttpUrl.get(agentUrl).newBuilder().addPathSegments("v0.7/config").build();
+    Request request = new Request.Builder()
+        .url(url)
+        .header("X-Datadog-Test-Session-Token", token)
+        .post(RequestBody.create(JSON, "{}"))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertTrue(response.isSuccessful(), "poll /v0.7/config: HTTP " + response.code());
       return response.body().string();
@@ -204,15 +205,15 @@ class TestAgentBackendContainerTest {
 
   private static void submitAppTraces(URI agentUrl, String token, byte[] payload)
       throws IOException {
-    HttpUrl url = HttpUrl.get(agentUrl).newBuilder().addPathSegments("v0.4/traces").build();
-    Request request =
-        new Request.Builder()
-            .url(url)
-            .header("X-Datadog-Trace-Count", "1")
-            .header("Datadog-Meta-Tracer-Version", "0.0.0-smoke-test")
-            .header("X-Datadog-Test-Session-Token", token)
-            .put(RequestBody.create(MSGPACK, payload))
-            .build();
+    HttpUrl url =
+        HttpUrl.get(agentUrl).newBuilder().addPathSegments("v0.4/traces").build();
+    Request request = new Request.Builder()
+        .url(url)
+        .header("X-Datadog-Trace-Count", "1")
+        .header("Datadog-Meta-Tracer-Version", "0.0.0-smoke-test")
+        .header("X-Datadog-Test-Session-Token", token)
+        .put(RequestBody.create(MSGPACK, payload))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertTrue(
           response.isSuccessful(), "test agent accepts trace submission: HTTP " + response.code());

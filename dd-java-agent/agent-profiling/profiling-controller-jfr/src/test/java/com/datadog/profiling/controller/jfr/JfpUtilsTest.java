@@ -61,11 +61,8 @@ public class JfpUtilsTest {
     assertEquals("true", config.get("jdk.ExecuteVMOperation#enabled"));
     config
         .keySet()
-        .forEach(
-            key ->
-                assertTrue(
-                    key.startsWith("jdk.Safepoint")
-                        || key.equals("jdk.ExecuteVMOperation#enabled")));
+        .forEach(key -> assertTrue(
+            key.startsWith("jdk.Safepoint") || key.equals("jdk.ExecuteVMOperation#enabled")));
   }
 
   @ParameterizedTest

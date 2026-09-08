@@ -48,10 +48,8 @@ public class ProtoFilter implements ScopeFilter {
     return scope.getScopeType() == ScopeType.CLASS
         && scope.getSymbols() != null
         && scope.getSymbols().stream()
-            .anyMatch(
-                it ->
-                    it.getSymbolType() == SymbolType.STATIC_FIELD
-                        && it.getType() != null
-                        && it.getType().contains("com.google.protobuf.Descriptors"));
+            .anyMatch(it -> it.getSymbolType() == SymbolType.STATIC_FIELD
+                && it.getType() != null
+                && it.getType().contains("com.google.protobuf.Descriptors"));
   }
 }

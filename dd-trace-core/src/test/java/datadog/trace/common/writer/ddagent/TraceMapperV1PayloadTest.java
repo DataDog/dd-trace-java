@@ -84,40 +84,36 @@ class TraceMapperV1PayloadTest {
   private static final String DECISION_MAKER_TAG = "_dd.p.dm";
 
   /** Every field the v1 payload header carries, mirroring {@code TraceMapperV1.buildHeader}. */
-  private static final Set<Integer> EXPECTED_PAYLOAD_FIELD_IDS =
-      new HashSet<>(
-          asList(
-              PayloadField.CONTAINER_ID,
-              PayloadField.LANGUAGE_NAME,
-              PayloadField.LANGUAGE_VERSION,
-              PayloadField.TRACER_VERSION,
-              PayloadField.RUNTIME_ID,
-              PayloadField.ENV,
-              PayloadField.HOSTNAME,
-              PayloadField.APP_VERSION,
-              PayloadField.ATTRIBUTES,
-              PayloadField.CHUNKS));
+  private static final Set<Integer> EXPECTED_PAYLOAD_FIELD_IDS = new HashSet<>(asList(
+      PayloadField.CONTAINER_ID,
+      PayloadField.LANGUAGE_NAME,
+      PayloadField.LANGUAGE_VERSION,
+      PayloadField.TRACER_VERSION,
+      PayloadField.RUNTIME_ID,
+      PayloadField.ENV,
+      PayloadField.HOSTNAME,
+      PayloadField.APP_VERSION,
+      PayloadField.ATTRIBUTES,
+      PayloadField.CHUNKS));
 
   /** Every field a v1 span carries, mirroring {@code TraceMapperV1.encodeSpans}. */
-  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS =
-      new HashSet<>(
-          asList(
-              SpanField.SERVICE,
-              SpanField.NAME,
-              SpanField.RESOURCE,
-              SpanField.SPAN_ID,
-              SpanField.PARENT_ID,
-              SpanField.START,
-              SpanField.DURATION,
-              SpanField.ERROR,
-              SpanField.ATTRIBUTES,
-              SpanField.TYPE,
-              SpanField.LINKS,
-              SpanField.EVENTS,
-              SpanField.ENV,
-              SpanField.VERSION,
-              SpanField.COMPONENT,
-              SpanField.KIND));
+  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS = new HashSet<>(asList(
+      SpanField.SERVICE,
+      SpanField.NAME,
+      SpanField.RESOURCE,
+      SpanField.SPAN_ID,
+      SpanField.PARENT_ID,
+      SpanField.START,
+      SpanField.DURATION,
+      SpanField.ERROR,
+      SpanField.ATTRIBUTES,
+      SpanField.TYPE,
+      SpanField.LINKS,
+      SpanField.EVENTS,
+      SpanField.ENV,
+      SpanField.VERSION,
+      SpanField.COMPONENT,
+      SpanField.KIND));
 
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
@@ -189,24 +185,23 @@ class TraceMapperV1PayloadTest {
     tags.put("attr.string", "value");
     tags.put("attr.bool", true);
     tags.put("attr.number", 12.5d);
-    PojoSpan span =
-        new PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            1,
-            singletonMap(DECISION_MAKER_TAG, "-3"),
-            tags,
-            "web",
-            false,
-            SAMPLER_KEEP,
-            200,
-            "rum");
+    PojoSpan span = new PojoSpan(
+        "service-a",
+        "operation-a",
+        "resource-a",
+        DDTraceId.ONE,
+        123L,
+        0L,
+        1000L,
+        2000L,
+        1,
+        singletonMap(DECISION_MAKER_TAG, "-3"),
+        tags,
+        "web",
+        false,
+        SAMPLER_KEEP,
+        200,
+        "rum");
 
     byte[] encoded = serializeV1Payload(span);
     List<String> stringTable = newStringTable();
@@ -326,17 +321,17 @@ class TraceMapperV1PayloadTest {
     DDTraceId secondLinkTraceId = DDTraceId.fromHex("00000000000000000000000000000001");
     long secondLinkSpanId = DDSpanId.fromHex("0000000000000002");
     List<AgentSpanLink> spanLinks = new ArrayList<>();
-    spanLinks.add(
-        new TestSpanLink(
-            firstLinkTraceId,
-            firstLinkSpanId,
-            (byte) 1,
-            "dd=s:1",
-            SpanAttributes.fromMap(firstLinkAttributes)));
+    spanLinks.add(new TestSpanLink(
+        firstLinkTraceId,
+        firstLinkSpanId,
+        (byte) 1,
+        "dd=s:1",
+        SpanAttributes.fromMap(firstLinkAttributes)));
     spanLinks.add(
         new TestSpanLink(secondLinkTraceId, secondLinkSpanId, (byte) 0, "", SpanAttributes.EMPTY));
 
-    List<V1SpanLink> links = readFirstSpan(serializeV1Payload(spanWithLinks(spanLinks))).getLinks();
+    List<V1SpanLink> links =
+        readFirstSpan(serializeV1Payload(spanWithLinks(spanLinks))).getLinks();
 
     assertEquals(2, links.size());
     V1SpanLink firstLink = links.get(0);

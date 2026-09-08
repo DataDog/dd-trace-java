@@ -71,11 +71,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   public String resourceNameForConnection(final RedisURI redisURI) {
-    return "CONNECT:"
-        + redisURI.getHost()
-        + ":"
-        + redisURI.getPort()
-        + "/"
+    return "CONNECT:" + redisURI.getHost() + ":" + redisURI.getPort() + "/"
         + redisURI.getDatabase();
   }
 }

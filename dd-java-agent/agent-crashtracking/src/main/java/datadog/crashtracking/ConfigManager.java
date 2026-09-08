@@ -201,9 +201,8 @@ public class ConfigManager {
     final WellKnownTags wellKnownTags = config.getWellKnownTags();
 
     LOGGER.debug("Writing config file: {}", cfgFile);
-    try (BufferedWriter bw =
-        new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(cfgFile), StandardCharsets.UTF_8))) {
+    try (BufferedWriter bw = new BufferedWriter(
+        new OutputStreamWriter(new FileOutputStream(cfgFile), StandardCharsets.UTF_8))) {
       for (int i = 0; i < additionalEntries.length; i += 2) {
         writeEntry(bw, additionalEntries[i], additionalEntries[i + 1]);
       }
@@ -219,14 +218,10 @@ public class ConfigManager {
       writeEntry(
           bw, "extended_info", Boolean.toString(config.isCrashTrackingExtendedInfoEnabled()));
 
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  AGENT_THREAD_GROUP,
-                  () -> {
-                    LOGGER.debug("Deleting config file: {}", cfgFile);
-                    cfgFile.delete();
-                  }));
+      Runtime.getRuntime().addShutdownHook(new Thread(AGENT_THREAD_GROUP, () -> {
+        LOGGER.debug("Deleting config file: {}", cfgFile);
+        cfgFile.delete();
+      }));
       LOGGER.debug("Config file written: {}", cfgFile);
     } catch (IOException e) {
       LOGGER.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgFile);
@@ -236,9 +231,8 @@ public class ConfigManager {
 
   @Nullable
   public static StoredConfig readConfig(Config config, File scriptFile) {
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8))) {
+    try (final BufferedReader reader = new BufferedReader(
+        new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8))) {
       final StoredConfig.Builder cfgBuilder = new StoredConfig.Builder(config);
       String line;
       while ((line = reader.readLine()) != null) {

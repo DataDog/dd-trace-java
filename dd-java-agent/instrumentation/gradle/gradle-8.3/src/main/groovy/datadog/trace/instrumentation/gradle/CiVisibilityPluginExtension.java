@@ -92,10 +92,9 @@ public abstract class CiVisibilityPluginExtension {
     javaCompile.setClasspath(updatedClasspath);
 
     FileCollection annotationProcessorPath = options.getAnnotationProcessorPath();
-    FileCollection updatedAnnotationProcessorPath =
-        annotationProcessorPath != null
-            ? annotationProcessorPath.plus(compilerPluginClasspath)
-            : compilerPluginClasspath;
+    FileCollection updatedAnnotationProcessorPath = annotationProcessorPath != null
+        ? annotationProcessorPath.plus(compilerPluginClasspath)
+        : compilerPluginClasspath;
     options.setAnnotationProcessorPath(updatedAnnotationProcessorPath);
 
     CommandLineArgumentProvider argumentProvider =
@@ -170,12 +169,10 @@ public abstract class CiVisibilityPluginExtension {
           new ArrayList<>(ciVisibilityService.getExcludeClassLoaders()));
     }
 
-    jacocoTaskExtension.setIncludes(
-        merge(
-            jacocoTaskExtension.getIncludes(), ciVisibilityService.getCoverageIncludedPackages()));
-    jacocoTaskExtension.setExcludes(
-        merge(
-            jacocoTaskExtension.getExcludes(), ciVisibilityService.getCoverageExcludedPackages()));
+    jacocoTaskExtension.setIncludes(merge(
+        jacocoTaskExtension.getIncludes(), ciVisibilityService.getCoverageIncludedPackages()));
+    jacocoTaskExtension.setExcludes(merge(
+        jacocoTaskExtension.getExcludes(), ciVisibilityService.getCoverageExcludedPackages()));
   }
 
   @SafeVarargs

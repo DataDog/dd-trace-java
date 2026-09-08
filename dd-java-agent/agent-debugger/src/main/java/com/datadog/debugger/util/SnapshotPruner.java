@@ -33,12 +33,11 @@ public class SnapshotPruner {
     SnapshotPruner snapshotPruner = new SnapshotPruner(snapshot);
     Collection<Node> leaves = snapshotPruner.getLeaves(minLevel);
     PriorityQueue<Node> sortedLeaves =
-        new PriorityQueue<>(
-            Comparator.comparing((Node n) -> n.notCapturedDepth)
-                .thenComparingInt((Node n) -> n.level)
-                .thenComparing((Node n) -> n.notCaptured)
-                .thenComparingInt(Node::size)
-                .reversed());
+        new PriorityQueue<>(Comparator.comparing((Node n) -> n.notCapturedDepth)
+            .thenComparingInt((Node n) -> n.level)
+            .thenComparing((Node n) -> n.notCaptured)
+            .thenComparingInt(Node::size)
+            .reversed());
     sortedLeaves.addAll(leaves);
     int total = 0;
     Map<Integer, Node> nodes = new HashMap<>();
@@ -98,43 +97,39 @@ public class SnapshotPruner {
       @Override
       public State parse(SnapshotPruner pruner, char c, int index) {
         switch (c) {
-          case '{':
-            {
-              Node n = new Node(index, pruner.currentLevel);
-              pruner.currentLevel++;
-              if (!pruner.stack.isEmpty()) {
-                n.parent = pruner.stack.peekLast();
-                n.parent.children.add(n);
+          case '{': {
+            Node n = new Node(index, pruner.currentLevel);
+            pruner.currentLevel++;
+            if (!pruner.stack.isEmpty()) {
+              n.parent = pruner.stack.peekLast();
+              n.parent.children.add(n);
+            }
+            pruner.stack.addLast(n);
+            return this;
+          }
+          case '}': {
+            Node n = pruner.stack.removeLast();
+            n.end = index;
+            pruner.currentLevel--;
+            if (pruner.stack.isEmpty()) {
+              pruner.root = n;
+              return null;
+            }
+            return this;
+          }
+          case '"': {
+            pruner.strMatchIdx = 0;
+            pruner.matchingString = NOT_CAPTURED_REASON;
+            pruner.onStringMatches = () -> {
+              Node n = pruner.stack.peekLast();
+              if (n == null) {
+                throw new IllegalStateException("empty stack");
               }
-              pruner.stack.addLast(n);
-              return this;
-            }
-          case '}':
-            {
-              Node n = pruner.stack.removeLast();
-              n.end = index;
-              pruner.currentLevel--;
-              if (pruner.stack.isEmpty()) {
-                pruner.root = n;
-                return null;
-              }
-              return this;
-            }
-          case '"':
-            {
-              pruner.strMatchIdx = 0;
-              pruner.matchingString = NOT_CAPTURED_REASON;
-              pruner.onStringMatches =
-                  () -> {
-                    Node n = pruner.stack.peekLast();
-                    if (n == null) {
-                      throw new IllegalStateException("empty stack");
-                    }
-                    n.notCaptured = true;
-                    return NOT_CAPTURED;
-                  };
-              return STRING;
-            }
+              n.notCaptured = true;
+              return NOT_CAPTURED;
+            };
+            return STRING;
+          }
           default:
             return this;
         }
@@ -144,18 +139,16 @@ public class SnapshotPruner {
       @Override
       public State parse(SnapshotPruner pruner, char c, int index) {
         switch (c) {
-          case '"':
-            {
-              if (pruner.strMatchIdx == pruner.matchingString.length()) {
-                return pruner.onStringMatches.get();
-              }
-              return OBJECT;
+          case '"': {
+            if (pruner.strMatchIdx == pruner.matchingString.length()) {
+              return pruner.onStringMatches.get();
             }
-          case '\\':
-            {
-              pruner.strMatchIdx = -1;
-              return ESCAPE;
-            }
+            return OBJECT;
+          }
+          case '\\': {
+            pruner.strMatchIdx = -1;
+            return ESCAPE;
+          }
           default:
             if (pruner.strMatchIdx > -1) {
               char current = pruner.matchingString.charAt(pruner.strMatchIdx++);
@@ -171,21 +164,19 @@ public class SnapshotPruner {
       @Override
       public State parse(SnapshotPruner pruner, char c, int index) {
         switch (c) {
-          case '"':
-            {
-              pruner.strMatchIdx = 0;
-              pruner.matchingString = DEPTH;
-              pruner.onStringMatches =
-                  () -> {
-                    Node n = pruner.stack.peekLast();
-                    if (n == null) {
-                      throw new IllegalStateException("empty stack");
-                    }
-                    n.notCapturedDepth = true;
-                    return OBJECT;
-                  };
-              return STRING;
-            }
+          case '"': {
+            pruner.strMatchIdx = 0;
+            pruner.matchingString = DEPTH;
+            pruner.onStringMatches = () -> {
+              Node n = pruner.stack.peekLast();
+              if (n == null) {
+                throw new IllegalStateException("empty stack");
+              }
+              n.notCapturedDepth = true;
+              return OBJECT;
+            };
+            return STRING;
+          }
           case ' ':
           case ':':
           case '\n':

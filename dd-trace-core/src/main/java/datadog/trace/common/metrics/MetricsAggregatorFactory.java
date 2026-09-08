@@ -22,23 +22,21 @@ public class MetricsAggregatorFactory {
     // the injected MetricWriter.
     if (config.isOtelTracesSpanMetricsEnabled()) {
       if (config.isTracerMetricsEnabled()) {
-        log.warn(
-            "Both OTLP trace span metrics and native tracer metrics are enabled; "
-                + "using OTLP export and ignoring native tracer metrics (the two are mutually "
-                + "exclusive).");
+        log.warn("Both OTLP trace span metrics and native tracer metrics are enabled; "
+            + "using OTLP export and ignoring native tracer metrics (the two are mutually "
+            + "exclusive).");
       }
       if (!config.isMetricsOtlpExporterEnabled()) {
-        log.warn(
-            "OTLP trace span metrics are enabled but the OTLP metrics exporter is not enabled "
-                + "("
-                + METRICS_OTEL_EXPORTER
-                + " is not 'otlp'); span metrics will still be exported over "
-                + "OTLP using the otlp.metrics.* transport settings. Set "
-                + METRICS_OTEL_EXPORTER
-                + "=otlp "
-                + "to make this explicit, or disable "
-                + OTEL_TRACES_SPAN_METRICS_ENABLED
-                + " to suppress them.");
+        log.warn("OTLP trace span metrics are enabled but the OTLP metrics exporter is not enabled "
+            + "("
+            + METRICS_OTEL_EXPORTER
+            + " is not 'otlp'); span metrics will still be exported over "
+            + "OTLP using the otlp.metrics.* transport settings. Set "
+            + METRICS_OTEL_EXPORTER
+            + "=otlp "
+            + "to make this explicit, or disable "
+            + OTEL_TRACES_SPAN_METRICS_ENABLED
+            + " to suppress them.");
       }
       log.debug("OTLP trace span metrics enabled");
       return new ClientStatsAggregator(

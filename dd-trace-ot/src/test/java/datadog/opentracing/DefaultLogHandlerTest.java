@@ -31,7 +31,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheErrorPassedInTheFields() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     String differentMessage = "differentMessage";
     Throwable error = new Throwable(errorMessage);
@@ -48,7 +49,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheErrorPassedInTheFieldsWhenCalledWithTimestamp() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     String differentMessage = "differentMessage";
     Throwable error = new Throwable(errorMessage);
@@ -65,7 +67,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsButSpanIsNotAnError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     fields.put(Fields.MESSAGE, errorMessage);
@@ -78,7 +81,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsCalledWithTimestampButSpanIsNotAnError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     fields.put(Fields.MESSAGE, errorMessage);
@@ -91,7 +95,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsWhenSpanIsError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     span.setError(true);
@@ -105,7 +110,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsCalledWithTimestampWhenSpanIsError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     span.setError(true);
@@ -119,7 +125,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsWhenEventIsError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     fields.put(Fields.EVENT, "error");
@@ -133,7 +140,8 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
   @Test
   void handlesCorrectlyTheMessageInTheFieldsCalledWithTimestampWhenEventIsError() {
     LogHandler underTest = new DefaultLogHandler();
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "op name").withServiceName("foo").start();
     String errorMessage = "errorMessage";
     Map<String, Object> fields = new HashMap<>();
     fields.put(Fields.EVENT, "error");
@@ -194,9 +202,11 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
     String expectedLogEvent = "fakeEvent";
     long timeStamp = System.currentTimeMillis();
 
-    DDTracer loggingTracer = DDTracer.builder().writer(writer).logHandler(logHandler).build();
+    DDTracer loggingTracer =
+        DDTracer.builder().writer(writer).logHandler(logHandler).build();
     try {
-      OTSpan span = (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
+      OTSpan span =
+          (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
 
       span.log(timeStamp, expectedLogEvent);
 
@@ -212,9 +222,11 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
     String expectedName = "fakeName";
     String expectedLogEvent = "fakeEvent";
 
-    DDTracer loggingTracer = DDTracer.builder().writer(writer).logHandler(logHandler).build();
+    DDTracer loggingTracer =
+        DDTracer.builder().writer(writer).logHandler(logHandler).build();
     try {
-      OTSpan span = (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
+      OTSpan span =
+          (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
 
       span.log(expectedLogEvent);
 
@@ -230,9 +242,11 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
     String expectedName = "fakeName";
     Map<String, String> fieldsMap = new HashMap<>();
 
-    DDTracer loggingTracer = DDTracer.builder().writer(writer).logHandler(logHandler).build();
+    DDTracer loggingTracer =
+        DDTracer.builder().writer(writer).logHandler(logHandler).build();
     try {
-      OTSpan span = (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
+      OTSpan span =
+          (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
 
       span.log(fieldsMap);
 
@@ -249,9 +263,11 @@ class DefaultLogHandlerTest extends DDJavaSpecification {
     Map<String, String> fieldsMap = new HashMap<>();
     long timeStamp = System.currentTimeMillis();
 
-    DDTracer loggingTracer = DDTracer.builder().writer(writer).logHandler(logHandler).build();
+    DDTracer loggingTracer =
+        DDTracer.builder().writer(writer).logHandler(logHandler).build();
     try {
-      OTSpan span = (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
+      OTSpan span =
+          (OTSpan) loggingTracer.buildSpan(expectedName).withServiceName("foo").start();
 
       span.log(timeStamp, fieldsMap);
 

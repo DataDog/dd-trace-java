@@ -67,32 +67,28 @@ public class CaseInsensitiveMapBenchmark {
     return supplier.get();
   }
 
-  static final String[] UPPER_PREFIXES =
-      init(
-          () -> {
-            String[] upperPrefixes = new String[PREFIXES.length];
-            for (int i = 0; i < PREFIXES.length; ++i) {
-              upperPrefixes[i] = PREFIXES[i].toUpperCase();
-            }
-            return upperPrefixes;
-          });
+  static final String[] UPPER_PREFIXES = init(() -> {
+    String[] upperPrefixes = new String[PREFIXES.length];
+    for (int i = 0; i < PREFIXES.length; ++i) {
+      upperPrefixes[i] = PREFIXES[i].toUpperCase();
+    }
+    return upperPrefixes;
+  });
 
-  static final String[] LOOKUP_KEYS =
-      init(
-          () -> {
-            ThreadLocalRandom curRandom = ThreadLocalRandom.current();
+  static final String[] LOOKUP_KEYS = init(() -> {
+    ThreadLocalRandom curRandom = ThreadLocalRandom.current();
 
-            String[] keys = new String[32];
-            for (int i = 0; i < keys.length; ++i) {
-              int prefixIndex = curRandom.nextInt(PREFIXES.length);
-              boolean toUpper = curRandom.nextBoolean();
-              int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
+    String[] keys = new String[32];
+    for (int i = 0; i < keys.length; ++i) {
+      int prefixIndex = curRandom.nextInt(PREFIXES.length);
+      boolean toUpper = curRandom.nextBoolean();
+      int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
 
-              String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
-              keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
-            }
-            return keys;
-          });
+      String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
+      keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
+    }
+    return keys;
+  });
 
   // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
   // The maps stay static/shared (read-only after class-init); only the index is per-thread. A

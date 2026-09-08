@@ -76,11 +76,9 @@ public class TraceMapperBenchmark {
       String feature = mapperAndFeatures[i];
       switch (feature) {
         case "x-dth":
-          propagationTags =
-              PropagationTags.factory()
-                  .fromHeaderValue(
-                      PropagationTags.HeaderType.DATADOG,
-                      "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+          propagationTags = PropagationTags.factory()
+              .fromHeaderValue(
+                  PropagationTags.HeaderType.DATADOG, "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
           break;
         default:
           throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");
@@ -94,35 +92,32 @@ public class TraceMapperBenchmark {
 
     writable = new MsgPackWriter(new BlackholeBuffer(blackhole));
 
-    tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .build();
+    tracer = CoreTracer.builder()
+        .strictTraceWrites(true) // Avoid any extra bookkeeping for traces since we write directly
+        .build();
 
     DDTraceId traceId = DDTraceId.ONE;
     TraceCollector traceCollector = tracer.createTraceCollector(traceId);
-    DDSpanContext rootContext =
-        new DDSpanContext(
-            traceId,
-            2,
-            DDSpanId.ZERO,
-            null,
-            "service",
-            UTF8BytesString.create("operation"),
-            UTF8BytesString.create("resource"),
-            PrioritySampling.SAMPLER_KEEP,
-            null,
-            Collections.<String, String>emptyMap(),
-            false,
-            UTF8BytesString.create("type"),
-            0,
-            traceCollector,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags);
+    DDSpanContext rootContext = new DDSpanContext(
+        traceId,
+        2,
+        DDSpanId.ZERO,
+        null,
+        "service",
+        UTF8BytesString.create("operation"),
+        UTF8BytesString.create("resource"),
+        PrioritySampling.SAMPLER_KEEP,
+        null,
+        Collections.<String, String>emptyMap(),
+        false,
+        UTF8BytesString.create("type"),
+        0,
+        traceCollector,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        propagationTags);
     DDSpanHelper.setAllTags(rootContext, tags);
     DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));

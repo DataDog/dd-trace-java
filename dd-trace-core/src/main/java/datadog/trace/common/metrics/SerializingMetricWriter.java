@@ -55,10 +55,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
 
   private static final Function<GitInfo, UTF8BytesString> SHA_COMMIT_GETTER =
-      gitInfo ->
-          gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
-              ? UTF8BytesString.create(gitInfo.getCommit().getSha())
-              : EMPTY;
+      gitInfo -> gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
+          ? UTF8BytesString.create(gitInfo.getCommit().getSha())
+          : EMPTY;
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
@@ -186,13 +185,12 @@ public final class SerializingMetricWriter implements MetricWriter {
     final UTF8BytesString[] additionalTags = entry.getAdditionalTags();
     // When the feature is configured the field is always emitted (empty array for entries that
     // matched no key); when it is off the field is omitted entirely so non-users pay nothing.
-    final int mapSize =
-        15
-            + (hasServiceSource ? 1 : 0)
-            + (hasHttpMethod ? 1 : 0)
-            + (hasHttpEndpoint ? 1 : 0)
-            + (hasGrpcStatusCode ? 1 : 0)
-            + (additionalTagsConfigured ? 1 : 0);
+    final int mapSize = 15
+        + (hasServiceSource ? 1 : 0)
+        + (hasHttpMethod ? 1 : 0)
+        + (hasHttpEndpoint ? 1 : 0)
+        + (hasGrpcStatusCode ? 1 : 0)
+        + (additionalTagsConfigured ? 1 : 0);
 
     writer.startMap(mapSize);
 

@@ -313,10 +313,9 @@ class ComparisonExpressionTest {
   void invalidInstanceofOperand() {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new NumericValue(1, INT), INSTANCEOF);
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
+    EvaluationException evaluationException = assertThrows(
+        EvaluationException.class,
+        () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(
         "Right operand of instanceof operator must be a string literal",
         evaluationException.getMessage());
@@ -327,10 +326,9 @@ class ComparisonExpressionTest {
   void invalidInstanceofClassName() {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new StringValue("String"), INSTANCEOF);
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
+    EvaluationException evaluationException = assertThrows(
+        EvaluationException.class,
+        () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals("Class not found: String", evaluationException.getMessage());
     assertEquals("\"foo\" instanceof \"String\"", evaluationException.getExpr());
   }

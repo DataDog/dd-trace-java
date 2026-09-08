@@ -66,17 +66,15 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
           new ScheduledRetryingExecutor<>(retryAlgorithm(3), scheduler);
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(1);
-      RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  return "ok";
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+      RetryingFuture<String> future = executor.createFuture(() -> {
+        AgentSpan attempt = startSpan("gax", "attempt");
+        try {
+          return "ok";
+        } finally {
+          attempt.finish();
+          allAttemptsDone.countDown();
+        }
+      });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
@@ -84,11 +82,10 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       }
       allAttemptsDone.await(5, TimeUnit.SECONDS);
       parent.finish();
-      assertTraces(
-          trace(
-              SORT_BY_START_TIME,
-              span().root().operationName("publish"),
-              span().childOf(parent.getSpanId()).operationName("attempt")));
+      assertTraces(trace(
+          SORT_BY_START_TIME,
+          span().root().operationName("publish"),
+          span().childOf(parent.getSpanId()).operationName("attempt")));
     } finally {
       scheduler.shutdownNow();
     }
@@ -103,20 +100,18 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       AtomicInteger count = new AtomicInteger(0);
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(3);
-      RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  if (count.incrementAndGet() < 3) {
-                    throw new RuntimeException("transient");
-                  }
-                  return "ok";
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+      RetryingFuture<String> future = executor.createFuture(() -> {
+        AgentSpan attempt = startSpan("gax", "attempt");
+        try {
+          if (count.incrementAndGet() < 3) {
+            throw new RuntimeException("transient");
+          }
+          return "ok";
+        } finally {
+          attempt.finish();
+          allAttemptsDone.countDown();
+        }
+      });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
@@ -124,13 +119,12 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       }
       allAttemptsDone.await(5, TimeUnit.SECONDS);
       parent.finish();
-      assertTraces(
-          trace(
-              SORT_BY_START_TIME,
-              span().root().operationName("publish"),
-              span().childOf(parent.getSpanId()).operationName("attempt"),
-              span().childOf(parent.getSpanId()).operationName("attempt"),
-              span().childOf(parent.getSpanId()).operationName("attempt")));
+      assertTraces(trace(
+          SORT_BY_START_TIME,
+          span().root().operationName("publish"),
+          span().childOf(parent.getSpanId()).operationName("attempt"),
+          span().childOf(parent.getSpanId()).operationName("attempt"),
+          span().childOf(parent.getSpanId()).operationName("attempt")));
     } finally {
       scheduler.shutdownNow();
     }
@@ -144,17 +138,15 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
           new ScheduledRetryingExecutor<>(retryAlgorithm(3), scheduler);
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(3);
-      RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  throw new RuntimeException("always fails");
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+      RetryingFuture<String> future = executor.createFuture(() -> {
+        AgentSpan attempt = startSpan("gax", "attempt");
+        try {
+          throw new RuntimeException("always fails");
+        } finally {
+          attempt.finish();
+          allAttemptsDone.countDown();
+        }
+      });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
@@ -162,30 +154,28 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       }
       allAttemptsDone.await(5, TimeUnit.SECONDS);
       parent.finish();
-      assertTraces(
-          trace(
-              SORT_BY_START_TIME,
-              span().root().operationName("publish"),
-              span().childOf(parent.getSpanId()).operationName("attempt"),
-              span().childOf(parent.getSpanId()).operationName("attempt"),
-              span().childOf(parent.getSpanId()).operationName("attempt")));
+      assertTraces(trace(
+          SORT_BY_START_TIME,
+          span().root().operationName("publish"),
+          span().childOf(parent.getSpanId()).operationName("attempt"),
+          span().childOf(parent.getSpanId()).operationName("attempt"),
+          span().childOf(parent.getSpanId()).operationName("attempt")));
     } finally {
       scheduler.shutdownNow();
     }
   }
 
   private static RetryAlgorithm<String> retryAlgorithm(int maxAttempts) {
-    RetrySettings settings =
-        RetrySettings.newBuilder()
-            .setMaxAttempts(maxAttempts)
-            .setInitialRetryDelay(Duration.ofMillis(1))
-            .setRetryDelayMultiplier(1.0)
-            .setMaxRetryDelay(Duration.ofMillis(10))
-            .setInitialRpcTimeout(Duration.ofSeconds(5))
-            .setRpcTimeoutMultiplier(1.0)
-            .setMaxRpcTimeout(Duration.ofSeconds(5))
-            .setTotalTimeout(Duration.ofSeconds(30))
-            .build();
+    RetrySettings settings = RetrySettings.newBuilder()
+        .setMaxAttempts(maxAttempts)
+        .setInitialRetryDelay(Duration.ofMillis(1))
+        .setRetryDelayMultiplier(1.0)
+        .setMaxRetryDelay(Duration.ofMillis(10))
+        .setInitialRpcTimeout(Duration.ofSeconds(5))
+        .setRpcTimeoutMultiplier(1.0)
+        .setMaxRpcTimeout(Duration.ofSeconds(5))
+        .setTotalTimeout(Duration.ofSeconds(30))
+        .build();
     ApiClock clock = NanoClock.getDefaultClock();
     return new RetryAlgorithm<>(
         new BasicResultRetryAlgorithm<>(), new ExponentialRetryAlgorithm(settings, clock));

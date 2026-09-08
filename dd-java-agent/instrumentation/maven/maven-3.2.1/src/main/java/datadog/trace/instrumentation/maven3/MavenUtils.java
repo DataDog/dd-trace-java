@@ -225,9 +225,8 @@ public abstract class MavenUtils {
       return exceptions.iterator().next();
     } else {
       MavenProject project = result.getProject();
-      Throwable t =
-          new BuildFailureException(
-              "Build failed" + (project != null ? " for " + project.getName() : ""));
+      Throwable t = new BuildFailureException(
+          "Build failed" + (project != null ? " for " + project.getName() : ""));
       for (Throwable e : exceptions) {
         t.addSuppressed(e);
       }
@@ -300,10 +299,7 @@ public abstract class MavenUtils {
   }
 
   public static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
-    return project.getName()
-        + " "
-        + mojoExecution.getArtifactId()
-        + " "
+    return project.getName() + " " + mojoExecution.getArtifactId() + " "
         + mojoExecution.getExecutionId();
   }
 
@@ -382,7 +378,8 @@ public abstract class MavenUtils {
           findMethod(methodHandles, classPath.getClass(), "getClassPath");
       if (getClassPathMethod == null) {
         LOGGER.debug(
-            "Could not find getClassPath method in {} class", classPath.getClass().getName());
+            "Could not find getClassPath method in {} class",
+            classPath.getClass().getName());
         return null;
       }
 
@@ -446,7 +443,8 @@ public abstract class MavenUtils {
     MethodHandle getEffectiveJvmMethod =
         findMethod(methodHandles, mojo.getClass(), "getEffectiveJvm");
     if (getEffectiveJvmMethod == null) {
-      LOGGER.debug("Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
+      LOGGER.debug(
+          "Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
       return null;
     }
     try {
@@ -543,16 +541,10 @@ public abstract class MavenUtils {
           PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
           ClassRealm pluginRealm = pluginDescriptor.getClassRealm();
           MethodHandles methodHandles = new MethodHandles(pluginRealm);
-          MethodHandle getToolchains =
-              methodHandles.method(
-                  ToolchainManager.class,
-                  "getToolchains",
-                  MavenSession.class,
-                  String.class,
-                  Map.class);
-          List<Toolchain> toolchains =
-              methodHandles.invoke(
-                  getToolchains, toolchainManager, session, "jdk", toolchainConfig);
+          MethodHandle getToolchains = methodHandles.method(
+              ToolchainManager.class, "getToolchains", MavenSession.class, String.class, Map.class);
+          List<Toolchain> toolchains = methodHandles.invoke(
+              getToolchains, toolchainManager, session, "jdk", toolchainConfig);
           if (toolchains.isEmpty()) {
             LOGGER.debug("Could not find toolchains for {}", toolchainConfig);
             return null;

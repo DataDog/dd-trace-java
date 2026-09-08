@@ -85,17 +85,16 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
-      List<Message> messages =
-          client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest.builder()
+            .queueUrl(queueUrl)
+            .messageBody("sometext")
+            .build());
+        return null;
+      });
+      List<Message> messages = client
+          .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+          .messages();
       messages.forEach(message -> {});
 
       DDSpan sendSpan = assertSqsSendReceiveTraces(queueUrl);
@@ -103,13 +102,11 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
       String awsTraceHeader = messages.get(0).attributesAsStrings().get("AWSTraceHeader");
       assertNotNull(awsTraceHeader);
-      assertTrue(
-          awsTraceHeader.matches(
-              "Root=1-[0-9a-f]{8}-00000000"
-                  + sendSpan.getTraceId().toHexStringPadded(16)
-                  + ";Parent="
-                  + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
-                  + ";Sampled=1"));
+      assertTrue(awsTraceHeader.matches("Root=1-[0-9a-f]{8}-00000000"
+          + sendSpan.getTraceId().toHexStringPadded(16)
+          + ";Parent="
+          + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
+          + ";Sampled=1"));
     }
   }
 
@@ -120,12 +117,13 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      client.sendMessage(
-          SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-      List<Message> messages =
-          client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+      client.sendMessage(SendMessageRequest.builder()
+          .queueUrl(queueUrl)
+          .messageBody("sometext")
+          .build());
+      List<Message> messages = client
+          .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+          .messages();
 
       assertEquals(1, messages.size());
       assertFalse(messages.get(0).messageAttributes().containsKey("_datadog"));
@@ -138,21 +136,21 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
-      List<Message> messages =
-          client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest.builder()
+            .queueUrl(queueUrl)
+            .messageBody("sometext")
+            .build());
+        return null;
+      });
+      List<Message> messages = client
+          .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+          .messages();
       messages.forEach(message -> {});
 
       DDSpan sendSpan = assertSqsSendReceiveTraces(queueUrl);
-      MessageAttributeValue datadogAttribute = messages.get(0).messageAttributes().get("_datadog");
+      MessageAttributeValue datadogAttribute =
+          messages.get(0).messageAttributes().get("_datadog");
       assertNotNull(datadogAttribute);
       assertEquals("String", datadogAttribute.dataType());
       assertTrue(datadogAttribute.stringValue().contains("\"x-datadog-trace-id\""));
@@ -168,22 +166,18 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
     assumeFalse(isDataStreamsEnabled());
 
     writer.clear();
-    Message message =
-        Message.builder()
-            .messageAttributes(
-                Collections.singletonMap(
-                    "_datadog",
-                    MessageAttributeValue.builder()
-                        .dataType("String")
-                        .stringValue(
-                            "{\"x-datadog-trace-id\": \"4948377316357291421\", "
-                                + "\"x-datadog-parent-id\": \"6746998015037429512\", "
-                                + "\"x-datadog-sampling-priority\": \"1\"}")
-                        .build()))
-            .build();
-    List<Message> messages =
-        new TracingList(
-            Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
+    Message message = Message.builder()
+        .messageAttributes(Collections.singletonMap(
+            "_datadog",
+            MessageAttributeValue.builder()
+                .dataType("String")
+                .stringValue("{\"x-datadog-trace-id\": \"4948377316357291421\", "
+                    + "\"x-datadog-parent-id\": \"6746998015037429512\", "
+                    + "\"x-datadog-sampling-priority\": \"1\"}")
+                .build()))
+        .build();
+    List<Message> messages = new TracingList(
+        Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
 
     messages.forEach(ignored -> {});
 
@@ -194,16 +188,13 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
   void traceDetailsPropagatedViaEmbeddedSqsMessageAttributeBinary() throws Exception {
     assumeFalse(isDataStreamsEnabled());
 
+    assertEmbeddedBinaryHeader(UTF_8.encode("{\"x-datadog-trace-id\":\"4948377316357291421\","
+        + "\"x-datadog-parent-id\":\"6746998015037429512\","
+        + "\"x-datadog-sampling-priority\":\"1\"}"));
     assertEmbeddedBinaryHeader(
-        UTF_8.encode(
-            "{\"x-datadog-trace-id\":\"4948377316357291421\","
-                + "\"x-datadog-parent-id\":\"6746998015037429512\","
-                + "\"x-datadog-sampling-priority\":\"1\"}"));
-    assertEmbeddedBinaryHeader(
-        UTF_8.encode(
-            "eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9n"
-                + "LXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmct"
-                + "cHJpb3JpdHkiOiIxIn0="));
+        UTF_8.encode("eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9n"
+            + "LXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmct"
+            + "cHJpb3JpdHkiOiIxIn0="));
   }
 
   @Test
@@ -212,8 +203,9 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
     try (SqsClient client = newClient()) {
       String queueName = queueName();
-      String queueUrl =
-          client.createQueue(CreateQueueRequest.builder().queueName(queueName).build()).queueUrl();
+      String queueUrl = client
+          .createQueue(CreateQueueRequest.builder().queueName(queueName).build())
+          .queueUrl();
       SQSConnectionFactory connectionFactory =
           new SQSConnectionFactory(new ProviderConfiguration(), client);
       Connection connection = connectionFactory.createConnection();
@@ -223,25 +215,21 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
       writer.clear();
 
-      MessageAttributeValue datadogAttribute =
-          MessageAttributeValue.builder()
-              .dataType("Binary")
-              .binaryValue(SdkBytes.fromUtf8String("hello world"))
-              .build();
+      MessageAttributeValue datadogAttribute = MessageAttributeValue.builder()
+          .dataType("Binary")
+          .binaryValue(SdkBytes.fromUtf8String("hello world"))
+          .build();
 
       try {
         connection.start();
-        TraceUtils.runUnderTrace(
-            "parent",
-            () -> {
-              client.sendMessage(
-                  SendMessageRequest.builder()
-                      .queueUrl(queueUrl)
-                      .messageBody("sometext")
-                      .messageAttributes(Collections.singletonMap("_datadog", datadogAttribute))
-                      .build());
-              return null;
-            });
+        TraceUtils.runUnderTrace("parent", () -> {
+          client.sendMessage(SendMessageRequest.builder()
+              .queueUrl(queueUrl)
+              .messageBody("sometext")
+              .messageAttributes(Collections.singletonMap("_datadog", datadogAttribute))
+              .build());
+          return null;
+        });
         javax.jms.Message message = consumer.receive();
         consumer.receiveNoWait();
 
@@ -301,15 +289,13 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
         String expectedTraceProperty =
             "X-Amzn-Trace-Id".toLowerCase(Locale.ENGLISH).replace("-", "__dash__");
-        assertTrue(
-            message
-                .getStringProperty(expectedTraceProperty)
-                .matches(
-                    "Root=1-[0-9a-f]{8}-00000000"
-                        + sendSpan.getTraceId().toHexStringPadded(16)
-                        + ";Parent="
-                        + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
-                        + ";Sampled=1"));
+        assertTrue(message
+            .getStringProperty(expectedTraceProperty)
+            .matches("Root=1-[0-9a-f]{8}-00000000"
+                + sendSpan.getTraceId().toHexStringPadded(16)
+                + ";Parent="
+                + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
+                + ";Sampled=1"));
         assertFalse(message.propertyExists("_datadog"));
       } finally {
         session.close();
@@ -384,19 +370,16 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
   private void assertEmbeddedBinaryHeader(ByteBuffer headerValue) throws Exception {
     writer.clear();
-    Message message =
-        Message.builder()
-            .messageAttributes(
-                Collections.singletonMap(
-                    "_datadog",
-                    MessageAttributeValue.builder()
-                        .dataType("Binary")
-                        .binaryValue(SdkBytes.fromByteBuffer(headerValue))
-                        .build()))
-            .build();
-    List<Message> messages =
-        new TracingList(
-            Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
+    Message message = Message.builder()
+        .messageAttributes(Collections.singletonMap(
+            "_datadog",
+            MessageAttributeValue.builder()
+                .dataType("Binary")
+                .binaryValue(SdkBytes.fromByteBuffer(headerValue))
+                .build()))
+        .build();
+    List<Message> messages = new TracingList(
+        Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
 
     messages.forEach(ignored -> {});
 
@@ -494,12 +477,11 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
   }
 
   private static String expectedJmsService() {
-    String service =
-        SpanNaming.instance()
-            .namingSchema()
-            .messaging()
-            .inboundService("jms", Config.get().isJmsLegacyTracingEnabled())
-            .get();
+    String service = SpanNaming.instance()
+        .namingSchema()
+        .messaging()
+        .inboundService("jms", Config.get().isJmsLegacyTracingEnabled())
+        .get();
     return service == null ? Config.get().getServiceName() : service;
   }
 
@@ -604,32 +586,29 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
 
   @Test
   void syncReceiveActivatesConsumerSpanForUserHandlerIteration() throws Exception {
-    try (SqsClient client =
-        SqsClient.builder()
-            .region(Region.EU_CENTRAL_1)
-            .endpointOverride(endpoint)
-            .credentialsProvider(CREDENTIALS_PROVIDER)
-            .build()) {
-      String queueUrl =
-          client
-              .createQueue(CreateQueueRequest.builder().queueName("somequeue").build())
-              .queueUrl();
+    try (SqsClient client = SqsClient.builder()
+        .region(Region.EU_CENTRAL_1)
+        .endpointOverride(endpoint)
+        .credentialsProvider(CREDENTIALS_PROVIDER)
+        .build()) {
+      String queueUrl = client
+          .createQueue(CreateQueueRequest.builder().queueName("somequeue").build())
+          .queueUrl();
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest.builder()
+            .queueUrl(queueUrl)
+            .messageBody("sometext")
+            .build());
+        return null;
+      });
 
       // The sync AWS SDK receive pipeline rebuilds the immutable response before user code sees it.
       // Iterating the copied message list must still activate the consumer span for user handlers.
-      List<Message> messages =
-          client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+      List<Message> messages = client
+          .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+          .messages();
       messages.forEach(message -> TraceUtils.runUnderTrace("handler", () -> null));
 
       assertEquals(1, messages.size());

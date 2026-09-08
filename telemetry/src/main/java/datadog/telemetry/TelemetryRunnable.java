@@ -39,13 +39,12 @@ public class TelemetryRunnable implements Runnable {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.actionsAtMetricsInterval = findMetricPeriodicActions(actions);
-    this.scheduler =
-        new Scheduler(
-            timeSource,
-            sleeper,
-            (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
-            (long) (Config.get().getTelemetryMetricsInterval() * 1000),
-            Config.get().getTelemetryExtendedHeartbeatInterval() * 1000);
+    this.scheduler = new Scheduler(
+        timeSource,
+        sleeper,
+        (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
+        (long) (Config.get().getTelemetryMetricsInterval() * 1000),
+        Config.get().getTelemetryExtendedHeartbeatInterval() * 1000);
   }
 
   private List<MetricPeriodicAction> findMetricPeriodicActions(
@@ -142,7 +141,8 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void collectConfigChanges() {
-    Map<ConfigOrigin, Map<String, ConfigSetting>> collectedConfig = ConfigCollector.get().collect();
+    Map<ConfigOrigin, Map<String, ConfigSetting>> collectedConfig =
+        ConfigCollector.get().collect();
     if (!collectedConfig.isEmpty()) {
       telemetryService.addConfiguration(collectedConfig);
     }

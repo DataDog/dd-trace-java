@@ -124,9 +124,8 @@ public class OracleJdkRecordingData extends RecordingData {
 
     private void fill() throws IOException {
       if (streamId == -1L) {
-        streamId =
-            helper.openStream(
-                recordingId, new Date(start.toEpochMilli()), new Date(end.toEpochMilli()));
+        streamId = helper.openStream(
+            recordingId, new Date(start.toEpochMilli()), new Date(end.toEpochMilli()));
       }
       buf = helper.readStream(streamId);
       if (buf != null) {

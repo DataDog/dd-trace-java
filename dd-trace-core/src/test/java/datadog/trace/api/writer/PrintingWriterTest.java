@@ -33,22 +33,19 @@ public class PrintingWriterTest extends DDCoreJavaSpecification {
   @BeforeEach
   void setup() {
     tracer = tracerBuilder().writer(new ListWriter()).build();
-    adapter =
-        new Moshi.Builder()
-            .build()
-            .adapter(
-                Types.newParameterizedType(
-                    Map.class,
-                    String.class,
-                    Types.newParameterizedType(
-                        List.class, Types.newParameterizedType(List.class, Map.class))));
+    adapter = new Moshi.Builder()
+        .build()
+        .adapter(Types.newParameterizedType(
+            Map.class,
+            String.class,
+            Types.newParameterizedType(
+                List.class, Types.newParameterizedType(List.class, Map.class))));
 
-    AgentTracer.SpanBuilder builder =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanType("fakeType");
+    AgentTracer.SpanBuilder builder = tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("fakeService")
+        .withResourceName("fakeResource")
+        .withSpanType("fakeType");
 
     sampleTrace = Arrays.asList((DDSpan) builder.start(), (DDSpan) builder.start());
     secondTrace = Collections.singletonList((DDSpan) builder.start());

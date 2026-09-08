@@ -25,9 +25,8 @@ public class TestDescriptorHandle {
       JUnitPlatformUtils.loadClass(JUPITER_TEST_DESCRIPTOR);
 
   /** {@code JupiterTestDescriptor#copyIncludingDescendants(UnaryOperator<UniqueId>)} (5.13+) */
-  private static final MethodHandle COPY_INCLUDING_DESCENDANTS =
-      METHOD_HANDLES.method(
-          JUPITER_TEST_DESCRIPTOR, "copyIncludingDescendants", UnaryOperator.class);
+  private static final MethodHandle COPY_INCLUDING_DESCENDANTS = METHOD_HANDLES.method(
+      JUPITER_TEST_DESCRIPTOR, "copyIncludingDescendants", UnaryOperator.class);
 
   // Legacy fallback used when copyIncludingDescendants is unavailable.
   // Overwrites the final unique ID field by reflection. Lazily created to avoid JEP 500 warnings.
@@ -44,10 +43,9 @@ public class TestDescriptorHandle {
 
   public static final class MuzzleHelper {
     public static Collection<? extends Reference> compileReferences() {
-      return Collections.singletonList(
-          new Reference.Builder(AbstractTestDescriptor.class.getName())
-              .withField(new String[0], 0, "uniqueId", "Lorg/junit/platform/engine/UniqueId;")
-              .build());
+      return Collections.singletonList(new Reference.Builder(AbstractTestDescriptor.class.getName())
+          .withField(new String[0], 0, "uniqueId", "Lorg/junit/platform/engine/UniqueId;")
+          .build());
     }
   }
 
@@ -66,15 +64,13 @@ public class TestDescriptorHandle {
   }
 
   public TestDescriptor withIdSuffix(Map<String, Object> suffices) {
-    return copy(
-        testDescriptor,
-        id -> {
-          UniqueId updatedId = id;
-          for (Map.Entry<String, Object> e : suffices.entrySet()) {
-            updatedId = updatedId.append(e.getKey(), String.valueOf(e.getValue()));
-          }
-          return updatedId;
-        });
+    return copy(testDescriptor, id -> {
+      UniqueId updatedId = id;
+      for (Map.Entry<String, Object> e : suffices.entrySet()) {
+        updatedId = updatedId.append(e.getKey(), String.valueOf(e.getValue()));
+      }
+      return updatedId;
+    });
   }
 
   private static TestDescriptor copy(

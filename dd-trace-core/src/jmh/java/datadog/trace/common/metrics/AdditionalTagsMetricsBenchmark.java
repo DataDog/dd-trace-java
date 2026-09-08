@@ -54,23 +54,21 @@ public class AdditionalTagsMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new AdversarialMetricsBenchmark.CountingHealthMetrics();
-    AdditionalTagsSchema additionalTagsSchema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
-            MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
-            limitsEnabled);
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            additionalTagsSchema,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    AdditionalTagsSchema additionalTagsSchema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
+        MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
+        limitsEnabled);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        additionalTagsSchema,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"), Collections.emptySet()),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false);
     this.aggregator.start();
   }
 

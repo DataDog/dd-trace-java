@@ -142,7 +142,7 @@ public class OtelTracer implements Tracer {
           delegate.withTag(key, value.getBooleanValue());
           break;
         default:
-          // Unsupported.... Ignoring.
+        // Unsupported.... Ignoring.
       }
       return this;
     }

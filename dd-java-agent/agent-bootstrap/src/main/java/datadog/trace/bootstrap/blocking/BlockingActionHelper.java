@@ -151,13 +151,11 @@ public class BlockingActionHelper {
     return null;
   }
 
-  private static final Pattern MEDIA_TYPE_PATTERN =
-      Pattern.compile(
-          "(?x)^[\\ \\t]* ( [!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+/[!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+ )");
+  private static final Pattern MEDIA_TYPE_PATTERN = Pattern.compile(
+      "(?x)^[\\ \\t]* ( [!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+/[!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+ )");
 
-  private static final Pattern QUALITY_PATTERN =
-      Pattern.compile(
-          "(?x);[\\ \\t]* q=( (?:0(?:\\.\\d{0,3})?) | (?:1(?:\\.0{0,3})?) )  (?:$|,|;|[\\ \\t])");
+  private static final Pattern QUALITY_PATTERN = Pattern.compile(
+      "(?x);[\\ \\t]* q=( (?:0(?:\\.\\d{0,3})?) | (?:1(?:\\.0{0,3})?) )  (?:$|,|;|[\\ \\t])");
 
   private static String nextMediaRange(String s, int[] pos, float[] quality) {
     int initPos = pos[0];
@@ -227,9 +225,8 @@ public class BlockingActionHelper {
   }
 
   private static byte[] readDefaultTemplate(String ext) {
-    try (InputStream is =
-        getSystemClassLoader()
-            .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext)) {
+    try (InputStream is = getSystemClassLoader()
+        .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext)) {
       if (is == null) {
         log.error("Could not open default {} template", ext);
         return new byte[] {'e', 'r', 'r', 'o', 'r'};

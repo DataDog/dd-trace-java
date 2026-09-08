@@ -128,29 +128,26 @@ public class OtlpWriter extends RemoteWriter {
 
     public OtlpWriter build() {
       if (sender == null) {
-        sender =
-            protocol == OtlpConfig.Protocol.GRPC
-                ? new OtlpGrpcSender(
-                    endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
-                : new OtlpHttpSender(
-                    endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
+        sender = protocol == OtlpConfig.Protocol.GRPC
+            ? new OtlpGrpcSender(
+                endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
+            : new OtlpHttpSender(
+                endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
       }
 
-      final OtlpTraceCollector collector =
-          protocol == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpTraceJsonCollector()
-              : new OtlpTraceProtoCollector();
+      final OtlpTraceCollector collector = protocol == OtlpConfig.Protocol.HTTP_JSON
+          ? new OtlpTraceJsonCollector()
+          : new OtlpTraceProtoCollector();
       final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-      final TraceProcessingWorker worker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              HealthMetrics.NO_OP,
-              dispatcher,
-              DroppingPolicy.DISABLED,
-              Prioritization.FAST_LANE,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker worker = new TraceProcessingWorker(
+          traceBufferSize,
+          HealthMetrics.NO_OP,
+          dispatcher,
+          DroppingPolicy.DISABLED,
+          Prioritization.FAST_LANE,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new OtlpWriter(
           worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);

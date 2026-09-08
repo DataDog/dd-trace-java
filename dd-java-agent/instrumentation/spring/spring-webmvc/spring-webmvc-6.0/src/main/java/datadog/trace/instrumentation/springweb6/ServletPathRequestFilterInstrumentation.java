@@ -61,11 +61,9 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
     transformer.applyAdvice(
         isMethod()
             .and(named("postProcessBeanFactory"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
+            .and(takesArgument(
+                0,
+                named("org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
         packageName + ".ServletPathFilterInjectingAdvice");
   }
 }

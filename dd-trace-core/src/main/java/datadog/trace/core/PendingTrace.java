@@ -496,11 +496,10 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     DDSpan ddSpan = (DDSpan) span;
     TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
-      throw new IllegalArgumentException(
-          "Expected "
-              + PendingTrace.class.getName()
-              + ", got "
-              + traceCollector.getClass().getName());
+      throw new IllegalArgumentException("Expected "
+          + PendingTrace.class.getName()
+          + ", got "
+          + traceCollector.getClass().getName());
     }
     PendingTrace trace = (PendingTrace) traceCollector;
     return trace.getLastWriteTime() - span.getStartTime();

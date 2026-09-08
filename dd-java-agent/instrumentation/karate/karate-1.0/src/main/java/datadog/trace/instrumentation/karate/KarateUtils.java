@@ -49,23 +49,21 @@ public abstract class KarateUtils {
   private static final ComparableVersion karateV12 = new ComparableVersion("1.2.0");
   private static final ComparableVersion karateV13 = new ComparableVersion("1.3.0");
 
-  public static final List<LibraryCapability> CAPABILITIES_BASE =
-      Arrays.asList(
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CAPABILITIES_BASE = Arrays.asList(
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
-  public static final List<LibraryCapability> CAPABILITIES_SKIPPING =
-      Arrays.asList(
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.ATTEMPT_TO_FIX,
-          LibraryCapability.TIA,
-          LibraryCapability.DISABLED);
+  public static final List<LibraryCapability> CAPABILITIES_SKIPPING = Arrays.asList(
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.ATTEMPT_TO_FIX,
+      LibraryCapability.TIA,
+      LibraryCapability.DISABLED);
 
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {

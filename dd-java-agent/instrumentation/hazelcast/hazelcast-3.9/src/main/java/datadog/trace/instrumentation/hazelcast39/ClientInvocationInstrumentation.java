@@ -38,12 +38,11 @@ public final class ClientInvocationInstrumentation
         isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "com.hazelcast.client.impl.HazelcastClientInstanceImpl",
-                        "com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
+            .and(takesArgument(
+                0,
+                namedOneOf(
+                    "com.hazelcast.client.impl.HazelcastClientInstanceImpl",
+                    "com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
         getClass().getName() + "$ConstructAdvice");
   }
 

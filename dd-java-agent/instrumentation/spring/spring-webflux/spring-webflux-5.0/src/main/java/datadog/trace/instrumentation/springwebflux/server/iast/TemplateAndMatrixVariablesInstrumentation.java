@@ -29,9 +29,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
         isMethod()
             .and(isProtected())
             .and(named("handleMatch"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.web.reactive.result.method.RequestMappingInfo")))
+            .and(takesArgument(
+                0, named("org.springframework.web.reactive.result.method.RequestMappingInfo")))
             .and(takesArgument(1, named("org.springframework.web.method.HandlerMethod")))
             .and(takesArgument(2, named("org.springframework.web.server.ServerWebExchange")))
             .and(takesArguments(3)),

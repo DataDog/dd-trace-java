@@ -87,9 +87,8 @@ public class LibertyBlockingHelper {
     BlockingContentType bct = rba.getBlockingContentType();
     final WsByteBuffer[] bufferArray;
     if (bct != BlockingContentType.NONE) {
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(
-              bct, thiz.getRequest().getHeader("Accept").asString());
+      BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(
+          bct, thiz.getRequest().getHeader("Accept").asString());
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       response.setHeader("Content-length", Integer.toString(template.length));
       response.setHeader("Content-type", BlockingActionHelper.getContentType(type));

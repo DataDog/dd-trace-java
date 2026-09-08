@@ -33,7 +33,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OtlpPayloadDispatcherTest {
-  @Mock OtlpSender sender;
+  @Mock
+  OtlpSender sender;
 
   TestCollector collector = new TestCollector();
 

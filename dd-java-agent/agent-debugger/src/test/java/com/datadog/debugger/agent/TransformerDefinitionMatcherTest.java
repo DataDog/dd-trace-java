@@ -46,12 +46,11 @@ public class TransformerDefinitionMatcherTest {
   public void simpleClassNameNoClassRedefined() {
     LogProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher = createMatcher(probe);
-    List<ProbeDefinition> probeDefinitions =
-        matcher.match(
-            null,
-            getClassPath(String.class),
-            String.class.getTypeName(),
-            getClassFileBytes(String.class));
+    List<ProbeDefinition> probeDefinitions = matcher.match(
+        null,
+        getClassPath(String.class),
+        String.class.getTypeName(),
+        getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
@@ -95,9 +94,8 @@ public class TransformerDefinitionMatcherTest {
 
   @Test
   public void sourceFileWindowsStyleAbsoluteFileName() {
-    LogProbe probe =
-        createProbe(
-            PROBE_ID1, "C:\\Users\\user\\project\\src\\main\\java\\java\\lang\\String.java", 23);
+    LogProbe probe = createProbe(
+        PROBE_ID1, "C:\\Users\\user\\project\\src\\main\\java\\java\\lang\\String.java", 23);
     TransformerDefinitionMatcher matcher = createMatcher(probe);
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());

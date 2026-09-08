@@ -10,8 +10,13 @@ public final class OtelInstrumentDescriptor {
   private final UTF8BytesString instrumentName;
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
-  @Nullable private final UTF8BytesString description;
-  @Nullable private final UTF8BytesString unit;
+
+  @Nullable
+  private final UTF8BytesString description;
+
+  @Nullable
+  private final UTF8BytesString unit;
+
   private int hash;
 
   public OtelInstrumentDescriptor(

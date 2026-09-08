@@ -57,9 +57,8 @@ public final class ProcedureCallInstrumentation
       final ContextStore<ProcedureCall, SessionState> contextStore =
           InstrumentationContext.get(ProcedureCall.class, SessionState.class);
 
-      final SessionState state =
-          SessionMethodUtils.startScopeFrom(
-              contextStore, call, operationName, call.getProcedureName(), true);
+      final SessionState state = SessionMethodUtils.startScopeFrom(
+          contextStore, call, operationName, call.getProcedureName(), true);
       return state;
     }
 

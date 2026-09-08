@@ -61,9 +61,8 @@ class SpanEnrichmentHook implements Hook<Object> {
       } else if (details.getVariant() == null) {
         // Runtime-default detection = MISSING VARIANT (never a reason enum). Unwrap any OpenFeature
         // Value to a native Java type here so the seam carries only JDK types.
-        FeatureFlaggingGateway.dispatch(
-            SpanEnrichmentEvent.runtimeDefault(
-                details.getFlagKey(), unwrapDefaultValue(details.getValue())));
+        FeatureFlaggingGateway.dispatch(SpanEnrichmentEvent.runtimeDefault(
+            details.getFlagKey(), unwrapDefaultValue(details.getValue())));
       }
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.

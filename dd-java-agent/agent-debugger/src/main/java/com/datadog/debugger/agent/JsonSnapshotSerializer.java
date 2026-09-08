@@ -13,10 +13,9 @@ import java.time.Duration;
 
 /** Serializes snapshots in Json using Moshi */
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
-  private static final JsonAdapter<IntakeRequest> ADAPTER =
-      MoshiHelper.createMoshiSnapshot(
-              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout()))
-          .adapter(IntakeRequest.class);
+  private static final JsonAdapter<IntakeRequest> ADAPTER = MoshiHelper.createMoshiSnapshot(
+          Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout()))
+      .adapter(IntakeRequest.class);
   private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
 

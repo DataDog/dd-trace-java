@@ -63,16 +63,15 @@ public abstract class JUnit4Utils {
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
 
   public static final ComparableVersion junitV413 = new ComparableVersion("4.13");
-  public static final List<LibraryCapability> BASE_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> BASE_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
   private static MethodHandle accessListenersFieldInRunNotifier() {
     MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");
@@ -165,8 +164,8 @@ public abstract class JUnit4Utils {
     }
 
     RunWith runWith = testClass.getAnnotation(RunWith.class);
-    boolean isJunitParamsTestCase =
-        runWith != null && "junitparams.JUnitParamsRunner".equals(runWith.value().getName());
+    boolean isJunitParamsTestCase = runWith != null
+        && "junitparams.JUnitParamsRunner".equals(runWith.value().getName());
     int junitParamsStartIdx;
     if (isJunitParamsTestCase && (junitParamsStartIdx = methodName.indexOf('(')) >= 0) {
       // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams

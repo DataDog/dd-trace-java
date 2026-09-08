@@ -70,8 +70,8 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
       throws InterruptedException, TimeoutException {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
-    DDSpan span =
-        (DDSpan) tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start();
+    DDSpan span = (DDSpan)
+        tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start();
     span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
     writer.waitForTraces(1);

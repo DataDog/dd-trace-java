@@ -59,7 +59,8 @@ public class ConfigSettingTest {
     "non-sensitive key    | some.other.key              | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
-    assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
+    assertEquals(
+        filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
   }
 
   @TableTest({

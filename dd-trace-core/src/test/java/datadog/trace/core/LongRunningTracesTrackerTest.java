@@ -76,13 +76,12 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(sharedCommunicationObjects.featuresDiscovery(any())).thenReturn(features);
 
-    buffer =
-        new PendingTraceBuffer.DelayingPendingTraceBuffer(
-            MAX_TRACKED_TRACES,
-            timeSource,
-            Config.get(),
-            sharedCommunicationObjects,
-            HealthMetrics.NO_OP);
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(
+        MAX_TRACKED_TRACES,
+        timeSource,
+        Config.get(),
+        sharedCommunicationObjects,
+        HealthMetrics.NO_OP);
     tracker = buffer.getRunningTracesTracker();
     factory = new PendingTrace.Factory(tracer, buffer, timeSource, false, HealthMetrics.NO_OP);
   }
@@ -101,13 +100,12 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
   @Test
   void traceWithoutRightStateAreNotTracked() {
-    List<Integer> statesToTest =
-        Arrays.asList(
-            LongRunningTracesTracker.NOT_TRACKED,
-            LongRunningTracesTracker.UNDEFINED,
-            LongRunningTracesTracker.TRACKED,
-            LongRunningTracesTracker.WRITE_RUNNING_SPANS,
-            LongRunningTracesTracker.EXPIRED);
+    List<Integer> statesToTest = Arrays.asList(
+        LongRunningTracesTracker.NOT_TRACKED,
+        LongRunningTracesTracker.UNDEFINED,
+        LongRunningTracesTracker.TRACKED,
+        LongRunningTracesTracker.WRITE_RUNNING_SPANS,
+        LongRunningTracesTracker.EXPIRED);
     for (int stateToTest : statesToTest) {
       PendingTrace trace = newTraceToTrack();
       trace.setLongRunningTrackedState(stateToTest);
@@ -214,27 +212,26 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
   }
 
   private static DDSpan newSpanOf(PendingTrace trace, int samplingPriority, long timestampMicro) {
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            samplingPriority,
-            null,
-            Collections.emptyMap(),
-            false,
-            "fakeType",
-            0,
-            trace,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        null,
+        Collections.emptyMap(),
+        false,
+        "fakeType",
+        0,
+        trace,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty());
     return DDSpan.create("test", timestampMicro, context, null);
   }
 }

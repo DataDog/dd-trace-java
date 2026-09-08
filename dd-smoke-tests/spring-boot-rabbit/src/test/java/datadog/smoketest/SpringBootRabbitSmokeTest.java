@@ -89,7 +89,8 @@ class SpringBootRabbitSmokeTest {
 
   @Order(1)
   @RegisterExtension
-  static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcrossTests().build();
+  static final TestAgentBackend agent =
+      AgentBackend.testAgentBuilder().retainAcrossTests().build();
 
   @Order(2)
   @RegisterExtension
@@ -98,10 +99,9 @@ class SpringBootRabbitSmokeTest {
 
   @Order(3)
   @RegisterExtension
-  static final SmokeServerApp receiver =
-      rabbitApp(1)
-          .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
-          .build();
+  static final SmokeServerApp receiver = rabbitApp(1)
+      .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
+      .build();
 
   @Test
   void roundTripsProduceFullAmqpTraceStructure() throws IOException {
@@ -109,8 +109,10 @@ class SpringBootRabbitSmokeTest {
     // sender -> otherqueue -> receiver -> queue -> sender.
     String[] messages = {"foo", "bar", "baz"};
     for (String message : messages) {
-      Request request =
-          new Request.Builder().url(sender.url() + "/roundtrip/" + message).get().build();
+      Request request = new Request.Builder()
+          .url(sender.url() + "/roundtrip/" + message)
+          .get()
+          .build();
       try (Response response = CLIENT.newCall(request).execute()) {
         assertEquals(200, response.code(), "round-trip " + message);
         ResponseBody body = response.body();
@@ -151,7 +153,8 @@ class SpringBootRabbitSmokeTest {
         sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue").childOfPrevious(),
         sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue").childOfPrevious(),
         sp("spring-rabbit-1", "spring.consume", "Receiver.receiveMessage").childOfPrevious(),
-        sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue").childOfPrevious(),
+        sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue")
+            .childOfPrevious(),
         sp("rabbitmq", "amqp.deliver", "amqp.deliver queue").childOfPrevious(),
         sp("spring-rabbit-0", "amqp.command", "basic.deliver queue").childOfPrevious(),
         sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue").childOfPrevious(),

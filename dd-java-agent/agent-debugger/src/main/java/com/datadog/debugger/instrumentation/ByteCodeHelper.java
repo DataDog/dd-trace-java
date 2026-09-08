@@ -282,7 +282,8 @@ public class ByteCodeHelper {
 
   private static int adjustStackUsageMethodInsn(MethodInsnNode currentInsn) {
     Type methodType = Type.getType(currentInsn.desc);
-    int argumentSize = Arrays.stream(methodType.getArgumentTypes()).mapToInt(Type::getSize).sum();
+    int argumentSize =
+        Arrays.stream(methodType.getArgumentTypes()).mapToInt(Type::getSize).sum();
     int returnSize = methodType.getReturnType().getSize();
     switch (currentInsn.getOpcode()) {
       case Opcodes.INVOKESTATIC:
@@ -302,7 +303,8 @@ public class ByteCodeHelper {
 
   private static int adjustStackUsageInvokeDynamicInsn(InvokeDynamicInsnNode currentInsn) {
     Type methodType = Type.getType(currentInsn.desc);
-    int argumentSize = Arrays.stream(methodType.getArgumentTypes()).mapToInt(Type::getSize).sum();
+    int argumentSize =
+        Arrays.stream(methodType.getArgumentTypes()).mapToInt(Type::getSize).sum();
     int returnSize = methodType.getReturnType().getSize();
     // consume arguments
     // push return value
@@ -334,7 +336,7 @@ public class ByteCodeHelper {
       case Opcodes.JSR:
         return 1;
       case Opcodes.GOTO:
-        // no change
+      // no change
     }
     return 0;
   }

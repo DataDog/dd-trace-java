@@ -83,11 +83,9 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       }
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
-        classOrderer =
-            Optional.of(
-                new FailFastClassOrderer(
-                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
-                    classOrderer.orElse(null)));
+        classOrderer = Optional.of(new FailFastClassOrderer(
+            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+            classOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
@@ -109,11 +107,9 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       }
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
-        methodOrderer =
-            Optional.of(
-                new FailFastMethodOrderer(
-                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
-                    methodOrderer.orElse(null)));
+        methodOrderer = Optional.of(new FailFastMethodOrderer(
+            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+            methodOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }

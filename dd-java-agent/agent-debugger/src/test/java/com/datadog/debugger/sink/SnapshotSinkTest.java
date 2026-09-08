@@ -44,10 +44,18 @@ public class SnapshotSinkTest {
   private static final ProbeLocation PROBE_LOCATION =
       new ProbeLocation("java.lang.String", "indexOf", null, null);
 
-  @Mock private Config config;
-  @Mock private BatchUploader snapshotUploader;
-  @Mock private BatchUploader logUploader;
-  @Captor private ArgumentCaptor<byte[]> payloadCaptor;
+  @Mock
+  private Config config;
+
+  @Mock
+  private BatchUploader snapshotUploader;
+
+  @Mock
+  private BatchUploader logUploader;
+
+  @Captor
+  private ArgumentCaptor<byte[]> payloadCaptor;
+
   private ProbeStatusSink probeStatusSink;
   private String EXPECTED_SNAPSHOT_TAGS;
 
@@ -92,14 +100,14 @@ public class SnapshotSinkTest {
     assertEquals("service-name", intakeRequest.getService());
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());
-    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(
+        PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
     assertEquals(
         PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
-    assertTrue(
-        intakeRequest
-            .getDebugger()
-            .getRuntimeId()
-            .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+    assertTrue(intakeRequest
+        .getDebugger()
+        .getRuntimeId()
+        .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
     if (processTagsEnabled) {
       assertNotNull(ProcessTags.getTagsForSerialization());
       assertEquals(

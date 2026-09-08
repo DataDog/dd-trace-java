@@ -41,10 +41,9 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
 public class WafBenchmark {
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   static {
     BenchmarkUtil.disableLogging();

@@ -127,10 +127,8 @@ public final class CrashUploaderScriptInitializer {
       throws IOException {
     if (!scriptFile.exists()) {
       try (BufferedReader br = new BufferedReader(new InputStreamReader(template));
-          BufferedWriter bw =
-              new BufferedWriter(
-                  new OutputStreamWriter(
-                      new FileOutputStream(scriptFile), StandardCharsets.UTF_8))) {
+          BufferedWriter bw = new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(scriptFile), StandardCharsets.UTF_8))) {
         String line;
         while ((line = br.readLine()) != null) {
           bw.write(template(line, execClass, crashFile));

@@ -33,11 +33,8 @@ public final class AwsClientInstrumentation
           return; // list already has our interceptor, return to builder
         }
       }
-      interceptors.add(
-          new TracingExecutionInterceptor(
-              InstrumentationContext.get(
-                  "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
-                  "java.lang.String")));
+      interceptors.add(new TracingExecutionInterceptor(InstrumentationContext.get(
+          "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String")));
     }
   }
 }

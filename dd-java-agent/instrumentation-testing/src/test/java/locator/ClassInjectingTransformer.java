@@ -41,14 +41,13 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
   public static void injectInterfaceNamed(String binaryName, ClassLoader classLoader) {
     MethodHandles.Lookup myLookup = MethodHandles.lookup();
     try {
-      Method m =
-          ClassLoader.class.getDeclaredMethod(
-              "defineClass",
-              String.class,
-              byte[].class,
-              Integer.TYPE,
-              Integer.TYPE,
-              ProtectionDomain.class);
+      Method m = ClassLoader.class.getDeclaredMethod(
+          "defineClass",
+          String.class,
+          byte[].class,
+          Integer.TYPE,
+          Integer.TYPE,
+          ProtectionDomain.class);
       m.setAccessible(true);
       MethodHandle defineMethod = myLookup.unreflect(m);
       ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);

@@ -316,11 +316,8 @@ class OtlpCommonProtoTest {
 
   @Test
   void testLongArrayAttribute() throws IOException {
-    byte[] bytes =
-        encode(
-            LONG_ARRAY_ATTRIBUTE,
-            "arr-long",
-            Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
+    byte[] bytes = encode(
+        LONG_ARRAY_ATTRIBUTE, "arr-long", Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-long", readKeyField(kv));
@@ -352,11 +349,10 @@ class OtlpCommonProtoTest {
 
   @Test
   void testDoubleArrayAttribute() throws IOException {
-    byte[] bytes =
-        encode(
-            DOUBLE_ARRAY_ATTRIBUTE,
-            "arr-dbl",
-            Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
+    byte[] bytes = encode(
+        DOUBLE_ARRAY_ATTRIBUTE,
+        "arr-dbl",
+        Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-dbl", readKeyField(kv));

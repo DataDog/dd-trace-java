@@ -32,13 +32,12 @@ public class ProcessImplInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("start")
-            .and(
-                takesArguments(
-                    String[].class,
-                    Map.class,
-                    String.class,
-                    ProcessBuilder.Redirect[].class,
-                    boolean.class)),
+            .and(takesArguments(
+                String[].class,
+                Map.class,
+                String.class,
+                ProcessBuilder.Redirect[].class,
+                boolean.class)),
         packageName + ".ProcessImplStartAdvice");
   }
 }

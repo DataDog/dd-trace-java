@@ -19,9 +19,9 @@ import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 public class S3Interceptor implements ExecutionInterceptor {
   private static final Logger log = LoggerFactory.getLogger(S3Interceptor.class);
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(
+          ExecutionAttribute.class)
+      .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
 

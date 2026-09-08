@@ -383,9 +383,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     if (!DebuggerConfigBridge.isExceptionReplayEnabled()) {
       return false;
     }
-    boolean captureOnlyRootSpan =
-        (Config.get().isDebuggerExceptionOnlyLocalRoot()
-            || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
+    boolean captureOnlyRootSpan = (Config.get().isDebuggerExceptionOnlyLocalRoot()
+        || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
     if (captureOnlyRootSpan && !isLocalRootSpan()) {
       return false;
     }
@@ -877,13 +876,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public String toString() {
-    return context.toString()
-        + ", duration_ns="
-        + durationNano
-        + ", forceKeep="
-        + forceKeep
-        + ", links="
-        + links;
+    return context.toString() + ", duration_ns=" + durationNano + ", forceKeep=" + forceKeep
+        + ", links=" + links;
   }
 
   @Override

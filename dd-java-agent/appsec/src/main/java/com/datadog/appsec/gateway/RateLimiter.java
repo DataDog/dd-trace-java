@@ -62,48 +62,41 @@ public class RateLimiter {
       int diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
       while (true) {
         switch (diff) {
-          case 0:
-            {
-              int count =
-                  storedCurCount
-                      + (int)
-                          (storedPrevCount
-                              * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
-              if (count >= limitPerSec) {
-                this.throttledCb.onThrottled();
-                return true;
-              }
-              newState = storedState + 1;
-              break;
+          case 0: {
+            int count = storedCurCount
+                + (int) (storedPrevCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
+            if (count >= limitPerSec) {
+              this.throttledCb.onThrottled();
+              return true;
             }
-          case 1:
-            {
-              int count =
-                  (int) (storedCurCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
-              if (count >= limitPerSec) {
-                // this is very unlikely to happen because the 2nd factor above must be 1
-                // (we effectively round down when we cast to int)
-                this.throttledCb.onThrottled();
-                return true;
-              }
-              newState =
-                  ((long) curSec24 << SHIFT_CUR_SEC)
-                      | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
-                      | 1L;
-              break;
+            newState = storedState + 1;
+            break;
+          }
+          case 1: {
+            int count =
+                (int) (storedCurCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
+            if (count >= limitPerSec) {
+              // this is very unlikely to happen because the 2nd factor above must be 1
+              // (we effectively round down when we cast to int)
+              this.throttledCb.onThrottled();
+              return true;
             }
-          case 0xFFFFFF:
-            {
-              // we fell 1 second behind the current second (mod 0x1000000)
-              curSec = this.timeSource.getNanoTicks();
-              curSec24 = curSecond24bit(curSec);
-              diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
-              if (diff != 0xFFFFFF) {
-                continue; // reevaluate switch
-              }
-              // else we're still behind, so we likely wrapped around since the last write
-              // in that case, fall to default case
+            newState = ((long) curSec24 << SHIFT_CUR_SEC)
+                | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
+                | 1L;
+            break;
+          }
+          case 0xFFFFFF: {
+            // we fell 1 second behind the current second (mod 0x1000000)
+            curSec = this.timeSource.getNanoTicks();
+            curSec24 = curSecond24bit(curSec);
+            diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
+            if (diff != 0xFFFFFF) {
+              continue; // reevaluate switch
             }
+            // else we're still behind, so we likely wrapped around since the last write
+            // in that case, fall to default case
+          }
           default:
             newState = ((long) curSec24 << SHIFT_CUR_SEC) | 1L;
         }

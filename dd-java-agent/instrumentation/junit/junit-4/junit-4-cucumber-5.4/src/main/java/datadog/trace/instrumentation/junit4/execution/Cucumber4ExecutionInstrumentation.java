@@ -97,10 +97,9 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
       Collection<String> testTags = CucumberUtils.getPickleRunnerTags(pickleRunner);
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.CUCUMBER)
-              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

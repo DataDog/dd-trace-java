@@ -108,16 +108,15 @@ public class WriterFactory {
 
       PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
 
-      TraceProcessingWorker worker =
-          new TraceProcessingWorker(
-              1024,
-              healthMetrics,
-              dispatcher,
-              DroppingPolicy.DISABLED,
-              prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      TraceProcessingWorker worker = new TraceProcessingWorker(
+          1024,
+          healthMetrics,
+          dispatcher,
+          DroppingPolicy.DISABLED,
+          prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
     }
@@ -140,14 +139,13 @@ public class WriterFactory {
       final RemoteApi remoteApi =
           createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, trackType);
 
-      DDIntakeWriter.DDIntakeWriterBuilder builder =
-          DDIntakeWriter.builder()
-              .addTrack(trackType, remoteApi)
-              .prioritization(prioritization)
-              .healthMetrics(healthMetrics)
-              .monitoring(commObjects.monitoring)
-              .singleSpanSampler(singleSpanSampler)
-              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+      DDIntakeWriter.DDIntakeWriterBuilder builder = DDIntakeWriter.builder()
+          .addTrack(trackType, remoteApi)
+          .prioritization(prioritization)
+          .healthMetrics(healthMetrics)
+          .monitoring(commObjects.monitoring)
+          .singleSpanSampler(singleSpanSampler)
+          .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
         builder.flushTimeout(5, TimeUnit.SECONDS);
@@ -180,13 +178,12 @@ public class WriterFactory {
         }
       }
 
-      DDAgentApi ddAgentApi =
-          new DDAgentApi(
-              commObjects.agentHttpClient,
-              commObjects.agentUrl,
-              featuresDiscovery,
-              commObjects.monitoring,
-              config.isTracerMetricsEnabled());
+      DDAgentApi ddAgentApi = new DDAgentApi(
+          commObjects.agentHttpClient,
+          commObjects.agentUrl,
+          featuresDiscovery,
+          commObjects.monitoring,
+          config.isTracerMetricsEnabled());
 
       if (sampler instanceof RemoteResponseListener) {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
@@ -198,17 +195,16 @@ public class WriterFactory {
       final DroppingPolicy droppingPolicy =
           () -> otlpSpanMetricsEnabled || featuresDiscovery.active();
 
-      DDAgentWriter.DDAgentWriterBuilder builder =
-          DDAgentWriter.builder()
-              .agentApi(ddAgentApi)
-              .featureDiscovery(featuresDiscovery)
-              .droppingPolicy(droppingPolicy)
-              .prioritization(prioritization)
-              .healthMetrics(healthMetrics)
-              .monitoring(commObjects.monitoring)
-              .alwaysFlush(alwaysFlush)
-              .spanSamplingRules(singleSpanSampler)
-              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+      DDAgentWriter.DDAgentWriterBuilder builder = DDAgentWriter.builder()
+          .agentApi(ddAgentApi)
+          .featureDiscovery(featuresDiscovery)
+          .droppingPolicy(droppingPolicy)
+          .prioritization(prioritization)
+          .healthMetrics(healthMetrics)
+          .monitoring(commObjects.monitoring)
+          .alwaysFlush(alwaysFlush)
+          .spanSamplingRules(singleSpanSampler)
+          .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
         builder.flushTimeout(5, TimeUnit.SECONDS);

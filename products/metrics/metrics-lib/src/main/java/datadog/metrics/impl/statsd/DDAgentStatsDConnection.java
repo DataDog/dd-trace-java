@@ -78,10 +78,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   }
 
   private void scheduleConnect() {
-    long remainingDelay =
-        Config.get().getDogStatsDStartDelay()
-            - MILLISECONDS.toSeconds(
-                System.currentTimeMillis() - Config.get().getStartTimeMillis());
+    long remainingDelay = Config.get().getDogStatsDStartDelay()
+        - MILLISECONDS.toSeconds(System.currentTimeMillis() - Config.get().getStartTimeMillis());
 
     if (remainingDelay > 0) {
       if (log.isDebugEnabled()) {
@@ -103,15 +101,14 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           log.debug("Creating StatsD client - {}", statsDAddress());
         }
 
-        NonBlockingStatsDClientBuilder clientBuilder =
-            new NonBlockingStatsDClientBuilder()
-                .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
-                .enableTelemetry(false)
-                .enableAggregation(useAggregation)
-                .hostname(host)
-                .port(port)
-                .namedPipe(namedPipe)
-                .errorHandler(this);
+        NonBlockingStatsDClientBuilder clientBuilder = new NonBlockingStatsDClientBuilder()
+            .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
+            .enableTelemetry(false)
+            .enableAggregation(useAggregation)
+            .hostname(host)
+            .port(port)
+            .namedPipe(namedPipe)
+            .errorHandler(this);
 
         // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
         // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)

@@ -40,18 +40,17 @@ public class ExceptionHistogramTest {
   private static final IAttribute<IQuantity> COUNT =
       Attribute.attr("count", "count", "Exception count", UnitLookup.NUMBER);
 
-  private static final Comparator<Exception> EXCEPTION_COMPARATOR =
-      new Comparator<Exception>() {
-        @Override
-        public int compare(final Exception e1, final Exception e2) {
-          return e1.getClass().getCanonicalName().compareTo(e2.getClass().getCanonicalName());
-        }
+  private static final Comparator<Exception> EXCEPTION_COMPARATOR = new Comparator<Exception>() {
+    @Override
+    public int compare(final Exception e1, final Exception e2) {
+      return e1.getClass().getCanonicalName().compareTo(e2.getClass().getCanonicalName());
+    }
 
-        @Override
-        public boolean equals(final Object obj) {
-          return this == obj;
-        }
-      };
+    @Override
+    public boolean equals(final Object obj) {
+      return this == obj;
+    }
+  };
 
   private static final int MAX_ITEMS = 2;
   private static final int MAX_SIZE = 2;
@@ -90,16 +89,13 @@ public class ExceptionHistogramTest {
   public void testFirstHitConcurrent() {
     Phaser phaser = new Phaser(2);
 
-    ExceptionHistogram histogram =
-        ExceptionHistogramTestBridge.create(
-            Config.get(),
-            () -> {
-              // below code is executed after emitEvents() returns:
-              // #1 - histo sums are reset but 0 entries not removed yet
-              phaser.arriveAndAwaitAdvance();
-              // #2 - safe to leave the emit() method
-              phaser.arriveAndAwaitAdvance();
-            });
+    ExceptionHistogram histogram = ExceptionHistogramTestBridge.create(Config.get(), () -> {
+      // below code is executed after emitEvents() returns:
+      // #1 - histo sums are reset but 0 entries not removed yet
+      phaser.arriveAndAwaitAdvance();
+      // #2 - safe to leave the emit() method
+      phaser.arriveAndAwaitAdvance();
+    });
     // don't want the JFR integration active here
     ExceptionHistogramTestBridge.deregister(histogram);
     for (int i = 0; i < 5; i++) {
@@ -124,14 +120,13 @@ public class ExceptionHistogramTest {
   @Test
   public void testExceptionsRecorded()
       throws IOException, CouldNotLoadRecordingException, InterruptedException {
-    writeExceptions(
-        ImmutableMap.of(
-            new NullPointerException(),
-            8,
-            new IllegalArgumentException(),
-            5,
-            new RuntimeException(),
-            1));
+    writeExceptions(ImmutableMap.of(
+        new NullPointerException(),
+        8,
+        new IllegalArgumentException(),
+        5,
+        new RuntimeException(),
+        1));
 
     final Instant firstRecordingNow = Instant.now();
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
@@ -155,14 +150,13 @@ public class ExceptionHistogramTest {
     // Sleep to make sure we get new batch of exceptions only
     Thread.sleep(1000);
 
-    writeExceptions(
-        ImmutableMap.of(
-            new RuntimeException(),
-            8,
-            new NullPointerException(),
-            5,
-            new IllegalArgumentException(),
-            1));
+    writeExceptions(ImmutableMap.of(
+        new RuntimeException(),
+        8,
+        new NullPointerException(),
+        5,
+        new IllegalArgumentException(),
+        1));
 
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection secondRecording =
@@ -195,18 +189,17 @@ public class ExceptionHistogramTest {
     instance = ExceptionHistogramTestBridge.create(Config.get(properties));
 
     // Exceptions are written in alphabetical order
-    writeExceptions(
-        ImmutableSortedMap.copyOf(
-            ImmutableMap.of(
-                new Exception(),
-                5,
-                new IllegalArgumentException(),
-                8,
-                new NegativeArraySizeException(),
-                10,
-                new NullPointerException(),
-                11),
-            EXCEPTION_COMPARATOR));
+    writeExceptions(ImmutableSortedMap.copyOf(
+        ImmutableMap.of(
+            new Exception(),
+            5,
+            new IllegalArgumentException(),
+            8,
+            new NegativeArraySizeException(),
+            10,
+            new NullPointerException(),
+            11),
+        EXCEPTION_COMPARATOR));
 
     final Instant firstRecordingNow = Instant.now();
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
@@ -237,24 +230,24 @@ public class ExceptionHistogramTest {
     Thread.sleep(1000);
 
     // Exceptions are written in 'code' order
-    writeExceptions(
-        ImmutableSortedMap.copyOf(
-            ImmutableMap.of(
-                new IllegalArgumentException(),
-                5,
-                new NegativeArraySizeException(),
-                8,
-                new NullPointerException(),
-                10,
-                new RuntimeException(),
-                11),
-            EXCEPTION_COMPARATOR));
+    writeExceptions(ImmutableSortedMap.copyOf(
+        ImmutableMap.of(
+            new IllegalArgumentException(),
+            5,
+            new NegativeArraySizeException(),
+            8,
+            new NullPointerException(),
+            10,
+            new RuntimeException(),
+            11),
+        EXCEPTION_COMPARATOR));
 
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection secondRecording =
         getEvents(snapshot, firstRecordingNow.plusMillis(1000), Instant.MAX);
 
-    assertEquals(MAX_ITEMS + 1, secondRecording.getAggregate(Aggregators.count()).longValue());
+    assertEquals(
+        MAX_ITEMS + 1, secondRecording.getAggregate(Aggregators.count()).longValue());
     assertEquals(
         5,
         secondRecording
@@ -279,14 +272,13 @@ public class ExceptionHistogramTest {
   @Test
   public void testDisabled() throws IOException, CouldNotLoadRecordingException {
     recording.disable("datadog.ExceptionCount");
-    final Map<Exception, Integer> exceptions =
-        ImmutableMap.of(
-            new NullPointerException(),
-            8,
-            new IllegalArgumentException(),
-            5,
-            new RuntimeException(),
-            1);
+    final Map<Exception, Integer> exceptions = ImmutableMap.of(
+        new NullPointerException(),
+        8,
+        new IllegalArgumentException(),
+        5,
+        new RuntimeException(),
+        1);
 
     for (final Map.Entry<Exception, Integer> entry : exceptions.entrySet()) {
       for (int i = 0; i < entry.getValue(); i++) {

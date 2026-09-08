@@ -53,12 +53,11 @@ public final class DDSketchHistograms implements Histograms.Factory {
   @Override
   public HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
     validateBoundaries(binBoundaries);
-    DDSketch sketch =
-        new DDSketch(
-            new ExplicitBoundaries(binBoundaries),
-            () -> new CollapsingLowestDenseStore(0), // negative store not used
-            () -> new CollapsingLowestDenseStore(binBoundaries.size() + 1),
-            Double.NEGATIVE_INFINITY); // assign all negative/zero values to first bin
+    DDSketch sketch = new DDSketch(
+        new ExplicitBoundaries(binBoundaries),
+        () -> new CollapsingLowestDenseStore(0), // negative store not used
+        () -> new CollapsingLowestDenseStore(binBoundaries.size() + 1),
+        Double.NEGATIVE_INFINITY); // assign all negative/zero values to first bin
     return new DDSketchHistogramWithSum(sketch);
   }
 
@@ -75,11 +74,8 @@ public final class DDSketchHistograms implements Histograms.Factory {
         throw new IllegalArgumentException("invalid bucket boundary: NaN");
       }
       if (previousBoundary != null && previousBoundary >= boundary) {
-        throw new IllegalArgumentException(
-            "Bucket boundaries must be in increasing order: "
-                + previousBoundary
-                + " >= "
-                + boundary);
+        throw new IllegalArgumentException("Bucket boundaries must be in increasing order: "
+            + previousBoundary + " >= " + boundary);
       }
       previousBoundary = boundary;
     }

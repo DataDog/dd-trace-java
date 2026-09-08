@@ -18,11 +18,10 @@ public class SBCodeOriginInstrumentation extends CodeOriginInstrumentation {
 
   @Override
   protected Set<String> getAnnotations() {
-    return new HashSet<>(
-        asList(
-            WEB_BIND_ANNOTATION + "GetMapping",
-            WEB_BIND_ANNOTATION + "PostMapping",
-            WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "PatchMapping"));
+    return new HashSet<>(asList(
+        WEB_BIND_ANNOTATION + "GetMapping",
+        WEB_BIND_ANNOTATION + "PostMapping",
+        WEB_BIND_ANNOTATION + "PutMapping",
+        WEB_BIND_ANNOTATION + "PatchMapping"));
   }
 }

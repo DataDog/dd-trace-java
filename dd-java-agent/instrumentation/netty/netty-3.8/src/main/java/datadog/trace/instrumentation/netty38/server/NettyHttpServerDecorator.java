@@ -71,17 +71,14 @@ public class NettyHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return URIDataAdapterBase.fromURI(
-        request.getUri(),
-        uri -> {
-          if ((uri.getHost() == null || uri.getHost().equals(""))
-              && request.headers().contains(HOST)) {
-            return URIDataAdapterBase.fromURI(
-                "http://" + request.headers().get(HOST) + request.getUri(),
-                URIDefaultDataAdapter::new);
-          }
-          return new URIDefaultDataAdapter(uri);
-        });
+    return URIDataAdapterBase.fromURI(request.getUri(), uri -> {
+      if ((uri.getHost() == null || uri.getHost().equals(""))
+          && request.headers().contains(HOST)) {
+        return URIDataAdapterBase.fromURI(
+            "http://" + request.headers().get(HOST) + request.getUri(), URIDefaultDataAdapter::new);
+      }
+      return new URIDefaultDataAdapter(uri);
+    });
   }
 
   @Override

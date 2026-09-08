@@ -176,11 +176,9 @@ class SpanEnrichmentWriterTest {
 
   @Test
   void acceptSwallowsResolverErrors() {
-    final SpanEnrichmentWriter writer =
-        new SpanEnrichmentWriter(
-            () -> {
-              throw new RuntimeException("resolver boom");
-            });
+    final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> {
+      throw new RuntimeException("resolver boom");
+    });
     // Must not propagate — enrichment can never break flag evaluation.
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
     assertTrue(writer.states().isEmpty());
@@ -189,12 +187,9 @@ class SpanEnrichmentWriterTest {
   @Test
   void registrarErrorIsSwallowedAndNotLatched() {
     final AgentSpan root = rootSpan();
-    final SpanEnrichmentWriter writer =
-        new SpanEnrichmentWriter(
-            () -> root,
-            interceptor -> {
-              throw new RuntimeException("register boom");
-            });
+    final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> root, interceptor -> {
+      throw new RuntimeException("register boom");
+    });
     // Registration throws → swallowed, not latched, and nothing accumulates (never flushable).
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
     assertTrue(writer.states().isEmpty());

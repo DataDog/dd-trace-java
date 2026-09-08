@@ -54,9 +54,8 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
 
   private static final Logger log = LoggerFactory.getLogger(FileBasedPayloadDispatcher.class);
 
-  private static final Collection<String> TOP_LEVEL_TAGS =
-      Arrays.asList(
-          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
+  private static final Collection<String> TOP_LEVEL_TAGS = Arrays.asList(
+      Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
 
   /** Tag prefixes excluded from file-based payloads to avoid Bazel cache invalidation. */
   private static final String[] EXCLUDED_TAG_PREFIXES = {"ci.", "git.", "runtime.", "os."};

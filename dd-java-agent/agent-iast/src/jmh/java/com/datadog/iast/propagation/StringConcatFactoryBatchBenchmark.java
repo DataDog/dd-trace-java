@@ -125,24 +125,21 @@ public class StringConcatFactoryBatchBenchmark
 
   private static Class<?> buildConcatImplementation(final int... arity) {
     try {
-      final String packageName = StringConcatFactoryBatchBenchmark.class.getPackage().getName();
-      DynamicType.Builder<?> builder =
-          new ByteBuddy()
-              .subclass(Object.class)
-              .name(packageName + ".StringConcatFactoryImplementor");
+      final String packageName =
+          StringConcatFactoryBatchBenchmark.class.getPackage().getName();
+      DynamicType.Builder<?> builder = new ByteBuddy()
+          .subclass(Object.class)
+          .name(packageName + ".StringConcatFactoryImplementor");
       for (final int paramCount : arity) {
-        builder =
-            builder
-                .defineMethod("concat", String.class, Visibility.PUBLIC, Ownership.STATIC)
-                .withParameters(
-                    IntStream.range(0, paramCount)
-                        .mapToObj(i -> String.class)
-                        .collect(Collectors.toList()))
-                .intercept(
-                    InvokeDynamic.bootstrap(
-                            makeConcatWithConstantsDescriptor(), buildRecipe(paramCount))
-                        .invoke("makeConcatWithConstants")
-                        .withImplicitAndMethodArguments());
+        builder = builder
+            .defineMethod("concat", String.class, Visibility.PUBLIC, Ownership.STATIC)
+            .withParameters(IntStream.range(0, paramCount)
+                .mapToObj(i -> String.class)
+                .collect(Collectors.toList()))
+            .intercept(InvokeDynamic.bootstrap(
+                    makeConcatWithConstantsDescriptor(), buildRecipe(paramCount))
+                .invoke("makeConcatWithConstants")
+                .withImplicitAndMethodArguments());
       }
       return builder
           .make()
@@ -170,7 +167,9 @@ public class StringConcatFactoryBatchBenchmark
             new ParameterDescription.Token(JavaType.METHOD_TYPE.getTypeStub().asGenericType()),
             new ParameterDescription.Token(STRING.asGenericType()),
             new ParameterDescription.Token(
-                TypeDescription.Generic.Builder.of(OBJECT.asGenericType()).asArray().build())),
+                TypeDescription.Generic.Builder.of(OBJECT.asGenericType())
+                    .asArray()
+                    .build())),
         Collections.emptyList(),
         Collections.emptyList(),
         AnnotationValue.UNDEFINED,
@@ -181,16 +180,15 @@ public class StringConcatFactoryBatchBenchmark
     try {
       final Map<Integer, MethodHandle> result = new HashMap<>();
       for (final int paramCount : arity) {
-        final MethodHandle method =
-            MethodHandles.publicLookup()
-                .findStatic(
-                    StringConcatFactoryBatchBenchmark.CONCAT_IMPL,
-                    "concat",
-                    MethodType.methodType(
-                        String.class,
-                        IntStream.range(0, paramCount)
-                            .mapToObj(i -> String.class)
-                            .collect(Collectors.toList())));
+        final MethodHandle method = MethodHandles.publicLookup()
+            .findStatic(
+                StringConcatFactoryBatchBenchmark.CONCAT_IMPL,
+                "concat",
+                MethodType.methodType(
+                    String.class,
+                    IntStream.range(0, paramCount)
+                        .mapToObj(i -> String.class)
+                        .collect(Collectors.toList())));
         result.put(paramCount, method);
       }
       return result;

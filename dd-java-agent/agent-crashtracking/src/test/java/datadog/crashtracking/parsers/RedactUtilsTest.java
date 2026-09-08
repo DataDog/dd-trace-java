@@ -71,9 +71,8 @@ public class RedactUtilsTest {
 
   @Test
   void testRedactStringContent_redactsSensitiveValue() {
-    assertThat(
-            RedactUtils.redactStringTypeValue(
-                " - string: \"jdbc:postgresql://host/db?password=s3cr3t\""))
+    assertThat(RedactUtils.redactStringTypeValue(
+            " - string: \"jdbc:postgresql://host/db?password=s3cr3t\""))
         .isEqualTo(" - string: \"REDACTED\"");
   }
 
@@ -109,17 +108,15 @@ public class RedactUtilsTest {
 
   @Test
   void testRedactMethodClass_redactsUnknownPackage() {
-    assertThat(
-            RedactUtils.redactMethodClass(
-                "{method} {0x...} 'doWork' '(I)V' in 'com/company/Worker'"))
+    assertThat(RedactUtils.redactMethodClass(
+            "{method} {0x...} 'doWork' '(I)V' in 'com/company/Worker'"))
         .isEqualTo("{method} {0x...} 'doWork' '(I)V' in 'redacted/Redacted'");
   }
 
   @Test
   void testRedactMethodClass_keepsKnownPackage() {
-    assertThat(
-            RedactUtils.redactMethodClass(
-                "{method} {0x...} 'getLong' '(J)J' in 'jdk/internal/misc/Unsafe'"))
+    assertThat(RedactUtils.redactMethodClass(
+            "{method} {0x...} 'getLong' '(J)J' in 'jdk/internal/misc/Unsafe'"))
         .isEqualTo("{method} {0x...} 'getLong' '(J)J' in 'jdk/internal/misc/Unsafe'");
   }
 
@@ -155,9 +152,8 @@ public class RedactUtilsTest {
   @Test
   void testRedactLibraryPath_doesNotMatchInterpreterCodelet() {
     // "code_begin+1776 in an Interpreter codelet" — "an" doesn't start with "/" so no match
-    assertThat(
-            RedactUtils.redactLibraryPath(
-                "0x0000000116d0c970 is at code_begin+1776 in an Interpreter codelet"))
+    assertThat(RedactUtils.redactLibraryPath(
+            "0x0000000116d0c970 is at code_begin+1776 in an Interpreter codelet"))
         .isEqualTo("0x0000000116d0c970 is at code_begin+1776 in an Interpreter codelet");
   }
 
@@ -216,37 +212,34 @@ public class RedactUtilsTest {
   void testRedactRegisterToMemoryMapping_multilineOopDump() {
     // Non-java.lang.Class oop: ALL "value"{0x...} OOP refs are fully redacted to "REDACTED"
     // regardless of their shape — any string value may be a secret.
-    String value =
-        "0x00000007142f8848 is an oop: com.company.SymbolEntry \n"
-            + "{0x00000007142f8848} - klass: 'com/company/SymbolEntry'\n"
-            + " - ---- fields (total size 9 words):\n"
-            + " - final 'tag' 'Ljava/lang/String;' @12  \"SourceFile\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
-            + " - final 'value' 'Ljava/lang/String;' @16  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
-            + " - final 'hint' 'Ljava/lang/String;' @20  \"java.vendor.url.bug\"{0x00000007aabbccee} (0x12345679)\n"
-            + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
-            + " - string: \"some sensitive value\"";
+    String value = "0x00000007142f8848 is an oop: com.company.SymbolEntry \n"
+        + "{0x00000007142f8848} - klass: 'com/company/SymbolEntry'\n"
+        + " - ---- fields (total size 9 words):\n"
+        + " - final 'tag' 'Ljava/lang/String;' @12  \"SourceFile\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
+        + " - final 'value' 'Ljava/lang/String;' @16  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+        + " - final 'hint' 'Ljava/lang/String;' @20  \"java.vendor.url.bug\"{0x00000007aabbccee} (0x12345679)\n"
+        + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
+        + " - string: \"some sensitive value\"";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
-        .isEqualTo(
-            "0x00000007142f8848 is an oop: redacted.Redacted \n"
-                + "{0x00000007142f8848} - klass: 'redacted/Redacted'\n"
-                + " - ---- fields (total size 9 words):\n"
-                + " - final 'tag' 'Ljava/lang/String;' @12  \"REDACTED\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
-                + " - final 'value' 'Ljava/lang/String;' @16  \"REDACTED\"{0x00000007aabbccdd} (0x12345678)\n"
-                + " - final 'hint' 'Ljava/lang/String;' @20  \"REDACTED\"{0x00000007aabbccee} (0x12345679)\n"
-                + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
-                + " - string: \"REDACTED\"");
+        .isEqualTo("0x00000007142f8848 is an oop: redacted.Redacted \n"
+            + "{0x00000007142f8848} - klass: 'redacted/Redacted'\n"
+            + " - ---- fields (total size 9 words):\n"
+            + " - final 'tag' 'Ljava/lang/String;' @12  \"REDACTED\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
+            + " - final 'value' 'Ljava/lang/String;' @16  \"REDACTED\"{0x00000007aabbccdd} (0x12345678)\n"
+            + " - final 'hint' 'Ljava/lang/String;' @20  \"REDACTED\"{0x00000007aabbccee} (0x12345679)\n"
+            + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
+            + " - string: \"REDACTED\"");
   }
 
   @Test
   void testRedactRegisterToMemoryMapping_javaLangClassOopRedactsUnknownClasses() {
     // java.lang.Class oop: String OOP refs in field values are treated as class names.
     // Unknown-package classes are redacted to redacted.Redacted; known packages are preserved.
-    String value =
-        "0x00000007ffe85850 is an oop: java.lang.Class \n"
-            + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
-            + " - ---- fields (total size 25 words):\n"
-            + " - private transient 'name' 'Ljava/lang/String;' @44  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
-            + " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)";
+    String value = "0x00000007ffe85850 is an oop: java.lang.Class \n"
+        + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
+        + " - ---- fields (total size 25 words):\n"
+        + " - private transient 'name' 'Ljava/lang/String;' @44  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+        + " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
         .isEqualTo(
             "0x00000007ffe85850 is an oop: java.lang.Class \n"
@@ -267,9 +260,8 @@ public class RedactUtilsTest {
 
   @Test
   void testRedactRegisterToMemoryMapping_safeValuesUnchanged() {
-    assertThat(
-            RedactUtils.redactRegisterToMemoryMapping(
-                "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80"))
+    assertThat(RedactUtils.redactRegisterToMemoryMapping(
+            "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80"))
         .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
     assertThat(RedactUtils.redactRegisterToMemoryMapping("0x0 is NULL")).isEqualTo("0x0 is NULL");
     assertThat(RedactUtils.redactRegisterToMemoryMapping("0x000000008fd66048 is an unknown value"))
@@ -289,9 +281,8 @@ public class RedactUtilsTest {
   @Test
   void testRedactReadableMemoryHexDump_withoutAddress() {
     // Linux aarch64: bytes only — redact everything after the colon
-    assertThat(
-            RedactUtils.redactReadableMemoryHexDump(
-                "0x0000ffff9f686ca4 points into unknown readable memory: 06 00 00 00"))
+    assertThat(RedactUtils.redactReadableMemoryHexDump(
+            "0x0000ffff9f686ca4 points into unknown readable memory: 06 00 00 00"))
         .isEqualTo("0x0000ffff9f686ca4 points into unknown readable memory: REDACTED");
   }
 
@@ -327,17 +318,15 @@ public class RedactUtilsTest {
 
   @Test
   void testRedactNmethodClass_dottedUnknownPackage() {
-    assertThat(
-            RedactUtils.redactNmethodClass(
-                "Compiled method (c2) 3068 4       com.company.Foo::methodName (456 bytes)"))
+    assertThat(RedactUtils.redactNmethodClass(
+            "Compiled method (c2) 3068 4       com.company.Foo::methodName (456 bytes)"))
         .isEqualTo("Compiled method (c2) 3068 4       redacted.Redacted::methodName (456 bytes)");
   }
 
   @Test
   void testRedactNmethodClass_dottedKnownPackage() {
-    assertThat(
-            RedactUtils.redactNmethodClass(
-                "Compiled method (c2) 3068 4       java.util.HashMap::resize (456 bytes)"))
+    assertThat(RedactUtils.redactNmethodClass(
+            "Compiled method (c2) 3068 4       java.util.HashMap::resize (456 bytes)"))
         .isEqualTo("Compiled method (c2) 3068 4       java.util.HashMap::resize (456 bytes)");
   }
 
@@ -362,11 +351,10 @@ public class RedactUtilsTest {
   @Test
   void testRedactRegisterToMemoryMapping_objFieldRef() {
     // Non-java.lang.Class oop with object-reference field: a 'ClassName' is redacted
-    String value =
-        "0x00000007142f8848 is an oop: com.company.Holder \n"
-            + "{0x00000007142f8848} - klass: 'com/company/Holder'\n"
-            + " - ---- fields (total size 3 words):\n"
-            + " - 'ref' 'Ljava/lang/Object;' @12  a 'com/company/Inner'{0x00007f1200003456} (0xabcdef01)";
+    String value = "0x00000007142f8848 is an oop: com.company.Holder \n"
+        + "{0x00000007142f8848} - klass: 'com/company/Holder'\n"
+        + " - ---- fields (total size 3 words):\n"
+        + " - 'ref' 'Ljava/lang/Object;' @12  a 'com/company/Inner'{0x00007f1200003456} (0xabcdef01)";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
         .isEqualTo(
             "0x00000007142f8848 is an oop: redacted.Redacted \n"
@@ -378,12 +366,10 @@ public class RedactUtilsTest {
   @Test
   void testRedactRegisterToMemoryMapping_nmethodCompiledMethod() {
     // nmethod entry (JDK 11+): "Compiled method" line class name is redacted
-    String value =
-        "0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
-            + "Compiled method (c2) 3068 4       com.company.Foo::processRequest (456 bytes)";
+    String value = "0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
+        + "Compiled method (c2) 3068 4       com.company.Foo::processRequest (456 bytes)";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
-        .isEqualTo(
-            "0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
-                + "Compiled method (c2) 3068 4       redacted.Redacted::processRequest (456 bytes)");
+        .isEqualTo("0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
+            + "Compiled method (c2) 3068 4       redacted.Redacted::processRequest (456 bytes)");
   }
 }

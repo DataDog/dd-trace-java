@@ -120,11 +120,10 @@ public class SnapshotSerializationTest {
     CapturedContext.CapturedValue normalNullLocal =
         CapturedContext.CapturedValue.of("normalNullLocal", String.class.getTypeName(), null);
     // this object generates InaccessibleObjectException since JDK16 when extracting its fields
-    CapturedContext.CapturedValue notCapturedLocal =
-        CapturedContext.CapturedValue.of(
-            "notCapturedLocal",
-            OperatingSystemMXBean.class.getTypeName(),
-            ManagementFactory.getOperatingSystemMXBean());
+    CapturedContext.CapturedValue notCapturedLocal = CapturedContext.CapturedValue.of(
+        "notCapturedLocal",
+        OperatingSystemMXBean.class.getTypeName(),
+        ManagementFactory.getOperatingSystemMXBean());
     context.addLocals(
         new CapturedContext.CapturedValue[] {normalValuedLocal, normalNullLocal, notCapturedLocal});
     context.evaluate(
@@ -170,15 +169,14 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
-    captures.addCaughtException(
-        new CapturedContext.CapturedThrowable(
-            IllegalArgumentException.class.getTypeName(),
-            "illegal argument",
-            Arrays.asList(
-                new CapturedStackFrame("f1", 12),
-                new CapturedStackFrame("f2", 23),
-                new CapturedStackFrame("f3", 34)),
-            null));
+    captures.addCaughtException(new CapturedContext.CapturedThrowable(
+        IllegalArgumentException.class.getTypeName(),
+        "illegal argument",
+        Arrays.asList(
+            new CapturedStackFrame("f1", 12),
+            new CapturedStackFrame("f2", 23),
+            new CapturedStackFrame("f3", 34)),
+        null));
     String buffer = adapter.toJson(snapshot);
     System.out.println("roundTripCaughtException: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
@@ -195,16 +193,14 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext entryCapturedContext = new CapturedContext();
-    entryCapturedContext.addLocals(
-        new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("localInt", "int", "42")
-        });
+    entryCapturedContext.addLocals(new CapturedContext.CapturedValue[] {
+      CapturedContext.CapturedValue.of("localInt", "int", "42")
+    });
     snapshot.setEntry(entryCapturedContext);
     CapturedContext exitCapturedContext = new CapturedContext();
-    exitCapturedContext.addLocals(
-        new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("localInt", "int", "42")
-        });
+    exitCapturedContext.addLocals(new CapturedContext.CapturedValue[] {
+      CapturedContext.CapturedValue.of("localInt", "int", "42")
+    });
     exitCapturedContext.addReturn(
         CapturedContext.CapturedValue.of(String.class.getTypeName(), "foo"));
     exitCapturedContext.addThrowable(new RuntimeException("Illegal argument"));
@@ -259,10 +255,9 @@ public class SnapshotSerializationTest {
     Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     CapturedContext lineCapturedContext = new CapturedContext();
-    lineCapturedContext.addLocals(
-        new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("localInt", "int", "42")
-        });
+    lineCapturedContext.addLocals(new CapturedContext.CapturedValue[] {
+      CapturedContext.CapturedValue.of("localInt", "int", "42")
+    });
     captures.addLine(24, lineCapturedContext);
     String buffer = adapter.toJson(snapshot);
     System.out.println("roundtripLines: " + buffer);
@@ -354,9 +349,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue objLocal =
-        capturedValueDepth(
-            "objLocal", WellKnownClasses.class.getTypeName(), new WellKnownClasses(), 3);
+    CapturedContext.CapturedValue objLocal = capturedValueDepth(
+        "objLocal", WellKnownClasses.class.getTypeName(), new WellKnownClasses(), 3);
     context.addLocals(new CapturedContext.CapturedValue[] {objLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -439,9 +433,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue localObjArray =
-        capturedValueDepth(
-            "localObjArray", Object[].class.getTypeName(), new Object[] {"foo", null, 42}, 3);
+    CapturedContext.CapturedValue localObjArray = capturedValueDepth(
+        "localObjArray", Object[].class.getTypeName(), new Object[] {"foo", null, 42}, 3);
     context.addLocals(new CapturedContext.CapturedValue[] {localObjArray});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -459,9 +452,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue localObj =
-        capturedValueDepth(
-            "localObj", ObjetArrayClass.class.getTypeName(), new ObjetArrayClass(), 3);
+    CapturedContext.CapturedValue localObj = capturedValueDepth(
+        "localObj", ObjetArrayClass.class.getTypeName(), new ObjetArrayClass(), 3);
     context.addLocals(new CapturedContext.CapturedValue[] {localObj});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -492,9 +484,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue localObj =
-        capturedValueDepth(
-            "localObj", PrimitiveArrayClass.class.getTypeName(), new PrimitiveArrayClass(), 3);
+    CapturedContext.CapturedValue localObj = capturedValueDepth(
+        "localObj", PrimitiveArrayClass.class.getTypeName(), new PrimitiveArrayClass(), 3);
     context.addLocals(new CapturedContext.CapturedValue[] {localObj});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -764,18 +755,17 @@ public class SnapshotSerializationTest {
     syncMap.put("foo", "bar");
     CountDownLatch locked = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
-    Thread holder =
-        new Thread(
-            () -> {
-              synchronized (syncMap) {
-                locked.countDown();
-                try {
-                  release.await();
-                } catch (InterruptedException ignored) {
-                }
-              }
-            },
-            "mutex-holder");
+    Thread holder = new Thread(
+        () -> {
+          synchronized (syncMap) {
+            locked.countDown();
+            try {
+              release.await();
+            } catch (InterruptedException ignored) {
+            }
+          }
+        },
+        "mutex-holder");
     // daemon: a failed await below would otherwise leave the mutex held and block the test JVM
     holder.setDaemon(true);
     holder.start();
@@ -784,14 +774,14 @@ public class SnapshotSerializationTest {
       JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
       Snapshot snapshot = createSnapshot();
       CapturedContext context = new CapturedContext();
-      context.addLocals(
-          new CapturedContext.CapturedValue[] {
-            capturedValueDepth("syncMap", syncMap.getClass().getTypeName(), syncMap, 1)
-          });
+      context.addLocals(new CapturedContext.CapturedValue[] {
+        capturedValueDepth("syncMap", syncMap.getClass().getTypeName(), syncMap, 1)
+      });
       snapshot.setExit(context);
       String buffer =
           CompletableFuture.supplyAsync(() -> adapter.toJson(snapshot)).get(30, TimeUnit.SECONDS);
-      Map<String, Object> local = (Map<String, Object>) getLocalsFromJson(buffer).get("syncMap");
+      Map<String, Object> local =
+          (Map<String, Object>) getLocalsFromJson(buffer).get("syncMap");
       assertNull(local.get(ENTRIES));
       assertNull(local.get(SIZE));
       Map<String, Object> fields = (Map<String, Object>) local.get(FIELDS);
@@ -838,11 +828,8 @@ public class SnapshotSerializationTest {
 
   @Test
   public void capturesAdapterNull() {
-    MoshiSnapshotHelper.CapturesAdapter capturesAdapter =
-        new MoshiSnapshotHelper.CapturesAdapter(
-            MoshiSnapshotTestHelper.createMoshiSnapshot(),
-            Duration.of(5, ChronoUnit.SECONDS),
-            null);
+    MoshiSnapshotHelper.CapturesAdapter capturesAdapter = new MoshiSnapshotHelper.CapturesAdapter(
+        MoshiSnapshotTestHelper.createMoshiSnapshot(), Duration.of(5, ChronoUnit.SECONDS), null);
     Assertions.assertEquals("null", capturesAdapter.toJson(null));
   }
 
@@ -858,9 +845,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue listLocal =
-        CapturedContext.CapturedValue.of(
-            "listLocal", List.class.getTypeName(), new ArrayList<String>() {});
+    CapturedContext.CapturedValue listLocal = CapturedContext.CapturedValue.of(
+        "listLocal", List.class.getTypeName(), new ArrayList<String>() {});
     context.addLocals(new CapturedContext.CapturedValue[] {listLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -878,9 +864,8 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue mapLocal =
-        CapturedContext.CapturedValue.of(
-            "mapLocal", Map.class.getTypeName(), new HashMap<String, String>() {});
+    CapturedContext.CapturedValue mapLocal = CapturedContext.CapturedValue.of(
+        "mapLocal", Map.class.getTypeName(), new HashMap<String, String>() {});
     context.addLocals(new CapturedContext.CapturedValue[] {mapLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
@@ -1037,9 +1022,8 @@ public class SnapshotSerializationTest {
     map.put("foo3", "bar3");
     context.addCaptureExpression(
         CapturedContext.CapturedValue.of("expr1", Map.class.getTypeName(), map));
-    context.addCaptureExpression(
-        CapturedContext.CapturedValue.of(
-            "expr2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
+    context.addCaptureExpression(CapturedContext.CapturedValue.of(
+        "expr2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
     context.addCaptureExpression(
         CapturedContext.CapturedValue.of("expr3", Integer.TYPE.getTypeName(), 42));
     snapshot.setExit(context);
@@ -1191,9 +1175,8 @@ public class SnapshotSerializationTest {
         capturedValueDepth("objArg", ComplexClass.class.getTypeName(), null, maxRefDepth);
     context.addArguments(new CapturedContext.CapturedValue[] {intArg, strArg, objArg});
     CapturedContext.CapturedValue intLocal = capturedValueDepth("intLocal", "int", 42, maxRefDepth);
-    CapturedContext.CapturedValue objLocal =
-        capturedValueDepth(
-            "objLocal", ComplexClass.class.getTypeName(), new ComplexClass(), maxRefDepth);
+    CapturedContext.CapturedValue objLocal = capturedValueDepth(
+        "objLocal", ComplexClass.class.getTypeName(), new ComplexClass(), maxRefDepth);
     context.addLocals(new CapturedContext.CapturedValue[] {intLocal, objLocal});
     snapshot.setExit(context);
     return snapshot;
@@ -1202,43 +1185,36 @@ public class SnapshotSerializationTest {
   private Snapshot createSnapshotForCollectionSize(int maxColSize) {
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue intArrayLocal =
-        capturedValueColSize(
-            "intArrayLocal", "int[]", new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, maxColSize);
-    CapturedContext.CapturedValue strArrayLocal =
-        capturedValueColSize(
-            "strArrayLocal",
-            String[].class.getTypeName(),
-            new String[] {
-              "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
-            },
-            maxColSize);
-    CapturedContext.CapturedValue objArrayLocal =
-        capturedValueColSize(
-            "objArrayLocal",
-            Object[].class.getTypeName(),
-            new Object[] {
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass(),
-              new ComplexClass()
-            },
-            maxColSize);
-    CapturedContext.CapturedValue listLocal =
-        capturedValueColSize(
-            "listLocal",
-            List.class.getTypeName(),
-            new ArrayList<>(
-                Arrays.asList(
-                    "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8",
-                    "foo9")),
-            maxColSize);
+    CapturedContext.CapturedValue intArrayLocal = capturedValueColSize(
+        "intArrayLocal", "int[]", new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, maxColSize);
+    CapturedContext.CapturedValue strArrayLocal = capturedValueColSize(
+        "strArrayLocal",
+        String[].class.getTypeName(),
+        new String[] {"foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
+        },
+        maxColSize);
+    CapturedContext.CapturedValue objArrayLocal = capturedValueColSize(
+        "objArrayLocal",
+        Object[].class.getTypeName(),
+        new Object[] {
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass(),
+          new ComplexClass()
+        },
+        maxColSize);
+    CapturedContext.CapturedValue listLocal = capturedValueColSize(
+        "listLocal",
+        List.class.getTypeName(),
+        new ArrayList<>(Arrays.asList(
+            "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9")),
+        maxColSize);
     Map<String, String> mapObj = new HashMap<>();
     mapObj.put("foo0", "bar0");
     mapObj.put("foo1", "bar1");
@@ -1252,10 +1228,9 @@ public class SnapshotSerializationTest {
     mapObj.put("foo9", "bar9");
     CapturedContext.CapturedValue mapLocal =
         capturedValueColSize("mapLocal", Map.class.getTypeName(), mapObj, maxColSize);
-    context.addLocals(
-        new CapturedContext.CapturedValue[] {
-          intArrayLocal, strArrayLocal, objArrayLocal, listLocal, mapLocal
-        });
+    context.addLocals(new CapturedContext.CapturedValue[] {
+      intArrayLocal, strArrayLocal, objArrayLocal, listLocal, mapLocal
+    });
     snapshot.setExit(context);
     return snapshot;
   }
@@ -1274,15 +1249,14 @@ public class SnapshotSerializationTest {
     strMap.put("foo7", "bar7");
     strMap.put("foo8", "bar8");
     strMap.put("foo9", "bar9");
-    CapturedContext.CapturedValue map =
-        CapturedContext.CapturedValue.of(
-            "strMap",
-            strMap.getClass().getTypeName(),
-            strMap,
-            Limits.DEFAULT_REFERENCE_DEPTH,
-            maxColSize,
-            Limits.DEFAULT_LENGTH,
-            Limits.DEFAULT_FIELD_COUNT);
+    CapturedContext.CapturedValue map = CapturedContext.CapturedValue.of(
+        "strMap",
+        strMap.getClass().getTypeName(),
+        strMap,
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        maxColSize,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     context.addLocals(new CapturedContext.CapturedValue[] {map});
     snapshot.setExit(context);
     return snapshot;
@@ -1291,15 +1265,14 @@ public class SnapshotSerializationTest {
   private Snapshot createSnapshotForLength(int maxLength) {
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
-    CapturedContext.CapturedValue strLocal =
-        CapturedContext.CapturedValue.of(
-            "strLocal",
-            String.class.getTypeName(),
-            "0123456789",
-            Limits.DEFAULT_REFERENCE_DEPTH,
-            Limits.DEFAULT_COLLECTION_SIZE,
-            maxLength,
-            Limits.DEFAULT_FIELD_COUNT);
+    CapturedContext.CapturedValue strLocal = CapturedContext.CapturedValue.of(
+        "strLocal",
+        String.class.getTypeName(),
+        "0123456789",
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        maxLength,
+        Limits.DEFAULT_FIELD_COUNT);
     context.addLocals(new CapturedContext.CapturedValue[] {strLocal});
     snapshot.setExit(context);
     return snapshot;
@@ -1313,9 +1286,8 @@ public class SnapshotSerializationTest {
         Limits.DEFAULT_COLLECTION_SIZE,
         Limits.DEFAULT_LENGTH,
         maxFieldCount);
-    CapturedContext.CapturedValue fieldHolder =
-        capturedValueFieldCount(
-            THIS, FieldHolder.class.getTypeName(), new FieldHolder(), maxFieldCount);
+    CapturedContext.CapturedValue fieldHolder = capturedValueFieldCount(
+        THIS, FieldHolder.class.getTypeName(), new FieldHolder(), maxFieldCount);
     context.addArguments(new CapturedContext.CapturedValue[] {fieldHolder});
     snapshot.setExit(context);
     return snapshot;

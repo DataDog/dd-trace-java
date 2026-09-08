@@ -46,23 +46,20 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
   static void startServer() throws IOException {
     capturedBaggage.set(null);
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    mockServer.createContext(
-        "/capture",
-        exchange -> {
-          capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
-          byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, body.length);
-          exchange.getResponseBody().write(body);
-          exchange.close();
-        });
+    mockServer.createContext("/capture", exchange -> {
+      capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
+      byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+      exchange.sendResponseHeaders(200, body.length);
+      exchange.getResponseBody().write(body);
+      exchange.close();
+    });
     serverExecutor = Executors.newCachedThreadPool();
     mockServer.setExecutor(serverExecutor);
     mockServer.start();
-    baseUrl =
-        "http://"
-            + mockServer.getAddress().getHostString()
-            + ":"
-            + mockServer.getAddress().getPort();
+    baseUrl = "http://"
+        + mockServer.getAddress().getHostString()
+        + ":"
+        + mockServer.getAddress().getPort();
   }
 
   @AfterAll

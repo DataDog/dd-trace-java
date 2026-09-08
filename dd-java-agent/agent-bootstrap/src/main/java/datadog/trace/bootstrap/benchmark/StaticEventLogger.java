@@ -92,12 +92,10 @@ public class StaticEventLogger {
 
   private static String getAgentVersion() {
     final StringBuilder sb = new StringBuilder();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                Objects.requireNonNull(
-                    StaticEventLogger.class.getResourceAsStream("/dd-java-agent.version")),
-                StandardCharsets.UTF_8))) {
+    try (final BufferedReader reader = new BufferedReader(new InputStreamReader(
+        Objects.requireNonNull(
+            StaticEventLogger.class.getResourceAsStream("/dd-java-agent.version")),
+        StandardCharsets.UTF_8))) {
 
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);

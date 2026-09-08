@@ -79,13 +79,12 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   @WithConfig(key = "dd.trace.PeerServiceTagInterceptor.enabled", value = "true", addPrefix = false)
   void setServiceName(@ConvertWith(TagsConverter.class) String tag, String name, String expected) {
     Map<String, String> mapping = singletonMap("some-service", "new-service");
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("wrong-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .serviceNameMappings(mapping)
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("wrong-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .serviceNameMappings(mapping)
+        .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").withTag(tag, name).start();
     span.finish();
@@ -97,13 +96,12 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   @MethodSource("defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTagArguments")
   void defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTag(
       String serviceName, String expected, Map<String, String> mapping) {
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName(serviceName)
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .serviceNameMappings(mapping)
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName(serviceName)
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .serviceNameMappings(mapping)
+        .build();
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
     span.finish();
 
@@ -175,13 +173,12 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   @ValueSource(strings = {DEFAULT_SERVICE_NAME, "my-service"})
   void mappingCausesServletContextToNotChangeServiceName(String serviceName) {
     Map<String, String> mapping = singletonMap(serviceName, "new-service");
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName(serviceName)
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .serviceNameMappings(mapping)
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName(serviceName)
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .serviceNameMappings(mapping)
+        .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
     span.setTag("servlet.context", "/some-context");
@@ -196,9 +193,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         .writer(new LoggingWriter())
         .sampler(new AllSampler())
         // equivalent to split-by-tags: tag
-        .tagInterceptor(
-            new TagInterceptor(
-                true, "my-service", Collections.singleton(tag), new RuleFlags(), false))
+        .tagInterceptor(new TagInterceptor(
+            true, "my-service", Collections.singleton(tag), new RuleFlags(), false))
         .build();
   }
 
@@ -209,14 +205,13 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   })
   void splitByTagsForServletContextAndExperimentalJeeSplitByDeployment(
       String expected, boolean jeeActive) {
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("my-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .tagInterceptor(
-                new TagInterceptor(false, "my-service", emptySet(), new RuleFlags(), jeeActive))
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("my-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .tagInterceptor(
+            new TagInterceptor(false, "my-service", emptySet(), new RuleFlags(), jeeActive))
+        .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
     span.setTag(InstrumentationTags.SERVLET_CONTEXT, "some-context");
@@ -229,12 +224,11 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   void peerServiceThenSplitByTagsViaBuilder() {
     CoreTracer tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION);
 
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "some span")
-            .withTag(Tags.PEER_SERVICE, "peer-service")
-            .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
-            .start();
+    AgentSpan span = tracer
+        .buildSpan("datadog", "some span")
+        .withTag(Tags.PEER_SERVICE, "peer-service")
+        .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
+        .start();
     span.finish();
 
     assertEquals("some-queue", span.getServiceName());
@@ -258,12 +252,11 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     injectSysConfig("dd.trace.PeerServiceTagInterceptor.enabled", String.valueOf(enabled), false);
     CoreTracer tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION);
 
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "some span")
-            .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
-            .withTag(Tags.PEER_SERVICE, "peer-service")
-            .start();
+    AgentSpan span = tracer
+        .buildSpan("datadog", "some span")
+        .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
+        .withTag(Tags.PEER_SERVICE, "peer-service")
+        .start();
     span.finish();
 
     assertEquals(enabled, "peer-service".equals(span.getServiceName()));
@@ -301,7 +294,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
 
-    AgentSpan span = tracer.buildSpan("datadog", "test").withResourceName("keep").start();
+    AgentSpan span =
+        tracer.buildSpan("datadog", "test").withResourceName("keep").start();
     span.setTag(DDTags.RESOURCE_NAME, (String) null);
     span.finish();
     writer.waitForTraces(1);
@@ -404,26 +398,14 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
             "sampling.priority / 1", Tags.SAMPLING_PRIORITY, 1, (int) PrioritySampling.USER_KEEP),
         arguments(
             "sampling.priority / 2", Tags.SAMPLING_PRIORITY, 2, (int) PrioritySampling.USER_KEEP),
-        arguments(
-            "sampling.priority / '-1'",
-            Tags.SAMPLING_PRIORITY,
-            "-1",
-            (int) PrioritySampling.USER_DROP),
-        arguments(
-            "sampling.priority / '0'",
-            Tags.SAMPLING_PRIORITY,
-            "0",
-            (int) PrioritySampling.USER_DROP),
-        arguments(
-            "sampling.priority / '1'",
-            Tags.SAMPLING_PRIORITY,
-            "1",
-            (int) PrioritySampling.USER_KEEP),
-        arguments(
-            "sampling.priority / '2'",
-            Tags.SAMPLING_PRIORITY,
-            "2",
-            (int) PrioritySampling.USER_KEEP),
+        arguments("sampling.priority / '-1'", Tags.SAMPLING_PRIORITY, "-1", (int)
+            PrioritySampling.USER_DROP),
+        arguments("sampling.priority / '0'", Tags.SAMPLING_PRIORITY, "0", (int)
+            PrioritySampling.USER_DROP),
+        arguments("sampling.priority / '1'", Tags.SAMPLING_PRIORITY, "1", (int)
+            PrioritySampling.USER_KEEP),
+        arguments("sampling.priority / '2'", Tags.SAMPLING_PRIORITY, "2", (int)
+            PrioritySampling.USER_KEEP),
         arguments("sampling.priority / 'asdf'", Tags.SAMPLING_PRIORITY, "asdf", null));
   }
 
@@ -469,13 +451,12 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   void samplingPriorityPositiveTagOverridesDecisionMakerFromUpstreamPropagation() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     // Upstream service dropped with LOCAL_USER_RULE and propagated _dd.p.dm=-3
-    PropagationTags propagationTags =
-        PropagationTags.factory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3");
-    AgentSpanContext extracted =
-        new ExtractedContext(
-            DDTraceId.from(123), 456L, PrioritySampling.USER_DROP, null, propagationTags, DATADOG);
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").asChildOf(extracted).start();
+    PropagationTags propagationTags = PropagationTags.factory()
+        .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3");
+    AgentSpanContext extracted = new ExtractedContext(
+        DDTraceId.from(123), 456L, PrioritySampling.USER_DROP, null, propagationTags, DATADOG);
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "test").asChildOf(extracted).start();
 
     // positive sampling.priority overrides locked priority and sets _dd.p.dm to MANUAL
     span.setTag(Tags.SAMPLING_PRIORITY, 2);
@@ -502,20 +483,13 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   static Stream<Arguments> interceptorsApplyToBuilderTooArguments() {
     return Stream.of(
         arguments(
-            "serviceName",
-            DDTags.SERVICE_NAME,
-            "my-service",
-            (Function<DDSpanContext, Object>) DDSpanContext::getServiceName),
+            "serviceName", DDTags.SERVICE_NAME, "my-service", (Function<DDSpanContext, Object>)
+                DDSpanContext::getServiceName),
         arguments(
-            "resourceName",
-            DDTags.RESOURCE_NAME,
-            "my-resource",
-            (Function<DDSpanContext, Object>) ctx -> ctx.getResourceName().toString()),
-        arguments(
-            "spanType",
-            DDTags.SPAN_TYPE,
-            "my-span-type",
-            (Function<DDSpanContext, Object>) DDSpanContext::getSpanType));
+            "resourceName", DDTags.RESOURCE_NAME, "my-resource", (Function<DDSpanContext, Object>)
+                ctx -> ctx.getResourceName().toString()),
+        arguments("spanType", DDTags.SPAN_TYPE, "my-span-type", (Function<DDSpanContext, Object>)
+            DDSpanContext::getSpanType));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -526,7 +500,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
 
-    AgentSpan span = tracer.buildSpan("datadog", "interceptor.test").withTag(name, value).start();
+    AgentSpan span =
+        tracer.buildSpan("datadog", "interceptor.test").withTag(name, value).start();
     span.finish();
     writer.waitForTraces(1);
 
@@ -538,29 +513,30 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
 
-    AgentSpan span =
-        tracer.buildSpan("datadog", "decorator.test").withTag("sn.tag1", "some val").start();
+    AgentSpan span = tracer
+        .buildSpan("datadog", "decorator.test")
+        .withTag("sn.tag1", "some val")
+        .start();
     span.finish();
     writer.waitForTraces(1);
     assertEquals("some val", span.getServiceName());
 
-    span =
-        tracer
-            .buildSpan("datadog", "decorator.test")
-            .withTag("servlet.context", "/my-servlet")
-            .start();
+    span = tracer
+        .buildSpan("datadog", "decorator.test")
+        .withTag("servlet.context", "/my-servlet")
+        .start();
     assertEquals("my-servlet", span.getServiceName());
 
-    span = tracer.buildSpan("datadog", "decorator.test").withTag("error", "true").start();
+    span =
+        tracer.buildSpan("datadog", "decorator.test").withTag("error", "true").start();
     span.finish();
     writer.waitForTraces(2);
     assertTrue(span.isError());
 
-    span =
-        tracer
-            .buildSpan("datadog", "decorator.test")
-            .withTag(Tags.DB_STATEMENT, "some-statement")
-            .start();
+    span = tracer
+        .buildSpan("datadog", "decorator.test")
+        .withTag(Tags.DB_STATEMENT, "some-statement")
+        .start();
     span.finish();
     writer.waitForTraces(3);
     assertEquals("some-statement", span.getResourceName().toString());
@@ -576,18 +552,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   void disableDecoratorViaConfig(String decorator, boolean enabled) {
     injectSysConfig("dd.trace." + decorator + ".enabled", String.valueOf(enabled), false);
 
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("some-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("some-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .build();
 
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "some span")
-            .withTag(DDTags.SERVICE_NAME, "other-service")
-            .start();
+    AgentSpan span = tracer
+        .buildSpan("datadog", "some span")
+        .withTag(DDTags.SERVICE_NAME, "other-service")
+        .start();
     span.finish();
 
     assertEquals(enabled ? "other-service" : "some-service", span.getServiceName());
@@ -603,12 +577,11 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
       @ConvertWith(TagsConverter.class) String tag, String name, String expected) {
     injectSysConfig("dd.trace.ServiceNameTagInterceptor.enabled", "false", false);
 
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("some-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("some-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").withTag(tag, name).start();
     span.finish();
@@ -618,18 +591,21 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
   @Test
   void changeTopLevelStatusWhenChangingServiceName() {
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("some-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("some-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .build();
 
-    AgentSpan parent = tracer.buildSpan("datadog", "parent").withServiceName("parent").start();
+    AgentSpan parent =
+        tracer.buildSpan("datadog", "parent").withServiceName("parent").start();
 
     // the service name doesn't match the parent
-    AgentSpan child =
-        tracer.buildSpan("datadog", "child").withServiceName("child").asChildOf(parent).start();
+    AgentSpan child = tracer
+        .buildSpan("datadog", "child")
+        .withServiceName("child")
+        .asChildOf(parent)
+        .start();
     assertTrue(((CoreSpan<?>) child).isTopLevel());
 
     // the service name is changed to match the parent
@@ -657,12 +633,11 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   @MethodSource("treat1ValueAsTrueForBooleanTagValuesArguments")
   void treat1ValueAsTrueForBooleanTagValues(
       String scenario, String tag, Object value, Integer samplingPriority) {
-    CoreTracer tracer =
-        tracerBuilder()
-            .serviceName("some-service")
-            .writer(new LoggingWriter())
-            .sampler(new AllSampler())
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .serviceName("some-service")
+        .writer(new LoggingWriter())
+        .sampler(new AllSampler())
+        .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
     assertNull(span.getSamplingPriority());
@@ -728,9 +703,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     try {
       RuleFlags ruleFlags = mock(RuleFlags.class);
       when(ruleFlags.isEnabled(any())).thenReturn(true);
-      TagInterceptor interceptor =
-          new TagInterceptor(
-              true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags, false);
+      TagInterceptor interceptor = new TagInterceptor(
+          true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags, false);
 
       interceptor.interceptServiceName(null, mock(DDSpanContext.class), "some-service");
 
@@ -753,9 +727,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     try {
       RuleFlags ruleFlags = mock(RuleFlags.class);
       when(ruleFlags.isEnabled(any())).thenReturn(true);
-      TagInterceptor interceptor =
-          new TagInterceptor(
-              true, "my-service", Collections.singleton("servlet.context"), ruleFlags, false);
+      TagInterceptor interceptor = new TagInterceptor(
+          true, "my-service", Collections.singleton("servlet.context"), ruleFlags, false);
 
       interceptor.interceptServletContext(mock(DDSpanContext.class), value);
 

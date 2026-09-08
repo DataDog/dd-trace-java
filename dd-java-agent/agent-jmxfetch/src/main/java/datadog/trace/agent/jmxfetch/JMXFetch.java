@@ -71,10 +71,9 @@ public class JMXFetch {
     if (log.isDebugEnabled()) {
       String statsDConnectionString;
       if (namedPipe == null) {
-        statsDConnectionString =
-            "statsd:"
-                + (null != host ? host : "<auto-detect>")
-                + (null != port && port > 0 ? ":" + port : "");
+        statsDConnectionString = "statsd:"
+            + (null != host ? host : "<auto-detect>")
+            + (null != port && port > 0 ? ":" + port : "");
       } else {
         statsDConnectionString = "statsd:" + namedPipe;
       }
@@ -115,23 +114,22 @@ public class JMXFetch {
       defaultConfigs.add(WEBSPHERE_CONFIG);
     }
 
-    final AppConfig.AppConfigBuilder configBuilder =
-        AppConfig.builder()
-            .action(Collections.singletonList(ACTION_COLLECT))
-            // App should be run as daemon otherwise CLI apps would not exit once main method exits.
-            .daemon(true)
-            .embedded(true)
-            .confdDirectory(jmxFetchConfigDir)
-            .yamlFileList(jmxFetchConfigs)
-            .targetDirectInstances(true)
-            .instanceConfigResources(defaultConfigs)
-            .metricConfigResources(internalMetricsConfigs)
-            .metricConfigFiles(metricsConfigs)
-            .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
-            .refreshBeansPeriod(refreshBeansPeriod)
-            .globalTags(globalTags)
-            .reporter(reporter)
-            .connectionFactory(new AgentConnectionFactory());
+    final AppConfig.AppConfigBuilder configBuilder = AppConfig.builder()
+        .action(Collections.singletonList(ACTION_COLLECT))
+        // App should be run as daemon otherwise CLI apps would not exit once main method exits.
+        .daemon(true)
+        .embedded(true)
+        .confdDirectory(jmxFetchConfigDir)
+        .yamlFileList(jmxFetchConfigs)
+        .targetDirectInstances(true)
+        .instanceConfigResources(defaultConfigs)
+        .metricConfigResources(internalMetricsConfigs)
+        .metricConfigFiles(metricsConfigs)
+        .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
+        .refreshBeansPeriod(refreshBeansPeriod)
+        .globalTags(globalTags)
+        .reporter(reporter)
+        .connectionFactory(new AgentConnectionFactory());
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
@@ -147,40 +145,37 @@ public class JMXFetch {
 
     final AppConfig appConfig = configBuilder.build();
 
-    final Thread thread =
-        newAgentThread(
-            JMX_COLLECTOR,
-            new Runnable() {
-              @Override
-              public void run() {
-                App app = new App(appConfig);
-                while (true) {
-                  // check in case dynamic-config has temporarily disabled JMXFetch
-                  if (!appConfig.getExitWatcher().shouldExit()) {
-                    try {
-                      final int result = app.run();
-                      if (result != 0) {
-                        log.warn("jmx collector exited with error code: {}", result);
-                      }
-                    } catch (final Exception e) {
-                      String message = e.getMessage();
-                      boolean ignoredException =
-                          message != null && message.startsWith("Shutdown in progress");
-                      if (!ignoredException) {
-                        log.warn("Exception in jmx collector thread", e);
-                      }
-                    }
-                  }
-                  // always wait before next attempt
-                  try {
-                    Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
-                  } catch (final InterruptedException ignore) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                }
+    final Thread thread = newAgentThread(JMX_COLLECTOR, new Runnable() {
+      @Override
+      public void run() {
+        App app = new App(appConfig);
+        while (true) {
+          // check in case dynamic-config has temporarily disabled JMXFetch
+          if (!appConfig.getExitWatcher().shouldExit()) {
+            try {
+              final int result = app.run();
+              if (result != 0) {
+                log.warn("jmx collector exited with error code: {}", result);
               }
-            });
+            } catch (final Exception e) {
+              String message = e.getMessage();
+              boolean ignoredException =
+                  message != null && message.startsWith("Shutdown in progress");
+              if (!ignoredException) {
+                log.warn("Exception in jmx collector thread", e);
+              }
+            }
+          }
+          // always wait before next attempt
+          try {
+            Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
+          } catch (final InterruptedException ignore) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+      }
+    });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
     thread.start();
   }

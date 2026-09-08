@@ -90,13 +90,12 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
     if (!waitForTracesMax(number, 20)) {
-      String msg =
-          "Timeout waiting for "
-              + number
-              + " trace(s). ListWriter.size() == "
-              + size()
-              + " : "
-              + super.toString();
+      String msg = "Timeout waiting for "
+          + number
+          + " trace(s). ListWriter.size() == "
+          + size()
+          + " : "
+          + super.toString();
       log.warn(msg);
       throw new TimeoutException(msg);
     }

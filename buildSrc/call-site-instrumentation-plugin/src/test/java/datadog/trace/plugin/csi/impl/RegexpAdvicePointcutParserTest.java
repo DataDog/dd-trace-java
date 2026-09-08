@@ -11,9 +11,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveConstructor() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>()");
+    MethodType signature = pointcutParser.parse(
+        "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -26,9 +25,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveConstructorWithArgs() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>(java.lang.String)");
+    MethodType signature = pointcutParser.parse(
+        "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>(java.lang.String)");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -41,9 +39,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveWithoutArgs() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.noParams()");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.noParams()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -56,24 +53,23 @@ class RegexpAdvicePointcutParserTest {
   void resolveOneParam() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.oneParam(java.util.Map)");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.oneParam(java.util.Map)");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
         signature.getOwner().getClassName());
     assertEquals("oneParam", signature.getMethodName());
-    assertEquals("(Ljava/util/Map;)Ljava/lang/String;", signature.getMethodType().getDescriptor());
+    assertEquals(
+        "(Ljava/util/Map;)Ljava/lang/String;", signature.getMethodType().getDescriptor());
   }
 
   @Test
   void resolveMultipleParams() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.multipleParams(java.lang.String, int, java.util.List)");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.multipleParams(java.lang.String, int, java.util.List)");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -88,9 +84,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveVarargs() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.varargs(java.lang.String[])");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.varargs(java.lang.String[])");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -104,9 +99,8 @@ class RegexpAdvicePointcutParserTest {
   void resolvePrimitive() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "int datadog.trace.plugin.csi.samples.SignatureParserExample.primitive()");
+    MethodType signature = pointcutParser.parse(
+        "int datadog.trace.plugin.csi.samples.SignatureParserExample.primitive()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -119,9 +113,8 @@ class RegexpAdvicePointcutParserTest {
   void resolvePrimitiveArrayType() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "byte[] datadog.trace.plugin.csi.samples.SignatureParserExample.primitiveArray()");
+    MethodType signature = pointcutParser.parse(
+        "byte[] datadog.trace.plugin.csi.samples.SignatureParserExample.primitiveArray()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -134,9 +127,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveObjectArrayType() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.Object[] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.Object[] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",
@@ -149,9 +141,8 @@ class RegexpAdvicePointcutParserTest {
   void resolveMultiDimensionalObjectArrayType() {
     RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    MethodType signature =
-        pointcutParser.parse(
-            "java.lang.Object[][][] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
+    MethodType signature = pointcutParser.parse(
+        "java.lang.Object[][][] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
 
     assertEquals(
         "datadog.trace.plugin.csi.samples.SignatureParserExample",

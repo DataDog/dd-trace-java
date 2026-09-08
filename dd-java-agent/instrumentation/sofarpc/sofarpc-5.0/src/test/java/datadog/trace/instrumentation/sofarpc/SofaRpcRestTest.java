@@ -48,24 +48,22 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
 
   @BeforeAll
   void setupServers() {
-    restProviderConfig =
-        new ProviderConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setRef(new RestGreeterServiceImpl())
-            .setServer(new ServerConfig().setProtocol("rest").setHost("127.0.0.1").setPort(PORT))
-            .setRegister(false);
+    restProviderConfig = new ProviderConfig<RestGreeterService>()
+        .setApplication(new ApplicationConfig().setAppName("test-server"))
+        .setInterfaceId(RestGreeterService.class.getName())
+        .setRef(new RestGreeterServiceImpl())
+        .setServer(new ServerConfig().setProtocol("rest").setHost("127.0.0.1").setPort(PORT))
+        .setRegister(false);
     restProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setDirectUrl("rest://127.0.0.1:" + PORT)
-            .setProtocol("rest")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<RestGreeterService>()
+        .setApplication(new ApplicationConfig().setAppName("test-client"))
+        .setInterfaceId(RestGreeterService.class.getName())
+        .setDirectUrl("rest://127.0.0.1:" + PORT)
+        .setProtocol("rest")
+        .setRegister(false)
+        .setSubscribe(false)
+        .refer();
   }
 
   @AfterAll
@@ -99,7 +97,8 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
 
     // Client span — full service unique name is available on client side
     assertNotNull(clientSofaSpan, "Expected sofarpc client span");
-    assertEquals(serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
+    assertEquals(
+        serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
     assertEquals("rest", String.valueOf(clientSofaSpan.getTag("sofarpc.protocol")));
     assertEquals("sofarpc-client", String.valueOf(clientSofaSpan.getTag("component")));
     assertEquals("client", String.valueOf(clientSofaSpan.getTag("span.kind")));

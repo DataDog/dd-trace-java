@@ -43,7 +43,8 @@ public class JfrCliHelperTest {
   private static final int PROFILE_START = 1000;
   private static final int PROFILE_END = 1100;
 
-  @Mock private IOLogger ioLogger;
+  @Mock
+  private IOLogger ioLogger;
 
   @Test
   public void testInvokeOn() throws Exception {
@@ -85,10 +86,8 @@ public class JfrCliHelperTest {
 
   private RecordingData mockRecordingData(boolean zip) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
-    when(recordingData.getStream())
-        .then(
-            (Answer<InputStream>)
-                invocation -> spy(new RecordingInputStream(recordingStream(zip))));
+    when(recordingData.getStream()).then((Answer<InputStream>)
+        invocation -> spy(new RecordingInputStream(recordingStream(zip))));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));

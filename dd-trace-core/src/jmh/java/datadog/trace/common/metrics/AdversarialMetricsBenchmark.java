@@ -71,18 +71,17 @@ public class AdversarialMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"), Collections.emptySet()),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false);
     this.aggregator.start();
   }
 
@@ -94,14 +93,12 @@ public class AdversarialMetricsBenchmark {
     // CountingHealthMetrics instance is created once in @Setup and never reset.
     System.err.println(
         "[ADVERSARIAL] drops over the trial (8 threads, warmup + measurement combined):");
-    System.err.println(
-        "  onStatsInboxFull         = "
-            + health.inboxFull.sum()
-            + "   (snapshots dropped because the MPSC inbox was full)");
-    System.err.println(
-        "  onStatsAggregateDropped  = "
-            + health.aggregateDropped.sum()
-            + "   (snapshots dropped because the aggregate cache was full with no stale entry)");
+    System.err.println("  onStatsInboxFull         = "
+        + health.inboxFull.sum()
+        + "   (snapshots dropped because the MPSC inbox was full)");
+    System.err.println("  onStatsAggregateDropped  = "
+        + health.aggregateDropped.sum()
+        + "   (snapshots dropped because the aggregate cache was full with no stale entry)");
   }
 
   @Benchmark
@@ -122,9 +119,8 @@ public class AdversarialMetricsBenchmark {
     // Wide duration spread forces histogram bins to populate broadly.
     long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL); // 1 ns .. ~1.07 s
 
-    SimpleSpan span =
-        new SimpleSpan(
-            service, operation, resource, "web", true, topLevel, error, 0, durationNanos, 200);
+    SimpleSpan span = new SimpleSpan(
+        service, operation, resource, "web", true, topLevel, error, 0, durationNanos, 200);
     span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
     span.setTag("peer.hostname", hostname);
 

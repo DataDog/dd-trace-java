@@ -47,10 +47,9 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
   @Test
   void testObservableLongCounterCumulative() {
     long[] absoluteValue = {0L};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("cumulative-observable-long-counter")
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .counterBuilder("cumulative-observable-long-counter")
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 5L;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
@@ -73,11 +72,10 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
   @Test
   void testObservableDoubleCounterCumulative() {
     double[] absoluteValue = {0.0};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("cumulative-observable-double-counter")
-            .ofDoubles()
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+        .counterBuilder("cumulative-observable-double-counter")
+        .ofDoubles()
+        .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 3.5;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);

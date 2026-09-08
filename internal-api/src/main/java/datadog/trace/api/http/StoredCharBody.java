@@ -103,10 +103,9 @@ public class StoredCharBody implements StoredBodySupplier {
     } else if (this.storedBodyLen == MAX_BUFFER_SIZE) {
       return false;
     } else if (capacityLeft() < newDataLen) {
-      int newSize =
-          Math.min(
-              Math.max(this.storedBodyLen + newDataLen, this.storedBodyLen * GROW_FACTOR),
-              MAX_BUFFER_SIZE);
+      int newSize = Math.min(
+          Math.max(this.storedBodyLen + newDataLen, this.storedBodyLen * GROW_FACTOR),
+          MAX_BUFFER_SIZE);
       this.storedBody = Arrays.copyOf(this.storedBody, newSize);
     }
     return true;

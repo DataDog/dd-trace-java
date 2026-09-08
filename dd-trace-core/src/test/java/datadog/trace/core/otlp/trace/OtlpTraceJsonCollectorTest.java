@@ -46,7 +46,8 @@ import org.junit.jupiter.api.Test;
  */
 class OtlpTraceJsonCollectorTest {
 
-  private static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  private static final CoreTracer TRACER =
+      CoreTracer.builder().writer(new LoggingWriter()).build();
 
   @Test
   void emptyTraceProducesEmptyPayload() {
@@ -133,14 +134,13 @@ class OtlpTraceJsonCollectorTest {
   void spanTraceStateIncludedWhenPropagated() throws IOException {
     PropagationTags propagationTags = PropagationTags.factory().empty();
     propagationTags.updateW3CTracestate("vendor=state");
-    ExtractedContext parent =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            0L,
-            PrioritySampling.UNSET,
-            null,
-            propagationTags,
-            TracePropagationStyle.DATADOG);
+    ExtractedContext parent = new ExtractedContext(
+        DDTraceId.ONE,
+        0L,
+        PrioritySampling.UNSET,
+        null,
+        propagationTags,
+        TracePropagationStyle.DATADOG);
 
     AgentSpan agentSpan = TRACER.startSpan("test", "op.tracestate", parent);
     agentSpan.setResourceName("op.tracestate");
@@ -201,11 +201,10 @@ class OtlpTraceJsonCollectorTest {
     List<Map<String, Object>> parsedSpans = allSpans(payload);
     assertEquals(2, parsedSpans.size());
 
-    Map<String, Object> parsedChild =
-        parsedSpans.stream()
-            .filter(s -> "child.op".equals(s.get("name")))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("child span not found"));
+    Map<String, Object> parsedChild = parsedSpans.stream()
+        .filter(s -> "child.op".equals(s.get("name")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("child span not found"));
     assertEquals(hexSpanId(((DDSpan) parent).getSpanId()), parsedChild.get("parentSpanId"));
   }
 

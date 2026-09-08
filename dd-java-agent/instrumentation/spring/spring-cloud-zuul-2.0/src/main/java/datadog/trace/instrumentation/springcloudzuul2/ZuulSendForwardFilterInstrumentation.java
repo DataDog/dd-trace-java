@@ -66,9 +66,8 @@ public class ZuulSendForwardFilterInstrumentation extends InstrumenterModule.Tra
         final String method = request.getMethod();
         // Get the updated route pattern.
         // Opted for static string here to avoid an additional spring dependency.
-        final Object bestMatchingPattern =
-            request.getAttribute(
-                "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern");
+        final Object bestMatchingPattern = request.getAttribute(
+            "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern");
         if (method != null && bestMatchingPattern != null) {
           HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, bestMatchingPattern.toString());
         }

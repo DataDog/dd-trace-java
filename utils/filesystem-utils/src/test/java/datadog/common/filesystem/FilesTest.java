@@ -39,26 +39,25 @@ public class FilesTest {
     // --- install restrictive SecurityManager only in this test ---
     SecurityManager originalSM = System.getSecurityManager();
 
-    System.setSecurityManager(
-        new SecurityManager() {
-          @Override
-          public void checkRead(String filePath) {
-            // Deny only THIS file so classloading still works
-            if (filePath.equals(file.getAbsolutePath())) {
-              throw new SecurityException("Access denied");
-            }
-          }
+    System.setSecurityManager(new SecurityManager() {
+      @Override
+      public void checkRead(String filePath) {
+        // Deny only THIS file so classloading still works
+        if (filePath.equals(file.getAbsolutePath())) {
+          throw new SecurityException("Access denied");
+        }
+      }
 
-          @Override
-          public void checkPermission(Permission perm) {
-            // allow everything else
-          }
+      @Override
+      public void checkPermission(Permission perm) {
+        // allow everything else
+      }
 
-          @Override
-          public void checkPermission(Permission perm, Object context) {
-            // allow everything else
-          }
-        });
+      @Override
+      public void checkPermission(Permission perm, Object context) {
+        // allow everything else
+      }
+    });
 
     try {
       boolean result = Files.exists(file);

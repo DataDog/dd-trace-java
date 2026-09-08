@@ -40,8 +40,11 @@ public class HandlersExtractor {
   }
 
   public static class SizeCalculator<T> {
-    @Nonnull private final ToIntFunction<T> lengthFunction;
-    @Nonnull private final CharSequence format;
+    @Nonnull
+    private final ToIntFunction<T> lengthFunction;
+
+    @Nonnull
+    private final CharSequence format;
 
     SizeCalculator(@Nonnull ToIntFunction<T> lengthFunction, @Nonnull CharSequence format) {
       this.lengthFunction = lengthFunction;

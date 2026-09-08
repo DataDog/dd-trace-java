@@ -13,43 +13,32 @@ class ProtoFilterTest {
     assertFalse(protoFilter.filterOut(null));
     Scope scope = Scope.builder(ScopeType.CLASS, "", 0, 0).build();
     assertFalse(protoFilter.filterOut(scope));
-    scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("com.google.protobuf.MyClass").build();
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0)
+        .name("com.google.protobuf.MyClass")
+        .build();
     assertFalse(protoFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .addInterfaces(asList("com.google.protobuf.MessageOrBuilder"))
-                    .build())
-            .build();
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0)
+        .languageSpecifics(new LanguageSpecifics.Builder()
+            .addInterfaces(asList("com.google.protobuf.MessageOrBuilder"))
+            .build())
+        .build();
     assertTrue(protoFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .superClass("com.google.protobuf.AbstractParser")
-                    .build())
-            .build();
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0)
+        .languageSpecifics(new LanguageSpecifics.Builder()
+            .superClass("com.google.protobuf.AbstractParser")
+            .build())
+        .build();
     assertTrue(protoFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .superClass("com.google.protobuf.GeneratedMessageV3$Builder")
-                    .build())
-            .build();
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0)
+        .languageSpecifics(new LanguageSpecifics.Builder()
+            .superClass("com.google.protobuf.GeneratedMessageV3$Builder")
+            .build())
+        .build();
     assertTrue(protoFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .symbols(
-                asList(
-                    new Symbol(
-                        SymbolType.STATIC_FIELD,
-                        "SCHEMA$",
-                        0,
-                        "com.google.protobuf.Descriptors",
-                        null)))
-            .build();
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0)
+        .symbols(asList(new Symbol(
+            SymbolType.STATIC_FIELD, "SCHEMA$", 0, "com.google.protobuf.Descriptors", null)))
+        .build();
     assertTrue(protoFilter.filterOut(scope));
   }
 }

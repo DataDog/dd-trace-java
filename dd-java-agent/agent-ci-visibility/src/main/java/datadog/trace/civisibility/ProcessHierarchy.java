@@ -31,12 +31,12 @@ public class ProcessHierarchy {
     }
   }
 
-  @Nullable public final AgentSpanContext.Extracted parentProcessModuleContext;
+  @Nullable
+  public final AgentSpanContext.Extracted parentProcessModuleContext;
 
   ProcessHierarchy() {
-    parentProcessModuleContext =
-        extractContextAndGetSpanContext(
-            SystemProperties.asStringMap(), SystemPropertiesPropagationGetter.INSTANCE);
+    parentProcessModuleContext = extractContextAndGetSpanContext(
+        SystemProperties.asStringMap(), SystemPropertiesPropagationGetter.INSTANCE);
   }
 
   /**

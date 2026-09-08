@@ -57,15 +57,14 @@ public class TelemetryRequest {
   public Request.Builder httpRequest() {
     long bodySize = requestBody.endRequest();
 
-    Request.Builder builder =
-        new Request.Builder()
-            .addHeader("Content-Type", String.valueOf(JSON))
-            .addHeader("Content-Length", String.valueOf(bodySize))
-            .addHeader("DD-Telemetry-API-Version", API_VERSION)
-            .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
-            .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
-            .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(requestBody);
+    Request.Builder builder = new Request.Builder()
+        .addHeader("Content-Type", String.valueOf(JSON))
+        .addHeader("Content-Length", String.valueOf(bodySize))
+        .addHeader("DD-Telemetry-API-Version", API_VERSION)
+        .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
+        .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
+        .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
+        .post(requestBody);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {

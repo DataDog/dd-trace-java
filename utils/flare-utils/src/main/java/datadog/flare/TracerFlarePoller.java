@@ -77,9 +77,8 @@ public final class TracerFlarePoller {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
-      AgentConfigLayer agentConfigLayer =
-          AGENT_CONFIG_LAYER_ADAPTER.fromJson(
-              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      AgentConfigLayer agentConfigLayer = AGENT_CONFIG_LAYER_ADAPTER.fromJson(
+          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
       if (null != agentConfigLayer
           && null != agentConfigLayer.config
           && null != agentConfigLayer.config.logLevel) {

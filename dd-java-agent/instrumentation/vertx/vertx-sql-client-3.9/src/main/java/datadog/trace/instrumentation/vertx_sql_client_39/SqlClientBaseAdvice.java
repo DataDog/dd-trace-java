@@ -16,10 +16,9 @@ public class SqlClientBaseAdvice {
         @Advice.Argument(0) final String sql,
         @Advice.Return final Query query) {
 
-      Pair<DBInfo, DBQueryInfo> info =
-          Pair.of(
-              InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
-              DBQueryInfo.ofStatement(sql));
+      Pair<DBInfo, DBQueryInfo> info = Pair.of(
+          InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
+          DBQueryInfo.ofStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
   }
@@ -30,10 +29,9 @@ public class SqlClientBaseAdvice {
         @Advice.This final SqlClient zis,
         @Advice.Argument(0) final String sql,
         @Advice.Return final Query query) {
-      Pair<DBInfo, DBQueryInfo> info =
-          Pair.of(
-              InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
-              DBQueryInfo.ofPreparedStatement(sql));
+      Pair<DBInfo, DBQueryInfo> info = Pair.of(
+          InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
+          DBQueryInfo.ofPreparedStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
   }

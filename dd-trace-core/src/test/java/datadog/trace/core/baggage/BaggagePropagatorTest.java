@@ -47,9 +47,8 @@ class BaggagePropagatorTest extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
-    this.propagator =
-        new BaggagePropagator(
-            true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+    this.propagator = new BaggagePropagator(
+        true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
     this.setter = new MapCarrierAccessor();
     this.carrier = new HashMap<>();
     this.context = Context.root();

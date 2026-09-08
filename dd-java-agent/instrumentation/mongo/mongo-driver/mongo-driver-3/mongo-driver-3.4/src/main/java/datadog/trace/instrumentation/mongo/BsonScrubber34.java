@@ -17,13 +17,12 @@ import org.bson.types.ObjectId;
 
 public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
-  private static final ThreadLocal<Context> CONTEXT =
-      new ThreadLocal<Context>() {
-        @Override
-        protected Context initialValue() {
-          return new Context();
-        }
-      };
+  private static final ThreadLocal<Context> CONTEXT = new ThreadLocal<Context>() {
+    @Override
+    protected Context initialValue() {
+      return new Context();
+    }
+  };
 
   private final Context context = CONTEXT.get();
   private boolean obfuscate = true;

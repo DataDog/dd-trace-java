@@ -31,9 +31,14 @@ public class OpenJdkOngoingRecordingTest {
 
   private static final String TEST_NAME = "recording name";
 
-  @Mock private Instant start;
-  @Mock private Instant end;
-  @Mock private Recording recording;
+  @Mock
+  private Instant start;
+
+  @Mock
+  private Instant end;
+
+  @Mock
+  private Recording recording;
 
   private OpenJdkOngoingRecording ongoingRecording;
 
@@ -60,11 +65,9 @@ public class OpenJdkOngoingRecordingTest {
   public void testStopOnStopped() {
     when(recording.getState()).thenReturn(RecordingState.STOPPED);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.stop();
-        });
+    assertThrows(IllegalStateException.class, () -> {
+      ongoingRecording.stop();
+    });
 
     verify(recording, never()).stop();
   }
@@ -93,11 +96,9 @@ public class OpenJdkOngoingRecordingTest {
   public void testSnapshotOnStopped() {
     when(recording.getState()).thenReturn(RecordingState.STOPPED);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.snapshot(start);
-        });
+    assertThrows(IllegalStateException.class, () -> {
+      ongoingRecording.snapshot(start);
+    });
 
     verify(recording, never()).stop();
   }

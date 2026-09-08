@@ -283,10 +283,9 @@ public class AdaptiveSampler implements Sampler {
   }
 
   private long calculateBudgetEma(final long sampledCount) {
-    avgSamples =
-        Double.isNaN(avgSamples) || budgetAlpha <= 0.0d
-            ? sampledCount
-            : avgSamples + budgetAlpha * (sampledCount - avgSamples);
+    avgSamples = Double.isNaN(avgSamples) || budgetAlpha <= 0.0d
+        ? sampledCount
+        : avgSamples + budgetAlpha * (sampledCount - avgSamples);
     return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * budgetLookback);
   }
 

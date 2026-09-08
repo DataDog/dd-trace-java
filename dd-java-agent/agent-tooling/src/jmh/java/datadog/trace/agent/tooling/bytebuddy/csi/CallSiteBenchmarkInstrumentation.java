@@ -43,27 +43,24 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
 
     @Override
     public Iterable<CallSites> get() {
-      return Collections.singletonList(
-          (container -> {
-            container.addAdvice(
-                AROUND,
-                "javax/servlet/ServletRequest",
-                "getParameter",
-                "(Ljava/lang/String;)Ljava/lang/String;",
-                getParameterAdvice());
-            container.addHelpers(
-                "datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkHelper");
-          }));
+      return Collections.singletonList((container -> {
+        container.addAdvice(
+            AROUND,
+            "javax/servlet/ServletRequest",
+            "getParameter",
+            "(Ljava/lang/String;)Ljava/lang/String;",
+            getParameterAdvice());
+        container.addHelpers("datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkHelper");
+      }));
     }
 
     public InvokeAdvice getParameterAdvice() {
-      return (handler, opcode, owner, name, descriptor, isInterface) ->
-          handler.method(
-              Opcodes.INVOKESTATIC,
-              "datadog/trace/agent/tooling/bytebuddy/csi/CallSiteBenchmarkHelper",
-              "adviceCallSite",
-              "(Ljavax/servlet/ServletRequest;Ljava/lang/String;)Ljava/lang/String;",
-              false);
+      return (handler, opcode, owner, name, descriptor, isInterface) -> handler.method(
+          Opcodes.INVOKESTATIC,
+          "datadog/trace/agent/tooling/bytebuddy/csi/CallSiteBenchmarkHelper",
+          "adviceCallSite",
+          "(Ljavax/servlet/ServletRequest;Ljava/lang/String;)Ljava/lang/String;",
+          false);
     }
   }
 

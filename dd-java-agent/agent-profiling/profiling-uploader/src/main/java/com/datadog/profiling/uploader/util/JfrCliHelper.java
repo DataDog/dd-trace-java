@@ -29,14 +29,13 @@ import java.util.regex.Pattern;
 /** Call the `jfr` cli on the given recording */
 public class JfrCliHelper {
 
-  private static ExecutorService executorService =
-      new ThreadPoolExecutor(
-          0,
-          Integer.MAX_VALUE,
-          60,
-          TimeUnit.SECONDS,
-          new SynchronousQueue<>(),
-          new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
+  private static ExecutorService executorService = new ThreadPoolExecutor(
+      0,
+      Integer.MAX_VALUE,
+      60,
+      TimeUnit.SECONDS,
+      new SynchronousQueue<>(),
+      new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
   private static Pattern lineSeparatorRegex = Pattern.compile(System.lineSeparator());
   private static Pattern metadataSeparatorRegex = Pattern.compile("^=+$");
@@ -71,12 +70,10 @@ public class JfrCliHelper {
       Process process = builder.start();
 
       try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-        Future<?> asyncRedirect =
-            executorService.submit(
-                () -> {
-                  redirect(process.getInputStream(), out);
-                  return true;
-                });
+        Future<?> asyncRedirect = executorService.submit(() -> {
+          redirect(process.getInputStream(), out);
+          return true;
+        });
 
         if (!process.waitFor(30, TimeUnit.SECONDS)) {
           ioLogger.error("Failed to gather information on recording, `jfr` never finished");
@@ -127,13 +124,11 @@ public class JfrCliHelper {
       events.stream()
           .sorted(Comparator.comparing(Event::getSize).reversed())
           .limit(10)
-          .forEach(
-              event -> {
-                ioLogger.error(
-                    String.format(
-                        "Event: %s, size = %d, count = %d",
-                        event.getType(), event.getSize(), event.getCount()));
-              });
+          .forEach(event -> {
+            ioLogger.error(String.format(
+                "Event: %s, size = %d, count = %d",
+                event.getType(), event.getSize(), event.getCount()));
+          });
     } catch (Exception e) {
       ioLogger.error("Failed to gather information on recording", e);
       return;

@@ -40,11 +40,10 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
     return "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler";
   }
 
-  private static final Reference EXCHANGE_REFERENCE =
-      new Reference.Builder(
-              "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler")
-          .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
-          .build();
+  private static final Reference EXCHANGE_REFERENCE = new Reference.Builder(
+          "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler")
+      .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -107,9 +106,8 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
             boolean success =
                 blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             if (success && t == null) {
-              t =
-                  new BlockingException(
-                      "Blocked request (for MultiPartUploadHandler/parseBlocking)");
+              t = new BlockingException(
+                  "Blocked request (for MultiPartUploadHandler/parseBlocking)");
             }
           }
         }

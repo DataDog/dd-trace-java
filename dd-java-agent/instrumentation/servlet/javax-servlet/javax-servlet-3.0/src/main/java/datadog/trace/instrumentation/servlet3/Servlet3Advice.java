@@ -55,9 +55,8 @@ public class Servlet3Advice {
             new RumHttpServletResponseWrapper(httpServletRequest, (HttpServletResponse) response);
         httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
         response = (ServletResponse) rumServletWrapper;
-        request =
-            new RumHttpServletRequestWrapper(
-                httpServletRequest, (HttpServletResponse) rumServletWrapper);
+        request = new RumHttpServletRequestWrapper(
+            httpServletRequest, (HttpServletResponse) rumServletWrapper);
       }
     }
 

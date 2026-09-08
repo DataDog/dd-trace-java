@@ -57,11 +57,10 @@ class InternalTagsAdderTest extends DDJavaSpecification {
     DDSpanContext spanContext = mock(DDSpanContext.class);
     when(spanContext.getServiceName()).thenReturn(serviceName);
 
-    TagMap unsafeTags =
-        TagMap.fromMap(
-            initialVersion != null
-                ? Collections.singletonMap("version", initialVersion)
-                : Collections.emptyMap());
+    TagMap unsafeTags = TagMap.fromMap(
+        initialVersion != null
+            ? Collections.singletonMap("version", initialVersion)
+            : Collections.emptyMap());
     calculator.processTags(unsafeTags, spanContext, link -> {});
 
     verify(spanContext, times(1)).getServiceName();

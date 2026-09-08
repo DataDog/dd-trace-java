@@ -30,28 +30,29 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private static final String DECIMAL_NUMBER = "\\d*\\.\\d+";
   private static final String HEX_NUMBER = "x'[0-9a-f]+'|0x[0-9a-f]+";
   private static final String BIN_NUMBER = "b'[0-9a-f]+'|0b[0-9a-f]+";
-  private static final String NUMERIC_LITERAL =
-      String.format(
-          "[-+]?(?:%s)",
-          String.join(
-              "|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER + EXPONENT));
+  private static final String NUMERIC_LITERAL = String.format(
+      "[-+]?(?:%s)",
+      String.join(
+          "|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER + EXPONENT));
 
   private static final Map<Dialect, Pattern> PATTERNS = new ConcurrentHashMap<>();
 
   private final String sql;
   private final Matcher matcher;
   private int searchFrom;
-  @Nullable private Ranged current;
+
+  @Nullable
+  private Ranged current;
   // Lazily built (Postgres only): every "$tag$" occurrence indexed by tag, so the matching close
   // can be located with a binary search instead of an O(n) scan per opener.
-  @Nullable private Map<String, int[]> dollarTagPositions;
+  @Nullable
+  private Map<String, int[]> dollarTagPositions;
 
   public SqlRegexpTokenizer(final Evidence evidence) {
     this.sql = evidence.getValue();
-    this.matcher =
-        PATTERNS
-            .computeIfAbsent(Dialect.fromEvidence(evidence), Dialect::buildPattern)
-            .matcher(sql);
+    this.matcher = PATTERNS
+        .computeIfAbsent(Dialect.fromEvidence(evidence), Dialect::buildPattern)
+        .matcher(sql);
   }
 
   @Override
@@ -218,22 +219,16 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private enum Dialect {
     ORACLE(
         "oracle"::equalsIgnoreCase,
-        () ->
-            buildPattern(
-                NUMERIC_LITERAL,
-                ORACLE_ESCAPED_LITERAL,
-                STRING_LITERAL,
-                LINE_COMMENT,
-                BLOCK_COMMENT)),
+        () -> buildPattern(
+            NUMERIC_LITERAL, ORACLE_ESCAPED_LITERAL, STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT)),
     POSTGRESQL(
         "postgresql"::equalsIgnoreCase,
-        () ->
-            buildPattern(
-                NUMERIC_LITERAL,
-                POSTGRESQL_ESCAPED_LITERAL,
-                STRING_LITERAL,
-                LINE_COMMENT,
-                BLOCK_COMMENT)),
+        () -> buildPattern(
+            NUMERIC_LITERAL,
+            POSTGRESQL_ESCAPED_LITERAL,
+            STRING_LITERAL,
+            LINE_COMMENT,
+            BLOCK_COMMENT)),
 
     MYSQL(
         "mysql"::equalsIgnoreCase,

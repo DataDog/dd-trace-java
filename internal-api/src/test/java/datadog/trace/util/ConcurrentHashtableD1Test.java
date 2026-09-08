@@ -32,13 +32,10 @@ class ConcurrentHashtableD1Test {
     ConcurrentHashtable.D1<String, StringEntry> table =
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     int[] createCount = {0};
-    StringEntry created =
-        table.tryGetOrCreateOrNull(
-            "a",
-            k -> {
-              createCount[0]++;
-              return new StringEntry(k, 1);
-            });
+    StringEntry created = table.tryGetOrCreateOrNull("a", k -> {
+      createCount[0]++;
+      return new StringEntry(k, 1);
+    });
     assertNotNull(created);
     assertEquals(1, table.size());
     assertEquals(1, createCount[0]);
@@ -51,13 +48,10 @@ class ConcurrentHashtableD1Test {
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry seeded = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 100));
     int[] createCount = {0};
-    StringEntry got =
-        table.tryGetOrCreateOrNull(
-            "a",
-            k -> {
-              createCount[0]++;
-              return new StringEntry(k, 999);
-            });
+    StringEntry got = table.tryGetOrCreateOrNull("a", k -> {
+      createCount[0]++;
+      return new StringEntry(k, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -111,23 +105,19 @@ class ConcurrentHashtableD1Test {
 
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    k -> {
-                      createCount.incrementAndGet();
-                      return new StringEntry(k, 1);
-                    });
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull("shared", k -> {
+          createCount.incrementAndGet();
+          return new StringEntry(k, 1);
+        });
+      });
       workers[i].start();
     }
     ready.await();
@@ -173,18 +163,16 @@ class ConcurrentHashtableD1Test {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       final String key = keys[i];
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
+      });
       workers[i].start();
     }
     ready.await();
@@ -299,11 +287,10 @@ class ConcurrentHashtableD1Test {
 
     Set<String> drained = new HashSet<>();
     int[] sum = {0};
-    table.drain(
-        e -> {
-          drained.add(e.key);
-          sum[0] += e.value;
-        });
+    table.drain(e -> {
+      drained.add(e.key);
+      sum[0] += e.value;
+    });
 
     assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), drained);
     assertEquals(6, sum[0]);
@@ -360,17 +347,15 @@ class ConcurrentHashtableD1Test {
 
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
-    Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(keys[i]) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
-              }
-            });
+    Thread reader = new Thread(() -> {
+      while (!stop.get()) {
+        for (int i = 1; i < n; i++) {
+          if (table.get(keys[i]) == null) {
+            missed.incrementAndGet();
+          }
+        }
+      }
+    });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);
@@ -398,15 +383,14 @@ class ConcurrentHashtableD1Test {
     ConcurrentHashtable.D1<String, StringEntry> table =
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     StringEntry a = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
-    Maybe<StringEntry> got =
-        table.tryGetOrCreateOrEvict(
-            "a",
-            k -> {
-              throw new AssertionError("creator must not run on a hit");
-            },
-            e -> {
-              throw new AssertionError("evictable must not run on a hit");
-            });
+    Maybe<StringEntry> got = table.tryGetOrCreateOrEvict(
+        "a",
+        k -> {
+          throw new AssertionError("creator must not run on a hit");
+        },
+        e -> {
+          throw new AssertionError("evictable must not run on a hit");
+        });
     assertSame(a, got.getOrNull());
     assertEquals(1, table.size());
   }
@@ -449,13 +433,12 @@ class ConcurrentHashtableD1Test {
 
     assertThrows(
         RuntimeException.class,
-        () ->
-            table.tryGetOrCreateOrEvictOrNull(
-                "new",
-                k -> {
-                  throw new RuntimeException("boom");
-                },
-                e -> true));
+        () -> table.tryGetOrCreateOrEvictOrNull(
+            "new",
+            k -> {
+              throw new RuntimeException("boom");
+            },
+            e -> true));
 
     // Eviction already happened before the creator threw: the table is left one entry smaller,
     // not corrupted or double-booked.

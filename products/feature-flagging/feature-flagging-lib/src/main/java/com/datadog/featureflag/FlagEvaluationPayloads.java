@@ -192,10 +192,9 @@ final class FlagEvaluationPayloads {
           (allocation != null && !allocation.isEmpty()) ? new KeyObject(allocation) : null;
       this.targeting_key = targetingKey;
       this.runtime_default_used = runtimeDefaultUsed ? Boolean.TRUE : null;
-      this.context =
-          (evaluationAttrs != null && !evaluationAttrs.isEmpty())
-              ? new EventContext(evaluationAttrs)
-              : null;
+      this.context = (evaluationAttrs != null && !evaluationAttrs.isEmpty())
+          ? new EventContext(evaluationAttrs)
+          : null;
       this.error =
           (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
     }

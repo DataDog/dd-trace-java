@@ -17,25 +17,24 @@ public class Activator implements BundleActivator {
   private ServiceRegistration publisherRegistration;
 
   public void start(final BundleContext bundleContext) throws Exception {
-    subscriberTracker =
-        new ServiceTracker(bundleContext, SubscriberSupport.class.getName(), null) {
-          @Override
-          public Object addingService(final ServiceReference reference) {
-            SubscriberSupport subscriber = (SubscriberSupport) bundleContext.getService(reference);
-            if (null == publisher) {
-              startPublisher(bundleContext, subscriber);
-            } else {
-              publisher.subscribe(subscriber);
-            }
-            return subscriber;
-          }
+    subscriberTracker = new ServiceTracker(bundleContext, SubscriberSupport.class.getName(), null) {
+      @Override
+      public Object addingService(final ServiceReference reference) {
+        SubscriberSupport subscriber = (SubscriberSupport) bundleContext.getService(reference);
+        if (null == publisher) {
+          startPublisher(bundleContext, subscriber);
+        } else {
+          publisher.subscribe(subscriber);
+        }
+        return subscriber;
+      }
 
-          @Override
-          public void removedService(final ServiceReference reference, final Object subscriber) {
-            publisher.unsubscribe((SubscriberSupport) subscriber);
-            bundleContext.ungetService(reference);
-          }
-        };
+      @Override
+      public void removedService(final ServiceReference reference, final Object subscriber) {
+        publisher.unsubscribe((SubscriberSupport) subscriber);
+        bundleContext.ungetService(reference);
+      }
+    };
     subscriberTracker.open();
   }
 
@@ -62,9 +61,8 @@ public class Activator implements BundleActivator {
           AsyncPublisher publisher = new AsyncPublisher();
           publisher.start();
           publisher.subscribe(subscriber);
-          publisherRegistration =
-              bundleContext.registerService(
-                  PublisherSupport.class.getName(), publisher, new Properties());
+          publisherRegistration = bundleContext.registerService(
+              PublisherSupport.class.getName(), publisher, new Properties());
           this.publisher = publisher;
         } catch (Exception e) {
           throw new IllegalStateException("Publisher did not start", e);

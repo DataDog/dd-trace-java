@@ -233,15 +233,12 @@ public final class CoreTracerTest2 {
     // This is an unlikely case and arguably not something we need to support
 
     DDSpan substituteSpan = (DDSpan) TRACER.startSpan("sub", "sub");
-    TraceInterceptors interceptors =
-        interceptors(
-            (list) -> list,
-            (list) -> {
-              List erasedList = (List) list;
-              erasedList.clear();
-              erasedList.add(substituteSpan);
-              return erasedList;
-            });
+    TraceInterceptors interceptors = interceptors((list) -> list, (list) -> {
+      List erasedList = (List) list;
+      erasedList.clear();
+      erasedList.add(substituteSpan);
+      return erasedList;
+    });
 
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     SpanList list = SpanList.of(span);
@@ -257,19 +254,18 @@ public final class CoreTracerTest2 {
       int priority = i;
       TestInterceptor interceptor = interceptors[i];
 
-      traceInterceptors.add(
-          new TraceInterceptor() {
-            @Override
-            public int priority() {
-              return priority;
-            }
+      traceInterceptors.add(new TraceInterceptor() {
+        @Override
+        public int priority() {
+          return priority;
+        }
 
-            @Override
-            public Collection<? extends MutableSpan> onTraceComplete(
-                Collection<? extends MutableSpan> trace) {
-              return interceptor.onTraceComplete(trace);
-            }
-          });
+        @Override
+        public Collection<? extends MutableSpan> onTraceComplete(
+            Collection<? extends MutableSpan> trace) {
+          return interceptor.onTraceComplete(trace);
+        }
+      });
     }
     return traceInterceptors;
   }

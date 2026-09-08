@@ -23,20 +23,19 @@ public class GitUtils {
   private static final Pattern REFS_TAGS_PATTERN = Pattern.compile("refs/tags/", Pattern.LITERAL);
   private static final Pattern TAGS_PATTERN = Pattern.compile("tags/", Pattern.LITERAL);
   // Based on https://git-scm.com/docs/git-check-ref-format
-  private static final Pattern INVALID_REF_PATTERN =
-      Pattern.compile(
-          "^/" // starts with /
-              + "|//" // contains //
-              + "|\\.\\." // contains ..
-              + "|@\\{" // contains @{
-              + "|\\.$" // ends with a dot
-              + "|\\.lock(/|$)" // ends with .lock in any path component
-              + "|(?:^|/)\\." // any component starts with a dot
-              + "|\\s" // contains space
-              + "|[~^:?*\\[\\\\]" // contains ~ ^ : ? * [ \
-              + "|^@$" // is only @
-              + "|/$" // ends with slash
-          );
+  private static final Pattern INVALID_REF_PATTERN = Pattern.compile(
+      "^/" // starts with /
+          + "|//" // contains //
+          + "|\\.\\." // contains ..
+          + "|@\\{" // contains @{
+          + "|\\.$" // ends with a dot
+          + "|\\.lock(/|$)" // ends with .lock in any path component
+          + "|(?:^|/)\\." // any component starts with a dot
+          + "|\\s" // contains space
+          + "|[~^:?*\\[\\\\]" // contains ~ ^ : ? * [ \
+          + "|^@$" // is only @
+          + "|/$" // ends with slash
+      );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 

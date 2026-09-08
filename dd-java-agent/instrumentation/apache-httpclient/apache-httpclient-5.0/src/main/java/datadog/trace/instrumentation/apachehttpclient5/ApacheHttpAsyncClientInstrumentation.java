@@ -128,9 +128,8 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
       }
 
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
-      futureCallback =
-          new TraceContinuedFutureCallback<>(
-              parentContinuation, clientSpan, context, futureCallback);
+      futureCallback = new TraceContinuedFutureCallback<>(
+          parentContinuation, clientSpan, context, futureCallback);
 
       return clientScope;
     }

@@ -62,9 +62,8 @@ class KafkaConsumerInstrumentationHelperTest {
   @Test
   void extractClusterIdReturnsNullWhenMetadataIsNull() {
     KafkaConsumerInfo kafkaConsumerInfo = new KafkaConsumerInfo("test-group", "localhost:9092");
-    assertNull(
-        KafkaConsumerInstrumentationHelper.extractClusterId(
-            kafkaConsumerInfo, metadataContextStore));
+    assertNull(KafkaConsumerInstrumentationHelper.extractClusterId(
+        kafkaConsumerInfo, metadataContextStore));
   }
 
   @Test
@@ -73,9 +72,8 @@ class KafkaConsumerInstrumentationHelperTest {
     KafkaConsumerInfo kafkaConsumerInfo =
         new KafkaConsumerInfo("test-group", metadata, "localhost:9092");
     when(metadataContextStore.get(metadata)).thenReturn(null);
-    assertNull(
-        KafkaConsumerInstrumentationHelper.extractClusterId(
-            kafkaConsumerInfo, metadataContextStore));
+    assertNull(KafkaConsumerInstrumentationHelper.extractClusterId(
+        kafkaConsumerInfo, metadataContextStore));
   }
 
   @Test

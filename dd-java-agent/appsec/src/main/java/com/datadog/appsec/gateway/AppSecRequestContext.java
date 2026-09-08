@@ -54,61 +54,54 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
   // request headers that will always be set when appsec is enabled
-  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "content-type",
-              "user-agent",
-              "accept",
-              "x-amzn-trace-id",
-              "cloudfront-viewer-ja3-fingerprint",
-              "cf-ray",
-              "x-cloud-trace-context",
-              "x-appgw-trace-id",
-              "x-sigsci-requestid",
-              "x-sigsci-tags",
-              "akamai-user-risk"));
+  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+      "content-type",
+      "user-agent",
+      "accept",
+      "x-amzn-trace-id",
+      "cloudfront-viewer-ja3-fingerprint",
+      "cf-ray",
+      "x-cloud-trace-context",
+      "x-appgw-trace-id",
+      "x-sigsci-requestid",
+      "x-sigsci-tags",
+      "akamai-user-risk"));
 
   // request headers when there are security events
-  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "x-forwarded-for",
-              "x-real-ip",
-              "true-client-ip",
-              "x-client-ip",
-              "x-forwarded",
-              "forwarded-for",
-              "x-cluster-client-ip",
-              "fastly-client-ip",
-              "cf-connecting-ip",
-              "cf-connecting-ipv6",
-              "forwarded",
-              "via",
-              "content-length",
-              "content-encoding",
-              "content-language",
-              "host",
-              "accept-encoding",
-              "accept-language"));
+  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+      "x-forwarded-for",
+      "x-real-ip",
+      "true-client-ip",
+      "x-client-ip",
+      "x-forwarded",
+      "forwarded-for",
+      "x-cluster-client-ip",
+      "fastly-client-ip",
+      "cf-connecting-ip",
+      "cf-connecting-ipv6",
+      "forwarded",
+      "via",
+      "content-length",
+      "content-encoding",
+      "content-language",
+      "host",
+      "accept-encoding",
+      "accept-language"));
 
   // response headers when there are security events
-  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
+  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST = new TreeSet<>(
+      Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
   // headers related with authorization
-  public static final Set<String> AUTHORIZATION_HEADERS =
-      new TreeSet<>(
-          Arrays.asList(
-              "authorization",
-              "proxy-authorization",
-              "www-authenticate",
-              "proxy-authenticate",
-              "authentication-info",
-              "proxy-authentication-info",
-              "cookie",
-              "set-cookie"));
+  public static final Set<String> AUTHORIZATION_HEADERS = new TreeSet<>(Arrays.asList(
+      "authorization",
+      "proxy-authorization",
+      "www-authenticate",
+      "proxy-authenticate",
+      "authentication-info",
+      "proxy-authentication-info",
+      "cookie",
+      "set-cookie"));
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
@@ -835,56 +828,55 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     if (data == null || data.isEmpty()) return;
 
     // Initialize or update derivatives atomically
-    derivatives.updateAndGet(
-        current -> {
-          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+    derivatives.updateAndGet(current -> {
+      Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
 
-          // Process each attribute according to the specification
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            String attributeKey = entry.getKey();
-            Object attributeConfig = entry.getValue();
+      // Process each attribute according to the specification
+      for (Map.Entry<String, Object> entry : data.entrySet()) {
+        String attributeKey = entry.getKey();
+        Object attributeConfig = entry.getValue();
 
-            if (attributeConfig instanceof Map) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> config = (Map<String, Object>) attributeConfig;
+        if (attributeConfig instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> config = (Map<String, Object>) attributeConfig;
 
-              // Check if it's a literal value schema
-              if (config.containsKey("value")) {
-                Object literalValue = config.get("value");
-                if (literalValue != null) {
-                  // Preserve the original type - don't convert to string
-                  updated.put(attributeKey, literalValue);
-                  log.debug(
-                      "Added literal attribute: {} = {} (type: {})",
-                      attributeKey,
-                      literalValue,
-                      literalValue.getClass().getSimpleName());
-                }
-              }
-              // Check if it's a request data schema
-              else if (config.containsKey("address")) {
-                String address = (String) config.get("address");
-                @SuppressWarnings("unchecked")
-                List<String> keyPath = (List<String>) config.get("key_path");
-                @SuppressWarnings("unchecked")
-                List<String> transformers = (List<String>) config.get("transformers");
-
-                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-                if (extractedValue != null) {
-                  // For extracted values, convert to string as they come from request data
-                  updated.put(attributeKey, extractedValue.toString());
-                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-                }
-              }
-            } else {
-              // Handle plain string/numeric values
-              updated.put(attributeKey, attributeConfig);
-              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+          // Check if it's a literal value schema
+          if (config.containsKey("value")) {
+            Object literalValue = config.get("value");
+            if (literalValue != null) {
+              // Preserve the original type - don't convert to string
+              updated.put(attributeKey, literalValue);
+              log.debug(
+                  "Added literal attribute: {} = {} (type: {})",
+                  attributeKey,
+                  literalValue,
+                  literalValue.getClass().getSimpleName());
             }
           }
+          // Check if it's a request data schema
+          else if (config.containsKey("address")) {
+            String address = (String) config.get("address");
+            @SuppressWarnings("unchecked")
+            List<String> keyPath = (List<String>) config.get("key_path");
+            @SuppressWarnings("unchecked")
+            List<String> transformers = (List<String>) config.get("transformers");
 
-          return updated;
-        });
+            Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+            if (extractedValue != null) {
+              // For extracted values, convert to string as they come from request data
+              updated.put(attributeKey, extractedValue.toString());
+              log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+            }
+          }
+        } else {
+          // Handle plain string/numeric values
+          updated.put(attributeKey, attributeConfig);
+          log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+        }
+      }
+
+      return updated;
+    });
   }
 
   /**

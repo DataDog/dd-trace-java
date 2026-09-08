@@ -142,9 +142,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void processRequestStartSkipsAppSecForNonHttpTrigger() {
-    String sqsEvent =
-        "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\","
-            + " \"messageAttributes\": {}}]}";
+    String sqsEvent = "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\","
+        + " \"messageAttributes\": {}}]}";
     ByteArrayInputStream event = createInputStream(sqsEvent);
 
     Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
@@ -188,11 +187,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void detectsApiGatewayV2HttpTriggerType() {
-    Map<String, Object> event =
-        mapOf(
-            "requestContext",
-            mapOf(
-                "http", mapOf("method", "POST", "path", "/api"), "domainName", "api.example.com"));
+    Map<String, Object> event = mapOf(
+        "requestContext",
+        mapOf("http", mapOf("method", "POST", "path", "/api"), "domainName", "api.example.com"));
 
     LambdaTriggerType triggerType = detectTriggerType(event);
 
@@ -201,14 +198,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void detectsLambdaFunctionUrlTriggerType() {
-    Map<String, Object> event =
+    Map<String, Object> event = mapOf(
+        "requestContext",
         mapOf(
-            "requestContext",
-            mapOf(
-                "http",
-                mapOf("method", "GET", "path", "/"),
-                "domainName",
-                "xyz123.lambda-url.us-east-1.on.aws"));
+            "http",
+            mapOf("method", "GET", "path", "/"),
+            "domainName",
+            "xyz123.lambda-url.us-east-1.on.aws"));
 
     LambdaTriggerType triggerType = detectTriggerType(event);
 
@@ -217,14 +213,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void detectsAlbTriggerTypeWithoutMultiValueHeaders() {
-    Map<String, Object> event =
-        mapOf(
-            "httpMethod",
-            "GET",
-            "path",
-            "/",
-            "requestContext",
-            mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
+    Map<String, Object> event = mapOf(
+        "httpMethod",
+        "GET",
+        "path",
+        "/",
+        "requestContext",
+        mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
 
     LambdaTriggerType triggerType = detectTriggerType(event);
 
@@ -233,16 +228,15 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void detectsAlbTriggerTypeWithMultiValueHeaders() {
-    Map<String, Object> event =
-        mapOf(
-            "httpMethod",
-            "GET",
-            "path",
-            "/",
-            "multiValueHeaders",
-            mapOf("accept", Arrays.asList("text/html", "application/json")),
-            "requestContext",
-            mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
+    Map<String, Object> event = mapOf(
+        "httpMethod",
+        "GET",
+        "path",
+        "/",
+        "multiValueHeaders",
+        mapOf("accept", Arrays.asList("text/html", "application/json")),
+        "requestContext",
+        mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
 
     LambdaTriggerType triggerType = detectTriggerType(event);
 
@@ -304,19 +298,18 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void extractsApiGatewayV1RestDataCorrectly() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/users/123\","
-            + "\"httpMethod\": \"POST\","
-            + "\"headers\": {\"Content-Type\": \"application/json\", \"Authorization\": \"Bearer token123\"},"
-            + "\"pathParameters\": {\"userId\": \"123\"},"
-            + "\"body\": \"{\\\"name\\\": \\\"John\\\"}\","
-            + "\"requestContext\": {"
-            + "  \"httpMethod\": \"POST\","
-            + "  \"requestId\": \"req-123\","
-            + "  \"identity\": {\"sourceIp\": \"192.168.1.100\"}"
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/api/users/123\","
+        + "\"httpMethod\": \"POST\","
+        + "\"headers\": {\"Content-Type\": \"application/json\", \"Authorization\": \"Bearer token123\"},"
+        + "\"pathParameters\": {\"userId\": \"123\"},"
+        + "\"body\": \"{\\\"name\\\": \\\"John\\\"}\","
+        + "\"requestContext\": {"
+        + "  \"httpMethod\": \"POST\","
+        + "  \"requestId\": \"req-123\","
+        + "  \"identity\": {\"sourceIp\": \"192.168.1.100\"}"
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
@@ -327,21 +320,18 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map[] capturedPathParams = {null};
     Object[] capturedBody = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
-            .onHeader(capturedHeaders::put)
-            .onSocketAddress(
-                (ip, port) -> {
-                  capturedSourceIp[0] = ip;
-                  capturedSourcePort[0] = port;
-                })
-            .onPathParams(params -> capturedPathParams[0] = params)
-            .onBody(body -> capturedBody[0] = body));
+    setupMockCallbacks(new Callbacks()
+        .onMethodUri((method, uri) -> {
+          capturedMethod[0] = method;
+          capturedPath[0] = uri.path();
+        })
+        .onHeader(capturedHeaders::put)
+        .onSocketAddress((ip, port) -> {
+          capturedSourceIp[0] = ip;
+          capturedSourcePort[0] = port;
+        })
+        .onPathParams(params -> capturedPathParams[0] = params)
+        .onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -363,18 +353,17 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsApiGatewayV2HttpDataCorrectly() {
-    String eventJson =
-        "{"
-            + "\"version\": \"2.0\","
-            + "\"headers\": {\"content-type\": \"application/json\", \"x-custom-header\": \"custom-value\"},"
-            + "\"cookies\": [\"session=abc123\", \"user=john\"],"
-            + "\"pathParameters\": {\"id\": \"456\"},"
-            + "\"body\": \"test body\","
-            + "\"requestContext\": {"
-            + "  \"http\": {\"method\": \"PUT\", \"path\": \"/api/items/456\", \"sourceIp\": \"10.0.0.50\", \"sourcePort\": 54321},"
-            + "  \"domainName\": \"api.example.com\""
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"version\": \"2.0\","
+        + "\"headers\": {\"content-type\": \"application/json\", \"x-custom-header\": \"custom-value\"},"
+        + "\"cookies\": [\"session=abc123\", \"user=john\"],"
+        + "\"pathParameters\": {\"id\": \"456\"},"
+        + "\"body\": \"test body\","
+        + "\"requestContext\": {"
+        + "  \"http\": {\"method\": \"PUT\", \"path\": \"/api/items/456\", \"sourceIp\": \"10.0.0.50\", \"sourcePort\": 54321},"
+        + "  \"domainName\": \"api.example.com\""
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
@@ -384,20 +373,17 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     int[] capturedSourcePort = {-1};
     Map[] capturedPathParams = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
-            .onHeader(capturedHeaders::put)
-            .onSocketAddress(
-                (ip, port) -> {
-                  capturedSourceIp[0] = ip;
-                  capturedSourcePort[0] = port;
-                })
-            .onPathParams(params -> capturedPathParams[0] = params));
+    setupMockCallbacks(new Callbacks()
+        .onMethodUri((method, uri) -> {
+          capturedMethod[0] = method;
+          capturedPath[0] = uri.path();
+        })
+        .onHeader(capturedHeaders::put)
+        .onSocketAddress((ip, port) -> {
+          capturedSourceIp[0] = ip;
+          capturedSourcePort[0] = port;
+        })
+        .onPathParams(params -> capturedPathParams[0] = params));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -415,27 +401,23 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsLambdaFunctionUrlDataCorrectly() {
-    String eventJson =
-        "{"
-            + "\"version\": \"2.0\","
-            + "\"headers\": {\"host\": \"xyz.lambda-url.us-east-1.on.aws\"},"
-            + "\"requestContext\": {"
-            + "  \"http\": {\"method\": \"GET\", \"path\": \"/function/path\", \"sourceIp\": \"1.2.3.4\"},"
-            + "  \"domainName\": \"xyz.lambda-url.us-east-1.on.aws\""
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"version\": \"2.0\","
+        + "\"headers\": {\"host\": \"xyz.lambda-url.us-east-1.on.aws\"},"
+        + "\"requestContext\": {"
+        + "  \"http\": {\"method\": \"GET\", \"path\": \"/function/path\", \"sourceIp\": \"1.2.3.4\"},"
+        + "  \"domainName\": \"xyz.lambda-url.us-east-1.on.aws\""
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
     String[] capturedPath = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedMethod[0] = method;
+      capturedPath[0] = uri.path();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -446,29 +428,26 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsAlbDataCorrectly() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/alb/test\","
-            + "\"httpMethod\": \"DELETE\","
-            + "\"headers\": {\"x-forwarded-for\": \"203.0.113.42\", \"user-agent\": \"curl/7.64.1\"},"
-            + "\"requestContext\": {"
-            + "  \"elb\": {\"targetGroupArn\": \"arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/tg/50dc6c495c0c9188\"}"
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/alb/test\","
+        + "\"httpMethod\": \"DELETE\","
+        + "\"headers\": {\"x-forwarded-for\": \"203.0.113.42\", \"user-agent\": \"curl/7.64.1\"},"
+        + "\"requestContext\": {"
+        + "  \"elb\": {\"targetGroupArn\": \"arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/tg/50dc6c495c0c9188\"}"
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
     String[] capturedPath = {null};
     String[] capturedSourceIp = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
-            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
+    setupMockCallbacks(new Callbacks()
+        .onMethodUri((method, uri) -> {
+          capturedMethod[0] = method;
+          capturedPath[0] = uri.path();
+        })
+        .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -480,13 +459,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsAlbMultiValueHeadersCorrectly() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/test\","
-            + "\"httpMethod\": \"GET\","
-            + "\"multiValueHeaders\": {\"accept\": [\"text/html\", \"application/json\"], \"x-custom\": [\"value1\", \"value2\"]},"
-            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/test\","
+        + "\"httpMethod\": \"GET\","
+        + "\"multiValueHeaders\": {\"accept\": [\"text/html\", \"application/json\"], \"x-custom\": [\"value1\", \"value2\"]},"
+        + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -502,24 +480,20 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void albMultiValueQueryParamsHandlesListValues() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/test\","
-            + "\"httpMethod\": \"GET\","
-            + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
-            + "\"multiValueQueryStringParameters\": {\"foo\": [\"bar\", \"baz\"], \"x\": [null, \"val\"]},"
-            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/test\","
+        + "\"httpMethod\": \"GET\","
+        + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
+        + "\"multiValueQueryStringParameters\": {\"foo\": [\"bar\", \"baz\"], \"x\": [null, \"val\"]},"
+        + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedQuery = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedQuery[0] = uri.query();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -531,13 +505,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void albMultiValueHeadersHandlesNonListValue() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/test\","
-            + "\"httpMethod\": \"GET\","
-            + "\"multiValueHeaders\": {\"content-type\": \"text/plain\", \"accept\": [\"application/json\"]},"
-            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/test\","
+        + "\"httpMethod\": \"GET\","
+        + "\"multiValueHeaders\": {\"content-type\": \"text/plain\", \"accept\": [\"application/json\"]},"
+        + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -565,24 +538,20 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void albMultiValueQueryParamsHandlesNonListValue() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/test\","
-            + "\"httpMethod\": \"GET\","
-            + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
-            + "\"multiValueQueryStringParameters\": {\"foo\": \"plain-string\"},"
-            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/test\","
+        + "\"httpMethod\": \"GET\","
+        + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
+        + "\"multiValueQueryStringParameters\": {\"foo\": \"plain-string\"},"
+        + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedQuery = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedQuery[0] = uri.query();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -593,13 +562,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesMultiValueHeadersWithEmptyList() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/test\","
-            + "\"httpMethod\": \"GET\","
-            + "\"multiValueHeaders\": {\"accept\": [], \"x-custom\": [\"value1\"]},"
-            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/test\","
+        + "\"httpMethod\": \"GET\","
+        + "\"multiValueHeaders\": {\"accept\": [], \"x-custom\": [\"value1\"]},"
+        + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -615,28 +583,25 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsWebSocketDataCorrectly() {
-    String eventJson =
-        "{"
-            + "\"requestContext\": {"
-            + "  \"routeKey\": \"$connect\","
-            + "  \"connectionId\": \"conn-abc123\","
-            + "  \"identity\": {\"sourceIp\": \"192.168.0.100\"}"
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"requestContext\": {"
+        + "  \"routeKey\": \"$connect\","
+        + "  \"connectionId\": \"conn-abc123\","
+        + "  \"identity\": {\"sourceIp\": \"192.168.0.100\"}"
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
     String[] capturedPath = {null};
     String[] capturedSourceIp = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
-            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
+    setupMockCallbacks(new Callbacks()
+        .onMethodUri((method, uri) -> {
+          capturedMethod[0] = method;
+          capturedPath[0] = uri.path();
+        })
+        .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -650,14 +615,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void handlesBase64EncodedBodyCorrectly() {
     String originalBody = "This is test data";
     String base64Body = Base64.getEncoder().encodeToString(originalBody.getBytes());
-    String eventJson =
-        "{"
-            + "\"body\": \""
-            + base64Body
-            + "\","
-            + "\"isBase64Encoded\": true,"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"body\": \""
+        + base64Body
+        + "\","
+        + "\"isBase64Encoded\": true,"
+        + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Object[] capturedBody = {null};
@@ -702,23 +666,19 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesPathWithQueryStringCorrectly() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/users?id=123&filter=active\","
-            + "\"requestContext\": {\"httpMethod\": \"GET\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/api/users?id=123&filter=active\","
+        + "\"requestContext\": {\"httpMethod\": \"GET\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedPath = {null};
     String[] capturedQuery = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedPath[0] = uri.path();
-                  capturedQuery[0] = uri.query();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedPath[0] = uri.path();
+      capturedQuery[0] = uri.query();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -729,12 +689,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsQueryStringParametersAndBuildsFullUri() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/items\","
-            + "\"queryStringParameters\": {\"page\": \"2\", \"sort\": \"asc\"},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-456\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/api/items\","
+        + "\"queryStringParameters\": {\"page\": \"2\", \"sort\": \"asc\"},"
+        + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-456\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedPath = {null};
@@ -744,17 +703,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedHost = {"NOT_CALLED"};
     String[] capturedFragment = {"NOT_CALLED"};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedPath[0] = uri.path();
-                  capturedQuery[0] = uri.query();
-                  capturedRawPath[0] = uri.rawPath();
-                  capturedRawQuery[0] = uri.rawQuery();
-                  capturedHost[0] = uri.host();
-                  capturedFragment[0] = uri.fragment();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedPath[0] = uri.path();
+      capturedQuery[0] = uri.query();
+      capturedRawPath[0] = uri.rawPath();
+      capturedRawQuery[0] = uri.rawQuery();
+      capturedHost[0] = uri.host();
+      capturedFragment[0] = uri.fragment();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -771,22 +727,18 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractQueryParametersFiltersNullEntries() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/filter-test\","
-            + "\"queryStringParameters\": {\"valid\": \"keep\", \"nullval\": null},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-789\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/filter-test\","
+        + "\"queryStringParameters\": {\"valid\": \"keep\", \"nullval\": null},"
+        + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-789\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedQuery = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedQuery[0] = uri.query();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -800,22 +752,18 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void buildFullPathEncodesSpecialCharactersInQueryParams() {
     // Keys/values containing '&', '=', and spaces must be percent-encoded so they are not
     // misinterpreted as query string delimiters when AppSec parses the raw query string.
-    String eventJson =
-        "{"
-            + "\"path\": \"/search\","
-            + "\"queryStringParameters\": {\"q\": \"hello world\", \"filter\": \"a&b\", \"eq\": \"x=y\"},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-special\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/search\","
+        + "\"queryStringParameters\": {\"q\": \"hello world\", \"filter\": \"a&b\", \"eq\": \"x=y\"},"
+        + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-special\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedQuery = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedQuery[0] = uri.query();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedQuery[0] = uri.query();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -834,24 +782,20 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesInvalidXForwardedPortGracefully() {
-    String eventJson =
-        "{"
-            + "\"path\": \"/api/test\","
-            + "\"headers\": {\"x-forwarded-proto\": \"https\", \"x-forwarded-port\": \"not-a-number\"},"
-            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-123\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"path\": \"/api/test\","
+        + "\"headers\": {\"x-forwarded-proto\": \"https\", \"x-forwarded-port\": \"not-a-number\"},"
+        + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-123\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedScheme = {null};
     int[] capturedPort = {-1};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedScheme[0] = uri.scheme();
-                  capturedPort[0] = uri.port();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedScheme[0] = uri.scheme();
+      capturedPort[0] = uri.port();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -862,12 +806,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesInvalidBase64BodyGracefully() {
-    String eventJson =
-        "{"
-            + "\"body\": \"not-valid-base64\","
-            + "\"isBase64Encoded\": true,"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"body\": \"not-valid-base64\","
+        + "\"isBase64Encoded\": true,"
+        + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedBody = {"NOT_CALLED"};
@@ -883,14 +826,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void handlesBase64DecodedEmptyStringBody() {
     String base64Empty = Base64.getEncoder().encodeToString("".getBytes());
-    String eventJson =
-        "{"
-            + "\"body\": \""
-            + base64Empty
-            + "\","
-            + "\"isBase64Encoded\": true,"
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"body\": \""
+        + base64Empty
+        + "\","
+        + "\"isBase64Encoded\": true,"
+        + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Object[] capturedBody = {null};
@@ -906,11 +848,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void handlesBodyWithSpecialCharacters() {
-    String eventJson =
-        "{"
-            + "\"body\": \"{\\\"text\\\": \\\"Hello \\u4e16\\u754c \\uD83C\\uDF0D\\\"}\","
-            + "\"requestContext\": {\"httpMethod\": \"POST\"}"
-            + "}";
+    String eventJson = "{"
+        + "\"body\": \"{\\\"text\\\": \\\"Hello \\u4e16\\u754c \\uD83C\\uDF0D\\\"}\","
+        + "\"requestContext\": {\"httpMethod\": \"POST\"}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Object[] capturedBody = {null};
@@ -930,26 +871,23 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void extractsDataFromLambdaUrlWithHttpInRequestContext() {
-    String eventJson =
-        "{"
-            + "\"requestContext\": {"
-            + "  \"http\": {\"method\": \"OPTIONS\", \"path\": \"/options/path\", \"sourceIp\": \"198.51.100.50\"}"
-            + "}"
-            + "}";
+    String eventJson = "{"
+        + "\"requestContext\": {"
+        + "  \"http\": {\"method\": \"OPTIONS\", \"path\": \"/options/path\", \"sourceIp\": \"198.51.100.50\"}"
+        + "}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     String[] capturedMethod = {null};
     String[] capturedPath = {null};
     String[] capturedSourceIp = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                })
-            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
+    setupMockCallbacks(new Callbacks()
+        .onMethodUri((method, uri) -> {
+          capturedMethod[0] = method;
+          capturedPath[0] = uri.path();
+        })
+        .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -968,13 +906,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedMethod = {null};
     String[] capturedPath = {null};
 
-    setupMockCallbacks(
-        new Callbacks()
-            .onMethodUri(
-                (method, uri) -> {
-                  capturedMethod[0] = method;
-                  capturedPath[0] = uri.path();
-                }));
+    setupMockCallbacks(new Callbacks().onMethodUri((method, uri) -> {
+      capturedMethod[0] = method;
+      capturedPath[0] = uri.path();
+    }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -985,12 +920,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesCookiesMergingWithExistingCookieHeader() {
-    String eventJson =
-        "{"
-            + "\"headers\": {\"cookie\": \"existing=value\"},"
-            + "\"cookies\": [\"new=cookie1\", \"another=cookie2\"],"
-            + "\"requestContext\": {\"http\": {\"method\": \"GET\", \"path\": \"/\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"headers\": {\"cookie\": \"existing=value\"},"
+        + "\"cookies\": [\"new=cookie1\", \"another=cookie2\"],"
+        + "\"requestContext\": {\"http\": {\"method\": \"GET\", \"path\": \"/\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -1005,12 +939,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void handlesEmptyCookiesArrayCorrectly() {
-    String eventJson =
-        "{"
-            + "\"headers\": {\"content-type\": \"application/json\"},"
-            + "\"cookies\": [],"
-            + "\"requestContext\": {\"http\": {\"method\": \"GET\", \"path\": \"/\"}}"
-            + "}";
+    String eventJson = "{"
+        + "\"headers\": {\"content-type\": \"application/json\"},"
+        + "\"cookies\": [],"
+        + "\"requestContext\": {\"http\": {\"method\": \"GET\", \"path\": \"/\"}}"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     Map<String, String> capturedHeaders = new HashMap<>();
@@ -1378,13 +1311,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processRequestStartHandlesExceptionDuringStreamReading() {
-    ByteArrayInputStream mockStream =
-        new ByteArrayInputStream("data".getBytes()) {
-          @Override
-          public synchronized int available() {
-            throw new RuntimeException("Stream error");
-          }
-        };
+    ByteArrayInputStream mockStream = new ByteArrayInputStream("data".getBytes()) {
+      @Override
+      public synchronized int available() {
+        throw new RuntimeException("Stream error");
+      }
+    };
     assertNull(LambdaAppSecHandler.processRequestStart(mockStream));
   }
 
@@ -1423,13 +1355,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   private RequestContext captureTemporaryRequestContext(Object appSecContext) {
-    String eventJson =
-        "{\n"
-            + "  \"path\": \"/test\",\n"
-            + "  \"requestContext\": {\n"
-            + "    \"httpMethod\": \"GET\"\n"
-            + "  }\n"
-            + "}";
+    String eventJson = "{\n"
+        + "  \"path\": \"/test\",\n"
+        + "  \"requestContext\": {\n"
+        + "    \"httpMethod\": \"GET\"\n"
+        + "  }\n"
+        + "}";
     ByteArrayInputStream event = createInputStream(eventJson);
 
     RequestContext[] captured = {null};
@@ -1439,11 +1370,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback =
         mock(TriFunction.class);
-    doAnswer(
-            inv -> {
-              captured[0] = inv.getArgument(0);
-              return new Flow.ResultFlow<>(null);
-            })
+    doAnswer(inv -> {
+          captured[0] = inv.getArgument(0);
+          return new Flow.ResultFlow<>(null);
+        })
         .when(methodUriCallback)
         .apply(any(), any(), any());
 
@@ -1546,9 +1476,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream("{\"result\": \"hello\"}");
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]);
     assertFalse(headerDoneCalled[0]);
@@ -1563,12 +1492,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
     Object[] capturedBody = {null};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status,
-            capturedHeaders::put,
-            () -> headerDoneCalled[0] = true,
-            body -> capturedBody[0] = body);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status,
+        capturedHeaders::put,
+        () -> headerDoneCalled[0] = true,
+        body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]);
     assertEquals("application/json", capturedHeaders.get("content-type"));
@@ -1583,19 +1511,17 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     // A response that has statusCode:0 with explicit headers/body should use the parsed data,
     // not discard it in favour of the plain-response fallback.
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
-    ByteArrayOutputStream result =
-        createOutputStream(
-            "{\"statusCode\": 0, \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"hello\"}");
+    ByteArrayOutputStream result = createOutputStream(
+        "{\"statusCode\": 0, \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"hello\"}");
     Integer[] capturedStatus = {null};
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
     Object[] capturedBody = {null};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status,
-            capturedHeaders::put,
-            () -> headerDoneCalled[0] = true,
-            body -> capturedBody[0] = body);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status,
+        capturedHeaders::put,
+        () -> headerDoneCalled[0] = true,
+        body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]); // statusCode 0 — responseStarted not fired
     assertEquals("text/plain", capturedHeaders.get("content-type")); // parsed header kept
@@ -1611,12 +1537,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
     Object[] capturedBody = {null};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status,
-            null,
-            () -> headerDoneCalled[0] = true,
-            body -> capturedBody[0] = body);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status,
+        null,
+        () -> headerDoneCalled[0] = true,
+        body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]);
     assertTrue(headerDoneCalled[0]);
@@ -1631,9 +1556,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
     LambdaAppSecHandler.processResponseData(span, result);
     assertEquals(200, capturedStatus[0]);
     assertTrue(headerDoneCalled[0]);
@@ -1647,12 +1571,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
     Object[] capturedBody = {null};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status,
-            null,
-            () -> headerDoneCalled[0] = true,
-            body -> capturedBody[0] = body);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status,
+        null,
+        () -> headerDoneCalled[0] = true,
+        body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]); // no responseStarted for status-less WebSocket messages
     assertTrue(headerDoneCalled[0]);
@@ -1766,9 +1689,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            null, capturedHeaders::put, () -> headerDoneCalled[0] = true, null);
+    AgentSpan span = setupMockResponseCallbacks(
+        null, capturedHeaders::put, () -> headerDoneCalled[0] = true, null);
     LambdaAppSecHandler.processResponseData(span, result);
     assertTrue(capturedHeaders.isEmpty());
     assertTrue(headerDoneCalled[0]);
@@ -1823,9 +1745,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void processResponseDataHandlesNullBody() {
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200, \"body\": null}");
     String[] capturedBody = {"NOT_CALLED"};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            null, null, null, body -> capturedBody[0] = String.valueOf(body));
+    AgentSpan span = setupMockResponseCallbacks(
+        null, null, null, body -> capturedBody[0] = String.valueOf(body));
     LambdaAppSecHandler.processResponseData(span, result);
     assertEquals("NOT_CALLED", capturedBody[0]);
   }
@@ -1834,9 +1755,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void processResponseDataHandlesMissingBodyField() {
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
     String[] capturedBody = {"NOT_CALLED"};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            null, null, null, body -> capturedBody[0] = String.valueOf(body));
+    AgentSpan span = setupMockResponseCallbacks(
+        null, null, null, body -> capturedBody[0] = String.valueOf(body));
     LambdaAppSecHandler.processResponseData(span, result);
     assertEquals("NOT_CALLED", capturedBody[0]);
   }
@@ -1875,12 +1795,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream(json);
     List<String> order = new ArrayList<>();
 
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> order.add("responseStarted"),
-            (name, value) -> order.add("responseHeader"),
-            () -> order.add("responseHeaderDone"),
-            body -> order.add("responseBody"));
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> order.add("responseStarted"),
+        (name, value) -> order.add("responseHeader"),
+        () -> order.add("responseHeaderDone"),
+        body -> order.add("responseBody"));
 
     LambdaAppSecHandler.processResponseData(span, result);
 
@@ -1898,9 +1817,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         "{\"statusCode\": 200, \"body\": \"not-valid-base64!!!\", \"isBase64Encoded\": true}";
     ByteArrayOutputStream result = createOutputStream(json);
     String[] capturedBody = {"NOT_CALLED"};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            null, null, null, body -> capturedBody[0] = String.valueOf(body));
+    AgentSpan span = setupMockResponseCallbacks(
+        null, null, null, body -> capturedBody[0] = String.valueOf(body));
     LambdaAppSecHandler.processResponseData(span, result);
     assertEquals("NOT_CALLED", capturedBody[0]);
   }
@@ -1992,9 +1910,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream(json);
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            null, capturedHeaders::put, () -> headerDoneCalled[0] = true, null);
+    AgentSpan span = setupMockResponseCallbacks(
+        null, capturedHeaders::put, () -> headerDoneCalled[0] = true, null);
     assertDoesNotThrow(() -> LambdaAppSecHandler.processResponseData(span, result));
     assertTrue(headerDoneCalled[0]);
   }
@@ -2006,9 +1923,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     ByteArrayOutputStream result = createOutputStream(json);
     Integer[] capturedStatus = {null};
     boolean[] headerDoneCalled = {false};
-    AgentSpan span =
-        setupMockResponseCallbacks(
-            status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
+    AgentSpan span = setupMockResponseCallbacks(
+        status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
     assertDoesNotThrow(() -> LambdaAppSecHandler.processResponseData(span, result));
     assertEquals(200, capturedStatus[0]);
     assertTrue(headerDoneCalled[0]);
@@ -2040,15 +1956,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void appliesHttpTagsForRestApiEvent() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\":"
-                    + " \"GET\", \"queryStringParameters\": {\"q\": \"hello\"}, \"headers\":"
-                    + " {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.1\","
-                    + " \"X-Forwarded-Proto\": \"https\", \"X-Forwarded-Port\": \"443\"},"
-                    + " \"requestContext\": {\"httpMethod\": \"GET\", \"domainName\":"
-                    + " \"api.example.com\"}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\":"
+            + " \"GET\", \"queryStringParameters\": {\"q\": \"hello\"}, \"headers\":"
+            + " {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.1\","
+            + " \"X-Forwarded-Proto\": \"https\", \"X-Forwarded-Port\": \"443\"},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\", \"domainName\":"
+            + " \"api.example.com\"}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertEquals("GET", tags.get(Tags.HTTP_METHOD));
@@ -2062,13 +1976,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void appliesHttpTagsWithForwardedSchemeAndPort() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-proto\": \"http\","
-                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"domainName\":"
-                    + " \"api.example.com\", \"routeKey\": \"POST /orders\", \"http\":"
-                    + " {\"method\": \"POST\", \"path\": \"/orders\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(createInputStream(
+        "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-proto\": \"http\","
+            + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"domainName\":"
+            + " \"api.example.com\", \"routeKey\": \"POST /orders\", \"http\":"
+            + " {\"method\": \"POST\", \"path\": \"/orders\"}}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertEquals("POST", tags.get(Tags.HTTP_METHOD));
@@ -2080,12 +1992,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void omitsDefaultPortForForwardedHttpScheme() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb.example.com\", \"x-forwarded-proto\": \"http\"}, \"requestContext\":"
-                    + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com\", \"x-forwarded-proto\": \"http\"}, \"requestContext\":"
+            + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
 
     // No x-forwarded-port: the default must follow the scheme, or ":443" leaks into the URL
     assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
@@ -2094,13 +2004,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void ignoresEmptyForwardedPort() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb.example.com\", \"x-forwarded-proto\": \"http\","
-                    + " \"x-forwarded-port\": \"\"}, \"requestContext\": {\"elb\":"
-                    + " {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com\", \"x-forwarded-proto\": \"http\","
+            + " \"x-forwarded-port\": \"\"}, \"requestContext\": {\"elb\":"
+            + " {\"targetGroupArn\": \"arn\"}}}"));
 
     // An empty header value takes the same path as a missing one rather than reaching parseInt
     assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
@@ -2109,12 +2017,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void normalisesForwardedSchemeCasing() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb.example.com\", \"x-forwarded-proto\": \"HTTP\"}, \"requestContext\":"
-                    + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com\", \"x-forwarded-proto\": \"HTTP\"}, \"requestContext\":"
+            + " {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
 
     // Lowercased before use, or the port default and URIUtils.buildURL both miss and ":443" leaks
     assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
@@ -2123,12 +2029,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void fallsBackToHttpsForUnrecognisedForwardedScheme() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb.example.com\", \"x-forwarded-proto\": \"https, http\"},"
-                    + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com\", \"x-forwarded-proto\": \"https, http\"},"
+            + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
 
     // Lambda comma-joins duplicate request headers, so a client-supplied X-Forwarded-Proto arrives
     // appended to the real one: taken verbatim it would yield "https, http://lb.example.com/alb"
@@ -2138,13 +2042,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void keepsRepeatedQueryKeysFromTheV2RawQueryString() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"rawPath\": \"/orders\", \"rawQueryString\": \"a=1&a=2\","
-                    + " \"queryStringParameters\": {\"a\": \"1,2\"}, \"requestContext\":"
-                    + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
-                    + " \"path\": \"/orders\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"rawPath\": \"/orders\", \"rawQueryString\": \"a=1&a=2\","
+            + " \"queryStringParameters\": {\"a\": \"1,2\"}, \"requestContext\":"
+            + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+            + " \"path\": \"/orders\"}}}"));
 
     // API Gateway comma-joins repeats into queryStringParameters, so rebuilding from that map
     // would report a=1%2C2
@@ -2154,13 +2056,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void keepsRepeatedQueryKeysFromTheV1MultiValueParameters() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"path\": \"/orders\", \"queryStringParameters\": {\"a\": \"2\"},"
-                    + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
-                    + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\","
-                    + " \"domainName\": \"api.example.com\"}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"path\": \"/orders\", \"queryStringParameters\": {\"a\": \"2\"},"
+            + " \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"]},"
+            + " \"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"r-1\","
+            + " \"domainName\": \"api.example.com\"}}"));
 
     // REST APIs keep only the last value in queryStringParameters, unlike v2 which comma-joins
     assertEquals("a=1&a=2", tagsOf(context).get(DDTags.HTTP_QUERY));
@@ -2169,12 +2069,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void keepsPercentEncodingFromTheV2RawPath() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"rawPath\": \"/orders/a%20b\", \"rawQueryString\": \"\", \"requestContext\":"
-                    + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
-                    + " \"path\": \"/orders/a b\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(createInputStream(
+        "{\"rawPath\": \"/orders/a%20b\", \"rawQueryString\": \"\", \"requestContext\":"
+            + " {\"domainName\": \"api.example.com\", \"http\": {\"method\": \"GET\","
+            + " \"path\": \"/orders/a b\"}}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertEquals("https://api.example.com/orders/a%20b", tags.get(Tags.HTTP_URL));
@@ -2185,13 +2083,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void doesNotDuplicateAPortAlreadyInTheHostHeader() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb.example.com:8080\", \"x-forwarded-proto\": \"http\","
-                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
-                    + " {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb.example.com:8080\", \"x-forwarded-proto\": \"http\","
+            + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
+            + " {\"targetGroupArn\": \"arn\"}}}"));
 
     // An ALB listener off 80/443 puts the port in Host as well, and buildURL appends it again
     assertEquals("http://lb.example.com:8080/alb", tagsOf(context).get(Tags.HTTP_URL));
@@ -2200,13 +2096,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void doesNotDuplicateAPortAlreadyInABracketedIpv6Host() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"[2001:db8::1]:8080\", \"x-forwarded-proto\": \"http\","
-                    + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
-                    + " {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"[2001:db8::1]:8080\", \"x-forwarded-proto\": \"http\","
+            + " \"x-forwarded-port\": \"8080\"}, \"requestContext\": {\"elb\":"
+            + " {\"targetGroupArn\": \"arn\"}}}"));
 
     assertEquals("http://[2001:db8::1]:8080/alb", tagsOf(context).get(Tags.HTTP_URL));
   }
@@ -2214,13 +2108,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void hostnameTagPrefersForwardedHostOverUrlHost() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-host\":"
-                    + " \"public.example.com\"}, \"requestContext\": {\"domainName\":"
-                    + " \"api.example.com\", \"http\": {\"method\": \"GET\", \"path\":"
-                    + " \"/orders\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"headers\": {\"host\": \"api.example.com\", \"x-forwarded-host\":"
+            + " \"public.example.com\"}, \"requestContext\": {\"domainName\":"
+            + " \"api.example.com\", \"http\": {\"method\": \"GET\", \"path\":"
+            + " \"/orders\"}}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertEquals("https://api.example.com/orders", tags.get(Tags.HTTP_URL));
@@ -2231,13 +2123,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void resolvesHeadersRegardlessOfEventCasing() {
     setupMockCallbacks(new Callbacks());
     // API Gateway v1 capitalises header names where v2 and ALB send them lowercase
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
-                    + " \"headers\": {\"Host\": \"api.example.com\", \"User-Agent\":"
-                    + " \"curl/8.1\", \"X-Forwarded-Proto\": \"http\", \"X-Forwarded-Host\":"
-                    + " \"public.example.com\"}, \"requestContext\": {\"httpMethod\": \"GET\"}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(createInputStream(
+        "{\"resource\": \"/users/{id}\", \"path\": \"/users/42\", \"httpMethod\": \"GET\","
+            + " \"headers\": {\"Host\": \"api.example.com\", \"User-Agent\":"
+            + " \"curl/8.1\", \"X-Forwarded-Proto\": \"http\", \"X-Forwarded-Host\":"
+            + " \"public.example.com\"}, \"requestContext\": {\"httpMethod\": \"GET\"}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertEquals("http://api.example.com/users/42", tags.get(Tags.HTTP_URL));
@@ -2249,12 +2139,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void omitsMethodTagWhenTheEventCarriesNoMethod() {
     setupMockCallbacks(new Callbacks());
     // Typed as a REST event by requestContext.requestId alone, so no httpMethod is available
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"path\": \"/users/42\", \"headers\": {\"host\": \"api.example.com\"},"
-                    + " \"requestContext\": {\"requestId\": \"req-1\", \"domainName\":"
-                    + " \"api.example.com\"}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"path\": \"/users/42\", \"headers\": {\"host\": \"api.example.com\"},"
+            + " \"requestContext\": {\"requestId\": \"req-1\", \"domainName\":"
+            + " \"api.example.com\"}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertNull(tags.get(Tags.HTTP_METHOD));
@@ -2266,11 +2154,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void omitsMethodTagForWebSocketEvent() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"requestContext\": {\"connectionId\": \"c1\", \"eventType\": \"MESSAGE\","
-                    + " \"routeKey\": \"sendMessage\", \"domainName\": \"ws.example.com\"}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(createInputStream(
+        "{\"requestContext\": {\"connectionId\": \"c1\", \"eventType\": \"MESSAGE\","
+            + " \"routeKey\": \"sendMessage\", \"domainName\": \"ws.example.com\"}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertNull(tags.get(Tags.HTTP_METHOD));
@@ -2281,12 +2167,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void omitsRouteTagForAlbEvent() {
     setupMockCallbacks(new Callbacks());
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
-                    + " \"lb-123.eu-west-1.elb.amazonaws.com\", \"user-agent\": \"alb-agent\"},"
-                    + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+    AgentSpanContext context = LambdaAppSecHandler.processRequestStart(
+        createInputStream("{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+            + " \"lb-123.eu-west-1.elb.amazonaws.com\", \"user-agent\": \"alb-agent\"},"
+            + " \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
 
     Map<String, Object> tags = tagsOf(context);
     assertNull(tags.get(Tags.HTTP_ROUTE));
@@ -2419,11 +2303,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (callbacks.onMethodUri != null) {
       methodUriCallback = mock(TriFunction.class);
       BiConsumer<String, URIDataAdapter> capture = callbacks.onMethodUri;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1), inv.getArgument(2));
-                return Flow.ResultFlow.empty();
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1), inv.getArgument(2));
+            return Flow.ResultFlow.empty();
+          })
           .when(methodUriCallback)
           .apply(any(), anyString(), any(URIDataAdapter.class));
     }
@@ -2432,11 +2315,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (callbacks.onHeader != null) {
       headerCallback = mock(TriConsumer.class);
       BiConsumer<String, String> capture = callbacks.onHeader;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1), inv.getArgument(2));
-                return null;
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1), inv.getArgument(2));
+            return null;
+          })
           .when(headerCallback)
           .accept(any(), anyString(), anyString());
     }
@@ -2445,11 +2327,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (callbacks.onSocketAddress != null) {
       socketAddressCallback = mock(TriFunction.class);
       BiConsumer<String, Integer> capture = callbacks.onSocketAddress;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1), (Integer) inv.getArgument(2));
-                return Flow.ResultFlow.empty();
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1), (Integer) inv.getArgument(2));
+            return Flow.ResultFlow.empty();
+          })
           .when(socketAddressCallback)
           .apply(any(), anyString(), anyInt());
     }
@@ -2461,11 +2342,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (callbacks.onPathParams != null) {
       pathParamsCallback = mock(BiFunction.class);
       Consumer<Map<String, Object>> capture = callbacks.onPathParams;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1));
-                return Flow.ResultFlow.empty();
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1));
+            return Flow.ResultFlow.empty();
+          })
           .when(pathParamsCallback)
           .apply(any(), any(Map.class));
     }
@@ -2474,11 +2354,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (callbacks.onBody != null) {
       bodyCallback = mock(BiFunction.class);
       Consumer<Object> capture = callbacks.onBody;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1));
-                return Flow.ResultFlow.empty();
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1));
+            return Flow.ResultFlow.empty();
+          })
           .when(bodyCallback)
           .apply(any(), any());
     }
@@ -2526,11 +2405,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (onResponseStarted != null) {
       responseStartedCb = mock(BiFunction.class);
       Consumer<Integer> capture = onResponseStarted;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1));
-                return new Flow.ResultFlow<>(null);
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1));
+            return new Flow.ResultFlow<>(null);
+          })
           .when(responseStartedCb)
           .apply(any(RequestContext.class), anyInt());
     }
@@ -2539,11 +2417,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (onResponseHeader != null) {
       responseHeaderCb = mock(TriConsumer.class);
       BiConsumer<String, String> capture = onResponseHeader;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1), inv.getArgument(2));
-                return null;
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1), inv.getArgument(2));
+            return null;
+          })
           .when(responseHeaderCb)
           .accept(any(), anyString(), anyString());
     }
@@ -2551,11 +2428,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Function<RequestContext, Flow<Void>> responseHeaderDoneCb = mock(Function.class);
     if (onResponseHeaderDone != null) {
       Runnable capture = onResponseHeaderDone;
-      doAnswer(
-              inv -> {
-                capture.run();
-                return new Flow.ResultFlow<>(null);
-              })
+      doAnswer(inv -> {
+            capture.run();
+            return new Flow.ResultFlow<>(null);
+          })
           .when(responseHeaderDoneCb)
           .apply(any(RequestContext.class));
     } else {
@@ -2566,11 +2442,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     if (onResponseBody != null) {
       responseBodyCb = mock(BiFunction.class);
       Consumer<Object> capture = onResponseBody;
-      doAnswer(
-              inv -> {
-                capture.accept(inv.getArgument(1));
-                return new Flow.ResultFlow<>(null);
-              })
+      doAnswer(inv -> {
+            capture.accept(inv.getArgument(1));
+            return new Flow.ResultFlow<>(null);
+          })
           .when(responseBodyCb)
           .apply(any(RequestContext.class), any());
     }

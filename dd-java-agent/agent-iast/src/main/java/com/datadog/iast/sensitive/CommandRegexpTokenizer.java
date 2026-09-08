@@ -6,9 +6,8 @@ import com.google.re2j.Pattern;
 
 public class CommandRegexpTokenizer extends AbstractRegexTokenizer {
 
-  private static final Pattern COMMAND_PATTERN =
-      Pattern.compile(
-          "^(?:\\s*(?:sudo|doas)\\s+)?\\b\\S+\\b\\s*(.*)", Pattern.MULTILINE | Pattern.DOTALL);
+  private static final Pattern COMMAND_PATTERN = Pattern.compile(
+      "^(?:\\s*(?:sudo|doas)\\s+)?\\b\\S+\\b\\s*(.*)", Pattern.MULTILINE | Pattern.DOTALL);
 
   public CommandRegexpTokenizer(final Evidence evidence) {
     super(COMMAND_PATTERN, evidence.getValue());

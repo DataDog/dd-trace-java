@@ -544,13 +544,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
-    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
-        ImmutableMetadata.builder()
-            .addString("flagKey", flag.key)
-            .addString("variationType", flag.variationType.name())
-            .addString("allocationKey", allocation.key)
-            .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
-            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder = ImmutableMetadata.builder()
+        .addString("flagKey", flag.key)
+        .addString("variationType", flag.variationType.name())
+        .addString("allocationKey", allocation.key)
+        .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
+        .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
     // only when span enrichment is on, so a provider without enrichment pays nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
@@ -562,18 +561,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
     }
-    final ProviderEvaluation<T> result =
-        ProviderEvaluation.<T>builder()
-            .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : allocation.startAt != null || allocation.endAt != null
-                        ? Reason.DEFAULT.name()
-                        : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-            .variant(variant.key)
-            .flagMetadata(metadataBuilder.build())
-            .build();
+    final ProviderEvaluation<T> result = ProviderEvaluation.<T>builder()
+        .value(mappedValue)
+        .reason(
+            !isEmpty(allocation.rules)
+                ? Reason.TARGETING_MATCH.name()
+                : allocation.startAt != null || allocation.endAt != null
+                    ? Reason.DEFAULT.name()
+                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+        .variant(variant.key)
+        .flagMetadata(metadataBuilder.build())
+        .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
       dispatchExposure(key, result, context);
@@ -655,13 +653,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     if (allocationKey == null || variantKey == null) {
       return;
     }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-            new datadog.trace.api.featureflag.exposure.Flag(flag),
-            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
+    final ExposureEvent event = new ExposureEvent(
+        System.currentTimeMillis(),
+        new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
+        new datadog.trace.api.featureflag.exposure.Flag(flag),
+        new datadog.trace.api.featureflag.exposure.Variant(variantKey),
+        new Subject(context.getTargetingKey(), flattenContext(context)));
 
     FeatureFlaggingGateway.dispatch(event);
   }

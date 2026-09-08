@@ -71,13 +71,9 @@ public class ResponseDecorator {
 
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
-    params
-        ._instructions()
-        .asString()
-        .ifPresent(
-            instructions -> {
-              inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
-            });
+    params._instructions().asString().ifPresent(instructions -> {
+      inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
+    });
 
     Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
@@ -181,9 +177,8 @@ public class ResponseDecorator {
     functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
     functionTool
         .parameters()
-        .ifPresent(
-            parameters ->
-                toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+        .ifPresent(parameters ->
+            toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
     return toolDef;
   }
 
@@ -208,10 +203,9 @@ public class ResponseDecorator {
       }
     }
 
-    String name =
-        functionObj == null
-            ? getJsonString(toolObj.get("name"))
-            : getJsonString(functionObj.get("name"));
+    String name = functionObj == null
+        ? getJsonString(toolObj.get("name"))
+        : getJsonString(functionObj.get("name"));
     if (name == null || name.isEmpty()) {
       return null;
     }
@@ -219,10 +213,9 @@ public class ResponseDecorator {
     Map<String, Object> toolDef = new HashMap<>();
     toolDef.put("name", name);
 
-    String description =
-        functionObj == null
-            ? getJsonString(toolObj.get("description"))
-            : getJsonString(functionObj.get("description"));
+    String description = functionObj == null
+        ? getJsonString(toolObj.get("description"))
+        : getJsonString(functionObj.get("description"));
     if (description != null) {
       toolDef.put("description", description);
     }
@@ -439,10 +432,9 @@ public class ResponseDecorator {
       return inputText.get();
     }
 
-    Optional<String> inputImage =
-        content
-            .inputImage()
-            .map(v -> v.imageUrl().orElse(v.fileId().orElse(IMAGE_FALLBACK_MARKER)));
+    Optional<String> inputImage = content
+        .inputImage()
+        .map(v -> v.imageUrl().orElse(v.fileId().orElse(IMAGE_FALLBACK_MARKER)));
     if (inputImage.isPresent()) {
       return inputImage.get();
     }
@@ -534,25 +526,21 @@ public class ResponseDecorator {
     response.temperature().ifPresent(v -> metadata.put("temperature", v));
     response.topP().ifPresent(v -> metadata.put("top_p", v));
 
-    response
-        ._toolChoice()
-        .asKnown()
-        .ifPresent(
-            toolChoice -> {
-              toolChoice
-                  .options()
-                  .flatMap(v -> v._value().asString())
-                  .ifPresent(v -> metadata.put("tool_choice", v));
-              if (!metadata.containsKey("tool_choice")) {
-                toolChoice
-                    .types()
-                    .map(v -> v.type().toString().toLowerCase())
-                    .ifPresent(v -> metadata.put("tool_choice", v));
-              }
-              if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
-                metadata.put("tool_choice", "function");
-              }
-            });
+    response._toolChoice().asKnown().ifPresent(toolChoice -> {
+      toolChoice
+          .options()
+          .flatMap(v -> v._value().asString())
+          .ifPresent(v -> metadata.put("tool_choice", v));
+      if (!metadata.containsKey("tool_choice")) {
+        toolChoice
+            .types()
+            .map(v -> v.type().toString().toLowerCase())
+            .ifPresent(v -> metadata.put("tool_choice", v));
+      }
+      if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
+        metadata.put("tool_choice", "function");
+      }
+    });
 
     response
         ._truncation()
@@ -561,32 +549,24 @@ public class ResponseDecorator {
         .ifPresent(v -> metadata.put("truncation", v));
 
     Map<String, Object> textMap = new HashMap<>();
-    response
-        ._text()
-        .asKnown()
-        .ifPresent(
-            textConfig -> {
-              textConfig
-                  ._format()
-                  .asKnown()
-                  .ifPresent(
-                      format -> {
-                        Map<String, String> formatMap = new HashMap<>();
-                        if (format.text().isPresent()) {
-                          formatMap.put("type", "text");
-                        } else if (format.jsonSchema().isPresent()) {
-                          formatMap.put("type", "json_schema");
-                        } else if (format.jsonObject().isPresent()) {
-                          formatMap.put("type", "json_object");
-                        }
-                        textMap.put("format", formatMap);
-                      });
-              textConfig
-                  ._verbosity()
-                  .asKnown()
-                  .flatMap(verbosity -> verbosity._value().asString())
-                  .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
-            });
+    response._text().asKnown().ifPresent(textConfig -> {
+      textConfig._format().asKnown().ifPresent(format -> {
+        Map<String, String> formatMap = new HashMap<>();
+        if (format.text().isPresent()) {
+          formatMap.put("type", "text");
+        } else if (format.jsonSchema().isPresent()) {
+          formatMap.put("type", "json_schema");
+        } else if (format.jsonObject().isPresent()) {
+          formatMap.put("type", "json_object");
+        }
+        textMap.put("format", formatMap);
+      });
+      textConfig
+          ._verbosity()
+          .asKnown()
+          .flatMap(verbosity -> verbosity._value().asString())
+          .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
+    });
     if (!textMap.isEmpty()) {
       metadata.put("text", textMap);
     }
@@ -595,20 +575,14 @@ public class ResponseDecorator {
 
     span.setTag(CommonTags.METADATA, metadata);
 
-    response
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              span.setTag(
-                  CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
-              span.setTag(
-                  CommonTags.REASONING_OUTPUT_TOKENS,
-                  usage.outputTokensDetails().reasoningTokens());
-            });
+    response._usage().asKnown().ifPresent(usage -> {
+      span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
+      span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
+      span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+      span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
+      span.setTag(
+          CommonTags.REASONING_OUTPUT_TOKENS, usage.outputTokensDetails().reasoningTokens());
+    });
   }
 
   private void enrichInputWithPromptTracking(AgentSpan span, Response response) {
@@ -689,19 +663,14 @@ public class ResponseDecorator {
       AgentSpan span, Response response) {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
 
-    response
-        ._instructions()
-        .asKnown()
-        .ifPresent(
-            instructions -> {
-              for (ResponseInputItem item :
-                  instructions.inputItemList().orElse(Collections.emptyList())) {
-                LLMObs.LLMMessage message = extractInputItemMessage(item);
-                if (message != null) {
-                  messages.add(message);
-                }
-              }
-            });
+    response._instructions().asKnown().ifPresent(instructions -> {
+      for (ResponseInputItem item : instructions.inputItemList().orElse(Collections.emptyList())) {
+        LLMObs.LLMMessage message = extractInputItemMessage(item);
+        if (message != null) {
+          messages.add(message);
+        }
+      }
+    });
     return messages;
   }
 
@@ -900,13 +869,12 @@ public class ResponseDecorator {
         try (JsonWriter writer = new JsonWriter()) {
           writer.beginObject();
 
-          String summaryText =
-              reasoning
-                  ._summary()
-                  .asKnown()
-                  .filter(summary -> !summary.isEmpty())
-                  .flatMap(summary -> summary.get(0)._text().asString())
-                  .orElse(null);
+          String summaryText = reasoning
+              ._summary()
+              .asKnown()
+              .filter(summary -> !summary.isEmpty())
+              .flatMap(summary -> summary.get(0)._text().asString())
+              .orElse(null);
           writer.name("summary");
           if (summaryText != null && !summaryText.isEmpty()) {
             writer.value(summaryText);

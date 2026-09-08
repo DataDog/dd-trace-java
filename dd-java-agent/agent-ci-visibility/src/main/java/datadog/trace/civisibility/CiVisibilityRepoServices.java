@@ -52,7 +52,9 @@ public class CiVisibilityRepoServices {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityRepoServices.class);
 
-  @Nullable final String repoRoot;
+  @Nullable
+  final String repoRoot;
+
   final String moduleName;
   final Provider ciProvider;
   final Map<String, String> ciTags;
@@ -73,9 +75,8 @@ public class CiVisibilityRepoServices {
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
-    PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(
-            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+    PullRequestInfo pullRequestInfo = buildPullRequestInfo(
+        services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
@@ -88,15 +89,14 @@ public class CiVisibilityRepoServices {
       LOGGER.info("[bazel mode] Skipping git data upload");
       gitDataUploader = () -> CompletableFuture.completedFuture(null);
     } else {
-      gitDataUploader =
-          buildGitDataUploader(
-              services.config,
-              services.metricCollector,
-              services.gitInfoProvider,
-              gitClient,
-              gitRepoUnshallow,
-              services.backendApi,
-              repoRoot);
+      gitDataUploader = buildGitDataUploader(
+          services.config,
+          services.metricCollector,
+          services.gitInfoProvider,
+          gitClient,
+          gitRepoUnshallow,
+          services.backendApi,
+          repoRoot);
     }
 
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
@@ -106,17 +106,16 @@ public class CiVisibilityRepoServices {
     if (services.processHierarchy.isChild()) {
       executionSettingsFactory = buildExecutionSettingsFetcher(services.signalClientFactory);
     } else {
-      executionSettingsFactory =
-          buildExecutionSettingsFactory(
-              services.processHierarchy,
-              services.config,
-              services.metricCollector,
-              services.backendApi,
-              gitClient,
-              gitRepoUnshallow,
-              gitDataUploader,
-              pullRequestInfo,
-              repoRoot);
+      executionSettingsFactory = buildExecutionSettingsFactory(
+          services.processHierarchy,
+          services.config,
+          services.metricCollector,
+          services.backendApi,
+          gitClient,
+          gitRepoUnshallow,
+          gitDataUploader,
+          pullRequestInfo,
+          repoRoot);
     }
   }
 
@@ -152,13 +151,12 @@ public class CiVisibilityRepoServices {
   @Nonnull
   private static PullRequestInfo buildUserPullRequestInfo(
       Config config, CiEnvironment environment, GitClient gitClient) {
-    PullRequestInfo userInfo =
-        new PullRequestInfo(
-            config.getGitPullRequestBaseBranch(),
-            config.getGitPullRequestBaseBranchSha(),
-            null,
-            new CommitInfo(config.getGitCommitHeadSha()),
-            null);
+    PullRequestInfo userInfo = new PullRequestInfo(
+        config.getGitPullRequestBaseBranch(),
+        config.getGitPullRequestBaseBranchSha(),
+        null,
+        new CommitInfo(config.getGitCommitHeadSha()),
+        null);
 
     if (userInfo.isComplete()) {
       return userInfo;
@@ -177,13 +175,12 @@ public class CiVisibilityRepoServices {
       }
     }
 
-    PullRequestInfo ddCiInfo =
-        new PullRequestInfo(
-            null,
-            mergeBase,
-            null,
-            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
-            null);
+    PullRequestInfo ddCiInfo = new PullRequestInfo(
+        null,
+        mergeBase,
+        null,
+        new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
+        null);
 
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
@@ -264,13 +261,12 @@ public class CiVisibilityRepoServices {
     BazelMode bazelMode = BazelMode.get();
     if (bazelMode.isManifestModeEnabled()) {
       LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
-      configurationApi =
-          new FileBasedConfigurationApi(
-              toPathOrNull(bazelMode.getSettingsPath()),
-              null,
-              toPathOrNull(bazelMode.getFlakyTestsPath()),
-              toPathOrNull(bazelMode.getKnownTestsPath()),
-              toPathOrNull(bazelMode.getTestManagementPath()));
+      configurationApi = new FileBasedConfigurationApi(
+          toPathOrNull(bazelMode.getSettingsPath()),
+          null,
+          toPathOrNull(bazelMode.getFlakyTestsPath()),
+          toPathOrNull(bazelMode.getKnownTestsPath()),
+          toPathOrNull(bazelMode.getTestManagementPath()));
     } else if (backendApi == null) {
       LOGGER.warn(
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
@@ -279,15 +275,14 @@ public class CiVisibilityRepoServices {
       configurationApi = new ConfigurationApiImpl(backendApi, metricCollector);
     }
 
-    ExecutionSettingsFactoryImpl factory =
-        new ExecutionSettingsFactoryImpl(
-            config,
-            configurationApi,
-            gitClient,
-            gitRepoUnshallow,
-            gitDataUploader,
-            pullRequestInfo,
-            repoRoot);
+    ExecutionSettingsFactoryImpl factory = new ExecutionSettingsFactoryImpl(
+        config,
+        configurationApi,
+        gitClient,
+        gitRepoUnshallow,
+        gitDataUploader,
+        pullRequestInfo,
+        repoRoot);
     if (processHierarchy.isHeadless()) {
       return factory;
     } else {
@@ -339,10 +334,9 @@ public class CiVisibilityRepoServices {
 
   private static SourcePathResolver buildSourcePathResolver(
       @Nullable String repoRoot, RepoIndexProvider indexProvider) {
-    SourcePathResolver compilerAidedResolver =
-        repoRoot != null
-            ? new CompilerAidedSourcePathResolver(repoRoot)
-            : NoOpSourcePathResolver.INSTANCE;
+    SourcePathResolver compilerAidedResolver = repoRoot != null
+        ? new CompilerAidedSourcePathResolver(repoRoot)
+        : NoOpSourcePathResolver.INSTANCE;
     RepoIndexSourcePathResolver indexResolver = new RepoIndexSourcePathResolver(indexProvider);
     return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }

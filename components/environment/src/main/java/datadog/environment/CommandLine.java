@@ -30,7 +30,8 @@ class CommandLine {
 
   @SuppressForbidden // split on single-character uses a fast path
   private List<String> findFullCommand() {
-    String command = SystemProperties.getOrDefault(SUN_JAVA_COMMAND_PROPERTY, "").trim();
+    String command =
+        SystemProperties.getOrDefault(SUN_JAVA_COMMAND_PROPERTY, "").trim();
     return command.isEmpty() ? emptyList() : Arrays.asList(command.split(" "));
   }
 

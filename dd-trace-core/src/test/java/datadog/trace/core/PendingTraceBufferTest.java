@@ -88,9 +88,8 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     bufferSpy = spy(buffer);
     delayingBuffer = (PendingTraceBuffer.DelayingPendingTraceBuffer) buffer;
     scopeManager = new ContinuableScopeManager(10, true);
-    factory =
-        new PendingTrace.Factory(
-            tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP);
+    factory = new PendingTrace.Factory(
+        tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP);
     continuations = new ArrayList<>();
 
     when(tracer.captureTraceConfig()).thenReturn(traceConfig);
@@ -177,12 +176,11 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   @Test
   void prioritySamplingIsAlwaysSent() {
     SamplingPriorityMetadataChecker metadataChecker = new SamplingPriorityMetadataChecker();
-    doAnswer(
-            invocation -> {
-              List<DDSpan> spans = invocation.getArgument(0);
-              spans.get(0).processTagsAndBaggage(metadataChecker);
-              return null;
-            })
+    doAnswer(invocation -> {
+          List<DDSpan> spans = invocation.getArgument(0);
+          spans.get(0).processTagsAndBaggage(metadataChecker);
+          return null;
+        })
         .when(tracer)
         .write(any());
 
@@ -295,16 +293,14 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     PendingTrace trace = factory.create(DDTraceId.ONE);
     DDSpan parent = newSpanOf(trace);
 
-    doAnswer(
-            invocation -> {
-              parentLatch.countDown();
-              return null;
-            })
-        .doAnswer(
-            invocation -> {
-              childLatch.countDown();
-              return null;
-            })
+    doAnswer(invocation -> {
+          parentLatch.countDown();
+          return null;
+        })
+        .doAnswer(invocation -> {
+          childLatch.countDown();
+          return null;
+        })
         .when(tracer)
         .write(any());
 
@@ -335,38 +331,37 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     buffer.start();
     AtomicInteger counter = new AtomicInteger(0);
     // Create a fake element that newer gets written
-    PendingTraceBuffer.Element element =
-        new PendingTraceBuffer.Element() {
-          @Override
-          public long oldestFinishedTime() {
-            return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis());
-          }
+    PendingTraceBuffer.Element element = new PendingTraceBuffer.Element() {
+      @Override
+      public long oldestFinishedTime() {
+        return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis());
+      }
 
-          @Override
-          public boolean lastReferencedNanosAgo(long nanos) {
-            return false;
-          }
+      @Override
+      public boolean lastReferencedNanosAgo(long nanos) {
+        return false;
+      }
 
-          @Override
-          public void write() {
-            counter.incrementAndGet();
-          }
+      @Override
+      public void write() {
+        counter.incrementAndGet();
+      }
 
-          @Override
-          public DDSpan getRootSpan() {
-            return null;
-          }
+      @Override
+      public DDSpan getRootSpan() {
+        return null;
+      }
 
-          @Override
-          public boolean setEnqueued(boolean enqueued) {
-            return true;
-          }
+      @Override
+      public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
 
-          @Override
-          public boolean writeOnBufferFull() {
-            return true;
-          }
-        };
+      @Override
+      public boolean writeOnBufferFull() {
+        return true;
+      }
+    };
 
     bufferSpy.enqueue(element);
     bufferSpy.enqueue(element);
@@ -451,9 +446,8 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(2, parsedTraces1.size());
     assertEquals(1L, ((Number) parsedTraces1.get(0).get("trace_id")).longValue());
     assertEquals(2L, ((Number) parsedTraces1.get(1).get("trace_id")).longValue());
-    assertTrue(
-        ((Number) parsedTraces1.get(0).get("start")).longValue()
-            < ((Number) parsedTraces1.get(1).get("start")).longValue());
+    assertTrue(((Number) parsedTraces1.get(0).get("start")).longValue()
+        < ((Number) parsedTraces1.get(1).get("start")).longValue());
 
     clearInvocations(dumpReporter);
 
@@ -515,53 +509,51 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   }
 
   private static DDSpan newSpanOf(PendingTrace trace, int samplingPriority, long timestampMicro) {
-    DDSpanContext context =
-        new DDSpanContext(
-            trace.getTraceId(),
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            samplingPriority,
-            null,
-            Collections.emptyMap(),
-            false,
-            "fakeType",
-            0,
-            trace,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    DDSpanContext context = new DDSpanContext(
+        trace.getTraceId(),
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        null,
+        Collections.emptyMap(),
+        false,
+        "fakeType",
+        0,
+        trace,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty());
     return DDSpan.create("test", timestampMicro, context, null);
   }
 
   private static DDSpan newSpanOf(DDSpan parent) {
     TraceCollector traceCollector = parent.spanContext().getTraceCollector();
-    DDSpanContext context =
-        new DDSpanContext(
-            parent.spanContext().getTraceId(),
-            2,
-            parent.spanContext().getSpanId(),
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            UNSET,
-            null,
-            Collections.emptyMap(),
-            false,
-            "fakeType",
-            0,
-            traceCollector,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    DDSpanContext context = new DDSpanContext(
+        parent.spanContext().getTraceId(),
+        2,
+        parent.spanContext().getSpanId(),
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        UNSET,
+        null,
+        Collections.emptyMap(),
+        false,
+        "fakeType",
+        0,
+        traceCollector,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty());
     return DDSpan.create("test", 0, context, null);
   }
 

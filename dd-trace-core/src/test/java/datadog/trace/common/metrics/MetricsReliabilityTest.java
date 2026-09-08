@@ -34,12 +34,11 @@ class MetricsReliabilityTest extends DDCoreJavaSpecification {
     sharedComm.createRemaining(config);
     DDAgentFeaturesDiscovery featuresDiscovery = sharedComm.featuresDiscovery(config);
     TracerHealthMetrics healthMetrics = new TracerHealthMetrics(StatsDClient.NO_OP);
-    CoreTracer tracer =
-        tracerBuilder()
-            .sharedCommunicationObjects(sharedComm)
-            .healthMetrics(healthMetrics)
-            .config(config)
-            .build();
+    CoreTracer tracer = tracerBuilder()
+        .sharedCommunicationObjects(sharedComm)
+        .healthMetrics(healthMetrics)
+        .config(config)
+        .build();
 
     try {
       // metrics enabled and discovery is performed
@@ -137,44 +136,32 @@ class MetricsReliabilityTest extends DDCoreJavaSpecification {
   }
 
   private static JavaTestHttpServer newAgent(State state) {
-    return JavaTestHttpServer.httpServer(
-        server ->
-            server.handlers(
-                h -> {
-                  h.get(
-                      "/info",
-                      api -> {
-                        String res =
-                            "{\"version\":\"7.65.0\",\"endpoints\":["
-                                + (state.agentMetricsAvailable ? "\"/v0.6/stats\", " : "")
-                                + "\"/v0.4/traces\"], \"client_drop_p0s\" : true}";
-                        try {
-                          state.hash = Strings.sha256(res);
-                        } catch (NoSuchAlgorithmException e) {
-                          throw new RuntimeException(e);
-                        }
-                        api.getResponse().status(200).send(res);
-                        state.latch.countDown();
-                      });
-                  h.post(
-                      "/v0.6/stats",
-                      api -> {
-                        state.receivedStats = true;
-                        api.getResponse().status(state.statsResponseCode).send();
-                      });
-                  h.put(
-                      "/v0.4/traces",
-                      api -> {
-                        state.receivedClientComputedHeader =
-                            "true"
-                                .equals(
-                                    api.getRequest().getHeader("Datadog-Client-Computed-Stats"));
-                        api.getResponse()
-                            .status(200)
-                            .addHeader("Datadog-Agent-State", state.hash)
-                            .send();
-                      });
-                }));
+    return JavaTestHttpServer.httpServer(server -> server.handlers(h -> {
+      h.get("/info", api -> {
+        String res = "{\"version\":\"7.65.0\",\"endpoints\":["
+            + (state.agentMetricsAvailable ? "\"/v0.6/stats\", " : "")
+            + "\"/v0.4/traces\"], \"client_drop_p0s\" : true}";
+        try {
+          state.hash = Strings.sha256(res);
+        } catch (NoSuchAlgorithmException e) {
+          throw new RuntimeException(e);
+        }
+        api.getResponse().status(200).send(res);
+        state.latch.countDown();
+      });
+      h.post("/v0.6/stats", api -> {
+        state.receivedStats = true;
+        api.getResponse().status(state.statsResponseCode).send();
+      });
+      h.put("/v0.4/traces", api -> {
+        state.receivedClientComputedHeader =
+            "true".equals(api.getRequest().getHeader("Datadog-Client-Computed-Stats"));
+        api.getResponse()
+            .status(200)
+            .addHeader("Datadog-Agent-State", state.hash)
+            .send();
+      });
+    }));
   }
 
   private static void assertMetrics(

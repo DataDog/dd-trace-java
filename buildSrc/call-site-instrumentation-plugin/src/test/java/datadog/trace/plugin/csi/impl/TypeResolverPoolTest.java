@@ -50,9 +50,8 @@ class TypeResolverPoolTest {
 
   @Test
   void testTypeResolverFromMethod() {
-    Type type =
-        Type.getMethodType(
-            Type.getType(String[].class), Type.getType(String.class), Type.getType(String.class));
+    Type type = Type.getMethodType(
+        Type.getType(String[].class), Type.getType(String.class), Type.getType(String.class));
     assertEquals(String[].class, resolver.resolveType(type.getReturnType()));
   }
 

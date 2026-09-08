@@ -11,9 +11,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 
 public class RmiClientDecorator extends ClientDecorator {
-  public static final CharSequence RMI_INVOKE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().client().operationForProtocol("rmi"));
+  public static final CharSequence RMI_INVOKE = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().client().operationForProtocol("rmi"));
   public static final CharSequence RMI_CLIENT = UTF8BytesString.create("rmi-client");
   public static final RmiClientDecorator DECORATE = new RmiClientDecorator();
 

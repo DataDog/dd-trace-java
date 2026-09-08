@@ -65,35 +65,24 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
   @SuppressForbidden
   private ElementMatcher<FieldDescription> methodVisitor() {
     return named("mv")
-        .and(
-            fieldType(
-                nameStartsWith("org.jacoco.agent.rt.internal")
-                    .and(nameEndsWith(".asm.MethodVisitor"))
-                    .and(
-                        declaresMethod(
-                            named("visitMethodInsn")
-                                .and(takesArguments(5))
-                                .and(takesArgument(0, int.class))
-                                .and(takesArgument(1, String.class))
-                                .and(takesArgument(2, String.class))
-                                .and(takesArgument(3, String.class))
-                                .and(takesArgument(4, boolean.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitInsn")
-                                .and(takesArguments(1))
-                                .and(takesArgument(0, int.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitIntInsn")
-                                .and(takesArguments(2))
-                                .and(takesArgument(0, int.class))
-                                .and(takesArgument(1, int.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitLdcInsn")
-                                .and(takesArguments(1))
-                                .and(takesArgument(0, Object.class))))));
+        .and(fieldType(nameStartsWith("org.jacoco.agent.rt.internal")
+            .and(nameEndsWith(".asm.MethodVisitor"))
+            .and(declaresMethod(named("visitMethodInsn")
+                .and(takesArguments(5))
+                .and(takesArgument(0, int.class))
+                .and(takesArgument(1, String.class))
+                .and(takesArgument(2, String.class))
+                .and(takesArgument(3, String.class))
+                .and(takesArgument(4, boolean.class))))
+            .and(declaresMethod(
+                named("visitInsn").and(takesArguments(1)).and(takesArgument(0, int.class))))
+            .and(declaresMethod(named("visitIntInsn")
+                .and(takesArguments(2))
+                .and(takesArgument(0, int.class))
+                .and(takesArgument(1, int.class))))
+            .and(declaresMethod(named("visitLdcInsn")
+                .and(takesArguments(1))
+                .and(takesArgument(0, Object.class))))));
   }
 
   @Override

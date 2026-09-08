@@ -42,10 +42,8 @@ public class SpanV04 implements DecodedSpan {
     try {
       int size = unpacker.unpackMapHeader();
       if (size != 12 && size != 13) {
-        throw new IllegalArgumentException(
-            "Wrong span element map size "
-                + size
-                + ". Expected 12 (plain) or 13 (with meta_struct).");
+        throw new IllegalArgumentException("Wrong span element map size " + size
+            + ". Expected 12 (plain) or 13 (with meta_struct).");
       }
 
       String service = unpackString("service", unpacker);

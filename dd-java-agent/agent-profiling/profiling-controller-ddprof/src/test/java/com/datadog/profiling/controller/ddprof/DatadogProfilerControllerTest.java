@@ -26,8 +26,9 @@ public class DatadogProfilerControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     DatadogProfilerController controller = new DatadogProfilerController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    RecordingData data = controller
+        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+        .stop();
     assertEquals("ddprof", data.getName());
   }
 }

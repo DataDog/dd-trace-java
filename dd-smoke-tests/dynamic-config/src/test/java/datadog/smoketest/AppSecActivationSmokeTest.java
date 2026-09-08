@@ -47,12 +47,11 @@ class AppSecActivationSmokeTest {
   static final AgentBackend agent = AgentBackend.testAgent();
 
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("appsec-activation")
-          .mainClass(AppSecApplication.class, APPLICATION_JAR)
-          .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
-          .backend(agent)
-          .build();
+  static final SmokeCliApp app = SmokeCliApp.named("appsec-activation")
+      .mainClass(AppSecApplication.class, APPLICATION_JAR)
+      .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
+      .backend(agent)
+      .build();
 
   @Test
   void activatesAppSecViaRemoteConfig() {
@@ -63,9 +62,8 @@ class AppSecActivationSmokeTest {
 
     // AppSec is enabled but inactive: a poll that has not subscribed to any ASM rule product yet
     // advertises the ASM_ACTIVATION capability, but not ASM_CUSTOM_RULES.
-    Map<String, Object> beforeActivation =
-        remoteConfig.waitForRequest(
-            request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+    Map<String, Object> beforeActivation = remoteConfig.waitForRequest(
+        request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
     long capabilities = RemoteConfig.capabilities(beforeActivation);
     assertTrue(hasCapability(capabilities, CAPABILITY_ASM_ACTIVATION), "ASM_ACTIVATION advertised");
     assertFalse(
@@ -81,9 +79,8 @@ class AppSecActivationSmokeTest {
         AppSecActivationSmokeTest::appsecEnabledFromRemoteConfig, TIMEOUT_IN_SECONDS);
 
     // Now active: the tracer subscribes to the ASM rule products and advertises ASM_CUSTOM_RULES.
-    Map<String, Object> afterActivation =
-        remoteConfig.waitForRequest(
-            request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+    Map<String, Object> afterActivation = remoteConfig.waitForRequest(
+        request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
     assertTrue(
         hasCapability(RemoteConfig.capabilities(afterActivation), CAPABILITY_ASM_CUSTOM_RULES),
         "ASM_CUSTOM_RULES advertised after activation");

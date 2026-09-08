@@ -27,6 +27,8 @@ public class KafkaConsumerInstrumentationHelper {
   }
 
   public static String extractBootstrapServers(KafkaConsumerInfo kafkaConsumerInfo) {
-    return kafkaConsumerInfo == null ? null : kafkaConsumerInfo.getBootstrapServers().orElse(null);
+    return kafkaConsumerInfo == null
+        ? null
+        : kafkaConsumerInfo.getBootstrapServers().orElse(null);
   }
 }

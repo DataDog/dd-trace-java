@@ -8,11 +8,9 @@ public class TestSparkJavaApplication {
 
     Spark.get("/param/:param", (req, res) -> "Hello " + req.params("param"));
 
-    Spark.get(
-        "/exception/:param",
-        (req, res) -> {
-          throw new RuntimeException(req.params("param"));
-        });
+    Spark.get("/exception/:param", (req, res) -> {
+      throw new RuntimeException(req.params("param"));
+    });
 
     Spark.awaitInitialization();
   }

@@ -56,10 +56,9 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
   }
 
   static final class Builder implements DoubleHistogramBuilder {
-    private static final List<Double> DEFAULT_BOUNDARIES =
-        asList(
-            0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d,
-            10_000d);
+    private static final List<Double> DEFAULT_BOUNDARIES = asList(
+        0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d,
+        10_000d);
 
     private final OtelMeter meter;
     private final OtelInstrumentBuilder builder;
@@ -102,9 +101,8 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
 
     @Override
     public DoubleHistogram build() {
-      return new OtelDoubleHistogram(
-          meter.registerStorage(
-              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+      return new OtelDoubleHistogram(meter.registerStorage(
+          builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
     }
 
     static List<Double> validateBoundaries(List<Double> boundaries) {
@@ -123,11 +121,8 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
           throw new IllegalArgumentException("invalid bucket boundary: NaN");
         }
         if (previousBoundary != null && previousBoundary >= boundary) {
-          throw new IllegalArgumentException(
-              "Bucket boundaries must be in increasing order: "
-                  + previousBoundary
-                  + " >= "
-                  + boundary);
+          throw new IllegalArgumentException("Bucket boundaries must be in increasing order: "
+              + previousBoundary + " >= " + boundary);
         }
         previousBoundary = boundary;
       }

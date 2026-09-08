@@ -390,14 +390,13 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     writable.writeInt(fieldId);
-    writable.startArray(
-        (tagCount
-                + baggage.size()
-                + metaStruct.size()
-                + 2
-                + (writeHttpStatus ? 1 : 0)
-                + (writeTopLevel ? 1 : 0))
-            * 3);
+    writable.startArray((tagCount
+            + baggage.size()
+            + metaStruct.size()
+            + 2
+            + (writeHttpStatus ? 1 : 0)
+            + (writeTopLevel ? 1 : 0))
+        * 3);
 
     writeAttribute(writable, DDTags.THREAD_ID, meta.getThreadId());
     writeAttribute(writable, DDTags.THREAD_NAME, meta.getThreadName());

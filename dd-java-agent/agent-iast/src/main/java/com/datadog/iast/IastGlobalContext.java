@@ -34,9 +34,8 @@ public class IastGlobalContext implements IastContext {
     static final TimeUnit MAX_AGE_UNIT = TaintedMap.DEFAULT_MAX_AGE_UNIT;
 
     // Map that with purge option
-    final IastContext globalContext =
-        new IastGlobalContext(
-            TaintedObjects.build(TaintedMap.buildWithPurge(MAP_SIZE, MAX_AGE, MAX_AGE_UNIT)));
+    final IastContext globalContext = new IastGlobalContext(
+        TaintedObjects.build(TaintedMap.buildWithPurge(MAP_SIZE, MAX_AGE, MAX_AGE_UNIT)));
 
     @Nullable
     @Override

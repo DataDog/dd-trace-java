@@ -13,7 +13,10 @@ public class PullRequestInfo {
   private final String baseBranch;
   private final String baseBranchSha;
   private final String baseBranchHeadSha;
-  @Nonnull private final CommitInfo headCommit;
+
+  @Nonnull
+  private final CommitInfo headCommit;
+
   private final String pullRequestNumber;
 
   public PullRequestInfo(

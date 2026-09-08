@@ -97,10 +97,9 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
       }
     }
     if (styles.contains(TracePropagationStyle.B3SINGLE)) {
-      String expectedB3Value =
-          samplingPriority != UNSET
-              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-              : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value = samplingPriority != UNSET
+          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+          : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }
@@ -168,10 +167,9 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
         expectedSize++;
       }
     } else if (style == TracePropagationStyle.B3SINGLE) {
-      String expectedB3Value =
-          samplingPriority != UNSET
-              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-              : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value = samplingPriority != UNSET
+          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+          : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }

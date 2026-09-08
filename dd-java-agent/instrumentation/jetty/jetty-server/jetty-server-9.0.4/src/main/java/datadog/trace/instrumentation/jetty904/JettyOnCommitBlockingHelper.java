@@ -59,9 +59,8 @@ public class JettyOnCommitBlockingHelper {
         byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
         fields.put("Content-length", Integer.toString(template.length));
 
-        info =
-            new HttpGenerator.ResponseInfo(
-                request.getHttpVersion(), fields, template.length, statusCode, null, false);
+        info = new HttpGenerator.ResponseInfo(
+            request.getHttpVersion(), fields, template.length, statusCode, null, false);
 
         // we need to update the upper layers too
         // so that the correct status code/headers get reported correctly on the span`
@@ -73,9 +72,8 @@ public class JettyOnCommitBlockingHelper {
         log.debug("Sending blocking response (non-empty body)");
         transport.send(info, ByteBuffer.wrap(template), true, closeCb);
       } else {
-        info =
-            new HttpGenerator.ResponseInfo(
-                request.getHttpVersion(), fields, 0, statusCode, null, request.isHead());
+        info = new HttpGenerator.ResponseInfo(
+            request.getHttpVersion(), fields, 0, statusCode, null, request.isHead());
 
         response.reset();
         response.setStatus(statusCode);

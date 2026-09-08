@@ -130,14 +130,12 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   private GitPackObject readPackObject(final String gitFolder, final String sha)
       throws IOException {
     final File packFolder = Paths.get(gitFolder, "objects", "pack").toFile();
-    final File[] idxFiles =
-        packFolder.listFiles(
-            new FilenameFilter() {
-              @Override
-              public boolean accept(final File dir, final String name) {
-                return name.endsWith(".idx");
-              }
-            });
+    final File[] idxFiles = packFolder.listFiles(new FilenameFilter() {
+      @Override
+      public boolean accept(final File dir, final String name) {
+        return name.endsWith(".idx");
+      }
+    });
 
     if (idxFiles == null) {
       return null;

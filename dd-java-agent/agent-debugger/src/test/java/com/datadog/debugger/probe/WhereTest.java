@@ -19,9 +19,8 @@ import org.objectweb.asm.tree.MethodNode;
 public class WhereTest {
   @Test
   public void simpleLineRange() {
-    Where where =
-        new Where(
-            "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"}, null);
+    Where where = new Where(
+        "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"}, null);
     assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
@@ -31,13 +30,12 @@ public class WhereTest {
 
   @Test
   public void multiLines() {
-    Where where =
-        new Where(
-            "java.lang.Object",
-            "toString()",
-            "java.lang.String ()",
-            new String[] {"12-25", "42-45"},
-            null);
+    Where where = new Where(
+        "java.lang.Object",
+        "toString()",
+        "java.lang.String ()",
+        new String[] {"12-25", "42-45"},
+        null);
     assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
@@ -48,9 +46,8 @@ public class WhereTest {
 
   @Test
   public void singleLine() {
-    Where where =
-        new Where(
-            "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"12"}, null);
+    Where where = new Where(
+        "java.lang.Object", "toString()", "java.lang.String ()", new String[] {"12"}, null);
     assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNotNull(lines);
@@ -60,13 +57,8 @@ public class WhereTest {
 
   @Test
   public void noLines() {
-    Where where =
-        new Where(
-            "java.lang.Object",
-            "toString()",
-            "java.lang.String ()",
-            (Where.SourceLine[]) null,
-            null);
+    Where where = new Where(
+        "java.lang.Object", "toString()", "java.lang.String ()", (Where.SourceLine[]) null, null);
     assertTrue(where.isSignatureMatching("java.lang.String ()"));
     String[] lines = where.getLines();
     Assertions.assertNull(lines);
@@ -128,13 +120,8 @@ public class WhereTest {
     assertEquals(
         Where.MethodMatching.MATCH,
         where.isMethodMatching(createMethodNode("concat", "String (String)"), null));
-    where =
-        new Where(
-            "Inner",
-            "innerMethod",
-            "(com.datadog.debugger.probe.Outer$Inner)",
-            new String[0],
-            null);
+    where = new Where(
+        "Inner", "innerMethod", "(com.datadog.debugger.probe.Outer$Inner)", new String[0], null);
     assertEquals(
         Where.MethodMatching.MATCH,
         where.isMethodMatching(

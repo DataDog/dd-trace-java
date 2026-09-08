@@ -49,7 +49,8 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
   @Test
   void everyExportedChunkCarriesApmDisabledMarker() throws InterruptedException, TimeoutException {
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
 
     PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
 
@@ -89,7 +90,8 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     // Positive control: when the whole trace is exported as a single chunk (child finishes before
     // the root, so nothing is written until the root closes), the marker is present on every span.
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
 
     child.finish();
     assertTrue(writer.isEmpty(), "trace must not be written while the root is still open");
@@ -108,10 +110,10 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     // root is written first, then its descendants flush together in a later, root-less chunk. Every
     // span in that chunk must still carry the marker.
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan childA =
-        (DDSpan) tracer.buildSpan("test", "childA").asChildOf(root.spanContext()).start();
-    DDSpan grandchild =
-        (DDSpan) tracer.buildSpan("test", "grandchild").asChildOf(childA.spanContext()).start();
+    DDSpan childA = (DDSpan)
+        tracer.buildSpan("test", "childA").asChildOf(root.spanContext()).start();
+    DDSpan grandchild = (DDSpan)
+        tracer.buildSpan("test", "grandchild").asChildOf(childA.spanContext()).start();
 
     PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
 
@@ -146,7 +148,8 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     // stamped on any span. Guards against a regression that marks unconditionally, ignoring the
     // apm.tracing.enabled flag.
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
 
     child.finish();
     root.finish();

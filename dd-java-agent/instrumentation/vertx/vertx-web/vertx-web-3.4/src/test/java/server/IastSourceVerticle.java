@@ -19,50 +19,32 @@ public class IastSourceVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     router.route().handler(CookieHandler.create());
-    router
-        .route("/iast/propagation/cookies")
-        .handler(
-            rc -> {
-              rc.cookies();
-              rc.response().end();
-            });
-    router
-        .route("/iast/propagation/getcookie")
-        .handler(
-            rc -> {
-              rc.getCookie("cookie");
-              rc.response().end();
-            });
-    router
-        .route("/iast/propagation/getcookiename")
-        .handler(
-            rc -> {
-              Cookie cookie = new CookieImpl("cookieName", "cookieValue");
-              cookie.getName();
-              rc.response().end();
-            });
-    router
-        .route("/iast/propagation/getcookievalue")
-        .handler(
-            rc -> {
-              Cookie cookie = new CookieImpl("cookieName", "cookieValue");
-              cookie.getValue();
-              rc.response().end();
-            });
-    router
-        .route("/iast/propagation/headers")
-        .handler(
-            rc -> {
-              rc.request().headers();
-              rc.response().end();
-            });
-    router
-        .route("/iast/propagation/params")
-        .handler(
-            rc -> {
-              rc.request().params();
-              rc.response().end();
-            });
+    router.route("/iast/propagation/cookies").handler(rc -> {
+      rc.cookies();
+      rc.response().end();
+    });
+    router.route("/iast/propagation/getcookie").handler(rc -> {
+      rc.getCookie("cookie");
+      rc.response().end();
+    });
+    router.route("/iast/propagation/getcookiename").handler(rc -> {
+      Cookie cookie = new CookieImpl("cookieName", "cookieValue");
+      cookie.getName();
+      rc.response().end();
+    });
+    router.route("/iast/propagation/getcookievalue").handler(rc -> {
+      Cookie cookie = new CookieImpl("cookieName", "cookieValue");
+      cookie.getValue();
+      rc.response().end();
+    });
+    router.route("/iast/propagation/headers").handler(rc -> {
+      rc.request().headers();
+      rc.response().end();
+    });
+    router.route("/iast/propagation/params").handler(rc -> {
+      rc.request().params();
+      rc.response().end();
+    });
     router
         .route("/iast/propagation/formAttributes")
         .handler(rc -> rc.response().end(rc.request().formAttributes().get("formAttribute")));
@@ -73,15 +55,13 @@ public class IastSourceVerticle extends AbstractVerticle {
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(router::accept)
-        .listen(
-            port,
-            http -> {
-              if (http.succeeded()) {
-                startPromise.complete();
-                System.out.println("HTTP server started");
-              } else {
-                startPromise.fail(http.cause());
-              }
-            });
+        .listen(port, http -> {
+          if (http.succeeded()) {
+            startPromise.complete();
+            System.out.println("HTTP server started");
+          } else {
+            startPromise.fail(http.cause());
+          }
+        });
   }
 }

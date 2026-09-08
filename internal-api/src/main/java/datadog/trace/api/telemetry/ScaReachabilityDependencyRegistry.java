@@ -186,9 +186,8 @@ public final class ScaReachabilityDependencyRegistry {
       // compareAndSet guarantees exactly one callsite is stored (first hit wins).
       // A plain volatile check-then-assign would allow two threads racing on different
       // methods of the same CVE to both see null and both write, violating the invariant.
-      ScaReachabilityHit newHit =
-          new ScaReachabilityHit(
-              vulnId, artifact, version, callsiteClass, callsiteSymbol, callsiteLine);
+      ScaReachabilityHit newHit = new ScaReachabilityHit(
+          vulnId, artifact, version, callsiteClass, callsiteSymbol, callsiteLine);
       if (state.hitRef.compareAndSet(null, newHit)) {
         pendingReport = true;
       }

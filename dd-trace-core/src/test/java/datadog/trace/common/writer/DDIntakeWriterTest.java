@@ -40,9 +40,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
   DDAgentApi api = mock(DDAgentApi.class);
   MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
-  PayloadDispatcherImpl dispatcher =
-      new PayloadDispatcherImpl(
-          new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+  PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+      new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
   DDIntakeWriter writer = new DDIntakeWriter(worker, dispatcher, healthMetrics, false);
 
   // Only used to create spans
@@ -117,9 +116,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
 
   @Test
   void testWriterWritePublishSucceeds() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish succeeds
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
@@ -134,9 +132,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
 
   @Test
   void testWriterWritePublishForSingleSpanSampling() {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish succeeds for single span sampling
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
@@ -155,9 +152,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
     "dropped by policy             | DROPPED_BY_POLICY                  "
   })
   void testWriterWritePublishFails(PublishResult publishResult) {
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     // publish fails
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
@@ -185,9 +181,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   void testWriterWriteClosed() {
     writer.close();
     clearInvocations(healthMetrics, worker, discovery, api);
-    List<DDSpan> trace =
-        Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+    List<DDSpan> trace = Collections.singletonList(
+        (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
 
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(trace);

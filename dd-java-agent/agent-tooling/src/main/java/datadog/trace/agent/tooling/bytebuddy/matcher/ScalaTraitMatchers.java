@@ -16,10 +16,9 @@ public class ScalaTraitMatchers {
   public static ElementMatcher.Junction<MethodDescription> isTraitMethod(
       String traitName, String name, Object... argumentTypes) {
 
-    ElementMatcher.Junction<MethodDescription> scalaOldArgs =
-        isStatic()
-            .and(takesArguments(argumentTypes.length + 1))
-            .and(takesArgument(0, named(traitName)));
+    ElementMatcher.Junction<MethodDescription> scalaOldArgs = isStatic()
+        .and(takesArguments(argumentTypes.length + 1))
+        .and(takesArgument(0, named(traitName)));
     ElementMatcher.Junction<MethodDescription> scalaNewArgs =
         not(isStatic()).and(takesArguments(argumentTypes.length));
 

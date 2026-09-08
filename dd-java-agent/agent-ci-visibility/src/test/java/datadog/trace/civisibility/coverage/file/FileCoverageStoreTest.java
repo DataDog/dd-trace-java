@@ -31,10 +31,9 @@ class FileCoverageStoreTest {
     when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
         .thenReturn(singletonList("src/main/java/com/example/ClassA.java"));
     when(sourcePathResolver.getSourcePaths(DuplicateKeyClass.class))
-        .thenReturn(
-            asList(
-                "src/debug/java/com/example/DuplicateKeyClass.java",
-                "src/release/java/com/example/DuplicateKeyClass.java"));
+        .thenReturn(asList(
+            "src/debug/java/com/example/DuplicateKeyClass.java",
+            "src/release/java/com/example/DuplicateKeyClass.java"));
     when(sourcePathResolver.getSourcePaths(ResolvableClassC.class))
         .thenReturn(singletonList("src/main/java/com/example/ClassC.java"));
 

@@ -143,12 +143,11 @@ public class J9JavacoreParserTest {
     // Given
     final String uuid = UUID.randomUUID().toString();
     // An incomplete javacore that's missing the THREADS section
-    String incompleteJavacore =
-        "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "1TISIGINFO     Dump Event \"gpf\" (00002000) received\n"
-            + "1TIDATETIME    Date: 2024/08/25 at 15:55:09:123\n";
+    String incompleteJavacore = "0SECTION       TITLE subcomponent dump routine\n"
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "1TISIGINFO     Dump Event \"gpf\" (00002000) received\n"
+        + "1TIDATETIME    Date: 2024/08/25 at 15:55:09:123\n";
 
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, incompleteJavacore);
@@ -163,25 +162,24 @@ public class J9JavacoreParserTest {
   public void testAbortCrash() throws Exception {
     // Given - a javacore for an abort event
     final String uuid = UUID.randomUUID().toString();
-    String javacoreContent =
-        "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "1TISIGINFO     Dump Event \"abort\" (00000020) received\n"
-            + "1TIDATETIME    Date: 2024/10/01 at 08:30:00:000\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       ENVINFO subcomponent dump routine\n"
-            + "NULL           =================================\n"
-            + "1CIPROCESSID   Process ID: 99999\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       THREADS subcomponent dump routine\n"
-            + "NULL           =================================\n"
-            + "1XMCURTHDINFO  Current thread: \"abort-thread\" (J9VMThread:0x00000001)\n"
-            + "NULL\n"
-            + "3XMTHREADINFO      \"abort-thread\" J9VMThread:0x00000001, state:R, prio=5\n"
-            + "3XMTHREADINFO3           Java callstack:\n"
-            + "4XESTACKTRACE                at java/lang/Runtime.exit(Runtime.java:123)\n"
-            + "NULL\n";
+    String javacoreContent = "0SECTION       TITLE subcomponent dump routine\n"
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "1TISIGINFO     Dump Event \"abort\" (00000020) received\n"
+        + "1TIDATETIME    Date: 2024/10/01 at 08:30:00:000\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       ENVINFO subcomponent dump routine\n"
+        + "NULL           =================================\n"
+        + "1CIPROCESSID   Process ID: 99999\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       THREADS subcomponent dump routine\n"
+        + "NULL           =================================\n"
+        + "1XMCURTHDINFO  Current thread: \"abort-thread\" (J9VMThread:0x00000001)\n"
+        + "NULL\n"
+        + "3XMTHREADINFO      \"abort-thread\" J9VMThread:0x00000001, state:R, prio=5\n"
+        + "3XMTHREADINFO3           Java callstack:\n"
+        + "4XESTACKTRACE                at java/lang/Runtime.exit(Runtime.java:123)\n"
+        + "NULL\n";
 
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, javacoreContent);
@@ -232,13 +230,12 @@ public class J9JavacoreParserTest {
   @Test
   public void testNoSignalProducesInternalError() throws Exception {
     // A javacore with a THREADS section but no 1TISIGINFO line
-    String javacoreContent =
-        "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       THREADS subcomponent dump routine\n"
-            + "NULL           =================================\n";
+    String javacoreContent = "0SECTION       TITLE subcomponent dump routine\n"
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       THREADS subcomponent dump routine\n"
+        + "NULL           =================================\n";
 
     CrashLog result = new J9JavacoreParser().parse(UUID.randomUUID().toString(), javacoreContent);
 

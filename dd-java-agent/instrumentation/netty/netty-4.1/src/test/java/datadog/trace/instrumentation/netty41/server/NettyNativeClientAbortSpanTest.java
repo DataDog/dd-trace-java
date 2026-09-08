@@ -65,24 +65,21 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
     EventLoopGroup worker = transport.newEventLoopGroup(1);
     Channel server = null;
     try {
-      server =
-          new ServerBootstrap()
-              .group(boss, worker)
-              .channel(transport.serverSocketChannelClass)
-              .childOption(
-                  ChannelOption.WRITE_BUFFER_WATER_MARK,
-                  new WriteBufferWaterMark(32 * 1024, 64 * 1024))
-              .childHandler(
-                  new ChannelInitializer<Channel>() {
-                    @Override
-                    protected void initChannel(Channel ch) {
-                      ch.pipeline().addLast(new HttpServerCodec());
-                      ch.pipeline().addLast(handler);
-                    }
-                  })
-              .bind("127.0.0.1", 0)
-              .sync()
-              .channel();
+      server = new ServerBootstrap()
+          .group(boss, worker)
+          .channel(transport.serverSocketChannelClass)
+          .childOption(
+              ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(32 * 1024, 64 * 1024))
+          .childHandler(new ChannelInitializer<Channel>() {
+            @Override
+            protected void initChannel(Channel ch) {
+              ch.pipeline().addLast(new HttpServerCodec());
+              ch.pipeline().addLast(handler);
+            }
+          })
+          .bind("127.0.0.1", 0)
+          .sync()
+          .channel();
 
       int port = ((InetSocketAddress) server.localAddress()).getPort();
       try (Socket socket = new Socket("127.0.0.1", port)) {
@@ -154,16 +151,14 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
         content.writeZero(content.writableBytes());
         ctx.write(new DefaultHttpContent(content));
       }
-      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
-          .addListener(
-              future -> {
-                if (future.isSuccess()) {
-                  failures.offer(
-                      new AssertionError("cancelled response tail write unexpectedly succeeded"));
-                } else if (failureRecorded.compareAndSet(false, true)) {
-                  failures.offer(future.cause());
-                }
-              });
+      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(future -> {
+        if (future.isSuccess()) {
+          failures.offer(
+              new AssertionError("cancelled response tail write unexpectedly succeeded"));
+        } else if (failureRecorded.compareAndSet(false, true)) {
+          failures.offer(future.cause());
+        }
+      });
     }
 
     private Throwable awaitFailure() throws InterruptedException, TimeoutException {

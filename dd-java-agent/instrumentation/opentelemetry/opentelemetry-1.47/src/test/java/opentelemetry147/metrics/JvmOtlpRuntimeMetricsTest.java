@@ -55,26 +55,25 @@ public class JvmOtlpRuntimeMetricsTest {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
 
-    List<String> expectedMetrics =
-        Arrays.asList(
-            "jvm.memory.used",
-            "jvm.memory.committed",
-            "jvm.memory.limit",
-            "jvm.memory.init",
-            "jvm.memory.used_after_last_gc",
-            "jvm.buffer.memory.used",
-            "jvm.buffer.memory.limit",
-            "jvm.buffer.count",
-            "jvm.thread.count",
-            "jvm.class.loaded",
-            "jvm.class.count",
-            "jvm.class.unloaded",
-            "jvm.cpu.time",
-            "jvm.cpu.count",
-            "jvm.cpu.recent_utilization",
-            "jvm.system.cpu.utilization",
-            "jvm.system.cpu.load_1m",
-            "jvm.gc.duration");
+    List<String> expectedMetrics = Arrays.asList(
+        "jvm.memory.used",
+        "jvm.memory.committed",
+        "jvm.memory.limit",
+        "jvm.memory.init",
+        "jvm.memory.used_after_last_gc",
+        "jvm.buffer.memory.used",
+        "jvm.buffer.memory.limit",
+        "jvm.buffer.count",
+        "jvm.thread.count",
+        "jvm.class.loaded",
+        "jvm.class.count",
+        "jvm.class.unloaded",
+        "jvm.cpu.time",
+        "jvm.cpu.count",
+        "jvm.cpu.recent_utilization",
+        "jvm.system.cpu.utilization",
+        "jvm.system.cpu.load_1m",
+        "jvm.gc.duration");
 
     Set<String> names = collector.metricNames;
     for (String metric : expectedMetrics) {
@@ -97,10 +96,9 @@ public class JvmOtlpRuntimeMetricsTest {
     assertEquals(expectedSize, names.size(), "Unexpected metric count: " + new TreeSet<>(names));
 
     // No DD-proprietary names should be present
-    List<String> ddNames =
-        names.stream()
-            .filter(n -> n.startsWith("jvm.heap_memory") || n.startsWith("jvm.thread_count"))
-            .collect(Collectors.toList());
+    List<String> ddNames = names.stream()
+        .filter(n -> n.startsWith("jvm.heap_memory") || n.startsWith("jvm.thread_count"))
+        .collect(Collectors.toList());
     assertTrue(ddNames.isEmpty(), "DD-proprietary names leaked: " + ddNames);
   }
 
@@ -121,14 +119,11 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> points = collector.points.get("jvm.memory.used");
     assertNotNull(points, "jvm.memory.used should have data points");
-    DataPointEntry heapAggregate =
-        points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
-            .findFirst()
-            .orElse(null);
+    DataPointEntry heapAggregate = points.stream()
+        .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type"))
+            && p.attrs.get("jvm.memory.pool.name") == null)
+        .findFirst()
+        .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.used should have a heap aggregate data point");
     assertTrue(
         heapAggregate.value.longValue() > 0,
@@ -201,14 +196,11 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> points = collector.points.get("jvm.memory.init");
     assertNotNull(points, "jvm.memory.init should have data points");
-    DataPointEntry heapAggregate =
-        points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
-            .findFirst()
-            .orElse(null);
+    DataPointEntry heapAggregate = points.stream()
+        .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type"))
+            && p.attrs.get("jvm.memory.pool.name") == null)
+        .findFirst()
+        .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.init should have a heap aggregate data point");
     assertTrue(
         heapAggregate.value.longValue() > 0,

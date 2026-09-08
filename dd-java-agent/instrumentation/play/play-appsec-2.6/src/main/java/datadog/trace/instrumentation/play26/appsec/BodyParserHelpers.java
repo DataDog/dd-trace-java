@@ -94,12 +94,9 @@ public class BodyParserHelpers {
     } catch (Exception ignored) {
     }
     try {
-      file =
-          Class.forName(
-                  "play.api.libs.Files$TemporaryFile",
-                  false,
-                  BodyParserHelpers.class.getClassLoader())
-              .getMethod("file");
+      file = Class.forName(
+              "play.api.libs.Files$TemporaryFile", false, BodyParserHelpers.class.getClassLoader())
+          .getMethod("file");
     } catch (Exception ignored) {
     }
     FILE_PART_REF = ref;
@@ -593,7 +590,8 @@ public class BodyParserHelpers {
     }
 
     if (node instanceof Elem) {
-      scala.collection.immutable.Map<String, String> attributes = node.attributes().asAttrMap();
+      scala.collection.immutable.Map<String, String> attributes =
+          node.attributes().asAttrMap();
 
       int size = node.child().size();
       List<Object> childList = Collections.emptyList();

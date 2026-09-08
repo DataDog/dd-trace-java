@@ -50,11 +50,10 @@ public class EmbeddingDecorator {
   }
 
   private List<LLMObs.Document> embeddingDocuments(EmbeddingCreateParams.Input input) {
-    List<String> inputs =
-        input
-            .string()
-            .map(Collections::singletonList)
-            .orElseGet(() -> input.arrayOfStrings().orElse(Collections.emptyList()));
+    List<String> inputs = input
+        .string()
+        .map(Collections::singletonList)
+        .orElseGet(() -> input.arrayOfStrings().orElse(Collections.emptyList()));
     return inputs.stream().map(LLMObs.Document::from).collect(Collectors.toList());
   }
 
@@ -78,20 +77,10 @@ public class EmbeddingDecorator {
           String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
 
-    response
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+    response._usage().asKnown().ifPresent(usage -> {
+      usage._promptTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+      usage._totalTokens().asKnown().ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
+    });
   }
 
   private Optional<String> extractEmbeddingModelName(EmbeddingCreateParams params) {
@@ -103,6 +92,8 @@ public class EmbeddingDecorator {
   private Optional<String> extractEncodingFormat(EmbeddingCreateParams params) {
     Optional<String> encodingFormat =
         params._encodingFormat().asKnown().flatMap(format -> format._value().asString());
-    return encodingFormat.isPresent() ? encodingFormat : params._encodingFormat().asString();
+    return encodingFormat.isPresent()
+        ? encodingFormat
+        : params._encodingFormat().asString();
   }
 }

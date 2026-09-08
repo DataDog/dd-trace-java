@@ -23,11 +23,7 @@ public class TestReportFileEntry {
 
   @Override
   public String toString() {
-    return "TestReportFileEntry{"
-        + "sourceFileName='"
-        + sourceFileName
-        + "', lines=["
-        + coveredLines
-        + "]}";
+    return "TestReportFileEntry{" + "sourceFileName='" + sourceFileName + "', lines=["
+        + coveredLines + "]}";
   }
 }

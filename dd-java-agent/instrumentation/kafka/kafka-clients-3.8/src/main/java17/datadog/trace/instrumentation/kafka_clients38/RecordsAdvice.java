@@ -28,12 +28,12 @@ public class RecordsAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.This ConsumerDelegate consumer) {
     // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+            ConsumerDelegate.class, KafkaConsumerInfo.class)
+        .get(consumer);
     if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
-      String clusterId =
-          KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
+      String clusterId = KafkaConsumerInstrumentationHelper.extractClusterId(
+          kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       if (clusterId != null) {
         ClusterIdHolder.set(clusterId);
       }
@@ -56,8 +56,9 @@ public class RecordsAdvice {
     if (records != null) {
       // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
       // KafkaConsumer
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+              ConsumerDelegate.class, KafkaConsumerInfo.class)
+          .get(consumer);
       if (kafkaConsumerInfo != null) {
         InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
             .put(records, kafkaConsumerInfo);

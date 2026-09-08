@@ -55,7 +55,8 @@ public final class Dependency {
    * serialized by the telemetry pipeline unless explicitly written by {@link
    * datadog.telemetry.TelemetryRequestBody#writeDependency}.
    */
-  @Nullable public final List<String> reachabilityMetadata;
+  @Nullable
+  public final List<String> reachabilityMetadata;
 
   public Dependency(String name, String version, String source, @Nullable String hash) {
     this(name, version, source, hash, null);

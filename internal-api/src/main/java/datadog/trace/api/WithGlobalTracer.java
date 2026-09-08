@@ -22,17 +22,16 @@ public class WithGlobalTracer {
    * the tracer is already installed.
    */
   public static void registerOrExecute(final Callback callback) {
-    GlobalTracer.registerInstallationCallback(
-        new GlobalTracer.Callback() {
-          @Override
-          public void installed(Tracer tracer) {
-            if (tracer instanceof TracerAPI) {
-              callback.withTracer((TracerAPI) tracer);
-            } else {
-              log.warn("Unsupported tracer type {}", tracer.getClass().getName());
-            }
-          }
-        });
+    GlobalTracer.registerInstallationCallback(new GlobalTracer.Callback() {
+      @Override
+      public void installed(Tracer tracer) {
+        if (tracer instanceof TracerAPI) {
+          callback.withTracer((TracerAPI) tracer);
+        } else {
+          log.warn("Unsupported tracer type {}", tracer.getClass().getName());
+        }
+      }
+    });
   }
 
   public interface Callback {

@@ -14,7 +14,8 @@ import javax.annotation.Nullable;
 
 public class JUnit4FailFastClassOrderer implements Comparator<Class<?>> {
 
-  @Nullable private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler;
+  @Nullable
+  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler;
 
   public JUnit4FailFastClassOrderer(
       @Nullable TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler) {

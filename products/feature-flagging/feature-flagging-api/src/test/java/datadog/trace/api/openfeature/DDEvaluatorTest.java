@@ -70,12 +70,11 @@ public class DDEvaluatorTest {
 
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI =
-      new Moshi.Builder()
-          .add(Date.class, new DateAdapter())
-          .add(ShardAdapter.FACTORY)
-          .add(FlagMapAdapter.FACTORY)
-          .build();
+  private static final Moshi MOSHI = new Moshi.Builder()
+      .add(Date.class, new DateAdapter())
+      .add(ShardAdapter.FACTORY)
+      .add(FlagMapAdapter.FACTORY)
+      .build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
@@ -239,11 +238,9 @@ public class DDEvaluatorTest {
     variations.put("on", new Variant("on", 1));
     // The selected shard is above Integer.MAX_VALUE, so this test proves that evaluation uses
     // unsigned semantics after binary-compatible int storage.
-    final Shard shard =
-        new Shard(
-            "salt",
-            singletonList(new ShardRange((int) 3_699_531_192L, (int) 3_699_531_193L)),
-            (int) MAX_UNSIGNED_INT);
+    final Shard shard = new Shard(
+        "salt", singletonList(new ShardRange((int) 3_699_531_192L, (int) 3_699_531_193L)), (int)
+            MAX_UNSIGNED_INT);
     final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
     final Allocation allocation =
         new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
@@ -481,9 +478,8 @@ public class DDEvaluatorTest {
   private static ProviderEvaluation<?> evaluateWithNumericRuleOnId(
       final String targetingKey, final boolean observeFullEvaluationData) {
     final Map<String, Flag> flags = new HashMap<>();
-    final List<Rule> rules =
-        singletonList(
-            new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
+    final List<Rule> rules = singletonList(
+        new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
     // Split must be non-empty so the allocation is considered a match target; its contents don't
     // matter because the rule throws before a split is picked.
     final Allocation allocation =
@@ -534,9 +530,8 @@ public class DDEvaluatorTest {
     condition.semverComparand = parsed;
     final Rule rule = new Rule(singletonList(condition));
     final Split split = new Split(emptyList(), "on", null, null);
-    final Allocation allocation =
-        Allocation.fromInstants(
-            "targeted", singletonList(rule), null, null, singletonList(split), false);
+    final Allocation allocation = Allocation.fromInstants(
+        "targeted", singletonList(rule), null, null, singletonList(split), false);
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", true));
     return new Flag("test-flag", true, ValueType.BOOLEAN, variations, singletonList(allocation));
@@ -676,21 +671,17 @@ public class DDEvaluatorTest {
   private static Arguments[] flatteningTestCases() {
     final List<Arguments> arguments = new ArrayList<>();
     arguments.add(Arguments.of(emptyMap(), emptyMap()));
-    arguments.add(
-        Arguments.of(
-            mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null),
-            mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null)));
-    arguments.add(
-        Arguments.of(
-            mapOf("list", asList(1, 2, singletonList(4))),
-            mapOf("list[0]", 1, "list[1]", 2, "list[2][0]", 4)));
-    arguments.add(
-        Arguments.of(
-            mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
-            mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
-    arguments.add(
-        Arguments.of(
-            mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
+    arguments.add(Arguments.of(
+        mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null),
+        mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null)));
+    arguments.add(Arguments.of(
+        mapOf("list", asList(1, 2, singletonList(4))),
+        mapOf("list[0]", 1, "list[1]", 2, "list[2][0]", 4)));
+    arguments.add(Arguments.of(
+        mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
+        mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
+    arguments.add(Arguments.of(
+        mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
     final Instant instant = Instant.parse("2026-07-10T12:34:56Z");
     arguments.add(Arguments.of(mapOf("instant", instant), mapOf("instant", instant.toString())));
     return arguments.toArray(new Arguments[0]);
@@ -800,7 +791,8 @@ public class DDEvaluatorTest {
 
     final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    long structKeys = result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    long structKeys =
+        result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
     assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
     assertThat(result.truncatedReason, equalTo("max_structure_properties"));
   }
@@ -998,11 +990,10 @@ public class DDEvaluatorTest {
     final List<FixtureCase> result = new ArrayList<>();
 
     try (final Stream<Path> paths = Files.list(evaluationCases)) {
-      final List<Path> files =
-          paths
-              .filter(path -> path.getFileName().toString().endsWith(".json"))
-              .sorted((left, right) -> left.getFileName().compareTo(right.getFileName()))
-              .collect(Collectors.toList());
+      final List<Path> files = paths
+          .filter(path -> path.getFileName().toString().endsWith(".json"))
+          .sorted((left, right) -> left.getFileName().compareTo(right.getFileName()))
+          .collect(Collectors.toList());
       for (final Path file : files) {
         final List<FixtureCase> testCases = FIXTURE_LIST_ADAPTER.fromJson(read(file));
         if (testCases == null) {
@@ -1109,13 +1100,12 @@ public class DDEvaluatorTest {
    * Mirrors the production parser's binary-compatible uint32 representation for fixture parsing.
    */
   private static final class ShardAdapter extends JsonAdapter<Shard> {
-    private static final JsonAdapter.Factory FACTORY =
-        (type, annotations, moshi) -> {
-          if (!annotations.isEmpty() || type != Shard.class) {
-            return null;
-          }
-          return new ShardAdapter(moshi.adapter(ShardJson.class));
-        };
+    private static final JsonAdapter.Factory FACTORY = (type, annotations, moshi) -> {
+      if (!annotations.isEmpty() || type != Shard.class) {
+        return null;
+      }
+      return new ShardAdapter(moshi.adapter(ShardJson.class));
+    };
 
     private final JsonAdapter<ShardJson> delegate;
 
@@ -1178,13 +1168,12 @@ public class DDEvaluatorTest {
     private static final Type FLAGS_TYPE =
         Types.newParameterizedType(Map.class, String.class, Flag.class);
 
-    private static final JsonAdapter.Factory FACTORY =
-        (type, annotations, moshi) -> {
-          if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
-            return null;
-          }
-          return new FlagMapAdapter(moshi.adapter(Flag.class));
-        };
+    private static final JsonAdapter.Factory FACTORY = (type, annotations, moshi) -> {
+      if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
+        return null;
+      }
+      return new FlagMapAdapter(moshi.adapter(Flag.class));
+    };
 
     private final JsonAdapter<Flag> flagAdapter;
 

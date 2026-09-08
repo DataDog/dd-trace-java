@@ -296,7 +296,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
    */
   private static File createToolchainsFile()
       throws URISyntaxException, IOException, TemplateException {
-    File toolchainJdkHome = new File(MavenUtilsTest.class.getResource("my-jdk-home").toURI());
+    File toolchainJdkHome =
+        new File(MavenUtilsTest.class.getResource("my-jdk-home").toURI());
     Map<String, String> replacements =
         Collections.singletonMap("my_jdk_home_path", toolchainJdkHome.getAbsolutePath());
 
@@ -485,10 +486,9 @@ public class MavenUtilsTest extends AbstractMavenTest {
 
   private static Properties loadLatestToolVersions() {
     Properties properties = new Properties();
-    try (InputStream stream =
-        MavenUtilsTest.class
-            .getClassLoader()
-            .getResourceAsStream("latest-tool-versions.properties")) {
+    try (InputStream stream = MavenUtilsTest.class
+        .getClassLoader()
+        .getResourceAsStream("latest-tool-versions.properties")) {
       if (stream == null) {
         throw new IllegalStateException(
             "Could not find latest-tool-versions.properties on classpath");

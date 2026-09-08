@@ -59,19 +59,18 @@ class FootprintForkedTest {
         mock(DDAgentFeaturesDiscovery.class, withSettings().stubOnly());
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language"),
-            emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            1000,
-            1000,
-            100,
-            SECONDS,
-            false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language"),
+        emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        1000,
+        1000,
+        100,
+        SECONDS,
+        false);
     // Measuring the AggregateTable directly (rather than the whole ClientStatsAggregator) avoids
     // both the 'features' mock (mocks are heavyweight, e.g. around 22MiB) and the aggregator's
     // background Thread, whose ThreadGroup transitively references every other live thread in the
@@ -99,19 +98,17 @@ class FootprintForkedTest {
         String resourceName =
             resourceNames[ThreadLocalRandom.current().nextInt(resourceNames.length)];
         boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold;
-        aggregator.publish(
-            Collections.singletonList(
-                new SimpleSpan(
-                    serviceName,
-                    operation,
-                    resourceName,
-                    type,
-                    true,
-                    true,
-                    isError,
-                    System.nanoTime(),
-                    isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
-                    200)));
+        aggregator.publish(Collections.singletonList(new SimpleSpan(
+            serviceName,
+            operation,
+            resourceName,
+            type,
+            true,
+            true,
+            isError,
+            System.nanoTime(),
+            isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
+            200)));
       }
       if (!aggregator.report()) {
         int attempts = 0;

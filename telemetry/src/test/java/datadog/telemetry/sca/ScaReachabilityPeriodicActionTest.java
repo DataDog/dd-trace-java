@@ -127,13 +127,11 @@ class ScaReachabilityPeriodicActionTest {
     Dependency secondReport = reported.get(1);
     assertEquals(2, secondReport.reachabilityMetadata.size());
     // cve-1 now has a callsite
-    assertTrue(
-        secondReport.reachabilityMetadata.stream()
-            .anyMatch(v -> v.contains("GHSA-cve-1") && v.contains("\"path\"")));
+    assertTrue(secondReport.reachabilityMetadata.stream()
+        .anyMatch(v -> v.contains("GHSA-cve-1") && v.contains("\"path\"")));
     // cve-2 still has empty reached
-    assertTrue(
-        secondReport.reachabilityMetadata.stream()
-            .anyMatch(v -> v.contains("GHSA-cve-2") && v.contains("\"reached\":[]")));
+    assertTrue(secondReport.reachabilityMetadata.stream()
+        .anyMatch(v -> v.contains("GHSA-cve-2") && v.contains("\"reached\":[]")));
   }
 
   @Test
@@ -254,14 +252,13 @@ class ScaReachabilityPeriodicActionTest {
 
   @Test
   void buildMetadataValue_includesCallsiteWhenHit() {
-    ScaReachabilityHit hit =
-        new ScaReachabilityHit(
-            "GHSA-645p-88qh-w398",
-            "com.fasterxml.jackson.core:jackson-databind",
-            "2.8.5",
-            "com.fasterxml.jackson.databind.ObjectMapper",
-            "<clinit>",
-            1);
+    ScaReachabilityHit hit = new ScaReachabilityHit(
+        "GHSA-645p-88qh-w398",
+        "com.fasterxml.jackson.core:jackson-databind",
+        "2.8.5",
+        "com.fasterxml.jackson.databind.ObjectMapper",
+        "<clinit>",
+        1);
     ScaReachabilityDependencyRegistry.CveSnapshot cve =
         new ScaReachabilityDependencyRegistry.CveSnapshot("GHSA-645p-88qh-w398", hit);
 
@@ -350,16 +347,14 @@ class ScaReachabilityPeriodicActionTest {
     verify(telService, times(2)).addDependency(captor.capture());
     java.util.List<Dependency> emitted = captor.getAllValues();
 
-    Dependency depA =
-        emitted.stream()
-            .filter(d -> "com.example:lib".equals(d.name))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("dep not found"));
-    Dependency depB =
-        emitted.stream()
-            .filter(d -> "com.other:lib".equals(d.name))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("dep not found"));
+    Dependency depA = emitted.stream()
+        .filter(d -> "com.example:lib".equals(d.name))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("dep not found"));
+    Dependency depB = emitted.stream()
+        .filter(d -> "com.other:lib".equals(d.name))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("dep not found"));
 
     assertTrue(depA.reachabilityMetadata.isEmpty(), "depA: no CVE state → metadata:[]");
     assertTrue(
@@ -379,9 +374,8 @@ class ScaReachabilityPeriodicActionTest {
     DependencyService svc = mock(DependencyService.class);
     // Heartbeat 1: DependencyService returns the dep, no CVE yet
     when(svc.drainDeterminedDependencies())
-        .thenReturn(
-            Collections.singletonList(
-                new Dependency("com.example:lib", "1.0.0", "lib.jar", "ABCD")))
+        .thenReturn(Collections.singletonList(
+            new Dependency("com.example:lib", "1.0.0", "lib.jar", "ABCD")))
         .thenReturn(Collections.emptyList()); // heartbeat 2: nothing new
     ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
 

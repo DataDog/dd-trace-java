@@ -84,11 +84,10 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
-      executionRequest =
-          new ExecutionRequest(
-              executionRequest.getRootTestDescriptor(),
-              compositeListener,
-              executionRequest.getConfigurationParameters());
+      executionRequest = new ExecutionRequest(
+          executionRequest.getRootTestDescriptor(),
+          compositeListener,
+          executionRequest.getConfigurationParameters());
     }
 
     // JUnit 5.3.0 and above

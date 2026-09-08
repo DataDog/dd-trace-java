@@ -86,10 +86,9 @@ public final class HotspotCrashLogParser {
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
   // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
   //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
-  private static final Pattern SIGINFO_PARSER =
-      Pattern.compile(
-          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
-              + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))");
+  private static final Pattern SIGINFO_PARSER = Pattern.compile(
+      "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
+          + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))");
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
   // Matches register entries like:
@@ -163,102 +162,98 @@ public final class HotspotCrashLogParser {
     }
     switch (firstChar) {
       case 'J':
-      case 'A':
-        {
-          // spotless:off
+      case 'A': {
+        // spotless:off
           // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
           // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
           // J 302  java.util.zip.ZipFile.getEntry(J[BZ)J (0 bytes) @ 0x00007fa287303dce [0x00007fa287303d00+0xce]
           // spotless:on
-          String[] parts = SPACE_SPLITTER.split(line);
-          int bytesToken = -1;
-          for (int i = 0; i < parts.length - 1; i++) {
-            if (parts[i].startsWith("(") && "bytes)".equals(parts[i + 1])) {
-              bytesToken = i;
-              break;
-            }
+        String[] parts = SPACE_SPLITTER.split(line);
+        int bytesToken = -1;
+        for (int i = 0; i < parts.length - 1; i++) {
+          if (parts[i].startsWith("(") && "bytes)".equals(parts[i + 1])) {
+            bytesToken = i;
+            break;
           }
-          if (bytesToken > 1) {
-            String candidate = parts[bytesToken - 1];
-            // Newer JVMs insert a module token before "(NN bytes)".
-            if (candidate.contains("@")) {
-              candidate = parts[bytesToken - 2];
-            }
-            if (!candidate.startsWith("(")) {
-              functionName = candidate;
-            }
-          } else if (parts.length > 3 && !parts[3].startsWith("(")) {
-            functionName = parts[3];
+        }
+        if (bytesToken > 1) {
+          String candidate = parts[bytesToken - 1];
+          // Newer JVMs insert a module token before "(NN bytes)".
+          if (candidate.contains("@")) {
+            candidate = parts[bytesToken - 2];
           }
+          if (!candidate.startsWith("(")) {
+            functionName = candidate;
+          }
+        } else if (parts.length > 3 && !parts[3].startsWith("(")) {
+          functionName = parts[3];
+        }
 
-          Matcher matcher = COMPILED_JAVA_ADDRESS_PARSER.matcher(line);
-          if (matcher.find()) {
-            ip = matcher.group(1);
-            symbolAddress = matcher.group(2);
-            relAddress = matcher.group(3);
-          }
-          break;
+        Matcher matcher = COMPILED_JAVA_ADDRESS_PARSER.matcher(line);
+        if (matcher.find()) {
+          ip = matcher.group(1);
+          symbolAddress = matcher.group(2);
+          relAddress = matcher.group(3);
         }
-      case 'j':
-        {
-          // j  one.profiler.AsyncProfiler.stop()V+1
-          String[] parts = PLUS_SPLITTER.split(line, 2);
-          if (parts.length > 0 && parts[0].length() > 3) {
-            functionName = parts[0].substring(3);
-            if (parts.length > 1) {
-              try {
-                functionLine = Integer.parseInt(parts[1]);
-              } catch (NumberFormatException ignored) {
-              }
+        break;
+      }
+      case 'j': {
+        // j  one.profiler.AsyncProfiler.stop()V+1
+        String[] parts = PLUS_SPLITTER.split(line, 2);
+        if (parts.length > 0 && parts[0].length() > 3) {
+          functionName = parts[0].substring(3);
+          if (parts.length > 1) {
+            try {
+              functionLine = Integer.parseInt(parts[1]);
+            } catch (NumberFormatException ignored) {
             }
           }
-          break;
         }
+        break;
+      }
       case 'C':
-      case 'V':
-        {
-          // V  [libjvm.so+0x8fc20a]  thread_entry(JavaThread*, JavaThread*)+0x8a
-          // C  [libpthread.so.0+0x13d60]
-          int libstart = line.indexOf('[');
-          if (libstart > 0) {
-            int libend = line.indexOf(']', libstart + 1);
-            if (libend > 0) {
-              String libAndRelAddress = line.substring(libstart + 1, libend);
-              String[] parts = PLUS_SPLITTER.split(libAndRelAddress, 2);
-              filename = parts[0];
-              if (parts.length > 1) {
-                relAddress = parts[1];
-              }
+      case 'V': {
+        // V  [libjvm.so+0x8fc20a]  thread_entry(JavaThread*, JavaThread*)+0x8a
+        // C  [libpthread.so.0+0x13d60]
+        int libstart = line.indexOf('[');
+        if (libstart > 0) {
+          int libend = line.indexOf(']', libstart + 1);
+          if (libend > 0) {
+            String libAndRelAddress = line.substring(libstart + 1, libend);
+            String[] parts = PLUS_SPLITTER.split(libAndRelAddress, 2);
+            filename = parts[0];
+            if (parts.length > 1) {
+              relAddress = parts[1];
+            }
 
-              // Extract function name if present (after the bracket)
-              // Keep the relative address offset as part of the function name
-              if (libend + 3 < line.length() && !line.endsWith("]")) {
-                functionName = line.substring(libend + 3).trim();
-              }
-            }
-          }
-          break;
-        }
-      case 'v':
-        {
-          // v  ~StubRoutines::call_stub
-          // v  ~RuntimeStub::_new_array_Java 0x00000001124cb638
-          if (line.length() > 3) {
-            String remaining = line.substring(3).trim();
-            // Check for address at the end (0x...)
-            int lastSpace = remaining.lastIndexOf(' ');
-            if (lastSpace > 0 && lastSpace + 1 < remaining.length()) {
-              String possibleAddress = remaining.substring(lastSpace + 1);
-              if (possibleAddress.startsWith("0x")) {
-                relAddress = possibleAddress;
-                remaining = remaining.substring(0, lastSpace).trim();
-              }
-            }
+            // Extract function name if present (after the bracket)
             // Keep the relative address offset as part of the function name
-            functionName = remaining;
+            if (libend + 3 < line.length() && !line.endsWith("]")) {
+              functionName = line.substring(libend + 3).trim();
+            }
           }
-          break;
         }
+        break;
+      }
+      case 'v': {
+        // v  ~StubRoutines::call_stub
+        // v  ~RuntimeStub::_new_array_Java 0x00000001124cb638
+        if (line.length() > 3) {
+          String remaining = line.substring(3).trim();
+          // Check for address at the end (0x...)
+          int lastSpace = remaining.lastIndexOf(' ');
+          if (lastSpace > 0 && lastSpace + 1 < remaining.length()) {
+            String possibleAddress = remaining.substring(lastSpace + 1);
+            if (possibleAddress.startsWith("0x")) {
+              relAddress = possibleAddress;
+              remaining = remaining.substring(0, lastSpace).trim();
+            }
+          }
+          // Keep the relative address offset as part of the function name
+          functionName = remaining;
+        }
+        break;
+      }
       default:
         // do nothing
         break;
@@ -584,37 +579,34 @@ public final class HotspotCrashLogParser {
       }
       final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.path);
       if (buildInfo != null) {
-        enrichedFrames.add(
-            new StackFrame(
-                normalizeFilename(frame.path),
-                frame.line,
-                frame.function,
-                frame.frameType,
-                buildInfo.buildId,
-                buildInfo.buildIdType,
-                buildInfo.fileType,
-                frame.ip,
-                frame.symbolAddress,
-                frame.relativeAddress));
+        enrichedFrames.add(new StackFrame(
+            normalizeFilename(frame.path),
+            frame.line,
+            frame.function,
+            frame.frameType,
+            buildInfo.buildId,
+            buildInfo.buildIdType,
+            buildInfo.fileType,
+            frame.ip,
+            frame.symbolAddress,
+            frame.relativeAddress));
       } else {
-        enrichedFrames.add(
-            new StackFrame(
-                normalizeFilename(frame.path),
-                frame.line,
-                frame.function,
-                frame.frameType,
-                null,
-                null,
-                null,
-                frame.ip,
-                frame.symbolAddress,
-                frame.relativeAddress));
+        enrichedFrames.add(new StackFrame(
+            normalizeFilename(frame.path),
+            frame.line,
+            frame.function,
+            frame.frameType,
+            null,
+            null,
+            null,
+            frame.ip,
+            frame.symbolAddress,
+            frame.relativeAddress));
       }
     }
 
-    ErrorData error =
-        new ErrorData(
-            kind, message, threadName, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+    ErrorData error = new ErrorData(
+        kind, message, threadName, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
@@ -625,21 +617,18 @@ public final class HotspotCrashLogParser {
       registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
       resolvedMapping = registerToMemoryMapping;
     }
-    RuntimeInfo runtimeInfo =
-        (jreVersion != null || javaVm != null || vmInfo != null)
-            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
-            : null;
-    Experimental experimental =
-        !registers.isEmpty()
-                || resolvedMapping != null
-                || (runtimeArgs != null && !runtimeArgs.isEmpty())
-                || runtimeInfo != null
-            ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
-            : null;
-    DynamicLibs files =
-        (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
-            ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
-            : null;
+    RuntimeInfo runtimeInfo = (jreVersion != null || javaVm != null || vmInfo != null)
+        ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+        : null;
+    Experimental experimental = !registers.isEmpty()
+            || resolvedMapping != null
+            || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            || runtimeInfo != null
+        ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
+        : null;
+    DynamicLibs files = (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
+        ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
+        : null;
     return new CrashLog(
         uuid,
         incomplete,

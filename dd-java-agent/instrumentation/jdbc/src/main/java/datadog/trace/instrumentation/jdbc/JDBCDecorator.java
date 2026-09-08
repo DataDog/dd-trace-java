@@ -339,11 +339,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     final byte VERSION = 0;
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
-    AgentSpan instrumentationSpan =
-        AgentTracer.get()
-            .singleSpanBuilder("java-jdbc", "set context_info")
-            .withTag("dd.instrumentation", true)
-            .start();
+    AgentSpan instrumentationSpan = AgentTracer.get()
+        .singleSpanBuilder("java-jdbc", "set context_info")
+        .withTag("dd.instrumentation", true)
+        .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     try (ContextScope scope = activateSpan(instrumentationSpan)) {

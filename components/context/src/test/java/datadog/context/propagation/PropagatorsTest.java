@@ -40,12 +40,11 @@ class PropagatorsTest {
   static final DependentPropagator PROFILING_PROPAGATOR =
       new DependentPropagator(PROFILING_KEY, "profiling", TRACING_KEY);
 
-  static final Context CONTEXT =
-      root()
-          .with(TRACING_KEY, "sampled")
-          .with(IAST_KEY, "standalone")
-          .with(DEBUGGER_KEY, "debug")
-          .with(PROFILING_KEY, "profile");
+  static final Context CONTEXT = root()
+      .with(TRACING_KEY, "sampled")
+      .with(IAST_KEY, "standalone")
+      .with(DEBUGGER_KEY, "debug")
+      .with(PROFILING_KEY, "profile");
 
   @ParametersAreNonnullByDefault
   static class MapCarrierAccessor
@@ -83,13 +82,11 @@ class PropagatorsTest {
     @Override
     public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
       String[] valueRef = new String[1];
-      visitor.forEachKeyValue(
-          carrier,
-          (key, value) -> {
-            if (this.carrierKey.equals(key)) {
-              valueRef[0] = value;
-            }
-          });
+      visitor.forEachKeyValue(carrier, (key, value) -> {
+        if (this.carrierKey.equals(key)) {
+          valueRef[0] = value;
+        }
+      });
       if (valueRef[0] != null) {
         context = context.with(this.contextKey, valueRef[0]);
       }

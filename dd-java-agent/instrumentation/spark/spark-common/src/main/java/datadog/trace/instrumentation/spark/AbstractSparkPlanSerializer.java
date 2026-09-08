@@ -29,34 +29,28 @@ public abstract class AbstractSparkPlanSerializer {
   private final String SPARK_PKG_NAME = "org.apache.spark";
   private final Set<String> SAFE_PARSE_TRAVERSE =
       Collections.singleton(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning");
-  private final Set<String> SAFE_PARSE_STRING =
-      new HashSet<>(
-          Arrays.asList(
-              SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
-              SPARK_PKG_NAME
-                  + ".sql.catalyst.expressions.Attribute", // avoid data type added by simpleString
-              SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide", // enum (v3+)
-              SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType", // enum
-              SPARK_PKG_NAME
-                  + ".sql.catalyst.plans.physical.BroadcastMode", // not a product or TreeNode
-              SPARK_PKG_NAME
-                  + ".sql.execution.ShufflePartitionSpec", // not a product or TreeNode (v3+)
-              SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin" // enum (v3+)
-              ));
+  private final Set<String> SAFE_PARSE_STRING = new HashSet<>(Arrays.asList(
+      SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
+      SPARK_PKG_NAME
+          + ".sql.catalyst.expressions.Attribute", // avoid data type added by simpleString
+      SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide", // enum (v3+)
+      SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType", // enum
+      SPARK_PKG_NAME + ".sql.catalyst.plans.physical.BroadcastMode", // not a product or TreeNode
+      SPARK_PKG_NAME + ".sql.execution.ShufflePartitionSpec", // not a product or TreeNode (v3+)
+      SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin" // enum (v3+)
+      ));
 
   // Add class here if we want to break inheritance and interface traversal early when we see
   // this class. In other words, we explicitly do not match these classes or their parents
-  private final Set<String> NEGATIVE_CACHE =
-      new HashSet<>(
-          Arrays.asList(
-              "java.io.Serializable",
-              "java.lang.Object",
-              "scala.Equals",
-              "scala.Product",
-              SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
-              SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
-              SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
-              SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
+  private final Set<String> NEGATIVE_CACHE = new HashSet<>(Arrays.asList(
+      "java.io.Serializable",
+      "java.lang.Object",
+      "scala.Equals",
+      "scala.Product",
+      SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
+      SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
+      SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
+      SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
 
   private final MethodHandles methodLoader = new MethodHandles(ClassLoader.getSystemClassLoader());
   private final MethodHandle getSimpleString =
@@ -68,11 +62,9 @@ public abstract class AbstractSparkPlanSerializer {
 
   public Map<String, String> extractFormattedProduct(SparkPlan plan) {
     HashMap<String, String> result = new HashMap<>();
-    safeParseTreeNode(plan, 0)
-        .forEach(
-            (key, value) -> {
-              result.put(key, writeObjectToString(value));
-            });
+    safeParseTreeNode(plan, 0).forEach((key, value) -> {
+      result.put(key, writeObjectToString(value));
+    });
     return result;
   }
 

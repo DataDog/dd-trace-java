@@ -111,9 +111,8 @@ public final class GlassFishBlockingHelper {
           }
           if (contents.size() < MAX_FILE_CONTENT_COUNT) {
             try (InputStream is = part.getInputStream()) {
-              contents.add(
-                  MultipartContentDecoder.readInputStream(
-                      is, MAX_FILE_CONTENT_BYTES, part.getContentType()));
+              contents.add(MultipartContentDecoder.readInputStream(
+                  is, MAX_FILE_CONTENT_BYTES, part.getContentType()));
             } catch (Exception ignored) {
               // stream read failed — report empty content rather than skipping the part entirely
               contents.add("");

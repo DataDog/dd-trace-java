@@ -32,12 +32,7 @@ public final class TestSuiteDescriptor {
 
   @Override
   public String toString() {
-    return "TestSuiteDescriptor{"
-        + "testSuiteName='"
-        + testSuiteName
-        + '\''
-        + ", testClass="
-        + testClass
-        + '}';
+    return "TestSuiteDescriptor{" + "testSuiteName='" + testSuiteName + '\'' + ", testClass="
+        + testClass + '}';
   }
 }

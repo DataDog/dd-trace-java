@@ -57,14 +57,10 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
             .and(named("entity"))
             .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
             .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives")))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
+            .and(takesArgument(
+                0, named("org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives")))
+            .and(takesArgument(
+                1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
         MarshallingDirectivesInstrumentation.class.getName()
             + "$TaintUnmarshallerInputOldScalaAdvice");
 
@@ -74,9 +70,8 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
             .and(named("entity"))
             .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
             .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
+            .and(takesArgument(
+                1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
         MarshallingDirectivesInstrumentation.class.getName()
             + "$TaintUnmarshallerInputNewScalaAdvice");
   }

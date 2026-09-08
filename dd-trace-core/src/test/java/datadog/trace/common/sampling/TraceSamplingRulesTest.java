@@ -21,23 +21,21 @@ class TraceSamplingRulesTest {
 
   @Test
   void deserializeTraceSamplingRulesFromJson() {
-    List<TraceSamplingRules.Rule> rules =
-        TraceSamplingRules.deserialize(
-                "[\n"
-                    + "  {\"service\": \"service-name\", \"name\": \"operation-name\", \"resource\": \"resource-name\", \"tags\":\n"
-                    + "    {\"tag-name1\": \"tag-pattern1\",\n"
-                    + "     \"tag-name2\": \"tag-pattern2\"},\n"
-                    + "    \"sample_rate\": 0.0},\n"
-                    + "  {},\n"
-                    + "  {\"service\": \"\", \"name\": \"\", \"resource\": \"\", \"tags\": {}},\n"
-                    + "  {\"service\": null, \"name\": null, \"resource\": null, \"tags\": null, \"sample_rate\": null},\n"
-                    + "\n"
-                    + "  {\"sample_rate\": 0.25},\n"
-                    + "  {\"sample_rate\": 0.5},\n"
-                    + "  {\"sample_rate\": 0.75},\n"
-                    + "  {\"sample_rate\": 1}\n"
-                    + "]")
-            .getRules();
+    List<TraceSamplingRules.Rule> rules = TraceSamplingRules.deserialize("[\n"
+            + "  {\"service\": \"service-name\", \"name\": \"operation-name\", \"resource\": \"resource-name\", \"tags\":\n"
+            + "    {\"tag-name1\": \"tag-pattern1\",\n"
+            + "     \"tag-name2\": \"tag-pattern2\"},\n"
+            + "    \"sample_rate\": 0.0},\n"
+            + "  {},\n"
+            + "  {\"service\": \"\", \"name\": \"\", \"resource\": \"\", \"tags\": {}},\n"
+            + "  {\"service\": null, \"name\": null, \"resource\": null, \"tags\": null, \"sample_rate\": null},\n"
+            + "\n"
+            + "  {\"sample_rate\": 0.25},\n"
+            + "  {\"sample_rate\": 0.5},\n"
+            + "  {\"sample_rate\": 0.75},\n"
+            + "  {\"sample_rate\": 1}\n"
+            + "]")
+        .getRules();
     int ruleIndex = 0;
 
     assertEquals(8, rules.size());
@@ -125,12 +123,10 @@ class TraceSamplingRulesTest {
 
   @Test
   void keepOnlyValidRulesWhenInvalidRulesArePresent() {
-    TraceSamplingRules rules =
-        TraceSamplingRules.deserialize(
-            "[\n"
-                + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 0.5},\n"
-                + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 200}\n"
-                + "]");
+    TraceSamplingRules rules = TraceSamplingRules.deserialize("[\n"
+        + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 0.5},\n"
+        + "  {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 200}\n"
+        + "]");
 
     assertEquals(1, rules.getRules().size());
   }

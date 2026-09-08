@@ -76,9 +76,8 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
 
       TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT, MUnitUtils.CAPABILITIES);
 
-      replacedNotifier.addListener(
-          new MUnitTracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionTracker.class)));
+      replacedNotifier.addListener(new MUnitTracingListener(
+          InstrumentationContext.get(Description.class, TestExecutionTracker.class)));
       runNotifier = replacedNotifier;
     }
   }

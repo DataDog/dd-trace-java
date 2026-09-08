@@ -64,7 +64,8 @@ public final class PromiseTransformationInstrumentation
   public static final class Cancel {
     @Advice.OnMethodEnter
     public static <F, T> void cancel(@Advice.This Transformation<F, T> task) {
-      State state = InstrumentationContext.get(Transformation.class, State.class).get(task);
+      State state =
+          InstrumentationContext.get(Transformation.class, State.class).get(task);
       if (null != state) {
         state.closeContinuation();
       }
@@ -80,13 +81,12 @@ public final class PromiseTransformationInstrumentation
           InstrumentationContext.get(Transformation.class, State.class);
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
-        state =
-            PromiseHelper.executeCaptureContext(
-                InstrumentationContext.get(Try.class, Context.class),
-                resolved,
-                contextStore,
-                task,
-                state);
+        state = PromiseHelper.executeCaptureContext(
+            InstrumentationContext.get(Try.class, Context.class),
+            resolved,
+            contextStore,
+            task,
+            state);
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {

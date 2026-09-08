@@ -116,13 +116,17 @@ public class Resource {
   @Path("/setlocationheader")
   @GET
   public Response locationHeader(@QueryParam("param") String param) {
-    return Response.status(Response.Status.TEMPORARY_REDIRECT).header("Location", param).build();
+    return Response.status(Response.Status.TEMPORARY_REDIRECT)
+        .header("Location", param)
+        .build();
   }
 
   @Path("/setresponselocation")
   @GET
   public Response responseLocation(@QueryParam("param") String param) throws URISyntaxException {
-    return Response.status(Response.Status.TEMPORARY_REDIRECT).location(new URI(param)).build();
+    return Response.status(Response.Status.TEMPORARY_REDIRECT)
+        .location(new URI(param))
+        .build();
   }
 
   @Path("/insecurecookie")
@@ -142,6 +146,9 @@ public class Resource {
   @GET
   @Path("/api_security/sampling/{i}")
   public Response apiSecuritySamplingWithStatus(@PathParam("i") int i) {
-    return Response.status(i).header("content-type", "text/plain").entity("Hello!\n").build();
+    return Response.status(i)
+        .header("content-type", "text/plain")
+        .entity("Hello!\n")
+        .build();
   }
 }

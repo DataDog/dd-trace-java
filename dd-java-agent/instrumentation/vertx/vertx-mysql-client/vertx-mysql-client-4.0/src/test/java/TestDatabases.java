@@ -14,22 +14,20 @@ public class TestDatabases implements Closeable {
 
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
-    mysql =
-        new MySQLContainer("mysql:8.0")
-            .withDatabaseName(dbName)
-            .withUsername("sa")
-            .withPassword("sa");
+    mysql = new MySQLContainer("mysql:8.0")
+        .withDatabaseName(dbName)
+        .withUsername("sa")
+        .withPassword("sa");
     // https://github.com/testcontainers/testcontainers-java/issues/914
     mysql.addParameter("TC_MY_CNF", null);
     mysql.start();
-    TestDBInfo info =
-        new TestDBInfo(
-            mysql.getUsername(),
-            mysql.getPassword(),
-            mysql.getHost(),
-            mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
-            "mysql",
-            dbName);
+    TestDBInfo info = new TestDBInfo(
+        mysql.getUsername(),
+        mysql.getPassword(),
+        mysql.getHost(),
+        mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
+        "mysql",
+        dbName);
     PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
     infos.put("mysql", info);
     dbInfos = Collections.unmodifiableMap(infos);

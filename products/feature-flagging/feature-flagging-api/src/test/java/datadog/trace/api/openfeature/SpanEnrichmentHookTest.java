@@ -118,11 +118,10 @@ class SpanEnrichmentHookTest {
   @Test
   void wrongTypedSerialIdDispatchesNothing() {
     // Defensive: a non-integer value under the serial-id key (wrong type) is ignored, not crashed.
-    final ImmutableMetadata bad =
-        ImmutableMetadata.builder()
-            .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
-            .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
-            .build();
+    final ImmutableMetadata bad = ImmutableMetadata.builder()
+        .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
+        .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
+        .build();
     new SpanEnrichmentHook()
         .finallyAfter(
             ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
@@ -157,7 +156,11 @@ class SpanEnrichmentHookTest {
     new SpanEnrichmentHook()
         .finallyAfter(
             ctx("struct-flag", "user-1"),
-            details("struct-flag", null, structureDefault, ImmutableMetadata.builder().build()),
+            details(
+                "struct-flag",
+                null,
+                structureDefault,
+                ImmutableMetadata.builder().build()),
             Collections.emptyMap());
 
     assertEquals(1, captured.size());

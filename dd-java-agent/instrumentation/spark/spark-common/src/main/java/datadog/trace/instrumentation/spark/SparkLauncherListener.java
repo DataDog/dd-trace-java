@@ -41,12 +41,11 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     }
 
     AgentTracer.TracerAPI tracer = AgentTracer.get();
-    AgentSpan span =
-        tracer
-            .buildSpan("spark-launcher", "spark.launcher.launch")
-            .withSpanType("spark")
-            .withResourceName("SparkLauncher.startApplication")
-            .start();
+    AgentSpan span = tracer
+        .buildSpan("spark-launcher", "spark.launcher.launch")
+        .withSpanType("spark")
+        .withResourceName("SparkLauncher.startApplication")
+        .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     setLauncherConfigTags(span, launcher);
     captureEmrStepId(span);
@@ -58,20 +57,17 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
 
     if (!shutdownHookRegistered) {
       shutdownHookRegistered = true;
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    synchronized (SparkLauncherListener.class) {
-                      AgentSpan s = launcherSpan;
-                      if (s != null) {
-                        log.info("Finishing spark.launcher span from shutdown hook");
-                        setTimingMetrics(s);
-                        s.finish();
-                        launcherSpan = null;
-                      }
-                    }
-                  }));
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        synchronized (SparkLauncherListener.class) {
+          AgentSpan s = launcherSpan;
+          if (s != null) {
+            log.info("Finishing spark.launcher span from shutdown hook");
+            setTimingMetrics(s);
+            s.finish();
+            launcherSpan = null;
+          }
+        }
+      }));
     }
   }
 

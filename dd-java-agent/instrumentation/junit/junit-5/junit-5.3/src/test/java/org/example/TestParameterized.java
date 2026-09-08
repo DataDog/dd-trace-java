@@ -12,9 +12,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 public class TestParameterized {
 
   static List<Arguments> parameters() {
-    return Arrays.asList(
-        () -> new Object[] {0, 0, "0", "some:\"parameter\""},
-        () -> new Object[] {1, 1, 2, "some:\"parameter\""});
+    return Arrays.asList(() -> new Object[] {0, 0, "0", "some:\"parameter\""}, () ->
+        new Object[] {1, 1, 2, "some:\"parameter\""});
   }
 
   @ParameterizedTest

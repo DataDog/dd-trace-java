@@ -155,44 +155,33 @@ public enum IastHandler implements Handler<RoutingContext> {
     @Override
     public void handle(final RoutingContext rc) {
       final String path = rc.request().getParam("path");
-      rc.redirect(
-          path,
-          new Handler<AsyncResult<Void>>() {
-            public void handle(AsyncResult<Void> ar) {
-              // Nothing to do
-            }
-          });
+      rc.redirect(path, new Handler<AsyncResult<Void>>() {
+        public void handle(AsyncResult<Void> ar) {
+          // Nothing to do
+        }
+      });
     }
   },
   EVENT_BUS("/eventBus") {
     @Override
     public void init(final Vertx vertx) {
-      vertx
-          .eventBus()
-          .consumer(
-              name(),
-              message -> {
-                final JsonObject payload = (JsonObject) message.body();
-                final String response = payload.getString("name").toUpperCase();
-                message.reply(response);
-              });
+      vertx.eventBus().consumer(name(), message -> {
+        final JsonObject payload = (JsonObject) message.body();
+        final String response = payload.getString("name").toUpperCase();
+        message.reply(response);
+      });
     }
 
     @Override
     public void handle(final RoutingContext rc) {
       final JsonObject target = rc.getBodyAsJson();
-      rc.vertx()
-          .eventBus()
-          .request(
-              name(),
-              target,
-              reply -> {
-                if (reply.succeeded()) {
-                  rc.response().end("Received " + reply.result().body());
-                } else {
-                  rc.fail(reply.cause());
-                }
-              });
+      rc.vertx().eventBus().request(name(), target, reply -> {
+        if (reply.succeeded()) {
+          rc.response().end("Received " + reply.result().body());
+        } else {
+          rc.fail(reply.cause());
+        }
+      });
     }
   };
 

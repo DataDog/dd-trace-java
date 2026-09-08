@@ -17,20 +17,16 @@ class OtlpHttpRequestBodyTest {
 
   @Test
   void contentTypeIsParsedFromPayload() {
-    OtlpHttpRequestBody body =
-        new OtlpHttpRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3}), "application/x-protobuf"),
-            false);
+    OtlpHttpRequestBody body = new OtlpHttpRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3}), "application/x-protobuf"), false);
 
     assertEquals(MediaType.get("application/x-protobuf"), body.contentType());
   }
 
   @Test
   void contentLengthMatchesPayloadWhenUncompressed() {
-    OtlpHttpRequestBody body =
-        new OtlpHttpRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/x-protobuf"),
-            false);
+    OtlpHttpRequestBody body = new OtlpHttpRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/x-protobuf"), false);
 
     assertEquals(4, body.contentLength());
   }
@@ -38,10 +34,8 @@ class OtlpHttpRequestBodyTest {
   @Test
   void contentLengthIsNegativeOneWhenGzipped() {
     // gzip writes chunked, so the framework can't know the length up front
-    OtlpHttpRequestBody body =
-        new OtlpHttpRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/x-protobuf"),
-            true);
+    OtlpHttpRequestBody body = new OtlpHttpRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(new byte[] {1, 2, 3, 4}), "application/x-protobuf"), true);
 
     assertEquals(-1, body.contentLength());
   }
@@ -49,9 +43,8 @@ class OtlpHttpRequestBodyTest {
   @Test
   void writeToDrainsRawBytesWhenUncompressed() throws IOException {
     byte[] data = {10, 20, 30, 40, 50};
-    OtlpHttpRequestBody body =
-        new OtlpHttpRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(data), "application/x-protobuf"), false);
+    OtlpHttpRequestBody body = new OtlpHttpRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(data), "application/x-protobuf"), false);
     Buffer sink = new Buffer();
 
     body.writeTo(sink);
@@ -62,9 +55,8 @@ class OtlpHttpRequestBodyTest {
   @Test
   void writeToProducesGzipStreamThatDecompressesToPayloadWhenGzipped() throws IOException {
     byte[] data = "the quick brown fox jumps over the lazy dog".getBytes();
-    OtlpHttpRequestBody body =
-        new OtlpHttpRequestBody(
-            new OtlpPayload(ByteBuffer.wrap(data), "application/x-protobuf"), true);
+    OtlpHttpRequestBody body = new OtlpHttpRequestBody(
+        new OtlpPayload(ByteBuffer.wrap(data), "application/x-protobuf"), true);
     Buffer sink = new Buffer();
 
     body.writeTo(sink);

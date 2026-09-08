@@ -35,18 +35,16 @@ public class ChatCompletionServiceInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(named("create"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(takesArgument(
+                0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createStreaming"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(takesArgument(
+                0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
@@ -75,9 +73,8 @@ public class ChatCompletionServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpResponseWrapper.wrap(
-                response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
+        response = HttpResponseWrapper.wrap(
+            response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
       }
       scope.close();
     }
@@ -104,9 +101,8 @@ public class ChatCompletionServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpStreamResponseWrapper.wrap(
-                response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
+        response = HttpStreamResponseWrapper.wrap(
+            response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
       }
       scope.close();
     }

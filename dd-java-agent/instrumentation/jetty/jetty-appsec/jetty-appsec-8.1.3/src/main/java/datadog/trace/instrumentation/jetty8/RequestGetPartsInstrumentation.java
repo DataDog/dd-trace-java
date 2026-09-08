@@ -41,8 +41,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PartHelper", packageName + ".PartHelper$MpiGetPartsHolder"
+    return new String[] {packageName + ".PartHelper", packageName + ".PartHelper$MpiGetPartsHolder"
     };
   }
 
@@ -149,10 +148,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
+      BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+          ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+          : null;
       t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
@@ -196,10 +194,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
+      BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+          ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+          : null;
       t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }

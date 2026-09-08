@@ -20,8 +20,8 @@ class LenExpressionTest {
   @Test
   void nullExpression() {
     LenExpression expression = new LenExpression(null);
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
+    EvaluationException exception = assertThrows(
+        EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("len(null)", print(expression));
   }
@@ -29,8 +29,8 @@ class LenExpressionTest {
   @Test
   void undefinedExpression() {
     LenExpression expression = new LenExpression(DSL.value(Values.UNDEFINED_OBJECT));
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
+    EvaluationException exception = assertThrows(
+        EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("len(UNDEFINED)", print(expression));
   }

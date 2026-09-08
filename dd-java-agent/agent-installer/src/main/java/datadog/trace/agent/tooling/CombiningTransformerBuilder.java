@@ -50,10 +50,8 @@ public final class CombiningTransformerBuilder
 
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
-  private static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER =
-      not(
-          declaresAnnotation(
-              namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
+  private static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER = not(
+      declaresAnnotation(namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
 
   /** Associates context stores with the class-loader matchers to activate them. */
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
@@ -122,11 +120,10 @@ public final class CombiningTransformerBuilder
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
 
-    contextRequestRewriter =
-        !contextStore.isEmpty()
-            ? new VisitingTransformer(
-                new FieldBackedContextRequestRewriter(contextStore, module.name()))
-            : null;
+    contextRequestRewriter = !contextStore.isEmpty()
+        ? new VisitingTransformer(
+            new FieldBackedContextRequestRewriter(contextStore, module.name()))
+        : null;
 
     adviceShader = AdviceShader.with(module);
 
@@ -134,14 +131,13 @@ public final class CombiningTransformerBuilder
     if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
     }
-    helperTransformer =
-        helperClassNames.length > 0
-            ? new HelperTransformer(
-                module.useAgentCodeSource(),
-                adviceShader,
-                module.getClass().getSimpleName(),
-                helperClassNames)
-            : null;
+    helperTransformer = helperClassNames.length > 0
+        ? new HelperTransformer(
+            module.useAgentCodeSource(),
+            adviceShader,
+            module.getClass().getSimpleName(),
+            helperClassNames)
+        : null;
 
     postProcessor = module.postProcessor();
 
@@ -185,9 +181,8 @@ public final class CombiningTransformerBuilder
       matchers.add(
           new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
     } else if (member instanceof Instrumenter.ForCallSite) {
-      matchers.add(
-          new MatchRecorder.ForType(
-              transformationId, ((Instrumenter.ForCallSite) member).callerType()));
+      matchers.add(new MatchRecorder.ForType(
+          transformationId, ((Instrumenter.ForCallSite) member).callerType()));
     }
 
     if (member instanceof Instrumenter.ForConfiguredTypes) {
@@ -209,9 +204,8 @@ public final class CombiningTransformerBuilder
     }
 
     if (member instanceof Instrumenter.WithTypeStructure) {
-      matchers.add(
-          new MatchRecorder.NarrowType(
-              transformationId, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
+      matchers.add(new MatchRecorder.NarrowType(
+          transformationId, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
     }
 
     matchers.add(new MatchRecorder.NarrowLocation(transformationId, muzzle));
@@ -272,10 +266,10 @@ public final class CombiningTransformerBuilder
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
     }
-    AgentBuilder.Transformer.ForAdvice forAdvice =
-        new AgentBuilder.Transformer.ForAdvice(customMapping)
-            .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))
-            .include(Utils.getBootstrapProxy());
+    AgentBuilder.Transformer.ForAdvice forAdvice = new AgentBuilder.Transformer.ForAdvice(
+            customMapping)
+        .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))
+        .include(Utils.getBootstrapProxy());
     ClassLoader adviceLoader = Utils.getExtendedClassLoader();
     if (adviceShader != null) {
       forAdvice = forAdvice.include(new ShadedAdviceLocator(adviceLoader, adviceShader));

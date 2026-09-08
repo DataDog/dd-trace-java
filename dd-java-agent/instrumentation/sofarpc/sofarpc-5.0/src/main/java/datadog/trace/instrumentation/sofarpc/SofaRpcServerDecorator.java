@@ -12,9 +12,8 @@ import javax.annotation.Nonnull;
 
 public class SofaRpcServerDecorator extends ServerDecorator {
 
-  public static final CharSequence SOFA_RPC_SERVER =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("sofarpc"));
+  public static final CharSequence SOFA_RPC_SERVER = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().server().operationForProtocol("sofarpc"));
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("sofarpc-server");
 

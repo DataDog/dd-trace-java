@@ -88,31 +88,22 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     Build build = project.getBuild();
     SourceSet classes =
         getSourceSet(SourceSet.Type.CODE, build.getSourceDirectory(), build.getOutputDirectory());
-    SourceSet tests =
-        getSourceSet(
-            SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
+    SourceSet tests = getSourceSet(
+        SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
     BuildModuleLayout moduleLayout = new BuildModuleLayout(Arrays.asList(classes, tests));
 
     Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
     List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
-    String executionId =
-        mojoExecution.getPlugin().getArtifactId()
-            + ":"
-            + mojoExecution.getGoal()
-            + ":"
-            + mojoExecution.getExecutionId();
+    String executionId = mojoExecution.getPlugin().getArtifactId()
+        + ":"
+        + mojoExecution.getGoal()
+        + ":"
+        + mojoExecution.getExecutionId();
     Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
     JavaAgent jacocoAgent = MavenUtils.getJacocoAgent(session, project, mojoExecution);
 
-    BuildModuleSettings moduleSettings =
-        buildEventsHandler.onTestModuleStart(
-            request,
-            moduleName,
-            moduleLayout,
-            forkedJvmPath,
-            classpath,
-            jacocoAgent,
-            additionalTags);
+    BuildModuleSettings moduleSettings = buildEventsHandler.onTestModuleStart(
+        request, moduleName, moduleLayout, forkedJvmPath, classpath, jacocoAgent, additionalTags);
 
     String forkCount = MavenUtils.getConfigurationValue(session, mojoExecution, "forkCount");
     if ("0".equals(forkCount)) {

@@ -94,13 +94,10 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
           //    return super.clone(); // Object is the super class
           // }
           //
-          final MethodVisitor mv =
-              cv.visitMethod(
-                  Opcodes.ACC_PUBLIC,
-                  "clone",
-                  "()Ljava/lang/Object;",
-                  null,
-                  new String[] {"java/lang/CloneNotSupportedException"});
+          final MethodVisitor mv = cv.visitMethod(
+              Opcodes.ACC_PUBLIC, "clone", "()Ljava/lang/Object;", null, new String[] {
+                "java/lang/CloneNotSupportedException"
+              });
           mv.visitCode();
           mv.visitIntInsn(Opcodes.ALOAD, 0);
           mv.visitMethodInsn(

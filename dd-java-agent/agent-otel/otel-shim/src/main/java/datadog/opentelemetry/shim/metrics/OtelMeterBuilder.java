@@ -10,8 +10,12 @@ final class OtelMeterBuilder implements MeterBuilder {
   private final OtelMeterProvider meterProvider;
 
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+
+  @Nullable
+  private String instrumentationScopeVersion;
+
+  @Nullable
+  private String schemaUrl;
 
   OtelMeterBuilder(OtelMeterProvider meterProvider, String instrumentationScopeName) {
     this.meterProvider = meterProvider;

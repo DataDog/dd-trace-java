@@ -71,10 +71,8 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
             .and(takesArguments(2))
             .and(
                 takesArgument(0, named("akka.http.scaladsl.server.directives.ParameterDirectives")))
-            .and(
-                takesArgument(
-                    1,
-                    named("akka.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+            .and(takesArgument(
+                1, named("akka.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
         ParameterDirectivesInstrumentation.class.getName()
             + "$TaintSingleParameterDirectiveOldScalaAdvice");
 
@@ -84,10 +82,8 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
             .and(named("parameter").or(named("parameters")))
             .and(returns(Object.class).or(returns(named("akka.http.scaladsl.server.Directive"))))
             .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named("akka.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+            .and(takesArgument(
+                0, named("akka.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
         ParameterDirectivesInstrumentation.class.getName()
             + "$TaintSingleParameterDirectiveNewScalaAdvice");
   }
@@ -134,9 +130,8 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
       }
 
       try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+        retval = ((Directive) retval)
+            .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }
@@ -154,9 +149,8 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
       }
 
       try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+        retval = ((Directive) retval)
+            .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }

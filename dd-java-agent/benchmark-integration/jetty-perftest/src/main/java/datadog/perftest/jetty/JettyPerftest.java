@@ -24,19 +24,17 @@ public class JettyPerftest {
     jettyServer.setHandler(servletContext);
     jettyServer.start();
 
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread() {
-              @Override
-              public void run() {
-                try {
-                  jettyServer.stop();
-                  jettyServer.destroy();
-                } catch (final Exception e) {
-                  throw new IllegalStateException(e);
-                }
-              }
-            });
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        try {
+          jettyServer.stop();
+          jettyServer.destroy();
+        } catch (final Exception e) {
+          throw new IllegalStateException(e);
+        }
+      }
+    });
   }
 
   @WebServlet

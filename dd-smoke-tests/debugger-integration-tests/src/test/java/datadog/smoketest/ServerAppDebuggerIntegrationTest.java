@@ -112,15 +112,14 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     if (waitOnProbeStatuses) {
       AtomicBoolean received = new AtomicBoolean();
       AtomicBoolean installed = new AtomicBoolean();
-      registerProbeStatusListener(
-          probeStatus -> {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-          });
+      registerProbeStatusListener(probeStatus -> {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+      });
       processRequests(
           () -> received.get() && installed.get(),
           () -> String.format("timeout received=%s installed=%s", received.get(), installed.get()));
@@ -137,10 +136,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
     AtomicBoolean statusResult = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
-        });
+    registerProbeStatusListener(probeStatus -> {
+      statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
+    });
     processRequests(
         statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }

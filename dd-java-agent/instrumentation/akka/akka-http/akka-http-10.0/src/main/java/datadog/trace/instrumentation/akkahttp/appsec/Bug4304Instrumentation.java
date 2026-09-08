@@ -72,10 +72,9 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
 
     private MatchesOneHundredContinueStageAnonClass() {}
 
-    private static final Pattern ANON_CLASS_PATTERN =
-        Pattern.compile(
-            "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
-                + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+");
+    private static final Pattern ANON_CLASS_PATTERN = Pattern.compile(
+        "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
+            + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+");
 
     @Override
     public boolean matches(TypeDescription td) {

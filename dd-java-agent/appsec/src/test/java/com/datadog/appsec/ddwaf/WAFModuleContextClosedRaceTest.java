@@ -39,10 +39,9 @@ import org.junit.jupiter.api.Test;
  */
 class WAFModuleContextClosedRaceTest {
 
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   private WafBuilder wafBuilder;
   private WAFModule wafModule;
@@ -62,17 +61,16 @@ class WAFModuleContextClosedRaceTest {
     wafModule.setWafBuilder(wafBuilder);
     AppSecModuleConfigurer.SubconfigListener[] captured =
         new AppSecModuleConfigurer.SubconfigListener[1];
-    wafModule.config(
-        new AppSecModuleConfigurer() {
-          @Override
-          public void addSubConfigListener(
-              String key, AppSecModuleConfigurer.SubconfigListener listener) {
-            captured[0] = listener;
-          }
+    wafModule.config(new AppSecModuleConfigurer() {
+      @Override
+      public void addSubConfigListener(
+          String key, AppSecModuleConfigurer.SubconfigListener listener) {
+        captured[0] = listener;
+      }
 
-          @Override
-          public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {}
-        });
+      @Override
+      public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {}
+    });
     captured[0].onNewSubconfig(null, AppSecModuleConfigurer.Reconfiguration.NOOP);
     dataListener = wafModule.getDataSubscriptions().iterator().next();
   }
@@ -98,9 +96,8 @@ class WAFModuleContextClosedRaceTest {
 
     assertFalse(flow.isBlocking());
     WafMetricCollector.get().prepareMetrics();
-    boolean sawContextClosedRace =
-        WafMetricCollector.get().drain().stream()
-            .anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
+    boolean sawContextClosedRace = WafMetricCollector.get().drain().stream()
+        .anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
     assertTrue(sawContextClosedRace, "expected waf.context_closed_race to be reported");
   }
 

@@ -28,9 +28,8 @@ public class GrpcServerDecorator extends ServerDecorator {
       Config.get().isGrpcServerTrimPackageResource();
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getGrpcServerErrorStatuses();
 
-  public static final CharSequence GRPC_SERVER =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("grpc"));
+  public static final CharSequence GRPC_SERVER = UTF8BytesString.create(
+      SpanNaming.instance().namingSchema().server().operationForProtocol("grpc"));
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-server");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
@@ -88,9 +87,8 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   public <RespT, ReqT> void onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {
     if (TRIM_RESOURCE_PACKAGE_NAME) {
-      span.setResourceName(
-          cachedResourceNames.computeIfAbsent(
-              call.getMethodDescriptor().getFullMethodName(), NORMALIZE));
+      span.setResourceName(cachedResourceNames.computeIfAbsent(
+          call.getMethodDescriptor().getFullMethodName(), NORMALIZE));
     } else {
       span.setResourceName(call.getMethodDescriptor().getFullMethodName());
     }

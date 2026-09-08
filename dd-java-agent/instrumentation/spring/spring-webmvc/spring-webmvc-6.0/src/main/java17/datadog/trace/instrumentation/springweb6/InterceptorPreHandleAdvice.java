@@ -68,9 +68,8 @@ public class InterceptorPreHandleAdvice {
             if (brf != null) {
               brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             }
-            t =
-                new BlockingException(
-                    "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
+            t = new BlockingException(
+                "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
           }
         }
       }

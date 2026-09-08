@@ -15,11 +15,9 @@ public class TestFilter implements HttpServerFilter {
   public Publisher<MutableHttpResponse<?>> doFilter(
       HttpRequest<?> request, ServerFilterChain chain) {
     return Flowable.fromPublisher(chain.proceed(request))
-        .doOnNext(
-            res ->
-                res.getHeaders()
-                    .add(
-                        HttpServerTest.getIG_RESPONSE_HEADER(),
-                        HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
+        .doOnNext(res -> res.getHeaders()
+            .add(
+                HttpServerTest.getIG_RESPONSE_HEADER(),
+                HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
   }
 }

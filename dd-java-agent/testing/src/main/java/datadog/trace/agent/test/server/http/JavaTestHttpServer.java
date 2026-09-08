@@ -72,19 +72,18 @@ public class JavaTestHttpServer implements AutoCloseable {
 
   public final SSLContext sslContext;
 
-  private final X509TrustManager trustManager =
-      new X509TrustManager() {
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0];
-        }
+  private final X509TrustManager trustManager = new X509TrustManager() {
+    @Override
+    public X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[0];
+    }
 
-        @Override
-        public void checkClientTrusted(X509Certificate[] certificate, String str) {}
+    @Override
+    public void checkClientTrusted(X509Certificate[] certificate, String str) {}
 
-        @Override
-        public void checkServerTrusted(X509Certificate[] certificate, String str) {}
-      };
+    @Override
+    public void checkServerTrusted(X509Certificate[] certificate, String str) {}
+  };
 
   private final HostnameVerifier hostnameVerifier =
       (hostname, session) -> "localhost".equals(hostname);
@@ -134,17 +133,16 @@ public class JavaTestHttpServer implements AutoCloseable {
 
         // HTTPS
         SslContextFactory sslContextFactory = new SslContextFactory();
-        keystorePath =
-            extractKeystoreToDisk(JavaTestHttpServer.class.getResource("datadog.jks")).getPath();
+        keystorePath = extractKeystoreToDisk(JavaTestHttpServer.class.getResource("datadog.jks"))
+            .getPath();
         sslContextFactory.setKeyStorePath(keystorePath);
         sslContextFactory.setKeyStorePassword("datadog");
         HttpConfiguration httpsConfiguration = new HttpConfiguration(httpConfiguration);
         httpsConfiguration.addCustomizer(new SecureRequestCustomizer());
-        ServerConnector https =
-            new ServerConnector(
-                internalServer,
-                new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-                new HttpConnectionFactory(httpsConfiguration));
+        ServerConnector https = new ServerConnector(
+            internalServer,
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+            new HttpConnectionFactory(httpsConfiguration));
         https.setHost("localhost");
         https.setPort(0);
         internalServer.addConnector(https);
@@ -170,9 +168,8 @@ public class JavaTestHttpServer implements AutoCloseable {
     long rem = TimeUnit.SECONDS.toMillis(5);
     while (!internalServer.isStarted()) {
       if (rem <= 0) {
-        throw new RuntimeException(
-            new TimeoutException(
-                "Failed to start server " + this + " on port " + address.getPort()));
+        throw new RuntimeException(new TimeoutException(
+            "Failed to start server " + this + " on port " + address.getPort()));
       }
       try {
         Thread.sleep(Math.min(rem, 100));

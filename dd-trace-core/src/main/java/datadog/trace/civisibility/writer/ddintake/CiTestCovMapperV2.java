@@ -249,12 +249,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       }
       RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 
-      MultipartBody multipartBody =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
-              .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
-              .build();
+      MultipartBody multipartBody = new MultipartBody.Builder()
+          .setType(MultipartBody.FORM)
+          .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
+          .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
+          .build();
 
       return compressionEnabled ? gzippedRequestBodyOf(multipartBody) : multipartBody;
     }

@@ -119,9 +119,8 @@ public final class RetryInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) CheckedFunction<?, ?> result) {
-      result =
-          new WrapperWithContext.CheckedFunctionWithContext<>(
-              result, RetryDecorator.DECORATE, retry);
+      result = new WrapperWithContext.CheckedFunctionWithContext<>(
+          result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -130,9 +129,8 @@ public final class RetryInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) CheckedSupplier<?> result) {
-      result =
-          new WrapperWithContext.CheckedSupplierWithContext<>(
-              result, RetryDecorator.DECORATE, retry);
+      result = new WrapperWithContext.CheckedSupplierWithContext<>(
+          result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -141,9 +139,8 @@ public final class RetryInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) CheckedRunnable result) {
-      result =
-          new WrapperWithContext.CheckedRunnableWithContext<>(
-              result, RetryDecorator.DECORATE, retry);
+      result = new WrapperWithContext.CheckedRunnableWithContext<>(
+          result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -152,9 +149,8 @@ public final class RetryInstrumentation
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> result) {
-      result =
-          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
-              result, RetryDecorator.DECORATE, retry);
+      result = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
+          result, RetryDecorator.DECORATE, retry);
     }
   }
 

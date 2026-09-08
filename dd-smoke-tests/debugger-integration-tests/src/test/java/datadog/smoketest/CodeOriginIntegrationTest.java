@@ -35,24 +35,22 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME);
     AtomicBoolean codeOrigin = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isTracedFullMethodSpan(span)) {
-              if (span.getMeta().containsKey(DDTags.DD_CODE_ORIGIN_TYPE)) {
-                assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
-                assertEquals(
-                    "ServerDebuggerTestApplication.java",
-                    span.getMeta().get(DD_CODE_ORIGIN_FRAME_FILE));
-                assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
-                assertEquals(
-                    "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
-                assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
-                codeOrigin.set(true);
-              }
-            }
+    registerTraceListener(decodedTrace -> {
+      for (DecodedSpan span : decodedTrace.getSpans()) {
+        if (isTracedFullMethodSpan(span)) {
+          if (span.getMeta().containsKey(DDTags.DD_CODE_ORIGIN_TYPE)) {
+            assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
+            assertEquals(
+                "ServerDebuggerTestApplication.java",
+                span.getMeta().get(DD_CODE_ORIGIN_FRAME_FILE));
+            assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
+            assertEquals("(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
+            assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
+            codeOrigin.set(true);
           }
-        });
+        }
+      }
+    });
     processRequests(
         codeOrigin::get, () -> String.format("timeout codeOrigin=%s", codeOrigin.get()));
   }

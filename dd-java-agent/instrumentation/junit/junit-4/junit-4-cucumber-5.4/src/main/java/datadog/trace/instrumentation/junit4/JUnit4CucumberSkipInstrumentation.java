@@ -83,10 +83,9 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Argument(0) RunNotifier notifier) {
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
-      SkipReason skipReason =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.CUCUMBER)
-              .skipReason(test);
+      SkipReason skipReason = TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .skipReason(test);
       if (skipReason == null) {
         return null;
       }

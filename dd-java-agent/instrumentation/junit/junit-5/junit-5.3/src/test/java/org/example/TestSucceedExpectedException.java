@@ -8,10 +8,8 @@ public class TestSucceedExpectedException {
 
   @Test
   public void test_succeed() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          throw new IllegalArgumentException("expected exception");
-        });
+    assertThrows(IllegalArgumentException.class, () -> {
+      throw new IllegalArgumentException("expected exception");
+    });
   }
 }

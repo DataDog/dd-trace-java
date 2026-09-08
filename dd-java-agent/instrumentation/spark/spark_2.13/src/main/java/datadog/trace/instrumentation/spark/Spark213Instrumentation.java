@@ -95,9 +95,8 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       }
 
       // We want to add the Datadog listener as the first listener
-      AbstractDatadogSparkListener.listener =
-          new DatadogSpark213Listener(
-              sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
+      AbstractDatadogSparkListener.listener = new DatadogSpark213Listener(
+          sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
     }
   }

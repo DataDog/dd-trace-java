@@ -343,7 +343,8 @@ public class ContainerInfoTest extends DDJavaSpecification {
   @Test
   void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
     File mountPath = createTempDir();
-    File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
+    File memoryController =
+        Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
     memoryController.deleteOnExit();
     long ino = readInode(memoryController.toPath());
 

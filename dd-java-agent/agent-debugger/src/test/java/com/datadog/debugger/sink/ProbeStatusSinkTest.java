@@ -39,7 +39,8 @@ class ProbeStatusSinkTest {
   private static final Instant BEFORE_INTERVAL_HAS_PASSED =
       Instant.now().plus(Duration.ofSeconds(DIAGNOSTICS_INTERVAL - 5));
 
-  @Mock private Config config;
+  @Mock
+  private Config config;
 
   private Builder builder;
   private ProbeStatusSink probeStatusSink;

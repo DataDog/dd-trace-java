@@ -94,9 +94,8 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       }
 
       // We want to add the Datadog listener as the first listener
-      AbstractDatadogSparkListener.listener =
-          new DatadogSpark212Listener(
-              sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
+      AbstractDatadogSparkListener.listener = new DatadogSpark212Listener(
+          sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
     }
   }
@@ -111,9 +110,9 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark212PlanSerializer planSerializer = new Spark212PlanSerializer();
-        Map<String, String> meta =
-            JavaConverters.mapAsScalaMap(planSerializer.extractFormattedProduct(plan))
-                .toMap(Predef.$conforms());
+        Map<String, String> meta = JavaConverters.mapAsScalaMap(
+                planSerializer.extractFormattedProduct(plan))
+            .toMap(Predef.$conforms());
 
         SparkPlanInfo newPlanInfo =
             new Spark212PlanUtils().upsertSparkPlanInfoMetadata(planInfo, meta);

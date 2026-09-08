@@ -111,23 +111,21 @@ class OT31ApiTest extends DDJavaSpecification {
 
     DDTraceId traceId = ((OTSpan) span).getDelegate().spanContext().getTraceId();
     long spanId = ((OTSpan) span).getDelegate().spanContext().getSpanId();
-    String expectedTraceparent =
-        "00-"
-            + traceId.toHexStringPadded(32)
-            + "-"
-            + DDSpanId.toHexStringPadded(spanId)
-            + "-"
-            + (propagatedPriority > 0 ? "01" : "00");
+    String expectedTraceparent = "00-"
+        + traceId.toHexStringPadded(32)
+        + "-"
+        + DDSpanId.toHexStringPadded(spanId)
+        + "-"
+        + (propagatedPriority > 0 ? "01" : "00");
     int effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism;
-    String expectedTracestate =
-        "dd=s:"
-            + propagatedPriority
-            + ";p:"
-            + DDSpanId.toHexStringPadded(spanId)
-            + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
-            + ";t.tid:"
-            + traceId.toHexStringPadded(32).substring(0, 16)
-            + (contextPriority == UNSET ? ";t.ksr:1" : "");
+    String expectedTracestate = "dd=s:"
+        + propagatedPriority
+        + ";p:"
+        + DDSpanId.toHexStringPadded(spanId)
+        + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
+        + ";t.tid:"
+        + traceId.toHexStringPadded(32).substring(0, 16)
+        + (contextPriority == UNSET ? ";t.ksr:1" : "");
 
     Map<String, String> expectedTextMap = new HashMap<>();
     OTSpanContext otContext = (OTSpanContext) context;

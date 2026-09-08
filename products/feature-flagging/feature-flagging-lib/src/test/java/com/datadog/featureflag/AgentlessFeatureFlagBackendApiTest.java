@@ -35,14 +35,13 @@ class AgentlessFeatureFlagBackendApiTest {
         new RecordingBackendApi(new HttpResponseException(statusCode, "rejected"));
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            local,
-            () -> {
-              directApiCreations.incrementAndGet();
-              return direct;
-            },
-            "flag evaluation");
+    final AgentlessFeatureFlagBackendApi api = new AgentlessFeatureFlagBackendApi(
+        local,
+        () -> {
+          directApiCreations.incrementAndGet();
+          return direct;
+        },
+        "flag evaluation");
     final RequestBody firstBody = requestBody("first");
     final RequestBody secondBody = requestBody("second");
 
@@ -113,14 +112,13 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi local =
         new RecordingBackendApi(new HttpResponseException(404, "rejected"));
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            local,
-            () -> {
-              directApiCreations.incrementAndGet();
-              return null;
-            },
-            "exposure");
+    final AgentlessFeatureFlagBackendApi api = new AgentlessFeatureFlagBackendApi(
+        local,
+        () -> {
+          directApiCreations.incrementAndGet();
+          return null;
+        },
+        "exposure");
 
     assertThrows(
         HttpResponseException.class,
@@ -137,14 +135,13 @@ class AgentlessFeatureFlagBackendApiTest {
     final RecordingBackendApi local = new RecordingBackendApi(failure);
     final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger directApiCreations = new AtomicInteger();
-    final AgentlessFeatureFlagBackendApi api =
-        new AgentlessFeatureFlagBackendApi(
-            local,
-            () -> {
-              directApiCreations.incrementAndGet();
-              return direct;
-            },
-            "flag evaluation");
+    final AgentlessFeatureFlagBackendApi api = new AgentlessFeatureFlagBackendApi(
+        local,
+        () -> {
+          directApiCreations.incrementAndGet();
+          return direct;
+        },
+        "flag evaluation");
 
     assertThrows(
         IOException.class,

@@ -8,8 +8,12 @@ import javax.annotation.Nullable;
 public final class OtelInstrumentationScope implements Comparable<OtelInstrumentationScope> {
 
   private final UTF8BytesString scopeName;
-  @Nullable private final UTF8BytesString scopeVersion;
-  @Nullable private final UTF8BytesString schemaUrl;
+
+  @Nullable
+  private final UTF8BytesString scopeVersion;
+
+  @Nullable
+  private final UTF8BytesString schemaUrl;
 
   public OtelInstrumentationScope(
       String scopeName, @Nullable String scopeVersion, @Nullable String schemaUrl) {

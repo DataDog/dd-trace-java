@@ -27,14 +27,11 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
       CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
       AgentSpan span,
       BiConsumer<AgentSpan, List<T>> decorate) {
-    return future
-        .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete(
-            (_r, err) -> {
-              if (err != null) {
-                DECORATE.finishSpan(span, err);
-              }
-            });
+    return future.thenApply(r -> wrap(r, span, decorate)).whenComplete((_r, err) -> {
+      if (err != null) {
+        DECORATE.finishSpan(span, err);
+      }
+    });
   }
 
   private final HttpResponseFor<StreamResponse<T>> delegate;

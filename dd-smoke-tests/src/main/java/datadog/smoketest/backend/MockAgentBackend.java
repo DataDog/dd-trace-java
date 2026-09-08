@@ -25,12 +25,11 @@ public final class MockAgentBackend extends AgentBackend {
    * Agent-info payload advertising the endpoints and capabilities the tracer negotiates from,
    * mirroring the real agent.
    */
-  private static final String INFO_BODY =
-      "{\"version\":\"7.77.0\","
-          + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\"],"
-          + "\"client_drop_p0s\":true,"
-          + "\"span_meta_structs\":true,"
-          + "\"long_running_spans\":true}";
+  private static final String INFO_BODY = "{\"version\":\"7.77.0\","
+      + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\"],"
+      + "\"client_drop_p0s\":true,"
+      + "\"span_meta_structs\":true,"
+      + "\"long_running_spans\":true}";
 
   /** JSON mime type. */
   private static final String JSON = "application/json";
@@ -59,19 +58,18 @@ public final class MockAgentBackend extends AgentBackend {
   }
 
   private void serverSpecs(JavaTestHttpServer server) {
-    server.handlers(
-        h -> {
-          // Trace endpoints are method-agnostic prefix handlers: the tracer submits
-          // traces with PUT (DDAgentApi), not POST.
-          h.prefix("/info", this::sendInfo);
-          h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
-          h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
-          h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
-          h.prefix("/v0.7/config", this::serveRemoteConfig);
-          h.prefix("/telemetry/proxy", this::collectTelemetry);
-          // Everything else just succeeds.
-          h.all(api -> api.getResponse().status(200).send());
-        });
+    server.handlers(h -> {
+      // Trace endpoints are method-agnostic prefix handlers: the tracer submits
+      // traces with PUT (DDAgentApi), not POST.
+      h.prefix("/info", this::sendInfo);
+      h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
+      h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
+      h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
+      h.prefix("/v0.7/config", this::serveRemoteConfig);
+      h.prefix("/telemetry/proxy", this::collectTelemetry);
+      // Everything else just succeeds.
+      h.all(api -> api.getResponse().status(200).send());
+    });
   }
 
   private void sendInfo(HandlerApi api) {

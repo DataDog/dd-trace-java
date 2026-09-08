@@ -48,16 +48,13 @@ public class PluginApplication {
     return spec -> {
       final CallSiteResult result = adviceGenerator.generate(spec);
       if (result.isSuccess()) {
-        Extension.EXTENSIONS.stream()
-            .filter(ext -> ext.appliesTo(spec))
-            .forEach(
-                ext -> {
-                  try {
-                    ext.apply(configuration, result);
-                  } catch (final Throwable e) {
-                    result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
-                  }
-                });
+        Extension.EXTENSIONS.stream().filter(ext -> ext.appliesTo(spec)).forEach(ext -> {
+          try {
+            ext.apply(configuration, result);
+          } catch (final Throwable e) {
+            result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
+          }
+        });
       }
       return result;
     };
@@ -74,17 +71,15 @@ public class PluginApplication {
       final SpecificationBuilder builder = specificationBuilder();
       final List<CallSiteSpecification> result = new ArrayList<>();
       final Pattern pattern = Pattern.compile(".*" + configuration.suffix + "\\.class$");
-      Files.walkFileTree(
-          configuration.classesFolder,
-          new SimpleFileVisitor<Path>() {
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
-              if (Files.isRegularFile(file)
-                  && pattern.matcher(file.getFileName().toString()).matches()) {
-                builder.build(file.toFile()).ifPresent(result::add);
-              }
-              return FileVisitResult.CONTINUE;
-            }
-          });
+      Files.walkFileTree(configuration.classesFolder, new SimpleFileVisitor<Path>() {
+        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
+          if (Files.isRegularFile(file)
+              && pattern.matcher(file.getFileName().toString()).matches()) {
+            builder.build(file.toFile()).ifPresent(result::add);
+          }
+          return FileVisitResult.CONTINUE;
+        }
+      });
       return result;
     } catch (IOException e) {
       throw new RuntimeException(e);

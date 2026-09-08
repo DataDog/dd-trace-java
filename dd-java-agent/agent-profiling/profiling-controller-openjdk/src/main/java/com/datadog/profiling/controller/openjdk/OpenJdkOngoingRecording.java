@@ -81,43 +81,39 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
   private void disableOverriddenEvents(ControllerContext.Snapshot context) {
     for (ProfilingMode mode : context.getDatadogProfilingModes()) {
       switch (mode) {
-        case CPU:
-          {
-            // CPU execution profiling will take over these events, including
-            // jdk.CPUTimeSample (JEP 518, JDK 25+) which is enabled as a fallback
-            // when ddprof is unavailable
-            log.debug("Disabling built-in CPU profiling events");
-            recording.disable("jdk.ExecutionSample");
-            recording.disable("jdk.NativeMethodSample");
-            recording.disable("jdk.CPUTimeSample");
-            recording.disable("jdk.CPUTimeSamplesLost");
-            break;
-          }
-        case WALL:
-          {
-            // wall-time profiling will take over these events
-            log.debug("Disabling built-in wall-time tracing events");
-            recording.disable("jdk.JavaMonitorWait");
-            recording.disable("jdk.ThreadPark");
-            recording.disable("jdk.ThreadSleep");
-            break;
-          }
-        case ALLOCATION:
-          {
-            // allocation profiling will take over these events
-            log.debug("Disabling built-in allocation profiling events");
-            recording.disable("jdk.ObjectAllocationOutsideTLAB");
-            recording.disable("jdk.ObjectAllocationInNewTLAB");
-            recording.disable("jdk.ObjectAllocationSample");
-            break;
-          }
-        case MEMLEAK:
-          {
-            // memleak profiling will take over these events
-            log.debug("Disabling built-in memory leak profiling events");
-            recording.disable("jdk.OldObjectSample");
-            break;
-          }
+        case CPU: {
+          // CPU execution profiling will take over these events, including
+          // jdk.CPUTimeSample (JEP 518, JDK 25+) which is enabled as a fallback
+          // when ddprof is unavailable
+          log.debug("Disabling built-in CPU profiling events");
+          recording.disable("jdk.ExecutionSample");
+          recording.disable("jdk.NativeMethodSample");
+          recording.disable("jdk.CPUTimeSample");
+          recording.disable("jdk.CPUTimeSamplesLost");
+          break;
+        }
+        case WALL: {
+          // wall-time profiling will take over these events
+          log.debug("Disabling built-in wall-time tracing events");
+          recording.disable("jdk.JavaMonitorWait");
+          recording.disable("jdk.ThreadPark");
+          recording.disable("jdk.ThreadSleep");
+          break;
+        }
+        case ALLOCATION: {
+          // allocation profiling will take over these events
+          log.debug("Disabling built-in allocation profiling events");
+          recording.disable("jdk.ObjectAllocationOutsideTLAB");
+          recording.disable("jdk.ObjectAllocationInNewTLAB");
+          recording.disable("jdk.ObjectAllocationSample");
+          break;
+        }
+        case MEMLEAK: {
+          // memleak profiling will take over these events
+          log.debug("Disabling built-in memory leak profiling events");
+          recording.disable("jdk.OldObjectSample");
+          break;
+        }
         default:
           break;
       }

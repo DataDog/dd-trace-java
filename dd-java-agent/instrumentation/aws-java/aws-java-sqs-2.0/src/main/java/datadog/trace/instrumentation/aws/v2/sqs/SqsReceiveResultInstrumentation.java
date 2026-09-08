@@ -35,10 +35,11 @@ public final class SqsReceiveResultInstrumentation
         return;
       }
       if (messages != null && !messages.isEmpty() && !(messages instanceof TracingList)) {
-        String queueUrl =
-            InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(result);
+        String queueUrl = InstrumentationContext.get(ReceiveMessageResponse.class, String.class)
+            .get(result);
         if (queueUrl != null) {
-          messages = new TracingList(messages, queueUrl, result.responseMetadata().requestId());
+          messages =
+              new TracingList(messages, queueUrl, result.responseMetadata().requestId());
         }
       }
     }

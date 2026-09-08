@@ -60,17 +60,11 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
   static void startServer() {
     defaultBucketDurationNanos = Config.get().getDataStreamsBucketDurationNanoseconds();
     requestBodies = new CopyOnWriteArrayList<>();
-    server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
-                            api -> {
-                              requestBodies.add(api.getRequest().getBody());
-                              api.getResponse().status(200).send();
-                            })));
+    server = JavaTestHttpServer.httpServer(s ->
+        s.handlers(h -> h.post(DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT, api -> {
+          requestBodies.add(api.getRequest().getBody());
+          api.getResponse().status(200).send();
+        })));
     serverAddress = HttpUrl.get(server.getAddress());
   }
 
@@ -96,9 +90,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void serviceOverridesSplitBuckets() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -117,22 +110,20 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
     String serviceNameOverride = "service-name-override";
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
     dataStreams.setThreadServiceName(serviceNameOverride);
-    dataStreams.add(
-        new StatsPoint(
-            DataStreamsTags.create(null, null),
-            9,
-            0,
-            10,
-            timeSource.getCurrentTimeNanos(),
-            0,
-            0,
-            0,
-            serviceNameOverride));
+    dataStreams.add(new StatsPoint(
+        DataStreamsTags.create(null, null),
+        9,
+        0,
+        10,
+        timeSource.getCurrentTimeNanos(),
+        0,
+        0,
+        0,
+        serviceNameOverride));
     dataStreams.trackBacklog(
         DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130);
     timeSource.advance(defaultBucketDurationNanos);
@@ -162,9 +153,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
         EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, Boolean.toString(processTagsEnabled));
     ProcessTags.reset(Config.get());
 
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -182,76 +172,70 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     try {
       dataStreams.start();
-      dataStreams.add(
-          new StatsPoint(
-              DataStreamsTags.create(null, null),
-              9,
-              0,
-              10,
-              timeSource.getCurrentTimeNanos(),
-              0,
-              0,
-              0,
-              null));
-      dataStreams.add(
-          new StatsPoint(
-              DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
-              1,
-              2,
-              5,
-              timeSource.getCurrentTimeNanos(),
-              0,
-              0,
-              0,
-              null));
+      dataStreams.add(new StatsPoint(
+          DataStreamsTags.create(null, null),
+          9,
+          0,
+          10,
+          timeSource.getCurrentTimeNanos(),
+          0,
+          0,
+          0,
+          null));
+      dataStreams.add(new StatsPoint(
+          DataStreamsTags.create(
+              "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+          1,
+          2,
+          5,
+          timeSource.getCurrentTimeNanos(),
+          0,
+          0,
+          0,
+          null));
       dataStreams.trackBacklog(
           DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 100);
       dataStreams.trackBacklog(
           DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130);
       timeSource.advance(defaultBucketDurationNanos - 100L);
-      dataStreams.add(
-          new StatsPoint(
-              DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
-              1,
-              2,
-              5,
-              timeSource.getCurrentTimeNanos(),
-              SECONDS.toNanos(10),
-              SECONDS.toNanos(10),
-              10,
-              null));
+      dataStreams.add(new StatsPoint(
+          DataStreamsTags.create(
+              "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+          1,
+          2,
+          5,
+          timeSource.getCurrentTimeNanos(),
+          SECONDS.toNanos(10),
+          SECONDS.toNanos(10),
+          10,
+          null));
       timeSource.advance(defaultBucketDurationNanos);
-      dataStreams.add(
-          new StatsPoint(
-              DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
-              1,
-              2,
-              5,
-              timeSource.getCurrentTimeNanos(),
-              SECONDS.toNanos(5),
-              SECONDS.toNanos(5),
-              5,
-              null));
-      dataStreams.add(
-          new StatsPoint(
-              DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic2", "testGroup", null),
-              3,
-              4,
-              6,
-              timeSource.getCurrentTimeNanos(),
-              SECONDS.toNanos(2),
-              0,
-              2,
-              null));
+      dataStreams.add(new StatsPoint(
+          DataStreamsTags.create(
+              "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+          1,
+          2,
+          5,
+          timeSource.getCurrentTimeNanos(),
+          SECONDS.toNanos(5),
+          SECONDS.toNanos(5),
+          5,
+          null));
+      dataStreams.add(new StatsPoint(
+          DataStreamsTags.create(
+              "testType", DataStreamsTags.Direction.INBOUND, "testTopic2", "testGroup", null),
+          3,
+          4,
+          6,
+          timeSource.getCurrentTimeNanos(),
+          SECONDS.toNanos(2),
+          0,
+          2,
+          null));
       timeSource.advance(defaultBucketDurationNanos);
       dataStreams.close();
 
@@ -266,9 +250,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void writeKafkaConfigsToMockServer() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -286,9 +269,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
 
     // Report a producer and consumer config
@@ -305,17 +287,16 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", consumerConfig);
 
     // Also add a stats point so the bucket is not empty of stats
-    dataStreams.add(
-        new StatsPoint(
-            DataStreamsTags.create(null, null),
-            9,
-            0,
-            10,
-            timeSource.getCurrentTimeNanos(),
-            0,
-            0,
-            0,
-            null));
+    dataStreams.add(new StatsPoint(
+        DataStreamsTags.create(null, null),
+        9,
+        0,
+        10,
+        timeSource.getCurrentTimeNanos(),
+        0,
+        0,
+        0,
+        null));
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();
@@ -326,9 +307,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void writeKafkaConsumerGroupMemberToMockServer() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -346,25 +326,23 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
 
     dataStreams.reportKafkaConsumerGroupMember(
         "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
 
-    dataStreams.add(
-        new StatsPoint(
-            DataStreamsTags.create(null, null),
-            9,
-            0,
-            10,
-            timeSource.getCurrentTimeNanos(),
-            0,
-            0,
-            0,
-            null));
+    dataStreams.add(new StatsPoint(
+        DataStreamsTags.create(null, null),
+        9,
+        0,
+        10,
+        timeSource.getCurrentTimeNanos(),
+        0,
+        0,
+        0,
+        null));
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();
@@ -375,9 +353,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void duplicateKafkaConfigsAreEachSerializedInPayload() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -395,9 +372,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
 
     // Report the same producer config twice — both should be serialized
@@ -408,17 +384,16 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
 
     // Also add a stats point so the bucket has content
-    dataStreams.add(
-        new StatsPoint(
-            DataStreamsTags.create(null, null),
-            9,
-            0,
-            10,
-            timeSource.getCurrentTimeNanos(),
-            0,
-            0,
-            0,
-            null));
+    dataStreams.add(new StatsPoint(
+        DataStreamsTags.create(null, null),
+        9,
+        0,
+        10,
+        timeSource.getCurrentTimeNanos(),
+        0,
+        0,
+        0,
+        null));
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();

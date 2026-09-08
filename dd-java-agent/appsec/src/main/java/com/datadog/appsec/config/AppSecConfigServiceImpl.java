@@ -96,10 +96,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       new WAFInitializationResultReporter();
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
 
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
@@ -149,25 +148,24 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private long getRulesAndDataCapabilities() {
-    long capabilities =
-        CAPABILITY_ASM_DD_RULES
-            | CAPABILITY_ASM_DD_MULTICONFIG
-            | CAPABILITY_ASM_IP_BLOCKING
-            | CAPABILITY_ASM_EXCLUSIONS
-            | CAPABILITY_ASM_EXCLUSION_DATA
-            | CAPABILITY_ASM_REQUEST_BLOCKING
-            | CAPABILITY_ASM_USER_BLOCKING
-            | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
-            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
-            | CAPABILITY_ENDPOINT_FINGERPRINT
-            | CAPABILITY_ASM_SESSION_FINGERPRINT
-            | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES
-            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
+    long capabilities = CAPABILITY_ASM_DD_RULES
+        | CAPABILITY_ASM_DD_MULTICONFIG
+        | CAPABILITY_ASM_IP_BLOCKING
+        | CAPABILITY_ASM_EXCLUSIONS
+        | CAPABILITY_ASM_EXCLUSION_DATA
+        | CAPABILITY_ASM_REQUEST_BLOCKING
+        | CAPABILITY_ASM_USER_BLOCKING
+        | CAPABILITY_ASM_CUSTOM_RULES
+        | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+        | CAPABILITY_ASM_TRUSTED_IPS
+        | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+        | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
+        | CAPABILITY_ENDPOINT_FINGERPRINT
+        | CAPABILITY_ASM_SESSION_FINGERPRINT
+        | CAPABILITY_ASM_NETWORK_FINGERPRINT
+        | CAPABILITY_ASM_HEADER_FINGERPRINT
+        | CAPABILITY_ASM_TRACE_TAGGING_RULES
+        | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -228,9 +226,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         return;
       }
       final String key = configKey.toString();
-      Map<String, Object> contentMap =
-          (Map<String, Object>)
-              ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      Map<String, Object> contentMap = (Map<String, Object>)
+          ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
       if (contentMap == null || contentMap.isEmpty()) {
         ignoredConfigKeys.add(key);
       } else {
@@ -426,9 +423,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     if (this.configurationPoller != null) {
       if (hasUserWafConfig && appSecActivation == ProductActivation.FULLY_ENABLED) {
-        log.info(
-            "AppSec will not use remote config because "
-                + "there is a custom user configuration and AppSec is explicitly enabled");
+        log.info("AppSec will not use remote config because "
+            + "there is a custom user configuration and AppSec is explicitly enabled");
       } else {
         subscribeConfigurationPoller();
       }
@@ -487,10 +483,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private static Map<String, Object> loadDefaultWafConfig() throws IOException {
     log.debug("Loading default waf config");
-    try (InputStream is =
-        AppSecConfigServiceImpl.class
-            .getClassLoader()
-            .getResourceAsStream(DEFAULT_CONFIG_LOCATION)) {
+    try (InputStream is = AppSecConfigServiceImpl.class
+        .getClassLoader()
+        .getResourceAsStream(DEFAULT_CONFIG_LOCATION)) {
       if (is == null) {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
@@ -538,32 +533,31 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (this.configurationPoller == null) {
       return;
     }
-    this.configurationPoller.removeCapabilities(
-        CAPABILITY_ASM_ACTIVATION
-            | CAPABILITY_ASM_DD_RULES
-            | CAPABILITY_ASM_DD_MULTICONFIG
-            | CAPABILITY_ASM_IP_BLOCKING
-            | CAPABILITY_ASM_EXCLUSIONS
-            | CAPABILITY_ASM_EXCLUSION_DATA
-            | CAPABILITY_ASM_REQUEST_BLOCKING
-            | CAPABILITY_ASM_USER_BLOCKING
-            | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
-            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
-            | CAPABILITY_ASM_RASP_SQLI
-            | CAPABILITY_ASM_RASP_SSRF
-            | CAPABILITY_ASM_RASP_LFI
-            | CAPABILITY_ASM_RASP_CMDI
-            | CAPABILITY_ASM_RASP_SHI
-            | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
-            | CAPABILITY_ENDPOINT_FINGERPRINT
-            | CAPABILITY_ASM_SESSION_FINGERPRINT
-            | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES
-            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
+    this.configurationPoller.removeCapabilities(CAPABILITY_ASM_ACTIVATION
+        | CAPABILITY_ASM_DD_RULES
+        | CAPABILITY_ASM_DD_MULTICONFIG
+        | CAPABILITY_ASM_IP_BLOCKING
+        | CAPABILITY_ASM_EXCLUSIONS
+        | CAPABILITY_ASM_EXCLUSION_DATA
+        | CAPABILITY_ASM_REQUEST_BLOCKING
+        | CAPABILITY_ASM_USER_BLOCKING
+        | CAPABILITY_ASM_CUSTOM_RULES
+        | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+        | CAPABILITY_ASM_TRUSTED_IPS
+        | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+        | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
+        | CAPABILITY_ASM_RASP_SQLI
+        | CAPABILITY_ASM_RASP_SSRF
+        | CAPABILITY_ASM_RASP_LFI
+        | CAPABILITY_ASM_RASP_CMDI
+        | CAPABILITY_ASM_RASP_SHI
+        | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
+        | CAPABILITY_ENDPOINT_FINGERPRINT
+        | CAPABILITY_ASM_SESSION_FINGERPRINT
+        | CAPABILITY_ASM_NETWORK_FINGERPRINT
+        | CAPABILITY_ASM_HEADER_FINGERPRINT
+        | CAPABILITY_ASM_TRACE_TAGGING_RULES
+        | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);

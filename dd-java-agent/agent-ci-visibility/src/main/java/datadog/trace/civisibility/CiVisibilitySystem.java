@@ -79,10 +79,9 @@ public class CiVisibilitySystem {
       inst.addTransformer(new CompilerModuleExporter(inst));
     }
 
-    CiVisibilityMetricCollector metricCollector =
-        config.isCiVisibilityTelemetryEnabled()
-            ? new CiVisibilityMetricCollectorImpl()
-            : NoOpMetricCollector.INSTANCE;
+    CiVisibilityMetricCollector metricCollector = config.isCiVisibilityTelemetryEnabled()
+        ? new CiVisibilityMetricCollectorImpl()
+        : NoOpMetricCollector.INSTANCE;
     InstrumentationBridge.registerMetricCollector(metricCollector);
 
     CiVisibilityServices services =
@@ -94,9 +93,8 @@ public class CiVisibilitySystem {
     if (services.processHierarchy.isChild() || services.processHierarchy.isHeadless()) {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
 
-      ExecutionSettings executionSettings =
-          repoServices.executionSettingsFactory.create(
-              JvmInfo.CURRENT_JVM, repoServices.moduleName);
+      ExecutionSettings executionSettings = repoServices.executionSettingsFactory.create(
+          JvmInfo.CURRENT_JVM, repoServices.moduleName);
       if (executionSettings.isCodeCoverageEnabled()
           &&
           // lines coverage is built on top of Jacoco,
@@ -173,13 +171,11 @@ public class CiVisibilitySystem {
       this.services = services;
       this.repoServices = repoServices;
       if (services.processHierarchy.isChild()) {
-        sessionFactory =
-            childTestFrameworkSessionFactory(
-                services, repoServices, coverageServices, executionSettings);
+        sessionFactory = childTestFrameworkSessionFactory(
+            services, repoServices, coverageServices, executionSettings);
       } else {
-        sessionFactory =
-            headlessTestFrameworkSessionFactory(
-                services, repoServices, coverageServices, executionSettings);
+        sessionFactory = headlessTestFrameworkSessionFactory(
+            services, repoServices, coverageServices, executionSettings);
       }
     }
 
@@ -190,16 +186,13 @@ public class CiVisibilitySystem {
         @Nullable ContextStore<TestKey, DDTest> testStore,
         Collection<LibraryCapability> capabilities) {
       boolean eagerSessionStart = !services.processHierarchy.isHeadless();
-      TestEventsHandler<SuiteKey, TestKey> handler =
-          new TestEventsHandlerImpl<>(
-              services.metricCollector,
-              () ->
-                  sessionFactory.startSession(
-                      repoServices.moduleName, component, null, capabilities),
-              repoServices.moduleName,
-              eagerSessionStart,
-              suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
-              testStore != null ? testStore : new StrongMapContextStore<>());
+      TestEventsHandler<SuiteKey, TestKey> handler = new TestEventsHandlerImpl<>(
+          services.metricCollector,
+          () -> sessionFactory.startSession(repoServices.moduleName, component, null, capabilities),
+          repoServices.moduleName,
+          eagerSessionStart,
+          suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+          testStore != null ? testStore : new StrongMapContextStore<>());
       handlers.add(handler);
       return handler;
     }
@@ -271,12 +264,11 @@ public class CiVisibilitySystem {
       TestDecorator testDecorator =
           new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
-      ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(
-              services.config,
-              executionSettings,
-              repoServices.sourcePathResolver,
-              services.linesResolver);
+      ExecutionStrategy executionStrategy = new ExecutionStrategy(
+          services.config,
+          executionSettings,
+          repoServices.sourcePathResolver,
+          services.linesResolver);
 
       // only add report upload capability for children sessions,
       // because report upload is only supported when the build system is instrumented
@@ -314,12 +306,11 @@ public class CiVisibilitySystem {
       TestDecorator testDecorator =
           new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
 
-      ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(
-              services.config,
-              executionSettings,
-              repoServices.sourcePathResolver,
-              services.linesResolver);
+      ExecutionStrategy executionStrategy = new ExecutionStrategy(
+          services.config,
+          executionSettings,
+          repoServices.sourcePathResolver,
+          services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,

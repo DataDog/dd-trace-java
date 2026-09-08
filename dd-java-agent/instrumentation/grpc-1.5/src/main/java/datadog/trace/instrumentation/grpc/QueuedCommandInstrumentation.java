@@ -40,11 +40,8 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("run")
-                    .and(
-                        takesArguments(1)
-                            .and(takesArgument(0, named("io.netty.channel.Channel"))))),
+            .and(named("run")
+                .and(takesArguments(1).and(takesArgument(0, named("io.netty.channel.Channel"))))),
         getClass().getName() + "$Run");
   }
 

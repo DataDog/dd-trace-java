@@ -9,7 +9,8 @@ import javax.annotation.Nonnull;
 
 public class ModuleCoverageDataJacoco extends ModuleSignal {
 
-  @Nonnull private final byte[] coverageData;
+  @Nonnull
+  private final byte[] coverageData;
 
   public ModuleCoverageDataJacoco(
       DDTraceId sessionId, long moduleId, @Nonnull byte[] coverageData) {

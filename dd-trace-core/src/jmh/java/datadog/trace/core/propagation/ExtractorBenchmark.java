@@ -74,9 +74,8 @@ public class ExtractorBenchmark {
         String feature = propagationAndFeatures[i];
         switch (feature) {
           case "x-dth":
-            headers.add(
-                Pair.of(
-                    DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.anytag=value,_dd.p.dm=934086a686-4"));
+            headers.add(Pair.of(
+                DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.anytag=value,_dd.p.dm=934086a686-4"));
             break;
           default:
             System.out.println("Unknown benchmark feature " + feature + ". Will be ignored!");
@@ -85,11 +84,10 @@ public class ExtractorBenchmark {
     }
 
     System.setProperty("dd.propagation.style.extract", propagations.toString());
-    DynamicConfig dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(Collections.emptyMap())
-            .setBaggageMapping(Collections.emptyMap())
-            .apply();
+    DynamicConfig dynamicConfig = DynamicConfig.create()
+        .setHeaderTags(Collections.emptyMap())
+        .setBaggageMapping(Collections.emptyMap())
+        .apply();
     extractor = HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
     if (extractPropagationStyles.startsWith("datadog")) {

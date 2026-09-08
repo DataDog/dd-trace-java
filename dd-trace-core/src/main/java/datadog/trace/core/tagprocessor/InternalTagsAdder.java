@@ -15,15 +15,16 @@ public final class InternalTagsAdder extends TagsPostProcessor {
 
   // Prebuilt once to avoid per-span Entry allocation.
   private final TagMap.Entry baseServiceEntry;
-  @Nullable private final TagMap.Entry versionEntry;
+
+  @Nullable
+  private final TagMap.Entry versionEntry;
 
   public InternalTagsAdder(@Nonnull final String ddService, @Nullable final String version) {
     this.ddService = UTF8BytesString.create(ddService);
     this.baseServiceEntry = TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService);
-    this.versionEntry =
-        version != null && !version.isEmpty()
-            ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
-            : null;
+    this.versionEntry = version != null && !version.isEmpty()
+        ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
+        : null;
   }
 
   @Override

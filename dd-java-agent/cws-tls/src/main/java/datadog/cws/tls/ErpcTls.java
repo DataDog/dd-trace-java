@@ -66,7 +66,8 @@ public class ErpcTls implements Tls {
   private int getTID() {
     Integer thread = threadLocal.get();
     if (thread == null && this.gettidSyscallId > 0) {
-      int threadId = CLibrary.Instance.syscall(new NativeLong(this.gettidSyscallId)).intValue();
+      int threadId =
+          CLibrary.Instance.syscall(new NativeLong(this.gettidSyscallId)).intValue();
       threadLocal.set(threadId);
     }
     return thread;
@@ -83,30 +84,27 @@ public class ErpcTls implements Tls {
 
     registerTls();
 
-    final Thread thread =
-        newAgentThread(
-            CWS_TLS,
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  Thread.sleep(refresh);
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
+    final Thread thread = newAgentThread(CWS_TLS, new Runnable() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(refresh);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
 
-                while (!Thread.interrupted()) {
-                  try {
-                    registerTls();
-                    Thread.sleep(refresh);
-                  } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                }
-              }
-            });
+        while (!Thread.interrupted()) {
+          try {
+            registerTls();
+            Thread.sleep(refresh);
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+      }
+    });
     thread.start();
   }
 

@@ -96,9 +96,8 @@ public class MuzzleVersionScanPlugin {
   private static BiConsumer<String, byte[]> injectClassHelper(ClassLoader cl) {
     try {
       Method findLoadedClass = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-      Method defineClass =
-          ClassLoader.class.getDeclaredMethod(
-              "defineClass", String.class, byte[].class, int.class, int.class);
+      Method defineClass = ClassLoader.class.getDeclaredMethod(
+          "defineClass", String.class, byte[].class, int.class, int.class);
       findLoadedClass.setAccessible(true);
       defineClass.setAccessible(true);
       return (name, bytes) -> {
@@ -160,12 +159,11 @@ public class MuzzleVersionScanPlugin {
         }
         final String parent = helperName.substring(0, nestedClassIndex);
         if (!helperClassNames.contains(parent)) {
-          throw new IllegalArgumentException(
-              "Nested helper "
-                  + helperName
-                  + " must have the parent class "
-                  + parent
-                  + " also defined as a helper");
+          throw new IllegalArgumentException("Nested helper "
+              + helperName
+              + " must have the parent class "
+              + parent
+              + " also defined as a helper");
         }
       }
       final ClassFileLocator locator =

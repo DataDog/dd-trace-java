@@ -35,13 +35,11 @@ public class CircuitBreakerOperatorInstrumentation
         @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
-      result =
-          ReactorHelper.wrapPublisher(
-              result,
-              CircuitBreakerDecorator.DECORATE,
-              circuitBreaker,
-              ReactorHelper.putInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+      result = ReactorHelper.wrapPublisher(
+          result,
+          CircuitBreakerDecorator.DECORATE,
+          circuitBreaker,
+          ReactorHelper.putInto(InstrumentationContext.get(Publisher.class, HandoffContext.class)));
     }
   }
 }

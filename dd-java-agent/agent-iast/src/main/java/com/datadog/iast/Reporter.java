@@ -86,8 +86,8 @@ public class Reporter {
       if (Config.get().isIastStackTraceEnabled()
           && batch.getVulnerabilities() != null
           && vulnerability.getLocation().getStackId() == null) {
-        String stackId =
-            addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
+        String stackId = addVulnerabilityStackTrace(
+            span, String.valueOf(batch.getVulnerabilities().size()));
         if (stackId != null) {
           vulnerability.getLocation().setStackId(stackId);
         }
@@ -144,13 +144,11 @@ public class Reporter {
   }
 
   private AgentSpan startNewSpan() {
-    final AgentSpanContext tagContext =
-        new TagContext()
-            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE, true));
-    final AgentSpan span =
-        tracer()
-            .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)
-            .setSpanType(InternalSpanTypes.VULNERABILITY);
+    final AgentSpanContext tagContext = new TagContext()
+        .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE, true));
+    final AgentSpan span = tracer()
+        .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)
+        .setSpanType(InternalSpanTypes.VULNERABILITY);
     ANALYZED.setTag(span);
     return span;
   }

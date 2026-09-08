@@ -34,9 +34,8 @@ public class BackendApiFactory {
 
     BackendApi backendApi = createEvpProxyApi(intake, responseCompression);
     if (backendApi == null) {
-      log.warn(
-          "Cannot create backend API client since agentless mode is disabled, "
-              + "and agent does not support EVP proxy");
+      log.warn("Cannot create backend API client since agentless mode is disabled, "
+          + "and agent does not support EVP proxy");
     }
     return backendApi;
   }

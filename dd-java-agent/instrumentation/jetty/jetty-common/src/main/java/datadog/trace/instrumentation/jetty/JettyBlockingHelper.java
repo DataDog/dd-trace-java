@@ -65,10 +65,8 @@ public class JettyBlockingHelper {
       // return value varies between versions
       Method getAsyncContext = Request.class.getMethod("getAsyncContext");
       getAsyncContextMH = lookup().unreflect(getAsyncContext);
-      completeMH =
-          lookup()
-              .findVirtual(
-                  getAsyncContextMH.type().returnType(), "complete", methodType(void.class));
+      completeMH = lookup()
+          .findVirtual(getAsyncContextMH.type().returnType(), "complete", methodType(void.class));
     } catch (IllegalAccessException | NoSuchMethodException | RuntimeException e) {
       log.error("Lookup of getAsyncContext failed. Will be unable to commit blocking response", e);
     }
@@ -79,15 +77,12 @@ public class JettyBlockingHelper {
       log.debug("Could not find {}#isAsyncStarted()", Request.class.getName());
 
       try {
-        Class<?> asyncContinuationCls =
-            Class.forName(
-                "org.eclipse.jetty.server.AsyncContinuation",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
-        MethodHandle getAsyncContinuation =
-            lookup()
-                .findVirtual(
-                    Request.class, "getAsyncContinuation", methodType(asyncContinuationCls));
+        Class<?> asyncContinuationCls = Class.forName(
+            "org.eclipse.jetty.server.AsyncContinuation",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
+        MethodHandle getAsyncContinuation = lookup()
+            .findVirtual(Request.class, "getAsyncContinuation", methodType(asyncContinuationCls));
         MethodHandle isAsyncStarted =
             lookup().findVirtual(asyncContinuationCls, "isAsyncStarted", methodType(boolean.class));
         isAsyncStartedMH = MethodHandles.filterArguments(isAsyncStarted, 0, getAsyncContinuation);
@@ -101,32 +96,28 @@ public class JettyBlockingHelper {
     try {
       Class<?> httpConnectionCls;
       try {
-        httpConnectionCls =
-            Class.forName(
-                "org.eclipse.jetty.server.AbstractHttpConnection",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        httpConnectionCls = Class.forName(
+            "org.eclipse.jetty.server.AbstractHttpConnection",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
       } catch (ClassNotFoundException cnfe) {
-        httpConnectionCls =
-            Class.forName(
-                "org.eclipse.jetty.server.HttpConnection",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        httpConnectionCls = Class.forName(
+            "org.eclipse.jetty.server.HttpConnection",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
       }
       MethodHandle getConnection =
           lookup().findVirtual(Request.class, "getConnection", methodType(httpConnectionCls));
-      MethodHandle getEndPoint =
-          lookup()
-              .findVirtual(httpConnectionCls, "getEndPoint", MethodType.methodType(EndPoint.class));
+      MethodHandle getEndPoint = lookup()
+          .findVirtual(httpConnectionCls, "getEndPoint", MethodType.methodType(EndPoint.class));
       MethodHandle close = lookup().findVirtual(EndPoint.class, "close", methodType(void.class));
       abortMH = collectArguments(collectArguments(close, 0, getEndPoint), 0, getConnection);
     } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
       try {
-        Class<?> httpChannelCls =
-            Class.forName(
-                "org.eclipse.jetty.server.HttpChannel",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        Class<?> httpChannelCls = Class.forName(
+            "org.eclipse.jetty.server.HttpChannel",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
         MethodHandle getHttpChannel =
             lookup().findVirtual(Request.class, "getHttpChannel", methodType(httpChannelCls));
         MethodHandle getEndPoint =
@@ -144,12 +135,11 @@ public class JettyBlockingHelper {
     COMPLETE = completeMH;
     IS_ASYNC_STARTED = isAsyncStartedMH;
     ABORT = abortMH; // excluded from INITIALIZED
-    INITIALIZED =
-        getAsyncContextMH != null
-            && closeOutputMH != null
-            && getAsyncContextMH != null
-            && completeMH != null
-            && isAsyncStartedMH != null;
+    INITIALIZED = getAsyncContextMH != null
+        && closeOutputMH != null
+        && getAsyncContextMH != null
+        && completeMH != null
+        && isAsyncStartedMH != null;
   }
 
   private JettyBlockingHelper() {}

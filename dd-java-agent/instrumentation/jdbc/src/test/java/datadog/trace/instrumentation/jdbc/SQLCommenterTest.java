@@ -1095,21 +1095,18 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
     SharedDBCommenter.resetStaticPrefixForTesting();
 
     // when
-    String sqlWithComment =
-        runUnderTrace(
-            "testTrace",
-            () -> {
-              AgentSpan currSpan = AgentTracer.activeSpan();
-              currSpan.setTag(Tags.PEER_SERVICE, peerService);
-              return SQLCommenter.inject(
-                  "SELECT * FROM foo",
-                  "my-service",
-                  dbType,
-                  "h",
-                  "n",
-                  "00-00000000000000007fffffffffffffff-000000024cb016ea-00",
-                  true);
-            });
+    String sqlWithComment = runUnderTrace("testTrace", () -> {
+      AgentSpan currSpan = AgentTracer.activeSpan();
+      currSpan.setTag(Tags.PEER_SERVICE, peerService);
+      return SQLCommenter.inject(
+          "SELECT * FROM foo",
+          "my-service",
+          dbType,
+          "h",
+          "n",
+          "00-00000000000000007fffffffffffffff-000000024cb016ea-00",
+          true);
+    });
 
     // then
     assertEquals(expected, sqlWithComment);

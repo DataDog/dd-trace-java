@@ -116,11 +116,10 @@ public final class GraphQLInstrumentation extends SimplePerformantInstrumentatio
       return super.beginParse(parameters, instrumentationState);
     }
     final State state = (State) instrumentationState;
-    final AgentSpan parsingSpan =
-        AgentTracer.startSpan(
-            GraphQLDecorator.GRAPHQL_JAVA.toString(),
-            GraphQLDecorator.GRAPHQL_PARSING,
-            state.getRequestSpan().spanContext());
+    final AgentSpan parsingSpan = AgentTracer.startSpan(
+        GraphQLDecorator.GRAPHQL_JAVA.toString(),
+        GraphQLDecorator.GRAPHQL_PARSING,
+        state.getRequestSpan().spanContext());
     GraphQLDecorator.DECORATE.afterStart(parsingSpan);
     return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
   }
@@ -133,11 +132,10 @@ public final class GraphQLInstrumentation extends SimplePerformantInstrumentatio
     }
     final State state = (State) instrumentationState;
 
-    final AgentSpan validationSpan =
-        AgentTracer.startSpan(
-            GraphQLDecorator.GRAPHQL_JAVA.toString(),
-            GraphQLDecorator.GRAPHQL_VALIDATION,
-            state.getRequestSpan().spanContext());
+    final AgentSpan validationSpan = AgentTracer.startSpan(
+        GraphQLDecorator.GRAPHQL_JAVA.toString(),
+        GraphQLDecorator.GRAPHQL_VALIDATION,
+        state.getRequestSpan().spanContext());
     GraphQLDecorator.DECORATE.afterStart(validationSpan);
     return new ValidationInstrumentationContext(validationSpan);
   }

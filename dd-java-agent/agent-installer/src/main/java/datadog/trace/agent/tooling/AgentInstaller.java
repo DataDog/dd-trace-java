@@ -134,11 +134,10 @@ public class AgentInstaller {
     boolean simpleMethodGraph = InstrumenterConfig.get().isResolverSimpleMethodGraph();
     if (simpleMethodGraph) {
       // faster compiler that just considers visibility of locally declared methods
-      byteBuddy =
-          byteBuddy
-              .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
-              .with(VisibilityBridgeStrategy.Default.NEVER)
-              .with(InstrumentedType.Factory.Default.FROZEN);
+      byteBuddy = byteBuddy
+          .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
+          .with(VisibilityBridgeStrategy.Default.NEVER)
+          .with(InstrumentedType.Factory.Default.FROZEN);
     }
 
     AgentBuilder agentBuilder = new AgentBuilder.Default(byteBuddy);
@@ -147,33 +146,31 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(AgentBuilder.TypeStrategy.Default.DECORATE);
     }
 
-    agentBuilder =
-        agentBuilder
-            .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
-            .with(AgentStrategies.transformerDecorator())
-            .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentStrategies.rediscoveryStrategy())
-            .with(redefinitionStrategyListener(enabledSystems))
-            .with(AgentStrategies.locationStrategy())
-            .with(AgentStrategies.poolStrategy())
-            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentStrategies.bufferStrategy())
-            .with(AgentStrategies.typeStrategy())
-            .with(new ClassLoadListener())
-            // FIXME: we cannot enable it yet due to BB/JVM bug, see
-            // https://github.com/raphw/byte-buddy/issues/558
-            // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
-            .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
+    agentBuilder = agentBuilder
+        .disableClassFormatChanges()
+        .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+        .with(AgentStrategies.transformerDecorator())
+        .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+        .with(AgentStrategies.rediscoveryStrategy())
+        .with(redefinitionStrategyListener(enabledSystems))
+        .with(AgentStrategies.locationStrategy())
+        .with(AgentStrategies.poolStrategy())
+        .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
+        .with(AgentStrategies.bufferStrategy())
+        .with(AgentStrategies.typeStrategy())
+        .with(new ClassLoadListener())
+        // FIXME: we cannot enable it yet due to BB/JVM bug, see
+        // https://github.com/raphw/byte-buddy/issues/558
+        // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
+        .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
 
     if (DEBUG) {
-      agentBuilder =
-          agentBuilder
-              .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentStrategies.rediscoveryStrategy())
-              .with(redefinitionStrategyListener(enabledSystems))
-              .with(new RedefinitionLoggingListener())
-              .with(new TransformLoggingListener());
+      agentBuilder = agentBuilder
+          .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+          .with(AgentStrategies.rediscoveryStrategy())
+          .with(redefinitionStrategyListener(enabledSystems))
+          .with(new RedefinitionLoggingListener())
+          .with(new TransformLoggingListener());
     }
 
     for (final AgentBuilder.Listener listener : listeners) {
@@ -222,7 +219,8 @@ public class AgentInstaller {
     for (InstrumenterModule module : instrumenterModules) {
       if (!module.isApplicable(enabledSystems)) {
         if (DEBUG) {
-          log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
+          log.debug(
+              "Not applicable - instrumentation.class={}", module.getClass().getName());
         }
         continue;
       }
@@ -245,13 +243,12 @@ public class AgentInstaller {
     }
 
     if (InstrumenterConfig.get().isTelemetryEnabled()) {
-      InstrumenterState.setObserver(
-          new InstrumenterState.Observer() {
-            @Override
-            public void applied(Iterable<String> instrumentationNames) {
-              IntegrationsCollector.get().update(instrumentationNames, true);
-            }
-          });
+      InstrumenterState.setObserver(new InstrumenterState.Observer() {
+        @Override
+        public void applied(Iterable<String> instrumentationNames) {
+          IntegrationsCollector.get().update(instrumentationNames, true);
+        }
+      });
     }
 
     if (!InstrumenterConfig.get().isRuntimeContextMapPerStore()) {

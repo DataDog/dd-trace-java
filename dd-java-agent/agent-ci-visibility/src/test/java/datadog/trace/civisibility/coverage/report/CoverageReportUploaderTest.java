@@ -71,31 +71,20 @@ class CoverageReportUploaderTest {
   private static CapturedRequest uploadCoverageReport(List<String> flags) throws IOException {
     CapturedRequest capturedRequest = new CapturedRequest();
     try (JavaTestHttpServer server =
-        httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/cicovreprt",
-                            api -> {
-                              Map<String, List<FileItem>> multipart =
-                                  MultipartRequestParser.parseRequest(
-                                      api.getRequest().getBody(),
-                                      api.getRequest().getHeader("Content-Type"));
-                              capturedRequest.event =
-                                  JSON_MAPPER.readValue(
-                                      multipart.get("event").get(0).get(), EVENT_TYPE);
-                              capturedRequest.coverage =
-                                  gunzip(multipart.get("coverage").get(0).get());
-                              api.getResponse().status(200).send();
-                            })))) {
+        httpServer(s -> s.handlers(h -> h.prefix("/api/v2/cicovreprt", api -> {
+          Map<String, List<FileItem>> multipart = MultipartRequestParser.parseRequest(
+              api.getRequest().getBody(), api.getRequest().getHeader("Content-Type"));
+          capturedRequest.event =
+              JSON_MAPPER.readValue(multipart.get("event").get(0).get(), EVENT_TYPE);
+          capturedRequest.coverage = gunzip(multipart.get("coverage").get(0).get());
+          api.getResponse().status(200).send();
+        })))) {
       BackendApi backendApi = givenIntakeApi(server.getAddress());
-      CoverageReportUploader uploader =
-          new CoverageReportUploader(
-              backendApi,
-              Collections.singletonMap(CI_TAG_KEY, CI_TAG_VALUE),
-              flags,
-              NoOpMetricCollector.INSTANCE);
+      CoverageReportUploader uploader = new CoverageReportUploader(
+          backendApi,
+          Collections.singletonMap(CI_TAG_KEY, CI_TAG_VALUE),
+          flags,
+          NoOpMetricCollector.INSTANCE);
 
       uploader.upload(
           JACOCO_FORMAT,

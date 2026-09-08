@@ -87,11 +87,10 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
         RequestContext requestContext = agentSpan.getRequestContext();
         if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
           reqCtx = requestContext;
-          boolean inspectContent =
-              AgentTracer.get()
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestFilesContent())
-                  != null;
+          boolean inspectContent = AgentTracer.get()
+                  .getCallbackProvider(RequestContextSlot.APPSEC)
+                  .getCallback(EVENTS.requestFilesContent())
+              != null;
           collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
           return;
         }

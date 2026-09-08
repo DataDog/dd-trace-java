@@ -104,21 +104,19 @@ public class WellKnownClasses {
     EQUALS_SAFE_CLASSES.add("sun.nio.fs.WindowsPath");
   }
 
-  private static final Set<String> STRING_PRIMITIVES =
-      new HashSet<>(
-          Arrays.asList(
-              "java.lang.Class",
-              "java.lang.String",
-              "java.time.Duration",
-              "java.time.Instant",
-              "java.time.LocalTime",
-              "java.time.LocalDate",
-              "java.time.LocalDateTime",
-              "java.util.UUID",
-              "java.net.URI",
-              "java.io.File",
-              "sun.nio.fs.UnixPath",
-              "sun.nio.fs.WindowsPath"));
+  private static final Set<String> STRING_PRIMITIVES = new HashSet<>(Arrays.asList(
+      "java.lang.Class",
+      "java.lang.String",
+      "java.time.Duration",
+      "java.time.Instant",
+      "java.time.LocalTime",
+      "java.time.LocalDate",
+      "java.time.LocalDateTime",
+      "java.util.UUID",
+      "java.net.URI",
+      "java.io.File",
+      "sun.nio.fs.UnixPath",
+      "sun.nio.fs.WindowsPath"));
 
   private static final Set<String> LONG_PRIMITIVES = new HashSet<>(Arrays.asList("java.util.Date"));
 
@@ -187,46 +185,40 @@ public class WellKnownClasses {
     THROWABLE_SPECIAL_FIELDS.put("cause", ThrowableFields::cause);
   }
 
-  private static final List<String> SAFE_COLLECTION_PACKAGES =
-      Arrays.asList(
-          "java.", // JDK base module
-          "com.google.protobuf.", // Google ProtoBuf
-          "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections." // Agrona
-          );
+  private static final List<String> SAFE_COLLECTION_PACKAGES = Arrays.asList(
+      "java.", // JDK base module
+      "com.google.protobuf.", // Google ProtoBuf
+      "com.google.common.collect.", // Google Guava
+      "it.unimi.dsi.fastutil.", // fastutil
+      "org.agrona.collections." // Agrona
+      );
 
-  private static final Set<String> UNSAFE_COLLECTION_CLASSES =
-      new HashSet<>(
-          Arrays.asList(
-              // Collection with synchronized methods can lead to deadlock
-              "java.util.Stack",
-              "java.util.Vector",
-              "java.util.Collections$SynchronizedSet",
-              "java.util.Collections$SynchronizedCollection",
-              "java.util.Collections$SynchronizedSortedSet",
-              "java.util.Collections$SynchronizedNavigableSet",
-              "java.util.Collections$SynchronizedList",
-              "java.util.Collections$SynchronizedRandomAccessList"));
+  private static final Set<String> UNSAFE_COLLECTION_CLASSES = new HashSet<>(Arrays.asList(
+      // Collection with synchronized methods can lead to deadlock
+      "java.util.Stack",
+      "java.util.Vector",
+      "java.util.Collections$SynchronizedSet",
+      "java.util.Collections$SynchronizedCollection",
+      "java.util.Collections$SynchronizedSortedSet",
+      "java.util.Collections$SynchronizedNavigableSet",
+      "java.util.Collections$SynchronizedList",
+      "java.util.Collections$SynchronizedRandomAccessList"));
 
-  private static final Set<String> UNSAFE_MAP_CLASSES =
-      new HashSet<>(
-          Arrays.asList(
-              // Maps with synchronized methods can lead to deadlock
-              "java.util.Hashtable",
-              "java.util.Properties",
-              "java.util.Collections$SynchronizedMap",
-              "java.util.Collections$SynchronizedSortedMap",
-              "java.util.Collections$SynchronizedNavigableMap"));
+  private static final Set<String> UNSAFE_MAP_CLASSES = new HashSet<>(Arrays.asList(
+      // Maps with synchronized methods can lead to deadlock
+      "java.util.Hashtable",
+      "java.util.Properties",
+      "java.util.Collections$SynchronizedMap",
+      "java.util.Collections$SynchronizedSortedMap",
+      "java.util.Collections$SynchronizedNavigableMap"));
 
-  private static final List<String> SAFE_MAP_PACKAGES =
-      Arrays.asList(
-          "java.", // JDK base module
-          "com.google.protobuf.", // Google ProtoBuf
-          "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections." // Agrona
-          );
+  private static final List<String> SAFE_MAP_PACKAGES = Arrays.asList(
+      "java.", // JDK base module
+      "com.google.protobuf.", // Google ProtoBuf
+      "com.google.common.collect.", // Google Guava
+      "it.unimi.dsi.fastutil.", // fastutil
+      "org.agrona.collections." // Agrona
+      );
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect

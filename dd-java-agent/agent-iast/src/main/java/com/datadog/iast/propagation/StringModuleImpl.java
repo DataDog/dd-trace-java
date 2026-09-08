@@ -395,9 +395,8 @@ public class StringModuleImpl implements StringModule {
       if (currentRange.getStart() >= result.length()) {
         skippedRanges++;
       } else if (currentRange.getStart() + currentRange.getLength() >= result.length()) {
-        adjustedRange =
-            Ranges.copyWithPosition(
-                currentRange, currentRange.getStart(), result.length() - currentRange.getStart());
+        adjustedRange = Ranges.copyWithPosition(
+            currentRange, currentRange.getStart(), result.length() - currentRange.getStart());
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
@@ -842,9 +841,8 @@ public class StringModuleImpl implements StringModule {
         return;
       }
       final Source source = (Source) taintable.$$DD$getSource();
-      final Range[] ranges =
-          Ranges.forCharSequence(
-              result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+      final Range[] ranges = Ranges.forCharSequence(
+          result, new Source(source.getOrigin(), source.getName(), source.getValue()));
 
       taintedObjects.taint(result, ranges);
     } else {
@@ -861,9 +859,8 @@ public class StringModuleImpl implements StringModule {
       // Special objects like InputStream...
       if (rangesParam[0].getLength() == Integer.MAX_VALUE) {
         final Source source = rangesParam[0].getSource();
-        final Range[] ranges =
-            Ranges.forCharSequence(
-                result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+        final Range[] ranges = Ranges.forCharSequence(
+            result, new Source(source.getOrigin(), source.getName(), source.getValue()));
 
         taintedObjects.taint(result, ranges);
       } else {

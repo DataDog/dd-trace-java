@@ -86,7 +86,8 @@ class ForcePrioritySamplerTest extends DDCoreJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) int expectedPriority) {
     ForcePrioritySampler sampler =
         new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
       span.setTag(tagName, tagValue);
@@ -110,7 +111,8 @@ class ForcePrioritySamplerTest extends DDCoreJavaSpecification {
       String tagName, @ConvertWith(BoxedValueConverter.class) Object tagValue) {
     ForcePrioritySampler sampler =
         new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
+    CoreTracer tracer =
+        tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
       if (tagName != null) {

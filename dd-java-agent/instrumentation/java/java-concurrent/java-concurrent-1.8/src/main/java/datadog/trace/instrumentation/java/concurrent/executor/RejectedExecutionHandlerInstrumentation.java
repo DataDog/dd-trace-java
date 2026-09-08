@@ -50,9 +50,8 @@ public class RejectedExecutionHandlerInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named("java.util.concurrent.RejectedExecutionHandler")
-            .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
+    return implementsInterface(named("java.util.concurrent.RejectedExecutionHandler")
+        .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
   }
 
   @Override

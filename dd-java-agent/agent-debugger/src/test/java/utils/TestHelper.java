@@ -13,7 +13,8 @@ import java.util.function.BooleanSupplier;
 
 public class TestHelper {
   public static String getFixtureContent(String fixture) throws IOException, URISyntaxException {
-    return new String(Files.readAllBytes(Paths.get(TestHelper.class.getResource(fixture).toURI())));
+    return new String(
+        Files.readAllBytes(Paths.get(TestHelper.class.getResource(fixture).toURI())));
   }
 
   public static List<String> getFixtureLines(String fixture) {

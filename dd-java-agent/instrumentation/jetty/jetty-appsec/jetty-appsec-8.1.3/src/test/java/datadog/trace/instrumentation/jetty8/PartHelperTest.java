@@ -233,9 +233,8 @@ class PartHelperTest {
   @Test
   void extractFormFieldsDecodesFieldUsingContentTypeCharset() throws IOException {
     byte[] iso88591Bytes = "café".getBytes("ISO-8859-1");
-    List<Part> parts =
-        singletonList(
-            fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1"));
+    List<Part> parts = singletonList(
+        fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1"));
     Map<String, List<String>> result = PartHelper.extractFormFields(parts);
     assertEquals(singletonList("café"), result.get("drink"));
   }

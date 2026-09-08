@@ -12,14 +12,13 @@ public class PgConnectionFactoryConstructorAdvice {
       @Advice.This final PgConnectionFactory zis,
       @Advice.Argument(1) final PgConnectOptions options) {
     DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-    DBInfo info =
-        builder
-            .host(options.getHost())
-            .port(options.getPort())
-            .db(options.getDatabase())
-            .user(options.getUser())
-            .type("postgresql")
-            .build();
+    DBInfo info = builder
+        .host(options.getHost())
+        .port(options.getPort())
+        .db(options.getDatabase())
+        .user(options.getUser())
+        .type("postgresql")
+        .build();
     InstrumentationContext.get(PgConnectionFactory.class, DBInfo.class).put(zis, info);
   }
 }

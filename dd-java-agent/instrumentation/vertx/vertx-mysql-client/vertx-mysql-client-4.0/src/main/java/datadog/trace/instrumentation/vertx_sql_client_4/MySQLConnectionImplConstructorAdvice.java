@@ -14,7 +14,8 @@ public class MySQLConnectionImplConstructorAdvice {
     InstrumentationContext.get(SqlClient.class, DBInfo.class)
         .put(
             zis,
-            InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).get(factory));
+            InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class)
+                .get(factory));
   }
 
   // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x

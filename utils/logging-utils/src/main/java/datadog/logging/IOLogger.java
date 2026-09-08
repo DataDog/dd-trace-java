@@ -85,23 +85,21 @@ public class IOLogger {
     }
     boolean hasLogged;
     if (response != null) {
-      hasLogged =
-          ratelimitedLogger.warn(
-              EXCLUDE_TELEMETRY,
-              "{} Status: {} {}",
-              message,
-              response.getStatusCode(),
-              response.getMessage());
+      hasLogged = ratelimitedLogger.warn(
+          EXCLUDE_TELEMETRY,
+          "{} Status: {} {}",
+          message,
+          response.getStatusCode(),
+          response.getMessage());
     } else if (exception != null) {
       // NOTE: We do not pass the full exception to warn on purpose. We don't want to
       //       print a full stacktrace unless we're in debug mode
-      hasLogged =
-          ratelimitedLogger.warn(
-              EXCLUDE_TELEMETRY,
-              "{} {}: {}",
-              message,
-              exception.getClass().getName(),
-              exception.getMessage());
+      hasLogged = ratelimitedLogger.warn(
+          EXCLUDE_TELEMETRY,
+          "{} {}: {}",
+          message,
+          exception.getClass().getName(),
+          exception.getMessage());
     } else {
       hasLogged = ratelimitedLogger.warn(message);
     }

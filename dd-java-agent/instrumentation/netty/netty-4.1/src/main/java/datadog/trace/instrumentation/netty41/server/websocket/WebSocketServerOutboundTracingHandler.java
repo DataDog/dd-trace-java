@@ -31,15 +31,15 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
 
     if (frame instanceof WebSocketFrame) {
       Channel channel = ctx.channel();
-      HandlerContext.Sender handlerContext = channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
+      HandlerContext.Sender handlerContext =
+          channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
       if (handlerContext != null) {
 
         if (frame instanceof TextWebSocketFrame) {
           // WebSocket Write Text Start
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startOutboundFrameSpan(
-                  handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
+          final AgentSpan span = DECORATE.startOutboundFrameSpan(
+              handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
@@ -54,9 +54,8 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
         if (frame instanceof BinaryWebSocketFrame) {
           // WebSocket Write Binary Start
           BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startOutboundFrameSpan(
-                  handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
+          final AgentSpan span = DECORATE.startOutboundFrameSpan(
+              handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
@@ -71,13 +70,12 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
         if (frame instanceof ContinuationWebSocketFrame) {
           ContinuationWebSocketFrame continuationWebSocketFrame =
               (ContinuationWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startOutboundFrameSpan(
-                  handlerContext,
-                  handlerContext.getMessageType(),
-                  MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
-                      ? continuationWebSocketFrame.text().length()
-                      : continuationWebSocketFrame.content().readableBytes());
+          final AgentSpan span = DECORATE.startOutboundFrameSpan(
+              handlerContext,
+              handlerContext.getMessageType(),
+              MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
+                  ? continuationWebSocketFrame.text().length()
+                  : continuationWebSocketFrame.content().readableBytes());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {

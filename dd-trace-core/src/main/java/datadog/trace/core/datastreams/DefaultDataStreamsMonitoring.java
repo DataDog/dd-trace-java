@@ -145,14 +145,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void start() {
     checkDynamicConfig();
-    cancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new ReportTask(),
-                this,
-                bucketDurationNanos,
-                bucketDurationNanos,
-                TimeUnit.NANOSECONDS);
+    cancellation = AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
     thread.start();
   }
 
@@ -236,12 +231,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
     if (span instanceof DDSpan) {
-      DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(
-              carrier,
-              DataStreamsContextCarrierAdapter.INSTANCE,
-              this.timeSource,
-              getThreadServiceName());
+      DefaultPathwayContext pathwayContext = DefaultPathwayContext.extract(
+          carrier,
+          DataStreamsContextCarrierAdapter.INSTANCE,
+          this.timeSource,
+          getThreadServiceName());
       ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
@@ -259,29 +253,27 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       boolean isSuccess,
       boolean isKey,
       String operation) {
-    inbox.offer(
-        new SchemaRegistryUsage(
-            topic,
-            clusterId,
-            schemaId,
-            isSuccess,
-            isKey,
-            operation,
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+    inbox.offer(new SchemaRegistryUsage(
+        topic,
+        clusterId,
+        schemaId,
+        isSuccess,
+        isKey,
+        operation,
+        timeSource.getCurrentTimeNanos(),
+        getThreadServiceName()));
   }
 
   @Override
   public void reportKafkaConfig(
       String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
-    inbox.offer(
-        new KafkaConfigReport(
-            type,
-            kafkaClusterId,
-            consumerGroup,
-            config,
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+    inbox.offer(new KafkaConfigReport(
+        type,
+        kafkaClusterId,
+        consumerGroup,
+        config,
+        timeSource.getCurrentTimeNanos(),
+        getThreadServiceName()));
   }
 
   @Override
@@ -291,17 +283,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       String memberId,
       int generationId,
       String memberProtocol) {
-    inbox.offer(
-        new KafkaConfigReport(
-            "kafka_consumer",
-            kafkaClusterId,
-            consumerGroup,
-            memberId,
-            generationId,
-            memberProtocol,
-            Collections.<String, String>emptyMap(),
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+    inbox.offer(new KafkaConfigReport(
+        "kafka_consumer",
+        kafkaClusterId,
+        consumerGroup,
+        memberId,
+        generationId,
+        memberProtocol,
+        Collections.<String, String>emptyMap(),
+        timeSource.getCurrentTimeNanos(),
+        getThreadServiceName()));
   }
 
   @Override
@@ -442,9 +433,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           } else if (supportsDataStreams) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(
-                      statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
+              StatsBucket statsBucket = getStatsBucket(
+                  statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
               statsBucket.addPoint(statsPoint);
             } else if (payload instanceof Backlog) {
               Backlog backlog = (Backlog) payload;
@@ -469,9 +459,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               statsBucket.addSchemaRegistryUsage(usage);
             } else if (payload instanceof KafkaConfigReport) {
               KafkaConfigReport configReport = (KafkaConfigReport) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(
-                      configReport.getTimestampNanos(), configReport.getServiceNameOverride());
+              StatsBucket statsBucket = getStatsBucket(
+                  configReport.getTimestampNanos(), configReport.getServiceNameOverride());
               statsBucket.addKafkaConfig(configReport);
             }
           }

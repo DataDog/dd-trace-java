@@ -66,9 +66,8 @@ public class SnapshotSink {
 
   public void start() {
     if (started.compareAndSet(false, true)) {
-      highRateScheduled =
-          highRateScheduler.scheduleAtFixedRate(
-              this::highRateFlush, this, 0, currentHighRateFlushInterval, TimeUnit.MILLISECONDS);
+      highRateScheduled = highRateScheduler.scheduleAtFixedRate(
+          this::highRateFlush, this, 0, currentHighRateFlushInterval, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -159,13 +158,12 @@ public class SnapshotSink {
     }
     LOGGER.debug(
         "Rescheduling high rate debugger sink flush to {}ms", currentHighRateFlushInterval);
-    this.highRateScheduled =
-        highRateScheduler.scheduleAtFixedRate(
-            this::highRateFlush,
-            this,
-            currentHighRateFlushInterval,
-            currentHighRateFlushInterval,
-            TimeUnit.MILLISECONDS);
+    this.highRateScheduled = highRateScheduler.scheduleAtFixedRate(
+        this::highRateFlush,
+        this,
+        currentHighRateFlushInterval,
+        currentHighRateFlushInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   private List<String> getSerializedSnapshots(BlockingQueue<Snapshot> queue, int localBatchSize) {

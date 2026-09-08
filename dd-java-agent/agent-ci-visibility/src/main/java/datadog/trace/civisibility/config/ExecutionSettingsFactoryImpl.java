@@ -56,7 +56,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
   private final PullRequestInfo pullRequestInfo;
-  @Nullable private final String repositoryRoot;
+
+  @Nullable
+  private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
@@ -152,49 +154,40 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
     }
 
-    boolean itrEnabled =
-        isFeatureEnabled(
-            settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
-    boolean codeCoverageEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isCodeCoverageEnabled,
-            Config::isCiVisibilityCodeCoverageEnabled);
-    boolean testSkippingEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isTestsSkippingEnabled,
-            Config::isCiVisibilityTestSkippingEnabled);
-    boolean flakyTestRetriesEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isFlakyTestRetriesEnabled,
-            Config::isCiVisibilityFlakyRetryEnabled);
-    boolean impactedTestsEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isImpactedTestsDetectionEnabled,
-            Config::isCiVisibilityImpactedTestsDetectionEnabled);
-    boolean earlyFlakeDetectionEnabled =
-        isFeatureEnabled(
-            settings,
-            s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
-            Config::isCiVisibilityEarlyFlakeDetectionEnabled);
-    boolean knownTestsRequest =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isKnownTestsEnabled,
-            Config::isCiVisibilityKnownTestsRequestEnabled);
-    boolean codeCoverageReportUpload =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isCoverageReportUploadEnabled,
-            Config::isCiVisibilityCodeCoverageReportUploadEnabled);
-    boolean failedTestReplayEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isFailedTestReplayEnabled,
-            Config::isCiVisibilityFailedTestReplayEnabled);
+    boolean itrEnabled = isFeatureEnabled(
+        settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
+    boolean codeCoverageEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isCodeCoverageEnabled,
+        Config::isCiVisibilityCodeCoverageEnabled);
+    boolean testSkippingEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isTestsSkippingEnabled,
+        Config::isCiVisibilityTestSkippingEnabled);
+    boolean flakyTestRetriesEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isFlakyTestRetriesEnabled,
+        Config::isCiVisibilityFlakyRetryEnabled);
+    boolean impactedTestsEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isImpactedTestsDetectionEnabled,
+        Config::isCiVisibilityImpactedTestsDetectionEnabled);
+    boolean earlyFlakeDetectionEnabled = isFeatureEnabled(
+        settings,
+        s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
+        Config::isCiVisibilityEarlyFlakeDetectionEnabled);
+    boolean knownTestsRequest = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isKnownTestsEnabled,
+        Config::isCiVisibilityKnownTestsRequestEnabled);
+    boolean codeCoverageReportUpload = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isCoverageReportUploadEnabled,
+        Config::isCiVisibilityCodeCoverageReportUploadEnabled);
+    boolean failedTestReplayEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isFailedTestReplayEnabled,
+        Config::isCiVisibilityFailedTestReplayEnabled);
 
     TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
@@ -230,26 +223,17 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     AtomicBoolean knownTestsError = new AtomicBoolean();
     AtomicBoolean testManagementTestsError = new AtomicBoolean();
 
-    Future<SkippableTests> skippableTestsFuture =
-        executor.submit(
-            () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
-    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
-        executor.submit(
-            () ->
-                getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
-    Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
-        executor.submit(
-            () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
+    Future<SkippableTests> skippableTestsFuture = executor.submit(
+        () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
+    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture = executor.submit(
+        () -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
+    Future<Map<String, Collection<TestFQN>>> knownTestsFuture = executor.submit(
+        () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
     Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
-        executor.submit(
-            () ->
-                getTestManagementTestsByModule(
-                    tracerEnvironment,
-                    testManagementSettings.isEnabled(),
-                    testManagementTestsError));
-    Future<Diff> pullRequestDiffFuture =
-        executor.submit(
-            () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
+        executor.submit(() -> getTestManagementTestsByModule(
+            tracerEnvironment, testManagementSettings.isEnabled(), testManagementTestsError));
+    Future<Diff> pullRequestDiffFuture = executor.submit(
+        () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
     Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
@@ -267,23 +251,21 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     Diff pullRequestDiff = pullRequestDiffFuture.get();
 
-    ConfigurationErrors configurationErrors =
-        new ConfigurationErrors(
-            false,
-            skippableTestsError.get(),
-            flakyTestsError.get(),
-            knownTestsError.get(),
-            testManagementTestsError.get());
+    ConfigurationErrors configurationErrors = new ConfigurationErrors(
+        false,
+        skippableTestsError.get(),
+        flakyTestsError.get(),
+        knownTestsError.get(),
+        testManagementTestsError.get());
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
-    Set<String> moduleNames =
-        getModuleNames(
-            skippableTests,
-            flakyTestsByModule,
-            knownTestsByModule,
-            quarantinedTestsByModule,
-            disabledTestsByModule,
-            attemptToFixTestsByModule);
+    Set<String> moduleNames = getModuleNames(
+        skippableTests,
+        flakyTestsByModule,
+        knownTestsByModule,
+        quarantinedTestsByModule,
+        disabledTestsByModule,
+        attemptToFixTestsByModule);
 
     for (String moduleName : moduleNames) {
       settingsByModule.put(
@@ -347,11 +329,10 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
-    boolean testManagementEnabled =
-        isFeatureEnabled(
-            settings,
-            s -> s.getTestManagementSettings().isEnabled(),
-            Config::isCiVisibilityTestManagementEnabled);
+    boolean testManagementEnabled = isFeatureEnabled(
+        settings,
+        s -> s.getTestManagementSettings().isEnabled(),
+        Config::isCiVisibilityTestManagementEnabled);
 
     if (!testManagementEnabled) {
       return TestManagementSettings.DEFAULT;
@@ -380,11 +361,10 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
 
       if (LOGGER.isDebugEnabled()) {
-        int totalSkippableTests =
-            skippableTests.getIdentifiersByModule().values().stream()
-                .filter(Objects::nonNull)
-                .mapToInt(Map::size)
-                .sum();
+        int totalSkippableTests = skippableTests.getIdentifiersByModule().values().stream()
+            .filter(Objects::nonNull)
+            .mapToInt(Map::size)
+            .sum();
         LOGGER.debug(
             "Received {} skippable tests in total for {}",
             totalSkippableTests,
@@ -478,9 +458,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
         String baseCommitSha = pullRequestInfo.getBaseBranchSha();
         if (baseCommitSha == null && pullRequestInfo.getBaseBranchHeadSha() != null) {
-          baseCommitSha =
-              gitClient.getMergeBase(
-                  pullRequestInfo.getBaseBranchHeadSha(), pullRequestInfo.getHeadCommit().getSha());
+          baseCommitSha = gitClient.getMergeBase(
+              pullRequestInfo.getBaseBranchHeadSha(),
+              pullRequestInfo.getHeadCommit().getSha());
         }
 
         if (baseCommitSha == null) {
@@ -488,7 +468,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               gitClient.getBaseCommitSha(pullRequestInfo.getBaseBranch(), defaultBranch);
         }
 
-        Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());
+        Diff diff =
+            gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());
         if (diff != null) {
           return diff;
         }

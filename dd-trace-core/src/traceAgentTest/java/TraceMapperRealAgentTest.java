@@ -98,9 +98,8 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     DDAgentFeaturesDiscovery discovery =
         new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocol, true, false);
     DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, false);
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
     List<List<CoreSpan>> traces = TraceGenerator.generateRandomTraces(traceCount, lowCardinality);
 
     for (List<CoreSpan> trace : traces) {

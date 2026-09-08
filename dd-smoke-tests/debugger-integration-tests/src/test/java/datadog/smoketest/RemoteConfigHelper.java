@@ -42,9 +42,8 @@ public class RemoteConfigHelper {
   private static String buildClientConfigs(List<RemoteConfig> remoteConfigs) {
     StringJoiner sj = new StringJoiner(",\n");
     for (RemoteConfig rc : remoteConfigs) {
-      sj.add(
-          String.format(
-              "                        \"datadog/2/%s/%s/config\"\n", rc.product, rc.configId));
+      sj.add(String.format(
+          "                        \"datadog/2/%s/%s/config\"\n", rc.product, rc.configId));
     }
     return sj.toString();
   }
@@ -53,13 +52,10 @@ public class RemoteConfigHelper {
     StringJoiner sj = new StringJoiner(",\n");
     for (RemoteConfig rc : remoteConfigs) {
       String encodedConfig = new String(Base64.getEncoder().encode(rc.config.getBytes()));
-      sj.add(
-          String.format(
-              "    {\n"
-                  + "      \"path\": \"datadog/2/%s/%s/config\",\n"
-                  + "      \"raw\": \"%s\"\n"
-                  + "    }\n",
-              rc.product, rc.configId, encodedConfig));
+      sj.add(String.format(
+          "    {\n" + "      \"path\": \"datadog/2/%s/%s/config\",\n" + "      \"raw\": \"%s\"\n"
+              + "    }\n",
+          rc.product, rc.configId, encodedConfig));
     }
     return sj.toString();
   }
@@ -80,17 +76,16 @@ public class RemoteConfigHelper {
     StringJoiner sj = new StringJoiner(",\n");
     for (int i = 0; i < remoteConfigs.size(); i++) {
       RemoteConfig rc = remoteConfigs.get(i);
-      sj.add(
-          String.format(
-              "     \"datadog/2/%s/%s/config\":{"
-                  + "           \"length\": %d,\n"
-                  + "           \"custom\": { \"v\": 123 },\n"
-                  + "           \"hashes\":\n"
-                  + "            {\n"
-                  + "               \"sha256\": \"%s\"\n"
-                  + "            }"
-                  + "         }",
-              rc.product, rc.configId, rc.config.length(), hashes.get(i)));
+      sj.add(String.format(
+          "     \"datadog/2/%s/%s/config\":{"
+              + "           \"length\": %d,\n"
+              + "           \"custom\": { \"v\": 123 },\n"
+              + "           \"hashes\":\n"
+              + "            {\n"
+              + "               \"sha256\": \"%s\"\n"
+              + "            }"
+              + "         }",
+          rc.product, rc.configId, rc.config.length(), hashes.get(i)));
     }
     String targets = sj.toString();
     return String.format(

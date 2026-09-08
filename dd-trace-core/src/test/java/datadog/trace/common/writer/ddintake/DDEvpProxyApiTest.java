@@ -47,18 +47,17 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 @Timeout(20)
 class DDEvpProxyApiTest extends DDCoreJavaSpecification {
 
-  static final CiVisibilityWellKnownTags WELL_KNOWN_TAGS =
-      new CiVisibilityWellKnownTags(
-          "my-runtime-id",
-          "my-env",
-          "my-language",
-          "my-runtime-name",
-          "my-runtime-version",
-          "my-runtime-vendor",
-          "my-os-arch",
-          "my-os-platform",
-          "my-os-version",
-          "false");
+  static final CiVisibilityWellKnownTags WELL_KNOWN_TAGS = new CiVisibilityWellKnownTags(
+      "my-runtime-id",
+      "my-env",
+      "my-language",
+      "my-runtime-name",
+      "my-runtime-version",
+      "my-runtime-vendor",
+      "my-os-arch",
+      "my-os-platform",
+      "my-os-version",
+      "false");
 
   static final String INTAKE_SUBDOMAIN = "citestcycle-intake";
   static final ObjectMapper MSG_PACK_MAPPER = new ObjectMapper(new MessagePackFactory());
@@ -71,25 +70,15 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
     String evpProxyEndpoint = V2_EVP_PROXY_ENDPOINT;
     String path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion);
     JavaTestHttpServer agentEvpProxy =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (!"application/msgpack"
-                                  .equals(api.getRequest().getContentType())) {
-                                api.getResponse()
-                                    .status(400)
-                                    .send("wrong type: " + api.getRequest().getContentType());
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
-    DDEvpProxyApi client =
-        createEvpProxyApi(
-            agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(path, api -> {
+          if (!"application/msgpack".equals(api.getRequest().getContentType())) {
+            api.getResponse().status(400).send("wrong type: " + api.getRequest().getContentType());
+          } else {
+            api.getResponse().status(200).send();
+          }
+        })));
+    DDEvpProxyApi client = createEvpProxyApi(
+        agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);
     Payload payload = prepareTraces(trackType, false, Collections.emptyList());
 
     try {
@@ -113,23 +102,16 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
     String path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion);
     int[] retry = {1};
     JavaTestHttpServer agentEvpProxy =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 5) {
-                                api.getResponse().status(503).send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
-    DDEvpProxyApi client =
-        createEvpProxyApi(
-            agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(path, api -> {
+          if (retry[0] < 5) {
+            api.getResponse().status(503).send();
+            retry[0]++;
+          } else {
+            api.getResponse().status(200).send();
+          }
+        })));
+    DDEvpProxyApi client = createEvpProxyApi(
+        agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, false);
     Payload payload = prepareTraces(trackType, false, Collections.emptyList());
 
     try {
@@ -301,12 +283,10 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
       Map<String, Object> expectedRequestBody)
       throws IOException {
     String path = buildAgentEvpProxyPath(evpProxyEndpoint, trackType, apiVersion);
-    JavaTestHttpServer agentEvpProxy =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.post(path, api -> api.getResponse().send())));
-    DDEvpProxyApi client =
-        createEvpProxyApi(
-            agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, compressionEnabled);
+    JavaTestHttpServer agentEvpProxy = JavaTestHttpServer.httpServer(
+        s -> s.handlers(h -> h.post(path, api -> api.getResponse().send())));
+    DDEvpProxyApi client = createEvpProxyApi(
+        agentEvpProxy.getAddress().toString(), evpProxyEndpoint, trackType, compressionEnabled);
     Payload payload = prepareTraces(trackType, compressionEnabled, traces);
 
     try {

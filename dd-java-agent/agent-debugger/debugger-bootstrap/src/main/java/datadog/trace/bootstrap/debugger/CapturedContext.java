@@ -126,9 +126,8 @@ public class CapturedContext implements ValueReferenceResolver {
         Object targetedValue = capturedTarget.getValue();
         if (targetedValue != null) {
           // resolve to a CapturedValue instance
-          result =
-              ReflectiveFieldValueResolver.getFieldAsCapturedValue(
-                  targetedValue.getClass(), targetedValue, memberName);
+          result = ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+              targetedValue.getClass(), targetedValue, memberName);
         } else {
           result = CapturedValue.UNDEFINED;
         }
@@ -145,9 +144,8 @@ public class CapturedContext implements ValueReferenceResolver {
           }
         }
       }
-      result =
-          ReflectiveFieldValueResolver.getFieldAsCapturedValue(
-              target.getClass(), target, memberName);
+      result = ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+          target.getClass(), target, memberName);
     }
     checkUndefined(result, memberName, "Cannot dereference field: ");
     return result;
@@ -318,10 +316,8 @@ public class CapturedContext implements ValueReferenceResolver {
       long startTimestamp,
       MethodLocation methodLocation,
       boolean singleProbe) {
-    Status status =
-        statusByProbeId.computeIfAbsent(
-            probeImplementation.getProbeId().getEncodedId(),
-            key -> probeImplementation.createStatus());
+    Status status = statusByProbeId.computeIfAbsent(
+        probeImplementation.getProbeId().getEncodedId(), key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
@@ -420,13 +416,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public static class Status {
     public static final Status EMPTY_STATUS = new Status(ProbeImplementation.UNKNOWN);
-    public static final Status EMPTY_CAPTURING_STATUS =
-        new Status(ProbeImplementation.UNKNOWN) {
-          @Override
-          public boolean isCapturing() {
-            return true;
-          }
-        };
+    public static final Status EMPTY_CAPTURING_STATUS = new Status(ProbeImplementation.UNKNOWN) {
+      @Override
+      public boolean isCapturing() {
+        return true;
+      }
+    };
     private final List<EvaluationError> errors = new ArrayList<>();
     protected final ProbeImplementation probeImplementation;
 
@@ -474,10 +469,9 @@ public class CapturedContext implements ValueReferenceResolver {
         String notCapturedReason) {
       this.name = name;
       this.declaredType = declaredType;
-      this.type =
-          value != null && !isPrimitive(declaredType)
-              ? value.getClass().getTypeName()
-              : declaredType;
+      this.type = value != null && !isPrimitive(declaredType)
+          ? value.getClass().getTypeName()
+          : declaredType;
       this.value = value;
       this.fields = fields == null ? Collections.emptyMap() : fields;
       this.limits = limits;
@@ -577,9 +571,8 @@ public class CapturedContext implements ValueReferenceResolver {
 
     private static CapturedValue build(
         String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
-      CapturedValue val =
-          new CapturedValue(
-              name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);
+      CapturedValue val = new CapturedValue(
+          name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);
       return val;
     }
 

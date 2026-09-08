@@ -57,46 +57,40 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
 
   static Stream<Arguments> styles() {
     return Stream.of(
-        arguments(
-            new Style(
-                "Datadog",
-                DatadogHttpCodec::newExtractor,
-                headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
-        arguments(
-            new Style(
-                "B3",
-                B3HttpCodec::newExtractor,
-                headers(B3HttpCodec.TRACE_ID_KEY, "1", B3HttpCodec.SPAN_ID_KEY, "2"),
-                true)),
-        arguments(
-            new Style(
-                "W3C",
-                W3CHttpCodec::newExtractor,
-                headers(
-                    W3CHttpCodec.TRACE_PARENT_KEY,
-                    "00-00000000000000000000000000000001-0000000000000002-01"),
-                true)),
-        arguments(
-            new Style(
-                "Haystack",
-                HaystackHttpCodec::newExtractor,
-                headers(HaystackHttpCodec.TRACE_ID_KEY, "1", HaystackHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
-        arguments(
-            new Style(
-                "XRay",
-                XRayHttpCodec::newExtractor,
-                headers(
-                    XRayHttpCodec.X_AMZN_TRACE_ID,
-                    "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"),
-                true)),
-        arguments(
-            new Style(
-                "None",
-                NoneCodec::newExtractor,
-                headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
-                false)));
+        arguments(new Style(
+            "Datadog",
+            DatadogHttpCodec::newExtractor,
+            headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
+            true)),
+        arguments(new Style(
+            "B3",
+            B3HttpCodec::newExtractor,
+            headers(B3HttpCodec.TRACE_ID_KEY, "1", B3HttpCodec.SPAN_ID_KEY, "2"),
+            true)),
+        arguments(new Style(
+            "W3C",
+            W3CHttpCodec::newExtractor,
+            headers(
+                W3CHttpCodec.TRACE_PARENT_KEY,
+                "00-00000000000000000000000000000001-0000000000000002-01"),
+            true)),
+        arguments(new Style(
+            "Haystack",
+            HaystackHttpCodec::newExtractor,
+            headers(HaystackHttpCodec.TRACE_ID_KEY, "1", HaystackHttpCodec.SPAN_ID_KEY, "2"),
+            true)),
+        arguments(new Style(
+            "XRay",
+            XRayHttpCodec::newExtractor,
+            headers(
+                XRayHttpCodec.X_AMZN_TRACE_ID,
+                "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"),
+            true)),
+        arguments(new Style(
+            "None",
+            NoneCodec::newExtractor,
+            headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
+            false)));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -167,10 +161,9 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
 
-    TagContext tagOnly =
-        this.extractor.extract(
-            headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
-            stringValuesMap());
+    TagContext tagOnly = this.extractor.extract(
+        headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
+        stringValuesMap());
 
     assertNotNull(tagOnly);
     assertFalse(tagOnly instanceof ExtractedContext);

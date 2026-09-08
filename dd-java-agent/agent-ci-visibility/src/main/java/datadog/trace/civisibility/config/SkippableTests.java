@@ -65,10 +65,9 @@ public class SkippableTests {
     }
 
     String correlationId = envelope.meta != null ? envelope.meta.correlationId : null;
-    Map<String, BitSet> coverage =
-        envelope.meta != null && envelope.meta.coverage != null
-            ? envelope.meta.coverage
-            : Collections.emptyMap();
+    Map<String, BitSet> coverage = envelope.meta != null && envelope.meta.coverage != null
+        ? envelope.meta.coverage
+        : Collections.emptyMap();
     return new SkippableTests(correlationId, identifiersByModule, coverage);
   }
 }

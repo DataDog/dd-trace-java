@@ -140,32 +140,23 @@ public enum IastHandler implements Handler<RoutingContext> {
 
     @Override
     public void init(final Vertx vertx) {
-      vertx
-          .eventBus()
-          .consumer(
-              name(),
-              message -> {
-                final JsonObject payload = (JsonObject) message.body();
-                final String response = payload.getString("name").toUpperCase();
-                message.reply(response);
-              });
+      vertx.eventBus().consumer(name(), message -> {
+        final JsonObject payload = (JsonObject) message.body();
+        final String response = payload.getString("name").toUpperCase();
+        message.reply(response);
+      });
     }
 
     @Override
     public void handle(final RoutingContext rc) {
       final JsonObject target = rc.getBodyAsJson();
-      rc.vertx()
-          .eventBus()
-          .send(
-              name(),
-              target,
-              reply -> {
-                if (reply.succeeded()) {
-                  rc.response().end("Received " + reply.result().body());
-                } else {
-                  rc.fail(reply.cause());
-                }
-              });
+      rc.vertx().eventBus().send(name(), target, reply -> {
+        if (reply.succeeded()) {
+          rc.response().end("Received " + reply.result().body());
+        } else {
+          rc.fail(reply.cause());
+        }
+      });
     }
   };
 

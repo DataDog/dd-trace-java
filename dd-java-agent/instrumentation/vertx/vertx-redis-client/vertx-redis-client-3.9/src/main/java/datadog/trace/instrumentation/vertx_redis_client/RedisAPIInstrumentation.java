@@ -36,8 +36,7 @@ public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"
+    return new String[] {"io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"
     };
   }
 

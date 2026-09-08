@@ -71,9 +71,8 @@ public final class TestAgentBackend extends AgentBackend {
   private static final JsonAdapter<Map<String, Object>> MAP_ADAPTER =
       MOSHI.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
   private static final JsonAdapter<List<Map<String, Object>>> REQUEST_LIST_ADAPTER =
-      MOSHI.adapter(
-          Types.newParameterizedType(
-              List.class, Types.newParameterizedType(Map.class, String.class, Object.class)));
+      MOSHI.adapter(Types.newParameterizedType(
+          List.class, Types.newParameterizedType(Map.class, String.class, Object.class)));
 
   private final String image;
   private final String externalHost; // null => Testcontainers-managed container
@@ -126,12 +125,11 @@ public final class TestAgentBackend extends AgentBackend {
       return;
     }
     if (this.externalHost != null && this.externalPort > 0) {
-      this.baseUrl =
-          new HttpUrl.Builder()
-              .scheme("http")
-              .host(this.externalHost)
-              .port(this.externalPort)
-              .build();
+      this.baseUrl = new HttpUrl.Builder()
+          .scheme("http")
+          .host(this.externalHost)
+          .port(this.externalPort)
+          .build();
     } else {
       GenericContainer<?> started = new GenericContainer<>(DockerImageName.parse(this.image));
       started.withExposedPorts(AGENT_PORT);
@@ -142,12 +140,11 @@ public final class TestAgentBackend extends AgentBackend {
       started.setWaitStrategy(Wait.forHttp("/test/traces"));
       started.start();
       this.container = started;
-      this.baseUrl =
-          new HttpUrl.Builder()
-              .scheme("http")
-              .host(started.getHost())
-              .port(started.getMappedPort(AGENT_PORT))
-              .build();
+      this.baseUrl = new HttpUrl.Builder()
+          .scheme("http")
+          .host(started.getHost())
+          .port(started.getMappedPort(AGENT_PORT))
+          .build();
     }
     // Normalize the external URI
     this.baseUri = cleanBaseUri(this.baseUrl);
@@ -187,12 +184,11 @@ public final class TestAgentBackend extends AgentBackend {
     resetRemoteConfig();
     // GET /test/session/start begins (and clears) a session identified by the token. The
     // dd-apm-test-agent session endpoints are GET (verified against v1.44.0: POST returns 405).
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/start")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/start")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
     Request request = new Request.Builder().url(url).get().build();
     execute(request, "start test-agent session");
   }
@@ -228,12 +224,11 @@ public final class TestAgentBackend extends AgentBackend {
    * @throws AssertionError If the agent recorded one or more trace-invariant check failures.
    */
   public void assertNoInvariantFailures() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/trace_check/failures")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/trace_check/failures")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
     Request request = new Request.Builder().url(url).get().build();
     try (Response response = this.client.newCall(request).execute()) {
       int code = response.code();
@@ -251,23 +246,22 @@ public final class TestAgentBackend extends AgentBackend {
   }
 
   private List<DecodedTrace> fetchTraces() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/traces")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/traces")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
     Request request = new Request.Builder().url(url).get().build();
-    return Decoder.decodeJson(execute(request, "read test-agent session traces")).getTraces();
+    return Decoder.decodeJson(execute(request, "read test-agent session traces"))
+        .getTraces();
   }
 
   private List<Map<String, Object>> fetchTelemetry() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/apmtelemetry")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/apmtelemetry")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
     Request request = new Request.Builder().url(url).get().build();
     return decodeMessages(execute(request, "read test-agent session telemetry"));
   }
@@ -276,31 +270,26 @@ public final class TestAgentBackend extends AgentBackend {
     // POST {"path": ..., "msg": <config>} to /test/session/responses/config/path; the agent builds
     // the signed RC envelope from it, so callers don't hand-build it (mirrors the Groovy base's
     // setRemoteConfig).
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/responses/config/path")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
-    String body =
-        "{\"path\":\""
-            + path.replace("\\", "\\\\").replace("\"", "\\\"")
-            + "\",\"msg\":"
-            + config
-            + "}";
-    Request request = new Request.Builder().url(url).post(RequestBody.create(JSON, body)).build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/responses/config/path")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
+    String body = "{\"path\":\"" + path.replace("\\", "\\\\").replace("\"", "\\\"") + "\",\"msg\":"
+        + config + "}";
+    Request request =
+        new Request.Builder().url(url).post(RequestBody.create(JSON, body)).build();
     execute(request, "set remote-config response");
   }
 
   private List<Map<String, Object>> fetchRemoteConfigRequests() {
     // The test agent records every request the tracer made in this session; select the /v0.7/config
     // polls and decode their base64-encoded bodies into JSON maps.
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/requests")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/requests")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
     Request request = new Request.Builder().url(url).get().build();
     String json = execute(request, "read test-agent session requests");
     List<Map<String, Object>> requests;
@@ -339,13 +328,13 @@ public final class TestAgentBackend extends AgentBackend {
     // stored under the (stable) session token. Replace it with an empty payload — the
     // tracer's "no configs" default — so each test method starts with a clean RC slate,
     // matching the per-test trace and telemetry isolation.
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/responses/config")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
-    Request request = new Request.Builder().url(url).post(RequestBody.create(JSON, "{}")).build();
+    HttpUrl url = requireStarted()
+        .newBuilder()
+        .addPathSegments("test/session/responses/config")
+        .addQueryParameter("test_session_token", this.sessionToken)
+        .build();
+    Request request =
+        new Request.Builder().url(url).post(RequestBody.create(JSON, "{}")).build();
     execute(request, "reset remote-config response");
   }
 

@@ -118,15 +118,14 @@ public class WAFModule implements AppSecModule {
 
   // used in testing
   static void createLimitsObject() {
-    LIMITS =
-        new Waf.Limits(
-            MAX_DEPTH,
-            MAX_ELEMENTS,
-            MAX_STRING_SIZE,
-            /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
-             * traditionally ddwaf has had problems with too large budgets */
-            ((long) Integer.MAX_VALUE) * 1000,
-            Config.get().getAppSecWafTimeout());
+    LIMITS = new Waf.Limits(
+        MAX_DEPTH,
+        MAX_ELEMENTS,
+        MAX_STRING_SIZE,
+        /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
+         * traditionally ddwaf has had problems with too large budgets */
+        ((long) Integer.MAX_VALUE) * 1000,
+        Config.get().getAppSecWafTimeout());
   }
 
   private final boolean wafMetricsEnabled =
@@ -222,9 +221,8 @@ public class WAFModule implements AppSecModule {
     int appSecTraceRateLimit = Config.get().getAppSecTraceRateLimit();
     if (appSecTraceRateLimit > 0) {
       Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
-      rateLimiter =
-          new RateLimiter(
-              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
+      rateLimiter = new RateLimiter(
+          appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
     }
     return rateLimiter;
   }
@@ -412,10 +410,9 @@ public class WAFModule implements AppSecModule {
             // Handle max_collected_headers parameter which can come as Number or String
             // representation of a number
             int maxHeaders = AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
-            Object maxHeadersParam =
-                actionInfo.parameters.getOrDefault(
-                    "max_collected_headers",
-                    AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS);
+            Object maxHeadersParam = actionInfo.parameters.getOrDefault(
+                "max_collected_headers",
+                AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS);
             if (maxHeadersParam instanceof Number) {
               maxHeaders = ((Number) maxHeadersParam).intValue();
             } else if (maxHeadersParam instanceof String) {

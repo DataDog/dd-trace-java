@@ -121,9 +121,8 @@ class FilterCollectionExpressionTest {
     map.put("c", 3);
     MapValue collection = new MapValue(map);
 
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
     CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -131,9 +130,8 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
 
-    expression =
-        new FilterCollectionExpression(
-            collection, lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
+    expression = new FilterCollectionExpression(
+        collection, lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
     filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -309,9 +307,8 @@ class FilterCollectionExpressionTest {
   @Test
   void testUnsupportedList() {
     ListValue collection = new ListValue(new CustomList());
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
@@ -336,9 +333,8 @@ class FilterCollectionExpressionTest {
   @Test
   void testUnsupportedSet() {
     SetValue collection = new SetValue(new CustomSet());
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(

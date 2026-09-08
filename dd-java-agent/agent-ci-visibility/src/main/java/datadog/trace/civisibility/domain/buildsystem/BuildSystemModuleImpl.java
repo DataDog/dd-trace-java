@@ -86,9 +86,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         codeowners,
         linesResolver,
         onSpanFinish);
-    this.coverageProcessor =
-        coverageProcessorFactory.moduleCoverage(
-            span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
+    this.coverageProcessor = coverageProcessorFactory.moduleCoverage(
+        span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
     this.moduleSignalRouter = moduleSignalRouter;
 
     moduleSignalRouter.registerModuleHandler(
@@ -96,18 +95,16 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         SignalType.MODULE_EXECUTION_RESULT,
         this::onModuleExecutionResultReceived);
 
-    settings =
-        new BuildModuleSettings(
-            getPropertiesPropagatedToChildProcess(
-                config.getServiceName(),
-                config.isServiceNameSetByUser(),
-                moduleName,
-                startCommand,
-                classpath,
-                jacocoAgent,
-                signalServerAddress,
-                executionSettings,
-                sessionSettings));
+    settings = new BuildModuleSettings(getPropertiesPropagatedToChildProcess(
+        config.getServiceName(),
+        config.isServiceNameSetByUser(),
+        moduleName,
+        startCommand,
+        classpath,
+        jacocoAgent,
+        signalServerAddress,
+        executionSettings,
+        sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
 

@@ -16,12 +16,10 @@ import org.junit.jupiter.api.Test;
 public class DataStreamsTransactionExtractorsTest extends DDCoreJavaSpecification {
   @Test
   void deserializeFromJson() {
-    DataStreamsTransactionExtractors list =
-        DataStreamsTransactionExtractors.deserialize(
-            "[\n"
-                + "  {\"name\": \"extractor\", \"type\": \"HTTP_OUT_HEADERS\", \"value\": \"transaction_id\"},\n"
-                + "  {\"name\": \"second_extractor\", \"type\": \"HTTP_IN_HEADERS\", \"value\": \"transaction_id\"}\n"
-                + "]");
+    DataStreamsTransactionExtractors list = DataStreamsTransactionExtractors.deserialize("[\n"
+        + "  {\"name\": \"extractor\", \"type\": \"HTTP_OUT_HEADERS\", \"value\": \"transaction_id\"},\n"
+        + "  {\"name\": \"second_extractor\", \"type\": \"HTTP_IN_HEADERS\", \"value\": \"transaction_id\"}\n"
+        + "]");
     List<DataStreamsTransactionExtractor> extractors = list.getExtractors();
 
     assertEquals(2, extractors.size());
@@ -35,12 +33,10 @@ public class DataStreamsTransactionExtractorsTest extends DDCoreJavaSpecificatio
 
   @Test
   void deserializeKafkaTypes() {
-    DataStreamsTransactionExtractors list =
-        DataStreamsTransactionExtractors.deserialize(
-            "["
-                + "{\"name\": \"consume\", \"type\": \"KAFKA_CONSUME_HEADERS\", \"value\": \"txn\"},"
-                + "{\"name\": \"produce\", \"type\": \"KAFKA_PRODUCE_HEADERS\", \"value\": \"txn\"}"
-                + "]");
+    DataStreamsTransactionExtractors list = DataStreamsTransactionExtractors.deserialize("["
+        + "{\"name\": \"consume\", \"type\": \"KAFKA_CONSUME_HEADERS\", \"value\": \"txn\"},"
+        + "{\"name\": \"produce\", \"type\": \"KAFKA_PRODUCE_HEADERS\", \"value\": \"txn\"}"
+        + "]");
     List<DataStreamsTransactionExtractor> extractors = list.getExtractors();
 
     assertEquals(2, extractors.size());
@@ -50,9 +46,8 @@ public class DataStreamsTransactionExtractorsTest extends DDCoreJavaSpecificatio
 
   @Test
   void deserializeUnknownTypeReturnsEmpty() {
-    DataStreamsTransactionExtractors list =
-        DataStreamsTransactionExtractors.deserialize(
-            "[{\"name\": \"ext\", \"type\": \"NOT_A_REAL_TYPE\", \"value\": \"v\"}]");
+    DataStreamsTransactionExtractors list = DataStreamsTransactionExtractors.deserialize(
+        "[{\"name\": \"ext\", \"type\": \"NOT_A_REAL_TYPE\", \"value\": \"v\"}]");
 
     assertSame(DataStreamsTransactionExtractors.EMPTY, list);
     assertTrue(list.getExtractors().isEmpty());
@@ -83,9 +78,8 @@ public class DataStreamsTransactionExtractorsTest extends DDCoreJavaSpecificatio
 
   @Test
   void implToStringContainsFields() {
-    DataStreamsTransactionExtractors list =
-        DataStreamsTransactionExtractors.deserialize(
-            "[{\"name\": \"myext\", \"type\": \"HTTP_OUT_HEADERS\", \"value\": \"myval\"}]");
+    DataStreamsTransactionExtractors list = DataStreamsTransactionExtractors.deserialize(
+        "[{\"name\": \"myext\", \"type\": \"HTTP_OUT_HEADERS\", \"value\": \"myval\"}]");
     String str = list.getExtractors().get(0).toString();
 
     assertTrue(str.contains("myext"));

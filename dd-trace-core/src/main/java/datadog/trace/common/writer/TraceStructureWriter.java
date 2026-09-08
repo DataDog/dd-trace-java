@@ -117,16 +117,15 @@ public class TraceStructureWriter implements Writer {
       // build the tree
       for (DDSpan span : trace) {
         if (!traceId.equals(span.getTraceId())) {
-          String message =
-              "Trace "
-                  + traceId
-                  + " has broken trace link at "
-                  + span.getSpanId()
-                  + "("
-                  + span.getOperationName()
-                  + ")"
-                  + "->"
-                  + span.getTraceId();
+          String message = "Trace "
+              + traceId
+              + " has broken trace link at "
+              + span.getSpanId()
+              + "("
+              + span.getOperationName()
+              + ")"
+              + "->"
+              + span.getTraceId();
           out.println("ERROR: " + message);
           if (debugLog) {
             log.error(message);
@@ -136,16 +135,15 @@ public class TraceStructureWriter implements Writer {
         if (rootSpanId != span.getSpanId()) {
           Node parent = nodesById.get(span.getParentId());
           if (null == parent) {
-            String message =
-                "Trace "
-                    + traceId
-                    + " has broken parent link at "
-                    + span.getSpanId()
-                    + "("
-                    + span.getOperationName()
-                    + ")"
-                    + "->"
-                    + span.getParentId();
+            String message = "Trace "
+                + traceId
+                + " has broken parent link at "
+                + span.getSpanId()
+                + "("
+                + span.getOperationName()
+                + ")"
+                + "->"
+                + span.getParentId();
             out.println("ERROR: " + message);
             if (debugLog) {
               log.error(message);

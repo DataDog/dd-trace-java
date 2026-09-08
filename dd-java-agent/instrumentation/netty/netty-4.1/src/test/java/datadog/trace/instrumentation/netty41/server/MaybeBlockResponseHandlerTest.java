@@ -141,23 +141,19 @@ class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
     originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
     ActiveSubsystems.APPSEC_ACTIVE = true;
 
+    subscriptions.registerCallback(EVENTS.requestStarted(), new Supplier<Flow<Object>>() {
+      @Override
+      public Flow<Object> get() {
+        return new Flow.ResultFlow<>(new Object());
+      }
+    });
     subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
-        });
-    subscriptions.registerCallback(
-        EVENTS.responseHeader(),
-        new TriConsumer<RequestContext, String, String>() {
+        EVENTS.responseHeader(), new TriConsumer<RequestContext, String, String>() {
           @Override
           public void accept(RequestContext requestContext, String name, String value) {}
         });
     subscriptions.registerCallback(
-        EVENTS.responseHeaderDone(),
-        new Function<RequestContext, Flow<Void>>() {
+        EVENTS.responseHeaderDone(), new Function<RequestContext, Flow<Void>>() {
           @Override
           public Flow<Void> apply(RequestContext requestContext) {
             return new Flow.ResultFlow<Void>(null) {

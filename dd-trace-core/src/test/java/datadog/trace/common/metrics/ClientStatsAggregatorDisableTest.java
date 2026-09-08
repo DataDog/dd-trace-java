@@ -55,29 +55,27 @@ class ClientStatsAggregatorDisableTest {
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
     try {
       // Baseline: publish a span, run a report, verify the table flushes normally. This gives
       // us a clean post-first-report state with the aggregator's reconcile already having fired
       // once on the aggregator thread.
       CountDownLatch firstFlush = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                firstFlush.countDown();
-                return null;
-              })
+      org.mockito.Mockito.doAnswer(invocation -> {
+            firstFlush.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -111,11 +109,10 @@ class ClientStatsAggregatorDisableTest {
       // bucket chains), this assertion would catch it.
       when(features.supportsMetrics()).thenReturn(true);
       CountDownLatch postClearFlush = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                postClearFlush.countDown();
-                return null;
-              })
+      org.mockito.Mockito.doAnswer(invocation -> {
+            postClearFlush.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
       aggregator.publish(Collections.<CoreSpan<?>>singletonList(markerSpan()));
@@ -145,18 +142,17 @@ class ClientStatsAggregatorDisableTest {
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */ 16,
+        /* queueSize */ 64,
+        /* reportingInterval */ 10,
+        SECONDS,
+        /* includeEndpointInMetrics */ false);
     aggregator.start();
 
     // Force at least one snapshot into the inbox so the aggregator has something to drain.

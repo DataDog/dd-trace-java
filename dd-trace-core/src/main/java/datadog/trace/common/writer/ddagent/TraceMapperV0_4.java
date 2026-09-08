@@ -26,15 +26,13 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  static final SimpleUtf8Cache TAG_CACHE =
-      Config.get().getTagNameUtf8CacheSize() > 0
-          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
-          : null;
+  static final SimpleUtf8Cache TAG_CACHE = Config.get().getTagNameUtf8CacheSize() > 0
+      ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+      : null;
 
-  static final GenerationalUtf8Cache VALUE_CACHE =
-      Config.get().getTagValueUtf8CacheSize() > 0
-          ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
-          : null;
+  static final GenerationalUtf8Cache VALUE_CACHE = Config.get().getTagValueUtf8CacheSize() > 0
+      ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
+      : null;
 
   // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
   // cardinality over a timescale much longer than a single span, so recalibrating periodically
@@ -100,19 +98,17 @@ public final class TraceMapperV0_4 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
-              + (null == metadata.getOrigin() ? 0 : 1)
-              + (null == processTags ? 0 : 1)
-              + 1;
-      int metricsSize =
-          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
-              + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningVersion() != 0 ? 1 : 0)
-              + 1;
+      int metaSize = metadata.getBaggage().size()
+          + tags.size()
+          + (null == metadata.getHttpStatusCode() ? 0 : 1)
+          + (null == metadata.getOrigin() ? 0 : 1)
+          + (null == processTags ? 0 : 1)
+          + 1;
+      int metricsSize = (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
+          + (metadata.measured() ? 1 : 0)
+          + (metadata.topLevel() ? 1 : 0)
+          + (metadata.longRunningVersion() != 0 ? 1 : 0)
+          + 1;
 
       for (TagMap.EntryReader entryReader : tags) {
         if (entryReader.isNumber()) {
@@ -152,35 +148,33 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
 
-      tags.forEach(
-          writable,
-          (w, entry) -> {
-            if (!entry.isNumber()) return;
+      tags.forEach(writable, (w, entry) -> {
+        if (!entry.isNumber()) return;
 
-            w.writeString(entry.tag(), TAG_CACHE);
+        w.writeString(entry.tag(), TAG_CACHE);
 
-            switch (entry.type()) {
-              case TagMap.EntryReader.INT:
-                w.writeInt(entry.intValue());
-                break;
+        switch (entry.type()) {
+          case TagMap.EntryReader.INT:
+            w.writeInt(entry.intValue());
+            break;
 
-              case TagMap.EntryReader.LONG:
-                w.writeLong(entry.longValue());
-                break;
+          case TagMap.EntryReader.LONG:
+            w.writeLong(entry.longValue());
+            break;
 
-              case TagMap.EntryReader.FLOAT:
-                w.writeFloat(entry.floatValue());
-                break;
+          case TagMap.EntryReader.FLOAT:
+            w.writeFloat(entry.floatValue());
+            break;
 
-              case TagMap.EntryReader.DOUBLE:
-                w.writeDouble(entry.doubleValue());
-                break;
+          case TagMap.EntryReader.DOUBLE:
+            w.writeDouble(entry.doubleValue());
+            break;
 
-              default:
-                w.writeObject(entry.objectValue(), VALUE_CACHE);
-                break;
-            }
-          });
+          default:
+            w.writeObject(entry.objectValue(), VALUE_CACHE);
+            break;
+        }
+      });
 
       writable.writeUTF8(META);
       writable.startMap(metaSize);
@@ -206,21 +200,19 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeUTF8(processTags);
       }
 
-      tags.forEach(
-          writable,
-          (w, entryReader) -> {
-            if (entryReader.isNumber()) return;
+      tags.forEach(writable, (w, entryReader) -> {
+        if (entryReader.isNumber()) return;
 
-            String tag = entryReader.tag();
-            Object value = entryReader.objectValue();
-            if (value instanceof Map) {
-              // Write map as flat map
-              writeFlatMap(w, tag, (Map) value);
-            } else {
-              w.writeString(tag, TAG_CACHE);
-              w.writeObjectString(value, VALUE_CACHE);
-            }
-          });
+        String tag = entryReader.tag();
+        Object value = entryReader.objectValue();
+        if (value instanceof Map) {
+          // Write map as flat map
+          writeFlatMap(w, tag, (Map) value);
+        } else {
+          w.writeString(tag, TAG_CACHE);
+          w.writeObjectString(value, VALUE_CACHE);
+        }
+      });
     }
 
     /**

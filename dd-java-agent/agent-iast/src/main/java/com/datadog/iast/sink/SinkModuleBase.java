@@ -372,9 +372,8 @@ public abstract class SinkModuleBase {
     // If the source mapper is enabled, we should try to map the stack trace element to the original
     // source file
     if (SourceMapperImpl.INSTANCE != null) {
-      Pair<String, Integer> pair =
-          SourceMapperImpl.INSTANCE.getFileAndLine(
-              stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
+      Pair<String, Integer> pair = SourceMapperImpl.INSTANCE.getFileAndLine(
+          stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
       if (pair != null && pair.getLeft() != null && pair.getRight() != null) {
         return new StackTraceElement(
             pair.getLeft(), stackTraceElement.getMethodName(), pair.getLeft(), pair.getRight());
@@ -387,13 +386,12 @@ public abstract class SinkModuleBase {
       @Nonnull final Stream<StackTraceElement> stream) {
     final StackTraceElement[] first = new StackTraceElement[1];
     return stream
-        .filter(
-            stack -> {
-              if (first[0] == null) {
-                first[0] = stack;
-              }
-              return IastExclusionTrie.apply(stack.getClassName()) < 1;
-            })
+        .filter(stack -> {
+          if (first[0] == null) {
+            first[0] = stack;
+          }
+          return IastExclusionTrie.apply(stack.getClassName()) < 1;
+        })
         .findFirst()
         .orElse(first[0]);
   }
@@ -425,9 +423,15 @@ public abstract class SinkModuleBase {
 
     private final IastContext ctx;
     private final VulnerabilityType type;
-    @Nullable private final EvidenceBuilder evidenceBuilder;
-    @Nullable private final LocationSupplier locationSupplier;
-    @Nullable private Evidence evidence;
+
+    @Nullable
+    private final EvidenceBuilder evidenceBuilder;
+
+    @Nullable
+    private final LocationSupplier locationSupplier;
+
+    @Nullable
+    private Evidence evidence;
 
     private InjectionVisitor(
         final IastContext ctx,

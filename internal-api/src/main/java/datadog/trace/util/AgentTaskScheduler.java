@@ -124,14 +124,11 @@ public class AgentTaskScheduler implements Executor {
     // milliseconds, with p = 0.25, meaning the probability that the aggregator will not
     // have started by the nth second is 0.25(0.75)^n-1 (or a 1% chance of not having
     // started within 10 seconds, where a cap is applied)
-    long randomMillis =
-        unit.toMillis(initialDelay)
-            + Math.min(
-                (long)
-                    (1000D
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                10_000);
+    long randomMillis = unit.toMillis(initialDelay)
+        + Math.min(
+            (long)
+                (1000D * Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)),
+            10_000);
 
     return schedule(task, target, randomMillis, MILLISECONDS);
   }

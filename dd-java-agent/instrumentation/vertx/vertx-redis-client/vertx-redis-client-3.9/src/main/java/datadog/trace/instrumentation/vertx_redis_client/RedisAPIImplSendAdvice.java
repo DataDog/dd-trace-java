@@ -29,13 +29,14 @@ public class RedisAPIImplSendAdvice {
     // Note that we should not _leak_ the active scope to the handler if it gets executed directly
     try (ContextScope scope = activateSpan(noopSpan())) {
       // Get the handler from the context, set by RedisAPICallAdvice
-      ResponseHandlerWrapper handler =
-          InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).get(self);
+      ResponseHandlerWrapper handler = InstrumentationContext.get(
+              RedisAPI.class, ResponseHandlerWrapper.class)
+          .get(self);
       if (handler != null) {
         if (handler.clientSpan != null && connection != null) {
-          final SocketAddress socketAddress =
-              InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
-                  .get(connection);
+          final SocketAddress socketAddress = InstrumentationContext.get(
+                  RedisConnection.class, SocketAddress.class)
+              .get(connection);
           if (socketAddress != null) {
             DECORATE.onConnection(handler.clientSpan, socketAddress);
             DECORATE.setPeerPort(handler.clientSpan, socketAddress.port());

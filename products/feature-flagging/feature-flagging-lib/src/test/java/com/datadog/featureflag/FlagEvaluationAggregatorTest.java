@@ -23,7 +23,8 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(1, state.fullTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.fullTier.values().iterator().next();
     assertEquals(2, bucket.count);
     assertEquals(1000L, bucket.firstEvalMs);
     assertEquals(2000L, bucket.lastEvalMs);
@@ -130,7 +131,8 @@ class FlagEvaluationAggregatorTest {
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(1, state.fullTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.fullTier.values().iterator().next();
     assertTrue(bucket.runtimeDefaultUsed);
   }
 
@@ -147,7 +149,8 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.fullTier.values().iterator().next();
     assertEquals(100, bucket.prunedContextFieldCount());
     assertEquals(100, bucket.prunedAttrs.size());
   }
@@ -189,7 +192,8 @@ class FlagEvaluationAggregatorTest {
     aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
-    final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.fullTier.values().iterator().next();
     assertTrue(bucket.prunedAttrs.containsKey("short-val"));
   }
 
@@ -205,20 +209,17 @@ class FlagEvaluationAggregatorTest {
 
   @Test
   void flagEvalEventDoesNotCarryReason() {
-    final boolean hasReasonField =
-        Arrays.stream(
-                datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent.class
-                    .getDeclaredFields())
-            .anyMatch(field -> field.getName().equals("reason"));
+    final boolean hasReasonField = Arrays.stream(
+            datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent.class.getDeclaredFields())
+        .anyMatch(field -> field.getName().equals("reason"));
 
     assertFalse(hasReasonField);
   }
 
   @Test
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
 
     assertEquals(0, bucket.prunedContextFieldCount());
 

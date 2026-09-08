@@ -72,14 +72,13 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
             .and(returns(named("play.api.mvc.BodyParser")))
             .and(
                 /* only if prev didn't match */
-                hasNoDeclaredMethod(
-                    isTraitMethod(
-                            TRAIT_NAME,
-                            "multipartFormData",
-                            "scala.Function1",
-                            long.class,
-                            boolean.class)
-                        .and(returns(named("play.api.mvc.BodyParser"))))),
+                hasNoDeclaredMethod(isTraitMethod(
+                        TRAIT_NAME,
+                        "multipartFormData",
+                        "scala.Function1",
+                        long.class,
+                        boolean.class)
+                    .and(returns(named("play.api.mvc.BodyParser"))))),
         PlayBodyParsersInstrumentation.class.getName() + "$MultipartFormDataAdvice");
     transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "tolerantJson", is(int.class).or(is(long.class)))
@@ -96,10 +95,8 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return(readOnly = false) BodyParser<Map<String, Seq<String>>> parser) {
 
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleUrlEncodedMapF(),
-              Execution.Implicits$.MODULE$.trampoline());
+      parser = parser.map(
+          BodyParserHelpers.getHandleUrlEncodedMapF(), Execution.Implicits$.MODULE$.trampoline());
     }
   }
 
@@ -117,9 +114,8 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleStringMapF(), Execution.Implicits$.MODULE$.trampoline());
+      parser = parser.map(
+          BodyParserHelpers.getHandleStringMapF(), Execution.Implicits$.MODULE$.trampoline());
     }
   }
 
@@ -127,10 +123,9 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.Return(readOnly = false) BodyParser<MultipartFormData<?>> parser) {
 
-      parser =
-          parser.map(
-              BodyParserHelpers.getHandleMultipartFormDataF(),
-              Execution.Implicits$.MODULE$.trampoline());
+      parser = parser.map(
+          BodyParserHelpers.getHandleMultipartFormDataF(),
+          Execution.Implicits$.MODULE$.trampoline());
     }
   }
 

@@ -171,9 +171,8 @@ public class OtelSpanEvent {
   }
 
   public String toJson() {
-    StringBuilder builder =
-        new StringBuilder(
-            "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
+    StringBuilder builder = new StringBuilder(
+        "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
     if (!this.attributes.isEmpty()) {
       builder.append(",\"attributes\":").append(this.attributes);
     }

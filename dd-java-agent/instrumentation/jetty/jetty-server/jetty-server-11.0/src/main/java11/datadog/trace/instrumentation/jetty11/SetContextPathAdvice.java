@@ -38,10 +38,9 @@ public class SetContextPathAdvice {
     span.setTag(SERVLET_CONTEXT, servletContext);
     req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, servletContext);
     if (pathInContext != null) {
-      final String relativePath =
-          pathInContext.startsWith(servletContext)
-              ? pathInContext.substring(servletContext.length())
-              : pathInContext;
+      final String relativePath = pathInContext.startsWith(servletContext)
+          ? pathInContext.substring(servletContext.length())
+          : pathInContext;
       span.setTag(SERVLET_PATH, relativePath);
       req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, relativePath);
     }

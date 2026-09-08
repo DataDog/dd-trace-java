@@ -8,37 +8,35 @@ import javax.annotation.Nullable;
 
 public class CiVisibilitySettings {
 
-  public static final CiVisibilitySettings DEFAULT =
-      new CiVisibilitySettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          false);
+  public static final CiVisibilitySettings DEFAULT = new CiVisibilitySettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      false);
 
-  public static final CiVisibilitySettings SETTINGS_REQUEST_ERROR =
-      new CiVisibilitySettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          true);
+  public static final CiVisibilitySettings SETTINGS_REQUEST_ERROR = new CiVisibilitySettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      true);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
@@ -51,7 +49,10 @@ public class CiVisibilitySettings {
   private final boolean failedTestReplayEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
-  @Nullable private final String defaultBranch;
+
+  @Nullable
+  private final String defaultBranch;
+
   private final boolean settingsRequestError;
 
   CiVisibilitySettings(

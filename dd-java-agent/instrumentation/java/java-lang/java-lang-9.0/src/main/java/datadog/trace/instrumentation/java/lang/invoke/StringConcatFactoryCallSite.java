@@ -58,9 +58,8 @@ public class StringConcatFactoryCallSite {
         throw new IllegalArgumentException(
             "Expected ConstantCallSite, received " + callSite.getClass());
       }
-      MethodHandle target =
-          MethodHandles.insertArguments(
-              INSTRUMENTATION_BRIDGE, 2, recipe, constants, preprocessRecipe(recipe, constants));
+      MethodHandle target = MethodHandles.insertArguments(
+          INSTRUMENTATION_BRIDGE, 2, recipe, constants, preprocessRecipe(recipe, constants));
       target = target.asCollector(1, String[].class, concatType.parameterCount());
       target = MethodHandles.foldArguments(target, callSite.getTarget());
       target = MethodHandles.filterArguments(target, 0, toStringMethods);

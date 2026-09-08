@@ -42,10 +42,9 @@ public class ConfigConverterTest {
     "off         "
   })
   void convertBooleanPropertiesThrowsExceptionForInvalidValues(String invalidValue) {
-    ConfigConverter.InvalidBooleanValueException exception =
-        assertThrows(
-            ConfigConverter.InvalidBooleanValueException.class,
-            () -> ConfigConverter.valueOf(invalidValue, Boolean.class));
+    ConfigConverter.InvalidBooleanValueException exception = assertThrows(
+        ConfigConverter.InvalidBooleanValueException.class,
+        () -> ConfigConverter.valueOf(invalidValue, Boolean.class));
     assertTrue(exception.getMessage().contains("Invalid boolean value:"));
   }
 

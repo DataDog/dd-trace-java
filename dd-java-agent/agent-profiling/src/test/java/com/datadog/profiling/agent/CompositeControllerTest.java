@@ -23,14 +23,13 @@ public class CompositeControllerTest {
     final String javaVendor = System.getProperty("java.vendor");
     final String javaRuntimeName = System.getProperty("java.runtime.name");
     final String javaVersion = System.getProperty("java.version");
-    String expected =
-        "Not enabling profiling for vendor="
-            + javaVendor
-            + ", version="
-            + javaVersion
-            + ", runtimeName="
-            + javaRuntimeName
-            + "; it requires ";
+    String expected = "Not enabling profiling for vendor="
+        + javaVendor
+        + ", version="
+        + javaVersion
+        + ", runtimeName="
+        + javaRuntimeName
+        + "; it requires ";
     if (javaVendor.equals("Azul Systems, Inc.")) {
       expected += "Zulu Java 8 (1.8.0_212+).";
     } else if (javaVendor.equals("Oracle Corporation") && !javaRuntimeName.startsWith("OpenJDK")) {

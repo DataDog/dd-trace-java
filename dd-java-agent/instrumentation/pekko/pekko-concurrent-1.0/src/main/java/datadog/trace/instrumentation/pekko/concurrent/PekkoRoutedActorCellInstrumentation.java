@@ -39,9 +39,8 @@ public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Cont
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("sendMessage")
-                    .and(takesArgument(0, named("org.apache.pekko.dispatch.Envelope")))),
+            .and(named("sendMessage")
+                .and(takesArgument(0, named("org.apache.pekko.dispatch.Envelope")))),
         getClass().getName() + "$SendMessageAdvice");
   }
 

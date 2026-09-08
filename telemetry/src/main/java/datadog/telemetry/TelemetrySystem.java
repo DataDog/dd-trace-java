@@ -131,10 +131,9 @@ public class TelemetrySystem {
     DependencyService dependencyService = createDependencyService(instrumentation);
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
-    HttpRetryPolicy.Factory httpRetryPolicy =
-        config.isCiVisibilityEnabled()
-            ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
-            : HttpRetryPolicy.Factory.NEVER_RETRY;
+    HttpRetryPolicy.Factory httpRetryPolicy = config.isCiVisibilityEnabled()
+        ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
+        : HttpRetryPolicy.Factory.NEVER_RETRY;
 
     TelemetryClient agentClient =
         TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
@@ -142,9 +141,8 @@ public class TelemetrySystem {
 
     boolean useIntakeClientByDefault =
         config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
-    TelemetryService telemetryService =
-        TelemetryService.build(
-            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
+    TelemetryService telemetryService = TelemetryService.build(
+        ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);

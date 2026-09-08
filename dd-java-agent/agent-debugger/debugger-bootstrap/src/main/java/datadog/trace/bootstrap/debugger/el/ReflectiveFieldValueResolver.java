@@ -267,8 +267,7 @@ public class ReflectiveFieldValueResolver {
     if (MODULE_CLASS != null && GET_MODULE != null) {
       try {
         Object module = GET_MODULE.invoke(field.getDeclaringClass());
-        return "Field is not accessible: "
-            + module
+        return "Field is not accessible: " + module
             + " does not opens/exports to the current module";
       } catch (Throwable ex) {
         LOGGER.debug("buildInaccessibleMsg failed: ", ex);

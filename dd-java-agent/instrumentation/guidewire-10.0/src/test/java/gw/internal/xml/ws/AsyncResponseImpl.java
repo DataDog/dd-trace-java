@@ -16,13 +16,12 @@ public class AsyncResponseImpl {
 
   // The boolean only distinguishes this overload from the no-arg constructor; its value is unused.
   private AsyncResponseImpl(boolean anonymous) {
-    this.thread =
-        new Thread() {
-          @Override
-          public void run() {
-            soapCall();
-          }
-        };
+    this.thread = new Thread() {
+      @Override
+      public void run() {
+        soapCall();
+      }
+    };
   }
 
   public static AsyncResponseImpl anonymous() {

@@ -25,10 +25,9 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
     method = httpRequest.getRequestLine().getMethod();
     requestLine = httpRequest.getRequestLine();
     protocolVersion = requestLine.getProtocolVersion();
-    uri =
-        legacyTracingEnabled
-            ? URIUtils.safeParse(requestLine.getUri())
-            : URIUtils.safeConcat(httpHost.toURI(), requestLine.getUri());
+    uri = legacyTracingEnabled
+        ? URIUtils.safeParse(requestLine.getUri())
+        : URIUtils.safeConcat(httpHost.toURI(), requestLine.getUri());
     actualRequest = httpRequest;
   }
 

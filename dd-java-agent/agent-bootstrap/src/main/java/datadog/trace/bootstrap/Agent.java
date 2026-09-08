@@ -272,9 +272,8 @@ public class Agent {
     appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     iastFullyDisabled = isIastFullyDisabled(appSecEnabled);
-    remoteConfigEnabled =
-        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
-            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
+    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+        || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
@@ -604,19 +603,16 @@ public class Agent {
        * to load classes being transformed. To avoid this we start a thread here that calls the callback.
        * This seems to resolve this problem.
        */
-      final Thread thread =
-          newAgentThread(
-              agentThread(),
-              new Runnable() {
-                @Override
-                public void run() {
-                  try {
-                    execute();
-                  } catch (final Exception e) {
-                    log.error("Failed to run {}", agentThread(), e);
-                  }
-                }
-              });
+      final Thread thread = newAgentThread(agentThread(), new Runnable() {
+        @Override
+        public void run() {
+          try {
+            execute();
+          } catch (final Exception e) {
+            log.error("Failed to run {}", agentThread(), e);
+          }
+        }
+      });
       thread.start();
     }
 
@@ -840,9 +836,8 @@ public class Agent {
       // install global tracer
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
-      final Method tracerInstallerMethod =
-          tracerInstallerClass.getMethod(
-              "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
+      final Method tracerInstallerMethod = tracerInstallerClass.getMethod(
+          "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
       tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
     } catch (final FatalAgentMisconfigurationError ex) {
       throw ex;
@@ -1461,28 +1456,25 @@ public class Agent {
       return;
     }
     log.debug("Scheduling scope event factory registration");
-    WithGlobalTracer.registerOrExecute(
-        new WithGlobalTracer.Callback() {
-          @Override
-          public void withTracer(TracerAPI tracer) {
-            log.debug("Registering CWS scope tracker");
-            try {
-              ScopeListener scopeListener =
-                  (ScopeListener)
-                      AGENT_CLASSLOADER
-                          .loadClass("datadog.cws.tls.TlsScopeListener")
-                          .getDeclaredConstructor()
-                          .newInstance();
-              tracer.addScopeListener(scopeListener);
-              log.debug("Scope event factory {} has been registered", scopeListener);
-            } catch (Throwable e) {
-              if (e instanceof InvocationTargetException) {
-                e = e.getCause();
-              }
-              log.debug("CWS is not available. {}", e.getMessage());
-            }
+    WithGlobalTracer.registerOrExecute(new WithGlobalTracer.Callback() {
+      @Override
+      public void withTracer(TracerAPI tracer) {
+        log.debug("Registering CWS scope tracker");
+        try {
+          ScopeListener scopeListener = (ScopeListener) AGENT_CLASSLOADER
+              .loadClass("datadog.cws.tls.TlsScopeListener")
+              .getDeclaredConstructor()
+              .newInstance();
+          tracer.addScopeListener(scopeListener);
+          log.debug("Scope event factory {} has been registered", scopeListener);
+        } catch (Throwable e) {
+          if (e instanceof InvocationTargetException) {
+            e = e.getCause();
           }
-        });
+          log.debug("CWS is not available. {}", e.getMessage());
+        }
+      }
+    });
   }
 
   /**
@@ -1493,11 +1485,10 @@ public class Agent {
     if (Config.get().isProfilingEnabled()) {
       if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
         try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
+          return (ProfilingContextIntegration) AGENT_CLASSLOADER
+              .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+              .getDeclaredConstructor()
+              .newInstance();
         } catch (Throwable t) {
           log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
         }
@@ -1505,11 +1496,10 @@ public class Agent {
       if (Config.get().isProfilingTimelineEventsEnabled()) {
         // important: note that this will not initialise JFR until onStart is called
         try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
+          return (ProfilingContextIntegration) AGENT_CLASSLOADER
+              .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+              .getDeclaredConstructor()
+              .newInstance();
         } catch (Throwable t) {
           log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
         }
@@ -1558,11 +1548,10 @@ public class Agent {
 
   private static void initProfilerContext() {
     log.debug("Scheduling profiler context initialization");
-    WithGlobalTracer.registerOrExecute(
-        tracer -> {
-          log.debug("Initializing profiler context integration");
-          tracer.getProfilingContext().onStart();
-        });
+    WithGlobalTracer.registerOrExecute(tracer -> {
+      log.debug("Initializing profiler context integration");
+      tracer.getProfilingContext().onStart();
+    });
   }
 
   private static boolean isAwsLambdaRuntime() {

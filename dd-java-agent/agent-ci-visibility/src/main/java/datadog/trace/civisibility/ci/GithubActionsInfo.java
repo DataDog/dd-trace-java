@@ -93,9 +93,8 @@ class GithubActionsInfo implements CIProviderInfo {
     String pipelineId = environment.get(GHACTIONS_PIPELINE_ID);
     String commit = environment.get(GHACTIONS_SHA);
 
-    final String pipelineUrl =
-        buildPipelineUrl(
-            serverUrl, repository, pipelineId, environment.get(GHACTIONS_PIPELINE_RETRY));
+    final String pipelineUrl = buildPipelineUrl(
+        serverUrl, repository, pipelineId, environment.get(GHACTIONS_PIPELINE_RETRY));
 
     // Try to get numeric job ID for better job URL
     String numericJobId = getNumericJobId();
@@ -262,7 +261,10 @@ class GithubActionsInfo implements CIProviderInfo {
       Path mostRecentLog = null;
       for (Path workerLog : stream) {
         if (mostRecentLog == null
-            || workerLog.getFileName().toString().compareTo(mostRecentLog.getFileName().toString())
+            || workerLog
+                    .getFileName()
+                    .toString()
+                    .compareTo(mostRecentLog.getFileName().toString())
                 > 0) {
           mostRecentLog = workerLog;
         }

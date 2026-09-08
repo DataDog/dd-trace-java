@@ -32,10 +32,9 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
     return Stream.of(
         Arguments.of(
             "sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
-        Arguments.of(
-            "sampleProject/pom.xml",
-            "surefire:test",
-            new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
+        Arguments.of("sampleProject/pom.xml", "surefire:test", new String[] {
+          "-X", "-DargLine=-DmyArgLineProp=true"
+        }),
         Arguments.of("sampleProjectArgLine/pom.xml", "test", new String[] {"-X"}),
         Arguments.of("sampleProjectArgLine/pom.xml", "surefire:test", new String[] {"-X"}),
         Arguments.of("sampleProjectSurefireArgLine/pom.xml", "test", new String[] {"-X"}),
@@ -67,10 +66,9 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       String buildOutputLine;
       while ((buildOutputLine = buildOutputReader.readLine()) != null) {
         javaAgentInjected |= buildOutputLine.contains("TEST JAVA AGENT STARTED");
-        argLinePreserved |=
-            buildOutputLine.contains("surefire")
-                && buildOutputLine.contains("Forking command line")
-                && buildOutputLine.contains("-DmyArgLineProp=true");
+        argLinePreserved |= buildOutputLine.contains("surefire")
+            && buildOutputLine.contains("Forking command line")
+            && buildOutputLine.contains("-DmyArgLineProp=true");
       }
 
       assertTrue(javaAgentInjected, "Tracer wasn't injected");
@@ -96,7 +94,8 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       when(config.isCiVisibilityAutoConfigurationEnabled()).thenReturn(true);
       when(config.getCiVisibilityDebugPort()).thenReturn(null);
       when(config.getCiVisibilityAgentJarFile())
-          .thenReturn(new File(MavenUtilsTest.class.getResource("simple-agent.jar").toURI()));
+          .thenReturn(
+              new File(MavenUtilsTest.class.getResource("simple-agent.jar").toURI()));
       MavenProjectConfigurator.INSTANCE.configureTracer(
           session, project, mojoExecution, Collections.emptyMap(), config);
       return true;

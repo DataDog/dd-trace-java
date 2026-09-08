@@ -27,14 +27,13 @@ public class MuleDecorator extends BaseDecorator {
       new Functions.Prefix("mule.").andThen(new Functions.ToString<>());
   private static final DDCache<Component, String> COMPONENT_DOC_CACHE =
       DDCaches.newFixedSizeCache(1014);
-  private static final Function<Component, String> COMPONENT_DOC_ADDER =
-      component -> {
-        final Object ret = component.getAnnotation(Component.Annotations.NAME_ANNOTATION_KEY);
-        if (ret != null) {
-          return ret.toString();
-        }
-        return null;
-      };
+  private static final Function<Component, String> COMPONENT_DOC_ADDER = component -> {
+    final Object ret = component.getAnnotation(Component.Annotations.NAME_ANNOTATION_KEY);
+    if (ret != null) {
+      return ret.toString();
+    }
+    return null;
+  };
 
   @Override
   protected String[] instrumentationNames() {

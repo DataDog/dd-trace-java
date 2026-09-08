@@ -50,7 +50,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
 
     final HttpHeaders headers = request.headers();
-    final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
+    final Context storedParentContext =
+        channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
     final Context parentContext =
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);

@@ -43,18 +43,16 @@ public class EndpointInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onOpen")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))),
+            .and(named("onOpen")
+                .and(takesArguments(2))
+                .and(takesArgument(0, named(namespace + ".websocket.Session")))),
         getClass().getName() + "$CaptureHandshakeSpanAdvice");
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onClose")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))
-                    .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
+            .and(named("onClose")
+                .and(takesArguments(2))
+                .and(takesArgument(0, named(namespace + ".websocket.Session")))
+                .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
         getClass().getName() + "$SessionCloseAdvice");
   }
 
@@ -88,9 +86,10 @@ public class EndpointInstrumentation
       handlerContext =
           new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
 
-      return activateSpan(
-          DECORATE.startInboundCloseSpan(
-              handlerContext, closeReason.getReasonPhrase(), closeReason.getCloseCode().getCode()));
+      return activateSpan(DECORATE.startInboundCloseSpan(
+          handlerContext,
+          closeReason.getReasonPhrase(),
+          closeReason.getCloseCode().getCode()));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

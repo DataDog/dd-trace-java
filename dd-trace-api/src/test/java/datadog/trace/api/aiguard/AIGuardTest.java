@@ -25,11 +25,9 @@ class AIGuardTest {
 
   @Test
   void testAssistantToolCall() {
-    AIGuard.Message message =
-        AIGuard.Message.assistant(
-            AIGuard.ToolCall.toolCall(
-                "1", "execute_http_request", "{ \"url\": \"http://localhost\" }"),
-            AIGuard.ToolCall.toolCall("2", "random_number", "{ \"min\": 0, \"max\": 10 }"));
+    AIGuard.Message message = AIGuard.Message.assistant(
+        AIGuard.ToolCall.toolCall("1", "execute_http_request", "{ \"url\": \"http://localhost\" }"),
+        AIGuard.ToolCall.toolCall("2", "random_number", "{ \"min\": 0, \"max\": 10 }"));
 
     assertEquals("assistant", message.getRole());
     assertNull(message.getContent());
@@ -60,17 +58,15 @@ class AIGuardTest {
 
   @Test
   void testNoopImplementation() {
-    List<AIGuard.Message> messages =
-        Arrays.asList(
-            AIGuard.Message.message("system", "You are a beautiful AI assistant"),
-            AIGuard.Message.message("user", "What day is today?"),
-            AIGuard.Message.message("assistant", "Today is monday"),
-            AIGuard.Message.message("user", "Give me a random number"),
-            AIGuard.Message.assistant(
-                AIGuard.ToolCall.toolCall(
-                    "1", "generate_random_number", "{ \"min\": 0, \"max\": 10 }")),
-            AIGuard.Message.tool("1", "5"),
-            AIGuard.Message.message("assistant", "Your number is 5"));
+    List<AIGuard.Message> messages = Arrays.asList(
+        AIGuard.Message.message("system", "You are a beautiful AI assistant"),
+        AIGuard.Message.message("user", "What day is today?"),
+        AIGuard.Message.message("assistant", "Today is monday"),
+        AIGuard.Message.message("user", "Give me a random number"),
+        AIGuard.Message.assistant(AIGuard.ToolCall.toolCall(
+            "1", "generate_random_number", "{ \"min\": 0, \"max\": 10 }")),
+        AIGuard.Message.tool("1", "5"),
+        AIGuard.Message.message("assistant", "Your number is 5"));
 
     AIGuard.Evaluation evaluation = AIGuard.evaluate(messages);
 
@@ -99,12 +95,11 @@ class AIGuardTest {
 
   @Test
   void testMessageWithContentParts() {
-    AIGuard.Message message =
-        AIGuard.Message.message(
-            "user",
-            Arrays.asList(
-                AIGuard.ContentPart.text("Describe this image:"),
-                AIGuard.ContentPart.imageUrl("https://example.com/image.jpg")));
+    AIGuard.Message message = AIGuard.Message.message(
+        "user",
+        Arrays.asList(
+            AIGuard.ContentPart.text("Describe this image:"),
+            AIGuard.ContentPart.imageUrl("https://example.com/image.jpg")));
 
     assertEquals("user", message.getRole());
     assertNull(message.getContent());
@@ -112,9 +107,11 @@ class AIGuardTest {
     assertEquals(2, message.getContentParts().size());
     assertEquals(AIGuard.ContentPart.Type.TEXT, message.getContentParts().get(0).getType());
     assertEquals("Describe this image:", message.getContentParts().get(0).getText());
-    assertEquals(AIGuard.ContentPart.Type.IMAGE_URL, message.getContentParts().get(1).getType());
     assertEquals(
-        "https://example.com/image.jpg", message.getContentParts().get(1).getImageUrl().getUrl());
+        AIGuard.ContentPart.Type.IMAGE_URL, message.getContentParts().get(1).getType());
+    assertEquals(
+        "https://example.com/image.jpg",
+        message.getContentParts().get(1).getImageUrl().getUrl());
   }
 
   @Test
@@ -127,9 +124,8 @@ class AIGuardTest {
 
   @Test
   void testMessageWithContentPartsReturnsNullContent() {
-    AIGuard.Message message =
-        AIGuard.Message.message(
-            "user", Collections.singletonList(AIGuard.ContentPart.text("Hello")));
+    AIGuard.Message message = AIGuard.Message.message(
+        "user", Collections.singletonList(AIGuard.ContentPart.text("Hello")));
 
     assertNull(message.getContent());
     assertNotNull(message.getContentParts());

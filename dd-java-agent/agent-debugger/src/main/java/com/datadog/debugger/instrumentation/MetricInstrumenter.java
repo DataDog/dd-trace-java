@@ -115,21 +115,19 @@ public class MetricInstrumenter extends Instrumenter {
     }
     switch (definition.getEvaluateAt()) {
       case ENTRY:
-      case DEFAULT:
-        {
-          InsnList insnList = wrapTryCatch(callMetric(metricProbe, null));
-          methodNode.instructions.insert(methodEnterLabel, insnList);
-          break;
-        }
-      case EXIT:
-        {
-          Map<AbstractInsnNode, Frame<BasicValue>> frames =
-              ASMHelper.computeFrames(classNode.name, methodNode);
-          processInstructions(frames);
-          addFinallyHandler(returnHandlerLabel);
-          installFinallyBlocks();
-          break;
-        }
+      case DEFAULT: {
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe, null));
+        methodNode.instructions.insert(methodEnterLabel, insnList);
+        break;
+      }
+      case EXIT: {
+        Map<AbstractInsnNode, Frame<BasicValue>> frames =
+            ASMHelper.computeFrames(classNode.name, methodNode);
+        processInstructions(frames);
+        addFinallyHandler(returnHandlerLabel);
+        installFinallyBlocks();
+        break;
+      }
       default:
         throw new IllegalArgumentException(
             "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
@@ -168,9 +166,8 @@ public class MetricInstrumenter extends Instrumenter {
     // stack []
     handler.add(new JumpInsnNode(Opcodes.GOTO, endLabel));
     methodNode.instructions.add(handler);
-    methodNode.tryCatchBlocks.add(
-        new TryCatchBlockNode(
-            startLabel, endLabel, handlerLabel, Type.getInternalName(Exception.class)));
+    methodNode.tryCatchBlocks.add(new TryCatchBlockNode(
+        startLabel, endLabel, handlerLabel, Type.getInternalName(Exception.class)));
     return insnList;
   }
 
@@ -218,9 +215,8 @@ public class MetricInstrumenter extends Instrumenter {
         throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());
     }
     int tmpIdx = newVar(size);
-    InsnList insnList =
-        wrapTryCatch(
-            callMetric(metricProbe, node, new ReturnContext(tmpIdx, loadOpCode, returnType)));
+    InsnList insnList = wrapTryCatch(
+        callMetric(metricProbe, node, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
     InsnList prefixInsns = new InsnList();
     prefixInsns.add(new VarInsnNode(storeOpCode, tmpIdx));
@@ -288,11 +284,10 @@ public class MetricInstrumenter extends Instrumenter {
     VisitorResult result;
     Type resultType;
     try {
-      result =
-          metricProbe
-              .getValue()
-              .getExpr()
-              .accept(new MetricValueVisitor(this, nullBranch, targetLocation, returnContext));
+      result = metricProbe
+          .getValue()
+          .getExpr()
+          .accept(new MetricValueVisitor(this, nullBranch, targetLocation, returnContext));
     } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
@@ -300,14 +295,12 @@ public class MetricInstrumenter extends Instrumenter {
     resultType = result.type.getMainType();
     MetricProbe.MetricKind kind = metricProbe.getKind();
     if (!kind.isCompatible(resultType)) {
-      String expectedTypes =
-          kind.getSupportedTypes().stream()
-              .map(Type::getClassName)
-              .collect(Collectors.joining(","));
-      reportError(
-          String.format(
-              "Incompatible type for expression: %s with expected types: [%s]",
-              resultType.getClassName(), expectedTypes));
+      String expectedTypes = kind.getSupportedTypes().stream()
+          .map(Type::getClassName)
+          .collect(Collectors.joining(","));
+      reportError(String.format(
+          "Incompatible type for expression: %s with expected types: [%s]",
+          resultType.getClassName(), expectedTypes));
       return EMPTY_INSN_LIST;
     }
     resultType = convertIfRequired(resultType, result.insnList);
@@ -633,10 +626,9 @@ public class MetricInstrumenter extends Instrumenter {
 
     private VisitorResult buildResultWithElementType(ASMHelper.Type targetType, InsnList insnList) {
       // assume the first generic type of targetResult is the type of elements
-      ASMHelper.Type elementType =
-          targetType.getGenericTypes().isEmpty()
-              ? ASMHelper.OBJECT_TYPE
-              : targetType.getGenericTypes().get(0);
+      ASMHelper.Type elementType = targetType.getGenericTypes().isEmpty()
+          ? ASMHelper.OBJECT_TYPE
+          : targetType.getGenericTypes().get(0);
       insnList.add(
           new TypeInsnNode(Opcodes.CHECKCAST, elementType.getMainType().getInternalName()));
       return new VisitorResult(elementType, insnList);
@@ -672,8 +664,8 @@ public class MetricInstrumenter extends Instrumenter {
         ldc(insnList, number.longValue());
         return new VisitorResult(ASMHelper.LONG_TYPE, insnList);
       }
-      throw new InvalidValueException(
-          "Unsupported constant value: " + number + " type: " + number.getClass().getTypeName());
+      throw new InvalidValueException("Unsupported constant value: " + number + " type: "
+          + number.getClass().getTypeName());
     }
 
     @Override
@@ -771,10 +763,9 @@ public class MetricInstrumenter extends Instrumenter {
         boolean isAccessible = true;
         if (currentType.getInternalName().equals(instrumentor.classNode.name)) { // this
           className = instrumentor.classNode.name;
-          List<FieldNode> fieldList =
-              instrumentor.isStatic
-                  ? new ArrayList<>()
-                  : new ArrayList<>(instrumentor.classNode.fields);
+          List<FieldNode> fieldList = instrumentor.isStatic
+              ? new ArrayList<>()
+              : new ArrayList<>(instrumentor.classNode.fields);
           for (FieldNode fieldNode : fieldList) {
             if (fieldNode.name.equals(fieldName)) {
               if (isStaticField(fieldNode)) {
@@ -795,9 +786,8 @@ public class MetricInstrumenter extends Instrumenter {
           }
         } else {
           className = currentType.getClassName();
-          clazz =
-              ensureSafeClassLoad(
-                  className, getClassName(instrumentor.classNode.name), instrumentor.classLoader);
+          clazz = ensureSafeClassLoad(
+              className, getClassName(instrumentor.classNode.name), instrumentor.classLoader);
           Field declaredField = clazz.getDeclaredField(fieldName); // no parent fields!
           isAccessible = declaredField.isAccessible();
           fieldDesc = Type.getDescriptor(declaredField.getType());

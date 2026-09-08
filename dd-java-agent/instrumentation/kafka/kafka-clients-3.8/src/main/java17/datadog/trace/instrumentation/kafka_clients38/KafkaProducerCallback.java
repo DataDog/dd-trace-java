@@ -50,13 +50,8 @@ public class KafkaProducerCallback implements Callback {
     if (metadata == null) {
       return;
     }
-    DataStreamsTags tags =
-        DataStreamsTags.createWithPartition(
-            "kafka_produce",
-            metadata.topic(),
-            String.valueOf(metadata.partition()),
-            clusterId,
-            null);
+    DataStreamsTags tags = DataStreamsTags.createWithPartition(
+        "kafka_produce", metadata.topic(), String.valueOf(metadata.partition()), clusterId, null);
     AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
   }
 }

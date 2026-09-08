@@ -25,7 +25,8 @@ public class GradleDaemonInjectionUtils {
 
     File agentJar = Config.get().getCiVisibilityAgentJarFile();
     Path agentJarPath = agentJar.toPath();
-    StringBuilder agentArg = new StringBuilder("-javaagent:").append(agentJarPath).append('=');
+    StringBuilder agentArg =
+        new StringBuilder("-javaagent:").append(agentJarPath).append('=');
 
     for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
       String propertyName = p.getKey();

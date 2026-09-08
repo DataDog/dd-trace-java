@@ -82,13 +82,12 @@ public class FlagEvalHookHotPathBenchmark {
   @Setup(Level.Trial)
   public void setUp() {
     final MutableContext ctx = buildContext(shape);
-    hookContext =
-        HookContext.builder()
-            .flagKey("bench-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(ctx)
-            .build();
+    hookContext = HookContext.builder()
+        .flagKey("bench-flag")
+        .type(FlagValueType.STRING)
+        .defaultValue("default")
+        .ctx(ctx)
+        .build();
 
     consentOnDetails = details(true);
     consentOffDetails = details(false);
@@ -127,13 +126,12 @@ public class FlagEvalHookHotPathBenchmark {
         .value("on-value")
         .variant("on")
         .reason(Reason.TARGETING_MATCH.name())
-        .flagMetadata(
-            ImmutableMetadata.builder()
-                .addString("allocationKey", "alloc-1")
-                .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
-                .addBoolean(
-                    DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-                .build())
+        .flagMetadata(ImmutableMetadata.builder()
+            .addString("allocationKey", "alloc-1")
+            .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+            .addBoolean(
+                DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+            .build())
         .build();
   }
 

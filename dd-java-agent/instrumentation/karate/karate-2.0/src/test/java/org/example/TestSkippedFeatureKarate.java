@@ -10,10 +10,9 @@ public class TestSkippedFeatureKarate {
 
   @Test
   void testParallel() {
-    Results results =
-        Runner.path("classpath:org/example/test_succeed.feature")
-            .systemProperty("karate.options", "--tags ~@foo")
-            .parallel(1);
+    Results results = Runner.path("classpath:org/example/test_succeed.feature")
+        .systemProperty("karate.options", "--tags ~@foo")
+        .parallel(1);
     assertEquals(0, results.getFailCount(), results.getErrorMessages());
   }
 }

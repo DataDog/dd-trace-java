@@ -67,12 +67,11 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     String fingerprint = Fingerprinter.fingerprint(element);
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
-      Where where =
-          Where.of(
-              element.getClassName(),
-              element.getMethodName(),
-              null,
-              String.valueOf(element.getLineNumber()));
+      Where where = Where.of(
+          element.getClassName(),
+          element.getMethodName(),
+          null,
+          String.valueOf(element.getLineNumber()));
       probe = createProbe(fingerprint, entry, where);
     }
     return probe.getId();
@@ -94,16 +93,15 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   public void registerLogProbe(CodeOriginProbe probe) {
     logProbes.computeIfAbsent(
         probe.getId(),
-        key ->
-            new Builder()
-                .language(probe.getLanguage())
-                .probeId(ProbeId.newId())
-                .where(probe.getWhere())
-                .evaluateAt(probe.getEvaluateAt())
-                .captureSnapshot(true)
-                .tags("session_id:*")
-                .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
-                .build());
+        key -> new Builder()
+            .language(probe.getLanguage())
+            .probeId(ProbeId.newId())
+            .where(probe.getWhere())
+            .evaluateAt(probe.getEvaluateAt())
+            .captureSnapshot(true)
+            .tags("session_id:*")
+            .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
+            .build());
   }
 
   private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
@@ -134,12 +132,10 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   private StackTraceElement findPlaceInStack() {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
-                .findFirst()
-                .orElse(null));
+    return StackWalkerFactory.INSTANCE.walk(stream -> stream
+        .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
+        .findFirst()
+        .orElse(null));
   }
 
   public void installProbes() {

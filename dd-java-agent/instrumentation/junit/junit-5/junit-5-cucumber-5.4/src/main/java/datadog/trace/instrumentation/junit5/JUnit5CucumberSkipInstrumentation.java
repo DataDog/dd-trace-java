@@ -54,10 +54,8 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         // legacy Cucumber versions
         .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")))
         // Cucumber 7.24+
-        .or(
-            extendsClass(
-                named(
-                    "io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")));
+        .or(extendsClass(
+            named("io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")));
   }
 
   @Override

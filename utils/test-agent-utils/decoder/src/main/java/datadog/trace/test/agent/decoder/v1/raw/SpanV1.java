@@ -434,28 +434,25 @@ public class SpanV1 implements DecodedSpan {
   private static void unpackLinkAttributes(
       MessageUnpacker unpacker, List<String> stringTable, Map<String, String> attributes)
       throws IOException {
-    forEachAttribute(
-        unpacker,
-        stringTable,
-        (attributeUnpacker, table, key, valueType) -> {
-          switch (valueType) {
-            case STRING_VALUE_TYPE:
-              attributes.put(key, unpackStreamingString(attributeUnpacker, table));
-              break;
-            case BOOL_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
-              break;
-            case FLOAT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
-              break;
-            case INT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
-              break;
-            default:
-              attributeUnpacker.skipValue();
-              break;
-          }
-        });
+    forEachAttribute(unpacker, stringTable, (attributeUnpacker, table, key, valueType) -> {
+      switch (valueType) {
+        case STRING_VALUE_TYPE:
+          attributes.put(key, unpackStreamingString(attributeUnpacker, table));
+          break;
+        case BOOL_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
+          break;
+        case FLOAT_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
+          break;
+        case INT_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
+          break;
+        default:
+          attributeUnpacker.skipValue();
+          break;
+      }
+    });
   }
 
   static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)

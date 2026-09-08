@@ -181,9 +181,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         final AgentScope scope = HelperMethods.doMethodEnter(host, request);
         // Wrap the handler so we capture the status code
         if (null != scope && handler instanceof HttpClientResponseHandler) {
-          handler =
-              new WrappingStatusSettingResponseHandler(
-                  scope.span(), (HttpClientResponseHandler) handler);
+          handler = new WrappingStatusSettingResponseHandler(
+              scope.span(), (HttpClientResponseHandler) handler);
         }
         return scope;
       } catch (BlockingException e) {

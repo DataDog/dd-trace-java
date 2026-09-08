@@ -81,11 +81,9 @@ class ExpressionTest {
     assertEquals("1 <= 1", print(le(value(1), value(1))));
     assertEquals(
         "when(this.strField == \"foo\" && @duration > 0)",
-        print(
-            when(
-                and(
-                    eq(getMember(ref("this"), "strField"), value("foo")),
-                    gt(ref("@duration"), value(0))))));
+        print(when(and(
+            eq(getMember(ref("this"), "strField"), value("foo")),
+            gt(ref("@duration"), value(0))))));
     assertEquals(
         "len(list[idx].map)", print(len(getMember(index(ref("list"), ref("idx")), "map"))));
   }

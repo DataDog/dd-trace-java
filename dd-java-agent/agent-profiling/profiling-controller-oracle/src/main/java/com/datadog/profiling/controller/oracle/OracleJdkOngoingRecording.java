@@ -38,14 +38,13 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     try {
       log.debug("Stopping recording {}", name);
       helper.stopRecording(recordingId);
-      OracleJdkRecordingData data =
-          new OracleJdkRecordingData(
-              name,
-              recordingId,
-              start,
-              getEndTime(helper, recordingId, Instant.now()),
-              ProfilingSnapshot.Kind.PERIODIC,
-              helper);
+      OracleJdkRecordingData data = new OracleJdkRecordingData(
+          name,
+          recordingId,
+          start,
+          getEndTime(helper, recordingId, Instant.now()),
+          ProfilingSnapshot.Kind.PERIODIC,
+          helper);
       log.debug("Recording {} has been stopped and its data collected", name);
       return data;
     } catch (IOException e) {

@@ -65,9 +65,8 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("discover")
-            .and(
-                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
-                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
+            .and(takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+                .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
         JUnit5Instrumentation.class.getName() + "$ContextStoreAdvice");
     transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),

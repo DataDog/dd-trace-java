@@ -51,11 +51,8 @@ public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
         isAnnotatedWith(named(hierarchyMarkerType()));
-    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher =
-        hasParameters(
-            whereAny(
-                isAnnotatedWith(
-                    named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
+    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher = hasParameters(whereAny(
+        isAnnotatedWith(named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
     transformer.applyAdvice(
         annotatedMethodMatcher.and(annotatedParametersMatcher),
         this.packageName + ".AddingSpanAttributesAdvice");

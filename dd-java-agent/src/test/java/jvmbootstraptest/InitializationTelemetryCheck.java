@@ -115,14 +115,13 @@ public class InitializationTelemetryCheck {
         "echo \"$1	$(cat -)\" >> " + outputFile.getAbsolutePath() + "\n");
 
     try {
-      int exitCode =
-          IntegrationTestUtils.runOnSeparateJvm(
-              InitializationTelemetryCheck.class.getName(),
-              jvmArgs,
-              Collections.emptyList(),
-              InitializationTelemetryCheck.envVars(forwarderFile),
-              jarFile,
-              true);
+      int exitCode = IntegrationTestUtils.runOnSeparateJvm(
+          InitializationTelemetryCheck.class.getName(),
+          jvmArgs,
+          Collections.emptyList(),
+          InitializationTelemetryCheck.envVars(forwarderFile),
+          jarFile,
+          true);
 
       return new Result(exitCode, read(outputFile));
     } finally {
@@ -132,11 +131,10 @@ public class InitializationTelemetryCheck {
 
   static File createTempFile(String baseName, String extension, Set<PosixFilePermission> perms)
       throws IOException {
-    Path path =
-        Files.createTempFile(
-            baseName + "-integration-telemetry-check",
-            "." + extension,
-            PosixFilePermissions.asFileAttribute(perms));
+    Path path = Files.createTempFile(
+        baseName + "-integration-telemetry-check",
+        "." + extension,
+        PosixFilePermissions.asFileAttribute(perms));
     File file = path.toFile();
     file.deleteOnExit();
     return file;

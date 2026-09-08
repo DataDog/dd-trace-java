@@ -84,7 +84,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     Collection<String> combinedNonCodeResources = new HashSet<>();
 
     for (LineProbes probe : probes) {
-      for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probe.getExecutionData().entrySet()) {
+      for (Map.Entry<Class<?>, ExecutionDataAdapter> e :
+          probe.getExecutionData().entrySet()) {
         combinedExecutionData.merge(e.getKey(), e.getValue(), ExecutionDataAdapter::merge);
       }
       combinedNonCodeResources.addAll(probe.getNonCodeResources());
@@ -112,7 +113,9 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
       BitSet coveredLines = analyzeClass(clazz, executionDataAdapter);
       if (coveredLines != null) {
-        coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet()).or(coveredLines);
+        coveredLinesBySourcePath
+            .computeIfAbsent(sourcePath, key -> new BitSet())
+            .or(coveredLines);
       }
     }
 

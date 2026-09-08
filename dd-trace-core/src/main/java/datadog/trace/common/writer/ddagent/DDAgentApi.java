@@ -51,11 +51,10 @@ public class DDAgentApi extends RemoteApi {
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
           .build()
-          .adapter(
-              Types.newParameterizedType(
-                  Map.class,
-                  String.class,
-                  Types.newParameterizedType(Map.class, String.class, Double.class)));
+          .adapter(Types.newParameterizedType(
+              Map.class,
+              String.class,
+              Types.newParameterizedType(Map.class, String.class, Double.class)));
 
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private final OkHttpClient httpClient;
@@ -102,22 +101,21 @@ public class DDAgentApi extends RemoteApi {
 
     HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
     try {
-      final Request request =
-          prepareRequest(tracesUrl, headers)
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
-              .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
-              .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
-              .addHeader(
-                  DATADOG_CLIENT_COMPUTED_STATS,
-                  Config.get().isOtelTracesSpanMetricsEnabled()
-                          || (nativeMetricsEnabled && featuresDiscovery.supportsMetrics())
-                          // Disabling the computation agent-side of the APM trace metrics by
-                          // pretending it was already done by the library
-                          || !Config.get().isApmTracingEnabled()
-                      ? "true"
-                      : "")
-              .put(payload.toRequest())
-              .build();
+      final Request request = prepareRequest(tracesUrl, headers)
+          .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
+          .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
+          .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
+          .addHeader(
+              DATADOG_CLIENT_COMPUTED_STATS,
+              Config.get().isOtelTracesSpanMetricsEnabled()
+                      || (nativeMetricsEnabled && featuresDiscovery.supportsMetrics())
+                      // Disabling the computation agent-side of the APM trace metrics by
+                      // pretending it was already done by the library
+                      || !Config.get().isApmTracingEnabled()
+                  ? "true"
+                  : "")
+          .put(payload.toRequest())
+          .build();
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();

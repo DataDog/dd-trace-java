@@ -21,15 +21,12 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
   private static final Pattern ROUTER_FUNCTION_REGEX = Pattern.compile("\\s*->.*$");
   private static final Pattern METHOD_REGEX =
       Pattern.compile("^(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) ");
-  private static final Function<String, String> PATH_EXTRACTOR =
-      arg ->
-          METHOD_REGEX
-              .matcher(
-                  SPACES_REGEX
-                      .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
-                      .replaceAll(" ")
-                      .trim())
-              .replaceAll("");
+  private static final Function<String, String> PATH_EXTRACTOR = arg -> METHOD_REGEX
+      .matcher(SPACES_REGEX
+          .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
+          .replaceAll(" ")
+          .trim())
+      .replaceAll("");
 
   private final RouterFunction routerFunction;
   private final ServerRequest serverRequest;

@@ -41,16 +41,15 @@ public class TelemetryService {
 
   private final BlockingQueue<Endpoint> endpoints = new LinkedBlockingQueue<>();
 
-  private final EventSource.Queued eventSource =
-      new EventSource.Queued(
-          configurations,
-          integrations,
-          dependencies,
-          metrics,
-          distributionSeries,
-          logMessages,
-          productChanges,
-          endpoints);
+  private final EventSource.Queued eventSource = new EventSource.Queued(
+      configurations,
+      integrations,
+      dependencies,
+      metrics,
+      distributionSeries,
+      logMessages,
+      productChanges,
+      endpoints);
 
   private final long messageBytesSoftLimit;
   private final boolean debug;
@@ -67,9 +66,8 @@ public class TelemetryService {
       TelemetryClient intakeClient,
       boolean useIntakeClientByDefault,
       boolean debug) {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault);
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault);
     return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
@@ -142,13 +140,8 @@ public class TelemetryService {
   }
 
   public void sendAppClosingEvent() {
-    TelemetryRequest telemetryRequest =
-        new TelemetryRequest(
-            this.eventSource,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_CLOSING,
-            debug);
+    TelemetryRequest telemetryRequest = new TelemetryRequest(
+        this.eventSource, EventSink.NOOP, messageBytesSoftLimit, RequestType.APP_CLOSING, debug);
     if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
       log.warn("Couldn't send app-closing event!");
     }
@@ -175,9 +168,8 @@ public class TelemetryService {
     eventSink = bufferedEvents;
 
     log.debug("Preparing app-started request");
-    TelemetryRequest request =
-        new TelemetryRequest(
-            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
+    TelemetryRequest request = new TelemetryRequest(
+        eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
 
     request.writeProducts();
     request.writeConfigurations();
@@ -213,14 +205,12 @@ public class TelemetryService {
     boolean isMoreDataAvailable = false;
     if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
-      request =
-          new TelemetryRequest(
-              eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
+      request = new TelemetryRequest(
+          eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
     } else {
       log.debug("Preparing message-batch request");
-      request =
-          new TelemetryRequest(
-              eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
+      request = new TelemetryRequest(
+          eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
       request.writeHeartbeat();
       request.writeConfigurations();
       request.writeIntegrations();
@@ -254,13 +244,12 @@ public class TelemetryService {
   public boolean sendExtendedHeartbeat() {
     log.debug("Preparing message-batch request");
     EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();
-    TelemetryRequest request =
-        new TelemetryRequest(
-            extendedHeartbeatDataSnapshot,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_EXTENDED_HEARTBEAT,
-            debug);
+    TelemetryRequest request = new TelemetryRequest(
+        extendedHeartbeatDataSnapshot,
+        EventSink.NOOP,
+        messageBytesSoftLimit,
+        RequestType.APP_EXTENDED_HEARTBEAT,
+        debug);
     request.writeConfigurations();
     request.writeDependencies();
     request.writeIntegrations();

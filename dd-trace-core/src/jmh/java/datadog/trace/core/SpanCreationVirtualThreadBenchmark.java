@@ -58,17 +58,15 @@ public class SpanCreationVirtualThreadBenchmark {
   @Setup
   public void setup(Blackhole blackhole) throws Throwable {
     this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
-    this.startVirtualThread =
-        MethodHandles.publicLookup()
-            .findStatic(
-                Thread.class,
-                "startVirtualThread",
-                MethodType.methodType(Thread.class, Runnable.class));
-    this.spanTask =
-        () -> {
-          AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-          span.finish();
-        };
+    this.startVirtualThread = MethodHandles.publicLookup()
+        .findStatic(
+            Thread.class,
+            "startVirtualThread",
+            MethodType.methodType(Thread.class, Runnable.class));
+    this.spanTask = () -> {
+      AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
+      span.finish();
+    };
   }
 
   @TearDown

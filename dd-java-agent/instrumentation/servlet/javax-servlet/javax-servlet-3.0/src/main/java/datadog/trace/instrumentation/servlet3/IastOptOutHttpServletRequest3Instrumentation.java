@@ -64,7 +64,9 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getSession").and(returns(named("javax.servlet.http.HttpSession"))).and(isPublic()),
+        named("getSession")
+            .and(returns(named("javax.servlet.http.HttpSession")))
+            .and(isPublic()),
         getClass().getName() + "$GetHttpSessionAdvice");
   }
 
@@ -92,7 +94,8 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
         return;
       }
       final ServletContext context = request.getServletContext();
-      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
+      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class)
+              .get(context)
           != null) {
         return;
       }

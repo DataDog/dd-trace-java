@@ -107,10 +107,9 @@ class MockAgentBackendTest {
     // spans share the service and web type, so this holds regardless of the received span order.
     backend
         .traces()
-        .waitForTraces(
-            trace(
-                span().service("smoke-test-java-app").type("web"),
-                span().service("smoke-test-java-app").type("web")));
+        .waitForTraces(trace(
+            span().service("smoke-test-java-app").type("web"),
+            span().service("smoke-test-java-app").type("web")));
   }
 
   @Test
@@ -135,10 +134,9 @@ class MockAgentBackendTest {
   @Test
   void capturesTelemetry() throws IOException {
     postTelemetry("{\"request_type\":\"app-started\",\"api_version\":\"v2\"}");
-    postTelemetry(
-        "{\"request_type\":\"message-batch\",\"payload\":["
-            + "{\"request_type\":\"app-dependencies-loaded\"},"
-            + "{\"request_type\":\"generate-metrics\"}]}");
+    postTelemetry("{\"request_type\":\"message-batch\",\"payload\":["
+        + "{\"request_type\":\"app-dependencies-loaded\"},"
+        + "{\"request_type\":\"generate-metrics\"}]}");
 
     Telemetry telemetry = backend.telemetry();
     telemetry.waitForCount(2);
@@ -167,10 +165,9 @@ class MockAgentBackendTest {
     // …and times out (short timeout) when nothing matches.
     assertThrows(
         AssertionError.class,
-        () ->
-            backend
-                .telemetry()
-                .waitForFlat(message -> "never-sent".equals(message.get("request_type")), 0.2));
+        () -> backend
+            .telemetry()
+            .waitForFlat(message -> "never-sent".equals(message.get("request_type")), 0.2));
   }
 
   @Test
@@ -208,14 +205,12 @@ class MockAgentBackendTest {
 
     // The served payload must satisfy the tracer's own parser, which checks each target file
     // against the sha256 and byte length declared in "targets".
-    RemoteConfigResponse parsed =
-        new RemoteConfigResponse.Factory(
-                new Moshi.Builder()
-                    .add(Instant.class, new InstantJsonAdapter())
-                    .add(ByteString.class, new RawJsonAdapter())
-                    .build())
-            .fromInputStream(new ByteArrayInputStream(served.getBytes(UTF_8)))
-            .orElseThrow(() -> new AssertionError("remote-config payload not parsed: " + served));
+    RemoteConfigResponse parsed = new RemoteConfigResponse.Factory(new Moshi.Builder()
+            .add(Instant.class, new InstantJsonAdapter())
+            .add(ByteString.class, new RawJsonAdapter())
+            .build())
+        .fromInputStream(new ByteArrayInputStream(served.getBytes(UTF_8)))
+        .orElseThrow(() -> new AssertionError("remote-config payload not parsed: " + served));
     assertEquals(config, new String(parsed.getFileContents(path), UTF_8), "config content");
 
     List<Map<String, Object>> polls = backend.remoteConfig().requests();
@@ -236,11 +231,10 @@ class MockAgentBackendTest {
   }
 
   private static String pollRemoteConfig(String clientBody) throws IOException {
-    Request request =
-        new Request.Builder()
-            .url(backend.url() + "/v0.7/config")
-            .post(RequestBody.create(JSON, clientBody))
-            .build();
+    Request request = new Request.Builder()
+        .url(backend.url() + "/v0.7/config")
+        .post(RequestBody.create(JSON, clientBody))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertEquals(200, response.code(), "mock agent should serve remote config");
       return response.body().string();
@@ -248,11 +242,10 @@ class MockAgentBackendTest {
   }
 
   private static void postTelemetry(String json) throws IOException {
-    Request request =
-        new Request.Builder()
-            .url(backend.url() + "/telemetry/proxy/api/v2/apmtelemetry")
-            .post(RequestBody.create(JSON, json))
-            .build();
+    Request request = new Request.Builder()
+        .url(backend.url() + "/telemetry/proxy/api/v2/apmtelemetry")
+        .post(RequestBody.create(JSON, json))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertTrue(response.isSuccessful(), "mock agent should accept telemetry: " + response.code());
     }
@@ -262,11 +255,10 @@ class MockAgentBackendTest {
   void surfacesDecodingFailures() throws IOException {
     // Decoding runs on the server thread, where JavaTestHttpServer turns the exception into a 500;
     // without capture the test would only see an empty trace collection and time out.
-    Request request =
-        new Request.Builder()
-            .url(backend.url() + "/v0.4/traces")
-            .put(RequestBody.create(MSGPACK, "not msgpack".getBytes(UTF_8)))
-            .build();
+    Request request = new Request.Builder()
+        .url(backend.url() + "/v0.4/traces")
+        .put(RequestBody.create(MSGPACK, "not msgpack".getBytes(UTF_8)))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertEquals(500, response.code(), "malformed payload is rejected");
     }
@@ -285,11 +277,10 @@ class MockAgentBackendTest {
   }
 
   private static void putTraces(String path, byte[] payload) throws IOException {
-    Request request =
-        new Request.Builder()
-            .url(backend.url() + path)
-            .put(RequestBody.create(MSGPACK, payload))
-            .build();
+    Request request = new Request.Builder()
+        .url(backend.url() + path)
+        .put(RequestBody.create(MSGPACK, payload))
+        .build();
     try (Response response = CLIENT.newCall(request).execute()) {
       assertEquals(200, response.code(), "mock agent should accept trace submissions");
     }

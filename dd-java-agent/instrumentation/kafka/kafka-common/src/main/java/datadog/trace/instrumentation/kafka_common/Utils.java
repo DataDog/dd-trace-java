@@ -10,14 +10,13 @@ public final class Utils {
   private Utils() {} // prevent instantiation
 
   public static DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return new String(((Headers) source).lastHeader(headerName).value());
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+      DSM_TRANSACTION_SOURCE_READER = (source, headerName) -> {
+        try {
+          return new String(((Headers) source).lastHeader(headerName).value());
+        } catch (Throwable ignored) {
+          return null;
+        }
+      };
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {

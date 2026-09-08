@@ -155,9 +155,8 @@ public class PatchPlatform {
 
   public void logCloseableLeak(String message, Object stackTrace) {
     if (stackTrace == null) {
-      message +=
-          " To see where this was allocated, set the OkHttpClient logger level to FINE: "
-              + "Logger.getLogger(OkHttpClient.class.getName()).setLevel(Level.FINE);";
+      message += " To see where this was allocated, set the OkHttpClient logger level to FINE: "
+          + "Logger.getLogger(OkHttpClient.class.getName()).setLevel(Level.FINE);";
     }
     log(WARN, message, (Throwable) stackTrace);
   }
@@ -180,11 +179,10 @@ public class PatchPlatform {
     X509TrustManager trustManager = trustManager(sslSocketFactory);
 
     if (trustManager == null) {
-      throw new IllegalStateException(
-          "Unable to extract the trust manager on "
-              + Platform.get()
-              + ", sslSocketFactory is "
-              + sslSocketFactory.getClass());
+      throw new IllegalStateException("Unable to extract the trust manager on "
+          + Platform.get()
+          + ", sslSocketFactory is "
+          + sslSocketFactory.getClass());
     }
 
     return buildCertificateChainCleaner(trustManager);

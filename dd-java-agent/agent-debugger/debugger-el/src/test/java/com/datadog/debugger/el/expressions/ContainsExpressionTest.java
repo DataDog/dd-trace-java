@@ -164,9 +164,8 @@ class ContainsExpressionTest {
     assertEquals("contains(arrayStrWithNull, null)", print(expression));
 
     ContainsExpression primitiveNullExpression = new ContainsExpression(DSL.ref("arrayInt"), null);
-    EvaluationException exception =
-        assertThrows(
-            EvaluationException.class, () -> primitiveNullExpression.evaluate(evalContext));
+    EvaluationException exception = assertThrows(
+        EvaluationException.class, () -> primitiveNullExpression.evaluate(evalContext));
     assertEquals("Cannot compare null with primitive array", exception.getMessage());
     assertEquals("contains(arrayInt, null)", print(primitiveNullExpression));
   }

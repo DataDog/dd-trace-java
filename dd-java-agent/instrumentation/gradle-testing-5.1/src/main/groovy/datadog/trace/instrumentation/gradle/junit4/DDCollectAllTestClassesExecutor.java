@@ -39,9 +39,8 @@ public class DDCollectAllTestClassesExecutor implements Action<String> {
   }
 
   public void processAllTestClasses() {
-    testClasses.sort(
-        new JUnit4FailFastClassOrderer(
-            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+    testClasses.sort(new JUnit4FailFastClassOrderer(
+        TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
 
     for (Class<?> clazz : testClasses) {
       delegate.execute(clazz.getName());

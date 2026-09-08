@@ -28,21 +28,20 @@ public class CiVisibilityGradleListenerInjector_8_10 {
       Class<?> serviceRegistrationActionClass =
           coreApiClassLoader.loadClass("org.gradle.internal.service.ServiceRegistrationAction");
 
-      Object serviceRegistrationAction =
-          Proxy.newProxyInstance(
-              coreApiClassLoader,
-              new Class<?>[] {serviceRegistrationActionClass},
-              (proxy, method, args) -> {
-                if (method.getName().equals("registerServices")) {
-                  ServiceRegistration serviceRegistration = (ServiceRegistration) args[0];
-                  Class<?> ciVisibilityGradleListener =
-                      CiVisibilityGradleListenerInjector_8_10.loadCiVisibilityGradleListener(
-                          classLoaderRegistry);
-                  serviceRegistration.add(ciVisibilityGradleListener);
-                  return null;
-                }
-                throw new UnsupportedOperationException("Method not implemented");
-              });
+      Object serviceRegistrationAction = Proxy.newProxyInstance(
+          coreApiClassLoader,
+          new Class<?>[] {serviceRegistrationActionClass},
+          (proxy, method, args) -> {
+            if (method.getName().equals("registerServices")) {
+              ServiceRegistration serviceRegistration = (ServiceRegistration) args[0];
+              Class<?> ciVisibilityGradleListener =
+                  CiVisibilityGradleListenerInjector_8_10.loadCiVisibilityGradleListener(
+                      classLoaderRegistry);
+              serviceRegistration.add(ciVisibilityGradleListener);
+              return null;
+            }
+            throw new UnsupportedOperationException("Method not implemented");
+          });
 
       Method register =
           DefaultServiceRegistry.class.getMethod("register", serviceRegistrationActionClass);

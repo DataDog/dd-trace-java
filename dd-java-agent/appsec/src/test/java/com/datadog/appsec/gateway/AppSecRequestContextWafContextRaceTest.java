@@ -34,10 +34,9 @@ import org.junit.jupiter.api.Test;
  */
 class AppSecRequestContextWafContextRaceTest {
 
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   private WafBuilder wafBuilder;
   private WafHandle wafHandle;
@@ -164,19 +163,15 @@ class AppSecRequestContextWafContextRaceTest {
         observed.add(original);
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
-        Future<?> closer =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  ctx.closeWafContext();
-                  return null;
-                });
-        Future<WafContext> creator =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  return ctx.getOrCreateWafContext(wafHandle, false, false);
-                });
+        Future<?> closer = pool.submit(() -> {
+          barrier.await();
+          ctx.closeWafContext();
+          return null;
+        });
+        Future<WafContext> creator = pool.submit(() -> {
+          barrier.await();
+          return ctx.getOrCreateWafContext(wafHandle, false, false);
+        });
 
         closer.get();
         WafContext late = creator.get();

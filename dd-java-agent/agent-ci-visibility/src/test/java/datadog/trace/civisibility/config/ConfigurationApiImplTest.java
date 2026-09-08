@@ -71,35 +71,28 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
 
   @Override
   protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody) {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            ENDPOINT_PATHS.get(endpoint),
-                            api -> sendResponseBody(api, responseBody.getBytes()))));
+    JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.prefix(
+        ENDPOINT_PATHS.get(endpoint), api -> sendResponseBody(api, responseBody.getBytes()))));
     servers.add(server);
     return givenConfigurationApi(server, true, true);
   }
 
   // A response payload that exists only to keep the round-trip happy: parse correctness for the
   // settings endpoint is covered by AbstractConfigurationApiContractTest#parsesSettings.
-  private static final CiVisibilitySettings CANONICAL_SETTINGS_RESPONSE =
-      new CiVisibilitySettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          false);
+  private static final CiVisibilitySettings CANONICAL_SETTINGS_RESPONSE = new CiVisibilitySettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      false);
 
   static Stream<Arguments> testSettingsRequestArguments() {
     return Stream.of(
@@ -121,13 +114,12 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     Map<String, Object> responseData = new HashMap<>();
     responseData.put("settings", CANONICAL_SETTINGS_RESPONSE);
 
-    JavaTestHttpServer intakeServer =
-        givenBackendEndpoint(
-            "/api/v2/libraries/tests/services/setting",
-            "settings-request.ftl",
-            requestData,
-            "settings-response.ftl",
-            responseData);
+    JavaTestHttpServer intakeServer = givenBackendEndpoint(
+        "/api/v2/libraries/tests/services/setting",
+        "settings-request.ftl",
+        requestData,
+        "settings-response.ftl",
+        responseData);
     ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, agentless, compression);
 
     configurationApi.getSettings(tracerEnvironment);
@@ -149,13 +141,12 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     requestData.put("uid", REQUEST_UID);
     requestData.put("tracerEnvironment", tracerEnvironment);
 
-    JavaTestHttpServer intakeServer =
-        givenBackendEndpoint(
-            "/api/v2/ci/tests/skippable",
-            requestTemplate,
-            requestData,
-            "skippable-response.ftl",
-            new HashMap<>());
+    JavaTestHttpServer intakeServer = givenBackendEndpoint(
+        "/api/v2/ci/tests/skippable",
+        requestTemplate,
+        requestData,
+        "skippable-response.ftl",
+        new HashMap<>());
     ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, true, true);
 
     configurationApi.getSkippableTests(tracerEnvironment);
@@ -177,13 +168,12 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     requestData.put("uid", REQUEST_UID);
     requestData.put("tracerEnvironment", tracerEnvironment);
 
-    JavaTestHttpServer intakeServer =
-        givenBackendEndpoint(
-            "/api/v2/ci/libraries/tests/flaky",
-            requestTemplate,
-            requestData,
-            "flaky-response.ftl",
-            new HashMap<>());
+    JavaTestHttpServer intakeServer = givenBackendEndpoint(
+        "/api/v2/ci/libraries/tests/flaky",
+        requestTemplate,
+        requestData,
+        "flaky-response.ftl",
+        new HashMap<>());
     ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, true, true);
 
     configurationApi.getFlakyTestsByModule(tracerEnvironment);
@@ -202,17 +192,11 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
         "{\"data\":{\"id\":\"page3\",\"type\":\"ci_app_libraries_tests\",\"attributes\":{\"tests\":{\"module-c\":{\"suite-c\":[\"test-5\",\"test-6\"]}},\"page_info\":{\"size\":2,\"has_next\":false}}}}";
     List<String> responses = Arrays.asList(page1, page2, page3);
 
-    JavaTestHttpServer intakeServer =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> {
-                              int current = requestCount.incrementAndGet();
-                              sendResponseBody(api, responses.get(current - 1).getBytes());
-                            })));
+    JavaTestHttpServer intakeServer = JavaTestHttpServer.httpServer(s ->
+        s.handlers(h -> h.prefix("/api/v2/ci/libraries/tests", api -> {
+          int current = requestCount.incrementAndGet();
+          sendResponseBody(api, responses.get(current - 1).getBytes());
+        })));
     servers.add(intakeServer);
     ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, true, true);
 
@@ -237,10 +221,9 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
 
   private ConfigurationApi givenConfigurationApi(
       JavaTestHttpServer intakeServer, boolean agentless, boolean compression) {
-    BackendApi api =
-        agentless
-            ? givenIntakeApi(intakeServer.getAddress(), compression)
-            : givenEvpProxy(intakeServer.getAddress(), compression);
+    BackendApi api = agentless
+        ? givenIntakeApi(intakeServer.getAddress(), compression)
+        : givenEvpProxy(intakeServer.getAddress(), compression);
     return new ConfigurationApiImpl(api, NoOpMetricCollector.INSTANCE, () -> REQUEST_UID);
   }
 
@@ -254,26 +237,19 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     String expectedRequestBody = render(requestTemplate, requestData);
     byte[] responseBody = render(responseTemplate, responseData).getBytes();
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            path,
-                            api -> {
-                              JavaTestHttpServer.HandlerApi.ResponseApi response =
-                                  api.getResponse();
-                              try {
-                                JSONAssert.assertEquals(
-                                    expectedRequestBody,
-                                    new String(api.getRequest().getBody()),
-                                    JSONCompareMode.LENIENT);
-                              } catch (AssertionError error) {
-                                response.status(400).send(error.getMessage().getBytes());
-                                return;
-                              }
-                              sendResponseBody(api, responseBody);
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.prefix(path, api -> {
+          JavaTestHttpServer.HandlerApi.ResponseApi response = api.getResponse();
+          try {
+            JSONAssert.assertEquals(
+                expectedRequestBody,
+                new String(api.getRequest().getBody()),
+                JSONCompareMode.LENIENT);
+          } catch (AssertionError error) {
+            response.status(400).send(error.getMessage().getBytes());
+            return;
+          }
+          sendResponseBody(api, responseBody);
+        })));
     servers.add(server);
     return server;
   }

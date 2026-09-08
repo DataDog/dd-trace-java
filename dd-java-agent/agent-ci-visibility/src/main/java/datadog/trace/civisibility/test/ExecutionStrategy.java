@@ -34,10 +34,17 @@ public class ExecutionStrategy {
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
 
-  @Nonnull private final Config config;
-  @Nonnull private final ExecutionSettings executionSettings;
-  @Nonnull private final SourcePathResolver sourcePathResolver;
-  @Nonnull private final LinesResolver linesResolver;
+  @Nonnull
+  private final Config config;
+
+  @Nonnull
+  private final ExecutionSettings executionSettings;
+
+  @Nonnull
+  private final SourcePathResolver sourcePathResolver;
+
+  @Nonnull
+  private final LinesResolver linesResolver;
 
   public ExecutionStrategy(
       @Nonnull Config config,
@@ -182,10 +189,9 @@ public class ExecutionStrategy {
     int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
-    int threshold =
-        Math.max(
-            config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
-            totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
+    int threshold = Math.max(
+        config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
+        totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
 
     return detectionsUsed > threshold;
   }

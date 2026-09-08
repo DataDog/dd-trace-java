@@ -23,25 +23,23 @@ public class SnsInterceptorTest {
 
   @Test
   void publishBatchPreservesEntriesAndOnlyInjectsBelowTheMessageAttributeLimit() {
-    PublishBatchRequest batchRequest =
-        PublishBatchRequest.builder()
-            .topicArn("arn:aws:sns:us-east-1:123456789012:test-topic")
-            .publishBatchRequestEntries(
-                PublishBatchRequestEntry.builder()
-                    .id("at-limit")
-                    .message("first")
-                    .messageAttributes(stringAttributes(10))
-                    .build(),
-                PublishBatchRequestEntry.builder()
-                    .id("under-limit")
-                    .message("second")
-                    .messageAttributes(stringAttributes(9))
-                    .build())
-            .build();
+    PublishBatchRequest batchRequest = PublishBatchRequest.builder()
+        .topicArn("arn:aws:sns:us-east-1:123456789012:test-topic")
+        .publishBatchRequestEntries(
+            PublishBatchRequestEntry.builder()
+                .id("at-limit")
+                .message("first")
+                .messageAttributes(stringAttributes(10))
+                .build(),
+            PublishBatchRequestEntry.builder()
+                .id("under-limit")
+                .message("second")
+                .messageAttributes(stringAttributes(9))
+                .build())
+        .build();
 
-    PublishBatchRequest modified =
-        (PublishBatchRequest)
-            new SnsInterceptor().modifyRequest(() -> batchRequest, executionAttributes());
+    PublishBatchRequest modified = (PublishBatchRequest)
+        new SnsInterceptor().modifyRequest(() -> batchRequest, executionAttributes());
 
     assertEquals(
         Arrays.asList("at-limit", "under-limit"),
@@ -58,15 +56,18 @@ public class SnsInterceptorTest {
   void publishPreservesReadonlyAttributesWhileAddingDatadogContext() {
     Map<String, MessageAttributeValue> headers = new HashMap<>();
     headers.put(
-        "mykey", MessageAttributeValue.builder().dataType("String").stringValue("myvalue").build());
+        "mykey",
+        MessageAttributeValue.builder()
+            .dataType("String")
+            .stringValue("myvalue")
+            .build());
     Map<String, MessageAttributeValue> readonlyHeaders = Collections.unmodifiableMap(headers);
 
-    PublishRequest request =
-        PublishRequest.builder()
-            .topicArn("arn:aws:sns:us-east-1:123456789012:test-topic")
-            .message("sometext")
-            .messageAttributes(readonlyHeaders)
-            .build();
+    PublishRequest request = PublishRequest.builder()
+        .topicArn("arn:aws:sns:us-east-1:123456789012:test-topic")
+        .message("sometext")
+        .messageAttributes(readonlyHeaders)
+        .build();
 
     PublishRequest modified =
         (PublishRequest) new SnsInterceptor().modifyRequest(() -> request, executionAttributes());
@@ -88,7 +89,10 @@ public class SnsInterceptorTest {
     for (int index = 1; index <= count; index++) {
       attributes.put(
           "key" + index,
-          MessageAttributeValue.builder().dataType("String").stringValue("value" + index).build());
+          MessageAttributeValue.builder()
+              .dataType("String")
+              .stringValue("value" + index)
+              .build());
     }
     return attributes;
   }

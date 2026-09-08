@@ -39,24 +39,19 @@ final class OutlineTypeParser implements TypeParser {
   public TypeDescription parse(Class<?> loadedType) {
     Class<?> superClass = loadedType.getSuperclass();
 
-    TypeOutline typeOutline =
-        new TypeOutline(
-            loadedType.getModifiers(),
-            loadedType.getName(),
-            null != superClass ? superClass.getName() : null,
-            extractTypeNames(loadedType.getInterfaces()));
+    TypeOutline typeOutline = new TypeOutline(
+        loadedType.getModifiers(),
+        loadedType.getName(),
+        null != superClass ? superClass.getName() : null,
+        extractTypeNames(loadedType.getInterfaces()));
 
     for (Annotation a : loadedType.getDeclaredAnnotations()) {
       typeOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
     }
 
     for (Field field : loadedType.getDeclaredFields()) {
-      FieldOutline fieldOutline =
-          new FieldOutline(
-              typeOutline,
-              field.getModifiers(),
-              field.getName(),
-              Type.getDescriptor(field.getType()));
+      FieldOutline fieldOutline = new FieldOutline(
+          typeOutline, field.getModifiers(), field.getName(), Type.getDescriptor(field.getType()));
       for (Annotation a : field.getDeclaredAnnotations()) {
         fieldOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }
@@ -64,12 +59,8 @@ final class OutlineTypeParser implements TypeParser {
     }
 
     for (Method method : loadedType.getDeclaredMethods()) {
-      MethodOutline methodOutline =
-          new MethodOutline(
-              typeOutline,
-              method.getModifiers(),
-              method.getName(),
-              Type.getMethodDescriptor(method));
+      MethodOutline methodOutline = new MethodOutline(
+          typeOutline, method.getModifiers(), method.getName(), Type.getMethodDescriptor(method));
       for (Annotation a : method.getDeclaredAnnotations()) {
         methodOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }

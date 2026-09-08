@@ -43,12 +43,9 @@ public class EventDispatcherBenchmark {
     @Param({"5", "5000"})
     int numUnusedSubscribers;
 
-    Address<?>[] usedAddresses =
-        new Address<?>[] {
-          KnownAddresses.REQUEST_BODY_RAW,
-          KnownAddresses.REQUEST_COOKIES,
-          KnownAddresses.REQUEST_QUERY
-        };
+    Address<?>[] usedAddresses = new Address<?>[] {
+      KnownAddresses.REQUEST_BODY_RAW, KnownAddresses.REQUEST_COOKIES, KnownAddresses.REQUEST_QUERY
+    };
 
     Address<?> unusedAddress = KnownAddresses.HEADERS_NO_COOKIES;
 
@@ -80,21 +77,19 @@ public class EventDispatcherBenchmark {
     private void doSubscribe(
         EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
       final OrderedCallback.Priority priority = PRIORITY_VALUES[i % 4];
-      subsSet.addSubscription(
-          Collections.singletonList(address),
-          new DataListener() {
-            @Override
-            public void onDataAvailable(
-                ChangeableFlow flow,
-                AppSecRequestContext context,
-                DataBundle dataBundle,
-                GatewayContext gatewayContext) {}
+      subsSet.addSubscription(Collections.singletonList(address), new DataListener() {
+        @Override
+        public void onDataAvailable(
+            ChangeableFlow flow,
+            AppSecRequestContext context,
+            DataBundle dataBundle,
+            GatewayContext gatewayContext) {}
 
-            @Override
-            public Priority getPriority() {
-              return priority;
-            }
-          });
+        @Override
+        public Priority getPriority() {
+          return priority;
+        }
+      });
     }
 
     void run() {

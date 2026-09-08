@@ -110,10 +110,9 @@ class ParsedSemverTest {
     assertTrue(
         ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5.6"), ParsedSemver.parse("1.2.3.4.5.7"))
             < 0);
-    assertTrue(
-        ParsedSemver.compare(
-                ParsedSemver.parse("1.2.3.4.5.6.7"), ParsedSemver.parse("1.2.3.4.5.6.8"))
-            < 0);
+    assertTrue(ParsedSemver.compare(
+            ParsedSemver.parse("1.2.3.4.5.6.7"), ParsedSemver.parse("1.2.3.4.5.6.8"))
+        < 0);
     assertTrue(
         ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
     assertTrue(

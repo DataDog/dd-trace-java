@@ -65,31 +65,30 @@ public class GitInfoProvider {
 
   private GitInfo buildGitInfo(String repositoryPath) {
     Evaluator evaluator = new Evaluator(repositoryPath, builders);
-    GitInfo gitInfo =
-        new GitInfo(
-            evaluator.get(
-                gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
-                GitInfoProvider::validateGitRemoteUrl),
-            evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
-            evaluator.get(GitInfo::getTag, Strings::isNotBlank),
-            new CommitInfo(
-                evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
-                new PersonInfo(
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
-                new PersonInfo(
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
+    GitInfo gitInfo = new GitInfo(
+        evaluator.get(
+            gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+            GitInfoProvider::validateGitRemoteUrl),
+        evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
+        evaluator.get(GitInfo::getTag, Strings::isNotBlank),
+        new CommitInfo(
+            evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
+            new PersonInfo(
                 evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
+                    gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
+            new PersonInfo(
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
+            evaluator.getIfCommitShaMatches(
+                gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
 
     InstrumentationBridge.getMetricCollector()
         .add(
@@ -218,9 +217,8 @@ public class GitInfoProvider {
                 discrepancyType = GitShaDiscrepancyType.REPOSITORY_DISCREPANCY;
               }
 
-              shaDiscrepancies.add(
-                  new ShaDiscrepancy(
-                      expectedGitProvider, e.getKey().providerAsDiscrepant(), discrepancyType));
+              shaDiscrepancies.add(new ShaDiscrepancy(
+                  expectedGitProvider, e.getKey().providerAsDiscrepant(), discrepancyType));
               continue;
             }
           }

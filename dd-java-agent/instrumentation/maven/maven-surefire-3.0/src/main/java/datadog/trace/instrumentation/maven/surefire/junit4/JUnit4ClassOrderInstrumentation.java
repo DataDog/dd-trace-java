@@ -79,9 +79,8 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
         }
       }
 
-      testClasses.sort(
-          new JUnit4FailFastClassOrderer(
-              TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+      testClasses.sort(new JUnit4FailFastClassOrderer(
+          TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
 
       testsToRun = new TestsToRun(new LinkedHashSet<>(testClasses));
     }

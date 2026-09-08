@@ -52,12 +52,11 @@ public final class Ranges {
       }
       final Ranged intersection = targetRange.intersection(range);
       if (intersection != null) {
-        targetRanges.add(
-            new Range(
-                intersection.getStart() + offset,
-                intersection.getLength(),
-                range.getSource(),
-                range.getMarks()));
+        targetRanges.add(new Range(
+            intersection.getStart() + offset,
+            intersection.getLength(),
+            range.getSource(),
+            range.getMarks()));
       }
     }
     return targetRanges.isEmpty() ? null : targetRanges.toArray();
@@ -297,16 +296,15 @@ public final class Ranges {
         currentIndentation = indentation * ++delimitersCount;
       }
       currentIndentation -= offset;
-      rangeStart =
-          updateRangesWithIndentation(
-              currentIndex,
-              delimiterIndex[0] - 1,
-              indentation,
-              rangeStart,
-              ranges,
-              newRanges,
-              currentIndentation,
-              lineOffset);
+      rangeStart = updateRangesWithIndentation(
+          currentIndex,
+          delimiterIndex[0] - 1,
+          indentation,
+          rangeStart,
+          ranges,
+          newRanges,
+          currentIndentation,
+          lineOffset);
       offset += lineOffset;
       currentIndex = delimiterIndex[0];
     }

@@ -10,8 +10,12 @@ final class OtelLoggerBuilder implements LoggerBuilder {
   private final OtelLoggerProvider loggerProvider;
 
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+
+  @Nullable
+  private String instrumentationScopeVersion;
+
+  @Nullable
+  private String schemaUrl;
 
   OtelLoggerBuilder(OtelLoggerProvider loggerProvider, String instrumentationScopeName) {
     this.loggerProvider = loggerProvider;

@@ -152,15 +152,14 @@ public enum IastMetric {
           }
         };
 
-    public static final Tag SOURCE_TYPE =
-        new Tag("source_type", SourceTypes.STRINGS) {
+    public static final Tag SOURCE_TYPE = new Tag("source_type", SourceTypes.STRINGS) {
 
-          @Nullable
-          @Override
-          public byte[] unwrap(byte tagValue) {
-            return SourceTypes.unwrap(tagValue);
-          }
-        };
+      @Nullable
+      @Override
+      public byte[] unwrap(byte tagValue) {
+        return SourceTypes.unwrap(tagValue);
+      }
+    };
 
     protected final String name;
 

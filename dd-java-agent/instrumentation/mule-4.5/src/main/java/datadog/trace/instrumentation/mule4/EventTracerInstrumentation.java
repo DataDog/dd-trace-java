@@ -33,11 +33,10 @@ public class EventTracerInstrumentation extends AbstractMuleInstrumentation
     public static void afterInit(
         @Advice.FieldValue(value = "selectedCoreEventTracer", readOnly = false)
             EventTracer<CoreEvent> eventTracer) {
-      eventTracer =
-          new DDEventTracer(
-              InstrumentationContext.get(EventContext.class, SpanState.class),
-              InstrumentationContext.get(InitialSpanInfo.class, Component.class),
-              eventTracer);
+      eventTracer = new DDEventTracer(
+          InstrumentationContext.get(EventContext.class, SpanState.class),
+          InstrumentationContext.get(InitialSpanInfo.class, Component.class),
+          eventTracer);
     }
   }
 }

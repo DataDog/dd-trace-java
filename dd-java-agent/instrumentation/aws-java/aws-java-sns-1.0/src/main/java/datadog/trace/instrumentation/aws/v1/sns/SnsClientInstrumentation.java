@@ -53,10 +53,8 @@ public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
           return; // list already has our interceptor, return to builder
         }
       }
-      handlers.add(
-          new SnsInterceptor(
-              InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+      handlers.add(new SnsInterceptor(InstrumentationContext.get(
+          "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
     }
   }
 }

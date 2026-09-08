@@ -39,13 +39,12 @@ public class AdaptiveSamplerBenchmark {
   @Setup(Level.Iteration)
   public void setup() {
     int averageLookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
-    sampler =
-        new AdaptiveSampler(
-            Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
-            samplesPerWindow,
-            averageLookback,
-            BUDGET_LOOKBACK,
-            true);
+    sampler = new AdaptiveSampler(
+        Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
+        samplesPerWindow,
+        averageLookback,
+        BUDGET_LOOKBACK,
+        true);
   }
 
   @Threads(4)

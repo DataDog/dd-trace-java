@@ -43,11 +43,10 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
     return new String[] {packageName + ".FormDataMap"};
   }
 
-  private static final Reference EXCHANGE_REFERENCE =
-      new Reference.Builder(
-              "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
-          .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
-          .build();
+  private static final Reference EXCHANGE_REFERENCE = new Reference.Builder(
+          "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
+      .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
+      .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

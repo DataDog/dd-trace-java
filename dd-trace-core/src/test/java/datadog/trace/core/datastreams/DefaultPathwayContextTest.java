@@ -186,17 +186,15 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
 
     timeSource.advance(MILLISECONDS.toNanos(50));
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.createWithDataset(
-                "s3", DataStreamsTags.Direction.INBOUND, null, "my_object.csv", "my_bucket")),
+        fromTags(DataStreamsTags.createWithDataset(
+            "s3", DataStreamsTags.Direction.INBOUND, null, "my_object.csv", "my_bucket")),
         pointConsumer);
     String encoded = context.encode();
     timeSource.advance(MILLISECONDS.toNanos(2));
     DefaultPathwayContext decodedContext = DefaultPathwayContext.decode(timeSource, null, encoded);
     timeSource.advance(MILLISECONDS.toNanos(25));
-    DataStreamsTags tags =
-        DataStreamsTags.createWithDataset(
-            "s3", DataStreamsTags.Direction.OUTBOUND, null, "my_object.csv", "my_bucket");
+    DataStreamsTags tags = DataStreamsTags.createWithDataset(
+        "s3", DataStreamsTags.Direction.OUTBOUND, null, "my_object.csv", "my_bucket");
     context.setCheckpoint(fromTags(tags), pointConsumer);
 
     assertTrue(decodedContext.isStarted());
@@ -276,9 +274,8 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     DefaultPathwayContext decodedContext = DefaultPathwayContext.decode(timeSource, null, encoded);
     timeSource.advance(MILLISECONDS.toNanos(25));
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.create(
-                "kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
+        fromTags(DataStreamsTags.create(
+            "kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
         pointConsumer);
 
     assertTrue(decodedContext.isStarted());
@@ -300,9 +297,8 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
         DefaultPathwayContext.decode(timeSource, null, secondEncode);
     timeSource.advance(MILLISECONDS.toNanos(30));
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.create(
-                "kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)),
+        fromTags(DataStreamsTags.create(
+            "kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)),
         pointConsumer);
 
     assertTrue(secondDecode.isStarted());
@@ -340,9 +336,8 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(25));
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.create(
-                "kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
+        fromTags(DataStreamsTags.create(
+            "kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
         pointConsumer);
 
     assertTrue(decodedContext.isStarted());
@@ -366,9 +361,8 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
         DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null);
     timeSource.advance(MILLISECONDS.toNanos(30));
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.create(
-                "kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)),
+        fromTags(DataStreamsTags.create(
+            "kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)),
         pointConsumer);
 
     assertTrue(secondDecode.isStarted());
@@ -457,9 +451,8 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
         pointConsumer);
     timeSource.advance(25);
     context.setCheckpoint(
-        fromTags(
-            DataStreamsTags.create(
-                "type", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
+        fromTags(DataStreamsTags.create(
+            "type", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)),
         pointConsumer);
     timeSource.advance(25);
     context.setCheckpoint(fromTags(DataStreamsTags.create(null, null)), pointConsumer);
@@ -506,14 +499,13 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     AgentTracer.forceRegister(tracerApi);
 
     try {
-      DefaultDataStreamsMonitoring dataStreams =
-          new DefaultDataStreamsMonitoring(
-              sink,
-              features,
-              timeSource,
-              () -> globalTraceConfig,
-              payloadWriter,
-              DEFAULT_BUCKET_DURATION_NANOS);
+      DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+          sink,
+          features,
+          timeSource,
+          () -> globalTraceConfig,
+          payloadWriter,
+          DEFAULT_BUCKET_DURATION_NANOS);
 
       BaseHash.updateBaseHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
@@ -566,14 +558,13 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     AgentTracer.forceRegister(tracerApi);
 
     try {
-      DefaultDataStreamsMonitoring dataStreams =
-          new DefaultDataStreamsMonitoring(
-              sink,
-              features,
-              timeSource,
-              () -> globalTraceConfig,
-              payloadWriter,
-              DEFAULT_BUCKET_DURATION_NANOS);
+      DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+          sink,
+          features,
+          timeSource,
+          () -> globalTraceConfig,
+          payloadWriter,
+          DEFAULT_BUCKET_DURATION_NANOS);
 
       BaseHash.updateBaseHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
@@ -626,14 +617,13 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     AgentTracer.forceRegister(tracerApi);
 
     try {
-      DefaultDataStreamsMonitoring dataStreams =
-          new DefaultDataStreamsMonitoring(
-              sink,
-              features,
-              timeSource,
-              () -> globalTraceConfig,
-              payloadWriter,
-              DEFAULT_BUCKET_DURATION_NANOS);
+      DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+          sink,
+          features,
+          timeSource,
+          () -> globalTraceConfig,
+          payloadWriter,
+          DEFAULT_BUCKET_DURATION_NANOS);
 
       BaseHash.updateBaseHash(BASE_HASH);
       DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
@@ -646,19 +636,18 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
       carrier.put(PROPAGATION_KEY_BASE64, encoded);
       carrier.put("someotherkey", "someothervalue");
       Base64MapContextVisitor contextVisitor = new Base64MapContextVisitor();
-      ExtractedContext spanContext =
-          new ExtractedContext(
-              DDTraceId.ONE,
-              1,
-              0,
-              null,
-              0,
-              null,
-              (TagMap) null,
-              null,
-              null,
-              globalTraceConfig,
-              DATADOG);
+      ExtractedContext spanContext = new ExtractedContext(
+          DDTraceId.ONE,
+          1,
+          0,
+          null,
+          0,
+          null,
+          (TagMap) null,
+          null,
+          null,
+          globalTraceConfig,
+          DATADOG);
       Context baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root());
       Propagator propagator = dataStreams.propagator();
 
@@ -694,14 +683,13 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
 
     Map<String, String> carrier = new HashMap<>();
     carrier.put("someotherkey", "someothervalue");

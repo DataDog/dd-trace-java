@@ -71,9 +71,8 @@ public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppS
                   play.mvc.Result, Http.MultipartFormData<play.libs.Files.TemporaryFile>>>
           acc = ret;
 
-      ret =
-          acc.recover(
-              JavaMultipartFormDataRegisterExcF.INSTANCE, JavaParsers$.MODULE$.trampoline());
+      ret = acc.recover(
+          JavaMultipartFormDataRegisterExcF.INSTANCE, JavaParsers$.MODULE$.trampoline());
     }
   }
 }

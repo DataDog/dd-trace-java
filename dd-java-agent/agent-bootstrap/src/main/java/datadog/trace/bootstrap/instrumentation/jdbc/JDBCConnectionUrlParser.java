@@ -911,10 +911,9 @@ public enum JDBCConnectionUrlParser {
         final int idx = pair.indexOf('=');
         final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), "UTF-8") : pair;
         if (!query_pairs.containsKey(key)) {
-          final String value =
-              idx > 0 && pair.length() > idx + 1
-                  ? URLDecoder.decode(pair.substring(idx + 1), "UTF-8")
-                  : null;
+          final String value = idx > 0 && pair.length() > idx + 1
+              ? URLDecoder.decode(pair.substring(idx + 1), "UTF-8")
+              : null;
           query_pairs.put(key, value);
         }
       } catch (final UnsupportedEncodingException e) {

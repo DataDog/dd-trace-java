@@ -138,16 +138,14 @@ public final class ScaReachabilityPeriodicAction
       Dependency known = knownDeps.get(key);
       if (known != null) {
         // Dep was resolved in a prior heartbeat — emit enriched with source/hash.
-        telService.addDependency(
-            new Dependency(
-                known.name, known.version, known.source, known.hash, buildMetadata(snapshot)));
+        telService.addDependency(new Dependency(
+            known.name, known.version, known.source, known.hash, buildMetadata(snapshot)));
       } else {
         // Dep not yet resolved — emit without source/hash so CVE data is not delayed.
         // When the dep is eventually resolved (stored in knownDeps via Step 2), subsequent
         // CVE emissions (e.g., after a method hit) will include source/hash automatically.
-        telService.addDependency(
-            new Dependency(
-                snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
+        telService.addDependency(new Dependency(
+            snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
       }
     }
   }

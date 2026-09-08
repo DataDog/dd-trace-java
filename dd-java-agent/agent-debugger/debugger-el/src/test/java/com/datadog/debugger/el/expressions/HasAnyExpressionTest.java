@@ -114,10 +114,8 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(java.lang.Object[], {false})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
+    expression = any(
+        targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(java.lang.Object[], {@it.testField == 10})", print(expression));
 
@@ -138,10 +136,8 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(List, {false})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
+    expression = any(
+        targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(List, {@it.testField == 10})", print(expression));
 
@@ -187,10 +183,8 @@ class HasAnyExpressionTest {
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.key == \"b\"})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    expression = any(
+        targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.value == \"a\"})", print(expression));
 
@@ -199,10 +193,8 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.key == \"c\"})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
+    expression = any(
+        targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.value == \"c\"})", print(expression));
   }

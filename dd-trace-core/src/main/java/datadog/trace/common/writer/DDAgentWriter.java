@@ -151,40 +151,36 @@ public class DDAgentWriter extends RemoteWriter {
 
     public DDAgentWriter build() {
       final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
-      final OkHttpClient client =
-          null == featureDiscovery || null == agentApi
-              ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
-              : null;
+      final OkHttpClient client = null == featureDiscovery || null == agentApi
+          ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
+          : null;
       if (null == featureDiscovery) {
-        featureDiscovery =
-            new DDAgentFeaturesDiscovery(
-                client,
-                monitoring,
-                agentUrl,
-                protocolVersion,
-                nativeMetricsReportingEnabled,
-                metricsIgnoreAgentVersion);
+        featureDiscovery = new DDAgentFeaturesDiscovery(
+            client,
+            monitoring,
+            agentUrl,
+            protocolVersion,
+            nativeMetricsReportingEnabled,
+            metricsIgnoreAgentVersion);
       }
       if (null == agentApi) {
-        agentApi =
-            new DDAgentApi(
-                client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
+        agentApi = new DDAgentApi(
+            client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
-      final TraceProcessingWorker traceProcessingWorker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              healthMetrics,
-              dispatcher,
-              // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
-              droppingPolicy != null ? droppingPolicy : featureDiscovery,
-              null == prioritization ? FAST_LANE : prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker traceProcessingWorker = new TraceProcessingWorker(
+          traceBufferSize,
+          healthMetrics,
+          dispatcher,
+          // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
+          droppingPolicy != null ? droppingPolicy : featureDiscovery,
+          null == prioritization ? FAST_LANE : prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new DDAgentWriter(
           traceProcessingWorker,

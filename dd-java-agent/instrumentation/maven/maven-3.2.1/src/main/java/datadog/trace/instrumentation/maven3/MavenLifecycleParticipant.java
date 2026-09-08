@@ -46,17 +46,14 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     // that will forward each event both to the original listener and to our custom one.
     // Since ExecutionListener may (and does) change depending on Maven version,
     // we use a dynamic proxy instead of implementing the interface
-    InvocationHandler invocationHandler =
-        (Object target, Method method, Object[] args) -> {
-          method.invoke(spyExecutionListener, args);
-          return method.invoke(originalExecutionListener, args);
-        };
-    ExecutionListener proxyExecutionListener =
-        (ExecutionListener)
-            Proxy.newProxyInstance(
-                MavenLifecycleParticipant.class.getClassLoader(),
-                new Class[] {ExecutionListener.class},
-                invocationHandler);
+    InvocationHandler invocationHandler = (Object target, Method method, Object[] args) -> {
+      method.invoke(spyExecutionListener, args);
+      return method.invoke(originalExecutionListener, args);
+    };
+    ExecutionListener proxyExecutionListener = (ExecutionListener) Proxy.newProxyInstance(
+        MavenLifecycleParticipant.class.getClassLoader(),
+        new Class[] {ExecutionListener.class},
+        invocationHandler);
     session.getRequest().setExecutionListener(proxyExecutionListener);
   }
 

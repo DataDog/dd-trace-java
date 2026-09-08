@@ -56,14 +56,13 @@ public class ExposureWriterImpl implements ExposureWriter {
       final FeatureFlagBackendApiFactory backendApiFactory,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
-    final ExposureSerializingHandler serializer =
-        new ExposureSerializingHandler(
-            backendApiFactory,
-            queue,
-            flushInterval,
-            timeUnit,
-            FeatureFlagEvpContext.from(config),
-            this::close);
+    final ExposureSerializingHandler serializer = new ExposureSerializingHandler(
+        backendApiFactory,
+        queue,
+        flushInterval,
+        timeUnit,
+        FeatureFlagEvpContext.from(config),
+        this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EXPOSURE_PROCESSOR, serializer);
   }
 

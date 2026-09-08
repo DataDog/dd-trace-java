@@ -15,7 +15,8 @@ public class MySQLConnectionImplConstructorAdvice {
     InstrumentationContext.get(SqlClient.class, DBInfo.class)
         .put(
             zis,
-            InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).get(factory));
+            InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class)
+                .get(factory));
   }
 
   // Limit ourselves to 3.9.x by checking for the close() method that was removed in 4.x

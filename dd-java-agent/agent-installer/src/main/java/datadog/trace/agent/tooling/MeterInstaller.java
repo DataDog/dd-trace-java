@@ -25,10 +25,9 @@ public class MeterInstaller {
   public static void installMeter() {
     Config config = Config.get();
     StatsDClient statsDClient = createStatsDClient(config);
-    Monitoring monitoring =
-        config.isHealthMetricsEnabled()
-            ? new MonitoringImpl(statsDClient, 10, SECONDS)
-            : MonitoringImpl.DISABLED;
+    Monitoring monitoring = config.isHealthMetricsEnabled()
+        ? new MonitoringImpl(statsDClient, 10, SECONDS)
+        : MonitoringImpl.DISABLED;
     AgentMeter.registerIfAbsent(statsDClient, monitoring, DDSketchHistograms.FACTORY);
   }
 

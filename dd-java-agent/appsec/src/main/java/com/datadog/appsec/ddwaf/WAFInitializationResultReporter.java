@@ -24,9 +24,8 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
   private static final JsonAdapter<Map<String, List<String>>> RULES_ERRORS_ADAPTER =
       new Moshi.Builder()
           .build()
-          .adapter(
-              Types.newParameterizedType(
-                  Map.class, String.class, Types.newParameterizedType(List.class, String.class)));
+          .adapter(Types.newParameterizedType(
+              Map.class, String.class, Types.newParameterizedType(List.class, String.class)));
   private final AtomicReference<WafDiagnostics> pendingReportRef = new AtomicReference<>();
 
   public void setReportForPublication(WafDiagnostics report) {

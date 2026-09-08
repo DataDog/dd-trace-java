@@ -23,37 +23,35 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(
-                namedOneOf(
-                    "loadCacheAsync",
-                    "sizeAsync",
-                    "sizeLongAsync",
-                    "invokeAllAsync",
-                    "getAllAsync",
-                    "getEntriesAsync",
-                    "getAllOutTxAsync",
-                    "containsKeysAsync",
-                    "putAllAsync",
-                    "removeAllAsync")),
+            .and(namedOneOf(
+                "loadCacheAsync",
+                "sizeAsync",
+                "sizeLongAsync",
+                "invokeAllAsync",
+                "getAllAsync",
+                "getEntriesAsync",
+                "getAllOutTxAsync",
+                "containsKeysAsync",
+                "putAllAsync",
+                "removeAllAsync")),
         IgniteCacheAsyncInstrumentation.class.getName() + "$IgniteAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(
-                namedOneOf(
-                    "getAndPutIfAbsentAsync",
-                    "getAsync",
-                    "getEntryAsync",
-                    "containsKeyAsync",
-                    "getAndPutAsync",
-                    "putAsync",
-                    "putIfAbsentAsync",
-                    "removeAsync",
-                    "getAndRemoveAsync",
-                    "replaceAsync",
-                    "getAndReplaceAsync",
-                    "clearAsync",
-                    "invokeAsync")),
+            .and(namedOneOf(
+                "getAndPutIfAbsentAsync",
+                "getAsync",
+                "getEntryAsync",
+                "containsKeyAsync",
+                "getAndPutAsync",
+                "putAsync",
+                "putIfAbsentAsync",
+                "removeAsync",
+                "getAndRemoveAsync",
+                "replaceAsync",
+                "getAndReplaceAsync",
+                "clearAsync",
+                "invokeAsync")),
         IgniteCacheAsyncInstrumentation.class.getName() + "$KeyedAdvice");
   }
 

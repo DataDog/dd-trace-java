@@ -120,14 +120,13 @@ public final class AgentThreadFactory implements ThreadFactory {
     final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadName);
     thread.setDaemon(daemon);
     thread.setContextClassLoader(null);
-    thread.setUncaughtExceptionHandler(
-        new Thread.UncaughtExceptionHandler() {
-          @Override
-          public void uncaughtException(final Thread thread, final Throwable e) {
-            LoggerFactory.getLogger(runnable.getClass())
-                .error("Uncaught exception {} in {}", e, agentThread.threadName, e);
-          }
-        });
+    thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      @Override
+      public void uncaughtException(final Thread thread, final Throwable e) {
+        LoggerFactory.getLogger(runnable.getClass())
+            .error("Uncaught exception {} in {}", e, agentThread.threadName, e);
+      }
+    });
     return thread;
   }
 }

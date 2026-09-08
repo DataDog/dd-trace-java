@@ -27,13 +27,12 @@ public final class Propagators {
    */
   public static Propagator defaultPropagator() {
     if (rebuildDefaultPropagator) {
-      Propagator[] propagatorsByPriority =
-          PROPAGATORS.entrySet().stream()
-              .filter(entry -> entry.getValue().isUsedAsDefault())
-              .sorted(comparingInt(entry -> entry.getKey().priority()))
-              .map(Map.Entry::getValue)
-              .map(RegisteredPropagator::propagator)
-              .toArray(Propagator[]::new);
+      Propagator[] propagatorsByPriority = PROPAGATORS.entrySet().stream()
+          .filter(entry -> entry.getValue().isUsedAsDefault())
+          .sorted(comparingInt(entry -> entry.getKey().priority()))
+          .map(Map.Entry::getValue)
+          .map(RegisteredPropagator::propagator)
+          .toArray(Propagator[]::new);
       defaultPropagator = composite(propagatorsByPriority);
       rebuildDefaultPropagator = false;
     }

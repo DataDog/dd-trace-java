@@ -23,10 +23,9 @@ public final class PathLocationHelperTest {
   @Test
   public void throwingException() {
     Exception expectedCause = new IllegalStateException("wrong!");
-    PathLocator throwingPathLocator =
-        (comp, path) -> {
-          throw expectedCause;
-        };
+    PathLocator throwingPathLocator = (comp, path) -> {
+      throw expectedCause;
+    };
 
     PathLocatorHelper helper = new PathLocatorHelper("test", throwingPathLocator);
 
@@ -48,10 +47,9 @@ public final class PathLocationHelperTest {
   @Test
   public void throwingLibraryLoadException() {
     Exception expectedCause = new LibraryLoadException("test", "wrong!");
-    PathLocator throwingPathLocator =
-        (comp, path) -> {
-          throw expectedCause;
-        };
+    PathLocator throwingPathLocator = (comp, path) -> {
+      throw expectedCause;
+    };
 
     PathLocatorHelper helper = new PathLocatorHelper("test", throwingPathLocator);
 
@@ -75,14 +73,13 @@ public final class PathLocationHelperTest {
     Exception firstCause = new IllegalStateException("wrong!");
     Exception secondCause = new IllegalStateException("wrong again!");
 
-    PathLocator throwingPathLocator =
-        (comp, path) -> {
-          if (path.equals("firstPath")) {
-            throw firstCause;
-          } else {
-            throw secondCause;
-          }
-        };
+    PathLocator throwingPathLocator = (comp, path) -> {
+      if (path.equals("firstPath")) {
+        throw firstCause;
+      } else {
+        throw secondCause;
+      }
+    };
 
     // on exception, PathLocator returns null, but stores the first exception
     PathLocatorHelper helper = new PathLocatorHelper("test", throwingPathLocator);

@@ -17,13 +17,11 @@ public class SqlConnectionBasePrepareAdvice {
       @Advice.Argument(0) final String sql,
       @Advice.Argument(value = 1, readOnly = false)
           Handler<AsyncResult<PreparedStatement>> handler) {
-    Pair<DBInfo, DBQueryInfo> info =
-        Pair.of(
-            InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
-            DBQueryInfo.ofStatement(sql));
+    Pair<DBInfo, DBQueryInfo> info = Pair.of(
+        InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
+        DBQueryInfo.ofStatement(sql));
 
-    handler =
-        new PrepareHandlerWrapper(
-            handler, InstrumentationContext.get(PreparedStatement.class, Pair.class), info);
+    handler = new PrepareHandlerWrapper(
+        handler, InstrumentationContext.get(PreparedStatement.class, Pair.class), info);
   }
 }

@@ -90,18 +90,17 @@ public class TracingSession extends SessionWrapper implements CqlSession {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 
-      return completionStage.whenComplete(
-          (result, throwable) -> {
-            if (result != null) {
-              DECORATE.onResponse(span, result);
-            }
+      return completionStage.whenComplete((result, throwable) -> {
+        if (result != null) {
+          DECORATE.onResponse(span, result);
+        }
 
-            if (throwable instanceof CompletionException) {
-              throwable = throwable.getCause();
-            }
-            DECORATE.onError(span, throwable);
-            span.finish();
-          });
+        if (throwable instanceof CompletionException) {
+          throwable = throwable.getCause();
+        }
+        DECORATE.onError(span, throwable);
+        span.finish();
+      });
     }
   }
 
