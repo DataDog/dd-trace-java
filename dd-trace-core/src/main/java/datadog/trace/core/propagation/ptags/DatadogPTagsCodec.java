@@ -68,6 +68,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue llmObsSessionIdTagValue = null;
     TagValue llmObsParentAgentSpanIdTagValue = null;
     TagValue llmObsParentAgentNameTagValue = null;
+    TagValue llmObsParentIdTagValue = null;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -114,6 +115,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             llmObsParentAgentSpanIdTagValue = tagValue;
           } else if (tagKey.equals(LLMOBS_PAGENT_NAME_TAG)) {
             llmObsParentAgentNameTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
+            llmObsParentIdTagValue = tagValue;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -136,7 +139,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             llmObsMlAppTagValue,
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,
-            llmObsParentAgentNameTagValue));
+            llmObsParentAgentNameTagValue,
+            llmObsParentIdTagValue));
   }
 
   @Override

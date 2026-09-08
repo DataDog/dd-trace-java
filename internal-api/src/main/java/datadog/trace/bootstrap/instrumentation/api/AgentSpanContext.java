@@ -108,6 +108,17 @@ public interface AgentSpanContext {
   default void updateLLMObsParentAgentName(CharSequence parentAgentName) {}
 
   /**
+   * Gets the span id of the parent LLM Observability span propagated with this trace, or {@code
+   * null} if none is set or this context implementation doesn't have propagation-tags access.
+   */
+  default CharSequence getLLMObsParentId() {
+    return null;
+  }
+
+  /** Sets the parent LLM Observability span id to propagate with this trace. No-op by default. */
+  default void updateLLMObsParentId(CharSequence parentId) {}
+
+  /**
    * Gets whether the span context used is part of the local trace or from another service
    *
    * @return boolean representing if the span context is part of the local trace

@@ -27,6 +27,7 @@ abstract class PTagsCodec {
   protected static final TagKey LLMOBS_SESSION_ID_TAG = TagKey.from("llmobs_sid");
   protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
   protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
+  protected static final TagKey LLMOBS_PARENT_ID_TAG = TagKey.from("llmobs_parent_id");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
     return headerValue(codec, ptags, null);
@@ -84,6 +85,9 @@ abstract class PTagsCodec {
         size =
             codec.appendTag(
                 sb, LLMOBS_PAGENT_NAME_TAG, ptags.getLLMObsParentAgentNameTagValue(), size);
+      }
+      if (ptags.getLLMObsParentIdTagValue() != null) {
+        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, ptags.getLLMObsParentIdTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -179,6 +183,11 @@ abstract class PTagsCodec {
       tagMap.put(
           LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getLLMObsParentAgentNameTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getLLMObsParentIdTagValue() != null) {
+      tagMap.put(
+          LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getLLMObsParentIdTagValue().forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());

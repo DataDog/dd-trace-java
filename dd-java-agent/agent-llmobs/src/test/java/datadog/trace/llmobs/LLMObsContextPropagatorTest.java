@@ -37,6 +37,7 @@ class LLMObsContextPropagatorTest {
   private static final String SESSION_ID_TAG = "_dd.p.llmobs_sid";
   private static final String PAGENT_SPAN_ID_TAG = "_dd.p.llmobs_pagent_span_id";
   private static final String PAGENT_NAME_TAG = "_dd.p.llmobs_pagent_name";
+  private static final String PARENT_ID_TAG = "_dd.p.llmobs_parent_id";
 
   private static CoreTracer tracer;
 
@@ -94,6 +95,8 @@ class LLMObsContextPropagatorTest {
         () -> "pagent_span_id missing from " + tags);
     assertTrue(
         tags.contains(PAGENT_NAME_TAG + "=planner"), () -> "pagent_name missing from " + tags);
+    assertTrue(
+        tags.contains(PARENT_ID_TAG + "=" + agentSpanId), () -> "parent_id missing from " + tags);
   }
 
   @Test
@@ -122,6 +125,9 @@ class LLMObsContextPropagatorTest {
     assertTrue(
         tags == null || !tags.contains(SESSION_ID_TAG),
         () -> "session_id leaked after scope close: " + tags);
+    assertTrue(
+        tags == null || !tags.contains(PARENT_ID_TAG),
+        () -> "parent_id leaked after scope close: " + tags);
   }
 
   /**
@@ -164,6 +170,10 @@ class LLMObsContextPropagatorTest {
         assertEquals("sess-42", LLMObsContext.currentSessionId());
         assertEquals(producerAgentSpanId, LLMObsContext.currentParentAgentSpanId());
         assertEquals("dispatcher", LLMObsContext.currentParentAgentName());
+        // The worker's LLMObs span parents onto the producer's, rather than starting a second
+        // root — this is the value DDLLMObsSpan reads for its parent_id.
+        assertEquals(
+            producerAgentSpanId, String.valueOf(consumeSpan.spanContext().getLLMObsParentId()));
       } finally {
         workerTool.finish();
       }
@@ -189,6 +199,7 @@ class LLMObsContextPropagatorTest {
       try {
         assertNull(LLMObsContext.currentSessionId());
         assertNull(LLMObsContext.currentParentAgentSpanId());
+        assertNull(consumeSpan.spanContext().getLLMObsParentId());
       } finally {
         workerTool.finish();
       }

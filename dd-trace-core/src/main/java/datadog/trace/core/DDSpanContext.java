@@ -1532,6 +1532,16 @@ public class DDSpanContext
     getPropagationTags().updateLLMObsParentAgentName(parentAgentName);
   }
 
+  @Override
+  public CharSequence getLLMObsParentId() {
+    return getPropagationTags().getLLMObsParentId();
+  }
+
+  @Override
+  public void updateLLMObsParentId(CharSequence parentId) {
+    getPropagationTags().updateLLMObsParentId(parentId);
+  }
+
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {

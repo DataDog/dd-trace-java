@@ -50,6 +50,10 @@ public class LLMObsContextPropagator implements Propagator {
     spanContext.updateLLMObsSessionId(LLMObsContext.currentSessionId());
     spanContext.updateLLMObsParentAgentSpanId(LLMObsContext.currentParentAgentSpanId());
     spanContext.updateLLMObsParentAgentName(LLMObsContext.currentParentAgentName());
+    // The innermost active LLMObs span becomes the downstream span's LLMObs parent, so the
+    // continued trace is a single tree rather than a second root per service. Mirrors
+    // dd-trace-py's _dd.p.llmobs_parent_id.
+    spanContext.updateLLMObsParentId(String.valueOf(llmObsContext.getSpanId()));
   }
 
   @Override

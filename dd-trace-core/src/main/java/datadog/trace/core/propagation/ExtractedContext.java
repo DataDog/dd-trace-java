@@ -138,6 +138,11 @@ public class ExtractedContext extends TagContext {
   }
 
   @Override
+  public CharSequence getLLMObsParentId() {
+    return propagationTags.getLLMObsParentId();
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("ExtractedContext{");
     if (traceId != null) {

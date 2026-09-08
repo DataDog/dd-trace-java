@@ -205,6 +205,15 @@ public abstract class PropagationTags {
   /** Sets the parent LLM Observability agent span name to propagate with this trace. */
   public abstract void updateLLMObsParentAgentName(CharSequence parentAgentName);
 
+  /**
+   * Returns the span id of the parent LLM Observability span currently propagated with this trace,
+   * encoded as {@code _dd.p.llmobs_parent_id}. Returns {@code null} if none is set.
+   */
+  public abstract CharSequence getLLMObsParentId();
+
+  /** Sets the parent LLM Observability span id to propagate with this trace. */
+  public abstract void updateLLMObsParentId(CharSequence parentId);
+
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
     fillTagMap(result);

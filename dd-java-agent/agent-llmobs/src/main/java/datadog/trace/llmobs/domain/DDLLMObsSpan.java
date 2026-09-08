@@ -207,6 +207,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
       //
       // This also covers the trace-mismatch branch above: a stale context leaked from an unrelated
       // trace must not suppress attribution that legitimately arrived over the wire.
+      // Unlike dd-trace-py, a missing parent_id doesn't veto the rest: session and attribution
+      // are inherited independently, so a partially populated upstream still contributes what it
+      // did send.
+      String propagatedParentId = asString(span.spanContext().getLLMObsParentId());
+      if (propagatedParentId != null) {
+        parentSpanID = propagatedParentId;
+      }
       if (sessionId == null || sessionId.isEmpty()) {
         sessionId = asString(span.spanContext().getLLMObsSessionId());
       }

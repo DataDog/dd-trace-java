@@ -7,6 +7,7 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RAT
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_ML_APP_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_NAME_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_SPAN_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PARENT_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SESSION_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
@@ -122,6 +123,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue llmObsSessionIdTagValue;
     private volatile TagValue llmObsParentAgentSpanIdTagValue;
     private volatile TagValue llmObsParentAgentNameTagValue;
+    private volatile TagValue llmObsParentIdTagValue;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -210,6 +212,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.llmObsSessionIdTagValue = lov.sessionId;
       this.llmObsParentAgentSpanIdTagValue = lov.parentAgentSpanId;
       this.llmObsParentAgentNameTagValue = lov.parentAgentName;
+      this.llmObsParentIdTagValue = lov.parentId;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -473,6 +476,25 @@ public class PTagsFactory implements PropagationTags.Factory {
       return llmObsParentAgentNameTagValue;
     }
 
+    @Override
+    public CharSequence getLLMObsParentId() {
+      return llmObsParentIdTagValue;
+    }
+
+    @Override
+    public void updateLLMObsParentId(CharSequence parentId) {
+      TagValue newValue = toTagValue(parentId);
+      if (!Objects.equals(this.llmObsParentIdTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.llmObsParentIdTagValue = newValue;
+      }
+    }
+
+    TagValue getLLMObsParentIdTagValue() {
+      return llmObsParentIdTagValue;
+    }
+
     /**
      * Wraps a non-empty value as a {@link TagValue}, or {@code null} if empty. No length capping is
      * applied here — matching dd-trace-py, which writes these free-form values (ml_app, session_id,
@@ -631,6 +653,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, LLMOBS_PAGENT_NAME_TAG, llmObsParentAgentNameTagValue);
+        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsParentIdTagValue);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
