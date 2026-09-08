@@ -10,3 +10,4 @@ The other skills in this repo author or review specific things; this one is the 
 - `review-groovy-migration`, `migrate-groovy-to-java` — Groovy→Java test migration tooling and its review pass.
 - `apm-integrations` — instrumentation authoring.
 - `migrate-junit-source-to-tabletest` — test-source migration tooling.
+- `clarify-java-comments` — Javadoc and explanatory-comment review. Defer for documentation-only comment work; do not invoke it.

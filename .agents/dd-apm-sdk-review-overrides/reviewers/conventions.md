@@ -51,6 +51,6 @@ Read **CONTRIBUTING.md § "Pull request guidelines"** (draft-first, title, label
 
 Only the parts not stated there:
 
-- There is no `pr-title.yml` (or equivalent) that rejects a title. The title is a house rule plus changelog input, not a CI gate — flag a bad title, do not invent a missing-linter finding.
+- `.github/workflows/check-pull-requests.yaml` fails a ready PR whose title contains a bracketed tag (`[...]`, e.g. `[CORE]`). That part is a CI gate — flag it as a failing check. Other title quality (imperative verb, changelog wording) is a house rule plus changelog input, not a CI gate — flag a bad title, do not invent a missing-linter finding.
 - There is no changelog file: the PR title is the release note. Audit the title and `tag: no release notes` rather than asking for a CHANGELOG entry.
 - No in-repo rule mandates `gh --repo` flags or a fork-vs-branch policy; do not invent one.

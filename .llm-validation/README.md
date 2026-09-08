@@ -109,9 +109,9 @@ that level already selected.
 
 | Level | Cases | Default runs | Use |
 |---|---|---|---|
-| `minimum` | **1** (`java-perf-lens-wrong-collection-001`) | 3 | First smoke |
-| `gate` (default) | **8** listed in `config.yaml` | 5 | CI-shaped |
-| `full` | **every** case in `suites/` | 3 | Broader pass |
+| `minimum` | **1** (`java-perf-lens-wrong-collection-001`) | 2 | First smoke |
+| `gate` (default) | **8** listed in `config.yaml` | 2 | CI-shaped |
+| `full` | **every** case in `suites/` | 2 | Broader pass |
 
 So this command runs **one** case once, not the whole suite:
 
