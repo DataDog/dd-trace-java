@@ -29,30 +29,20 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Per park/unpark cost of virtual-thread context propagation: the current full {@link
- * ContinuableScopeManager#swap(Context)} on every mount/unmount versus the proposed seed-once path
- * (nothing when profiling is off, a profiler rebind/unbind when it is on). ddprof's native {@code
- * setContext} is modelled by a stub {@link ProfilingContextIntegration} whose {@link Stateful}
- * writes four volatile longs and allocates nothing.
+ * Java allocation and control-flow cost of virtual-thread context propagation: the current full
+ * {@link ContinuableScopeManager#swap(Context)} on every mount/unmount versus the proposed
+ * seed-once path (nothing when profiling is off, a profiler rebind/unbind when it is on). ddprof's
+ * native {@code setContext} is modelled by a shared stub {@link ProfilingContextIntegration} backed
+ * by thread-local slots. The stub matches ddprof's integration lifetime, per-thread isolation, and
+ * set/clear call pattern, but does not model native-call cost; profiling-on throughput is therefore
+ * not an estimate of production performance.
  *
  * <pre>
  * {@code ./gradlew :dd-trace-core:jmh -Pjmh.includes=VirtualThreadContextBenchmark -PtestJvm=21 -Pjmh.profilers=gc}
  * </pre>
  *
- * <p>Sample run (JDK 21.0.9, {@code @Threads(8)}; run-to-run variance is high, the alloc/op figures
- * are stable):
- *
- * <pre>{@code
- * Benchmark                                                   Mode  Cnt     Score     Error   Units
- * currentCycle_profilingOff                                  thrpt    5   463.841 ± 251.726  ops/us
- * currentCycle_profilingOff:gc.alloc.rate.norm               thrpt    5   176.002 ±   0.016    B/op
- * currentCycle_profilingOn                                   thrpt    5   272.253 ±  21.041  ops/us
- * currentCycle_profilingOn:gc.alloc.rate.norm                thrpt    5   288.003 ±   0.022    B/op
- * proposedSteady_profilingOff                                thrpt    5  5010.376 ± 354.716  ops/us
- * proposedSteady_profilingOff:gc.alloc.rate.norm             thrpt    5    ~0                   B/op
- * proposedRebindUnbind_profilingOn                           thrpt    5  1755.815 ± 473.954  ops/us
- * proposedRebindUnbind_profilingOn:gc.alloc.rate.norm        thrpt    5    ~0                   B/op
- * }</pre>
+ * <p>Use {@code -Pjmh.threads=1} as a control when comparing allocation per operation without
+ * cross-thread effects.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 1)
@@ -67,29 +57,30 @@ public class VirtualThreadContextBenchmark {
 
   ContinuableScopeManager plainManager; // profiling off
   ContinuableScopeManager profiledManager; // profiling on
+  StubProfiling stubProfiling;
 
   @Setup
   public void setup() {
     plainManager = new ContinuableScopeManager(0, false);
-    profiledManager =
-        new ContinuableScopeManager(0, false, new StubProfiling(), HealthMetrics.NO_OP);
+    stubProfiling = new StubProfiling();
+    profiledManager = new ContinuableScopeManager(0, false, stubProfiling, HealthMetrics.NO_OP);
   }
 
   @State(Scope.Thread)
   public static class ThreadState {
     AgentSpan span;
     Context spanContext;
-    Stateful profilerState;
 
     @Setup(Level.Trial)
     public void setup(VirtualThreadContextBenchmark bench) {
       span = TRACER.startSpan("benchmark", "vt");
       spanContext = span;
-      profilerState = new StubProfiling().newScopeState((ProfilerContext) span.spanContext());
+      bench.stubProfiling.initializeThread();
     }
 
     @TearDown(Level.Trial)
-    public void tearDown() {
+    public void tearDown(VirtualThreadContextBenchmark bench) {
+      bench.stubProfiling.clearThread();
       span.finish();
     }
   }
@@ -101,31 +92,75 @@ public class VirtualThreadContextBenchmark {
   }
 
   @Benchmark
-  public void currentCycle_profilingOn(ThreadState t) {
+  public long currentCycle_profilingOn_javaStub(ThreadState t) {
     Context previous = profiledManager.swap(t.spanContext);
     profiledManager.swap(previous);
+    return stubProfiling.currentValue();
   }
 
   // current() is the faithful upper bound for the seed-once steady state (a scope-stack read).
   @Benchmark
   public Context proposedSteady_profilingOff(ThreadState t) {
-    return plainManager.current();
+    return plainManager.currentContext();
   }
 
   @Benchmark
-  public Context proposedRebindUnbind_profilingOn(ThreadState t) {
-    Context active = profiledManager.current();
-    t.profilerState.activate(t.span.spanContext());
-    t.profilerState.close();
-    return active;
+  public long proposedRebindUnbind_profilingOn_javaStub(ThreadState t) {
+    if (stubProfiling.isThreadContextBindingRequired()) {
+      stubProfiling.setContext(t.spanContext);
+      stubProfiling.setContext(Context.root());
+    }
+    return stubProfiling.currentValue();
   }
 
   static final class StubProfiling implements ProfilingContextIntegration {
+    private final ThreadLocal<StubState> threadState = ThreadLocal.withInitial(StubState::new);
+
+    private final Stateful contextManager =
+        new Stateful() {
+          @Override
+          public void activate(Object context) {
+            if (context instanceof ProfilerContext) {
+              threadState.get().activate((ProfilerContext) context);
+            }
+          }
+
+          @Override
+          public void close() {
+            threadState.get().close();
+          }
+        };
+
     @Override
     public Stateful newScopeState(ProfilerContext profilerContext) {
-      // Per-scope storage mirrors ddprof's per-OS-thread native slots, avoiding the cross-thread
-      // cache contention a single shared instance would introduce.
-      return new StubState();
+      return contextManager;
+    }
+
+    @Override
+    public void setContext(Context context) {
+      AgentSpan span = AgentSpan.fromContext(context);
+      if (span != null) {
+        contextManager.activate(span.spanContext());
+      } else {
+        contextManager.close();
+      }
+    }
+
+    @Override
+    public boolean isThreadContextBindingRequired() {
+      return true;
+    }
+
+    void initializeThread() {
+      threadState.get();
+    }
+
+    void clearThread() {
+      threadState.remove();
+    }
+
+    long currentValue() {
+      return threadState.get().currentValue();
     }
 
     @Override
@@ -157,29 +192,30 @@ public class VirtualThreadContextBenchmark {
     }
   }
 
-  static final class StubState implements Stateful {
-    volatile long rootSpanId;
-    volatile long spanId;
-    volatile long traceHigh;
-    volatile long traceLow;
+  static final class StubState {
+    long rootSpanId;
+    long spanId;
+    long traceHigh;
+    long traceLow;
+    long previousValue;
 
-    @Override
-    public void activate(Object context) {
-      if (context instanceof ProfilerContext) {
-        ProfilerContext c = (ProfilerContext) context;
-        rootSpanId = c.getRootSpanId();
-        spanId = c.getSpanId();
-        traceHigh = c.getTraceIdHigh();
-        traceLow = c.getTraceIdLow();
-      }
+    void activate(ProfilerContext context) {
+      rootSpanId = context.getRootSpanId();
+      spanId = context.getSpanId();
+      traceHigh = context.getTraceIdHigh();
+      traceLow = context.getTraceIdLow();
     }
 
-    @Override
-    public void close() {
+    void close() {
+      previousValue = rootSpanId ^ spanId ^ traceHigh ^ traceLow;
       rootSpanId = 0;
       spanId = 0;
       traceHigh = 0;
       traceLow = 0;
+    }
+
+    long currentValue() {
+      return previousValue ^ rootSpanId ^ spanId ^ traceHigh ^ traceLow;
     }
   }
 }
