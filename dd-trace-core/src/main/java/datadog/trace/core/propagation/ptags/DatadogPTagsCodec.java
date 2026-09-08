@@ -135,7 +135,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
         traceIdTagValue,
         traceSource,
         orgPropagationMarkerTagValue,
-        new LLMObsTagValues(
+        LLMObsTagValues.of(
             llmObsMlAppTagValue,
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,

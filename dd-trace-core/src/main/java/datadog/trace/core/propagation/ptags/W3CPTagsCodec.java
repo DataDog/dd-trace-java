@@ -217,7 +217,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         maxUnknownSize,
         lastParentId,
         orgPropagationMarkerTagValue,
-        new LLMObsTagValues(
+        LLMObsTagValues.of(
             llmObsMlAppTagValue,
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,
@@ -786,7 +786,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         0,
         null,
         null,
-        null);
+        LLMObsTagValues.EMPTY);
   }
 
   private static class W3CPTags extends PTags {

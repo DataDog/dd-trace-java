@@ -175,8 +175,17 @@ public abstract class PropagationTags {
    */
   public abstract CharSequence getLLMObsMlApp();
 
-  /** Sets the LLM Observability {@code ml_app} to propagate with this trace. */
-  public abstract void updateLLMObsMlApp(CharSequence mlApp);
+  /**
+   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
+   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
+   * concurrent reader never serializes a header mixing values from two different contexts.
+   */
+  public abstract void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId);
 
   /**
    * Returns the LLM Observability {@code session_id} currently propagated with this trace, encoded
@@ -184,17 +193,11 @@ public abstract class PropagationTags {
    */
   public abstract CharSequence getLLMObsSessionId();
 
-  /** Sets the LLM Observability {@code session_id} to propagate with this trace. */
-  public abstract void updateLLMObsSessionId(CharSequence sessionId);
-
   /**
    * Returns the span id of the parent LLM Observability agent span currently propagated with this
    * trace, encoded as {@code _dd.p.llmobs_pagent_span_id}. Returns {@code null} if none is set.
    */
   public abstract CharSequence getLLMObsParentAgentSpanId();
-
-  /** Sets the parent LLM Observability agent span id to propagate with this trace. */
-  public abstract void updateLLMObsParentAgentSpanId(CharSequence parentAgentSpanId);
 
   /**
    * Returns the name of the parent LLM Observability agent span currently propagated with this
@@ -202,17 +205,11 @@ public abstract class PropagationTags {
    */
   public abstract CharSequence getLLMObsParentAgentName();
 
-  /** Sets the parent LLM Observability agent span name to propagate with this trace. */
-  public abstract void updateLLMObsParentAgentName(CharSequence parentAgentName);
-
   /**
    * Returns the span id of the parent LLM Observability span currently propagated with this trace,
    * encoded as {@code _dd.p.llmobs_parent_id}. Returns {@code null} if none is set.
    */
   public abstract CharSequence getLLMObsParentId();
-
-  /** Sets the parent LLM Observability span id to propagate with this trace. */
-  public abstract void updateLLMObsParentId(CharSequence parentId);
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

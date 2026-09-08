@@ -1498,8 +1498,14 @@ public class DDSpanContext
   }
 
   @Override
-  public void updateLLMObsMlApp(CharSequence mlApp) {
-    getPropagationTags().updateLLMObsMlApp(mlApp);
+  public void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId) {
+    getPropagationTags()
+        .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
   }
 
   @Override
@@ -1508,18 +1514,8 @@ public class DDSpanContext
   }
 
   @Override
-  public void updateLLMObsSessionId(CharSequence sessionId) {
-    getPropagationTags().updateLLMObsSessionId(sessionId);
-  }
-
-  @Override
   public CharSequence getLLMObsParentAgentSpanId() {
     return getPropagationTags().getLLMObsParentAgentSpanId();
-  }
-
-  @Override
-  public void updateLLMObsParentAgentSpanId(CharSequence parentAgentSpanId) {
-    getPropagationTags().updateLLMObsParentAgentSpanId(parentAgentSpanId);
   }
 
   @Override
@@ -1528,18 +1524,8 @@ public class DDSpanContext
   }
 
   @Override
-  public void updateLLMObsParentAgentName(CharSequence parentAgentName) {
-    getPropagationTags().updateLLMObsParentAgentName(parentAgentName);
-  }
-
-  @Override
   public CharSequence getLLMObsParentId() {
     return getPropagationTags().getLLMObsParentId();
-  }
-
-  @Override
-  public void updateLLMObsParentId(CharSequence parentId) {
-    getPropagationTags().updateLLMObsParentId(parentId);
   }
 
   /** TraceSegment Implementation */

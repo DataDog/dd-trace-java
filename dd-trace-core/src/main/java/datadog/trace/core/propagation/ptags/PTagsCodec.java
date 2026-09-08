@@ -70,24 +70,22 @@ abstract class PTagsCodec {
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
-      if (ptags.getLLMObsMlAppTagValue() != null) {
-        size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, ptags.getLLMObsMlAppTagValue(), size);
+      // One snapshot, so a concurrent injection can't have us encode a mix of old and new values.
+      LLMObsTagValues llmObsTags = ptags.getLLMObsTagValues();
+      if (llmObsTags.mlApp != null) {
+        size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);
       }
-      if (ptags.getLLMObsSessionIdTagValue() != null) {
-        size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, ptags.getLLMObsSessionIdTagValue(), size);
+      if (llmObsTags.sessionId != null) {
+        size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId, size);
       }
-      if (ptags.getLLMObsParentAgentSpanIdTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, LLMOBS_PAGENT_SPAN_ID_TAG, ptags.getLLMObsParentAgentSpanIdTagValue(), size);
+      if (llmObsTags.parentAgentSpanId != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId, size);
       }
-      if (ptags.getLLMObsParentAgentNameTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, LLMOBS_PAGENT_NAME_TAG, ptags.getLLMObsParentAgentNameTagValue(), size);
+      if (llmObsTags.parentAgentName != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName, size);
       }
-      if (ptags.getLLMObsParentIdTagValue() != null) {
-        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, ptags.getLLMObsParentIdTagValue(), size);
+      if (llmObsTags.parentId != null) {
+        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId, size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -161,36 +159,23 @@ abstract class PTagsCodec {
               .forType(Encoding.DATADOG)
               .toString());
     }
-    if (propagationTags.getLLMObsMlAppTagValue() != null) {
-      tagMap.put(
-          LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getLLMObsMlAppTagValue().forType(Encoding.DATADOG).toString());
-    }
-    if (propagationTags.getLLMObsSessionIdTagValue() != null) {
-      tagMap.put(
-          LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getLLMObsSessionIdTagValue().forType(Encoding.DATADOG).toString());
-    }
-    if (propagationTags.getLLMObsParentAgentSpanIdTagValue() != null) {
-      tagMap.put(
-          LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags
-              .getLLMObsParentAgentSpanIdTagValue()
-              .forType(Encoding.DATADOG)
-              .toString());
-    }
-    if (propagationTags.getLLMObsParentAgentNameTagValue() != null) {
-      tagMap.put(
-          LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getLLMObsParentAgentNameTagValue().forType(Encoding.DATADOG).toString());
-    }
-    if (propagationTags.getLLMObsParentIdTagValue() != null) {
-      tagMap.put(
-          LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getLLMObsParentIdTagValue().forType(Encoding.DATADOG).toString());
-    }
+    LLMObsTagValues llmObsTags = propagationTags.getLLMObsTagValues();
+    putLLMObsTag(tagMap, LLMOBS_ML_APP_TAG, llmObsTags.mlApp);
+    putLLMObsTag(tagMap, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId);
+    putLLMObsTag(tagMap, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
+    putLLMObsTag(tagMap, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
+    putLLMObsTag(tagMap, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
+    }
+  }
+
+  /** Adds one LLM Observability tag to the span's tag map, skipping it when unset. */
+  private static void putLLMObsTag(Map<String, String> tagMap, TagKey tagKey, TagValue tagValue) {
+    if (tagValue != null) {
+      tagMap.put(
+          tagKey.forType(Encoding.DATADOG).toString(),
+          tagValue.forType(Encoding.DATADOG).toString());
     }
   }
 

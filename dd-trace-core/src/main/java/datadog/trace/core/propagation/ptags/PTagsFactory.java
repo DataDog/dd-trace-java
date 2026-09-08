@@ -55,7 +55,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null, null);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null, LLMObsTagValues.EMPTY);
   }
 
   @Override
@@ -77,7 +77,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue traceIdTagValue,
       int productTraceSource,
       TagValue orgPropagationMarkerTagValue,
-      LLMObsTagValues llmObsTagValues) {
+      @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
         this,
         tagPairs,
@@ -119,11 +119,13 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile TagValue orgPropagationMarkerTagValue;
 
-    private volatile TagValue llmObsMlAppTagValue;
-    private volatile TagValue llmObsSessionIdTagValue;
-    private volatile TagValue llmObsParentAgentSpanIdTagValue;
-    private volatile TagValue llmObsParentAgentNameTagValue;
-    private volatile TagValue llmObsParentIdTagValue;
+    /**
+     * The LLM Observability propagation tags, held as one immutable bundle rather than five fields
+     * so that an update is a single reference swap. Readers therefore always observe a tag set that
+     * actually existed, instead of a mix of values from before and after an injection. Never {@code
+     * null} — {@link LLMObsTagValues#EMPTY} means "none".
+     */
+    private volatile LLMObsTagValues llmObsTags = LLMObsTagValues.EMPTY;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -172,7 +174,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue traceIdTagValue,
         int traceSource,
         TagValue orgPropagationMarkerTagValue,
-        LLMObsTagValues llmObsTagValues) {
+        @Nonnull LLMObsTagValues llmObsTagValues) {
       this(
           factory,
           tagPairs,
@@ -196,7 +198,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         CharSequence origin,
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
-        LLMObsTagValues llmObsTagValues) {
+        @Nonnull LLMObsTagValues llmObsTagValues) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -207,12 +209,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
-      LLMObsTagValues lov = llmObsTagValues != null ? llmObsTagValues : LLMObsTagValues.EMPTY;
-      this.llmObsMlAppTagValue = lov.mlApp;
-      this.llmObsSessionIdTagValue = lov.sessionId;
-      this.llmObsParentAgentSpanIdTagValue = lov.parentAgentSpanId;
-      this.llmObsParentAgentNameTagValue = lov.parentAgentName;
-      this.llmObsParentIdTagValue = lov.parentId;
+      this.llmObsTags = llmObsTagValues;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -235,7 +232,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               null,
               null,
-              null);
+              LLMObsTagValues.EMPTY);
       pTags.error = error;
       return pTags;
     }
@@ -271,8 +268,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           TagValue newDM = TagValue.from("-" + samplingMechanism);
           if (!newDM.equals(decisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
+            clearCachedHeaders();
           }
           decisionMakerTagValue = newDM;
         }
@@ -280,8 +276,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // Drop the decision maker tag
         if (decisionMakerTagValue != null) {
           // This should invalidate any cached w3c and datadog header
-          clearCachedHeader(DATADOG);
-          clearCachedHeader(W3C);
+          clearCachedHeaders();
         }
         decisionMakerTagValue = null;
       }
@@ -298,8 +293,7 @@ public class PTagsFactory implements PropagationTags.Factory {
             }
 
             // Invalidate cached headers (atomic context ensures correctness)
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
+            clearCachedHeaders();
 
             // Set the bit for the given product
             return ProductTraceSource.updateProduct(currentValue, product);
@@ -324,8 +318,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public void updateKnuthSamplingRate(double rate) {
       if (Double.compare(knuthSamplingRate, rate) != 0) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
+        clearCachedHeaders();
         knuthSamplingRate = rate;
         if (Double.isNaN(rate)) {
           knuthSamplingRateTagValue = null;
@@ -390,8 +383,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateOrgPropagationMarker(CharSequence opm) {
       TagValue newValue = opm == null ? null : TagValue.from(opm);
       if (!Objects.equals(this.orgPropagationMarkerTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
+        clearCachedHeaders();
         this.orgPropagationMarkerTagValue = newValue;
       }
     }
@@ -401,98 +393,53 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public CharSequence getLLMObsMlApp() {
-      return llmObsMlAppTagValue;
-    }
-
-    @Override
-    public void updateLLMObsMlApp(CharSequence mlApp) {
-      TagValue newValue = toTagValue(mlApp);
-      if (!Objects.equals(this.llmObsMlAppTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.llmObsMlAppTagValue = newValue;
+    public void updateLLMObsContext(
+        CharSequence mlApp,
+        CharSequence sessionId,
+        CharSequence parentAgentSpanId,
+        CharSequence parentAgentName,
+        CharSequence parentId) {
+      LLMObsTagValues updated =
+          LLMObsTagValues.of(
+              toTagValue(mlApp),
+              toTagValue(sessionId),
+              toTagValue(parentAgentSpanId),
+              toTagValue(parentAgentName),
+              toTagValue(parentId));
+      // Re-injecting the same context onto the same span is the common case; don't invalidate.
+      if (!updated.sameAs(llmObsTags)) {
+        clearCachedHeaders();
+        llmObsTags = updated;
       }
     }
 
-    TagValue getLLMObsMlAppTagValue() {
-      return llmObsMlAppTagValue;
+    @Override
+    public CharSequence getLLMObsMlApp() {
+      return llmObsTags.mlApp;
     }
 
     @Override
     public CharSequence getLLMObsSessionId() {
-      return llmObsSessionIdTagValue;
-    }
-
-    @Override
-    public void updateLLMObsSessionId(CharSequence sessionId) {
-      TagValue newValue = toTagValue(sessionId);
-      if (!Objects.equals(this.llmObsSessionIdTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.llmObsSessionIdTagValue = newValue;
-      }
-    }
-
-    TagValue getLLMObsSessionIdTagValue() {
-      return llmObsSessionIdTagValue;
+      return llmObsTags.sessionId;
     }
 
     @Override
     public CharSequence getLLMObsParentAgentSpanId() {
-      return llmObsParentAgentSpanIdTagValue;
-    }
-
-    @Override
-    public void updateLLMObsParentAgentSpanId(CharSequence parentAgentSpanId) {
-      TagValue newValue = toTagValue(parentAgentSpanId);
-      if (!Objects.equals(this.llmObsParentAgentSpanIdTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.llmObsParentAgentSpanIdTagValue = newValue;
-      }
-    }
-
-    TagValue getLLMObsParentAgentSpanIdTagValue() {
-      return llmObsParentAgentSpanIdTagValue;
+      return llmObsTags.parentAgentSpanId;
     }
 
     @Override
     public CharSequence getLLMObsParentAgentName() {
-      return llmObsParentAgentNameTagValue;
-    }
-
-    @Override
-    public void updateLLMObsParentAgentName(CharSequence parentAgentName) {
-      TagValue newValue = toTagValue(parentAgentName);
-      if (!Objects.equals(this.llmObsParentAgentNameTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.llmObsParentAgentNameTagValue = newValue;
-      }
-    }
-
-    TagValue getLLMObsParentAgentNameTagValue() {
-      return llmObsParentAgentNameTagValue;
+      return llmObsTags.parentAgentName;
     }
 
     @Override
     public CharSequence getLLMObsParentId() {
-      return llmObsParentIdTagValue;
+      return llmObsTags.parentId;
     }
 
-    @Override
-    public void updateLLMObsParentId(CharSequence parentId) {
-      TagValue newValue = toTagValue(parentId);
-      if (!Objects.equals(this.llmObsParentIdTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        this.llmObsParentIdTagValue = newValue;
-      }
-    }
-
-    TagValue getLLMObsParentIdTagValue() {
-      return llmObsParentIdTagValue;
+    LLMObsTagValues getLLMObsTagValues() {
+      return llmObsTags;
     }
 
     /**
@@ -605,6 +552,16 @@ public class PTagsFactory implements PropagationTags.Factory {
       cache[headerType.ordinal()] = header;
     }
 
+    /**
+     * Invalidate every encoding's cached header, and the memoized x-datadog-tags size with them.
+     * Use this whenever a change affects both wire formats; the single-encoding {@link
+     * #clearCachedHeader} calls that remain are deliberate.
+     */
+    private void clearCachedHeaders() {
+      clearCachedHeader(DATADOG);
+      clearCachedHeader(W3C);
+    }
+
     private void clearCachedHeader(HeaderType headerType) {
       if (headerType == DATADOG) {
         invalidateXDatadogTagsSize();
@@ -644,16 +601,21 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
-        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, llmObsMlAppTagValue);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_SESSION_ID_TAG, llmObsSessionIdTagValue);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsParentAgentSpanIdTagValue);
+        // One snapshot: sizing a mix of old and new values would gate the header on a tag set that
+        // never existed, and this total is what decides whether x-datadog-tags is emitted at all.
+        LLMObsTagValues currentLLMObsTags = llmObsTags;
+        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, currentLLMObsTags.mlApp);
         size =
             PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_PAGENT_NAME_TAG, llmObsParentAgentNameTagValue);
-        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsParentIdTagValue);
+                size, LLMOBS_SESSION_ID_TAG, currentLLMObsTags.sessionId);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_PAGENT_SPAN_ID_TAG, currentLLMObsTags.parentAgentSpanId);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_PAGENT_NAME_TAG, currentLLMObsTags.parentAgentName);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, currentLLMObsTags.parentId);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
@@ -695,8 +657,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         canChangeDecisionMaker = false;
         decisionMakerTagValue = ((PTags) source).getDecisionMakerTagValue();
         if (decisionMakerTagValue != null) {
-          clearCachedHeader(DATADOG);
-          clearCachedHeader(W3C);
+          clearCachedHeaders();
         }
       }
     }
