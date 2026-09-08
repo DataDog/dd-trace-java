@@ -24,6 +24,10 @@ public final class DatadogAttributeParser {
       if (acceptJsonProperty(classifier, json, "x-datadog-trace-id")) {
         acceptJsonProperty(classifier, json, "x-datadog-parent-id");
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
+        // Propagation tags travel in x-datadog-tags. Without this the whole _dd.p.* set is
+        // silently dropped at a messaging boundary — including _dd.p.tid, which truncates a
+        // 128-bit trace id to 64 bits downstream, and the _dd.p.llmobs_* attribution tags.
+        acceptJsonProperty(classifier, json, "x-datadog-tags");
       }
       if (Config.get().isDataStreamsEnabled()) {
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
