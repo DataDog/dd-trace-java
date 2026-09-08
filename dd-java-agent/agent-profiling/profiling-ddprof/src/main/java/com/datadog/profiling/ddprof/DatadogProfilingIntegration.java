@@ -81,6 +81,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return "ddprof";
   }
 
+  /** Rebinds ddprof's carrier-thread context to the span contained in {@code context}. */
   @Override
   public void setContext(Context context) {
     AgentSpan span = AgentSpan.fromContext(context);
@@ -96,7 +97,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return true;
   }
 
-  public void clearContext() {
+  private void clearContext() {
     contextManager.close();
   }
 
