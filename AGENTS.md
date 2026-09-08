@@ -77,20 +77,7 @@ docs/                     Developer documentation (see below)
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Local agent with a skill harness (pilot):** before pushing, run [dd-apm-sdk-review](.agents/skills/dd-apm-sdk-review/SKILL.md) on your unpushed changes unless the user says not to. If any `P0` finding is reported, fix it or get explicit authorization and record the unresolved finding verbatim in the PR description. `P1`/`P2` findings should be fixed before pushing but can be dismissed by the human. Security findings are never pasted into the PR description — route them privately. (Performance review, previously the standalone `/perf-review` skill, is now one of this skill's perspectives — see `.agents/dd-apm-sdk-review-overrides/reviewers/performance.md`.)
-- **Reviewer without a skill harness** (GitHub Codex, or any agent that cannot invoke `.agents/skills/`): do not run the skill and do not execute `SKILL.md` Step 1. When you are reviewing a pull request or a diff, use these files as the review spec — the checks and the P0/P1/P2 bar only:
-  - `.agents/skills/dd-apm-sdk-review/reviewers/_common.md` (always)
-  - `.agents/skills/dd-apm-sdk-review/reviewers/coherence.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/correctness.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/security.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/design.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/performance.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/maintainability.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/conventions.md`
-  - `.agents/skills/dd-apm-sdk-review/reviewers/cross-sdk.md`
-  - the matching file under `.agents/dd-apm-sdk-review-overrides/reviewers/` when it exists (additive; read both)
-  - `.agents/dd-apm-sdk-review-overrides/repo-context.md` (cite related skills; do not invoke them)
-- Do not load `SKILL.md` or `reviewers/report-template.md`. Ignore harness-only rules in the files you do load: do not emit `READY TO PUSH` / `DO NOT PUSH` / `WAITING ON HUMAN`, and the `_common.md` rule "Never post to GitHub" does not apply to you — post findings as review comments. Skip a lens that cannot apply to this diff rather than inventing a finding.
-- If this change set is only agent-instruction files (`.agents/`, `AGENTS.md`, `CLAUDE.md`), review that prose for broken paths and contradictions. Do not apply the product lenses to the instruction text.
+- **Reviewer without a skill harness** (GitHub Codex, or any agent that cannot invoke `.agents/skills/`): do not run the skill. Follow [.agents/dd-apm-sdk-review-overrides/no-harness-review.md](.agents/dd-apm-sdk-review-overrides/no-harness-review.md).
 
 ## Critical constraints
 
