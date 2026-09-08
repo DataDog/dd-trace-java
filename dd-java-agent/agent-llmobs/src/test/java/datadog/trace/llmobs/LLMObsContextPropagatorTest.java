@@ -127,6 +127,35 @@ class LLMObsContextPropagatorTest {
   }
 
   /**
+   * The staged tags live on the <em>root</em> span context's propagation tags, which are shared by
+   * the whole local trace. Once an injection has written them there, a later injection on the same
+   * trace has to overwrite them — otherwise it ships a session and an agent attribution that are no
+   * longer active.
+   */
+  @Test
+  void doesNotLeakStagedTagsIntoALaterInjectionOnTheSameTrace() {
+    Map<String, String> duringScope;
+    Map<String, String> afterScope;
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan agent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "planner", "my-ml-app", "sess-1");
+      try {
+        duringScope = autoInject(AgentTracer.activeSpan());
+      } finally {
+        agent.finish();
+      }
+      afterScope = autoInject(apmScope.span());
+    }
+
+    assertTrue(
+        duringScope.get("x-datadog-tags").contains(SESSION_ID_TAG),
+        "precondition: the first injection should have staged the LLMObs tags");
+    String tags = afterScope.get("x-datadog-tags");
+    assertTrue(
+        tags == null || !tags.contains("_dd.p.llmobs_"),
+        () -> "stale LLMObs tags leaked into a later injection: " + tags);
+  }
+
+  /**
    * The full cross-process hop, as an SQS producer/worker pair sees it: the producer injects into
    * message attributes, the worker extracts and activates them, and an LLMObs span started by the
    * worker inherits the session and agent attribution without any application-level plumbing.
