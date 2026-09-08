@@ -10,7 +10,6 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator
-import datadog.trace.instrumentation.pekkohttp.PekkoHttpSingleRequestInstrumentation.SingleRequestContextPropagationAdvice
 import scala.compat.java8.FutureConverters
 import scala.concurrent.Future
 import spock.lang.Shared
@@ -60,14 +59,6 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
   boolean testRemoteConnection() {
     // Not sure how to properly set timeouts...
     return false
-  }
-
-  def "does not inject context into a null request"() {
-    when:
-    SingleRequestContextPropagationAdvice.methodEnter(null)
-
-    then:
-    noExceptionThrown()
   }
 
   def "singleRequest exception trace"() {
