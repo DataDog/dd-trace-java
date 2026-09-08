@@ -54,7 +54,7 @@ public class DefaultExceptionDebugger extends AbstractExceptionDebugger {
     }
     // do not handle exception with no stacktrace. cannot capture anything for it.
     // includes also FastThrow ones
-    if (t.getStackTrace().length == 0) {
+    if (t.getStackTrace() == null || t.getStackTrace().length == 0) {
       return false;
     }
     return circuitBreaker.trip();
