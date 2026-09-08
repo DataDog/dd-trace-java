@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.util.stream.Stream;
@@ -124,6 +125,12 @@ class OtelTraceStateTest {
 
     assertEquals("rv:" + LOCAL_RANDOM_VALUE + ";" + UNKNOWN_FIELD, state.getValue());
     assertEquals(0, state.getInheritedPosition());
+  }
+
+  @Test
+  void limiterRejectionWithoutTraceStateDoesNotGenerateRandomness() {
+    assertNull(
+        OtelTraceState.updateProbability(null, TRACE_ID, SAMPLE_RATE_0_5, true, SAMPLER_DROP));
   }
 
   @Test

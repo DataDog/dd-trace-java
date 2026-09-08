@@ -47,8 +47,8 @@ final class OtelTraceState {
     int flags = 0;
     StringBuilder normalized = null;
     int start = 0;
-    // Iterate over semicolon-delimited OTel tracestate key-value pairs.
-    while (start < raw.length()) {
+    // Iterate over semicolon-delimited OTel tracestate fields, including trailing empty fields.
+    while (start <= raw.length()) {
       int end = raw.indexOf(';', start);
       if (end < 0) {
         end = raw.length();
@@ -58,6 +58,7 @@ final class OtelTraceState {
         separator = -1;
       }
       int fieldValueStart = separator < 0 ? end : separator + 1;
+      boolean validField;
       if (hasKey(raw, start, end, separator, 'r', 'v')) {
         boolean validRandomValueLength = end - fieldValueStart == HEX_DIGITS;
         long parsedRandomValue =
@@ -68,11 +69,9 @@ final class OtelTraceState {
           } else {
             flags |= FLAGS_HAS_MULTIPLE_RANDOM_VALUES;
           }
-          if (normalized != null) {
-            appendField(normalized, raw, start, end);
-          }
+          validField = true;
         } else {
-          normalized = startNormalizing(raw, normalized, start);
+          validField = false;
         }
       } else if (hasKey(raw, start, end, separator, 't', 'h')) {
         boolean validThresholdLength = fieldValueStart < end && end - fieldValueStart <= HEX_DIGITS;
@@ -82,24 +81,28 @@ final class OtelTraceState {
           if (threshold == NO_VALUE) {
             threshold = parsedThreshold;
           }
-          if (normalized != null) {
-            appendField(normalized, raw, start, end);
-          }
+          validField = true;
         } else {
-          normalized = startNormalizing(raw, normalized, start);
+          validField = false;
         }
-      } else if (start < end) {
+      } else {
+        validField = start < end;
+      }
+      if (validField) {
         if (normalized != null) {
-          appendField(normalized, raw, start, end);
+          int separatorSize = normalized.length() == 0 ? 0 : 1;
+          int fieldLength = end - start;
+          if (normalized.length() + separatorSize + fieldLength <= MAX_VALUE_LENGTH) {
+            if (separatorSize != 0) {
+              normalized.append(';');
+            }
+            normalized.append(raw, start, end);
+          }
         }
       } else {
         normalized = startNormalizing(raw, normalized, start);
       }
       start = end + 1;
-    }
-
-    if (raw.charAt(raw.length() - 1) == ';') {
-      normalized = startNormalizing(raw, normalized, raw.length());
     }
 
     String value = normalized == null ? raw : normalized.toString();
@@ -125,16 +128,12 @@ final class OtelTraceState {
     int originalSize = current == null ? 0 : current.originalSize;
 
     // `sampled` is the raw probability result; `samplingPriority` may be changed by rate limiting.
-    if (sampled && samplingPriority <= 0) {
+    boolean limiterDemoted = sampled && samplingPriority <= 0;
+    if (limiterDemoted) {
       if (current != null) {
         return current.removeThresholdForLimiterDemotion();
       }
-      return create(
-          computeRandomValue(traceIdLowOrderBits),
-          NO_VALUE,
-          currentValue,
-          originalSize,
-          true);
+      return null;
     }
 
     long threshold = computeThreshold(sampleRate);
@@ -187,18 +186,23 @@ final class OtelTraceState {
   private static OtelTraceState create(
       long randomValue,
       long threshold,
-      String previousValue,
+      String existingValue,
       int originalSize,
       boolean locallyGeneratedRandomValue) {
     StringBuilder value = new StringBuilder(DEFAULT_VALUE_CAPACITY);
     if (randomValue != NO_VALUE) {
-      appendRandomValue(value, randomValue);
+      value.append(RANDOM_VALUE_KEY);
+      appendHex(value, randomValue, HEX_DIGITS);
     }
     if (threshold != NO_VALUE) {
-      appendThreshold(value, threshold);
+      if (value.length() > 0) {
+        value.append(';');
+      }
+      value.append(THRESHOLD_KEY);
+      appendHex(value, threshold, thresholdHexDigits(threshold));
     }
-    if (previousValue != null) {
-      appendUnknownFields(value, previousValue);
+    if (existingValue != null) {
+      appendUnknownFields(value, existingValue);
     }
     if (value.length() == 0) {
       return null;
@@ -223,56 +227,31 @@ final class OtelTraceState {
     return normalized;
   }
 
-  private static void appendRandomValue(StringBuilder value, long randomValue) {
-    if (appendFieldPrefix(value, RANDOM_VALUE_KEY.length() + HEX_DIGITS)) {
-      value.append(RANDOM_VALUE_KEY);
-      appendHex(value, randomValue, HEX_DIGITS);
-    }
-  }
-
-  private static void appendThreshold(StringBuilder value, long threshold) {
-    int hexDigits = thresholdHexDigits(threshold);
-    if (appendFieldPrefix(value, THRESHOLD_KEY.length() + hexDigits)) {
-      value.append(THRESHOLD_KEY);
-      appendHex(value, threshold, hexDigits);
-    }
-  }
-
-  private static void appendUnknownFields(StringBuilder value, String previousValue) {
+  /** Appends fields other than {@code rv} and {@code th} from the existing value. */
+  private static void appendUnknownFields(StringBuilder value, String existingValue) {
     int start = 0;
-    while (start < previousValue.length()) {
-      int end = previousValue.indexOf(';', start);
+    while (start < existingValue.length()) {
+      int end = existingValue.indexOf(';', start);
       if (end < 0) {
-        end = previousValue.length();
+        end = existingValue.length();
       }
-      int separator = previousValue.indexOf(':', start);
+      int separator = existingValue.indexOf(':', start);
       if (separator >= end) {
         separator = -1;
       }
-      if (!hasKey(previousValue, start, end, separator, 'r', 'v')
-          && !hasKey(previousValue, start, end, separator, 't', 'h')) {
-        appendField(value, previousValue, start, end);
+      if (!hasKey(existingValue, start, end, separator, 'r', 'v')
+          && !hasKey(existingValue, start, end, separator, 't', 'h')) {
+        int separatorSize = value.length() == 0 ? 0 : 1;
+        int fieldLength = end - start;
+        if (value.length() + separatorSize + fieldLength <= MAX_VALUE_LENGTH) {
+          if (separatorSize != 0) {
+            value.append(';');
+          }
+          value.append(existingValue, start, end);
+        }
       }
       start = end + 1;
     }
-  }
-
-  private static void appendField(StringBuilder value, String field, int start, int end) {
-    if (!appendFieldPrefix(value, end - start)) {
-      return;
-    }
-    value.append(field, start, end);
-  }
-
-  private static boolean appendFieldPrefix(StringBuilder value, int fieldLength) {
-    int separatorSize = value.length() == 0 ? 0 : 1;
-    if (value.length() + separatorSize + fieldLength > MAX_VALUE_LENGTH) {
-      return false;
-    }
-    if (separatorSize != 0) {
-      value.append(';');
-    }
-    return true;
   }
 
   private static boolean hasKey(
