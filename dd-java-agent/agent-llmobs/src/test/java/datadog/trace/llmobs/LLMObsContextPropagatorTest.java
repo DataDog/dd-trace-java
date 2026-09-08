@@ -205,6 +205,46 @@ class LLMObsContextPropagatorTest {
     }
   }
 
+  /**
+   * A worker whose own service default differs from the producer's must not re-bucket the trace
+   * under its own ml_app. The propagated value outranks the default, so one logical application
+   * stays one application across the hop.
+   */
+  @Test
+  void workerInheritsMlAppAcrossTheBoundary() {
+    Map<String, String> messageAttributes;
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan producer =
+          newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", "sess-42");
+      try {
+        messageAttributes = autoInject(AgentTracer.activeSpan());
+      } finally {
+        producer.finish();
+      }
+    }
+
+    assertTrue(
+        messageAttributes.get("x-datadog-tags").contains(ML_APP_TAG + "=checkout"),
+        () -> "precondition: ml_app should be on the wire: " + messageAttributes);
+
+    Context extracted =
+        Propagators.defaultPropagator()
+            .extract(
+                Context.root(), messageAttributes, (carrier, visitor) -> carrier.forEach(visitor));
+    AgentSpan consumeSpan = AgentSpan.fromContext(extracted);
+    assertNotNull(consumeSpan, "expected trace context to be extracted");
+
+    try (AgentScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
+      // The worker names no ml_app, so its own service default would otherwise apply.
+      DDLLMObsSpan workerTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertEquals("checkout", LLMObsContext.currentMlApp());
+      } finally {
+        workerTool.finish();
+      }
+    }
+  }
+
   @Test
   void workerWithoutUpstreamLlmObsContextInheritsNothing() {
     Map<String, String> messageAttributes;

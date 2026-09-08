@@ -48,7 +48,9 @@ public class LLMObsSystem {
 
     String mlApp = config.getLlmObsMlApp();
     WellKnownTags wellKnownTags = config.getWellKnownTags();
-    LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
+    // The span factory deliberately gets no default ml_app: DDLLMObsSpan applies it last, after
+    // in-process and propagated values have had their chance.
+    LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(wellKnownTags));
 
     LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
 
@@ -223,12 +225,10 @@ public class LLMObsSystem {
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
 
-    private final String defaultMLApp;
     private final String serviceName;
     private final WellKnownTags wellKnownTags;
 
-    public LLMObsManualSpanFactory(String defaultMLApp, WellKnownTags wellKnownTags) {
-      this.defaultMLApp = defaultMLApp;
+    public LLMObsManualSpanFactory(WellKnownTags wellKnownTags) {
       this.serviceName = wellKnownTags.getService().toString();
       this.wellKnownTags = wellKnownTags;
     }
@@ -243,12 +243,7 @@ public class LLMObsSystem {
 
       DDLLMObsSpan span =
           new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+              Tags.LLMOBS_LLM_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -277,7 +272,7 @@ public class LLMObsSystem {
       return new DDLLMObsSpan(
           Tags.LLMOBS_AGENT_SPAN_KIND,
           spanName,
-          getMLApp(mlApp),
+          mlApp,
           sessionId,
           serviceName,
           wellKnownTags,
@@ -288,36 +283,21 @@ public class LLMObsSystem {
     public LLMObsSpan startToolSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startTaskSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_TASK_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
@@ -334,7 +314,7 @@ public class LLMObsSystem {
           new DDLLMObsSpan(
               Tags.LLMOBS_EMBEDDING_SPAN_KIND,
               spanName,
-              getMLApp(mlApp),
+              mlApp,
               sessionId,
               serviceName,
               wellKnownTags);
@@ -346,19 +326,7 @@ public class LLMObsSystem {
     public LLMObsSpan startRetrievalSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_RETRIEVAL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    private String getMLApp(String mlApp) {
-      if (mlApp == null || mlApp.isEmpty()) {
-        return defaultMLApp;
-      }
-      return mlApp;
+          Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
   }
 }
