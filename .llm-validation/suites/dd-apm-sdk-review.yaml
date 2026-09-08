@@ -70,7 +70,7 @@ cases:
       - "The report's Mode line states pasted diff / no git (e.g. \"pasted diff, no git\")."
       - "Includes a \"Rule files used\" section listing which reviewer files were used, per report-template.md."
       - "Raises a performance finding on the LinkedHashMap swap (J12) and/or the hot-path String.format call (J10), classified under the report's P0/P1/P2 sections, not the internal SEV vocabulary."
-      - "States an explicit verdict line (BLOCK / APPROVE_WITH_COMMENTS / APPROVE) and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line (BLOCK / APPROVE_WITH_COMMENTS / APPROVE) and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
       - "The maintainability lens does not invent its own release-note or public-API policy — per its override (.agents/dd-apm-sdk-review-overrides/reviewers/maintainability.md), it defers to conventions.md's actual policy (no changelog file; the PR title is the release note) rather than asking for a CHANGELOG.md entry."
     bad_signals:
       - "Attempts to run git commands despite the change set being pasted inline."
@@ -154,7 +154,7 @@ cases:
       - "Flags that `processCaptureExpressions()` evaluates every capture expression as soon as `captureExpressions` is non-null, without checking `logStatus.shouldSend()` — the effective send/sampling decision already computed by the caller."
       - "Explains the concrete consequence — a hit that is rejected or rate-limited still pays for expression evaluation, so a broken capture expression on a hot method produces an unthrottled stream of evaluation errors for every hit."
       - "Recommends gating the evaluation loop on the send decision, e.g. `if (captureExpressions == null || !logStatus.shouldSend()) { return; }`."
-      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
       - "Only notes the null check and misses the missing `shouldSend()` gate."
       - "Treats this as a cosmetic style issue rather than reliability/performance."
@@ -191,7 +191,7 @@ cases:
       - "Flags that the queue-name tag (`setQueueName`) is only set from the optional `QueueName` field, and is never derived from the always-tagged `QueueUrl` field when `QueueName` is absent."
       - "Explains the concrete consequence — SQS request types that only populate `QueueUrl` silently ship with no queue-name tag — incomplete telemetry, not a crash."
       - "Recommends deriving the queue name from the URL (e.g. last path segment) as a fallback whenever `QueueName` is absent."
-      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
       - "Only notes that `QueueName` is Optional without calling out the missing URL fallback."
       - "Treats this as a crash/exception bug rather than a silent data-completeness gap."
@@ -262,7 +262,7 @@ cases:
       - "Explains the concrete consequence as a resource leak (Inflater / native memory pressure when scanning a large jar), not a style nit."
       - "Separately flags that `scanDirectory()`'s `Files.walk(jarPath)` stream is also never closed — its own finding, not folded into the InputStream one."
       - "Recommends wrapping both the `InputStream` and the `Files.walk()` stream in try-with-resources."
-      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
       - "Misses the unclosed InputStream or the unclosed Files.walk stream."
       - "Folds both leaks into one vague \"resource handling\" note without naming both."
@@ -311,7 +311,7 @@ cases:
       - "Flags that `encodeSpanEvents()` treats any non-`List` `eventsObject` as empty, even though the comment states the OTel bridge supplies span events as a pre-serialized JSON string (`CharSequence`)."
       - "Explains the concrete consequence — OTel-bridge spans silently drop span events from the encoded v1 payload — empty events array, no exception — silent data loss."
       - "Recommends recognizing/normalizing the `CharSequence`/JSON-string representation into a `List` before the List-shaped encoding logic runs."
-      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
       - "Only praises the empty/null defensive handling and misses the CharSequence path."
       - "Treats this as a crash bug rather than silent data loss."
@@ -355,7 +355,7 @@ cases:
       - "Flags that `firstSpanWritten` is an instance field that is only ever set to `true` and is never reset to `false` at the start of `map()`."
       - "Explains the concrete consequence given mapper reuse across the writer's lifetime: after the first chunk, subsequent chunks never write process/ propagation tags (`dd-p-*`) on their first span — silent cross-payload data loss."
       - "Recommends resetting `firstSpanWritten` to `false` at the start of each `map()` call (or an explicit `reset()` before each `map()`)."
-      - "States an explicit verdict line and a final READY TO PUSH / DO NOT PUSH statement."
+      - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
       - "Notes the flag exists but misses that nothing re-initializes it per chunk."
       - "Suggests only \"make the field volatile\" or \"add logging\" without a per-map reset."
