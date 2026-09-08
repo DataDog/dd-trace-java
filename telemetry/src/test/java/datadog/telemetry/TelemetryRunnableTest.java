@@ -4,6 +4,8 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -72,7 +74,9 @@ class TelemetryRunnableTest {
     verify(periodicAction, times(1)).doIteration(telemetryService);
     verify(telemetryService, times(3)).sendTelemetryEvents();
     verify(sleeperMock, times(1)).sleep(9999);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // second iteration (10 seconds, metrics)
@@ -84,7 +88,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9998);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // third iteration (20 seconds, metrics)
@@ -96,7 +102,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9997);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // fourth iteration (30 seconds, metrics)
@@ -108,7 +116,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9996);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // fifth iteration (40 seconds, metrics)
@@ -120,7 +130,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9995);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // sixth iteration (50 seconds, metrics)
@@ -132,7 +144,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9994);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     // seventh iteration (60 seconds, metrics, heartbeat)
@@ -159,7 +173,9 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(telemetryService, times(1)).sendExtendedHeartbeat();
     verify(sleeperMock, times(1)).sleep(4992);
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
     thread.interrupt();
@@ -172,7 +188,9 @@ class TelemetryRunnableTest {
     verify(periodicAction, times(1)).doIteration(telemetryService);
     verify(telemetryService, times(1)).sendTelemetryEvents();
     verify(telemetryService, times(1)).sendAppClosingEvent();
-    verifyNoMoreInteractions(timeSource, sleeperMock, metricCollector, periodicAction);
+    verify(telemetryService, atLeast(0)).addConfiguration(any());
+    verifyNoMoreInteractions(
+        telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
   }
 
   @Test

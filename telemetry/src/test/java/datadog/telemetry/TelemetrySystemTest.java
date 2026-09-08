@@ -56,8 +56,8 @@ class TelemetrySystemTest {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.SITE, value = "datad0g.com", env = true)
-  @WithConfig(key = GeneralConfig.API_KEY, value = "api-key", env = true)
+  @WithConfig(key = GeneralConfig.SITE, value = "datad0g.com")
+  @WithConfig(key = GeneralConfig.API_KEY, value = "api-key")
   void startStopTelemetrySystem() {
     Instrumentation instrumentation = mock(Instrumentation.class);
 
