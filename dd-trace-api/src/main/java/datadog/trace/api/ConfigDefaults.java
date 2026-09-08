@@ -195,6 +195,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LLM_OBS_ENABLED = false;
   static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
+  static final double DEFAULT_LLM_OBS_SAMPLE_RATE = 1.0;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
