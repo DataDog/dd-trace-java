@@ -11,6 +11,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -40,21 +41,18 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  * <ol>
  *   <li>{@code init()}: captures the current {@link Context} and an {@link ContextContinuation} to
  *       prevent the enclosing context scope from completing early.
- *   <li>{@code mount()}: swaps the virtual thread's saved context into the carrier thread, saving
- *       the carrier thread's context.
- *   <li>{@code unmount()}: swaps the carrier thread's original context back, saving the virtual
- *       thread's (possibly modified) context for the next mount.
- *   <li>Steps 2-3 repeat on each park/unpark cycle, potentially on different carrier threads.
+ *   <li>{@code run(Runnable)}: seeds the virtual thread's saved context once and retains its state
+ *       in the continuation frame across park/unpark cycles.
+ *   <li>{@code mount()} / {@code unmount()}: rebind and clear carrier-local profiler context. The
+ *       state-backed swap path is retained when context listeners require per-mount notification.
  *   <li>{@code afterDone()} / {@code afterTerminate()} for early VirtualThread support: cancels the
  *       help continuation, releasing the context scope to be closed.
  * </ol>
  *
- * <p>Instrumenting the internal {@code VirtualThread.runContinuation()} method does not work as the
- * current thread is still the carrier thread and not a virtual thread. Activating the state when on
- * the carrier thread (ie a platform thread) would store the active context into ThreadLocal using
- * the platform thread as key, making the tracer unable to retrieve the stored context from the
- * current virtual thread (ThreadLocal will not return the value associated to the underlying
- * platform thread as they are considered to be different).
+ * <p>{@code run(Runnable)} is the one-shot continuation body and executes after the first mount,
+ * when the current thread is the virtual thread. Its advice local is preserved with the
+ * continuation across yields. {@code runContinuation()} cannot serve this purpose because it
+ * executes once per mount and starts while the carrier is still the current thread.
  *
  * @see VirtualThreadState
  */
@@ -94,7 +92,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // VirtualThread context is activated on mount/unmount, not on Runnable.run().
+    // VirtualThread context is managed directly across its internal lifecycle.
     return singletonMap(RUNNABLE, singletonList(VIRTUAL_THREAD_CLASS_NAME));
   }
 
@@ -106,6 +104,9 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(
+        isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),
+        getClass().getName() + "$Run");
     transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
     transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
     transformer.applyAdvice(
@@ -130,14 +131,41 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     }
   }
 
+  public static final class Run {
+    @OnMethodEnter(suppress = Throwable.class)
+    public static void onRun(
+        @Advice.This Object virtualThread,
+        @Advice.Local("virtualThreadState") VirtualThreadState state) {
+      if (!VirtualThreadState.usePerMountContext()) {
+        ContextStore<Object, VirtualThreadState> store =
+            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+        state = store.get(virtualThread);
+        if (state != null) {
+          state.onRun();
+        }
+      }
+    }
+
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterRun(@Advice.Local("virtualThreadState") VirtualThreadState state) {
+      if (state != null) {
+        state.afterRun();
+      }
+    }
+  }
+
   public static final class Mount {
     @OnMethodExit(suppress = Throwable.class)
     public static void onMount(@Advice.This Object virtualThread) {
-      ContextStore<Object, VirtualThreadState> store =
-          InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-      VirtualThreadState state = store.get(virtualThread);
-      if (state != null) {
-        state.onMount();
+      if (VirtualThreadState.usePerMountContext()) {
+        ContextStore<Object, VirtualThreadState> store =
+            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+        VirtualThreadState state = store.get(virtualThread);
+        if (state != null) {
+          state.onMount();
+        }
+      } else {
+        VirtualThreadState.onMountWithoutStore();
       }
     }
   }
@@ -145,11 +173,15 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   public static final class Unmount {
     @OnMethodEnter(suppress = Throwable.class)
     public static void onUnmount(@Advice.This Object virtualThread) {
-      ContextStore<Object, VirtualThreadState> store =
-          InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-      VirtualThreadState state = store.get(virtualThread);
-      if (state != null) {
-        state.onUnmount();
+      if (VirtualThreadState.usePerMountContext()) {
+        ContextStore<Object, VirtualThreadState> store =
+            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+        VirtualThreadState state = store.get(virtualThread);
+        if (state != null) {
+          state.onUnmount();
+        }
+      } else {
+        VirtualThreadState.onUnmountWithoutStore();
       }
     }
   }

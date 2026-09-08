@@ -86,6 +86,8 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     AgentSpan span = AgentSpan.fromContext(context);
     if (span != null) {
       contextManager.activate(span.spanContext());
+    } else {
+      clearContext();
     }
   }
 

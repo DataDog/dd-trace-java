@@ -12,10 +12,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
  * <p>The legacy context manager's {@code swap()} wraps the current scope stack together with the
  * context so the original stack can be restored when the context is swapped back; doing that on
  * every mount/unmount is costly on the virtual-thread park/unpark hot path. So instead the context
- * is seeded once on the first mount, then follows the thread across park/unpark and carrier
- * migration via its virtual-thread-aware {@code ThreadLocal} scope stack, while the profiler
- * context (which is keyed by carrier thread) is re-applied on each subsequent mount and restored on
- * unmount.
+ * is seeded once when the virtual thread starts running, then follows the thread across park/unpark
+ * and carrier migration via its virtual-thread-aware {@code ThreadLocal} scope stack. The profiler
+ * context, which is keyed by carrier thread, is rebound on mount and cleared on unmount.
  *
  * <p>With the new context manager {@code swap()} is cheap and drives the profiler through its
  * context listener, so we simply swap in on mount and out on unmount.
@@ -23,7 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 public final class VirtualThreadState {
   // note: cws is relying on scope listener. This is disabled by default but when enabled
   // let's use the full swap logic since otherwise listeners won't be called
-  private static final boolean USE_SIMPLE_SWAP =
+  private static final boolean USE_PER_MOUNT_CONTEXT =
       !InstrumenterConfig.get().isLegacyContextManagerEnabled() || Config.get().isCwsEnabled();
 
   /** The virtual thread's saved context (scope stack snapshot). */
@@ -40,27 +39,46 @@ public final class VirtualThreadState {
     this.continuation = continuation;
   }
 
+  /** Whether context propagation must retain the state-backed mount/unmount path. */
+  public static boolean usePerMountContext() {
+    return USE_PER_MOUNT_CONTEXT;
+  }
+
+  /** Seeds context once at the start of the virtual thread's continuation. */
+  public void onRun() {
+    previousContext = context.swap();
+    context = null;
+  }
+
+  /** Restores the context that preceded this virtual thread's continuation. */
+  public void afterRun() {
+    if (previousContext != null) {
+      previousContext.swap();
+      previousContext = null;
+    }
+  }
+
+  /** Rebinds carrier-local profiler state from context already owned by the virtual thread. */
+  public static void onMountWithoutStore() {
+    AgentTracer.get().getProfilingContext().setContext(Context.current());
+  }
+
+  /** Clears carrier-local profiler state before the virtual thread unmounts. */
+  public static void onUnmountWithoutStore() {
+    AgentTracer.get().getProfilingContext().setContext(Context.root());
+  }
+
   public void onMount() {
-    if (USE_SIMPLE_SWAP) {
+    if (USE_PER_MOUNT_CONTEXT) {
       previousContext = context.swap();
-    } else {
-      if (context != null) {
-        // First mount also applies the profiler context to the carrier.
-        previousContext = context.swap();
-        context = null;
-      } else {
-        AgentTracer.get().getProfilingContext().setContext(Context.current());
-      }
     }
   }
 
   public void onUnmount() {
     if (previousContext != null) {
-      if (USE_SIMPLE_SWAP) {
+      if (USE_PER_MOUNT_CONTEXT) {
         context = previousContext.swap();
         previousContext = null;
-      } else {
-        AgentTracer.get().getProfilingContext().setContext(previousContext);
       }
     }
   }

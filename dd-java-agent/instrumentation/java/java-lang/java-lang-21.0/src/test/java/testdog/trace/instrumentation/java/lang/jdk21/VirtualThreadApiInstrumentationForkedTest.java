@@ -1,6 +1,6 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 
 /**
  * Runs the {@link VirtualThreadApiInstrumentationTest} cases with the legacy context manager

@@ -27,7 +27,7 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    * Applies {@code context} to the current thread's profiler context. Default is a no-op: only
    * integrations that key profiler context by the running (carrier) thread need this, and only when
    * driven by the legacy context manager, where the virtual-thread instrumentation seeds the scope
-   * stack once and calls this on each subsequent mount rather than swapping.
+   * stack once and calls this on each mount rather than swapping.
    */
   default void setContext(Context context) {}
 
