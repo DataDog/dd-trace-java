@@ -79,8 +79,15 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       Class<?> classBeingRedefined,
       ProtectionDomain pd) {
 
+    String lambdaInterface = lambdaMatchers.isEmpty() ? null : TypePoolFacade.lambdaInterface();
+
     // check initial requests to see if we should defer matching until retransformation
-    if (DEFER_MATCHING && null == classBeingRedefined && deferring && isDeferred(classLoader)) {
+    // Generated lambda classes cannot be retransformed because they are not yet defined here.
+    if (null == lambdaInterface
+        && DEFER_MATCHING
+        && null == classBeingRedefined
+        && deferring
+        && isDeferred(classLoader)) {
       return false;
     }
 
@@ -88,12 +95,21 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     ids.clear();
 
     long fromTick = InstrumenterMetrics.tick();
-    String lambdaInterface = TypePoolFacade.lambdaInterface();
     if (null != lambdaInterface) {
       LambdaMatchRecorder[] recorders = lambdaMatchers.get(lambdaInterface);
       if (null != recorders) {
         for (LambdaMatchRecorder recorder : recorders) {
-          recorder.record(target, classLoader, ids);
+          try {
+            recorder.record(target, classLoader, ids);
+          } catch (Throwable e) {
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Lambda instrumentation matcher unexpected exception - interface={} matcher={}",
+                  lambdaInterface,
+                  recorder.describe(),
+                  e);
+            }
+          }
         }
       }
       InstrumenterMetrics.matchType(fromTick);

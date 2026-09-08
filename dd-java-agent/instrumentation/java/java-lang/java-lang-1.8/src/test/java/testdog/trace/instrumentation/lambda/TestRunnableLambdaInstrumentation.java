@@ -1,13 +1,14 @@
 package testdog.trace.instrumentation.lambda;
 
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -49,7 +50,10 @@ public final class TestRunnableLambdaInstrumentation extends InstrumenterModule.
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
+    Map<String, String> stores = new HashMap<>();
+    stores.put(Runnable.class.getName(), State.class.getName());
+    stores.put(Supplier.class.getName(), State.class.getName());
+    return stores;
   }
 
   private static final class AdviceMarkerVisitor extends AsmVisitorWrapper.AbstractBase {

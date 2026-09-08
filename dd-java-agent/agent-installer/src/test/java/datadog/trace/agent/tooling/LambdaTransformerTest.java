@@ -5,10 +5,24 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class LambdaTransformerTest {
+
+  @Test
+  void disabledInstallationClearsPreviousTransformer() {
+    LambdaTransformer previous = (className, targetClass, classBytes, interfaceName) -> classBytes;
+    LambdaTransformerHolder.set(previous);
+    try {
+      AgentInstaller.registerLambdaTransformer(false, null, new String[0]);
+
+      assertNull(LambdaTransformerHolder.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
 
   @Test
   void onlyTransformsEnabledInterfaces() {
