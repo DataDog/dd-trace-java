@@ -69,6 +69,44 @@ public final class DatadogClassLoader extends SecureClassLoader {
   }
 
   @Override
+  public InputStream getResourceAsStream(final String name) {
+    // Resources we ship are read straight from the jar handle opened at construction time, the
+    // same source class loading reads from. Going through the "jar:" URL returned by
+    // findResource() instead would resolve the agent jar by pathname on every read: once a
+    // deployment has replaced or removed that jar the read either fails - and
+    // ClassLoader.getResourceAsStream() turns the IOException into a silent null, see
+    // APPSEC-69906 - or silently serves content belonging to a different build of the agent.
+    InputStream is = findResourceAsStream(name);
+    if (null == is) {
+      is = super.getResourceAsStream(name);
+    }
+    return is;
+  }
+
+  /**
+   * Reads a resource we ship from the agent jar, or returns {@code null} if the agent jar does not
+   * contain it. Note {@link BootstrapProxy} is backed by the very same jar, so consulting this
+   * before delegating cannot shadow a different resource of the same name.
+   */
+  private InputStream findResourceAsStream(String name) {
+    if (null == agentJarFile) {
+      return null;
+    }
+    String entryName = agentJarIndex.resourceEntryName(name);
+    if (null != entryName) {
+      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
+      if (null != jarEntry) {
+        try {
+          return agentJarFile.getInputStream(jarEntry);
+        } catch (IOException e) {
+          log.warn("Problem reading resource data at {}", jarEntry, e);
+        }
+      }
+    }
+    return null;
+  }
+
+  @Override
   protected URL findResource(String name) {
     String entryName = agentJarIndex.resourceEntryName(name);
     if (null != entryName) {
