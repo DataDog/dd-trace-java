@@ -200,16 +200,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     if (!inheritedInProcess) {
-      // No usable in-process LLMObs parent, but this span may still be continuing a trace that
-      // arrived from another service — an SQS worker handling a message, an inbound HTTP request.
-      // The upstream values are on the span context's propagation tags, parsed back out of
-      // x-datadog-tags / tracestate by the tracing propagator.
-      //
-      // This also covers the trace-mismatch branch above: a stale context leaked from an unrelated
-      // trace must not suppress attribution that legitimately arrived over the wire.
-      // Unlike dd-trace-py, a missing parent_id doesn't veto the rest: session and attribution
-      // are inherited independently, so a partially populated upstream still contributes what it
-      // did send.
+      // No usable in-process LLMObs parent, so fall back to what arrived from another service on
+      // the span context's propagation tags.
       String propagatedParentId = asString(span.spanContext().getLLMObsParentId());
       if (propagatedParentId != null) {
         parentSpanID = propagatedParentId;

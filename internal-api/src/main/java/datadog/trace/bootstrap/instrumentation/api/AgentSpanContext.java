@@ -64,19 +64,6 @@ public interface AgentSpanContext {
   }
 
   /**
-   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
-   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
-   * concurrent reader never serializes a header mixing values from two different contexts. No-op by
-   * default.
-   */
-  default void updateLLMObsContext(
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId) {}
-
-  /**
    * Gets the LLM Observability {@code session_id} propagated with this trace, or {@code null} if
    * none is set or this context implementation doesn't have propagation-tags access.
    */
@@ -108,6 +95,19 @@ public interface AgentSpanContext {
   default CharSequence getLLMObsParentId() {
     return null;
   }
+
+  /**
+   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
+   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
+   * concurrent reader never serializes a header mixing values from two different contexts. No-op by
+   * default.
+   */
+  default void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId) {}
 
   /**
    * Gets whether the span context used is part of the local trace or from another service

@@ -176,18 +176,6 @@ public abstract class PropagationTags {
   public abstract CharSequence getLLMObsMlApp();
 
   /**
-   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
-   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
-   * concurrent reader never serializes a header mixing values from two different contexts.
-   */
-  public abstract void updateLLMObsContext(
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId);
-
-  /**
    * Returns the LLM Observability {@code session_id} currently propagated with this trace, encoded
    * as {@code _dd.p.llmobs_sid}. Returns {@code null} if none is set.
    */
@@ -210,6 +198,18 @@ public abstract class PropagationTags {
    * encoded as {@code _dd.p.llmobs_parent_id}. Returns {@code null} if none is set.
    */
   public abstract CharSequence getLLMObsParentId();
+
+  /**
+   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
+   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
+   * concurrent reader never serializes a header mixing values from two different contexts.
+   */
+  public abstract void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId);
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

@@ -54,8 +54,6 @@ public class LLMObsSystem {
 
     LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
 
-    // Carry LLMObs context across every boundary automatic instrumentation already covers, by
-    // staging the _dd.p.llmobs_* tags on each injected span context. See LLMObsContextPropagator.
     Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
   }
 

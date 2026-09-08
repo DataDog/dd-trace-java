@@ -24,12 +24,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers automatic LLM Observability context propagation: no LLMObs propagation API is called
- * anywhere in these tests. Injecting the active span the way auto-instrumentation does — an HTTP
- * client, or the SQS interceptor writing message attributes — must carry the LLMObs context.
- *
- * <p>The carrier is a plain {@code Map<String, String>}, which is the shape both an HTTP header map
- * and the SQS {@code _datadog} message attribute reduce to at the propagator boundary.
+ * Covers automatic LLM Observability context propagation. Injecting the active span the way
+ * auto-instrumentation does must carry the LLMObs context.
  */
 class LLMObsContextPropagatorTest {
 

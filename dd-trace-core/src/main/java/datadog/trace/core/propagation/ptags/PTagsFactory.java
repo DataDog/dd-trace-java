@@ -120,10 +120,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue orgPropagationMarkerTagValue;
 
     /**
-     * The LLM Observability propagation tags, held as one immutable bundle rather than five fields
-     * so that an update is a single reference swap. Readers therefore always observe a tag set that
-     * actually existed, instead of a mix of values from before and after an injection. Never {@code
-     * null} — {@link LLMObsTagValues#EMPTY} means "none".
+     * The LLM Observability propagation tags, held as one immutable bundle. Never {@code null} —
+     * {@link LLMObsTagValues#EMPTY} means "none".
      */
     private volatile LLMObsTagValues llmObsTags = LLMObsTagValues.EMPTY;
 
@@ -442,13 +440,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       return llmObsTags;
     }
 
-    /**
-     * Wraps a non-empty value as a {@link TagValue}, or {@code null} if empty. No length capping is
-     * applied here — matching dd-trace-py, which writes these free-form values (ml_app, session_id,
-     * agent id/name) as-is and relies on the codecs' own overflow handling (dropping the whole
-     * {@code x-datadog-tags} header on the Datadog codec, or dropping individual overlong tags on
-     * the W3C codec) rather than a fixed per-field character limit.
-     */
+    /** Wraps a non-empty value as a {@link TagValue}, or {@code null} if empty. */
     private static TagValue toTagValue(CharSequence value) {
       if (value == null || value.length() == 0) {
         return null;
@@ -554,8 +546,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     /**
      * Invalidate every encoding's cached header, and the memoized x-datadog-tags size with them.
-     * Use this whenever a change affects both wire formats; the single-encoding {@link
-     * #clearCachedHeader} calls that remain are deliberate.
+     * Use this whenever a change affects both wire formats.
      */
     private void clearCachedHeaders() {
       clearCachedHeader(DATADOG);
@@ -601,8 +592,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
-        // One snapshot: sizing a mix of old and new values would gate the header on a tag set that
-        // never existed, and this total is what decides whether x-datadog-tags is emitted at all.
         LLMObsTagValues currentLLMObsTags = llmObsTags;
         size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, currentLLMObsTags.mlApp);
         size =

@@ -1498,17 +1498,6 @@ public class DDSpanContext
   }
 
   @Override
-  public void updateLLMObsContext(
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId) {
-    getPropagationTags()
-        .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
-  }
-
-  @Override
   public CharSequence getLLMObsSessionId() {
     return getPropagationTags().getLLMObsSessionId();
   }
@@ -1526,6 +1515,17 @@ public class DDSpanContext
   @Override
   public CharSequence getLLMObsParentId() {
     return getPropagationTags().getLLMObsParentId();
+  }
+
+  @Override
+  public void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId) {
+    getPropagationTags()
+        .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
   }
 
   /** TraceSegment Implementation */

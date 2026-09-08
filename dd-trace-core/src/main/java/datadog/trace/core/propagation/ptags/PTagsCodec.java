@@ -70,7 +70,6 @@ abstract class PTagsCodec {
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
-      // One snapshot, so a concurrent injection can't have us encode a mix of old and new values.
       LLMObsTagValues llmObsTags = ptags.getLLMObsTagValues();
       if (llmObsTags.mlApp != null) {
         size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);

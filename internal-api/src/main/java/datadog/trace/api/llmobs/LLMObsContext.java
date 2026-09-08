@@ -124,9 +124,8 @@ public final class LLMObsContext {
    * Attach an LLMObs span context, propagating ml_app alongside everything {@link
    * #attach(AgentSpanContext, String, String, String, String, String, String)} carries.
    *
-   * <p>ml_app is held here — rather than only as a span tag — so that distributed propagation can
-   * read the innermost active LLMObs span's ml_app when injecting, without needing a reference to
-   * the span itself.
+   * <p>ml_app is stored here so that distributed propagation can read the innermost active LLMObs
+   * span's ml_app when injecting, without needing a reference to the span itself.
    */
   public static ContextScope attach(
       AgentSpanContext ctx,

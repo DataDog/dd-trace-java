@@ -3,9 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import java.util.Objects;
 
 /**
- * Bundles the five LLM Observability propagation tag values ({@code ml_app}, {@code session_id},
- * parent agent span id, parent agent name, parent span id) extracted from an incoming header, so
- * they can be threaded through {@link PTagsFactory.PTags} construction as a single parameter.
+ * Bundles the five LLM Observability propagation tag values as a single parameter.
  *
  * <p>Never {@code null}: use {@link #EMPTY} to say "no LLM Observability tags", and obtain
  * instances through {@link #of} so that the common case — an incoming request carrying none of

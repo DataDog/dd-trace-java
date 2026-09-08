@@ -10,16 +10,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 
 /**
  * Stages the LLM Observability propagation tags onto the span context being injected, so that every
- * boundary already covered by automatic instrumentation — HTTP, gRPC, SQS, Kafka, ... — carries
- * LLMObs context without the application having to propagate it by hand.
+ * boundary already covered by automatic instrumentation carries LLMObs context without the
+ * application having to propagate it by hand.
  *
  * <p>This propagator writes nothing to the carrier itself. It runs ahead of the tracing propagator
  * (see {@code AgentPropagation.LLMOBS_CONCERN}) and only populates the {@code _dd.p.llmobs_*}
  * fields on the span context; the tracing propagator then serializes them into {@code
- * x-datadog-tags} / {@code tracestate} along with every other propagation tag. This mirrors
- * dd-trace-py, where LLMObs subscribes to the generic {@code http.span_inject} hook that {@code
- * HTTPPropagator.inject} fires on every outbound request, rather than owning a separate wire
- * format.
+ * x-datadog-tags} / {@code tracestate} along with every other propagation tag.
  *
  * <p>Values are resolved from the ambient {@link LLMObsContext} at injection time rather than being
  * written once when a span starts. That way the innermost active LLMObs span always wins, and
@@ -46,9 +43,6 @@ public class LLMObsContextPropagator implements Propagator {
       return;
     }
 
-    // The innermost active LLMObs span becomes the downstream span's LLMObs parent, so the
-    // continued trace is a single tree rather than a second root per service. Mirrors
-    // dd-trace-py's _dd.p.llmobs_parent_id.
     spanContext.updateLLMObsContext(
         LLMObsContext.currentMlApp(),
         LLMObsContext.currentSessionId(),
