@@ -38,6 +38,8 @@ dependencies {
 
   testImplementation libs.bundles.jmc
   testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
 }
 
 
