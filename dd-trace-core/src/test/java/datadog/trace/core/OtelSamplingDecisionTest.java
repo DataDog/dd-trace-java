@@ -34,7 +34,6 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   private static final String OTEL_RANDOM_VALUE_PREFIX = "ot=rv:";
   private static final String HALF_THRESHOLD = ";th:8";
   private static final String MAX_THRESHOLD = ";th:ffffffffffffff";
-  private static final String OTEL_THRESHOLD_PREFIX = ";th:";
   private static final double SAMPLE_RATE_0_5 = 0.5;
   private static final String SAMPLE_RATE_0_5_RULE = "[{\"sample_rate\": 0.5}]";
   private static final String FULL_SAMPLE_RATE_RULE = "[{\"sample_rate\": 1}]";
@@ -118,7 +117,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void limiterRejectionStripsThresholdButKeepsOtelRandomValue() {
+  void limiterRejectionDoesNotEstablishOtelProbabilityState() {
     Properties properties = new Properties();
     properties.setProperty(TRACE_SAMPLING_RULES, FULL_SAMPLE_RATE_RULE);
     properties.setProperty(TRACE_RATE_LIMIT, ONE_PER_SECOND_RATE_LIMIT);
@@ -133,9 +132,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
 
       assertTrue(w3cHeader(allowed).contains(OTEL_RANDOM_VALUE_PREFIX));
       assertEquals(USER_DROP, rejected.samplingPriority());
-      String rejectedHeader = w3cHeader(rejected);
-      assertTrue(rejectedHeader.contains(OTEL_RANDOM_VALUE_PREFIX));
-      assertFalse(rejectedHeader.contains(OTEL_THRESHOLD_PREFIX));
+      assertFalse(w3cHeader(rejected).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
