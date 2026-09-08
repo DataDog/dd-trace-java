@@ -91,6 +91,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     }
   }
 
+  @Override
+  public boolean isThreadContextBindingRequired() {
+    return true;
+  }
+
   public void clearContext() {
     contextManager.close();
   }

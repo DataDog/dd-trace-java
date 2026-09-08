@@ -31,6 +31,11 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void setContext(Context context) {}
 
+  /** Whether profiler context must be rebound when a virtual thread changes carrier threads. */
+  default boolean isThreadContextBindingRequired() {
+    return false;
+  }
+
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;
   }

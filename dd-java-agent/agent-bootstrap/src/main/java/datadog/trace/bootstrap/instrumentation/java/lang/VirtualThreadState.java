@@ -5,6 +5,7 @@ import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
 /**
  * Holds the context and continuation for a virtual thread.
@@ -63,12 +64,18 @@ public final class VirtualThreadState {
 
   /** Rebinds carrier-local profiler state from context already owned by the virtual thread. */
   public static void onMountWithoutStore() {
-    AgentTracer.get().getProfilingContext().setContext(Context.current());
+    ProfilingContextIntegration profilingContext = AgentTracer.get().getProfilingContext();
+    if (profilingContext.isThreadContextBindingRequired()) {
+      profilingContext.setContext(Context.current());
+    }
   }
 
   /** Clears carrier-local profiler state before the virtual thread unmounts. */
   public static void onUnmountWithoutStore() {
-    AgentTracer.get().getProfilingContext().setContext(Context.root());
+    ProfilingContextIntegration profilingContext = AgentTracer.get().getProfilingContext();
+    if (profilingContext.isThreadContextBindingRequired()) {
+      profilingContext.setContext(Context.root());
+    }
   }
 
   /** Activates the virtual thread's context for the state-backed per-mount path. */
