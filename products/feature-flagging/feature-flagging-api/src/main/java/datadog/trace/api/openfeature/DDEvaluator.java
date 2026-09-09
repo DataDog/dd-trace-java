@@ -576,8 +576,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
-      // Read from the split rather than from evaluation metadata: METADATA_SPLIT_SERIAL_ID is only
-      // attached when span enrichment is enabled, and exposures need the serial id either way.
       dispatchExposure(key, result, context, split.serialId);
     }
     return result;
@@ -670,8 +668,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               new Subject(context.getTargetingKey(), flattenContext(context)),
               serialId));
     } catch (LinkageError e) {
-      // Never let exposure recording break flag evaluation. The serial id constructor resolves
-      // against the agent's bootstrap class, which can predate this provider.
     }
   }
 
