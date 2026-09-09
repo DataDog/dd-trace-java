@@ -23,6 +23,7 @@ dependencies {
   implementation project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8")
   testImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '2.0.0'
   latestDepTestImplementation(group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '+') {
     version {
