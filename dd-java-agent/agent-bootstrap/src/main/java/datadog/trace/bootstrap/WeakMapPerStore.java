@@ -3,7 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStore;
 
 import datadog.trace.api.internal.VisibleForTesting;
-import datadog.trace.bootstrap.ContextStore.KeyAwareFactory;
+import java.util.function.Function;
 
 /**
  * Weak "map-per-store" fall-back to track contexts when field-injection isn't possible.
@@ -59,7 +59,7 @@ public final class WeakMapPerStore<K, V> {
     return existingContext;
   }
 
-  V getOrCompute(K key, KeyAwareFactory<? super K, V> contextFactory) {
+  V getOrCompute(K key, Function<? super K, V> contextFactory) {
     V existingContext = get(key);
     if (null == existingContext) {
       // This whole part with using synchronized is only because
@@ -71,7 +71,7 @@ public final class WeakMapPerStore<K, V> {
       synchronized (map) {
         existingContext = get(key);
         if (null == existingContext) {
-          existingContext = contextFactory.create(key);
+          existingContext = contextFactory.apply(key);
           put(key, existingContext);
         }
       }
