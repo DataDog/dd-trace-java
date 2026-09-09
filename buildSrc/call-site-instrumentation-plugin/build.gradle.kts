@@ -25,7 +25,6 @@ spotless {
     princeOfSpace(libs.versions.prince.of.space.get())
       .indentSize(2)
       .lineLength(100)
-      .closingParenOnNewLine(false)
       .javaLanguageLevel(25)
     trimTrailingWhitespace()
   }
