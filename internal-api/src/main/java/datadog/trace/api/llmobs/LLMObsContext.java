@@ -68,14 +68,17 @@ public final class LLMObsContext {
   }
 
   /**
-   * Attach an LLMObs span context, propagating a session_id, an agent_version, a sampling decision,
-   * and agent attribution to descendant LLMObs spans. See {@link #attach(AgentSpanContext, String,
-   * String)} — the same clears-if-null-or-empty semantics apply to every value, so callers are
-   * expected to pass already-resolved effective values.
+   * Attach an LLMObs span context, propagating an ml_app, a session_id, an agent_version, a
+   * sampling decision, and agent attribution to descendant LLMObs spans. See {@link
+   * #attach(AgentSpanContext, String, String)} — the same clears-if-null-or-empty semantics apply
+   * to every value, so callers are expected to pass already-resolved effective values.
    *
    * <p>This overload carries every propagated value at once because a span's scope is attached
-   * exactly once: three independent mechanisms (session, sampling, attribution) share one context,
-   * so they cannot be attached by separate calls without nesting redundant scopes.
+   * exactly once: four independent mechanisms (application, session, sampling, attribution) share
+   * one context, so they cannot be attached by separate calls without nesting redundant scopes.
+   *
+   * <p>ml_app is stored here so that distributed propagation can read the innermost active LLMObs
+   * span's ml_app when injecting, without needing a reference to the span itself.
    *
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
@@ -100,32 +103,6 @@ public final class LLMObsContext {
    * rate agree; services configured at different rates disagree and the trace is retained in part.
    * A decision propagated by an upstream dd-trace-py or dd-trace-js service is likewise not read
    * here. Closing that gap needs propagated trace tags mirroring the existing {@code _dd.p.ksr}.
-   */
-  public static ContextScope attach(
-      AgentSpanContext ctx,
-      String sessionId,
-      String agentVersion,
-      String sampleRate,
-      String samplingDecision,
-      String parentAgentSpanId,
-      String parentAgentName) {
-    return attach(
-        ctx,
-        null,
-        sessionId,
-        agentVersion,
-        sampleRate,
-        samplingDecision,
-        parentAgentSpanId,
-        parentAgentName);
-  }
-
-  /**
-   * Attach an LLMObs span context, propagating ml_app alongside everything {@link
-   * #attach(AgentSpanContext, String, String, String, String, String, String)} carries.
-   *
-   * <p>ml_app is stored here so that distributed propagation can read the innermost active LLMObs
-   * span's ml_app when injecting, without needing a reference to the span itself.
    */
   public static ContextScope attach(
       AgentSpanContext ctx,

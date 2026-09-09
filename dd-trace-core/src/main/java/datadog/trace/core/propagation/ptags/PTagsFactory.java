@@ -121,9 +121,11 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     /**
      * The LLM Observability propagation tags, held as one immutable bundle. Never {@code null} —
-     * {@link LLMObsTagValues#EMPTY} means "none".
+     * {@link LLMObsTagValues#EMPTY} means "none". Assigned by every constructor, so no field
+     * initializer: this is a per-extraction allocation and a redundant volatile write is a barrier
+     * paid on every incoming request.
      */
-    private volatile LLMObsTagValues llmObsTags = LLMObsTagValues.EMPTY;
+    private volatile LLMObsTagValues llmObsTags;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
