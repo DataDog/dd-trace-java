@@ -35,7 +35,7 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     redisCluster =
         new RedisClusterContainer(
             // RedisClusterContainer is built around this preconfigured cluster image.
-            DockerImageName.parse("grokzen/redis-cluster:6.2.1"));
+            DockerImageName.parse("grokzen/redis-cluster:6.2.14"));
     redisCluster.start();
 
     redisClient = RedisClusterClient.create(RedisURI.create(redisCluster.getRedisURI()));
