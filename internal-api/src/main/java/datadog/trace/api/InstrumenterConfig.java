@@ -278,6 +278,10 @@ public class InstrumenterConfig {
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    // Unlike usmEnabled/llmObsEnabled, DSM has no native-image restriction: it works the same
+    // as any other pre-instrumentation flag, so it is read outside the native-image carve-out.
+    dataStreamsEnabled =
+        configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
 
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
 
@@ -293,8 +297,6 @@ public class InstrumenterConfig {
       final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
       iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
-      dataStreamsEnabled =
-          configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
       llmObsEnabled = configProvider.getBoolean(LLMOBS_ENABLED, DEFAULT_LLM_OBS_ENABLED);
     } else {
@@ -305,7 +307,6 @@ public class InstrumenterConfig {
       iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
-      dataStreamsEnabled = false;
       llmObsEnabled = false;
     }
 

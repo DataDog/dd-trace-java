@@ -124,7 +124,11 @@ class InstrumenterConfigTest {
     assertEquals(outlining, InstrumenterConfig.get().isResolverOutliningEnabled());
   }
 
-  @TableTest({"scenario       | preset ", "invalid preset | INVALID", "empty preset   | ''     "})
+  @TableTest({
+    "scenario       | preset ",
+    "invalid preset | INVALID",
+    "empty preset   | ''     "
+  })
   void invalidResolverPresets(String preset) {
     WithConfigExtension.injectSysConfig("resolver.cache.config", preset);
 

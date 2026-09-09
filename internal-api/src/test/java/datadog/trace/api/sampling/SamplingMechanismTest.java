@@ -1,7 +1,6 @@
 package datadog.trace.api.sampling;
 
 import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
@@ -10,7 +9,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.APPSEC;
 import static datadog.trace.api.sampling.SamplingMechanism.DATA_JOBS;
-import static datadog.trace.api.sampling.SamplingMechanism.DATA_STREAMS;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
 import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
@@ -21,13 +19,10 @@ import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN;
 import static datadog.trace.api.sampling.SamplingMechanism.canAvoidSamplingPriorityLock;
 import static datadog.trace.api.sampling.SamplingMechanism.validateWithSamplingPriority;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -111,13 +106,6 @@ class SamplingMechanismTest {
         Arguments.of(DATA_JOBS, USER_KEEP, true),
         Arguments.of(DATA_JOBS, USER_DROP_X, false),
         Arguments.of(DATA_JOBS, USER_KEEP_X, false),
-        Arguments.of(DATA_STREAMS, UNSET, false),
-        Arguments.of(DATA_STREAMS, SAMPLER_DROP, false),
-        Arguments.of(DATA_STREAMS, SAMPLER_KEEP, false),
-        Arguments.of(DATA_STREAMS, USER_DROP, true),
-        Arguments.of(DATA_STREAMS, USER_KEEP, false),
-        Arguments.of(DATA_STREAMS, USER_DROP_X, false),
-        Arguments.of(DATA_STREAMS, USER_KEEP_X, false),
         Arguments.of(EXTERNAL_OVERRIDE, UNSET, false),
         Arguments.of(EXTERNAL_OVERRIDE, SAMPLER_DROP, false),
         Arguments.of(EXTERNAL_OVERRIDE, SAMPLER_KEEP, false),
@@ -146,29 +134,6 @@ class SamplingMechanismTest {
         Arguments.of(MANUAL, SAMPLER_KEEP, false),
         Arguments.of(REMOTE_USER_RATE, SAMPLER_KEEP, false),
         Arguments.of(DATA_JOBS, SAMPLER_KEEP, false),
-        // DSM is left at its config default (disabled) for this parameterized run, so the
-        // DATA_STREAMS case is false here for a config reason. The two dedicated tests below
-        // cover the mechanism itself with data.streams.enabled explicitly set both ways.
-        Arguments.of(DATA_STREAMS, SAMPLER_KEEP, false),
         Arguments.of(EXTERNAL_OVERRIDE, SAMPLER_KEEP, false));
-  }
-
-  @Test
-  @WithConfig(key = DATA_STREAMS_ENABLED, value = "true")
-  void dataStreamsMechanismCanAvoidSamplingPriorityLockWhenDataStreamsEnabled() {
-    // The DATA_STREAMS case is priority-independent: the mechanism alone unlocks the priority.
-    assertTrue(canAvoidSamplingPriorityLock(USER_DROP, DATA_STREAMS));
-    assertTrue(canAvoidSamplingPriorityLock(SAMPLER_KEEP, DATA_STREAMS));
-    assertTrue(canAvoidSamplingPriorityLock(UNSET, DATA_STREAMS));
-    // Enabling DSM must not unlock any other mechanism.
-    assertFalse(canAvoidSamplingPriorityLock(USER_DROP, MANUAL));
-    assertFalse(canAvoidSamplingPriorityLock(USER_DROP, DEFAULT));
-  }
-
-  @Test
-  @WithConfig(key = DATA_STREAMS_ENABLED, value = "false")
-  void dataStreamsMechanismCannotAvoidSamplingPriorityLockWhenDataStreamsDisabled() {
-    assertFalse(canAvoidSamplingPriorityLock(USER_DROP, DATA_STREAMS));
-    assertFalse(canAvoidSamplingPriorityLock(SAMPLER_KEEP, DATA_STREAMS));
   }
 }
