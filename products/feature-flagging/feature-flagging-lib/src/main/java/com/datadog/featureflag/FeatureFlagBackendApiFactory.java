@@ -1,5 +1,8 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.EvpProxy.JAVA_TRACING_LIBRARY;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.unmodifiableMap;
 
@@ -20,7 +23,7 @@ import org.slf4j.LoggerFactory;
 final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
-  static final Map<String, String> REQUEST_HEADERS = requestHeaders();
+  private static final Map<String, String> REQUEST_HEADERS = requestHeaders();
 
   private final Config config;
   private final BackendApiFactory backendApiFactory;
@@ -88,8 +91,8 @@ final class FeatureFlagBackendApiFactory {
 
   private static Map<String, String> requestHeaders() {
     final Map<String, String> headers = new HashMap<>(2);
-    headers.put("DD-EVP-ORIGIN", "dd-trace-java");
-    headers.put("DD-EVP-ORIGIN-VERSION", TracerVersion.TRACER_VERSION);
+    headers.put(ORIGIN_HEADER, JAVA_TRACING_LIBRARY);
+    headers.put(ORIGIN_VERSION_HEADER, TracerVersion.TRACER_VERSION);
     return unmodifiableMap(headers);
   }
 

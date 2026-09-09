@@ -1,6 +1,10 @@
 package datadog.communication;
 
+import static datadog.communication.EvpProxy.JAVA_TRACING_LIBRARY;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
+import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,6 +21,7 @@ import datadog.trace.api.intake.Intake;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Properties;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -136,9 +141,7 @@ class BackendApiFactoryTest {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
       final BackendApiFactory factory =
           new BackendApiFactory(
-              Config.get(),
-              sharedCommunicationObjects(discovery, agent.url("/")),
-              singletonMap("DD-EVP-ORIGIN", "dd-trace-java"));
+              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
       final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
 
       assertNotNull(api);
@@ -151,11 +154,76 @@ class BackendApiFactoryTest {
 
       final RecordedRequest request = agent.takeRequest();
       assertEquals("/evp_proxy/v4/api/v2/flagevaluation", request.getPath());
-      assertEquals("event-platform-intake", request.getHeader("X-Datadog-EVP-Subdomain"));
-      assertEquals("dd-trace-java", request.getHeader("DD-EVP-ORIGIN"));
+      assertEquals("event-platform-intake", request.getHeader(EvpProxy.SUBDOMAIN_HEADER));
       assertEquals("identity", request.getHeader("Accept-Encoding"));
     } finally {
       agent.shutdown();
+    }
+  }
+
+  @Test
+  void evpProxySendsConfiguredRequestHeaders() throws Exception {
+    final MockWebServer agent = new MockWebServer();
+    agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
+    agent.start();
+    try {
+      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
+      final BackendApiFactory factory =
+          new BackendApiFactory(
+              Config.get(),
+              sharedCommunicationObjects(discovery, agent.url("/")),
+              singletonMap(ORIGIN_HEADER, JAVA_TRACING_LIBRARY));
+      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
+
+      assertNotNull(api);
+      api.post(
+          "flagevaluation",
+          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+          stream -> null,
+          null,
+          false);
+
+      final RecordedRequest request = agent.takeRequest();
+      assertEquals(JAVA_TRACING_LIBRARY, request.getHeader(ORIGIN_HEADER));
+    } finally {
+      agent.shutdown();
+    }
+  }
+
+  @Test
+  void directIntakeSendsConfiguredRequestHeaders() throws Exception {
+    final MockWebServer intake = new MockWebServer();
+    intake.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
+    intake.start();
+    try {
+      final Properties properties = new Properties();
+      properties.setProperty(API_KEY, "api-key");
+      properties.setProperty(
+          CIVISIBILITY_AGENTLESS_URL, intake.url("/").toString().replaceAll("/$", ""));
+      final Config config = Config.get(properties);
+      final BackendApiFactory factory =
+          new BackendApiFactory(
+              config,
+              sharedCommunicationObjects(new FakeFeaturesDiscovery(null), null),
+              singletonMap(ORIGIN_HEADER, JAVA_TRACING_LIBRARY));
+
+      // followRedirects=false mirrors the feature-flagging caller, so this also covers the
+      // interaction between the redirect-scoped client and the header interceptor.
+      final BackendApi api = factory.createDirectIntakeApi(Intake.API, false, false);
+
+      assertNotNull(api);
+      api.post(
+          "flagevaluation",
+          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+          stream -> null,
+          null,
+          false);
+
+      final RecordedRequest request = intake.takeRequest();
+      assertEquals(JAVA_TRACING_LIBRARY, request.getHeader(ORIGIN_HEADER));
+      assertEquals("api-key", request.getHeader("DD-API-KEY"));
+    } finally {
+      intake.shutdown();
     }
   }
 
