@@ -41,6 +41,8 @@ import org.apache.maven.wrapper.MavenWrapperMain;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.slf4j.Logger;
@@ -312,6 +314,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "failed-test-replay | test_failed_maven_failed_test_replay | 3.9.9       "
   })
   @ParameterizedTest
+  // Exception Replay is disabled by default on JDK8 due to JVM bug
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testFailedTestReplay(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);

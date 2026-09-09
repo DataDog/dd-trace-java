@@ -4,7 +4,7 @@ plugins {
 }
 
 // Up to 20.7 where the server structure changes
-addTestSuiteForDir('latestPre207Test', 'test')
+addTestSuiteForDir('latestPre207ForkedTest', 'test')
 addTestSuite('latestDepTest')
 
 muzzle {
@@ -31,7 +31,9 @@ dependencies {
   // Required for older versions of finatra on JDKs >= 11
   testImplementation group: 'com.sun.activation', name: 'javax.activation', version: '1.2.0'
 
-  latestPre207TestImplementation group: 'com.twitter', name: 'finatra-http_2.11', version: '[,20.7.0)'
+  // Lower bound matters: an open '[,20.7.0)' is satisfied by the 19.12.0 above, so conflict
+  // resolution would keep 19.12.0 and this suite would just repeat 'forkedTest'.
+  latestPre207ForkedTestImplementation group: 'com.twitter', name: 'finatra-http_2.11', version: '[20.6.0,20.7.0)'
 
   latestDepTestImplementation group: 'com.twitter', name: 'finatra-http_2.11', version: '+'
 }
@@ -41,11 +43,11 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   dependsOn "compileLatestDepTestScala"
 }
 
-tasks.named("compileLatestPre207TestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestPre207TestScala').map { it.destinationDirectory })
-  dependsOn "compileLatestPre207TestScala"
+tasks.named("compileLatestPre207ForkedTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestPre207ForkedTestScala').map { it.destinationDirectory })
+  dependsOn "compileLatestPre207ForkedTestScala"
 }
 
 tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestPre207Test'
+  finalizedBy 'latestPre207ForkedTest'
 }

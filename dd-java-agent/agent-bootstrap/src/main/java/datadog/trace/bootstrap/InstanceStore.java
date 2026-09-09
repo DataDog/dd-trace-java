@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 /**
  * An {@code InstanceStore} is a class global map for registering instances. This can be useful when
@@ -36,8 +37,9 @@ public final class InstanceStore<T> {
    * Gets the instance of {@code T} currently associated with the given key.
    *
    * @param key the instance key
-   * @return the associated instance
+   * @return the associated instance; {@code null} if there was none
    */
+  @Nullable
   public T get(String key) {
     return store.get(key);
   }
@@ -61,7 +63,7 @@ public final class InstanceStore<T> {
    * @param instanceFactory the factory to create instances
    * @return final associated instance
    */
-  public T putIfAbsent(String key, Supplier<T> instanceFactory) {
+  public T getOrCreate(String key, Supplier<T> instanceFactory) {
     return store.computeIfAbsent(key, k -> instanceFactory.get());
   }
 
@@ -71,6 +73,7 @@ public final class InstanceStore<T> {
    * @param key the instance key
    * @return the previously associated instance; {@code null} if there was none
    */
+  @Nullable
   public T remove(String key) {
     return store.remove(key);
   }

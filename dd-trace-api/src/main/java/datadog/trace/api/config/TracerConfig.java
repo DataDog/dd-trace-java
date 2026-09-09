@@ -134,6 +134,14 @@ public final class TracerConfig {
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
+  /**
+   * Opt-in (defaults to disabled). Resyncs the tracer's clock on every AWS Lambda invocation to fix
+   * drift left by an AWS Lambda SnapStart restore, which the periodic {@link #CLOCK_SYNC_PERIOD}
+   * check can miss. No-op outside an instrumented Lambda invocation.
+   */
+  public static final String TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED =
+      "trace.lambda.snapstart.clock.resync.enabled";
+
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
 
   public static final String TRACE_LONG_RUNNING_ENABLED = "trace.experimental.long-running.enabled";

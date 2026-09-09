@@ -8,7 +8,7 @@ plugins {
 // we put the test classes in the baseTest test set so that the scala
 // version is not inherited
 addTestSuite('baseTest')
-addTestSuiteExtendingForDir('baseForkedTest', 'baseTest', 'baseTest')
+addForkedTestTask('baseTest')
 addTestSuiteForDir('version101Test', 'baseTest')
 addTestSuiteExtendingForDir('version101ForkedTest', 'version101Test', 'baseTest')
 addTestSuiteForDir('version102Scala213Test', 'latestDepTest')
@@ -105,7 +105,7 @@ dependencies {
   compileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
 
   // These are the common dependencies that are inherited by the other test sets
-  testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+  testImplementation(libs.testing.okhttp3)
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
@@ -175,10 +175,6 @@ dependencies {
 }
 
 tasks.named("compileBaseTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
-}
-
-tasks.named("compileBaseForkedTestGroovy", GroovyCompile) {
   classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 

@@ -1,10 +1,22 @@
 package com.datadog.appsec.api.security
 
 import com.datadog.appsec.gateway.AppSecRequestContext
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.test.util.DDSpecification
 
 class ApiSecuritySamplerTest extends DDSpecification {
+
+  private static final String FRAMEWORK = 'test-framework'
+
+  private static final String MISSING_ROUTE_METRIC = 'api_security.missing_route'
+
+  void setup() {
+    // the raw metrics queue and its backing counters are a static singleton, flush and drain
+    // so each test starts from a clean state
+    WafMetricCollector.get().prepareMetrics()
+    WafMetricCollector.get().drain()
+  }
 
   void 'happy path with single request'() {
     given:
@@ -12,7 +24,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     final sampler = new ApiSecuritySamplerImpl()
 
     when:
-    final preSampled = sampler.preSampleRequest(ctx)
+    final preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     preSampled
@@ -32,7 +44,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     final sampler = new ApiSecuritySamplerImpl()
 
     when:
-    final preSampled1 = sampler.preSampleRequest(ctx1)
+    final preSampled1 = sampler.preSampleRequest(ctx1, FRAMEWORK)
     ctx1.setKeepOpenForApiSecurityPostProcessing(true)
     final sampled1 = sampler.sampleRequest(ctx1)
     sampler.releaseOne()
@@ -42,7 +54,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     sampled1
 
     when:
-    final preSampled2 = sampler.preSampleRequest(ctx2)
+    final preSampled2 = sampler.preSampleRequest(ctx2, FRAMEWORK)
 
     then:
     !preSampled2
@@ -57,14 +69,14 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
     when: 'exhaust the maximum number of concurrent contexts'
     final List<Boolean> preSampled1 = (1..sampler.MAX_POST_PROCESSING_TASKS).collect {
-      sampler.preSampleRequest(createContext('route1', 'GET', 200 + it))
+      sampler.preSampleRequest(createContext('route1', 'GET', 200 + it), FRAMEWORK)
     }
 
     then:
     preSampled1.every { it }
 
     and: 'try to sample one more'
-    final preSampled2 = sampler.preSampleRequest(ctx1)
+    final preSampled2 = sampler.preSampleRequest(ctx1, FRAMEWORK)
 
     then:
     !preSampled2
@@ -73,7 +85,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     sampler.releaseOne()
 
     and: 'next can be sampled'
-    final preSampled3 = sampler.preSampleRequest(ctx2)
+    final preSampled3 = sampler.preSampleRequest(ctx2, FRAMEWORK)
 
     then:
     preSampled3
@@ -85,7 +97,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
@@ -97,7 +109,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     preSampled
@@ -111,7 +123,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
@@ -124,7 +136,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled  // Blocked requests should not be sampled
@@ -137,7 +149,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     preSampled  // Legitimate APIs that return 403 should be sampled
@@ -154,8 +166,8 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled200 = sampler.preSampleRequest(ctx200)
-    def preSampled500 = sampler.preSampleRequest(ctx500)
+    def preSampled200 = sampler.preSampleRequest(ctx200, FRAMEWORK)
+    def preSampled500 = sampler.preSampleRequest(ctx500, FRAMEWORK)
 
     then:
     !preSampled200  // Blocked requests should not be sampled regardless of status code
@@ -169,7 +181,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled1 = sampler.preSampleRequest(ctx1)
+    def preSampled1 = sampler.preSampleRequest(ctx1, FRAMEWORK)
     ctx1.setKeepOpenForApiSecurityPostProcessing(true)
     def sampled1 = sampler.sampleRequest(ctx1)
     sampler.releaseOne()
@@ -179,7 +191,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     sampled1
 
     when:
-    def preSampled2 = sampler.preSampleRequest(ctx2)
+    def preSampled2 = sampler.preSampleRequest(ctx2, FRAMEWORK)
 
     then:
     !preSampled2 // Same endpoint pattern, so not sampled
@@ -204,7 +216,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
@@ -216,7 +228,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
@@ -227,7 +239,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    sampler.preSampleRequest(null)
+    sampler.preSampleRequest(null, FRAMEWORK)
 
     then:
     thrown(NullPointerException)
@@ -327,7 +339,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     when: 'first request is presampled with tracing disabled'
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then: 'request is sampled and access map is updated immediately'
     preSampled
@@ -337,7 +349,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     when: 'second request for same endpoint is attempted'
     def ctx2 = createContext('route1', 'GET', 200)
     sampler.releaseOne()
-    def preSampled2 = sampler.preSampleRequest(ctx2)
+    def preSampled2 = sampler.preSampleRequest(ctx2, FRAMEWORK)
 
     then: 'second request is not sampled because endpoint was already updated in first preSampleRequest'
     !preSampled2
@@ -374,7 +386,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     when: 'request is presampled with tracing enabled'
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then: 'request is sampled but access map is NOT updated yet'
     preSampled
@@ -428,7 +440,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     when: 'first request is presampled'
-    def preSampled1 = sampler.preSampleRequest(ctx1)
+    def preSampled1 = sampler.preSampleRequest(ctx1, FRAMEWORK)
 
     then: 'first request is sampled and access map is updated immediately'
     preSampled1
@@ -437,7 +449,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
     when: 'concurrent second request tries to presample same endpoint'
     sampler.releaseOne()
-    def preSampled2 = sampler.preSampleRequest(ctx2)
+    def preSampled2 = sampler.preSampleRequest(ctx2, FRAMEWORK)
 
     then: 'second request is not sampled because endpoint is already in access map'
     !preSampled2
@@ -454,7 +466,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     when: 'request goes through full sampling flow with tracing disabled'
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then: 'preSampleRequest returns true and updates access map'
     preSampled
@@ -478,7 +490,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     preSampled
@@ -502,12 +514,12 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when: 'first request uses endpoint to compute hash'
-    sampler.preSampleRequest(ctx1)
+    sampler.preSampleRequest(ctx1, FRAMEWORK)
     def hash1 = ctx1.getApiSecurityEndpointHash()
     def endpoint1 = ctx1.getOrComputeEndpoint()
 
     and: 'second request with same endpoint pattern'
-    sampler.preSampleRequest(ctx2)
+    sampler.preSampleRequest(ctx2, FRAMEWORK)
     def hash2 = ctx2.getApiSecurityEndpointHash()
     def endpoint2 = ctx2.getOrComputeEndpoint()
 
@@ -526,8 +538,8 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    sampler.preSampleRequest(ctx1)
-    sampler.preSampleRequest(ctx2)
+    sampler.preSampleRequest(ctx1, FRAMEWORK)
+    sampler.preSampleRequest(ctx2, FRAMEWORK)
     def hash1 = ctx1.getApiSecurityEndpointHash()
     def hash2 = ctx2.getApiSecurityEndpointHash()
     def endpoint1 = ctx1.getOrComputeEndpoint()
@@ -547,7 +559,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     preSampled
@@ -586,7 +598,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
@@ -603,12 +615,57 @@ class ApiSecuritySamplerTest extends DDSpecification {
     def sampler = new ApiSecuritySamplerImpl()
 
     when:
-    def preSampled = sampler.preSampleRequest(ctx)
+    def preSampled = sampler.preSampleRequest(ctx, FRAMEWORK)
 
     then:
     !preSampled
     // Blocked requests represent attacks, not legitimate API endpoints
     ctx.getApiSecurityEndpointHash() == null
+  }
+
+  void 'missing route metric is reported when the route cannot be resolved'() {
+    given: 'no route and no URL, so neither the route nor the endpoint can be resolved'
+    def ctx = createContext(null, 'GET', 200)
+    def sampler = new ApiSecuritySamplerImpl()
+
+    expect: 'the request is neither WAF blocked nor a 404, so it reaches the missing route branch'
+    ctx.getRoute() == null
+    ctx.getOrComputeEndpoint() == null
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx, 'spring-web')
+
+    then:
+    !preSampled
+
+    and:
+    def metrics = missingRouteMetrics()
+    metrics.size() == 1
+    metrics[0].value == 1
+    metrics[0].tags == ['framework:spring-web']
+  }
+
+  void 'missing route metric reports an unknown framework when the framework is null'() {
+    given:
+    def ctx = createContext(null, 'GET', 200)
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx, null)
+
+    then:
+    !preSampled
+
+    and:
+    def metrics = missingRouteMetrics()
+    metrics.size() == 1
+    metrics[0].tags == ['framework:unknown']
+  }
+
+  /** Returns the {@code api_security.missing_route} metrics reported so far. */
+  private static List<WafMetricCollector.WafMetric> missingRouteMetrics() {
+    WafMetricCollector.get().prepareMetrics()
+    WafMetricCollector.get().drain().findAll { it.metricName == MISSING_ROUTE_METRIC }
   }
 
   // Helper method to compute hash same way as ApiSecuritySamplerImpl
