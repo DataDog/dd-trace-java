@@ -147,10 +147,11 @@ final class TypeFactory {
   /**
    * New transform request; begins with type matching that only requires outline descriptions.
    *
-   * <p>Byte-buddy's circularity lock makes sure we won't have any nested transform calls, but we
-   * may be asked to transform support types while deciding which loaded types need re-transforming
-   * when first installing the agent. If that happens then we need to remember the original context
-   * used for matching and restore it afterwards.
+   * <p>Byte-buddy's circularity lock prevents nested callbacks from reaching this step, but those
+   * callbacks still pass through the outer transformer wrapper. We may also be asked to transform
+   * support types while deciding which loaded types need re-transforming when first installing the
+   * agent. If that happens then we need to remember the original context used for matching and
+   * restore it afterwards.
    */
   void beginTransform(String name, byte[] bytecode) {
     targetName = name;
@@ -185,7 +186,14 @@ final class TypeFactory {
     return wasEnabled;
   }
 
-  /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
+  /** Cleans up local caches if this callback owns the active transformation. */
+  void endTransform(byte[] classFileBuffer) {
+    if (targetBytecode == classFileBuffer) {
+      endTransform();
+    }
+  }
+
+  /** Cleans up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
     if (null == targetName) {
       return; // transformation didn't reach resolve step
