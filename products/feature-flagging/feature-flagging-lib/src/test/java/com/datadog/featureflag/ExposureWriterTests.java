@@ -1,9 +1,11 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,8 +67,6 @@ import okio.Okio;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
@@ -79,6 +79,7 @@ class ExposureWriterTests {
 
   private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
   private Queue<ExposuresRequest> requests;
+  private Queue<String> requestAttempts;
   private Set<String> failed;
   private JavaTestHttpServer server;
   private SharedCommunicationObjects sharedCommunicationObjects;
@@ -86,6 +87,7 @@ class ExposureWriterTests {
   @BeforeEach
   void setUp() {
     requests = new ConcurrentLinkedQueue<>();
+    requestAttempts = new ConcurrentLinkedQueue<>();
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
@@ -114,6 +116,7 @@ class ExposureWriterTests {
         adapter.fromJson(
             Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
+    requestAttempts.add(serviceName);
     boolean failForever = "fail-forever".equals(serviceName);
     boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
     if (fail) {
@@ -262,10 +265,26 @@ class ExposureWriterTests {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testFailuresAreRetried(boolean finallyFail) throws Exception {
-    String serviceName = finallyFail ? "fail-forever" : "fail-once";
+  @Test
+  void testQueueThresholdFlushesWithoutWaitingForTheInterval() throws Exception {
+    Config config = mockConfig("threshold-service");
+    List<ExposureEvent> exposures = buildExposures(101);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 8, Long.MAX_VALUE, NANOSECONDS, sharedCommunicationObjects, config)) {
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+      writer.init();
+
+      poll.eventually(() -> assertExposures(allExposures(), exposures));
+    }
+  }
+
+  @Test
+  void testHttpFailureIsNotRetriedAtTransportLayer() throws Exception {
+    String serviceName = "fail-once";
     Config config = mockConfig(serviceName);
 
     try (ExposureWriterImpl writer =
@@ -273,13 +292,11 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(buildExposure());
 
-      MILLISECONDS.sleep(500); // wait for a flush to happen
-      ExposuresRequest found = findRequest(serviceName);
-      if (finallyFail) {
-        assertNull(found, requests.toString());
-      } else {
-        poll.eventually(() -> assertNotNull(findRequest(serviceName), requests.toString()));
-      }
+      poll.eventually(() -> assertEquals(1, Collections.frequency(requestAttempts, serviceName)));
+      MILLISECONDS.sleep(500);
+
+      assertEquals(1, Collections.frequency(requestAttempts, serviceName));
+      assertNull(findRequest(serviceName), requests.toString());
     }
   }
 
@@ -309,7 +326,11 @@ class ExposureWriterTests {
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY))
+            Intake.EVENT_PLATFORM,
+            true,
+            HttpRetryPolicy.Factory.NEVER_RETRY,
+            V2_EVP_PROXY_ENDPOINT,
+            false))
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), eq(false)))
         .thenReturn(directApi);
@@ -383,6 +404,7 @@ class ExposureWriterTests {
   private SharedCommunicationObjects sharedCommunicationObjects(boolean evpProxyAvailable) {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.supportsEvpProxy()).thenReturn(evpProxyAvailable);
+    when(discovery.hasValidInfoResponse()).thenReturn(true);
     if (evpProxyAvailable) {
       when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
     }

@@ -25,6 +25,7 @@ public class BackendApiFactory {
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
   private final Map<String, String> requestHeaders;
+  private final boolean sendOnce;
 
   public BackendApiFactory(Config config, SharedCommunicationObjects sharedCommunicationObjects) {
     this(config, sharedCommunicationObjects, emptyMap());
@@ -34,9 +35,25 @@ public class BackendApiFactory {
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       Map<String, String> requestHeaders) {
+    this(config, sharedCommunicationObjects, requestHeaders, false);
+  }
+
+  /**
+   * Creates a backend factory with per-request headers and optional send-once transport semantics.
+   *
+   * <p>When {@code sendOnce} is true, both the explicit HTTP retry policy and OkHttp's automatic
+   * connection retry are disabled. This is required for event payloads that do not carry an
+   * idempotency key.
+   */
+  public BackendApiFactory(
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      Map<String, String> requestHeaders,
+      boolean sendOnce) {
     this.config = config;
     this.sharedCommunicationObjects = sharedCommunicationObjects;
     this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
+    this.sendOnce = sendOnce;
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake) {
@@ -82,7 +99,7 @@ public class BackendApiFactory {
         apiKey,
         traceId,
         retryPolicyFactory(),
-        withRequestHeaders(
+        configureHttpClient(
             directIntakeHttpClient(
                 sharedCommunicationObjects.getIntakeHttpClient(), followRedirects)),
         responseCompression);
@@ -136,13 +153,38 @@ public class BackendApiFactory {
   /** Creates an API client that sends data through a compatible local EVP proxy. */
   public @Nullable BackendApi createEvpProxyApi(
       Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, null, false);
+  }
+
+  /**
+   * Creates an EVP proxy client, optionally retaining a compatibility endpoint when Agent discovery
+   * itself is unavailable.
+   *
+   * <p>An authoritative Agent response that omits EVP support never uses the fallback endpoint. The
+   * {@code forceDiscovery} form is intended for bounded route-recovery probes.
+   */
+  public @Nullable BackendApi createEvpProxyApi(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      @Nullable String discoveryFailureFallbackEndpoint,
+      boolean forceDiscovery) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
-    featuresDiscovery.discoverIfOutdated();
-    if (!featuresDiscovery.supportsEvpProxy()) {
-      return null;
+    if (forceDiscovery) {
+      featuresDiscovery.discover();
+    } else {
+      featuresDiscovery.discoverIfOutdated();
     }
     String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
+    if (evpProxyEndpoint == null
+        && discoveryFailureFallbackEndpoint != null
+        && !featuresDiscovery.hasValidInfoResponse()) {
+      evpProxyEndpoint = discoveryFailureFallbackEndpoint;
+    }
+    if (evpProxyEndpoint == null) {
+      return null;
+    }
 
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     log.debug(
@@ -156,29 +198,35 @@ public class BackendApiFactory {
         traceId,
         evpProxyUrl,
         subdomain,
-        retryPolicyFactory,
-        withRequestHeaders(sharedCommunicationObjects.agentHttpClient),
+        sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
+        configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
   }
 
-  private OkHttpClient withRequestHeaders(final OkHttpClient httpClient) {
-    if (requestHeaders.isEmpty()) {
+  OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
+    if (requestHeaders.isEmpty() && !sendOnce) {
       return httpClient;
     }
-    return httpClient
-        .newBuilder()
-        .addInterceptor(
-            chain -> {
-              final Request.Builder requestBuilder = chain.request().newBuilder();
-              for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
-                requestBuilder.header(header.getKey(), header.getValue());
-              }
-              return chain.proceed(requestBuilder.build());
-            })
-        .build();
+    final OkHttpClient.Builder builder = httpClient.newBuilder();
+    if (sendOnce) {
+      builder.retryOnConnectionFailure(false);
+    }
+    if (!requestHeaders.isEmpty()) {
+      builder.addInterceptor(
+          chain -> {
+            final Request.Builder requestBuilder = chain.request().newBuilder();
+            for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+              requestBuilder.header(header.getKey(), header.getValue());
+            }
+            return chain.proceed(requestBuilder.build());
+          });
+    }
+    return builder.build();
   }
 
-  private static HttpRetryPolicy.Factory retryPolicyFactory() {
-    return new HttpRetryPolicy.Factory(5, 100, 2.0, true);
+  private HttpRetryPolicy.Factory retryPolicyFactory() {
+    return sendOnce
+        ? HttpRetryPolicy.Factory.NEVER_RETRY
+        : new HttpRetryPolicy.Factory(5, 100, 2.0, true);
   }
 }

@@ -73,6 +73,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getDebuggerSnapshotEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
+    features.hasValidInfoResponse()
     features.supportsContentEncodingHeadersWithEvpProxy()
     features.getEvpProxyEndpoint() == "evp_proxy/v4/"
     features.getVersion() == "0.99.0"
@@ -101,6 +102,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     features.getTraceEndpoint() == V04_ENDPOINT
+    !features.hasValidInfoResponse()
     0 * _
   }
 

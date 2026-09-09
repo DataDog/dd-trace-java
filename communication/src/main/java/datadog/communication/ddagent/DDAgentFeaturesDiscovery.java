@@ -103,6 +103,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     Set<String> peerTags = emptySet();
     String orgPropagationMarker;
     long lastTimeDiscovered;
+    boolean validInfoResponse;
   }
 
   private volatile State discoveryState;
@@ -326,6 +327,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         log.debug(
             "Failed to hash trace agent /info response. Will probe {}", newState.traceEndpoint, ex);
       }
+      newState.validInfoResponse = true;
       return true;
     } catch (Throwable error) {
       log.debug("Error parsing trace agent /info response", error);
@@ -433,6 +435,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsEvpProxy() {
     return discoveryState.evpProxyEndpoint != null;
+  }
+
+  /** Returns whether the last discovery attempt received a valid Agent info response. */
+  public boolean hasValidInfoResponse() {
+    return discoveryState.validInfoResponse;
   }
 
   public boolean supportsContentEncodingHeadersWithEvpProxy() {

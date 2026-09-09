@@ -3,6 +3,7 @@ package com.datadog.featureflag;
 import static datadog.communication.EvpProxy.JAVA_TRACING_LIBRARY;
 import static datadog.communication.EvpProxy.ORIGIN_HEADER;
 import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.unmodifiableMap;
 
@@ -35,7 +36,7 @@ final class FeatureFlagBackendApiFactory {
       final FeatureFlagEventType eventType) {
     this(
         config,
-        new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS),
+        new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS, true),
         eventType);
   }
 
@@ -50,18 +51,14 @@ final class FeatureFlagBackendApiFactory {
 
   @Nullable
   BackendApi create() {
-    final boolean directFallbackAvailable =
-        CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
-            && hasDirectCredentials();
-    final BackendApi proxyApi =
-        directFallbackAvailable
-            ? backendApiFactory.createEvpProxyApi(
-                Intake.EVENT_PLATFORM,
-                eventType.responseCompressionEnabled(),
-                HttpRetryPolicy.Factory.NEVER_RETRY)
-            : backendApiFactory.createEvpProxyApi(
-                Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
-    if (!CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
+    final boolean agentless =
+        CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource());
+    final boolean directFallbackAvailable = agentless && hasDirectCredentials();
+    // Preserve the historical v2 endpoint when initial discovery itself is unavailable. Recovery
+    // from a working direct route is stricter below: only an advertised endpoint proves that local
+    // delivery has returned, avoiding an ambiguous failed probe of an assumed v2 endpoint.
+    final BackendApi proxyApi = createProxyApi(false, true);
+    if (!agentless) {
       if (proxyApi == null) {
         LOGGER.warn(
             "Feature Flagging {} delivery is disabled because the local Agent does not support the EVP proxy",
@@ -70,23 +67,35 @@ final class FeatureFlagBackendApiFactory {
       return proxyApi;
     }
 
-    if (proxyApi != null) {
-      if (directFallbackAvailable) {
-        return new AgentlessFeatureFlagBackendApi(
-            proxyApi, this::createDirectApi, eventType.logName());
-      }
+    if (!directFallbackAvailable) {
       return proxyApi;
     }
 
-    final BackendApi directApi = createDirectApi();
-    if (directApi != null) {
-      return directApi;
+    final BackendApi directApi = proxyApi == null ? createDirectApi() : null;
+    if (proxyApi != null || directApi != null) {
+      return new AgentlessFeatureFlagBackendApi(
+          proxyApi,
+          directApi,
+          () -> createProxyApi(true, false),
+          this::createDirectApi,
+          eventType.logName());
     }
 
     LOGGER.warn(
         "Feature Flagging {} delivery is disabled because no compatible local EVP proxy or direct intake credentials are available",
         eventType.logName());
     return null;
+  }
+
+  @Nullable
+  private BackendApi createProxyApi(
+      final boolean forceDiscovery, final boolean useDiscoveryFailureFallback) {
+    return backendApiFactory.createEvpProxyApi(
+        Intake.EVENT_PLATFORM,
+        eventType.responseCompressionEnabled(),
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        useDiscoveryFailureFallback ? V2_EVP_PROXY_ENDPOINT : null,
+        forceDiscovery);
   }
 
   private static Map<String, String> requestHeaders() {

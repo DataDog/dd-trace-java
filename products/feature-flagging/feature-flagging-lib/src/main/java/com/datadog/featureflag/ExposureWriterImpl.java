@@ -200,7 +200,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private boolean shouldFlush() {
       long nanoTime = System.nanoTime();
       long ticks = nanoTime - lastTicks;
-      if (ticks > ticksRequiredToFlush || queue.size() >= FLUSH_THRESHOLD) {
+      if (ticks > ticksRequiredToFlush || buffer.size() >= FLUSH_THRESHOLD) {
         lastTicks = nanoTime;
         return true;
       }
