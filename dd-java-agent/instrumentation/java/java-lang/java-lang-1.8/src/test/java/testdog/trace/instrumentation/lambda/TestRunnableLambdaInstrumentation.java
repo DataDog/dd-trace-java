@@ -30,7 +30,7 @@ public final class TestRunnableLambdaInstrumentation extends InstrumenterModule.
   static final String ADVICE_MARKER_FIELD = "__datadog_test_for_lambda";
 
   public TestRunnableLambdaInstrumentation() {
-    super("test-runnable-lambda");
+    super("java-lang");
   }
 
   @Override
