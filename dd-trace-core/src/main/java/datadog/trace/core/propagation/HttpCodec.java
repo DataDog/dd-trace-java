@@ -285,8 +285,10 @@ public class HttpCodec {
         ExtractedContext firstContext,
         ExtractedContext traceContext,
         ExtractionCache<C> extractionCache) {
-      // Propagate newly extracted W3C tracestate to first valid context
-      firstContext.getPropagationTags().updateW3CTracestateFrom(traceContext.getPropagationTags());
+      firstContext
+          .getPropagationTags()
+          .updateW3CTracestateFrom(
+              traceContext.getPropagationTags(), firstContext.getSamplingPriority());
       // Check if parent spans differ to reconcile them
       if (firstContext.getSpanId() != traceContext.getSpanId()) {
         // Override parent span id with W3C one

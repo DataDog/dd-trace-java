@@ -1,11 +1,14 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_TRACE_ID;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,9 +43,15 @@ class HttpExtractorTest extends DDJavaSpecification {
   private static final String W3C_TRACE_ID = "00000000000000000000000000000001";
   private static final String W3C_SPAN_ID = "123456789abcdef0";
   private static final String W3C_TRACE_PARENT = "00-" + W3C_TRACE_ID + "-" + W3C_SPAN_ID + "-01";
+  private static final String W3C_TRACE_PARENT_DROP =
+      "00-" + W3C_TRACE_ID + "-" + W3C_SPAN_ID + "-00";
   private static final String W3C_PARENT_ID = "456789abcdef0123";
   private static final String W3C_TRACE_STATE_WITH_P = "dd=p:" + W3C_PARENT_ID;
   private static final String W3C_TRACE_STATE_NO_P = "dd=s:2,foo=1";
+  private static final String W3C_TRACE_STATE_WITH_OTEL =
+      "dd=s:0,ot=rv:ef284ace7a91e1;th:e6666666666668";
+  private static final String W3C_TRACE_STATE_WITH_OTEL_AND_DECISION_MAKER =
+      "dd=s:2;t.dm:-3,ot=rv:ef284ace7a91e1;th:e6666666666668";
   private static final String W3C_SPAN_ID_LSTR = Long.toString(DDSpanId.fromHex(W3C_SPAN_ID));
 
   @TableTest({
@@ -211,6 +220,41 @@ class HttpExtractorTest extends DDJavaSpecification {
     }
   }
 
+  @TableTest({
+    "samplingPriority | datadogTags   | traceParent             | traceState                                    ",
+    "0                |               | 'W3C_TRACE_PARENT_DROP' | 'W3C_TRACE_STATE_WITH_OTEL'                   ",
+    "2                | '_dd.p.dm=-3' | 'W3C_TRACE_PARENT'      | 'W3C_TRACE_STATE_WITH_OTEL_AND_DECISION_MAKER'"
+  })
+  void enrichesPropagationTagsWhenDatadogContextWins(
+      int samplingPriority,
+      String datadogTags,
+      @ConvertWith(W3cConstantConverter.class) String traceParent,
+      @ConvertWith(W3cConstantConverter.class) String traceState) {
+    HttpCodec.Extractor extractor = createExtractor(asList(DATADOG, TRACECONTEXT));
+    Map<String, String> headers =
+        headers(
+            DatadogHttpCodec.TRACE_ID_KEY,
+            "1",
+            DatadogHttpCodec.SPAN_ID_KEY,
+            "2",
+            DatadogHttpCodec.SAMPLING_PRIORITY_KEY,
+            String.valueOf(samplingPriority),
+            DatadogHttpCodec.DATADOG_TAGS_KEY,
+            datadogTags,
+            W3CHttpCodec.TRACE_PARENT_KEY,
+            traceParent,
+            W3CHttpCodec.TRACE_STATE_KEY,
+            traceState);
+
+    ExtractedContext context =
+        assertInstanceOf(ExtractedContext.class, extractor.extract(headers, stringValuesMap()));
+
+    assertEquals(samplingPriority, context.getSamplingPriority());
+    assertEquals(samplingPriority, context.getPropagationTags().getSamplingPriority());
+    assertEquals(
+        traceState, context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C));
+  }
+
   private static Set<TracePropagationStyle> orderedSetOf(List<TracePropagationStyle> styles) {
     return new LinkedHashSet<>(styles);
   }
@@ -224,6 +268,7 @@ class HttpExtractorTest extends DDJavaSpecification {
     Config config = mock(Config.class);
     when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
+    when(config.getxDatadogTagsMaxLength()).thenReturn(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create().setHeaderTags(headerTags).setBaggageMapping(emptyMap()).apply();
     return HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
@@ -248,10 +293,16 @@ class HttpExtractorTest extends DDJavaSpecification {
       switch (source.toString()) {
         case "W3C_TRACE_PARENT":
           return W3C_TRACE_PARENT;
+        case "W3C_TRACE_PARENT_DROP":
+          return W3C_TRACE_PARENT_DROP;
         case "W3C_TRACE_STATE_WITH_P":
           return W3C_TRACE_STATE_WITH_P;
         case "W3C_TRACE_STATE_NO_P":
           return W3C_TRACE_STATE_NO_P;
+        case "W3C_TRACE_STATE_WITH_OTEL":
+          return W3C_TRACE_STATE_WITH_OTEL;
+        case "W3C_TRACE_STATE_WITH_OTEL_AND_DECISION_MAKER":
+          return W3C_TRACE_STATE_WITH_OTEL_AND_DECISION_MAKER;
         case "W3C_SPAN_ID_LSTR":
           return W3C_SPAN_ID_LSTR;
         case "W3C_PARENT_ID":

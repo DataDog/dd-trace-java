@@ -98,10 +98,11 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
-  /** Updates the original W3C tracestate header from {@code source}. */
-  public void updateW3CTracestateFrom(PropagationTags source) {
-    updateW3CTracestate(source.getW3CTracestate());
-  }
+  /**
+   * Enriches these tags with the W3C tracestate from {@code source} and the reconciled sampling
+   * priority.
+   */
+  public abstract void updateW3CTracestateFrom(PropagationTags source, int samplingPriority);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new

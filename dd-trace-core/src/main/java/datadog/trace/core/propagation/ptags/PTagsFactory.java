@@ -560,13 +560,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateW3CTracestateFrom(PropagationTags source) {
-      if (!(source instanceof PTags)) {
-        super.updateW3CTracestateFrom(source);
-        return;
+    public void updateW3CTracestateFrom(PropagationTags source, int samplingPriority) {
+      String sourceTracestate = source.getW3CTracestate();
+      OtelTraceState sourceOtelTraceState =
+          source instanceof PTags
+              ? ((PTags) source).getOtelTraceState()
+              : W3CPTagsCodec.extractOtelTraceState(sourceTracestate);
+      setW3CTracestate(sourceTracestate, sourceOtelTraceState);
+      if (samplingPriority != PrioritySampling.UNSET) {
+        this.samplingPriority = samplingPriority;
       }
-      PTags sourcePTags = (PTags) source;
-      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
