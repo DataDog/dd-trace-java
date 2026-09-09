@@ -118,6 +118,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
@@ -182,6 +183,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -477,6 +479,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_SAMPLE_RATE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
@@ -701,6 +704,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STAT
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -1155,6 +1159,7 @@ public class Config {
   private final boolean llmObsAgentlessEnabled;
   private final String llmObsAgentlessUrl;
   private final String llmObsMlApp;
+  private final double llmObsSampleRate;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1349,6 +1354,8 @@ public class Config {
   private final IdGenerationStrategy idGenerationStrategy;
 
   private final boolean secureRandom;
+
+  private final boolean lambdaSnapStartClockResyncEnabled;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
@@ -1557,6 +1564,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    lambdaSnapStartClockResyncEnabled =
+        configProvider.getBoolean(
+            TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
+            DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
     cassandraKeyspaceStatementExtractionEnabled =
         configProvider.getBoolean(
             CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
@@ -1995,9 +2006,13 @@ public class Config {
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_ITEMS,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS));
       traceBaggageMaxBytes =
-          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+          nonNegativeBaggageLimit(
+              TRACE_BAGGAGE_MAX_BYTES,
+              configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES));
 
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
@@ -2205,7 +2220,7 @@ public class Config {
 
     String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
     if (otlpTracesEndpointFromEnvironment == null) {
-      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+      if (otlpTracesProtocol == OtlpConfig.Protocol.GRPC) {
         otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         otlpTracesEndpointFromEnvironment =
@@ -2684,6 +2699,18 @@ public class Config {
     final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
     llmObsMlApp =
         tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
+    // Fall back to "sample everything" rather than clamping
+    final double configuredLlmObsSampleRate =
+        configProvider.getDouble(LLMOBS_SAMPLE_RATE, DEFAULT_LLM_OBS_SAMPLE_RATE);
+    if (configuredLlmObsSampleRate >= 0.0 && configuredLlmObsSampleRate <= 1.0) {
+      llmObsSampleRate = configuredLlmObsSampleRate;
+    } else {
+      log.warn(
+          "Invalid value {} for {}: expected a rate between 0.0 and 1.0, falling back to 1.0.",
+          configuredLlmObsSampleRate,
+          LLMOBS_SAMPLE_RATE);
+      llmObsSampleRate = 1.0;
+    }
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -3430,6 +3457,14 @@ public class Config {
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
+  }
+
+  private static int nonNegativeBaggageLimit(String setting, int value) {
+    if (value < 0) {
+      log.warn("Invalid {}: {}. The value must not be negative. Disabling baggage", setting, value);
+      return 0;
+    }
+    return value;
   }
 
   private static boolean isValidUrl(String url) {
@@ -4461,6 +4496,16 @@ public class Config {
     return llmObsMlApp;
   }
 
+  /**
+   * The fraction of LLM Observability traces retained by the backend, in {@code [0.0, 1.0]}.
+   *
+   * <p>Independent of APM sampling: the decision made with this rate never affects an APM sampling
+   * priority, and an APM decision never affects it.
+   */
+  public double getLlmObsSampleRate() {
+    return llmObsSampleRate;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -5166,6 +5211,10 @@ public class Config {
 
   public boolean isAwsServerless() {
     return awsServerless;
+  }
+
+  public boolean isLambdaSnapStartClockResyncEnabled() {
+    return lambdaSnapStartClockResyncEnabled;
   }
 
   public boolean isDataStreamsEnabled() {

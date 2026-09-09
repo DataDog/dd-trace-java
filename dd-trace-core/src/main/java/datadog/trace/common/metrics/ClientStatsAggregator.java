@@ -310,6 +310,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     return reportingIntervalTimeUnit;
   }
 
+  @VisibleForTesting
   Aggregator aggregator() {
     return aggregator;
   }

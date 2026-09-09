@@ -77,6 +77,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -95,6 +96,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TraceScopeContinuationWrapper",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",

@@ -68,9 +68,22 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     }
 
     // Collect span metrics
+    spanMetricsLoop:
     for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before touching any more span-metrics entries, not just the counters of
+        // the current one, so a full queue doesn't leave us building tags and iterating counters we
+        // can't enqueue anyway.
+        break;
+      }
       String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();
       for (CoreCounter counter : spanMetrics.getCounters()) {
+        if (this.metricsQueue.remainingCapacity() == 0) {
+          // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+          // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+          // delta for good; the untouched counters are picked up on the next collection cycle.
+          break spanMetricsLoop;
+        }
         long value = counter.getValueAndReset();
         if (value == 0) {
           // Skip not updated counters
@@ -80,13 +93,19 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
             new CoreMetric(METRIC_NAMESPACE, true, counter.getName(), "count", value, tag);
         if (!this.metricsQueue.offer(metric)) {
           // Stop adding metrics if the queue is full
-          break;
+          break spanMetricsLoop;
         }
       }
     }
 
     // Collect baggage metrics
     for (BaggageMetrics.TaggedCounter counter : this.baggageMetrics.getTaggedCounters()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+        // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+        // delta for good; the untouched counters are picked up on the next collection cycle.
+        break;
+      }
       long value = counter.getValueAndReset();
       if (value == 0) {
         // Skip not updated counters

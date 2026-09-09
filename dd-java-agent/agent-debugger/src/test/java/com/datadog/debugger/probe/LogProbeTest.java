@@ -2,6 +2,8 @@ package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.agent.CapturingTestBase.getConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.EVALUATION_TIME_OUT;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
@@ -9,10 +11,18 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe.Builder;
@@ -388,6 +398,65 @@ public class LogProbeTest {
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
     }
+  }
+
+  @Test
+  public void isReadyToCaptureRateLimitedRecordsSkip() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    try {
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+      LogProbe logProbe = createLog(null).build();
+      logProbe.initSamplers();
+      Assertions.assertFalse(logProbe.isReadyToCapture());
+      verify(sink).skipSnapshot(PROBE_ID.getId(), RATE_LIMIT);
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
+
+  @Test
+  public void evaluateConditionTimeoutRecordsSkipAndConditionErrors() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    ProbeCondition timingOutCondition = mock(ProbeCondition.class);
+    when(timingOutCondition.execute(any(), any()))
+        .thenThrow(new EvaluationTimeOutException("timeout after 100ms", "slow.expr"));
+    LogProbe logProbe =
+        createLog(null).evaluateAt(MethodLocation.EXIT).when(timingOutCondition).build();
+    CapturedContext context = new CapturedContext();
+    LogStatus status = new LogStatus(logProbe);
+
+    // methodLocation (ENTRY) intentionally differs from evaluateAt (EXIT) so that sample() is a
+    // no-op here, isolating the skipSnapshot call to evaluateCondition()'s timeout handling.
+    logProbe.evaluate(context, status, MethodLocation.ENTRY, false);
+
+    Assertions.assertFalse(status.getCondition());
+    assertTrue(status.hasConditionErrors());
+    assertEquals(1, status.getErrors().size());
+    assertEquals("slow.expr", status.getErrors().get(0).getExpr());
+    assertEquals("timeout after 100ms", status.getErrors().get(0).getMessage());
+    verify(sink).skipSnapshot(PROBE_ID.getId(), EVALUATION_TIME_OUT);
+    verify(sink, times(1)).skipSnapshot(anyString(), any());
+  }
+
+  @Test
+  public void evaluateConditionFalseDoesNotSkipSnapshot() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    LogProbe logProbe =
+        createLog(null)
+            .evaluateAt(MethodLocation.EXIT)
+            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+            .build();
+    CapturedContext context = new CapturedContext();
+    LogStatus status = new LogStatus(logProbe);
+
+    logProbe.evaluate(context, status, MethodLocation.EXIT, false);
+
+    Assertions.assertFalse(status.getCondition());
+    Assertions.assertFalse(status.hasConditionErrors());
+    verify(sink, never()).skipSnapshot(anyString(), any());
   }
 
   private Builder createLog(String template) {

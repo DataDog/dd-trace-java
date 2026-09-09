@@ -100,6 +100,6 @@ public class SessionMethodUtils {
       return;
     }
 
-    targetContextStore.putIfAbsent(target, state);
+    targetContextStore.getOrPut(target, state);
   }
 }
