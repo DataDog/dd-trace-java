@@ -76,6 +76,23 @@ class TypeFactoryTest {
         matches(name, bytes(name, Runnable.class, Visibility.PACKAGE_PRIVATE), true, isPublic));
   }
 
+  @Test
+  void nestedCallbackDoesNotEndOuterTransform() {
+    String name = getClass().getName() + "$NestedCallbackTarget";
+    TypeFactory typeFactory = TypeFactory.typeFactory.get();
+    typeFactory.switchContext(TypeFactoryTest.class.getClassLoader());
+
+    byte[] outerBytecode = bytes(name, Runnable.class);
+    typeFactory.beginTransform(name, outerBytecode);
+    try {
+      typeFactory.endTransform(bytes(name + "$Nested", Runnable.class));
+
+      assertEquals(Runnable.class.getName(), resolveCurrentTargetInterface(name));
+    } finally {
+      typeFactory.endTransform(outerBytecode);
+    }
+  }
+
   private static String resolveInterface(String name, byte[] bytecode, boolean lambda) {
     TypeFactory typeFactory = TypeFactory.typeFactory.get();
     typeFactory.switchContext(TypeFactoryTest.class.getClassLoader());
@@ -92,6 +109,11 @@ class TypeFactoryTest {
         typeFactory.endLambdaTransform();
       }
     }
+  }
+
+  private static String resolveCurrentTargetInterface(String name) {
+    TypeDescription type = TypeFactory.findType(name);
+    return type.getInterfaces().getOnly().asErasure().getName();
   }
 
   private static boolean matches(

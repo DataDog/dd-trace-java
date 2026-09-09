@@ -72,8 +72,8 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
   }
 
   @Override
-  public void endTransform() {
-    typeFactory.get().endTransform();
+  public void endTransform(byte[] classFileBuffer) {
+    typeFactory.get().endTransform(classFileBuffer);
   }
 
   @Override
