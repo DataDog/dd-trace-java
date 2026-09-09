@@ -134,6 +134,42 @@ Before adding advice to an async wrapper, trace the call path to the sync delega
 
 The completion callback advice (whenComplete-style) is still useful for span-close cleanup on the caller's future, but it does not by itself guarantee the sync client's advice sees the right parent. See `context-tracking.md` for the propagation patterns and the specific `readOnly`/lambda constraints.
 
+### One matcher spanning sync and callback-based overloads must not finish the span at method exit
+
+This is a distinct failure from the double-span case above: here there is only ONE advice, but its method matcher is broad enough to also match an overload that takes a completion callback (e.g. a JMS-style `send(Message)` and `send(Message, CompletionListener)`, or any library's `doThing(Args)` / `doThing(Args, Callback)` pair). If the exit advice unconditionally finishes the span, the callback-based overload's span is finished when the submitting call returns — not when the operation actually completes — truncating its duration and losing any error the callback would have reported.
+
+**Fix:** either (a) split into two advices with matchers narrow enough to distinguish the callback-taking overload from the synchronous one, or (b) in a single advice, branch on whether the callback parameter is present: if absent, finish the span at exit as normal; if present, wrap the callback (mirroring the delegate-wrapper pattern used for async HTTP clients above) so the wrapper's `onCompletion()`/`onSuccess()`/`onError()` finishes the span, and do NOT finish it in the exit advice for that call.
+
+```java
+// WRONG — same exit advice finishes the span whether or not a callback was supplied
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable thrown) {
+  if (scope != null) {
+    DECORATE.onError(scope.span(), thrown);
+    scope.close();
+    scope.span().finish();  // wrong for the callback-based overload — completes too early
+  }
+}
+
+// CORRECT — the callback-based overload's advice wraps the callback and does NOT
+// finish the span itself; only the callback-less overload's advice finishes at exit
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(
+    @Advice.Enter AgentScope scope,
+    @Advice.Argument(value = 1, readOnly = false) CompletionListener listener) {
+  if (scope != null) {
+    if (listener != null) {
+      listener = new DatadogCompletionListener(listener, scope.span());
+    } else {
+      scope.span().finish();
+    }
+    scope.close();
+  }
+}
+```
+
+**How to discover**: before writing the exit advice, check whether the method being matched has a sibling overload that accepts a callback/listener parameter. If the matcher (or the matched method set) covers both, this rule applies.
+
 ## Multiple advice classes and `@AppliesOn`
 
 If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` inside `methodAdvice()`. Use the `@AppliesOn` annotation to control which target systems each advice applies to.
